@@ -60,12 +60,12 @@ const STATUS_CONFIG: Record<string, { bg: string; text: string }> = {
   Offline:      { bg: 'bg-red-100', text: 'text-red-700' },
   Maintenance:  { bg: 'bg-amber-100', text: 'text-amber-700' },
   Retired:      { bg: 'bg-slate-100', text: 'text-slate-600' },
-  Open:         { bg: 'bg-blue-100', text: 'text-blue-700' },
+  Open:         { bg: 'bg-green-100', text: 'text-green-700' },
   'In Progress': { bg: 'bg-amber-100', text: 'text-amber-700' },
   Resolved:     { bg: 'bg-emerald-100', text: 'text-emerald-700' },
   Closed:       { bg: 'bg-slate-100', text: 'text-slate-600' },
   Active:       { bg: 'bg-emerald-100', text: 'text-emerald-700' },
-  Licensed:     { bg: 'bg-blue-100', text: 'text-blue-700' },
+  Licensed:     { bg: 'bg-green-100', text: 'text-green-700' },
   Expired:      { bg: 'bg-red-100', text: 'text-red-700' },
   'Expiring Soon': { bg: 'bg-amber-100', text: 'text-amber-700' },
 };
@@ -169,11 +169,11 @@ interface RecentActivity {
 
 function getDemoStats(): ITStat[] {
   return [
-    { label: 'Active Devices', value: 1247, sub: '148 new this month', icon: <FiMonitor className="w-5 h-5" />, color: COLORS.blue, bgColor: 'bg-blue-50', trend: 12.4, trendLabel: 'vs last month' },
+    { label: 'Active Devices', value: 1247, sub: '148 new this month', icon: <FiMonitor className="w-5 h-5" />, color: COLORS.blue, bgColor: 'bg-green-50', trend: 12.4, trendLabel: 'vs last month' },
     { label: 'Security Alerts', value: 23, sub: '4 critical pending', icon: <FiShield className="w-5 h-5" />, color: COLORS.rose, bgColor: 'bg-rose-50', trend: -8.2, trendLabel: 'vs last week' },
     { label: 'Open Tickets', value: 67, sub: '12 escalated', icon: <FiHeadphones className="w-5 h-5" />, color: COLORS.amber, bgColor: 'bg-amber-50', trend: 5.7, trendLabel: 'vs last week' },
     { label: 'System Uptime', value: '99.97%', sub: 'Last 30 days', icon: <FiActivity className="w-5 h-5" />, color: COLORS.emerald, bgColor: 'bg-emerald-50', trend: 0.02, trendLabel: 'improvement' },
-    { label: 'Pending Updates', value: 34, sub: '8 high priority', icon: <FiRefreshCw className="w-5 h-5" />, color: COLORS.violet, bgColor: 'bg-violet-50', trend: -15.3, trendLabel: 'vs last week' },
+    { label: 'Pending Updates', value: 34, sub: '8 high priority', icon: <FiRefreshCw className="w-5 h-5" />, color: COLORS.violet, bgColor: 'bg-teal-50', trend: -15.3, trendLabel: 'vs last week' },
     { label: 'Storage Used', value: '73.2%', sub: '4.4 TB of 6 TB', icon: <FiHardDrive className="w-5 h-5" />, color: COLORS.cyan, bgColor: 'bg-cyan-50', trend: 3.1, trendLabel: 'growth rate' },
   ];
 }
@@ -258,9 +258,9 @@ function getDemoSoftwareList(): SoftwareItem[] {
 
 function getDemoNetworkStats(): NetworkStat[] {
   return [
-    { id: '1', label: 'Bandwidth', value: '847 Mbps', icon: <FiWifi className="w-5 h-5" />, color: COLORS.blue, bgColor: 'bg-blue-50' },
+    { id: '1', label: 'Bandwidth', value: '847 Mbps', icon: <FiWifi className="w-5 h-5" />, color: COLORS.blue, bgColor: 'bg-green-50' },
     { id: '2', label: 'Active Connections', value: '1,284', icon: <FiServer className="w-5 h-5" />, color: COLORS.emerald, bgColor: 'bg-emerald-50' },
-    { id: '3', label: 'VPN Users Online', value: '47', icon: <FiLock className="w-5 h-5" />, color: COLORS.violet, bgColor: 'bg-violet-50' },
+    { id: '3', label: 'VPN Users Online', value: '47', icon: <FiLock className="w-5 h-5" />, color: COLORS.violet, bgColor: 'bg-teal-50' },
     { id: '4', label: 'Avg Latency', value: '12ms', icon: <FiActivity className="w-5 h-5" />, color: COLORS.amber, bgColor: 'bg-amber-50' },
   ];
 }
@@ -410,10 +410,10 @@ export default function ITAdminHubPage() {
   };
 
   const quickActions = [
-    { label: 'New Ticket', icon: <FiPlus className="w-5 h-5" />, color: COLORS.blue, bgColor: 'bg-blue-50' },
+    { label: 'New Ticket', icon: <FiPlus className="w-5 h-5" />, color: COLORS.blue, bgColor: 'bg-green-50' },
     { label: 'Add Device', icon: <FiMonitor className="w-5 h-5" />, color: COLORS.emerald, bgColor: 'bg-emerald-50' },
     { label: 'Run Scan', icon: <FiShield className="w-5 h-5" />, color: COLORS.rose, bgColor: 'bg-rose-50' },
-    { label: 'System Update', icon: <FiRefreshCw className="w-5 h-5" />, color: COLORS.violet, bgColor: 'bg-violet-50' },
+    { label: 'System Update', icon: <FiRefreshCw className="w-5 h-5" />, color: COLORS.violet, bgColor: 'bg-teal-50' },
   ];
 
   /* ---- Render helpers ---- */
@@ -597,10 +597,10 @@ export default function ITAdminHubPage() {
             <div className="space-y-3 max-h-[280px] overflow-y-auto pr-1">
               {recentActivities.map((act) => {
                 const typeColors: Record<string, string> = {
-                  device: 'text-blue-500 bg-blue-50',
+                  device: 'text-green-500 bg-green-50',
                   ticket: 'text-amber-500 bg-amber-50',
                   security: 'text-rose-500 bg-rose-50',
-                  update: 'text-violet-500 bg-violet-50',
+                  update: 'text-teal-500 bg-teal-50',
                 };
                 const colorClass = typeColors[act.type] || 'text-slate-500 bg-slate-50';
                 return (
@@ -720,8 +720,8 @@ export default function ITAdminHubPage() {
     const secStats = [
       { label: 'Active Threats', value: '4', icon: <FiAlertTriangle className="w-5 h-5" />, color: COLORS.rose, bgColor: 'bg-rose-50' },
       { label: 'Firewall Status', value: 'Active', icon: <FiShield className="w-5 h-5" />, color: COLORS.emerald, bgColor: 'bg-emerald-50' },
-      { label: 'Antivirus Coverage', value: '98.7%', icon: <FiCheckCircle className="w-5 h-5" />, color: COLORS.blue, bgColor: 'bg-blue-50' },
-      { label: 'Last Scan', value: '2h ago', icon: <FiClock className="w-5 h-5" />, color: COLORS.violet, bgColor: 'bg-violet-50' },
+      { label: 'Antivirus Coverage', value: '98.7%', icon: <FiCheckCircle className="w-5 h-5" />, color: COLORS.blue, bgColor: 'bg-green-50' },
+      { label: 'Last Scan', value: '2h ago', icon: <FiClock className="w-5 h-5" />, color: COLORS.violet, bgColor: 'bg-teal-50' },
     ];
     return (
       <div className="space-y-6">

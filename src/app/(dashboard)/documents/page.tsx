@@ -298,7 +298,7 @@ export default function DocumentsPage() {
           </h1>
           <p className="text-thb-text-secondary mt-1">Manage employee documents and records</p>
         </div>
-        <button onClick={handleAddNew} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium text-sm shadow-sm shadow-blue-500/25 transition-colors">
+        <button onClick={handleAddNew} className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-500 text-white rounded-lg hover:bg-green-600 font-medium text-sm shadow-sm shadow-green-500/25 transition-colors">
           <FiPlus className="w-4 h-4" />
           Upload Document
         </button>
@@ -317,7 +317,7 @@ export default function DocumentsPage() {
               placeholder="Search by name..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+              className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
             />
           </div>
           <div className="flex items-center gap-2">
@@ -325,7 +325,7 @@ export default function DocumentsPage() {
             <select
               value={filterType}
               onChange={e => setFilterType(e.target.value)}
-              className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+              className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
             >
               <option value="">All Types</option>
               {DOC_TYPES.map(t => <option key={t} value={t}>{getTypeLabel(t)}</option>)}
@@ -333,7 +333,7 @@ export default function DocumentsPage() {
             <select
               value={filterStatus}
               onChange={e => setFilterStatus(e.target.value)}
-              className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+              className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
             >
               <option value="">All Statuses</option>
               {DOC_STATUSES.map(s => <option key={s} value={s}>{formatStatus(s)}</option>)}
@@ -352,7 +352,7 @@ export default function DocumentsPage() {
                 Document Details
               </h2>
               <div className="flex items-center gap-2">
-                <button onClick={() => handleEdit(viewingDocument)} className="px-3 py-1.5 rounded-lg bg-blue-500 text-white text-xs font-medium hover:bg-blue-600 transition-colors flex items-center gap-1"><FiEdit2 className="w-3.5 h-3.5" />Edit</button>
+                <button onClick={() => handleEdit(viewingDocument)} className="px-3 py-1.5 rounded-lg bg-green-500 text-white text-xs font-medium hover:bg-green-600 transition-colors flex items-center gap-1"><FiEdit2 className="w-3.5 h-3.5" />Edit</button>
                 <button onClick={() => setViewingId(null)} className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors"><FiX className="w-5 h-5" /></button>
               </div>
             </div>
@@ -398,7 +398,7 @@ export default function DocumentsPage() {
 
       {/* Embedded Form */}
       {showForm && (
-        <div id="crud-form" className="thb-card border-l-4 border-l-blue-500">
+        <div id="crud-form" className="thb-card border-l-4 border-l-green-500">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-semibold text-thb-text-primary">
@@ -411,18 +411,18 @@ export default function DocumentsPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Document Name *</label>
-                <input type="text" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="Document name" />
+                <input type="text" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="Document name" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Type *</label>
-                <select value={form.type} onChange={e => setForm(p => ({ ...p, type: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                <select value={form.type} onChange={e => setForm(p => ({ ...p, type: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                   {DOC_TYPES.map(t => <option key={t} value={t}>{getTypeLabel(t)}</option>)}
                 </select>
               </div>
               {!editingId && (
                 <div>
                   <label className="block text-xs font-medium text-thb-text-secondary mb-1">Employee *</label>
-                  <select value={form.employeeId} onChange={e => setForm(p => ({ ...p, employeeId: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                  <select value={form.employeeId} onChange={e => setForm(p => ({ ...p, employeeId: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                     <option value="">Select Employee</option>
                     {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.firstName} {emp.lastName}</option>)}
                   </select>
@@ -430,26 +430,26 @@ export default function DocumentsPage() {
               )}
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">File URL</label>
-                <input type="text" value={form.fileUrl} onChange={e => setForm(p => ({ ...p, fileUrl: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="https://..." />
+                <input type="text" value={form.fileUrl} onChange={e => setForm(p => ({ ...p, fileUrl: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="https://..." />
               </div>
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Status</label>
-                <select value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                <select value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                   {DOC_STATUSES.map(s => <option key={s} value={s}>{formatStatus(s)}</option>)}
                 </select>
               </div>
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Expiry Date</label>
-                <input type="date" value={form.expiryDate} onChange={e => setForm(p => ({ ...p, expiryDate: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                <input type="date" value={form.expiryDate} onChange={e => setForm(p => ({ ...p, expiryDate: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
               </div>
               <div className="sm:col-span-2 lg:col-span-3">
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Description</label>
-                <textarea rows={2} value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 resize-none" placeholder="Document description..." />
+                <textarea rows={2} value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 resize-none" placeholder="Document description..." />
               </div>
             </div>
             <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-thb-border">
               <button onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
-              <button onClick={handleSubmit} disabled={submitting} className="px-6 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50 shadow-sm shadow-blue-500/25 transition-colors">
+              <button onClick={handleSubmit} disabled={submitting} className="px-6 py-2.5 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 disabled:opacity-50 shadow-sm shadow-green-500/25 transition-colors">
                 {submitting ? 'Saving...' : editingId ? 'Update' : 'Upload'}
               </button>
             </div>
@@ -535,7 +535,7 @@ export default function DocumentsPage() {
                           <td className="px-4 py-3">
                             <div className="flex items-center justify-end gap-1">
                               <button onClick={() => { setViewingId(doc.id); setShowForm(false); setTimeout(() => document.getElementById('view-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100); }} className="p-2 rounded-lg text-thb-text-muted hover:text-emerald-500 hover:bg-emerald-50 transition-colors" title="View"><FiEye className="w-4 h-4" /></button>
-                              <button onClick={() => handleEdit(doc)} className="p-2 rounded-lg text-thb-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="Edit">
+                              <button onClick={() => handleEdit(doc)} className="p-2 rounded-lg text-thb-text-muted hover:text-green-500 hover:bg-green-50 transition-colors" title="Edit">
                                 <FiEdit2 className="w-4 h-4" />
                               </button>
                               <button onClick={() => setDeleteConfirmId(doc.id)} className="p-2 rounded-lg text-thb-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete">

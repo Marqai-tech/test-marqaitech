@@ -63,7 +63,7 @@ export default function CatalogPage() {
         <p className="text-sm text-gray-600 mt-1">White-labeled · API integrations · Corporate vs public pricing (REQ-SHP-01/02/03)</p>
       </div>
       <div className="flex gap-2">
-        {cats.map(c => <button key={c} onClick={() => setCategory(c)} className={`px-3 py-1 text-sm rounded ${category === c ? 'bg-blue-600 text-white' : 'bg-gray-100'}`}>{c || 'All'}</button>)}
+        {cats.map(c => <button key={c} onClick={() => setCategory(c)} className={`px-3 py-1 text-sm rounded ${category === c ? 'bg-green-600 text-white' : 'bg-gray-100'}`}>{c || 'All'}</button>)}
       </div>
       {loading ? <div className="text-gray-500">Loading...</div> : (
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -77,7 +77,7 @@ export default function CatalogPage() {
                 <span className="text-lg font-bold text-green-600">{p.currency} {p.corporatePrice}</span>
               </div>
               <div className="text-xs text-gray-500 mb-3">Buckets: {p.allowedBuckets}</div>
-              <button onClick={() => buy(p)} className="w-full px-3 py-1.5 bg-blue-600 text-white text-sm rounded hover:bg-blue-700">Buy Now</button>
+              <button onClick={() => buy(p)} className="w-full px-3 py-1.5 bg-green-600 text-white text-sm rounded hover:bg-green-700">Buy Now</button>
             </div>
           ))}
           {products.length === 0 && <div className="col-span-full text-center text-gray-500 py-12">No products in catalog. Add products as super_admin.</div>}

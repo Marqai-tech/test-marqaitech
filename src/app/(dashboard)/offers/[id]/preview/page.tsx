@@ -144,7 +144,7 @@ function OfferPreviewContent() {
       <div className="thb-card p-12 text-center">
         <FiFileText className="w-10 h-10 text-thb-text-muted mx-auto mb-3" />
         <p className="text-thb-text-secondary font-medium">Offer not found</p>
-        <Link href="/offers" className="inline-flex items-center gap-2 mt-4 text-sm text-blue-600 hover:underline">
+        <Link href="/offers" className="inline-flex items-center gap-2 mt-4 text-sm text-green-600 hover:underline">
           <FiArrowLeft className="w-4 h-4" /> Back to Offers
         </Link>
       </div>
@@ -212,7 +212,7 @@ function OfferPreviewContent() {
           <span className="text-thb-text-muted">Provider: {offer.esignProvider}</span>
         )}
         {offer.signedPdfUrl && (
-          <a href={offer.signedPdfUrl} target="_blank" rel="noreferrer" className="ml-auto inline-flex items-center gap-1 text-blue-600 hover:underline">
+          <a href={offer.signedPdfUrl} target="_blank" rel="noreferrer" className="ml-auto inline-flex items-center gap-1 text-green-600 hover:underline">
             <FiExternalLink className="w-3 h-3" /> View Signed Copy
           </a>
         )}
@@ -235,7 +235,7 @@ function OfferPreviewContent() {
 
 export default function OfferPreviewPage() {
   return (
-    <Suspense fallback={<div className="flex items-center justify-center min-h-[40vh]"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto" /></div>}>
+    <Suspense fallback={<div className="flex items-center justify-center min-h-[40vh]"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500 mx-auto" /></div>}>
       <OfferPreviewContent />
     </Suspense>
   );

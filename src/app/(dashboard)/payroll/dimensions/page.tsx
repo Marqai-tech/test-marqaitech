@@ -241,7 +241,7 @@ export default function DimensionsPage() {
         <div className="flex items-center gap-2">
           <button onClick={() => fetchData()} className="p-2.5 rounded-lg border border-thb-border text-thb-text-secondary hover:bg-slate-50 transition-colors" title="Refresh"><FiRefreshCw className="w-4 h-4" /></button>
           {isAdmin && (
-            <button onClick={handleAddNew} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium text-sm shadow-sm shadow-blue-500/25 transition-colors">
+            <button onClick={handleAddNew} className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-500 text-white rounded-lg hover:bg-green-600 font-medium text-sm shadow-sm shadow-green-500/25 transition-colors">
               <FiPlus className="w-4 h-4" /> Add Dimension
             </button>
           )}
@@ -252,7 +252,7 @@ export default function DimensionsPage() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center"><FiGrid className="w-5 h-5 text-blue-500" /></div>
+            <div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center"><FiGrid className="w-5 h-5 text-green-500" /></div>
             <div><p className="text-xs font-medium text-thb-text-secondary">Total Dimensions</p><p className="text-xl font-bold text-thb-text-primary">{totalDimensions}</p></div>
           </div>
         </div>
@@ -264,7 +264,7 @@ export default function DimensionsPage() {
         </div>
         <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-purple-50 flex items-center justify-center"><FiGrid className="w-5 h-5 text-purple-500" /></div>
+            <div className="w-10 h-10 rounded-lg bg-teal-50 flex items-center justify-center"><FiGrid className="w-5 h-5 text-teal-500" /></div>
             <div><p className="text-xs font-medium text-thb-text-secondary">Custom</p><p className="text-xl font-bold text-thb-text-primary">{customCount}</p></div>
           </div>
         </div>
@@ -281,9 +281,9 @@ export default function DimensionsPage() {
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
             <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
-            <input type="text" placeholder="Search by code or name..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+            <input type="text" placeholder="Search by code or name..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
           </div>
-          <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[150px]">
+          <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 min-w-[150px]">
             <option value="">All Types</option>
             {DIMENSION_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
@@ -300,7 +300,7 @@ export default function DimensionsPage() {
                 <p className="text-sm text-thb-text-secondary mt-0.5">{viewingDimension.code}</p>
               </div>
               <div className="flex items-center gap-2">
-                {isAdmin && <button onClick={() => handleEdit(viewingDimension)} className="px-3 py-1.5 rounded-lg bg-blue-500 text-white text-xs font-medium hover:bg-blue-600 transition-colors flex items-center gap-1"><FiEdit2 className="w-3.5 h-3.5" /> Edit</button>}
+                {isAdmin && <button onClick={() => handleEdit(viewingDimension)} className="px-3 py-1.5 rounded-lg bg-green-500 text-white text-xs font-medium hover:bg-green-600 transition-colors flex items-center gap-1"><FiEdit2 className="w-3.5 h-3.5" /> Edit</button>}
                 <button onClick={() => setViewingDimension(null)} className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors"><FiX className="w-5 h-5" /></button>
               </div>
             </div>
@@ -350,7 +350,7 @@ export default function DimensionsPage() {
 
       {/* Form */}
       {showForm && (
-        <div id="crud-form" className="thb-card border-l-4 border-l-blue-500">
+        <div id="crud-form" className="thb-card border-l-4 border-l-green-500">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-semibold text-thb-text-primary">{editingId ? 'Edit Dimension' : 'Create Dimension'}</h2>
@@ -362,7 +362,7 @@ export default function DimensionsPage() {
                 <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Quick Presets</h3>
                 <div className="flex flex-wrap gap-2">
                   {STANDARD_DIMENSIONS.map(preset => (
-                    <button key={preset.code} onClick={() => handlePresetSelect(preset)} className="px-3 py-1.5 rounded-lg border border-thb-border text-xs font-medium text-thb-text-secondary hover:bg-slate-50 hover:text-blue-600 transition-colors">
+                    <button key={preset.code} onClick={() => handlePresetSelect(preset)} className="px-3 py-1.5 rounded-lg border border-thb-border text-xs font-medium text-thb-text-secondary hover:bg-slate-50 hover:text-green-600 transition-colors">
                       {preset.code} — {preset.name}
                     </button>
                   ))}
@@ -373,31 +373,31 @@ export default function DimensionsPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Code *</label>
-                <input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase().replace(/\s+/g, '_') })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="e.g. DEPT, CC, PROJ" />
+                <input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase().replace(/\s+/g, '_') })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="e.g. DEPT, CC, PROJ" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Name *</label>
-                <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="e.g. Department, Cost Center" />
+                <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="e.g. Department, Cost Center" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Dimension Type</label>
-                <select value={form.dimensionType} onChange={(e) => setForm({ ...form, dimensionType: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                <select value={form.dimensionType} onChange={(e) => setForm({ ...form, dimensionType: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                   {DIMENSION_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
               </div>
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Allocation Method</label>
-                <select value={form.allocationMethod} onChange={(e) => setForm({ ...form, allocationMethod: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                <select value={form.allocationMethod} onChange={(e) => setForm({ ...form, allocationMethod: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                   {ALLOCATION_METHOD_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
               </div>
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Effective From</label>
-                <input type="date" value={form.effectiveFrom} onChange={(e) => setForm({ ...form, effectiveFrom: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                <input type="date" value={form.effectiveFrom} onChange={(e) => setForm({ ...form, effectiveFrom: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Max Allocations</label>
-                <input type="number" value={form.maxAllocations} onChange={(e) => setForm({ ...form, maxAllocations: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="Leave empty for unlimited" />
+                <input type="number" value={form.maxAllocations} onChange={(e) => setForm({ ...form, maxAllocations: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="Leave empty for unlimited" />
               </div>
               <div className="flex items-end pb-1"><label className="flex items-center gap-2 text-sm text-thb-text-secondary cursor-pointer"><input type="checkbox" checked={form.hierarchyEnabled} onChange={(e) => setForm({ ...form, hierarchyEnabled: e.target.checked })} className="rounded border-thb-border" /><span className="font-medium">Hierarchy Enabled</span></label></div>
               <div className="flex items-end pb-1"><label className="flex items-center gap-2 text-sm text-thb-text-secondary cursor-pointer"><input type="checkbox" checked={form.isMandatory} onChange={(e) => setForm({ ...form, isMandatory: e.target.checked })} className="rounded border-thb-border" /><span className="font-medium">Mandatory</span></label></div>
@@ -405,7 +405,7 @@ export default function DimensionsPage() {
             </div>
             <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-thb-border">
               <button onClick={() => { setShowForm(false); setEditingId(null); }} className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
-              <button onClick={handleSubmit} disabled={submitting} className="px-6 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50 shadow-sm shadow-blue-500/25 transition-colors">
+              <button onClick={handleSubmit} disabled={submitting} className="px-6 py-2.5 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 disabled:opacity-50 shadow-sm shadow-green-500/25 transition-colors">
                 {submitting ? 'Saving...' : editingId ? 'Update Dimension' : 'Create Dimension'}
               </button>
             </div>
@@ -456,7 +456,7 @@ export default function DimensionsPage() {
                       <td className="px-4 py-3 text-sm text-thb-text-secondary">{d.allocations?.length || 0}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1">
-                          <button onClick={() => setViewingDimension(d)} className="p-1.5 rounded-lg text-thb-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="View"><FiEye className="w-4 h-4" /></button>
+                          <button onClick={() => setViewingDimension(d)} className="p-1.5 rounded-lg text-thb-text-muted hover:text-green-500 hover:bg-green-50 transition-colors" title="View"><FiEye className="w-4 h-4" /></button>
                           {isAdmin && <button onClick={() => handleEdit(d)} className="p-1.5 rounded-lg text-thb-text-muted hover:text-amber-500 hover:bg-amber-50 transition-colors" title="Edit"><FiEdit2 className="w-4 h-4" /></button>}
                           {isAdmin && <button onClick={() => setDeleteConfirmId(d.id)} className="p-1.5 rounded-lg text-thb-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete"><FiTrash2 className="w-4 h-4" /></button>}
                         </div>

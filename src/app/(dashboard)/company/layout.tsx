@@ -54,7 +54,7 @@ function Breadcrumb({ pathname }: { pathname: string }) {
             {isLast ? (
               <span className="font-medium text-thb-text-primary">{label}</span>
             ) : (
-              <Link href={href} className="text-thb-text-muted hover:text-violet-500 transition-colors">
+              <Link href={href} className="text-thb-text-muted hover:text-teal-500 transition-colors">
                 {label}
               </Link>
             )}
@@ -88,7 +88,7 @@ export default function CompanyLayout({ children }: { children: React.ReactNode 
                 href={item.href}
                 className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                   isActive
-                    ? 'bg-violet-500 text-white shadow-sm'
+                    ? 'bg-teal-500 text-white shadow-sm'
                     : 'text-thb-text-secondary hover:bg-slate-100 hover:text-thb-text-primary'
                 }`}
               >

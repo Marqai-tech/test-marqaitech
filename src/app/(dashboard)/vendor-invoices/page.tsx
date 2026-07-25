@@ -20,7 +20,7 @@ export default function VendorInvoicesPage() {
           <h1 className="text-2xl font-bold">Vendor Invoices (AP)</h1>
           <p className="text-sm text-gray-600 mt-1">3-way matching: PO ↔ Invoice ↔ Timesheet (REQ-VEN-09/10)</p>
         </div>
-        <button onClick={() => setShowCreate(!showCreate)} className="px-4 py-2 bg-blue-600 text-white rounded">+ New Vendor Invoice</button>
+        <button onClick={() => setShowCreate(!showCreate)} className="px-4 py-2 bg-green-600 text-white rounded">+ New Vendor Invoice</button>
       </div>
       {showCreate && <CreateVIForm onCreated={() => { setShowCreate(false); loadVIs(); }} />}
       {loading ? <div className="text-gray-500">Loading...</div> : (
@@ -98,7 +98,7 @@ export default function VendorInvoicesPage() {
           </select>
         </div>
         <label className="text-sm flex items-center gap-2"><input type="checkbox" checked={form.autoMatch} onChange={e => setForm({...form, autoMatch: e.target.checked})} /> Run 3-way match automatically</label>
-        <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded">Create & Match</button>
+        <button type="submit" className="px-4 py-2 bg-green-600 text-white rounded">Create & Match</button>
       </form>
     );
   }

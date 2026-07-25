@@ -298,9 +298,9 @@ export default function CandidateInterviewPage() {
   /* ══════════════════════════════════════════════════ */
   if (phase === 'loading') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-teal-50 via-white to-green-50 flex items-center justify-center p-4">
         <div className="text-center">
-          <div className="w-16 h-16 rounded-2xl bg-purple-600 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-purple-500/25 animate-pulse">
+          <div className="w-16 h-16 rounded-2xl bg-teal-600 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-teal-500/25 animate-pulse">
             <FiCpu className="w-8 h-8 text-white" />
           </div>
           <h2 className="text-xl font-bold text-gray-900 mb-2">3Boxes AI Interview</h2>
@@ -338,7 +338,7 @@ export default function CandidateInterviewPage() {
   /* ══════════════════════════════════════════════════ */
   if (phase === 'pre_screen') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-teal-50 via-white to-green-50 flex items-center justify-center p-4">
         <div className="max-w-lg w-full">
           {/* REQ-SEC-REC-02 — AI Transparency banner (top of candidate interview page) */}
           <div className="mb-5 rounded-2xl border border-amber-200 bg-amber-50/80 p-4">
@@ -354,30 +354,30 @@ export default function CandidateInterviewPage() {
           </div>
 
           <div className="text-center mb-8">
-            <div className="w-16 h-16 rounded-2xl bg-purple-600 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-purple-500/25">
+            <div className="w-16 h-16 rounded-2xl bg-teal-600 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-teal-500/25">
               <FiCpu className="w-8 h-8 text-white" />
             </div>
             <h2 className="text-xl font-bold text-gray-900 mb-2">Welcome, {invitationData?.candidateName || 'Candidate'}</h2>
             <p className="text-gray-500 text-sm">Before we begin, please answer a few quick questions.</p>
           </div>
 
-          <div className="bg-white rounded-2xl shadow-lg shadow-purple-500/5 border border-purple-100 p-6 space-y-5">
+          <div className="bg-white rounded-2xl shadow-lg shadow-teal-500/5 border border-teal-100 p-6 space-y-5">
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1.5">Salary Expectation (Annual) *</label>
               <input value={preScreen.salaryExpectation} onChange={e => setPreScreen(p => ({ ...p, salaryExpectation: e.target.value }))}
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-400 transition-all"
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 transition-all"
                 placeholder="e.g., $80,000 - $100,000" />
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1.5">Current Location *</label>
               <input value={preScreen.currentLocation} onChange={e => setPreScreen(p => ({ ...p, currentLocation: e.target.value }))}
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-400 transition-all"
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 transition-all"
                 placeholder="e.g., New York, NY" />
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1.5">Notice Period</label>
               <select value={preScreen.noticePeriod} onChange={e => setPreScreen(p => ({ ...p, noticePeriod: e.target.value }))}
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-400 transition-all">
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 transition-all">
                 <option value="">Select...</option>
                 <option value="immediate">Immediate</option>
                 <option value="2_weeks">2 Weeks</option>
@@ -389,21 +389,21 @@ export default function CandidateInterviewPage() {
             <div className="space-y-3">
               <label className="flex items-start gap-3 cursor-pointer">
                 <input type="checkbox" checked={preScreen.requiresVisa} onChange={e => setPreScreen(p => ({ ...p, requiresVisa: e.target.checked }))}
-                  className="mt-0.5 w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500" />
+                  className="mt-0.5 w-4 h-4 rounded border-gray-300 text-teal-600 focus:ring-teal-500" />
                 <div><p className="text-sm font-medium text-gray-700">I require visa sponsorship</p><p className="text-xs text-gray-500">Check if you need visa sponsorship to work in the target location</p></div>
               </label>
               <label className="flex items-start gap-3 cursor-pointer">
                 <input type="checkbox" checked={preScreen.hasWorkPermit} onChange={e => setPreScreen(p => ({ ...p, hasWorkPermit: e.target.checked }))}
-                  className="mt-0.5 w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500" />
+                  className="mt-0.5 w-4 h-4 rounded border-gray-300 text-teal-600 focus:ring-teal-500" />
                 <div><p className="text-sm font-medium text-gray-700">I have a valid work permit</p><p className="text-xs text-gray-500">Check if you already have a work permit for the target location</p></div>
               </label>
             </div>
 
             {/* REQ-SEC-REC-04 — AI consent checkbox (required to start) */}
-            <div className="rounded-xl border border-purple-200 bg-purple-50/40 p-3">
+            <div className="rounded-xl border border-teal-200 bg-teal-50/40 p-3">
               <label className="flex items-start gap-3 cursor-pointer">
                 <input type="checkbox" checked={aiConsentAck} onChange={e => setAiConsentAck(e.target.checked)}
-                  className="mt-0.5 w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500" />
+                  className="mt-0.5 w-4 h-4 rounded border-gray-300 text-teal-600 focus:ring-teal-500" />
                 <div>
                   <p className="text-sm font-medium text-gray-900">I consent to AI analysis of my video and responses</p>
                   <p className="text-xs text-gray-600 mt-0.5 leading-relaxed">
@@ -416,7 +416,7 @@ export default function CandidateInterviewPage() {
             </div>
 
             <button onClick={handlePreScreenSubmit} disabled={preScreenSubmitting || !preScreen.salaryExpectation || !preScreen.currentLocation || !aiConsentAck}
-              className="w-full py-3.5 bg-purple-600 text-white rounded-xl font-semibold text-sm hover:bg-purple-700 disabled:opacity-50 transition-colors shadow-lg shadow-purple-500/25 flex items-center justify-center gap-2">
+              className="w-full py-3.5 bg-teal-600 text-white rounded-xl font-semibold text-sm hover:bg-teal-700 disabled:opacity-50 transition-colors shadow-lg shadow-teal-500/25 flex items-center justify-center gap-2">
               {preScreenSubmitting ? 'Starting...' : <>Start Interview <FiArrowRight className="w-4 h-4" /></>}
             </button>
           </div>
@@ -453,7 +453,7 @@ export default function CandidateInterviewPage() {
   /* ══════════════════════════════════════════════════ */
   if (phase === 'thank_you') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-purple-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50 flex items-center justify-center p-4">
         <div className="max-w-md w-full text-center">
           <div className="w-20 h-20 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-4">
             <FiCheck className="w-10 h-10 text-emerald-600" />
@@ -491,7 +491,7 @@ export default function CandidateInterviewPage() {
   const timeExceeded = elapsedSeconds > timeLimit * 60;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50">
+    <div className="min-h-screen bg-gradient-to-br from-teal-50 via-white to-green-50">
       {/* REQ-SEC-REC-02 — AI Transparency banner (top of in-progress interview) */}
       <div className="bg-amber-50/80 border-b border-amber-200 px-4 py-2.5">
         <div className="max-w-4xl mx-auto flex items-center gap-2 text-xs text-amber-900">
@@ -506,7 +506,7 @@ export default function CandidateInterviewPage() {
       <div className="bg-white border-b border-gray-100 px-4 py-3 shadow-sm">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-purple-600 flex items-center justify-center shadow-sm shadow-purple-500/25">
+            <div className="w-10 h-10 rounded-xl bg-teal-600 flex items-center justify-center shadow-sm shadow-teal-500/25">
               <FiCpu className="w-5 h-5 text-white" />
             </div>
             <div>
@@ -533,14 +533,14 @@ export default function CandidateInterviewPage() {
 
       {/* Progress bar */}
       <div className="h-1 bg-gray-100">
-        <div className="h-full bg-purple-600 transition-all duration-500"
+        <div className="h-full bg-teal-600 transition-all duration-500"
           style={{ width: `${Math.min(100, (elapsedSeconds / (timeLimit * 60)) * 100)}%` }} />
       </div>
 
       <div className="max-w-4xl mx-auto p-4">
         {/* Interview mode indicator */}
         <div className="flex items-center justify-center gap-2 mb-4">
-          <span className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-purple-100 text-purple-700 text-xs font-semibold">
+          <span className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-teal-100 text-teal-700 text-xs font-semibold">
             {getModeIcon(interviewMode)} {interviewMode.toUpperCase()} Interview
           </span>
           <span className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-100 text-emerald-700 text-xs font-semibold">
@@ -550,19 +550,19 @@ export default function CandidateInterviewPage() {
 
         {['text', 'voice', 'video'].includes(interviewMode) ? (
           /* ── Chat Interview ── */
-          <div className="bg-white rounded-2xl shadow-lg shadow-purple-500/5 border border-purple-100 overflow-hidden">
+          <div className="bg-white rounded-2xl shadow-lg shadow-teal-500/5 border border-teal-100 overflow-hidden">
             <div className="h-[calc(100vh-240px)] min-h-[400px] overflow-y-auto p-4 space-y-4 bg-gray-50/50">
               {chatMessages.length === 0 && !chatSending && (
                 <div className="text-center py-12">
-                  <FiCpu className="w-10 h-10 text-purple-300 mx-auto mb-3" />
+                  <FiCpu className="w-10 h-10 text-teal-300 mx-auto mb-3" />
                   <p className="text-gray-400 text-sm">Starting your interview...</p>
                 </div>
               )}
               {chatMessages.map((msg, i) => (
                 <div key={i} className={`flex ${msg.role === 'ai' ? 'justify-start' : 'justify-end'}`}>
-                  <div className={`max-w-[80%] p-4 rounded-2xl text-sm leading-relaxed ${msg.role === 'ai' ? 'bg-white border border-gray-100 rounded-tl-none shadow-sm text-gray-900' : 'bg-purple-600 text-white rounded-tr-none shadow-sm'}`}>
+                  <div className={`max-w-[80%] p-4 rounded-2xl text-sm leading-relaxed ${msg.role === 'ai' ? 'bg-white border border-gray-100 rounded-tl-none shadow-sm text-gray-900' : 'bg-teal-600 text-white rounded-tr-none shadow-sm'}`}>
                     <div className="flex items-center gap-1.5 mb-1.5">
-                      {msg.role === 'ai' ? <><FiCpu className="w-3.5 h-3.5 text-purple-500" /><span className="text-[10px] font-semibold text-purple-500">AI Interviewer</span></>
+                      {msg.role === 'ai' ? <><FiCpu className="w-3.5 h-3.5 text-teal-500" /><span className="text-[10px] font-semibold text-teal-500">AI Interviewer</span></>
                         : <><FiUser className="w-3.5 h-3.5" /><span className="text-[10px] font-semibold">You</span></>}
                     </div>
                     <p className="whitespace-pre-wrap">{msg.content}</p>
@@ -571,7 +571,7 @@ export default function CandidateInterviewPage() {
               ))}
               {chatSending && (
                 <div className="flex justify-start"><div className="max-w-[80%] p-4 rounded-2xl rounded-tl-none bg-white border border-gray-100 shadow-sm">
-                  <div className="flex items-center gap-2"><div className="flex gap-1">{[0, 150, 300].map((d, i) => <div key={i} className="w-2 h-2 rounded-full bg-purple-400 animate-bounce" style={{ animationDelay: `${d}ms` }} />)}<span className="text-xs text-gray-400">AI is thinking...</span></div></div>
+                  <div className="flex items-center gap-2"><div className="flex gap-1">{[0, 150, 300].map((d, i) => <div key={i} className="w-2 h-2 rounded-full bg-teal-400 animate-bounce" style={{ animationDelay: `${d}ms` }} />)}<span className="text-xs text-gray-400">AI is thinking...</span></div></div>
                 </div></div>
               )}
               <div ref={chatEndRef} />
@@ -581,9 +581,9 @@ export default function CandidateInterviewPage() {
                 <textarea value={chatInput} onChange={e => setChatInput(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChatMessage(); } }}
                   placeholder="Type your response... (Press Enter to send)"
-                  className="flex-1 px-4 py-3 rounded-xl border border-gray-200 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-400 min-h-[48px] max-h-[120px]" rows={1} disabled={chatSending} />
+                  className="flex-1 px-4 py-3 rounded-xl border border-gray-200 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 min-h-[48px] max-h-[120px]" rows={1} disabled={chatSending} />
                 <button onClick={sendChatMessage} disabled={!chatInput.trim() || chatSending}
-                  className="flex-shrink-0 w-12 h-12 rounded-xl bg-purple-600 text-white flex items-center justify-center hover:bg-purple-700 disabled:opacity-50 transition-colors shadow-lg shadow-purple-500/25">
+                  className="flex-shrink-0 w-12 h-12 rounded-xl bg-teal-600 text-white flex items-center justify-center hover:bg-teal-700 disabled:opacity-50 transition-colors shadow-lg shadow-teal-500/25">
                   <FiSend className="w-5 h-5" />
                 </button>
               </div>
@@ -591,11 +591,11 @@ export default function CandidateInterviewPage() {
           </div>
         ) : interviewMode === 'mcq' ? (
           /* ── MCQ Mode ── */
-          <div className="bg-white rounded-2xl shadow-lg shadow-purple-500/5 border border-purple-100 p-6">
+          <div className="bg-white rounded-2xl shadow-lg shadow-teal-500/5 border border-teal-100 p-6">
             {questions.length > 0 && currentQuestionIndex < questions.length ? (
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
-                  <span className="px-3 py-1 rounded-full bg-purple-100 text-purple-700 text-xs font-bold">Question {currentQuestionIndex + 1} of {questions.length}</span>
+                  <span className="px-3 py-1 rounded-full bg-teal-100 text-teal-700 text-xs font-bold">Question {currentQuestionIndex + 1} of {questions.length}</span>
                   <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${questions[currentQuestionIndex].difficulty === 'easy' ? 'bg-emerald-100 text-emerald-700' : questions[currentQuestionIndex].difficulty === 'hard' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>
                     {questions[currentQuestionIndex].difficulty}
                   </span>
@@ -605,14 +605,14 @@ export default function CandidateInterviewPage() {
                   {['Option A', 'Option B', 'Option C', 'Option D'].map((opt, i) => (
                     <button key={i} onClick={() => handleMCQAnswer(i)}
                       disabled={mcqShowResult}
-                      className={`w-full p-4 rounded-xl border-2 text-left text-sm font-medium transition-all ${mcqSelected === i ? (mcqShowResult ? (i === 0 ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-red-500 bg-red-50 text-red-700') : 'border-purple-500 bg-purple-50 text-purple-700') : 'border-gray-100 hover:border-purple-200 hover:bg-purple-50/50 text-gray-700'}`}>
+                      className={`w-full p-4 rounded-xl border-2 text-left text-sm font-medium transition-all ${mcqSelected === i ? (mcqShowResult ? (i === 0 ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-red-500 bg-red-50 text-red-700') : 'border-teal-500 bg-teal-50 text-teal-700') : 'border-gray-100 hover:border-teal-200 hover:bg-teal-50/50 text-gray-700'}`}>
                       {opt}
                     </button>
                   ))}
                 </div>
                 {mcqShowResult && (
                   <button onClick={() => { setMcqSelected(null); setMcqShowResult(false); setCurrentQuestionIndex(prev => prev + 1); }}
-                    className="w-full py-3 bg-purple-600 text-white rounded-xl font-semibold text-sm hover:bg-purple-700 flex items-center justify-center gap-2">
+                    className="w-full py-3 bg-teal-600 text-white rounded-xl font-semibold text-sm hover:bg-teal-700 flex items-center justify-center gap-2">
                     {currentQuestionIndex < questions.length - 1 ? 'Next Question' : 'Finish Interview'} <FiArrowRight className="w-4 h-4" />
                   </button>
                 )}
@@ -621,25 +621,25 @@ export default function CandidateInterviewPage() {
               <div className="text-center py-12">
                 <FiCheck className="w-12 h-12 text-emerald-500 mx-auto mb-3" />
                 <p className="text-lg font-semibold text-gray-900">All questions answered!</p>
-                <button onClick={endInterview} className="mt-4 px-6 py-3 bg-purple-600 text-white rounded-xl font-semibold text-sm hover:bg-purple-700">Complete Interview</button>
+                <button onClick={endInterview} className="mt-4 px-6 py-3 bg-teal-600 text-white rounded-xl font-semibold text-sm hover:bg-teal-700">Complete Interview</button>
               </div>
             )}
           </div>
         ) : (
           /* ── Coding Mode ── */
-          <div className="bg-white rounded-2xl shadow-lg shadow-purple-500/5 border border-purple-100 p-6 space-y-4">
+          <div className="bg-white rounded-2xl shadow-lg shadow-teal-500/5 border border-teal-100 p-6 space-y-4">
             <div className="flex items-center justify-between">
-              <span className="px-3 py-1 rounded-full bg-purple-100 text-purple-700 text-xs font-bold">Coding Challenge</span>
+              <span className="px-3 py-1 rounded-full bg-teal-100 text-teal-700 text-xs font-bold">Coding Challenge</span>
             </div>
             {questions.length > 0 && currentQuestionIndex < questions.length && (
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">{questions[currentQuestionIndex].question}</h3>
-                <textarea className="w-full h-64 px-4 py-3 rounded-xl border border-gray-200 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-400"
+                <textarea className="w-full h-64 px-4 py-3 rounded-xl border border-gray-200 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400"
                   placeholder="// Write your code here..." />
                 <div className="flex gap-3 mt-4">
                   <button className="px-4 py-2.5 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700">Run Code</button>
                   <button onClick={() => setCurrentQuestionIndex(prev => prev + 1)}
-                    className="px-4 py-2.5 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700">Submit & Next</button>
+                    className="px-4 py-2.5 bg-teal-600 text-white rounded-lg text-sm font-medium hover:bg-teal-700">Submit & Next</button>
                 </div>
               </div>
             )}
@@ -647,7 +647,7 @@ export default function CandidateInterviewPage() {
               <div className="text-center py-12">
                 <FiCheck className="w-12 h-12 text-emerald-500 mx-auto mb-3" />
                 <p className="text-lg font-semibold text-gray-900">All challenges completed!</p>
-                <button onClick={endInterview} className="mt-4 px-6 py-3 bg-purple-600 text-white rounded-xl font-semibold text-sm hover:bg-purple-700">Complete Interview</button>
+                <button onClick={endInterview} className="mt-4 px-6 py-3 bg-teal-600 text-white rounded-xl font-semibold text-sm hover:bg-teal-700">Complete Interview</button>
               </div>
             )}
           </div>

@@ -90,7 +90,7 @@ function EmployeePoliciesTab({ employeeId }: { employeeId: string }) {
         value={currentId || ''}
         onChange={e => handleSave(field, e.target.value || null)}
         disabled={!isAdmin || saving === field}
-        className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:opacity-50"
+        className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 disabled:opacity-50"
       >
         <option value="">— Not Assigned —</option>
         {items.map(p => <option key={p.id} value={p.id}>{p.title} (v{p.version})</option>)}
@@ -102,7 +102,7 @@ function EmployeePoliciesTab({ employeeId }: { employeeId: string }) {
           {items.find(p => p.id === currentId)?.effectiveDate && <p><span className="font-medium">Effective:</span> {new Date(items.find(p => p.id === currentId)!.effectiveDate!).toLocaleDateString()}</p>}
         </div>
       )}
-      {saving === field && <p className="text-xs text-blue-500 mt-2">Saving...</p>}
+      {saving === field && <p className="text-xs text-green-500 mt-2">Saving...</p>}
     </div>
   );
 
@@ -110,7 +110,7 @@ function EmployeePoliciesTab({ employeeId }: { employeeId: string }) {
     <div className="space-y-5">
       {!isAdmin && <div className="p-3 rounded-lg bg-amber-50 border border-amber-100 text-xs text-amber-700">Only admins can modify policy mappings.</div>}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-        {policyDropdown('Leave Policy', 'leavePolicyId', leavePolicies, policies?.leavePolicyId, <FiCalendar className="w-4 h-4 text-blue-500" />)}
+        {policyDropdown('Leave Policy', 'leavePolicyId', leavePolicies, policies?.leavePolicyId, <FiCalendar className="w-4 h-4 text-green-500" />)}
         {policyDropdown('Attendance Policy', 'attendancePolicyId', attendancePolicies, policies?.attendancePolicyId, <FiClock className="w-4 h-4 text-emerald-500" />)}
         {policyDropdown('Travel Policy', 'travelPolicyId', travelPolicies, policies?.travelPolicyId, <FiBriefcase className="w-4 h-4 text-amber-500" />)}
         <div className="thb-card p-5">
@@ -119,12 +119,12 @@ function EmployeePoliciesTab({ employeeId }: { employeeId: string }) {
             value={policies?.salaryStructureId || ''}
             onChange={e => handleSave('salaryStructureId', e.target.value || null)}
             disabled={!isAdmin || saving === 'salaryStructureId'}
-            className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:opacity-50"
+            className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 disabled:opacity-50"
           >
             <option value="">— Not Assigned —</option>
             {salaryStructures.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
-          {saving === 'salaryStructureId' && <p className="text-xs text-blue-500 mt-2">Saving...</p>}
+          {saving === 'salaryStructureId' && <p className="text-xs text-green-500 mt-2">Saving...</p>}
         </div>
       </div>
     </div>
@@ -207,8 +207,8 @@ type TabName = typeof tabs[number];
 // ─── Info Field Component ───
 function InfoField({ label, value, icon, accentColor }: { label: string; value?: string | null; icon?: React.ReactNode; accentColor?: string }) {
   return (
-    <div className="flex items-start gap-3 py-3 pl-3 border-l-2 border-transparent hover:border-l-blue-400 transition-colors group">
-      {icon && <span className="mt-0.5 text-thb-text-muted flex-shrink-0 group-hover:text-blue-500 transition-colors">{icon}</span>}
+    <div className="flex items-start gap-3 py-3 pl-3 border-l-2 border-transparent hover:border-l-green-400 transition-colors group">
+      {icon && <span className="mt-0.5 text-thb-text-muted flex-shrink-0 group-hover:text-green-500 transition-colors">{icon}</span>}
       <div className="min-w-0 flex-1">
         <p className="text-[11px] font-semibold uppercase tracking-wider text-thb-text-muted mb-0.5">{label}</p>
         <p className="text-sm font-medium text-thb-text-primary break-words">{value || '—'}</p>
@@ -219,12 +219,12 @@ function InfoField({ label, value, icon, accentColor }: { label: string; value?:
 
 // ─── Section Card Component ───
 function SectionCard({ title, icon, children, accentGradient }: { title: string; icon?: React.ReactNode; children: React.ReactNode; accentGradient?: string }) {
-  const gradient = accentGradient || 'from-violet-500 via-blue-500 to-cyan-400';
+  const gradient = accentGradient || 'from-teal-500 via-green-500 to-cyan-400';
   return (
     <div className="thb-card overflow-hidden relative">
       {/* Colorful left border */}
       <div className={`absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b ${gradient}`} />
-      <div className={`px-6 py-4 border-b border-thb-border bg-gradient-to-r from-violet-50/60 via-blue-50/40 to-cyan-50/30`}>
+      <div className={`px-6 py-4 border-b border-thb-border bg-gradient-to-r from-teal-50/60 via-green-50/40 to-cyan-50/30`}>
         <h3 className="text-sm font-semibold text-thb-text-primary flex items-center gap-2">
           {icon}
           {title}
@@ -398,14 +398,14 @@ export default function EmployeeDetailPage() {
           <div className="flex items-center justify-center gap-3">
             <button
               onClick={() => fetchEmployee()}
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-violet-600 text-white rounded-lg text-sm font-medium hover:bg-violet-700 transition-colors shadow-sm"
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-teal-600 text-white rounded-lg text-sm font-medium hover:bg-teal-700 transition-colors shadow-sm"
             >
               <FiRefreshCw className="w-4 h-4" />
               Retry
             </button>
             <button
               onClick={() => router.push('/employees')}
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors shadow-sm"
             >
               <FiArrowLeft className="w-4 h-4" />
               Back to Employees
@@ -429,7 +429,7 @@ export default function EmployeeDetailPage() {
           ═══════════════════════════════════════════ */}
       <div className="thb-card overflow-hidden">
         {/* Gradient Strip */}
-        <div className="h-32 bg-gradient-to-r from-violet-600 via-fuchsia-500 to-cyan-400 relative">
+        <div className="h-32 bg-gradient-to-r from-teal-600 via-fuchsia-500 to-cyan-400 relative">
           {/* Subtle pattern overlay */}
           <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'none\' fill-rule=\'evenodd\'%3E%3Cg fill=\'%23ffffff\' fill-opacity=\'0.4\'%3E%3Cpath d=\'M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")' }} />
         </div>
@@ -446,7 +446,7 @@ export default function EmployeeDetailPage() {
                   className="w-[120px] h-[120px] rounded-2xl object-cover border-4 border-white shadow-lg"
                 />
               ) : (
-                <div className="w-[120px] h-[120px] rounded-2xl bg-gradient-to-br from-rose-500 via-purple-500 to-indigo-600 flex items-center justify-center text-white text-4xl font-bold border-4 border-white shadow-lg">
+                <div className="w-[120px] h-[120px] rounded-2xl bg-gradient-to-br from-rose-500 via-teal-500 to-emerald-600 flex items-center justify-center text-white text-4xl font-bold border-4 border-white shadow-lg">
                   {initials}
                 </div>
               )}
@@ -489,7 +489,7 @@ export default function EmployeeDetailPage() {
             <div className="flex items-center gap-2 flex-shrink-0 sm:pb-1">
               <button
                 onClick={() => router.push(`/employees?editId=${id}`)}
-                className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-violet-600 via-fuchsia-500 to-cyan-500 text-white rounded-lg text-sm font-medium hover:from-violet-700 hover:via-fuchsia-600 hover:to-cyan-600 transition-all shadow-md shadow-fuchsia-200/50"
+                className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-teal-600 via-fuchsia-500 to-cyan-500 text-white rounded-lg text-sm font-medium hover:from-teal-700 hover:via-fuchsia-600 hover:to-cyan-600 transition-all shadow-md shadow-fuchsia-200/50"
               >
                 <FiEdit2 className="w-3.5 h-3.5" />
                 Edit
@@ -511,12 +511,12 @@ export default function EmployeeDetailPage() {
           ═══════════════════════════════════════════ */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          icon={<FiCalendar className="w-5 h-5 text-blue-600" />}
+          icon={<FiCalendar className="w-5 h-5 text-green-600" />}
           label="Days Employed"
           value={daysEmployed}
           subtitle={`Since ${formatDate(employee.dateOfJoining)}`}
-          colorClass="bg-gradient-to-br from-blue-100 to-blue-50"
-          borderGradient="from-blue-500 via-blue-400 to-cyan-400"
+          colorClass="bg-gradient-to-br from-green-100 to-green-50"
+          borderGradient="from-green-500 via-green-400 to-cyan-400"
         />
         <StatCard
           icon={<FiClock className="w-5 h-5 text-emerald-600" />}
@@ -535,12 +535,12 @@ export default function EmployeeDetailPage() {
           borderGradient="from-amber-500 via-orange-400 to-yellow-400"
         />
         <StatCard
-          icon={<FiDollarSign className="w-5 h-5 text-violet-600" />}
+          icon={<FiDollarSign className="w-5 h-5 text-teal-600" />}
           label="Salary"
           value={employee.salary ? `${employee.salaryCurrency || 'INR'} ${(employee.salary / 1000).toFixed(0)}K` : '—'}
           subtitle={employee.salary ? employee.salary.toLocaleString() : undefined}
-          colorClass="bg-gradient-to-br from-violet-100 to-violet-50"
-          borderGradient="from-violet-500 via-purple-400 to-fuchsia-400"
+          colorClass="bg-gradient-to-br from-teal-100 to-teal-50"
+          borderGradient="from-teal-500 via-teal-400 to-fuchsia-400"
         />
       </div>
 
@@ -549,7 +549,7 @@ export default function EmployeeDetailPage() {
           ═══════════════════════════════════════════ */}
       <div className="thb-card overflow-hidden">
         {/* Tab Bar */}
-        <div className="border-b border-thb-border bg-gradient-to-r from-violet-50/30 via-blue-50/20 to-cyan-50/30 overflow-x-auto">
+        <div className="border-b border-thb-border bg-gradient-to-r from-teal-50/30 via-green-50/20 to-cyan-50/30 overflow-x-auto">
           <nav className="flex px-6">
             {tabs.map(tab => (
               <button
@@ -557,13 +557,13 @@ export default function EmployeeDetailPage() {
                 onClick={() => setActiveTab(tab)}
                 className={`relative px-4 py-3.5 text-sm font-medium whitespace-nowrap transition-all ${
                   activeTab === tab
-                    ? 'text-transparent bg-clip-text bg-gradient-to-r from-violet-600 to-cyan-500'
+                    ? 'text-transparent bg-clip-text bg-gradient-to-r from-teal-600 to-cyan-500'
                     : 'text-thb-text-muted hover:text-thb-text-primary'
                 }`}
               >
                 {tab}
                 {activeTab === tab && (
-                  <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-gradient-to-r from-violet-500 via-fuchsia-500 to-cyan-400 rounded-full" />
+                  <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-gradient-to-r from-teal-500 via-fuchsia-500 to-cyan-400 rounded-full" />
                 )}
               </button>
             ))}
@@ -577,7 +577,7 @@ export default function EmployeeDetailPage() {
           {activeTab === 'Overview' && (
             <div className="space-y-6">
               {/* Personal Information */}
-              <SectionCard title="Personal Information" icon={<FiUser className="w-4 h-4 text-blue-500" />} accentGradient="from-blue-500 via-indigo-400 to-violet-400">
+              <SectionCard title="Personal Information" icon={<FiUser className="w-4 h-4 text-green-500" />} accentGradient="from-green-500 via-emerald-400 to-teal-400">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-0">
                   <InfoField label="Full Name" value={`${employee.firstName} ${employee.lastName}`} icon={<FiUser className="w-3.5 h-3.5" />} />
                   <InfoField label="Date of Birth" value={formatDate(employee.dateOfBirth)} icon={<FiCalendar className="w-3.5 h-3.5" />} />
@@ -611,10 +611,10 @@ export default function EmployeeDetailPage() {
 
               {/* Skills */}
               {employee.skills && employee.skills.length > 0 && (
-                <SectionCard title="Skills" icon={<FiAward className="w-4 h-4 text-violet-500" />} accentGradient="from-violet-500 via-purple-400 to-fuchsia-400">
+                <SectionCard title="Skills" icon={<FiAward className="w-4 h-4 text-teal-500" />} accentGradient="from-teal-500 via-teal-400 to-fuchsia-400">
                   <div className="flex flex-wrap gap-2">
                     {employee.skills.map(s => (
-                      <span key={s.id} className="inline-flex items-center gap-1.5 bg-gradient-to-r from-violet-100 to-fuchsia-100 text-violet-700 px-2.5 py-1 rounded-full text-xs font-medium shadow-sm">
+                      <span key={s.id} className="inline-flex items-center gap-1.5 bg-gradient-to-r from-teal-100 to-fuchsia-100 text-teal-700 px-2.5 py-1 rounded-full text-xs font-medium shadow-sm">
                         <FiTrendingUp className="w-3 h-3" />
                         {s.skill}
                         <span className="opacity-60">·</span>
@@ -631,7 +631,7 @@ export default function EmployeeDetailPage() {
           {activeTab === 'Personal' && (
             <div className="space-y-6">
               {/* Personal Details */}
-              <SectionCard title="Personal Details" icon={<FiUser className="w-4 h-4 text-blue-500" />} accentGradient="from-blue-500 via-indigo-400 to-violet-400">
+              <SectionCard title="Personal Details" icon={<FiUser className="w-4 h-4 text-green-500" />} accentGradient="from-green-500 via-emerald-400 to-teal-400">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-0">
                   <InfoField label="First Name" value={employee.firstName} />
                   <InfoField label="Last Name" value={employee.lastName} />
@@ -698,7 +698,7 @@ export default function EmployeeDetailPage() {
           {activeTab === 'Employment' && (
             <div className="space-y-6">
               {/* Employment Details */}
-              <SectionCard title="Employment Details" icon={<FiBriefcase className="w-4 h-4 text-blue-500" />} accentGradient="from-blue-500 via-indigo-400 to-violet-400">
+              <SectionCard title="Employment Details" icon={<FiBriefcase className="w-4 h-4 text-green-500" />} accentGradient="from-green-500 via-emerald-400 to-teal-400">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-0">
                   <InfoField label="Employee ID" value={employee.employeeId} icon={<FiHash className="w-3.5 h-3.5" />} />
                   <InfoField label="Department" value={employee.department?.name} icon={<FiBriefcase className="w-3.5 h-3.5" />} />
@@ -718,7 +718,7 @@ export default function EmployeeDetailPage() {
               </SectionCard>
 
               {/* Bank Details */}
-              <SectionCard title="Bank & Statutory Details" icon={<FiShield className="w-4 h-4 text-violet-500" />} accentGradient="from-violet-500 via-purple-400 to-fuchsia-400">
+              <SectionCard title="Bank & Statutory Details" icon={<FiShield className="w-4 h-4 text-teal-500" />} accentGradient="from-teal-500 via-teal-400 to-fuchsia-400">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-0">
                   <InfoField label="Bank Name" value={employee.bankName} icon={<FiBriefcase className="w-3.5 h-3.5" />} />
                   <InfoField label="Account No" value={employee.bankAccountNo} icon={<FiHash className="w-3.5 h-3.5" />} />
@@ -755,12 +755,12 @@ export default function EmployeeDetailPage() {
 
               {/* Qualifications */}
               {employee.qualifications && employee.qualifications.length > 0 && (
-                <SectionCard title="Qualifications" icon={<FiAward className="w-4 h-4 text-blue-500" />} accentGradient="from-blue-500 via-indigo-400 to-violet-400">
+                <SectionCard title="Qualifications" icon={<FiAward className="w-4 h-4 text-green-500" />} accentGradient="from-green-500 via-emerald-400 to-teal-400">
                   <div className="space-y-4">
                     {employee.qualifications.map(q => (
                       <div key={q.id} className="flex items-start gap-4 p-4 rounded-xl border border-thb-border hover:bg-slate-50/50 transition-colors">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-100 to-blue-50 flex items-center justify-center flex-shrink-0">
-                          <FiAward className="w-5 h-5 text-blue-600" />
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-100 to-green-50 flex items-center justify-center flex-shrink-0">
+                          <FiAward className="w-5 h-5 text-green-600" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-semibold text-thb-text-primary">{q.degree}</p>
@@ -786,7 +786,7 @@ export default function EmployeeDetailPage() {
                   <h3 className="text-sm font-semibold text-thb-text-primary">Documents</h3>
                   <p className="text-xs text-thb-text-muted mt-0.5">{employee.documents?.length || 0} documents on file</p>
                 </div>
-                <button className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 transition-colors shadow-sm">
+                <button className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-lg text-xs font-medium hover:bg-green-700 transition-colors shadow-sm">
                   <FiUpload className="w-3.5 h-3.5" />
                   Upload Document
                 </button>
@@ -833,13 +833,13 @@ export default function EmployeeDetailPage() {
             <div className="space-y-6">
               {/* Leave Balances */}
               {employee.leaveBalances && employee.leaveBalances.length > 0 && (
-                <SectionCard title="Leave Balances" icon={<FiCalendar className="w-4 h-4 text-blue-500" />} accentGradient="from-blue-500 via-indigo-400 to-violet-400">
+                <SectionCard title="Leave Balances" icon={<FiCalendar className="w-4 h-4 text-green-500" />} accentGradient="from-green-500 via-emerald-400 to-teal-400">
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {employee.leaveBalances.map(lb => {
                       const pct = lb.total > 0 ? (lb.used / lb.total) * 100 : 0;
-                      const barColor = pct > 80 ? 'bg-gradient-to-r from-red-500 to-rose-400' : pct > 50 ? 'bg-gradient-to-r from-amber-500 to-orange-400' : 'bg-gradient-to-r from-blue-500 to-cyan-400';
+                      const barColor = pct > 80 ? 'bg-gradient-to-r from-red-500 to-rose-400' : pct > 50 ? 'bg-gradient-to-r from-amber-500 to-orange-400' : 'bg-gradient-to-r from-green-500 to-cyan-400';
                       return (
-                        <div key={lb.id} className="p-4 rounded-xl border border-thb-border hover:shadow-md transition-all hover:border-blue-200">
+                        <div key={lb.id} className="p-4 rounded-xl border border-thb-border hover:shadow-md transition-all hover:border-green-200">
                           <div className="flex items-center justify-between mb-3">
                             <p className="text-sm font-semibold text-thb-text-primary">{lb.leaveType.name}</p>
                             <span className="text-xs font-medium text-thb-text-muted">{lb.year}</span>
@@ -1026,7 +1026,7 @@ export default function EmployeeDetailPage() {
               </SectionCard>
 
               {/* Physician & Insurance */}
-              <SectionCard title="Physician & Insurance" icon={<FiShield className="w-4 h-4 text-blue-500" />} accentGradient="from-blue-500 via-indigo-400 to-violet-400">
+              <SectionCard title="Physician & Insurance" icon={<FiShield className="w-4 h-4 text-green-500" />} accentGradient="from-green-500 via-emerald-400 to-teal-400">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-0">
                   <InfoField label="Primary Physician" value={(employee as Record<string, unknown>).primaryPhysicianName as string} icon={<FiUser className="w-3.5 h-3.5" />} />
                   <InfoField label="Physician Phone" value={(employee as Record<string, unknown>).primaryPhysicianPhone as string} icon={<FiPhone className="w-3.5 h-3.5" />} />
@@ -1044,9 +1044,9 @@ export default function EmployeeDetailPage() {
           {activeTab === 'Company Mapping' && (
             <div className="space-y-5">
               {/* Info Banner */}
-              <div className="thb-card border-l-4 border-l-indigo-500 bg-gradient-to-r from-indigo-50/60 to-violet-50/40">
+              <div className="thb-card border-l-4 border-l-emerald-500 bg-gradient-to-r from-emerald-50/60 to-teal-50/40">
                 <div className="p-4 flex items-start gap-3">
-                  <FiBriefcase className="w-5 h-5 text-indigo-500 flex-shrink-0 mt-0.5" />
+                  <FiBriefcase className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" />
                   <div>
                     <p className="font-semibold text-slate-900 mb-1">Company Mappings</p>
                     <p className="text-xs text-slate-600 leading-relaxed">
@@ -1062,14 +1062,14 @@ export default function EmployeeDetailPage() {
                 <div className="px-5 py-4 border-b border-thb-border flex items-center justify-between">
                   <div>
                     <h3 className="font-semibold text-thb-text-primary flex items-center gap-2">
-                      <FiBriefcase className="w-4 h-4 text-indigo-500" />
+                      <FiBriefcase className="w-4 h-4 text-emerald-500" />
                       Company Mapping Overview
                     </h3>
                     <div className="flex items-center gap-3 mt-1.5">
-                      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-indigo-100 text-indigo-700">
+                      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700">
                         {companyMappings.filter(m => !m.isPrimary).length + 1} Total Compan{companyMappings.filter(m => !m.isPrimary).length + 1 === 1 ? 'y' : 'ies'}
                       </span>
-                      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700">
+                      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700">
                         {companyMappings.filter(m => !m.isPrimary).length + 1} Primary
                       </span>
                       <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-600">
@@ -1079,7 +1079,7 @@ export default function EmployeeDetailPage() {
                   </div>
                   <button
                     onClick={() => router.push('/employees/settings')}
-                    className="inline-flex items-center gap-1.5 px-3 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg text-xs font-medium transition-colors"
+                    className="inline-flex items-center gap-1.5 px-3 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-xs font-medium transition-colors"
                   >
                     <FiEdit2 className="w-3.5 h-3.5" /> Manage Mappings
                   </button>
@@ -1088,17 +1088,17 @@ export default function EmployeeDetailPage() {
                 {/* All Company Mappings - including primary */}
                 <div className="divide-y divide-thb-border">
                   {/* Primary Company (from Employee record) */}
-                  <div className="flex items-center gap-4 px-5 py-4 bg-indigo-50/30">
-                    <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 bg-gradient-to-br from-indigo-500 to-violet-600 text-white">
+                  <div className="flex items-center gap-4 px-5 py-4 bg-emerald-50/30">
+                    <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 bg-gradient-to-br from-emerald-500 to-teal-600 text-white">
                       <FiBriefcase className="w-5 h-5" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <p className="text-sm font-semibold text-thb-text-primary">{employee.company?.name || employee.department?.company?.name || employee.branch?.company?.name || 'Primary Company'}</p>
-                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-700 border border-indigo-200">PRIMARY</span>
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">PRIMARY</span>
                       </div>
                       <div className="flex items-center gap-3 mt-1">
-                        <span className="text-xs text-thb-text-secondary font-medium">Employee ID: <span className="text-indigo-600 font-bold">{employee.employeeId}</span></span>
+                        <span className="text-xs text-thb-text-secondary font-medium">Employee ID: <span className="text-emerald-600 font-bold">{employee.employeeId}</span></span>
                         {employee.designation && <span className="text-xs text-thb-text-muted">Designation: {employee.designation.title}</span>}
                         {employee.department && <span className="text-xs text-thb-text-muted">Dept: {employee.department.name}</span>}
                         {employee.branch && <span className="text-xs text-thb-text-muted">Branch: {employee.branch.name}</span>}
@@ -1112,26 +1112,26 @@ export default function EmployeeDetailPage() {
                       <FiGlobe className="w-6 h-6 text-thb-text-muted mx-auto mb-2" />
                       <p className="text-sm text-thb-text-muted">No additional company mappings</p>
                       <p className="text-xs text-thb-text-muted mt-1">
-                        Go to <button onClick={() => router.push('/employees/settings')} className="text-blue-600 hover:underline font-medium">Employee Settings &gt; Map Company</button> to add mappings
+                        Go to <button onClick={() => router.push('/employees/settings')} className="text-green-600 hover:underline font-medium">Employee Settings &gt; Map Company</button> to add mappings
                       </p>
                     </div>
                   ) : (
                     companyMappings.filter(m => !m.isPrimary).map(mapping => (
-                      <div key={mapping.id} className={`flex items-center gap-4 px-5 py-4 ${mapping.isPrimary ? 'bg-blue-50/20' : ''}`}>
-                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${mapping.isPrimary ? 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white' : 'bg-slate-100 text-slate-600'}`}>
+                      <div key={mapping.id} className={`flex items-center gap-4 px-5 py-4 ${mapping.isPrimary ? 'bg-green-50/20' : ''}`}>
+                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${mapping.isPrimary ? 'bg-gradient-to-br from-green-500 to-emerald-600 text-white' : 'bg-slate-100 text-slate-600'}`}>
                           <FiGlobe className="w-5 h-5" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
                             <p className="text-sm font-semibold text-thb-text-primary">{mapping.company?.name || 'Unknown Company'}</p>
                             {mapping.isPrimary ? (
-                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-700 border border-indigo-200">PRIMARY</span>
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">PRIMARY</span>
                             ) : (
                               <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">SECONDARY</span>
                             )}
                           </div>
                           <div className="flex items-center gap-3 mt-1">
-                            <span className="text-xs text-thb-text-secondary font-medium">Employee ID: <span className={mapping.isPrimary ? 'text-indigo-600 font-bold' : 'text-slate-700 font-bold'}>{mapping.employeeCode}</span></span>
+                            <span className="text-xs text-thb-text-secondary font-medium">Employee ID: <span className={mapping.isPrimary ? 'text-emerald-600 font-bold' : 'text-slate-700 font-bold'}>{mapping.employeeCode}</span></span>
                             {mapping.department && <span className="text-xs text-thb-text-muted">Dept: {mapping.department.name}</span>}
                             {mapping.designation && <span className="text-xs text-thb-text-muted">Role: {mapping.designation.title}</span>}
                             {mapping.branch && <span className="text-xs text-thb-text-muted">Branch: {mapping.branch.name}</span>}
@@ -1147,7 +1147,7 @@ export default function EmployeeDetailPage() {
                   <div className="flex items-center gap-4 text-xs text-thb-text-muted flex-wrap">
                     <span className="font-medium">Summary:</span>
                     <span>{companyMappings.filter(m => !m.isPrimary).length + 1} compan{(companyMappings.filter(m => !m.isPrimary).length + 1) === 1 ? 'y' : 'ies'} mapped</span>
-                    <span className="text-indigo-600 font-semibold">1 primary</span>
+                    <span className="text-emerald-600 font-semibold">1 primary</span>
                     <span className="text-slate-500">{companyMappings.filter(m => !m.isPrimary).length} secondary</span>
                     <span className="ml-auto font-medium">Employee IDs: {[employee.employeeId, ...companyMappings.filter(m => !m.isPrimary).map(m => m.employeeCode)].join(', ')}</span>
                   </div>

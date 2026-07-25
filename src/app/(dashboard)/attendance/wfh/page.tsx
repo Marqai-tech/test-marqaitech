@@ -267,8 +267,8 @@ export default function WfhPage() {
           </div>
 
           {workingDays > 0 && !isPermanentOrHybrid && (
-            <div className={`mt-3 p-3 rounded-lg border ${needsHrApproval ? 'bg-amber-50 border-amber-200' : 'bg-blue-50 border-blue-200'}`}>
-              <p className={`text-sm font-medium ${needsHrApproval ? 'text-amber-700' : 'text-blue-700'}`}>
+            <div className={`mt-3 p-3 rounded-lg border ${needsHrApproval ? 'bg-amber-50 border-amber-200' : 'bg-green-50 border-green-200'}`}>
+              <p className={`text-sm font-medium ${needsHrApproval ? 'text-amber-700' : 'text-green-700'}`}>
                 <FiInfo className="w-4 h-4 inline mr-1" />
                 {needsHrApproval
                   ? <>Total: <strong>{workingDays} working day(s)</strong> — HR approval required (more than 3 days)</>
@@ -277,8 +277,8 @@ export default function WfhPage() {
             </div>
           )}
           {isPermanentOrHybrid && (
-            <div className="mt-3 p-3 bg-violet-50 border border-violet-200 rounded-lg">
-              <p className="text-sm font-medium text-violet-700">
+            <div className="mt-3 p-3 bg-teal-50 border border-teal-200 rounded-lg">
+              <p className="text-sm font-medium text-teal-700">
                 <FiAlertCircle className="w-4 h-4 inline mr-1" />
                 <strong>{reqTypeLabel(form.requestType)}</strong> arrangement — Both manager and HR approval required. This will be reviewed periodically.
               </p>

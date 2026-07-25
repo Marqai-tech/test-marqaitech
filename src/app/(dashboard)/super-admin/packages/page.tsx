@@ -63,8 +63,8 @@ const demoPackages: Package[] = [
 const pkgGradients: Record<string, string> = {
   Free: 'from-slate-500 to-slate-600',
   Starter: 'from-emerald-500 to-emerald-600',
-  Professional: 'from-blue-500 to-blue-600',
-  Enterprise: 'from-violet-500 to-violet-600',
+  Professional: 'from-green-500 to-green-600',
+  Enterprise: 'from-teal-500 to-teal-600',
 };
 
 export default function PackagesPage() {
@@ -100,21 +100,21 @@ export default function PackagesPage() {
     setShowForm(true);
   };
 
-  const inputCls = 'w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400';
+  const inputCls = 'w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400';
 
   return (
     <div className="space-y-6">
       {/* Hero Banner */}
-      <div className="thb-card p-6 bg-gradient-to-r from-violet-600 via-purple-500 to-pink-500 border-0">
+      <div className="thb-card p-6 bg-gradient-to-r from-teal-600 via-teal-500 to-pink-500 border-0">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-white flex items-center gap-3"><FiPackage className="w-7 h-7" /> Package Management</h1>
-            <p className="text-purple-100 mt-1 text-sm">Define and manage subscription packages for your platform</p>
+            <p className="text-teal-100 mt-1 text-sm">Define and manage subscription packages for your platform</p>
           </div>
           <div className="flex gap-2">
             <div className="flex bg-white/20 backdrop-blur rounded-lg p-0.5">
-              <button onClick={() => setViewMode('cards')} className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${viewMode === 'cards' ? 'bg-white text-purple-700' : 'text-white hover:bg-white/10'}`}><FiGrid className="w-4 h-4" /></button>
-              <button onClick={() => setViewMode('table')} className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${viewMode === 'table' ? 'bg-white text-purple-700' : 'text-white hover:bg-white/10'}`}><FiList className="w-4 h-4" /></button>
+              <button onClick={() => setViewMode('cards')} className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${viewMode === 'cards' ? 'bg-white text-teal-700' : 'text-white hover:bg-white/10'}`}><FiGrid className="w-4 h-4" /></button>
+              <button onClick={() => setViewMode('table')} className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${viewMode === 'table' ? 'bg-white text-teal-700' : 'text-white hover:bg-white/10'}`}><FiList className="w-4 h-4" /></button>
             </div>
             <button onClick={() => { setShowForm(true); setEditingId(null); setForm({ name: '', price: 0, billingCycle: 'monthly', features: '', maxEmployees: 50, maxStorage: 1000, status: 'active', isDefault: false, description: '' }); }} className="inline-flex items-center gap-2 px-4 py-2.5 bg-white/20 backdrop-blur text-white rounded-lg font-medium text-sm hover:bg-white/30 transition-colors">
               <FiPlus className="w-4 h-4" /> Add Package
@@ -125,7 +125,7 @@ export default function PackagesPage() {
 
       {/* Form */}
       {showForm && (
-        <div className="thb-card border-l-4 border-l-violet-500 p-6">
+        <div className="thb-card border-l-4 border-l-teal-500 p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-thb-text-primary">{editingId ? 'Edit Package' : 'Add Package'}</h3>
             <button onClick={() => { setShowForm(false); setEditingId(null); }} className="p-1.5 text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 rounded-lg"><FiX className="w-4 h-4" /></button>
@@ -142,7 +142,7 @@ export default function PackagesPage() {
             <div className="flex items-center gap-2 sm:col-span-2 lg:col-span-3">
               <label className="flex items-center gap-2 text-sm text-thb-text-secondary"><input type="checkbox" checked={form.isDefault} onChange={(e) => setForm((p) => ({ ...p, isDefault: e.target.checked }))} className="rounded" /> Set as default package</label>
             </div>
-            <div className="flex items-end gap-2"><button type="submit" className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg font-medium text-sm hover:bg-blue-600 transition-colors"><FiCheck className="w-4 h-4" />{editingId ? 'Update' : 'Create'}</button></div>
+            <div className="flex items-end gap-2"><button type="submit" className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-500 text-white rounded-lg font-medium text-sm hover:bg-green-600 transition-colors"><FiCheck className="w-4 h-4" />{editingId ? 'Update' : 'Create'}</button></div>
           </form>
         </div>
       )}
@@ -175,7 +175,7 @@ export default function PackagesPage() {
                 </div>
                 <div className="flex items-center justify-between pt-2 border-t border-thb-border">
                   <span className={`thb-badge ${pkg.status === 'active' ? 'thb-badge-success' : 'thb-badge-warning'}`}>{pkg.status}</span>
-                  <button onClick={() => handleEdit(pkg)} className="inline-flex items-center gap-1 text-blue-500 hover:text-blue-700 text-xs font-medium"><FiEdit2 className="w-3.5 h-3.5" /> Edit</button>
+                  <button onClick={() => handleEdit(pkg)} className="inline-flex items-center gap-1 text-green-500 hover:text-green-700 text-xs font-medium"><FiEdit2 className="w-3.5 h-3.5" /> Edit</button>
                 </div>
               </div>
             </div>

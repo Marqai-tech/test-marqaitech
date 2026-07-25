@@ -100,12 +100,12 @@ function getInitials(name: string) {
 
 function getAvatarColor(id: string) {
   const colors = [
-    'from-blue-500 to-indigo-600',
-    'from-violet-500 to-purple-600',
+    'from-green-500 to-emerald-600',
+    'from-teal-500 to-teal-600',
     'from-emerald-500 to-teal-600',
     'from-amber-500 to-orange-600',
     'from-rose-500 to-pink-600',
-    'from-cyan-500 to-blue-600',
+    'from-cyan-500 to-green-600',
   ];
   const idx = Math.abs(id.charCodeAt(0) + (id.charCodeAt(1) || 0)) % colors.length;
   return colors[idx];
@@ -144,7 +144,7 @@ export default function SmartChatPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-lg shadow-green-500/20">
             <FiMessageCircle className="w-5 h-5 text-white" />
           </div>
           <div>
@@ -154,7 +154,7 @@ export default function SmartChatPage() {
         </div>
         <button
           onClick={() => setShowNewChatModal(true)}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm"
+          className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors shadow-sm"
         >
           <FiPlus className="w-4 h-4" />
           New Chat
@@ -174,7 +174,7 @@ export default function SmartChatPage() {
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 placeholder="Search conversations..."
-                className="w-full pl-9 pr-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 bg-white"
+                className="w-full pl-9 pr-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 bg-white"
               />
             </div>
           </div>
@@ -187,7 +187,7 @@ export default function SmartChatPage() {
                 onClick={() => setActiveTab(tab)}
                 className={`flex-1 py-2 text-xs font-medium capitalize transition-colors ${
                   activeTab === tab
-                    ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/50'
+                    ? 'text-green-600 border-b-2 border-green-600 bg-green-50/50'
                     : 'text-thb-text-muted hover:text-thb-text-secondary'
                 }`}
               >
@@ -237,7 +237,7 @@ export default function SmartChatPage() {
                         {room.lastMessage}
                       </p>
                       {room.unreadCount > 0 && (
-                        <span className="flex-shrink-0 min-w-[18px] h-[18px] px-1 text-[10px] font-bold rounded-full bg-blue-600 text-white flex items-center justify-center">
+                        <span className="flex-shrink-0 min-w-[18px] h-[18px] px-1 text-[10px] font-bold rounded-full bg-green-600 text-white flex items-center justify-center">
                           {room.unreadCount}
                         </span>
                       )}
@@ -255,7 +255,7 @@ export default function SmartChatPage() {
               {CONTACTS.filter(c => c.online).slice(0, 8).map(c => (
                 <div
                   key={c.id}
-                  className="relative w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center ring-2 ring-white"
+                  className="relative w-7 h-7 rounded-full bg-gradient-to-br from-green-500 to-teal-600 flex items-center justify-center ring-2 ring-white"
                   title={c.name}
                 >
                   <span className="text-[9px] font-bold text-white">{getInitials(c.name)}</span>
@@ -299,10 +299,10 @@ export default function SmartChatPage() {
               </div>
             </div>
             <div className="flex items-center gap-1">
-              <button className="p-2 text-thb-text-muted hover:bg-slate-100 hover:text-blue-600 rounded-lg transition-colors" title="Audio call">
+              <button className="p-2 text-thb-text-muted hover:bg-slate-100 hover:text-green-600 rounded-lg transition-colors" title="Audio call">
                 <FiPhone className="w-4 h-4" />
               </button>
-              <button className="p-2 text-thb-text-muted hover:bg-slate-100 hover:text-violet-600 rounded-lg transition-colors" title="Video call">
+              <button className="p-2 text-thb-text-muted hover:bg-slate-100 hover:text-teal-600 rounded-lg transition-colors" title="Video call">
                 <FiVideo className="w-4 h-4" />
               </button>
               <button className="p-2 text-thb-text-muted hover:bg-slate-100 hover:text-amber-600 rounded-lg transition-colors" title="Search in chat">
@@ -310,7 +310,7 @@ export default function SmartChatPage() {
               </button>
               <button
                 onClick={() => setShowRightPanel(!showRightPanel)}
-                className={`p-2 rounded-lg transition-colors ${showRightPanel ? 'bg-blue-50 text-blue-600' : 'text-thb-text-muted hover:bg-slate-100 hover:text-blue-600'}`}
+                className={`p-2 rounded-lg transition-colors ${showRightPanel ? 'bg-green-50 text-green-600' : 'text-thb-text-muted hover:bg-slate-100 hover:text-green-600'}`}
                 title="Room info"
               >
                 <FiMoreVertical className="w-4 h-4" />
@@ -356,13 +356,13 @@ export default function SmartChatPage() {
           <div className="p-3 border-t border-thb-border bg-white">
             <div className="flex items-end gap-2">
               <div className="flex items-center gap-1 flex-shrink-0 pb-2">
-                <button className="p-1.5 text-thb-text-muted hover:text-blue-600 hover:bg-blue-50 rounded transition-colors" title="Attach file">
+                <button className="p-1.5 text-thb-text-muted hover:text-green-600 hover:bg-green-50 rounded transition-colors" title="Attach file">
                   <FiPaperclip className="w-4 h-4" />
                 </button>
                 <button className="p-1.5 text-thb-text-muted hover:text-amber-600 hover:bg-amber-50 rounded transition-colors" title="Emoji">
                   <FiSmile className="w-4 h-4" />
                 </button>
-                <button className="p-1.5 text-thb-text-muted hover:text-violet-600 hover:bg-violet-50 rounded transition-colors" title="Mention @">
+                <button className="p-1.5 text-thb-text-muted hover:text-teal-600 hover:bg-teal-50 rounded transition-colors" title="Mention @">
                   <FiUsers className="w-4 h-4" />
                 </button>
               </div>
@@ -373,12 +373,12 @@ export default function SmartChatPage() {
                   onChange={e => setNewMessage(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); setNewMessage(''); } }}
                   placeholder={`Message ${activeRoom.name}...`}
-                  className="w-full px-4 py-2.5 rounded-xl border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300"
+                  className="w-full px-4 py-2.5 rounded-xl border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-300"
                 />
               </div>
               <button
                 disabled={!newMessage.trim()}
-                className="p-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
+                className="p-2.5 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
               >
                 <FiSend className="w-4 h-4" />
               </button>
@@ -400,7 +400,7 @@ export default function SmartChatPage() {
                   onClick={() => setRightPanelTab(tab)}
                   className={`flex-1 py-2.5 text-[10px] font-medium capitalize transition-colors ${
                     rightPanelTab === tab
-                      ? 'text-blue-600 border-b-2 border-blue-600'
+                      ? 'text-green-600 border-b-2 border-green-600'
                       : 'text-thb-text-muted hover:text-thb-text-secondary'
                   }`}
                 >
@@ -544,11 +544,11 @@ export default function SmartChatPage() {
                   {(['direct', 'group', 'channel'] as const).map(type => (
                     <button
                       key={type}
-                      className="p-2.5 rounded-lg border border-thb-border text-center hover:bg-blue-50 hover:border-blue-200 transition-colors"
+                      className="p-2.5 rounded-lg border border-thb-border text-center hover:bg-green-50 hover:border-green-200 transition-colors"
                     >
                       {type === 'direct' ? <FiLock className="w-4 h-4 mx-auto text-emerald-500" /> :
-                       type === 'group' ? <FiUsers className="w-4 h-4 mx-auto text-blue-500" /> :
-                       <FiHash className="w-4 h-4 mx-auto text-violet-500" />}
+                       type === 'group' ? <FiUsers className="w-4 h-4 mx-auto text-green-500" /> :
+                       <FiHash className="w-4 h-4 mx-auto text-teal-500" />}
                       <p className="text-[10px] mt-1 text-thb-text-secondary capitalize">{type}</p>
                     </button>
                   ))}
@@ -559,7 +559,7 @@ export default function SmartChatPage() {
                 <input
                   type="text"
                   placeholder="e.g. Project Alpha Team"
-                  className="w-full mt-1 px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  className="w-full mt-1 px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20"
                 />
               </div>
               <div>
@@ -587,7 +587,7 @@ export default function SmartChatPage() {
               </button>
               <button
                 onClick={() => setShowNewChatModal(false)}
-                className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                className="px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
               >
                 Create Chat
               </button>
@@ -617,7 +617,7 @@ function MessageBubble({ message }: { message: ChatMessage }) {
           {/* Reply indicator */}
           {message.replyTo && (
             <div className={`mb-1 px-3 py-1.5 rounded-lg text-[10px] border-l-2 ${
-              message.isOwn ? 'border-blue-400 bg-blue-50' : 'border-slate-300 bg-slate-50'
+              message.isOwn ? 'border-green-400 bg-green-50' : 'border-slate-300 bg-slate-50'
             }`}>
               <span className="font-medium">{message.replyTo.senderName}: </span>
               <span className="text-thb-text-muted">{message.replyTo.body}</span>
@@ -626,7 +626,7 @@ function MessageBubble({ message }: { message: ChatMessage }) {
 
           <div className={`px-3.5 py-2.5 rounded-2xl text-sm ${
             message.isOwn
-              ? 'bg-blue-600 text-white rounded-br-md'
+              ? 'bg-green-600 text-white rounded-br-md'
               : 'bg-white border border-thb-border text-thb-text-primary rounded-bl-md shadow-sm'
           }`}>
             <p className="whitespace-pre-wrap leading-relaxed">{message.body}</p>
@@ -634,8 +634,8 @@ function MessageBubble({ message }: { message: ChatMessage }) {
               <div className={`mt-2 p-2 rounded-lg flex items-center gap-2 ${
                 message.isOwn ? 'bg-white/10' : 'bg-slate-50 border border-thb-border'
               }`}>
-                <FiPaperclip className={`w-3.5 h-3.5 ${message.isOwn ? 'text-blue-200' : 'text-thb-text-muted'}`} />
-                <span className={`text-xs ${message.isOwn ? 'text-blue-100' : 'text-thb-text-secondary'}`}>{message.attachmentName}</span>
+                <FiPaperclip className={`w-3.5 h-3.5 ${message.isOwn ? 'text-green-200' : 'text-thb-text-muted'}`} />
+                <span className={`text-xs ${message.isOwn ? 'text-green-100' : 'text-thb-text-secondary'}`}>{message.attachmentName}</span>
               </div>
             )}
           </div>
@@ -648,7 +648,7 @@ function MessageBubble({ message }: { message: ChatMessage }) {
                   key={i}
                   className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] rounded-full border transition-colors ${
                     r.reacted
-                      ? 'border-blue-300 bg-blue-50 text-blue-700'
+                      ? 'border-green-300 bg-green-50 text-green-700'
                       : 'border-thb-border bg-white text-thb-text-secondary hover:border-slate-300'
                   }`}
                 >

@@ -169,16 +169,16 @@ export default function PayrollAIInsightsPage() {
     CRITICAL: 'bg-red-100 text-red-700 border-red-200',
     HIGH: 'bg-orange-100 text-orange-700 border-orange-200',
     MEDIUM: 'bg-amber-100 text-amber-700 border-amber-200',
-    LOW: 'bg-blue-100 text-blue-700 border-blue-200',
+    LOW: 'bg-green-100 text-green-700 border-green-200',
   } as Record<string, string>)[s] || 'bg-slate-100 text-slate-700 border-slate-200';
 
   const statusColor = (s: string) => ({
     OPEN: 'bg-red-100 text-red-700',
     ACKNOWLEDGED: 'bg-amber-100 text-amber-700',
-    INVESTIGATING: 'bg-blue-100 text-blue-700',
+    INVESTIGATING: 'bg-green-100 text-green-700',
     RESOLVED: 'bg-emerald-100 text-emerald-700',
     FALSE_POSITIVE: 'bg-slate-100 text-slate-700',
-    NEW: 'bg-blue-100 text-blue-700',
+    NEW: 'bg-green-100 text-green-700',
     IN_REVIEW: 'bg-amber-100 text-amber-700',
     APPLIED: 'bg-emerald-100 text-emerald-700',
     IGNORED: 'bg-slate-100 text-slate-700',
@@ -191,14 +191,14 @@ export default function PayrollAIInsightsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
-            <FiActivity className="w-6 h-6 text-violet-500" />
+            <FiActivity className="w-6 h-6 text-teal-500" />
             AI Payroll Insights
           </h1>
           <p className="text-thb-text-secondary mt-1">Anomaly detection · Compliance change tracking · Ghost employee detection</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <input type="text" value={scanRunId} onChange={(e) => setScanRunId(e.target.value)} placeholder="Payroll Run ID (for scan)" className="px-3 py-2 text-sm border border-thb-border rounded-lg bg-white text-thb-text-primary placeholder:text-slate-400 w-64" />
-          <button onClick={runScan} disabled={scanning} className="inline-flex items-center gap-2 px-4 py-2 bg-violet-500 text-white rounded-lg hover:bg-violet-600 font-medium text-sm shadow-sm transition-colors disabled:opacity-50">
+          <button onClick={runScan} disabled={scanning} className="inline-flex items-center gap-2 px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 font-medium text-sm shadow-sm transition-colors disabled:opacity-50">
             <FiRefreshCw className={`w-4 h-4 ${scanning ? 'animate-spin' : ''}`} />
             {scanning ? 'Scanning…' : 'Run AI Scan'}
           </button>
@@ -206,10 +206,10 @@ export default function PayrollAIInsightsPage() {
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-        <div className={`thb-card p-4 border-l-4 ${tab === 'anomalies' ? 'border-violet-500' : 'border-transparent'}`}>
+        <div className={`thb-card p-4 border-l-4 ${tab === 'anomalies' ? 'border-teal-500' : 'border-transparent'}`}>
           <button onClick={() => setTab('anomalies')} className="w-full text-left">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-violet-50 flex items-center justify-center"><FiAlertTriangle className="w-5 h-5 text-violet-500" /></div>
+              <div className="w-10 h-10 rounded-lg bg-teal-50 flex items-center justify-center"><FiAlertTriangle className="w-5 h-5 text-teal-500" /></div>
               <div>
                 <p className="text-xs font-medium text-thb-text-secondary">Anomalies</p>
                 <p className="text-xl font-bold text-thb-text-primary">{anomalySummary?.total ?? 0}</p>
@@ -303,7 +303,7 @@ export default function PayrollAIInsightsPage() {
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
                       <span className={`px-2 py-0.5 text-xs font-semibold rounded border ${severityColor(c.impactLevel)}`}>{c.impactLevel}</span>
                       <span className="px-2 py-0.5 text-xs font-semibold rounded bg-slate-100 text-slate-700">{c.changeType.replace(/_/g, ' ')}</span>
-                      <span className="px-2 py-0.5 text-xs font-semibold rounded bg-blue-100 text-blue-700">{c.countryCode}</span>
+                      <span className="px-2 py-0.5 text-xs font-semibold rounded bg-green-100 text-green-700">{c.countryCode}</span>
                       <span className={`px-2 py-0.5 text-xs font-semibold rounded ${statusColor(c.status)}`}>{c.status}</span>
                       <span className="text-xs text-thb-text-secondary">{c.authorityName}</span>
                     </div>
@@ -311,7 +311,7 @@ export default function PayrollAIInsightsPage() {
                     <p className="text-xs text-thb-text-secondary mt-1 leading-relaxed">{c.description}</p>
                     <div className="flex items-center gap-3 mt-2 text-xs text-slate-500">
                       <span className="inline-flex items-center gap-1"><FiClock className="w-3 h-3" /> Effective: {new Date(c.effectiveDate).toLocaleDateString()}</span>
-                      {c.sourceUrl && <a href={c.sourceUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-blue-600 hover:underline"><FiExternalLink className="w-3 h-3" /> Source</a>}
+                      {c.sourceUrl && <a href={c.sourceUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-green-600 hover:underline"><FiExternalLink className="w-3 h-3" /> Source</a>}
                     </div>
                   </div>
                   <div className="flex items-center gap-1 flex-shrink-0">
@@ -350,7 +350,7 @@ export default function PayrollAIInsightsPage() {
                   <div className="flex items-center gap-1 flex-shrink-0">
                     {g.status === 'OPEN' && (
                       <>
-                        <button onClick={() => updateGhost(g.id, 'INVESTIGATING')} className="p-1.5 rounded hover:bg-blue-50 text-blue-600" title="Start investigating"><FiSearch className="w-4 h-4" /></button>
+                        <button onClick={() => updateGhost(g.id, 'INVESTIGATING')} className="p-1.5 rounded hover:bg-green-50 text-green-600" title="Start investigating"><FiSearch className="w-4 h-4" /></button>
                         <button onClick={() => updateGhost(g.id, 'CONFIRMED_FRAUD')} className="p-1.5 rounded hover:bg-red-50 text-red-600" title="Confirm fraud"><FiAlertTriangle className="w-4 h-4" /></button>
                         <button onClick={() => updateGhost(g.id, 'CONFIRMED_BENCH')} className="p-1.5 rounded hover:bg-amber-50 text-amber-600" title="Bench resource (legit)"><FiCheck className="w-4 h-4" /></button>
                         <button onClick={() => updateGhost(g.id, 'FALSE_POSITIVE')} className="p-1.5 rounded hover:bg-slate-100 text-slate-600" title="False positive"><FiX className="w-4 h-4" /></button>
@@ -366,7 +366,7 @@ export default function PayrollAIInsightsPage() {
 
       <div className="thb-card p-4 bg-slate-50/50">
         <div className="flex items-start gap-3">
-          <FiShield className="w-5 h-5 text-violet-500 mt-0.5 flex-shrink-0" />
+          <FiShield className="w-5 h-5 text-teal-500 mt-0.5 flex-shrink-0" />
           <div>
             <p className="text-sm font-semibold text-thb-text-primary mb-1">AI Payroll Compliance Matrix</p>
             <ul className="text-xs text-thb-text-secondary space-y-1">

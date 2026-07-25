@@ -40,7 +40,7 @@ export default function ForgotPasswordPage() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-6">
-          <div className="inline-flex w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-violet-600 items-center justify-center mb-3">
+          <div className="inline-flex w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-teal-600 items-center justify-center mb-3">
             <svg viewBox="0 0 35 11" className="w-7 h-3" fill="none">
               <rect x="0" y="0" width="9" height="9" rx="2" fill="white" opacity="0.9"/>
               <rect x="13" y="0" width="9" height="9" rx="2" fill="white" opacity="0.9"/>
@@ -64,7 +64,7 @@ export default function ForgotPasswordPage() {
                   </div>
                   <a
                     href={magicLink}
-                    className="inline-block w-full px-4 py-2.5 bg-gradient-to-r from-blue-600 to-violet-600 text-white rounded-md text-sm hover:from-blue-700 hover:to-violet-700 font-medium"
+                    className="inline-block w-full px-4 py-2.5 bg-gradient-to-r from-green-600 to-teal-600 text-white rounded-md text-sm hover:from-green-700 hover:to-teal-700 font-medium"
                   >
                     Open Magic Link →
                   </a>
@@ -79,7 +79,7 @@ export default function ForgotPasswordPage() {
                   </details>
                 </div>
               )}
-              <Link href="/candidate-portal/login" className="inline-block px-4 py-2 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700">
+              <Link href="/candidate-portal/login" className="inline-block px-4 py-2 bg-green-600 text-white rounded-md text-sm hover:bg-green-700">
                 Back to Login
               </Link>
             </div>
@@ -93,7 +93,7 @@ export default function ForgotPasswordPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   required
                   autoFocus
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                   placeholder="you@example.com"
                 />
               </div>
@@ -103,7 +103,7 @@ export default function ForgotPasswordPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full px-4 py-2 bg-indigo-600 text-white rounded-md text-sm hover:bg-indigo-700 disabled:bg-gray-400"
+                className="w-full px-4 py-2 bg-emerald-600 text-white rounded-md text-sm hover:bg-emerald-700 disabled:bg-gray-400"
               >
                 {loading ? 'Sending…' : 'Send Reset Link'}
               </button>
@@ -114,7 +114,7 @@ export default function ForgotPasswordPage() {
           )}
 
           <div className="border-t pt-4 text-center">
-            <Link href="/candidate-portal/login" className="text-xs text-blue-600 hover:underline">
+            <Link href="/candidate-portal/login" className="text-xs text-green-600 hover:underline">
               ← Back to Login
             </Link>
           </div>

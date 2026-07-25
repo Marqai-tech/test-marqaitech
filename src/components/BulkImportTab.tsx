@@ -200,7 +200,7 @@ export default function BulkImportTab({ module: initialModule = 'employees' }: B
       <div className="thb-card">
         <div className="p-6">
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-500">
+            <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center text-green-500">
               <FiFileText className="w-5 h-5" />
             </div>
             <div>
@@ -221,11 +221,11 @@ export default function BulkImportTab({ module: initialModule = 'employees' }: B
                 }}
                 className={`flex flex-col items-center gap-1.5 p-3 rounded-lg border transition-all text-center ${
                   selectedModule === mod.key
-                    ? 'border-blue-500 bg-blue-50/50 text-blue-600 shadow-sm'
+                    ? 'border-green-500 bg-green-50/50 text-green-600 shadow-sm'
                     : 'border-thb-border/50 hover:border-thb-border hover:bg-slate-50 text-thb-text-muted'
                 }`}
               >
-                <span className={`text-lg ${selectedModule === mod.key ? 'text-blue-500' : 'text-slate-400'}`}>
+                <span className={`text-lg ${selectedModule === mod.key ? 'text-green-500' : 'text-slate-400'}`}>
                   {mod.icon}
                 </span>
                 <span className="text-xs font-medium leading-tight">{mod.label}</span>
@@ -262,10 +262,10 @@ export default function BulkImportTab({ module: initialModule = 'employees' }: B
             onClick={() => fileInputRef.current?.click()}
             className={`relative border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all ${
               isDragging
-                ? 'border-blue-500 bg-blue-50/30'
+                ? 'border-green-500 bg-green-50/30'
                 : file
                   ? 'border-emerald-400 bg-emerald-50/30'
-                  : 'border-thb-border/50 hover:border-blue-300 hover:bg-slate-50/50'
+                  : 'border-thb-border/50 hover:border-green-300 hover:bg-slate-50/50'
             }`}
           >
             <input
@@ -328,7 +328,7 @@ export default function BulkImportTab({ module: initialModule = 'employees' }: B
             <button
               onClick={handleUpload}
               disabled={uploading || !file}
-              className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 shadow-sm shadow-blue-500/25 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 shadow-sm shadow-green-500/25 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {uploading ? (
                 <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" />

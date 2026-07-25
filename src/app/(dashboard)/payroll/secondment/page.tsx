@@ -146,7 +146,7 @@ export default function SecondmentPage() {
 
   const statusColor = (s: string) => ({
     ACTIVE: 'bg-emerald-100 text-emerald-700',
-    COMPLETED: 'bg-blue-100 text-blue-700',
+    COMPLETED: 'bg-green-100 text-green-700',
     CANCELLED: 'bg-red-100 text-red-700',
   } as Record<string, string>)[s] || 'bg-slate-100 text-slate-700';
 
@@ -180,7 +180,7 @@ export default function SecondmentPage() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div className="thb-card p-3 bg-slate-50"><p className="text-xs font-medium text-slate-600">Total</p><p className="text-2xl font-bold text-thb-text-primary">{summary.total}</p></div>
           <div className="thb-card p-3 bg-emerald-50"><p className="text-xs font-medium text-emerald-700">Active</p><p className="text-2xl font-bold text-emerald-700">{summary.active}</p></div>
-          <div className="thb-card p-3 bg-blue-50"><p className="text-xs font-medium text-blue-700">Completed</p><p className="text-2xl font-bold text-blue-700">{summary.completed}</p></div>
+          <div className="thb-card p-3 bg-green-50"><p className="text-xs font-medium text-green-700">Completed</p><p className="text-2xl font-bold text-green-700">{summary.completed}</p></div>
           <div className="thb-card p-3 bg-red-50"><p className="text-xs font-medium text-red-700">Cancelled</p><p className="text-2xl font-bold text-red-700">{summary.cancelled}</p></div>
         </div>
       )}
@@ -215,7 +215,7 @@ export default function SecondmentPage() {
                   <div className="flex items-center gap-2 mb-2 flex-wrap">
                     <span className={`px-2 py-0.5 text-xs font-semibold rounded ${statusColor(s.status)}`}>{s.status}</span>
                     <span className="px-2 py-0.5 text-xs font-semibold rounded bg-cyan-100 text-cyan-700">{s.homeCountry} → {s.hostCountry}</span>
-                    {s.certificateRef && <span className="px-2 py-0.5 text-xs font-semibold rounded bg-violet-100 text-violet-700">CoC: {s.certificateRef}</span>}
+                    {s.certificateRef && <span className="px-2 py-0.5 text-xs font-semibold rounded bg-teal-100 text-teal-700">CoC: {s.certificateRef}</span>}
                     {s.employee && (
                       <span className="text-xs text-thb-text-secondary">{s.employee.firstName} {s.employee.lastName} ({s.employee.employeeId}){s.employee.department?.name && ` · ${s.employee.department.name}`}</span>
                     )}

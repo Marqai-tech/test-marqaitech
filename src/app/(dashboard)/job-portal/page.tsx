@@ -178,19 +178,19 @@ export default function JobPortalPage() {
       <ModuleWorkflow moduleKey="job_portal" title="How to Manage the Job Portal" subtitle="Follow this workflow to set up and manage your career portal" steps={jobPortalWorkflowSteps} accentColor="cyan" userRole={user?.role} />
 
       {/* Search Bar */}
-      <div className="thb-card p-6 bg-gradient-to-r from-sky-50 to-blue-50 border-sky-200">
+      <div className="thb-card p-6 bg-gradient-to-r from-sky-50 to-green-50 border-sky-200">
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
             <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-thb-text-muted" />
-            <input placeholder="Search jobs by title, skill, or keyword..." className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 h-11" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+            <input placeholder="Search jobs by title, skill, or keyword..." className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 h-11" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
           </div>
-          <select value={locationFilter} onChange={(e) => setLocationFilter(e.target.value)} className="px-4 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 h-11 w-full sm:w-48">
+          <select value={locationFilter} onChange={(e) => setLocationFilter(e.target.value)} className="px-4 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 h-11 w-full sm:w-48">
             <option value="all">All Locations</option>
             {uniqueLocations.filter(loc => loc && loc.trim()).map((loc) => (
               <option key={loc} value={loc.toLowerCase()}>{loc}</option>
             ))}
           </select>
-          <button className="h-11 bg-blue-500 text-white px-6 rounded-lg hover:bg-blue-600 font-medium text-sm shadow-sm shadow-blue-500/25 transition-colors flex items-center gap-2" onClick={() => fetchJobs()}>
+          <button className="h-11 bg-green-500 text-white px-6 rounded-lg hover:bg-green-600 font-medium text-sm shadow-sm shadow-green-500/25 transition-colors flex items-center gap-2" onClick={() => fetchJobs()}>
             <FiSearch className="w-4 h-4" /> Search
           </button>
         </div>
@@ -210,9 +210,9 @@ export default function JobPortalPage() {
       {activeTab === 'featured' && (
         <div className="space-y-4">
           {/* AI Recommendations */}
-          <div className="thb-card p-4 border-l-4 border-l-purple-500">
+          <div className="thb-card p-4 border-l-4 border-l-teal-500">
             <div className="flex items-center gap-2 mb-3">
-              <FiZap className="w-5 h-5 text-purple-500" />
+              <FiZap className="w-5 h-5 text-teal-500" />
               <h3 className="text-sm font-semibold text-thb-text-primary">AI Job Recommendations</h3>
               <span className="thb-badge thb-badge-purple">AI</span>
             </div>
@@ -222,7 +222,7 @@ export default function JobPortalPage() {
                 { reason: 'Matches your experience level (5+ years)', match: 85 },
                 { reason: 'Aligned with your location preferences', match: 78 },
               ].map((rec, i) => (
-                <div key={i} className="p-3 rounded-lg bg-purple-50 border border-purple-100">
+                <div key={i} className="p-3 rounded-lg bg-teal-50 border border-teal-100">
                   <p className="text-xs text-thb-text-secondary mb-1">{rec.reason}</p>
                   <span className="bg-emerald-50 text-emerald-700 text-xs font-medium px-2 py-0.5 rounded-full">{rec.match}% match</span>
                 </div>
@@ -262,7 +262,7 @@ export default function JobPortalPage() {
       {activeTab === 'browse' && (
         <div className="space-y-3">
           <div className="flex items-center gap-2">
-            <FiBriefcase className="w-5 h-5 text-blue-500" />
+            <FiBriefcase className="w-5 h-5 text-green-500" />
             <h2 className="text-lg font-semibold text-thb-text-primary">All Open Positions ({filteredJobs.length})</h2>
           </div>
 
@@ -284,7 +284,7 @@ export default function JobPortalPage() {
                   : 'Check back later for new opportunities'}
               </p>
               {(searchQuery || locationFilter !== 'all') && (
-                <button onClick={() => { setSearchQuery(''); setLocationFilter('all'); }} className="mt-3 px-4 py-2 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 transition-colors">
+                <button onClick={() => { setSearchQuery(''); setLocationFilter('all'); }} className="mt-3 px-4 py-2 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 transition-colors">
                   Clear Filters
                 </button>
               )}
@@ -331,23 +331,23 @@ export default function JobPortalPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Full Name *</label>
-                <input value={applyForm.candidateName} onChange={e => setApplyForm(p => ({ ...p, candidateName: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="John Doe" />
+                <input value={applyForm.candidateName} onChange={e => setApplyForm(p => ({ ...p, candidateName: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="John Doe" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Email *</label>
-                <input type="email" value={applyForm.candidateEmail} onChange={e => setApplyForm(p => ({ ...p, candidateEmail: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="john@example.com" />
+                <input type="email" value={applyForm.candidateEmail} onChange={e => setApplyForm(p => ({ ...p, candidateEmail: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="john@example.com" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Phone</label>
-                <input value={applyForm.candidatePhone} onChange={e => setApplyForm(p => ({ ...p, candidatePhone: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="+91 98765 43210" />
+                <input value={applyForm.candidatePhone} onChange={e => setApplyForm(p => ({ ...p, candidatePhone: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="+91 98765 43210" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Expected Salary</label>
-                <input value={applyForm.expectedSalary} onChange={e => setApplyForm(p => ({ ...p, expectedSalary: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="e.g., ₹15L" />
+                <input value={applyForm.expectedSalary} onChange={e => setApplyForm(p => ({ ...p, expectedSalary: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="e.g., ₹15L" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Source</label>
-                <select value={applyForm.source} onChange={e => setApplyForm(p => ({ ...p, source: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                <select value={applyForm.source} onChange={e => setApplyForm(p => ({ ...p, source: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                   <option value="portal">Job Portal</option>
                   <option value="referral">Referral</option>
                   <option value="linkedin">LinkedIn</option>

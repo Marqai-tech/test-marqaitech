@@ -14,10 +14,10 @@ const reports: { key: ReportType; label: string; icon: React.ReactNode; desc: st
 ];
 
 const funnelData = [
-  { stage: 'Leads', count: 250, color: 'bg-blue-400' },
-  { stage: 'Qualified', count: 180, color: 'bg-blue-500' },
-  { stage: 'Proposal', count: 85, color: 'bg-blue-600' },
-  { stage: 'Negotiation', count: 45, color: 'bg-blue-700' },
+  { stage: 'Leads', count: 250, color: 'bg-green-400' },
+  { stage: 'Qualified', count: 180, color: 'bg-green-500' },
+  { stage: 'Proposal', count: 85, color: 'bg-green-600' },
+  { stage: 'Negotiation', count: 45, color: 'bg-green-700' },
   { stage: 'Won', count: 28, color: 'bg-emerald-500' },
 ];
 
@@ -35,7 +35,7 @@ export default function CrmReportsPage() {
         </div>
         <button
           onClick={() => toast.success('Report exported successfully')}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium"
+          className="flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium"
         >
           <FiDownload className="w-4 h-4" /> Export Report
         </button>
@@ -46,9 +46,9 @@ export default function CrmReportsPage() {
           <button
             key={r.key}
             onClick={() => setActiveReport(r.key)}
-            className={`thb-card p-4 text-left hover:shadow-md transition-all ${activeReport === r.key ? 'ring-2 ring-blue-500 shadow-md' : ''}`}
+            className={`thb-card p-4 text-left hover:shadow-md transition-all ${activeReport === r.key ? 'ring-2 ring-green-500 shadow-md' : ''}`}
           >
-            <div className={`p-2 rounded-lg inline-flex ${activeReport === r.key ? 'bg-blue-500 text-white' : 'bg-slate-100 text-slate-600'} mb-2`}>{r.icon}</div>
+            <div className={`p-2 rounded-lg inline-flex ${activeReport === r.key ? 'bg-green-500 text-white' : 'bg-slate-100 text-slate-600'} mb-2`}>{r.icon}</div>
             <p className="text-sm font-semibold text-thb-text-primary">{r.label}</p>
             <p className="text-xs text-thb-text-muted mt-0.5">{r.desc}</p>
           </button>

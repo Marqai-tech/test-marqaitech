@@ -43,7 +43,7 @@ const TYPE_ICON: Record<DeviceType, React.ReactNode> = {
 
 const STATUS_CFG: Record<DeviceStatus, { bg: string; text: string }> = {
   available: { bg: 'bg-emerald-100', text: 'text-emerald-700' },
-  assigned: { bg: 'bg-blue-100', text: 'text-blue-700' },
+  assigned: { bg: 'bg-green-100', text: 'text-green-700' },
   repair: { bg: 'bg-amber-100', text: 'text-amber-700' },
   retired: { bg: 'bg-slate-100', text: 'text-slate-600' },
 };
@@ -146,9 +146,9 @@ export default function DeviceManagementPage() {
       {/* Stat Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: 'Total Devices', value: statCounts.total, icon: <FiMonitor />, color: 'text-thb-primary', bg: 'bg-blue-50' },
+          { label: 'Total Devices', value: statCounts.total, icon: <FiMonitor />, color: 'text-thb-primary', bg: 'bg-green-50' },
           { label: 'Available', value: statCounts.available, icon: <FiMonitor />, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-          { label: 'Assigned', value: statCounts.assigned, icon: <FiUser />, color: 'text-blue-600', bg: 'bg-blue-50' },
+          { label: 'Assigned', value: statCounts.assigned, icon: <FiUser />, color: 'text-green-600', bg: 'bg-green-50' },
           { label: 'In Repair', value: statCounts.repair, icon: <FiMonitor />, color: 'text-amber-600', bg: 'bg-amber-50' },
         ].map(s => (
           <div key={s.label} className="thb-card p-4">

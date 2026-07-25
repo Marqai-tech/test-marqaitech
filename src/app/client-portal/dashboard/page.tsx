@@ -70,7 +70,7 @@ export default function ClientPortalDashboard() {
                   <td className="px-3 py-2 font-mono text-xs">{i.invoiceNumber}</td>
                   <td className="px-3 py-2 text-right">{i.currency} {i.totalAmount?.toLocaleString()}</td>
                   <td className="px-3 py-2 text-right">{i.dueDate ? new Date(i.dueDate).toLocaleDateString() : '-'}</td>
-                  <td className="px-3 py-2 text-center"><span className="text-xs px-2 py-0.5 rounded bg-blue-50 text-blue-700">{i.status}</span></td>
+                  <td className="px-3 py-2 text-center"><span className="text-xs px-2 py-0.5 rounded bg-green-50 text-green-700">{i.status}</span></td>
                 </tr>
               ))}
             </tbody>

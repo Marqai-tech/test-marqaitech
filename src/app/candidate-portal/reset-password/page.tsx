@@ -47,7 +47,7 @@ export default function ResetPasswordPage() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-6">
-          <div className="inline-flex w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-violet-600 items-center justify-center mb-3">
+          <div className="inline-flex w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-teal-600 items-center justify-center mb-3">
             <svg viewBox="0 0 35 11" className="w-7 h-3" fill="none">
               <rect x="0" y="0" width="9" height="9" rx="2" fill="white" opacity="0.9"/>
               <rect x="13" y="0" width="9" height="9" rx="2" fill="white" opacity="0.9"/>
@@ -60,7 +60,7 @@ export default function ResetPasswordPage() {
         <div className="bg-white rounded-2xl shadow-2xl p-6 text-center">
           {loading && (
             <div className="space-y-3">
-              <div className="animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto"></div>
+              <div className="animate-spin h-8 w-8 border-4 border-green-500 border-t-transparent rounded-full mx-auto"></div>
               <div className="text-sm text-gray-600">Verifying token and logging you in…</div>
             </div>
           )}
@@ -68,7 +68,7 @@ export default function ResetPasswordPage() {
             <div className="space-y-3">
               <div className="text-5xl">⚠️</div>
               <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded px-3 py-2">{error}</div>
-              <Link href="/candidate-portal/forgot-password" className="inline-block px-4 py-2 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700">
+              <Link href="/candidate-portal/forgot-password" className="inline-block px-4 py-2 bg-green-600 text-white rounded-md text-sm hover:bg-green-700">
                 Request a new link
               </Link>
             </div>

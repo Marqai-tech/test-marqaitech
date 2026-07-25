@@ -52,14 +52,14 @@ function getCategoryLabel(cat: string | TicketCategory | null | undefined): stri
 }
 
 const priorityConfig: Record<string, { bg: string; text: string }> = {
-  low: { bg: 'bg-blue-100', text: 'text-blue-700' },
+  low: { bg: 'bg-green-100', text: 'text-green-700' },
   medium: { bg: 'bg-amber-100', text: 'text-amber-700' },
   high: { bg: 'bg-orange-100', text: 'text-orange-700' },
   critical: { bg: 'bg-red-100', text: 'text-red-700' },
 };
 
 const statusConfig: Record<string, { bg: string; text: string }> = {
-  open: { bg: 'bg-blue-100', text: 'text-blue-700' },
+  open: { bg: 'bg-green-100', text: 'text-green-700' },
   in_progress: { bg: 'bg-amber-100', text: 'text-amber-700' },
   resolved: { bg: 'bg-emerald-100', text: 'text-emerald-700' },
   closed: { bg: 'bg-slate-100', text: 'text-slate-600' },
@@ -94,14 +94,14 @@ const supportTabs: DashboardTabConfig[] = [
 function SupportReportsPlaceholder() {
   return (
     <div className="flex flex-col items-center py-8">
-      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg mb-4">
+      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-lg mb-4">
         <FiFileText className="w-7 h-7 text-white" />
       </div>
       <h3 className="text-lg font-bold text-thb-text-primary mb-1">Reports & Analytics</h3>
       <p className="text-sm text-thb-text-secondary text-center max-w-md mb-4">
         Ticket analytics, SLA compliance, agent performance, and resolution reports
       </p>
-      <a href="/helpdesk/reports" className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors">
+      <a href="/helpdesk/reports" className="inline-flex items-center gap-2 px-5 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors">
         <FiBarChart2 className="w-4 h-4" /> Go to Reports
       </a>
     </div>
@@ -347,7 +347,7 @@ function HelpdeskContent() {
           <h1 className="text-2xl font-bold text-thb-text-primary">Helpdesk</h1>
           <p className="text-thb-text-secondary mt-1">Manage support tickets and requests</p>
         </div>
-        <button onClick={handleAddNew} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium text-sm shadow-sm shadow-blue-500/25 transition-colors">
+        <button onClick={handleAddNew} className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-500 text-white rounded-lg hover:bg-green-600 font-medium text-sm shadow-sm shadow-green-500/25 transition-colors">
           <FiPlus className="w-4 h-4" /> Create Ticket
         </button>
       </div>
@@ -357,7 +357,7 @@ function HelpdeskContent() {
         <div className="thb-card p-6 text-center border-l-4 border-l-red-400">
           <FiAlertCircle className="w-10 h-10 text-red-400 mx-auto mb-3" />
           <p className="text-thb-text-secondary mb-3">{error}</p>
-          <button onClick={fetchTickets} className="px-4 py-2 bg-blue-500 text-white rounded-lg text-sm hover:bg-blue-600 transition-colors">
+          <button onClick={fetchTickets} className="px-4 py-2 bg-green-500 text-white rounded-lg text-sm hover:bg-green-600 transition-colors">
             Retry
           </button>
         </div>
@@ -384,7 +384,7 @@ function HelpdeskContent() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <button onClick={() => handleEdit(viewingTicket)} className="px-3 py-1.5 rounded-lg bg-blue-500 text-white text-xs font-medium hover:bg-blue-600 transition-colors flex items-center gap-1"><FiEdit2 className="w-3.5 h-3.5" />Edit</button>
+                <button onClick={() => handleEdit(viewingTicket)} className="px-3 py-1.5 rounded-lg bg-green-500 text-white text-xs font-medium hover:bg-green-600 transition-colors flex items-center gap-1"><FiEdit2 className="w-3.5 h-3.5" />Edit</button>
                 <button onClick={() => setViewingId(null)} className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors"><FiX className="w-5 h-5" /></button>
               </div>
             </div>
@@ -449,8 +449,8 @@ function HelpdeskContent() {
                 ))}
               </div>
               <div className="flex gap-2">
-                <input value={comment} onChange={(e) => setComment(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleAddComment()} placeholder="Add a comment..." className="flex-1 px-3 py-2.5 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
-                <button onClick={handleAddComment} className="px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm transition-colors"><FiSend className="w-4 h-4" /></button>
+                <input value={comment} onChange={(e) => setComment(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleAddComment()} placeholder="Add a comment..." className="flex-1 px-3 py-2.5 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
+                <button onClick={handleAddComment} className="px-4 py-2.5 bg-green-500 text-white rounded-lg hover:bg-green-600 text-sm transition-colors"><FiSend className="w-4 h-4" /></button>
               </div>
             </div>
           </div>
@@ -459,7 +459,7 @@ function HelpdeskContent() {
 
       {/* Inline Form */}
       {showForm && (
-        <div id="crud-form" className="thb-card border-l-4 border-l-blue-500">
+        <div id="crud-form" className="thb-card border-l-4 border-l-green-500">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-semibold text-thb-text-primary">
@@ -470,15 +470,15 @@ function HelpdeskContent() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="sm:col-span-2">
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Subject *</label>
-                <input type="text" value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="Ticket subject" />
+                <input type="text" value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="Ticket subject" />
               </div>
               <div className="sm:col-span-2">
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Description *</label>
-                <textarea rows={4} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 resize-none" placeholder="Describe the issue..." />
+                <textarea rows={4} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 resize-none" placeholder="Describe the issue..." />
               </div>
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Category</label>
-                <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                   <option value="hr">HR</option>
                   <option value="it">IT</option>
                   <option value="payroll">Payroll</option>
@@ -488,7 +488,7 @@ function HelpdeskContent() {
               </div>
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Priority</label>
-                <select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                <select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                   <option value="low">Low</option>
                   <option value="medium">Medium</option>
                   <option value="high">High</option>
@@ -497,7 +497,7 @@ function HelpdeskContent() {
               </div>
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Requester Type</label>
-                <select value={form.requesterType} onChange={(e) => setForm({ ...form, requesterType: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                <select value={form.requesterType} onChange={(e) => setForm({ ...form, requesterType: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                   <option value="employee">Employee</option>
                   <option value="client">Client</option>
                   <option value="vendor">Vendor</option>
@@ -506,7 +506,7 @@ function HelpdeskContent() {
             </div>
             <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-thb-border">
               <button onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
-              <button onClick={handleSubmit} disabled={submitting} className="px-6 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50 shadow-sm shadow-blue-500/25 transition-colors">{submitting ? 'Saving...' : editingId ? 'Update' : 'Create'}</button>
+              <button onClick={handleSubmit} disabled={submitting} className="px-6 py-2.5 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 disabled:opacity-50 shadow-sm shadow-green-500/25 transition-colors">{submitting ? 'Saving...' : editingId ? 'Update' : 'Create'}</button>
             </div>
           </div>
         </div>
@@ -521,7 +521,7 @@ function HelpdeskContent() {
           <p className="text-thb-text-secondary">
             {activeTab === 'my' ? 'You haven\'t created any tickets yet' : 'No tickets found'}
           </p>
-          <button onClick={handleAddNew} className="mt-4 inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg text-sm font-medium hover:bg-blue-600 transition-colors">
+          <button onClick={handleAddNew} className="mt-4 inline-flex items-center gap-2 px-4 py-2.5 bg-green-500 text-white rounded-lg text-sm font-medium hover:bg-green-600 transition-colors">
             <FiPlus className="w-4 h-4" /> Create Your First Ticket
           </button>
         </div>
@@ -561,7 +561,7 @@ function HelpdeskContent() {
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-end gap-1">
                             <button onClick={() => handleView(t.id)} className="p-2 rounded-lg text-thb-text-muted hover:text-emerald-500 hover:bg-emerald-50 transition-colors" title="View"><FiEye className="w-4 h-4" /></button>
-                            <button onClick={() => handleEdit(t)} className="p-2 rounded-lg text-thb-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="Edit"><FiEdit2 className="w-4 h-4" /></button>
+                            <button onClick={() => handleEdit(t)} className="p-2 rounded-lg text-thb-text-muted hover:text-green-500 hover:bg-green-50 transition-colors" title="Edit"><FiEdit2 className="w-4 h-4" /></button>
                             <button onClick={() => setDeleteConfirmId(t.id)} className="p-2 rounded-lg text-thb-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete"><FiTrash2 className="w-4 h-4" /></button>
                           </div>
                         </td>

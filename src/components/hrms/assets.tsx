@@ -26,7 +26,7 @@ const ASSET_TYPE_ICONS: Record<string, React.ReactNode> = {
 
 const STATUS_COLORS: Record<string, string> = {
   allocated: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-400',
-  available: 'bg-blue-100 text-blue-800 dark:bg-blue-950/30 dark:text-blue-400',
+  available: 'bg-green-100 text-green-800 dark:bg-green-950/30 dark:text-green-400',
   damaged: 'bg-red-100 text-red-800 dark:bg-red-950/30 dark:text-red-400',
   return_requested: 'bg-amber-100 text-amber-800 dark:bg-amber-950/30 dark:text-amber-400',
 };
@@ -171,7 +171,7 @@ export function Assets() {
               <div className="flex items-center justify-center gap-2 mt-2 text-[10px]">
                 <span className="text-emerald-600">{asset.allocated} used</span>
                 <span className="text-muted-foreground">·</span>
-                <span className="text-blue-600">{asset.available} free</span>
+                <span className="text-green-600">{asset.available} free</span>
               </div>
             </CardContent>
           </Card>

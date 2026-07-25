@@ -124,7 +124,7 @@ export default function AuditLogPage() {
                   <td className="px-4 py-3 text-slate-500 text-xs font-mono">{l.changedByIp || '—'}</td>
                   <td className="px-4 py-3 text-slate-600 max-w-xs truncate text-xs">{l.reason || '—'}</td>
                   <td className="px-4 py-3 text-right">
-                    <button onClick={() => setSelected(l)} className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded" title="View diff">
+                    <button onClick={() => setSelected(l)} className="p-1.5 text-slate-500 hover:text-green-600 hover:bg-green-50 rounded" title="View diff">
                       <FiEye className="w-4 h-4" />
                     </button>
                   </td>

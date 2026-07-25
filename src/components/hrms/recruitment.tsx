@@ -30,14 +30,14 @@ const STATUS_COLORS: Record<string, string> = {
 const PRIORITY_COLORS: Record<string, string> = {
   urgent: 'bg-red-100 text-red-800 dark:bg-red-950/30 dark:text-red-400',
   high: 'bg-amber-100 text-amber-800 dark:bg-amber-950/30 dark:text-amber-400',
-  medium: 'bg-blue-100 text-blue-800 dark:bg-blue-950/30 dark:text-blue-400',
+  medium: 'bg-green-100 text-green-800 dark:bg-green-950/30 dark:text-green-400',
   low: 'bg-slate-100 text-slate-800 dark:bg-slate-950/30 dark:text-slate-400',
 };
 
 const PIPELINE_COLUMNS = [
-  { key: 'applied', label: 'Applied', icon: <Send className="h-3.5 w-3.5" />, color: 'border-t-blue-500' },
+  { key: 'applied', label: 'Applied', icon: <Send className="h-3.5 w-3.5" />, color: 'border-t-green-500' },
   { key: 'screening', label: 'Screening', icon: <Search className="h-3.5 w-3.5" />, color: 'border-t-amber-500' },
-  { key: 'shortlisted', label: 'Shortlisted', icon: <Star className="h-3.5 w-3.5" />, color: 'border-t-purple-500' },
+  { key: 'shortlisted', label: 'Shortlisted', icon: <Star className="h-3.5 w-3.5" />, color: 'border-t-teal-500' },
   { key: 'interviewing', label: 'Interviewing', icon: <MessageSquare className="h-3.5 w-3.5" />, color: 'border-t-teal-500' },
   { key: 'offered', label: 'Offered', icon: <Award className="h-3.5 w-3.5" />, color: 'border-t-emerald-500' },
   { key: 'hired', label: 'Hired', icon: <CheckCircle2 className="h-3.5 w-3.5" />, color: 'border-t-green-600' },
@@ -202,7 +202,7 @@ export function Recruitment() {
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
-            <Users className="h-5 w-5 mx-auto text-blue-600 mb-1" />
+            <Users className="h-5 w-5 mx-auto text-green-600 mb-1" />
             <p className="text-2xl font-bold">{candidates.length}</p>
             <p className="text-xs text-muted-foreground">Active Candidates</p>
           </CardContent>

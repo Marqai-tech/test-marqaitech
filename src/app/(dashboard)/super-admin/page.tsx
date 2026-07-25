@@ -672,9 +672,9 @@ export default function SuperAdminPage() {
   ];
 
   // ─── Input/Select helpers ───────────────────────────────
-  const inputCls = 'w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400';
+  const inputCls = 'w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400';
   const labelCls = 'block text-xs font-medium text-thb-text-secondary mb-1';
-  const selectCls = 'w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 bg-white';
+  const selectCls = 'w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 bg-white';
 
   // ═════════════════════════════════════════════════════════
   //  RENDER
@@ -728,9 +728,9 @@ export default function SuperAdminPage() {
                   </div>
                 </div>
               ))}
-              <div className="px-4 py-3 rounded-xl bg-blue-50 border border-blue-200 flex items-start gap-3">
-                <FiInfo className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
-                <div className="text-xs text-blue-900">
+              <div className="px-4 py-3 rounded-xl bg-green-50 border border-green-200 flex items-start gap-3">
+                <FiInfo className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
+                <div className="text-xs text-green-900">
                   <p className="font-semibold mb-1">Next steps to verify</p>
                   <ol className="list-decimal list-inside space-y-0.5">
                     <li>Open the <b>Tenants</b> tab above — you'll see all 3 sample tenants.</li>
@@ -768,7 +768,7 @@ export default function SuperAdminPage() {
               <select
                 value={groupTenantFilter}
                 onChange={(e) => setGroupTenantFilter(e.target.value)}
-                className="px-3 py-2 rounded-lg border border-thb-border text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 cursor-pointer max-w-[220px]"
+                className="px-3 py-2 rounded-lg border border-thb-border text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 cursor-pointer max-w-[220px]"
                 title="Filter Group Companies tab by tenant"
               >
                 <option value="">All tenants ({tenants.length})</option>
@@ -781,7 +781,7 @@ export default function SuperAdminPage() {
             </div>
           )}
           {activeTab === 'tenants' && !showTenantForm && (
-            <button onClick={() => { setShowTenantForm(true); setEditingTenantId(null); setTenantForm({ name: '', slug: '', domain: '', plan: 'starter', country: '', currency: 'INR', timezone: 'UTC', adminName: '', adminEmail: '', adminPassword: '', maxCompaniesAllowed: 0 }); }} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white hover:bg-blue-600 shadow-sm shadow-blue-500/25 rounded-lg font-medium text-sm transition-colors">
+            <button onClick={() => { setShowTenantForm(true); setEditingTenantId(null); setTenantForm({ name: '', slug: '', domain: '', plan: 'starter', country: '', currency: 'INR', timezone: 'UTC', adminName: '', adminEmail: '', adminPassword: '', maxCompaniesAllowed: 0 }); }} className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-500 text-white hover:bg-green-600 shadow-sm shadow-green-500/25 rounded-lg font-medium text-sm transition-colors">
               <FiPlus className="w-4 h-4" /> Add Tenant
             </button>
           )}
@@ -803,13 +803,13 @@ export default function SuperAdminPage() {
                 setEditingGroupId(null);
                 setGroupForm({ tenantId: groupTenantFilter || tenants[0]?.id || '', name: '', employeeLimitMode: 'group_total', maxEmployees: 0, maxCompanies: 0, notes: '' });
               }}
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-violet-500 text-white hover:bg-violet-600 shadow-sm shadow-violet-500/25 rounded-lg font-medium text-sm transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-teal-500 text-white hover:bg-teal-600 shadow-sm shadow-teal-500/25 rounded-lg font-medium text-sm transition-colors"
             >
               <FiPlus className="w-4 h-4" /> New Group Company
             </button>
           )}
           {activeTab === 'plans' && !showPlanForm && (
-            <button onClick={() => { setShowPlanForm(true); setEditingPlanId(null); setPlanForm({ name: '', planType: 'starter', description: '', monthlyPrice: 0, annualPrice: 0, employeeLimit: 50, companyLimit: 1, branchLimit: 5, storageLimit: 1000, aiInterviewLimit: 10, aiChatbotLimit: 100, payrollEnabled: true, recruitmentEnabled: true, attendanceEnabled: true, projectEnabled: false, clientPortalEnabled: false, vendorPortalEnabled: false, mobileAppEnabled: false, apiAccessEnabled: false, whiteLabelEnabled: false, supportLevel: 'email', status: 'active' }); }} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white hover:bg-blue-600 shadow-sm shadow-blue-500/25 rounded-lg font-medium text-sm transition-colors">
+            <button onClick={() => { setShowPlanForm(true); setEditingPlanId(null); setPlanForm({ name: '', planType: 'starter', description: '', monthlyPrice: 0, annualPrice: 0, employeeLimit: 50, companyLimit: 1, branchLimit: 5, storageLimit: 1000, aiInterviewLimit: 10, aiChatbotLimit: 100, payrollEnabled: true, recruitmentEnabled: true, attendanceEnabled: true, projectEnabled: false, clientPortalEnabled: false, vendorPortalEnabled: false, mobileAppEnabled: false, apiAccessEnabled: false, whiteLabelEnabled: false, supportLevel: 'email', status: 'active' }); }} className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-500 text-white hover:bg-green-600 shadow-sm shadow-green-500/25 rounded-lg font-medium text-sm transition-colors">
               <FiPlus className="w-4 h-4" /> Add Plan
             </button>
           )}
@@ -870,7 +870,7 @@ export default function SuperAdminPage() {
           ) : dashboard ? (
             <>
               {/* ─── Welcome Banner ─── */}
-              <div className="thb-card p-6 bg-gradient-to-r from-blue-600 via-violet-600 to-purple-600 border-0 overflow-hidden relative">
+              <div className="thb-card p-6 bg-gradient-to-r from-green-600 via-teal-600 to-teal-600 border-0 overflow-hidden relative">
                 <div className="absolute inset-0 opacity-10">
                   <div className="absolute top-4 right-8 w-32 h-32 bg-white rounded-full blur-3xl" />
                   <div className="absolute bottom-2 left-12 w-24 h-24 bg-white rounded-full blur-2xl" />
@@ -880,7 +880,7 @@ export default function SuperAdminPage() {
                     <h2 className="text-2xl font-bold text-white">
                       Welcome back, {user?.name || 'Super Admin'} 👋
                     </h2>
-                    <p className="text-blue-100 mt-1 text-sm">
+                    <p className="text-green-100 mt-1 text-sm">
                       Here&apos;s what&apos;s happening across your 3Boxes HRMS platform today.
                     </p>
                   </div>
@@ -906,7 +906,7 @@ export default function SuperAdminPage() {
                       <p className="text-2xl font-bold text-thb-text-primary mt-1">{dashboard.totalCompanies}</p>
                       <div className="flex items-center gap-1 mt-1"><FiTrendingUp className="w-3 h-3 text-emerald-500" /><span className="text-[10px] text-emerald-600 font-medium">+12% this month</span></div>
                     </div>
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-blue-50 text-blue-500"><FiBriefcase className="w-5 h-5" /></div>
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-green-50 text-green-500"><FiBriefcase className="w-5 h-5" /></div>
                   </div>
                 </div>
                 <div className="thb-card p-5">
@@ -929,7 +929,7 @@ export default function SuperAdminPage() {
                         <span className="thb-badge thb-badge-warning text-[10px]">{dashboard.suspendedTenants} suspended</span>
                       </div>
                     </div>
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-violet-50 text-violet-500"><FiUsers className="w-5 h-5" /></div>
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-teal-50 text-teal-500"><FiUsers className="w-5 h-5" /></div>
                   </div>
                 </div>
                 <div className="thb-card p-5">
@@ -1000,8 +1000,8 @@ export default function SuperAdminPage() {
                   <h3 className="font-semibold text-thb-text-primary mb-4 flex items-center gap-2"><FiLayers className="w-4 h-4" /> Top Plans</h3>
                   <div className="space-y-4">
                     {[
-                      { name: 'Enterprise', count: 45, total: 80, color: 'bg-violet-500' },
-                      { name: 'Professional', count: 28, total: 80, color: 'bg-blue-500' },
+                      { name: 'Enterprise', count: 45, total: 80, color: 'bg-teal-500' },
+                      { name: 'Professional', count: 28, total: 80, color: 'bg-green-500' },
                       { name: 'Starter', count: 18, total: 80, color: 'bg-emerald-500' },
                       { name: 'Free', count: 9, total: 80, color: 'bg-slate-400' },
                     ].map((plan) => (
@@ -1056,7 +1056,7 @@ export default function SuperAdminPage() {
                       { name: 'Atlas Digital', plan: 'Enterprise', date: 'Jun 01' },
                     ].map((reg, i) => (
                       <div key={i} className="flex items-center gap-3 p-2.5 rounded-lg bg-slate-50">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-violet-500 text-white flex items-center justify-center flex-shrink-0 text-xs font-bold">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-500 to-teal-500 text-white flex items-center justify-center flex-shrink-0 text-xs font-bold">
                           {reg.name[0]}
                         </div>
                         <div className="flex-1 min-w-0">
@@ -1134,7 +1134,7 @@ export default function SuperAdminPage() {
                     <div className="space-y-2 max-h-48 overflow-y-auto">
                       {dashboard.recentActivity.map((log) => (
                         <div key={log.id} className="flex items-start gap-2 p-2 rounded-lg bg-slate-50">
-                          <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center flex-shrink-0 text-[10px] font-bold">
+                          <div className="w-6 h-6 rounded-full bg-green-100 text-green-600 flex items-center justify-center flex-shrink-0 text-[10px] font-bold">
                             {log.user?.name?.[0] || '?'}
                           </div>
                           <div className="flex-1 min-w-0">
@@ -1162,7 +1162,7 @@ export default function SuperAdminPage() {
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-thb-text-primary">Tenant Details</h3>
                 <div className="flex gap-2">
-                  <button onClick={handleEditTenantFromView} className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100"><FiEdit2 className="w-3.5 h-3.5" /> Edit</button>
+                  <button onClick={handleEditTenantFromView} className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-green-600 bg-green-50 rounded-lg hover:bg-green-100"><FiEdit2 className="w-3.5 h-3.5" /> Edit</button>
                   <button onClick={() => { setViewingTenantId(null); setViewingTenant(null); }} className="p-1.5 text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 rounded-lg"><FiX className="w-4 h-4" /></button>
                 </div>
               </div>
@@ -1274,7 +1274,7 @@ export default function SuperAdminPage() {
 
           {/* Tenant Form */}
           {showTenantForm && (
-            <div ref={formRef} className="thb-card border-l-4 border-l-blue-500 p-6">
+            <div ref={formRef} className="thb-card border-l-4 border-l-green-500 p-6">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-thb-text-primary">{editingTenantId ? 'Edit Tenant' : 'Create Tenant'}</h3>
                 <button onClick={handleCancelTenantForm} className="p-1.5 text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 rounded-lg"><FiX className="w-4 h-4" /></button>
@@ -1345,7 +1345,7 @@ export default function SuperAdminPage() {
 
                 <div className="flex justify-end gap-3 pt-2">
                   <button type="button" onClick={handleCancelTenantForm} className="px-4 py-2 text-sm font-medium text-thb-text-secondary bg-slate-100 rounded-lg hover:bg-slate-200">Cancel</button>
-                  <button type="submit" disabled={submittingTenant} className="px-4 py-2 text-sm font-medium text-white bg-blue-500 hover:bg-blue-600 shadow-sm shadow-blue-500/25 rounded-lg disabled:opacity-50">
+                  <button type="submit" disabled={submittingTenant} className="px-4 py-2 text-sm font-medium text-white bg-green-500 hover:bg-green-600 shadow-sm shadow-green-500/25 rounded-lg disabled:opacity-50">
                     {submittingTenant ? 'Saving...' : editingTenantId ? 'Update Tenant' : 'Create Tenant'}
                   </button>
                 </div>
@@ -1386,7 +1386,7 @@ export default function SuperAdminPage() {
                     <>
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                         <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">{t.name[0]}</div>
+                          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-green-500 to-teal-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">{t.name[0]}</div>
                           <div>
                             <h3 className="font-semibold text-thb-text-primary">{t.name}</h3>
                             <p className="text-sm text-thb-text-muted">{t.slug} {t.domain ? `· ${t.domain}` : ''}</p>
@@ -1408,8 +1408,8 @@ export default function SuperAdminPage() {
                         <span className="text-slate-200">·</span>
                         <span className="text-xs text-thb-text-muted">{t._count?.users || 0} users</span>
                         <div className="ml-auto flex items-center gap-1">
-                          <button onClick={() => handleViewTenant(t.id)} className="p-1.5 text-thb-text-muted hover:text-blue-600 hover:bg-blue-50 rounded-lg" title="View"><FiEye className="w-3.5 h-3.5" /></button>
-                          <button onClick={() => handleEditTenant(t)} className="p-1.5 text-thb-text-muted hover:text-blue-600 hover:bg-blue-50 rounded-lg" title="Edit"><FiEdit2 className="w-3.5 h-3.5" /></button>
+                          <button onClick={() => handleViewTenant(t.id)} className="p-1.5 text-thb-text-muted hover:text-green-600 hover:bg-green-50 rounded-lg" title="View"><FiEye className="w-3.5 h-3.5" /></button>
+                          <button onClick={() => handleEditTenant(t)} className="p-1.5 text-thb-text-muted hover:text-green-600 hover:bg-green-50 rounded-lg" title="Edit"><FiEdit2 className="w-3.5 h-3.5" /></button>
                           <button onClick={() => setDeleteConfirmId(t.id)} className="p-1.5 text-thb-text-muted hover:text-red-600 hover:bg-red-50 rounded-lg" title="Delete"><FiTrash2 className="w-3.5 h-3.5" /></button>
                           {t.status === 'active' ? (
                             <button onClick={() => handleTenantStatusChange(t.id, 'suspended')} className="px-2.5 py-1 text-[11px] font-medium text-amber-700 bg-amber-50 rounded-lg hover:bg-amber-100">Suspend</button>
@@ -1431,24 +1431,24 @@ export default function SuperAdminPage() {
       {activeTab === 'groups' && (
         <div className="space-y-4">
           {/* Data model hierarchy banner — explains the Tenant → Group Company → Company relationship */}
-          <div className="thb-card p-4 bg-gradient-to-r from-indigo-50 to-violet-50 border-indigo-200">
+          <div className="thb-card p-4 bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-200">
             <div className="flex items-start gap-3">
-              <FiLayers className="w-5 h-5 text-indigo-600 flex-shrink-0 mt-0.5" />
-              <div className="text-xs text-indigo-900 flex-1">
+              <FiLayers className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+              <div className="text-xs text-emerald-900 flex-1">
                 <p className="font-bold mb-2 text-sm">Multi-tenancy Hierarchy</p>
                 <div className="flex items-center gap-2 flex-wrap mb-2">
-                  <span className="inline-flex items-center gap-1 px-2 py-1 bg-white rounded-md border border-indigo-200 font-semibold">
+                  <span className="inline-flex items-center gap-1 px-2 py-1 bg-white rounded-md border border-emerald-200 font-semibold">
                     <FiServer className="w-3 h-3" /> Tenant
                   </span>
-                  <span className="text-indigo-400">→</span>
-                  <span className="inline-flex items-center gap-1 px-2 py-1 bg-white rounded-md border border-violet-200 font-semibold">
+                  <span className="text-emerald-400">→</span>
+                  <span className="inline-flex items-center gap-1 px-2 py-1 bg-white rounded-md border border-teal-200 font-semibold">
                     <FiLayers className="w-3 h-3" /> Group Company
                   </span>
-                  <span className="text-indigo-400">→</span>
-                  <span className="inline-flex items-center gap-1 px-2 py-1 bg-white rounded-md border border-blue-200 font-semibold">
+                  <span className="text-emerald-400">→</span>
+                  <span className="inline-flex items-center gap-1 px-2 py-1 bg-white rounded-md border border-green-200 font-semibold">
                     <FiHome className="w-3 h-3" /> Company
                   </span>
-                  <span className="text-indigo-400">→</span>
+                  <span className="text-emerald-400">→</span>
                   <span className="inline-flex items-center gap-1 px-2 py-1 bg-white rounded-md border border-amber-200 font-semibold">
                     <FiUsers className="w-3 h-3" /> Employees
                   </span>
@@ -1481,10 +1481,10 @@ export default function SuperAdminPage() {
 
           {/* Create/Edit Group Form */}
           {showGroupForm && (
-            <div className="thb-card border-l-4 border-l-violet-500 p-6">
+            <div className="thb-card border-l-4 border-l-teal-500 p-6">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-thb-text-primary flex items-center gap-2">
-                  <FiLayers className="w-4 h-4 text-violet-500" />
+                  <FiLayers className="w-4 h-4 text-teal-500" />
                   {editingGroupId ? 'Edit Group Company' : 'Create Group Company'}
                 </h3>
                 <button onClick={handleCancelGroupForm} className="p-1.5 text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 rounded-lg"><FiX className="w-4 h-4" /></button>
@@ -1554,7 +1554,7 @@ export default function SuperAdminPage() {
 
                 <div className="pt-4 border-t border-thb-border">
                   <h4 className="text-sm font-semibold text-thb-text-primary mb-1 flex items-center gap-2">
-                    <FiLayers className="w-4 h-4 text-blue-500" /> Company Cap (optional)
+                    <FiLayers className="w-4 h-4 text-green-500" /> Company Cap (optional)
                   </h4>
                   <p className="text-xs text-thb-text-muted mb-3">
                     Optionally cap how many companies can be inducted under this group. Leave 0 for unlimited.
@@ -1586,7 +1586,7 @@ export default function SuperAdminPage() {
 
                 <div className="flex justify-end gap-3 pt-2">
                   <button type="button" onClick={handleCancelGroupForm} className="px-4 py-2 text-sm font-medium text-thb-text-secondary bg-slate-100 rounded-lg hover:bg-slate-200">Cancel</button>
-                  <button type="submit" disabled={submittingGroup} className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-violet-500 hover:bg-violet-600 shadow-sm shadow-violet-500/25 rounded-lg disabled:opacity-50">
+                  <button type="submit" disabled={submittingGroup} className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-teal-500 hover:bg-teal-600 shadow-sm shadow-teal-500/25 rounded-lg disabled:opacity-50">
                     {submittingGroup ? 'Saving...' : editingGroupId ? 'Update Group' : 'Create Group'}
                   </button>
                 </div>
@@ -1607,7 +1607,7 @@ export default function SuperAdminPage() {
                     // but since we're already on the tab, we need to trigger it manually.
                     // The useCallback dependency on groupTenantFilter will refresh on next render.
                   }}
-                  className="w-full pl-9 pr-8 py-2.5 rounded-lg border border-thb-border text-sm bg-white focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400 appearance-none cursor-pointer"
+                  className="w-full pl-9 pr-8 py-2.5 rounded-lg border border-thb-border text-sm bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 appearance-none cursor-pointer"
                 >
                   <option value="">All tenants ({tenants.length})</option>
                   {tenants.map((t) => (
@@ -1653,7 +1653,7 @@ export default function SuperAdminPage() {
                 <div key={g.id} className="thb-card p-5">
                   <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                     <div className="flex items-start gap-4">
-                      <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                      <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-teal-500 to-emerald-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
                         <FiLayers className="w-5 h-5" />
                       </div>
                       <div>
@@ -1680,11 +1680,11 @@ export default function SuperAdminPage() {
                       )}
                       {/* Company cap badge */}
                       {g.maxCompanies !== null && g.maxCompanies !== undefined && g.maxCompanies > 0 && (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-blue-50 text-blue-700 ring-1 ring-blue-200 text-[11px] font-semibold">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-green-50 text-green-700 ring-1 ring-green-200 text-[11px] font-semibold">
                           <FiLayers className="w-3 h-3" /> co cap: {g._count?.companies || 0}/{g.maxCompanies}
                         </span>
                       )}
-                      <button onClick={() => handleEditGroup(g)} className="p-1.5 text-thb-text-muted hover:text-violet-600 hover:bg-violet-50 rounded-lg" title="Edit"><FiEdit2 className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => handleEditGroup(g)} className="p-1.5 text-thb-text-muted hover:text-teal-600 hover:bg-teal-50 rounded-lg" title="Edit"><FiEdit2 className="w-3.5 h-3.5" /></button>
                       <button onClick={() => handleDeleteGroup(g.id, g.name)} className="p-1.5 text-thb-text-muted hover:text-red-600 hover:bg-red-50 rounded-lg" title="Delete"><FiTrash2 className="w-3.5 h-3.5" /></button>
                     </div>
                   </div>
@@ -1735,7 +1735,7 @@ export default function SuperAdminPage() {
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-thb-text-primary">Plan Details</h3>
                 <div className="flex gap-2">
-                  <button onClick={handleEditPlanFromView} className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100"><FiEdit2 className="w-3.5 h-3.5" /> Edit</button>
+                  <button onClick={handleEditPlanFromView} className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-green-600 bg-green-50 rounded-lg hover:bg-green-100"><FiEdit2 className="w-3.5 h-3.5" /> Edit</button>
                   <button onClick={() => { setViewingPlanId(null); setViewingPlan(null); }} className="p-1.5 text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 rounded-lg"><FiX className="w-4 h-4" /></button>
                 </div>
               </div>
@@ -1774,7 +1774,7 @@ export default function SuperAdminPage() {
 
           {/* Plan Form */}
           {showPlanForm && (
-            <div ref={formRef} className="thb-card border-l-4 border-l-blue-500 p-6">
+            <div ref={formRef} className="thb-card border-l-4 border-l-green-500 p-6">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-thb-text-primary">{editingPlanId ? 'Edit Plan' : 'Create Plan'}</h3>
                 <button onClick={handleCancelPlanForm} className="p-1.5 text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 rounded-lg"><FiX className="w-4 h-4" /></button>
@@ -1828,7 +1828,7 @@ export default function SuperAdminPage() {
                       ['whiteLabelEnabled', 'White Label'],
                     ] as [keyof typeof planForm, string][]).map(([key, label]) => (
                       <label key={key} className="flex items-center gap-2 cursor-pointer text-sm text-thb-text-secondary hover:text-thb-text-primary">
-                        <input type="checkbox" checked={planForm[key] as boolean} onChange={(e) => setPlanForm({ ...planForm, [key]: e.target.checked })} className="w-4 h-4 rounded border-thb-border text-blue-500 focus:ring-blue-500/20" />
+                        <input type="checkbox" checked={planForm[key] as boolean} onChange={(e) => setPlanForm({ ...planForm, [key]: e.target.checked })} className="w-4 h-4 rounded border-thb-border text-green-500 focus:ring-green-500/20" />
                         {label}
                       </label>
                     ))}
@@ -1854,7 +1854,7 @@ export default function SuperAdminPage() {
 
                 <div className="flex justify-end gap-3 pt-2">
                   <button type="button" onClick={handleCancelPlanForm} className="px-4 py-2 text-sm font-medium text-thb-text-secondary bg-slate-100 rounded-lg hover:bg-slate-200">Cancel</button>
-                  <button type="submit" disabled={submittingPlan} className="px-4 py-2 text-sm font-medium text-white bg-blue-500 hover:bg-blue-600 shadow-sm shadow-blue-500/25 rounded-lg disabled:opacity-50">
+                  <button type="submit" disabled={submittingPlan} className="px-4 py-2 text-sm font-medium text-white bg-green-500 hover:bg-green-600 shadow-sm shadow-green-500/25 rounded-lg disabled:opacity-50">
                     {submittingPlan ? 'Saving...' : editingPlanId ? 'Update Plan' : 'Create Plan'}
                   </button>
                 </div>
@@ -1911,8 +1911,8 @@ export default function SuperAdminPage() {
                           <button onClick={() => openApplyPlan(p)} className="px-2 py-1 text-[11px] font-medium text-emerald-700 bg-emerald-50 rounded-lg hover:bg-emerald-100 inline-flex items-center gap-1" title="Apply this plan to a tenant">
                             <FiCheck className="w-3 h-3" /> Apply
                           </button>
-                          <button onClick={() => handleViewPlan(p.id)} className="p-1.5 text-thb-text-muted hover:text-blue-600 hover:bg-blue-50 rounded-lg" title="View"><FiEye className="w-3.5 h-3.5" /></button>
-                          <button onClick={() => handleEditPlan(p)} className="p-1.5 text-thb-text-muted hover:text-blue-600 hover:bg-blue-50 rounded-lg" title="Edit"><FiEdit2 className="w-3.5 h-3.5" /></button>
+                          <button onClick={() => handleViewPlan(p.id)} className="p-1.5 text-thb-text-muted hover:text-green-600 hover:bg-green-50 rounded-lg" title="View"><FiEye className="w-3.5 h-3.5" /></button>
+                          <button onClick={() => handleEditPlan(p)} className="p-1.5 text-thb-text-muted hover:text-green-600 hover:bg-green-50 rounded-lg" title="Edit"><FiEdit2 className="w-3.5 h-3.5" /></button>
                           <button onClick={() => setDeletePlanConfirmId(p.id)} className="p-1.5 text-thb-text-muted hover:text-red-600 hover:bg-red-50 rounded-lg" title="Delete"><FiTrash2 className="w-3.5 h-3.5" /></button>
                         </div>
                       </div>
@@ -1992,7 +1992,7 @@ export default function SuperAdminPage() {
                             <td className="px-4 py-3 text-thb-text-muted text-xs whitespace-nowrap">{new Date(log.createdAt).toLocaleString()}</td>
                             <td className="px-4 py-3">
                               <div className="flex items-center gap-2">
-                                <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-[10px] font-bold flex-shrink-0">{log.user?.name?.[0] || '?'}</div>
+                                <div className="w-6 h-6 rounded-full bg-green-100 text-green-600 flex items-center justify-center text-[10px] font-bold flex-shrink-0">{log.user?.name?.[0] || '?'}</div>
                                 <span className="text-thb-text-primary text-xs">{log.user?.name || 'System'}</span>
                               </div>
                             </td>
@@ -2015,7 +2015,7 @@ export default function SuperAdminPage() {
                     const pageNum = Math.max(1, Math.min(auditPage - 2, auditTotalPages - 4)) + i;
                     if (pageNum > auditTotalPages) return null;
                     return (
-                      <button key={pageNum} onClick={() => setAuditPage(pageNum)} className={`w-8 h-8 rounded-lg text-xs font-medium ${auditPage === pageNum ? 'bg-blue-500 text-white' : 'text-thb-text-secondary hover:bg-slate-100'}`}>{pageNum}</button>
+                      <button key={pageNum} onClick={() => setAuditPage(pageNum)} className={`w-8 h-8 rounded-lg text-xs font-medium ${auditPage === pageNum ? 'bg-green-500 text-white' : 'text-thb-text-secondary hover:bg-slate-100'}`}>{pageNum}</button>
                     );
                   })}
                   <button onClick={() => setAuditPage((p) => Math.min(auditTotalPages, p + 1))} disabled={auditPage >= auditTotalPages} className="p-2 rounded-lg border border-thb-border hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed"><FiChevronRightIcon className="w-4 h-4 text-thb-text-muted" /></button>

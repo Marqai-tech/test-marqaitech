@@ -74,7 +74,7 @@ export default function PWAInstallPrompt() {
       <div className="fixed bottom-4 left-4 right-4 z-50 md:left-auto md:right-4 md:max-w-sm animate-slide-in-up">
         <div className="bg-white rounded-2xl shadow-2xl border border-thb-border p-4">
           <div className="flex items-start gap-3">
-            <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center">
+            <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-green-500 to-teal-600 flex items-center justify-center">
               <FiSmartphone className="w-5 h-5 text-white" />
             </div>
             <div className="flex-1 min-w-0">
@@ -104,7 +104,7 @@ export default function PWAInstallPrompt() {
       <div className="fixed bottom-4 left-4 right-4 z-50 md:left-auto md:right-4 md:max-w-sm animate-slide-in-up">
         <div className="bg-white rounded-2xl shadow-2xl border border-thb-border p-4">
           <div className="flex items-start gap-3">
-            <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center">
+            <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-green-500 to-teal-600 flex items-center justify-center">
               <FiDownload className="w-5 h-5 text-white" />
             </div>
             <div className="flex-1 min-w-0">
@@ -115,7 +115,7 @@ export default function PWAInstallPrompt() {
               <div className="flex gap-2 mt-3">
                 <button
                   onClick={handleInstallClick}
-                  className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-blue-500 to-violet-600 text-white text-xs font-semibold hover:from-blue-600 hover:to-violet-700 transition-all"
+                  className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-green-500 to-teal-600 text-white text-xs font-semibold hover:from-green-600 hover:to-teal-700 transition-all"
                 >
                   Install App
                 </button>

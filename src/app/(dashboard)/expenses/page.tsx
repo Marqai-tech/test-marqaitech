@@ -310,7 +310,7 @@ export default function ExpensesPage() {
           </h1>
           <p className="text-thb-text-secondary mt-1">Submit and manage expense reimbursements</p>
         </div>
-        <button onClick={handleAddNew} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium text-sm shadow-sm shadow-blue-500/25 transition-colors">
+        <button onClick={handleAddNew} className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-500 text-white rounded-lg hover:bg-green-600 font-medium text-sm shadow-sm shadow-green-500/25 transition-colors">
           <FiPlus className="w-4 h-4" />
           Add Expense
         </button>
@@ -323,8 +323,8 @@ export default function ExpensesPage() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="thb-card p-5">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
-              <FiDollarSign className="w-5 h-5 text-blue-500" />
+            <div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center">
+              <FiDollarSign className="w-5 h-5 text-green-500" />
             </div>
             <div>
               <p className="text-xs font-medium text-thb-text-secondary">Total Amount</p>
@@ -366,7 +366,7 @@ export default function ExpensesPage() {
               placeholder="Search by title, category, or employee..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+              className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
             />
           </div>
           <div className="flex items-center gap-2">
@@ -374,7 +374,7 @@ export default function ExpensesPage() {
             <select
               value={filterCategory}
               onChange={e => setFilterCategory(e.target.value)}
-              className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+              className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
             >
               <option value="">All Categories</option>
               {EXPENSE_CATEGORIES.map(c => <option key={c} value={c}>{formatCategory(c)}</option>)}
@@ -382,7 +382,7 @@ export default function ExpensesPage() {
             <select
               value={filterStatus}
               onChange={e => setFilterStatus(e.target.value)}
-              className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+              className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
             >
               <option value="">All Statuses</option>
               {EXPENSE_STATUSES.map(s => <option key={s} value={s}>{formatStatus(s)}</option>)}
@@ -393,7 +393,7 @@ export default function ExpensesPage() {
 
       {/* Embedded Form */}
       {showForm && (
-        <div id="crud-form" className="thb-card border-l-4 border-l-blue-500">
+        <div id="crud-form" className="thb-card border-l-4 border-l-green-500">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-semibold text-thb-text-primary">
@@ -406,26 +406,26 @@ export default function ExpensesPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Title *</label>
-                <input type="text" value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="Expense title" />
+                <input type="text" value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="Expense title" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Category *</label>
-                <select value={form.category} onChange={e => setForm(p => ({ ...p, category: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                <select value={form.category} onChange={e => setForm(p => ({ ...p, category: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                   {EXPENSE_CATEGORIES.map(c => <option key={c} value={c}>{formatCategory(c)}</option>)}
                 </select>
               </div>
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Amount *</label>
-                <input type="number" step="0.01" value={form.amount} onChange={e => setForm(p => ({ ...p, amount: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="0.00" />
+                <input type="number" step="0.01" value={form.amount} onChange={e => setForm(p => ({ ...p, amount: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="0.00" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Date *</label>
-                <input type="date" value={form.date} onChange={e => setForm(p => ({ ...p, date: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                <input type="date" value={form.date} onChange={e => setForm(p => ({ ...p, date: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
               </div>
               {!editingId && (
                 <div>
                   <label className="block text-xs font-medium text-thb-text-secondary mb-1">Employee *</label>
-                  <select value={form.employeeId} onChange={e => setForm(p => ({ ...p, employeeId: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                  <select value={form.employeeId} onChange={e => setForm(p => ({ ...p, employeeId: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                     <option value="">Select Employee</option>
                     {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.firstName} {emp.lastName}</option>)}
                   </select>
@@ -433,22 +433,22 @@ export default function ExpensesPage() {
               )}
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Receipt URL</label>
-                <input type="text" value={form.receipt} onChange={e => setForm(p => ({ ...p, receipt: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="https://..." />
+                <input type="text" value={form.receipt} onChange={e => setForm(p => ({ ...p, receipt: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="https://..." />
               </div>
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Status</label>
-                <select value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                <select value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                   {EXPENSE_STATUSES.map(s => <option key={s} value={s}>{formatStatus(s)}</option>)}
                 </select>
               </div>
               <div className="sm:col-span-2 lg:col-span-3">
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Description</label>
-                <textarea rows={2} value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 resize-none" placeholder="Expense description..." />
+                <textarea rows={2} value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 resize-none" placeholder="Expense description..." />
               </div>
             </div>
             <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-thb-border">
               <button onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
-              <button onClick={handleSubmit} disabled={submitting} className="px-6 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50 shadow-sm shadow-blue-500/25 transition-colors">
+              <button onClick={handleSubmit} disabled={submitting} className="px-6 py-2.5 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 disabled:opacity-50 shadow-sm shadow-green-500/25 transition-colors">
                 {submitting ? 'Saving...' : editingId ? 'Update' : 'Save'}
               </button>
             </div>
@@ -526,7 +526,7 @@ export default function ExpensesPage() {
                         {isAdmin && (
                           <td className="px-4 py-3">
                             <div className="flex items-center justify-end gap-1">
-                              <button onClick={() => handleEdit(expense)} className="p-2 rounded-lg text-thb-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="Edit">
+                              <button onClick={() => handleEdit(expense)} className="p-2 rounded-lg text-thb-text-muted hover:text-green-500 hover:bg-green-50 transition-colors" title="Edit">
                                 <FiEdit2 className="w-4 h-4" />
                               </button>
                               <button onClick={() => setDeleteConfirmId(expense.id)} className="p-2 rounded-lg text-thb-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete">

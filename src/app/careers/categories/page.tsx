@@ -56,9 +56,9 @@ function iconForCategory(name: string) {
 }
 
 const CATEGORY_GRADIENTS = [
-  'from-blue-500 to-indigo-600', 'from-violet-500 to-purple-600', 'from-cyan-500 to-blue-600',
+  'from-green-500 to-emerald-600', 'from-teal-500 to-teal-600', 'from-cyan-500 to-green-600',
   'from-fuchsia-500 to-pink-600', 'from-emerald-500 to-teal-600', 'from-amber-500 to-orange-600',
-  'from-rose-500 to-red-600', 'from-indigo-500 to-violet-600',
+  'from-rose-500 to-red-600', 'from-emerald-500 to-teal-600',
 ];
 
 export default function CategoriesPage() {
@@ -109,7 +109,7 @@ export default function CategoriesPage() {
       <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <Link href="/careers" className="flex items-center gap-2.5 group">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-600 flex items-center justify-center shadow-md shadow-blue-500/30 group-hover:shadow-lg transition-shadow">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-green-600 via-emerald-600 to-teal-600 flex items-center justify-center shadow-md shadow-green-500/30 group-hover:shadow-lg transition-shadow">
               <FiBriefcase className="w-5 h-5 text-white" />
             </div>
             <div>
@@ -118,17 +118,17 @@ export default function CategoriesPage() {
             </div>
           </Link>
           <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-slate-600">
-            <Link href="/careers" className="hover:text-blue-600 transition-colors">Home</Link>
-            <Link href="/careers/categories" className="text-blue-600 font-semibold">Categories</Link>
-            <Link href="/careers/companies" className="hover:text-blue-600 transition-colors">Companies</Link>
-            <Link href="/careers/about" className="hover:text-blue-600 transition-colors">About</Link>
-            <Link href="/careers/contact" className="hover:text-blue-600 transition-colors">Contact</Link>
+            <Link href="/careers" className="hover:text-green-600 transition-colors">Home</Link>
+            <Link href="/careers/categories" className="text-green-600 font-semibold">Categories</Link>
+            <Link href="/careers/companies" className="hover:text-green-600 transition-colors">Companies</Link>
+            <Link href="/careers/about" className="hover:text-green-600 transition-colors">About</Link>
+            <Link href="/careers/contact" className="hover:text-green-600 transition-colors">Contact</Link>
           </nav>
           <div className="flex items-center gap-2">
-            <Link href="/login?mode=candidate" className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold text-slate-700 hover:text-blue-600 transition-colors">
+            <Link href="/login?mode=candidate" className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold text-slate-700 hover:text-green-600 transition-colors">
               Sign In <FiExternalLink className="w-3.5 h-3.5" />
             </Link>
-            <Link href="/careers#openings" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-700 hover:to-violet-700 transition-all shadow-md shadow-blue-500/20">
+            <Link href="/careers#openings" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold text-white bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700 transition-all shadow-md shadow-green-500/20">
               Browse Jobs <FiArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>
@@ -136,10 +136,10 @@ export default function CategoriesPage() {
       </header>
 
       {/* ───────────── Hero ───────────── */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-blue-700 via-indigo-700 to-violet-700 text-white">
+      <section className="relative overflow-hidden bg-gradient-to-br from-green-700 via-emerald-700 to-teal-700 text-white">
         <div className="absolute inset-0 -z-10 pointer-events-none">
-          <div className="absolute -top-32 -left-32 w-96 h-96 bg-blue-400/30 rounded-full blur-3xl" />
-          <div className="absolute -top-40 right-0 w-[28rem] h-[28rem] bg-violet-400/30 rounded-full blur-3xl" />
+          <div className="absolute -top-32 -left-32 w-96 h-96 bg-green-400/30 rounded-full blur-3xl" />
+          <div className="absolute -top-40 right-0 w-[28rem] h-[28rem] bg-teal-400/30 rounded-full blur-3xl" />
           <div className="absolute bottom-0 left-1/3 w-96 h-96 bg-fuchsia-400/20 rounded-full blur-3xl" />
         </div>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-16 sm:pt-20 pb-12 text-center">
@@ -148,12 +148,12 @@ export default function CategoriesPage() {
           </span>
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-[1.05] mb-5">
             Explore opportunities by <br />
-            <span className="bg-gradient-to-r from-cyan-200 via-white to-violet-200 bg-clip-text text-transparent">job category</span>
+            <span className="bg-gradient-to-r from-cyan-200 via-white to-teal-200 bg-clip-text text-transparent">job category</span>
           </h1>
-          <p className="text-base sm:text-lg text-blue-100 max-w-2xl mx-auto mb-8">
+          <p className="text-base sm:text-lg text-green-100 max-w-2xl mx-auto mb-8">
             Find roles that match your expertise. Pick a category below to jump straight to the openings.
           </p>
-          <Link href="/careers#openings" className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold text-blue-700 bg-white hover:bg-blue-50 transition-colors shadow-lg">
+          <Link href="/careers#openings" className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold text-green-700 bg-white hover:bg-green-50 transition-colors shadow-lg">
             View all open positions <FiArrowRight className="w-4 h-4" />
           </Link>
         </div>
@@ -170,10 +170,10 @@ export default function CategoriesPage() {
             <Card key={s.label} className="p-5 flex items-center justify-between">
               <div>
                 <p className="text-xs uppercase tracking-wider text-slate-500 font-semibold">{s.label}</p>
-                <p className="text-3xl font-extrabold bg-gradient-to-r from-blue-600 to-violet-600 bg-clip-text text-transparent">{s.value.toLocaleString()}</p>
+                <p className="text-3xl font-extrabold bg-gradient-to-r from-green-600 to-teal-600 bg-clip-text text-transparent">{s.value.toLocaleString()}</p>
               </div>
-              <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
-                <FiBriefcase className="w-5 h-5 text-blue-600" />
+              <div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center">
+                <FiBriefcase className="w-5 h-5 text-green-600" />
               </div>
             </Card>
           ))}
@@ -189,7 +189,7 @@ export default function CategoriesPage() {
               {categories.length} categor{categories.length === 1 ? 'y' : 'ies'} with active openings.
             </p>
           </div>
-          <Link href="/careers#openings" className="inline-flex items-center gap-1.5 text-sm font-semibold text-blue-600 hover:text-violet-600 transition-colors">
+          <Link href="/careers#openings" className="inline-flex items-center gap-1.5 text-sm font-semibold text-green-600 hover:text-teal-600 transition-colors">
             See all openings <FiArrowRight className="w-4 h-4" />
           </Link>
         </div>
@@ -215,20 +215,20 @@ export default function CategoriesPage() {
               const previewCompany = cat.jobs[0]?.company?.name;
               return (
                 <Link key={cat.id} href={`/careers#openings?dept=${encodeURIComponent(cat.id)}`}
-                  className="group bg-white rounded-xl border border-slate-200 hover:shadow-lg hover:border-violet-300 transition-all p-4 flex flex-col">
+                  className="group bg-white rounded-xl border border-slate-200 hover:shadow-lg hover:border-teal-300 transition-all p-4 flex flex-col">
                   <div className="flex items-start justify-between mb-4">
                     <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center shadow-md`}>
                       <Icon className="w-6 h-6 text-white" />
                     </div>
                     <Badge variant="info">{cat.count} open{cat.count === 1 ? '' : 's'}</Badge>
                   </div>
-                  <h3 className="text-lg font-bold text-slate-900 group-hover:text-violet-700 transition-colors">{cat.name}</h3>
+                  <h3 className="text-lg font-bold text-slate-900 group-hover:text-teal-700 transition-colors">{cat.name}</h3>
                   <p className="text-xs text-slate-500 mt-1 line-clamp-2">
                     {previewCompany ? `Openings at ${previewCompany}${cat.jobs.length > 1 ? ` and ${cat.jobs.length - 1} more` : ''}.` : `${cat.count} open position${cat.count === 1 ? '' : 's'} ready for you.`}
                   </p>
                   <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between">
                     <span className="text-xs text-slate-500 font-medium">View openings</span>
-                    <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-slate-50 group-hover:bg-violet-100 group-hover:text-violet-700 text-slate-500 transition-colors">
+                    <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-slate-50 group-hover:bg-teal-100 group-hover:text-teal-700 text-slate-500 transition-colors">
                       <FiArrowRight className="w-4 h-4" />
                     </span>
                   </div>

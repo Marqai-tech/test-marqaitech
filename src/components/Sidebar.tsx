@@ -133,15 +133,15 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false, cur
                   }}
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 relative ${
                     isActive
-                      ? 'bg-blue-500/15 text-blue-400'
+                      ? 'bg-green-500/15 text-green-400'
                       : 'text-thb-sidebar-text hover:bg-thb-sidebar-hover hover:text-slate-200'
                   } ${collapsed ? 'justify-center' : ''}`}
                   title={collapsed ? item.label : undefined}
                 >
                   {isActive && (
-                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-blue-500 rounded-r-full" />
+                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-green-500 rounded-r-full" />
                   )}
-                  <span className={`flex-shrink-0 ${isActive ? 'text-blue-400' : 'text-thb-sidebar-text hover:text-slate-200'} transition-colors`}>
+                  <span className={`flex-shrink-0 ${isActive ? 'text-green-400' : 'text-thb-sidebar-text hover:text-slate-200'} transition-colors`}>
                     {item.icon}
                   </span>
                   {!collapsed && <span className="flex-1 whitespace-nowrap overflow-hidden">{item.label}</span>}
@@ -161,7 +161,7 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false, cur
               <div className="flex items-center gap-2">
                 {(() => {
                   const SectionIcon = currentSection.sectionIcon;
-                  return <SectionIcon className="w-4 h-4 text-blue-400" />;
+                  return <SectionIcon className="w-4 h-4 text-green-400" />;
                 })()}
                 <span className="text-[10px] font-bold uppercase tracking-widest text-thb-sidebar-text/80 flex-1">
                   {currentSection.label}
@@ -201,15 +201,15 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false, cur
                       onClick={() => { if (isMobileMenu) onToggle(); }}
                       className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 group relative ${
                         isActive
-                          ? 'bg-blue-500/15 text-blue-400'
+                          ? 'bg-green-500/15 text-green-400'
                           : 'text-thb-sidebar-text hover:bg-thb-sidebar-hover hover:text-slate-200'
                       }`}
                       title={item.label}
                     >
                       {isActive && (
-                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-4 bg-blue-500 rounded-r-full" />
+                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-4 bg-green-500 rounded-r-full" />
                       )}
-                      <span className={`flex-shrink-0 ${isActive ? 'text-blue-400' : 'text-thb-sidebar-text group-hover:text-slate-200'} transition-colors`}>
+                      <span className={`flex-shrink-0 ${isActive ? 'text-green-400' : 'text-thb-sidebar-text group-hover:text-slate-200'} transition-colors`}>
                         {item.icon}
                       </span>
                       <span className="flex-1 whitespace-nowrap overflow-hidden">{item.label}</span>
@@ -245,7 +245,7 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false, cur
               return (
                 <button
                   onClick={() => onModuleSelect(null)}
-                  className="p-2 rounded-lg bg-blue-500/15 text-blue-400 ring-1 ring-blue-500/20 hover:bg-blue-500/25 transition-colors"
+                  className="p-2 rounded-lg bg-green-500/15 text-green-400 ring-1 ring-green-500/20 hover:bg-green-500/25 transition-colors"
                   title={currentSection.label}
                 >
                   <SectionIcon className="w-5 h-5" />
@@ -269,7 +269,7 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false, cur
               className="w-8 h-8 rounded-full object-cover ring-2 ring-white/10 flex-shrink-0"
             />
           ) : (
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0 ring-2 ring-white/10">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-500 to-teal-600 flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0 ring-2 ring-white/10">
               {user?.name ? getInitials(user.name) : '??'}
             </div>
           )}

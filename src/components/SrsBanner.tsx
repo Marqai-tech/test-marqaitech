@@ -34,7 +34,7 @@ const SUPER_ADMIN_CARDS: BannerCard[] = [
     label: 'Tenants & Subscriptions',
     srsId: 'REQ-SA-01..04',
     description: 'Create parent companies, define plans, set validity, suspend / delete.',
-    accent: 'bg-blue-50 text-blue-600',
+    accent: 'bg-green-50 text-green-600',
   },
   {
     href: '/super-admin',
@@ -50,7 +50,7 @@ const SUPER_ADMIN_CARDS: BannerCard[] = [
     label: 'Feature Flags',
     srsId: 'REQ-SA-05',
     description: 'Enable / disable AI modules and beta features per parent company.',
-    accent: 'bg-violet-50 text-violet-600',
+    accent: 'bg-teal-50 text-teal-600',
   },
   {
     href: '/super-admin/audit-logs',
@@ -74,7 +74,7 @@ const SUPER_ADMIN_CARDS: BannerCard[] = [
     label: 'AI Platform',
     srsId: 'REQ-SA-11 · REQ-SA-12',
     description: 'AI usage metrics across tenants, global model config, anomaly detection.',
-    accent: 'bg-indigo-50 text-indigo-600',
+    accent: 'bg-emerald-50 text-emerald-600',
   },
 ];
 
@@ -85,7 +85,7 @@ const TENANT_ADMIN_CARDS: BannerCard[] = [
     label: 'Group Dashboard',
     srsId: 'REQ-TA-04 · REQ-TA-05',
     description: 'Consolidated headcount, financials, talent density, AI Group Health Score.',
-    accent: 'bg-blue-50 text-blue-600',
+    accent: 'bg-green-50 text-green-600',
   },
   {
     href: '/tenant-admin/companies',
@@ -101,7 +101,7 @@ const TENANT_ADMIN_CARDS: BannerCard[] = [
     label: 'Group Companies (read-only)',
     srsId: 'SRS §6',
     description: 'Group companies are super-admin-managed; you can view but not modify.',
-    accent: 'bg-violet-50 text-violet-600',
+    accent: 'bg-teal-50 text-teal-600',
   },
   {
     href: '/tenant-admin/rbac',
@@ -125,7 +125,7 @@ const TENANT_ADMIN_CARDS: BannerCard[] = [
     label: 'AI Insights',
     srsId: 'REQ-TA-05',
     description: 'AI-driven group health score, predictive analytics, budget overruns.',
-    accent: 'bg-indigo-50 text-indigo-600',
+    accent: 'bg-emerald-50 text-emerald-600',
   },
 ];
 
@@ -190,7 +190,7 @@ export default function SrsBanner({ role }: { role: 'super_admin' | 'tenant_admi
       >
         <div className="px-4 py-2.5 flex items-center gap-3">
           <div className={`flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center shadow-sm ${
-            isSuperAdmin ? 'bg-gradient-to-br from-blue-500 to-violet-600' : 'bg-gradient-to-br from-emerald-500 to-teal-600'
+            isSuperAdmin ? 'bg-gradient-to-br from-green-500 to-teal-600' : 'bg-gradient-to-br from-emerald-500 to-teal-600'
           }`}>
             {isSuperAdmin
               ? <FiShield className="w-4 h-4 text-white" />
@@ -253,10 +253,10 @@ export default function SrsBanner({ role }: { role: 'super_admin' | 'tenant_admi
 
       {/* Full expanded view (when pinned) */}
       {showFull && (
-        <div className="mt-2 rounded-2xl border border-slate-200 bg-gradient-to-br from-white via-blue-50/30 to-violet-50/20 overflow-hidden">
+        <div className="mt-2 rounded-2xl border border-slate-200 bg-gradient-to-br from-white via-green-50/30 to-teal-50/20 overflow-hidden">
           <div className="px-6 py-5 border-b border-slate-100 flex items-start gap-4">
             <div className={`flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center shadow-sm ${
-              isSuperAdmin ? 'bg-gradient-to-br from-blue-500 to-violet-600' : 'bg-gradient-to-br from-emerald-500 to-teal-600'
+              isSuperAdmin ? 'bg-gradient-to-br from-green-500 to-teal-600' : 'bg-gradient-to-br from-emerald-500 to-teal-600'
             }`}>
               {isSuperAdmin
                 ? <FiShield className="w-6 h-6 text-white" />

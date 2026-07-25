@@ -8,10 +8,10 @@ import { useAuthStore } from '@/store/authStore';
 
 /* ── Report Types ── */
 const reportTypes = [
-  { key: 'hiring', label: 'Hiring Summary', icon: FiUsers, color: 'bg-blue-50 text-blue-600' },
+  { key: 'hiring', label: 'Hiring Summary', icon: FiUsers, color: 'bg-green-50 text-green-600' },
   { key: 'time-to-hire', label: 'Time to Hire', icon: FiClock, color: 'bg-emerald-50 text-emerald-600' },
   { key: 'source', label: 'Source Analytics', icon: FiTarget, color: 'bg-amber-50 text-amber-600' },
-  { key: 'offer', label: 'Offer Acceptance', icon: FiBarChart2, color: 'bg-purple-50 text-purple-600' },
+  { key: 'offer', label: 'Offer Acceptance', icon: FiBarChart2, color: 'bg-teal-50 text-teal-600' },
 ];
 
 /* ── Hiring Summary Data ── */
@@ -31,8 +31,8 @@ export default function RecruitmentReportsPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <div className="p-2.5 rounded-xl bg-blue-50">
-          <FiBarChart2 className="w-5 h-5 text-blue-600" />
+        <div className="p-2.5 rounded-xl bg-green-50">
+          <FiBarChart2 className="w-5 h-5 text-green-600" />
         </div>
         <div>
           <h1 className="text-xl font-bold text-thb-text-primary">Recruitment Reports</h1>
@@ -49,12 +49,12 @@ export default function RecruitmentReportsPage() {
             <button
               key={rt.key}
               onClick={() => setActiveReport(rt.key)}
-              className={`thb-card p-4 flex flex-col items-center gap-2 text-center transition-all hover:shadow-md ${isActive ? 'ring-2 ring-blue-500 shadow-md' : ''}`}
+              className={`thb-card p-4 flex flex-col items-center gap-2 text-center transition-all hover:shadow-md ${isActive ? 'ring-2 ring-green-500 shadow-md' : ''}`}
             >
               <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${rt.color}`}>
                 <Icon className="w-5 h-5" />
               </div>
-              <span className={`text-xs font-medium ${isActive ? 'text-blue-600' : 'text-thb-text-secondary'}`}>{rt.label}</span>
+              <span className={`text-xs font-medium ${isActive ? 'text-green-600' : 'text-thb-text-secondary'}`}>{rt.label}</span>
             </button>
           );
         })}
@@ -81,7 +81,7 @@ export default function RecruitmentReportsPage() {
                 {hiringData.map((row) => (
                   <tr key={row.department} className="border-b border-thb-border last:border-b-0 hover:bg-slate-50 transition-colors">
                     <td className="px-5 py-3 text-sm text-thb-text-primary font-medium">{row.department}</td>
-                    <td className="px-5 py-3 text-sm text-blue-600 text-center font-semibold">{row.open}</td>
+                    <td className="px-5 py-3 text-sm text-green-600 text-center font-semibold">{row.open}</td>
                     <td className="px-5 py-3 text-sm text-amber-600 text-center font-medium">{row.inProgress}</td>
                     <td className="px-5 py-3 text-sm text-emerald-600 text-center font-medium">{row.hired}</td>
                   </tr>

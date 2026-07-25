@@ -27,7 +27,7 @@ const DASHBOARD_CATEGORIES = [
         description: 'Overview dashboard with key metrics, activities, and quick access to all modules',
         icon: FiGrid,
         route: '/home',
-        gradient: 'from-indigo-500 to-blue-600',
+        gradient: 'from-emerald-500 to-green-600',
         iconColor: 'text-white',
       },
       {
@@ -57,7 +57,7 @@ const DASHBOARD_CATEGORIES = [
         description: 'HR analytics — headcount, attrition, recruitment funnel, engagement, and pending HR actions',
         icon: FiUsers,
         route: '/dashboards/hr',
-        gradient: 'from-violet-500 to-purple-600',
+        gradient: 'from-teal-500 to-teal-600',
         iconColor: 'text-white',
         isNew: true,
       },
@@ -81,7 +81,7 @@ const DASHBOARD_CATEGORIES = [
         description: 'Payroll analytics — gross pay, deductions, net pay, monthly trends, department breakdown, and compliance',
         icon: FiDollarSign,
         route: '/dashboards/payroll',
-        gradient: 'from-cyan-500 to-blue-600',
+        gradient: 'from-cyan-500 to-green-600',
         iconColor: 'text-white',
         isNew: true,
       },
@@ -105,7 +105,7 @@ const DASHBOARD_CATEGORIES = [
         description: 'Attendance analytics — present/absent rates, late arrivals, department attendance, and trends',
         icon: FiClock,
         route: '/dashboards/attendance',
-        gradient: 'from-blue-500 to-indigo-600',
+        gradient: 'from-green-500 to-emerald-600',
         iconColor: 'text-white',
         isNew: true,
       },
@@ -170,7 +170,7 @@ export default function DashboardsIndexPage() {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
-          <FiGrid className="w-6 h-6 text-indigo-500" />
+          <FiGrid className="w-6 h-6 text-emerald-500" />
           Dashboards
         </h1>
         <p className="text-thb-text-secondary mt-1">
@@ -184,7 +184,7 @@ export default function DashboardsIndexPage() {
         return (
           <section key={category.label}>
             <div className="flex items-center gap-2 mb-4">
-              <CatIcon className="w-4 h-4 text-indigo-500" />
+              <CatIcon className="w-4 h-4 text-emerald-500" />
               <h2 className="text-sm font-semibold text-thb-text-secondary uppercase tracking-wider">
                 {category.label}
               </h2>
@@ -210,7 +210,7 @@ export default function DashboardsIndexPage() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2">
-                          <h3 className="text-sm font-semibold text-thb-text-primary group-hover:text-indigo-600 transition-colors inline-flex items-center gap-2">
+                          <h3 className="text-sm font-semibold text-thb-text-primary group-hover:text-emerald-600 transition-colors inline-flex items-center gap-2">
                             {dashboard.title}
                             {dashboard.isNew && (
                               <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-emerald-100 text-emerald-700 uppercase tracking-wide">New</span>
@@ -238,7 +238,7 @@ export default function DashboardsIndexPage() {
         </h2>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <div className="text-center p-3">
-            <p className="text-2xl font-bold text-indigo-600">12</p>
+            <p className="text-2xl font-bold text-emerald-600">12</p>
             <p className="text-xs text-thb-text-muted mt-1">Total Dashboards</p>
           </div>
           <div className="text-center p-3">
@@ -250,7 +250,7 @@ export default function DashboardsIndexPage() {
             <p className="text-xs text-thb-text-muted mt-1">Categories</p>
           </div>
           <div className="text-center p-3">
-            <p className="text-2xl font-bold text-violet-600">Live</p>
+            <p className="text-2xl font-bold text-teal-600">Live</p>
             <p className="text-xs text-thb-text-muted mt-1">Real-time Data</p>
           </div>
         </div>

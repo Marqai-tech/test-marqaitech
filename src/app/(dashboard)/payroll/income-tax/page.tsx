@@ -208,7 +208,7 @@ export default function IncomeTaxPage() {
   const getStatusBadge = (status: string) => {
     const map: Record<string, string> = {
       DRAFT: 'bg-slate-100 text-slate-700',
-      SUBMITTED: 'bg-blue-100 text-blue-700',
+      SUBMITTED: 'bg-green-100 text-green-700',
       APPROVED: 'bg-emerald-100 text-emerald-700',
       REJECTED: 'bg-red-100 text-red-700',
     };
@@ -236,7 +236,7 @@ export default function IncomeTaxPage() {
           return (
             <button key={tab.key} onClick={() => setActiveTab(tab.key)}
               className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5 ${
-                activeTab === tab.key ? 'bg-white text-blue-600 shadow-sm' : 'text-thb-text-secondary hover:text-thb-text-primary'}`}>
+                activeTab === tab.key ? 'bg-white text-green-600 shadow-sm' : 'text-thb-text-secondary hover:text-thb-text-primary'}`}>
               <IconComp className="w-4 h-4" />{tab.label}
             </button>
           );
@@ -254,13 +254,13 @@ export default function IncomeTaxPage() {
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Annual Gross Income (₹)</label>
                 <input type="number" value={taxInput.annualGrossIncome || ''} onChange={e => setTaxInput({ ...taxInput, annualGrossIncome: Number(e.target.value) })}
-                  placeholder="e.g. 1200000" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                  placeholder="e.g. 1200000" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20" />
               </div>
 
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Age Group</label>
                 <select value={taxInput.ageGroup} onChange={e => setTaxInput({ ...taxInput, ageGroup: e.target.value as TaxInput['ageGroup'] })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20">
                   <option value="BELOW_60">Below 60 years</option>
                   <option value="SENIOR">60-80 years (Senior Citizen)</option>
                   <option value="ABOVE_80">Above 80 years (Super Senior)</option>
@@ -270,7 +270,7 @@ export default function IncomeTaxPage() {
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Compare Regime</label>
                 <select value={taxInput.regime} onChange={e => setTaxInput({ ...taxInput, regime: e.target.value as TaxInput['regime'] })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20">
                   <option value="BOTH">Both (Compare)</option>
                   <option value="NEW">New Regime Only</option>
                   <option value="OLD">Old Regime Only</option>
@@ -278,7 +278,7 @@ export default function IncomeTaxPage() {
               </div>
 
               <button onClick={() => setShowOldRegimeDetails(!showOldRegimeDetails)}
-                className="flex items-center gap-2 text-xs font-medium text-blue-600 hover:text-blue-700">
+                className="flex items-center gap-2 text-xs font-medium text-green-600 hover:text-green-700">
                 {showOldRegimeDetails ? <FiChevronUp /> : <FiChevronDown />}Old Regime Deductions
               </button>
 
@@ -470,14 +470,14 @@ export default function IncomeTaxPage() {
               </div>
             </div>
             <button onClick={() => { setShowDecForm(true); setEditingDecId(null); }}
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium text-sm">
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-500 text-white rounded-lg hover:bg-green-600 font-medium text-sm">
               <FiPlus className="w-4 h-4" /> New Declaration
             </button>
           </div>
 
           {/* Declaration Form */}
           {showDecForm && (
-            <div className="thb-card border-l-4 border-l-blue-500 p-6">
+            <div className="thb-card border-l-4 border-l-green-500 p-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-lg font-semibold text-thb-text-primary">Create Tax Declaration</h2>
                 <button onClick={() => setShowDecForm(false)} className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100">
@@ -499,7 +499,7 @@ export default function IncomeTaxPage() {
                       }}
                       onFocus={() => setShowEmployeeDropdown(true)}
                       placeholder="Search employee by name, ID, or email..."
-                      className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                      className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20"
                     />
                     {decForm.employeeId && employees.find(e => e.id === decForm.employeeId) && (
                       <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
@@ -530,9 +530,9 @@ export default function IncomeTaxPage() {
                               setEmployeeSearch('');
                               setShowEmployeeDropdown(false);
                             }}
-                            className="w-full px-3 py-2 text-left hover:bg-blue-50 flex items-center gap-2 transition-colors"
+                            className="w-full px-3 py-2 text-left hover:bg-green-50 flex items-center gap-2 transition-colors"
                           >
-                            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0">
+                            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-green-500 to-teal-600 flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0">
                               {emp.firstName[0]}{emp.lastName[0]}
                             </div>
                             <div className="min-w-0">
@@ -614,7 +614,7 @@ export default function IncomeTaxPage() {
 
               <div className="flex items-center gap-3 mt-6">
                 <button onClick={handleCreateDeclaration} disabled={submittingDec}
-                  className="px-4 py-2.5 bg-blue-500 text-white rounded-lg text-sm font-medium hover:bg-blue-600 disabled:opacity-50">
+                  className="px-4 py-2.5 bg-green-500 text-white rounded-lg text-sm font-medium hover:bg-green-600 disabled:opacity-50">
                   {submittingDec ? 'Saving...' : 'Save as Draft'}
                 </button>
                 <button onClick={() => setShowDecForm(false)}
@@ -701,7 +701,7 @@ export default function IncomeTaxPage() {
                         <td className="px-4 py-2 text-center"><span className={`text-xs px-2 py-0.5 rounded-full font-medium ${getStatusBadge(dec.status)}`}>{dec.status}</span></td>
                         <td className="px-4 py-2 text-center">
                           <div className="flex items-center justify-center gap-1">
-                            <button onClick={() => setViewingDec(dec)} className="p-1.5 rounded-md text-thb-text-muted hover:text-blue-600 hover:bg-blue-50">
+                            <button onClick={() => setViewingDec(dec)} className="p-1.5 rounded-md text-thb-text-muted hover:text-green-600 hover:bg-green-50">
                               <FiEye className="w-3.5 h-3.5" />
                             </button>
                             {(dec.status === 'DRAFT' || dec.status === 'REJECTED') && (

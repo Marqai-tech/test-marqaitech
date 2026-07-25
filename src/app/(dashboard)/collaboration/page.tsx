@@ -29,9 +29,9 @@ const COMMUNICATION_APPS: ModuleTile[] = [
     icon: FiMessageCircle,
     route: '/collaboration/chat',
     description: '1:1 and group messaging with threading, AI translation, and inline HR actions',
-    gradientBg: 'bg-blue-500/10',
-    iconColor: 'text-blue-500',
-    ringColor: 'ring-blue-500/20',
+    gradientBg: 'bg-green-500/10',
+    iconColor: 'text-green-500',
+    ringColor: 'ring-green-500/20',
     badges: ['E2EE for 1:1', 'AI Translate', 'DLP-protected'],
   },
   {
@@ -39,9 +39,9 @@ const COMMUNICATION_APPS: ModuleTile[] = [
     icon: FiVideo,
     route: '/collaboration/calls',
     description: 'Native WebRTC audio/video calls with AI transcription and external meeting deep-links',
-    gradientBg: 'bg-violet-500/10',
-    iconColor: 'text-violet-500',
-    ringColor: 'ring-violet-500/20',
+    gradientBg: 'bg-teal-500/10',
+    iconColor: 'text-teal-500',
+    ringColor: 'ring-teal-500/20',
     badges: ['WebRTC E2EE', 'AI Transcription', 'Meeting links'],
   },
   {
@@ -92,9 +92,9 @@ const PRODUCTIVITY_APPS: ModuleTile[] = [
     icon: FiLayers,
     route: '/kanban',
     description: 'Visual task boards with drag-friendly columns, priorities, and team collaboration',
-    gradientBg: 'bg-indigo-500/10',
-    iconColor: 'text-indigo-500',
-    ringColor: 'ring-indigo-500/20',
+    gradientBg: 'bg-emerald-500/10',
+    iconColor: 'text-emerald-500',
+    ringColor: 'ring-emerald-500/20',
     badges: ['Backlog', 'In Progress', 'Done'],
   },
 ];
@@ -177,7 +177,7 @@ function CollaborationContent() {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
-          <FiUsers className="w-6 h-6 text-violet-500" />
+          <FiUsers className="w-6 h-6 text-teal-500" />
           Collaboration Hub
         </h1>
         <p className="text-thb-text-secondary mt-1">
@@ -188,7 +188,7 @@ function CollaborationContent() {
       {/* Quick Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: 'Communication', count: '3', icon: FiPhone, color: 'text-blue-500', bg: 'bg-blue-50' },
+          { label: 'Communication', count: '3', icon: FiPhone, color: 'text-green-500', bg: 'bg-green-50' },
           { label: 'Productivity', count: '4', icon: FiZap, color: 'text-emerald-500', bg: 'bg-emerald-50' },
           { label: 'Sharing', count: '2', icon: FiUsers, color: 'text-pink-500', bg: 'bg-pink-50' },
           { label: 'Finance', count: '1', icon: FiDollarSign, color: 'text-rose-500', bg: 'bg-rose-50' },
@@ -211,7 +211,7 @@ function CollaborationContent() {
       {/* Communication Section */}
       <section>
         <div className="flex items-center gap-2 mb-3">
-          <FiPhone className="w-4 h-4 text-blue-500" />
+          <FiPhone className="w-4 h-4 text-green-500" />
           <h2 className="text-sm font-semibold text-thb-text-secondary uppercase tracking-wider">Communication</h2>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -277,7 +277,7 @@ function CollaborationContent() {
           </div>
           <div className="p-4 rounded-lg bg-slate-50 border border-slate-100">
             <div className="flex items-center gap-2 mb-2">
-              <FiLock className="w-4 h-4 text-violet-500" />
+              <FiLock className="w-4 h-4 text-teal-500" />
               <h3 className="text-sm font-semibold text-thb-text-primary">End-to-End Encryption</h3>
             </div>
             <p className="text-xs text-thb-text-secondary leading-relaxed">
@@ -286,7 +286,7 @@ function CollaborationContent() {
           </div>
           <div className="p-4 rounded-lg bg-slate-50 border border-slate-100">
             <div className="flex items-center gap-2 mb-2">
-              <FiCpu className="w-4 h-4 text-blue-500" />
+              <FiCpu className="w-4 h-4 text-green-500" />
               <h3 className="text-sm font-semibold text-thb-text-primary">AI-Powered Features</h3>
             </div>
             <p className="text-xs text-thb-text-secondary leading-relaxed">
@@ -322,7 +322,7 @@ function AppCard({ tile, onClick }: { tile: ModuleTile; onClick: () => void }) {
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2">
-            <h3 className="text-sm font-semibold text-thb-text-primary group-hover:text-blue-600 transition-colors inline-flex items-center gap-2">
+            <h3 className="text-sm font-semibold text-thb-text-primary group-hover:text-green-600 transition-colors inline-flex items-center gap-2">
               {tile.title}
             </h3>
             <FiArrowRight className="w-4 h-4 text-thb-text-muted opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex-shrink-0" />

@@ -128,14 +128,14 @@ const appraisalTabs: DashboardTabConfig[] = [
 function AppraisalReportsPlaceholder() {
   return (
     <div className="flex flex-col items-center py-8">
-      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg mb-4">
+      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-lg mb-4">
         <FiFileText className="w-7 h-7 text-white" />
       </div>
       <h3 className="text-lg font-bold text-thb-text-primary mb-1">Reports & Analytics</h3>
       <p className="text-sm text-thb-text-secondary text-center max-w-md mb-4">
         Performance review reports, rating distributions, and goal completion analytics
       </p>
-      <a href="/performance/reports" className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors">
+      <a href="/performance/reports" className="inline-flex items-center gap-2 px-5 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors">
         <FiBarChart2 className="w-4 h-4" /> Go to Reports
       </a>
     </div>
@@ -152,7 +152,7 @@ function AppraisalSettingsPlaceholder() {
       <p className="text-sm text-thb-text-secondary text-center max-w-md mb-4">
         Configure review cycles, rating scales, competency frameworks, and calibration settings
       </p>
-      <a href="/performance/settings" className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors">
+      <a href="/performance/settings" className="inline-flex items-center gap-2 px-5 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors">
         <FiSettings className="w-4 h-4" /> Go to Settings
       </a>
     </div>
@@ -375,7 +375,7 @@ function PerformanceContent() {
           <p className="text-thb-text-secondary mt-1">Track performance reviews and ratings</p>
         </div>
         {isAdmin && (
-          <button onClick={handleShowAddForm} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium text-sm shadow-sm shadow-blue-500/25 transition-colors">
+          <button onClick={handleShowAddForm} className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-500 text-white rounded-lg hover:bg-green-600 font-medium text-sm shadow-sm shadow-green-500/25 transition-colors">
             <FiPlus className="w-4 h-4" />
             Create Review
           </button>
@@ -409,19 +409,19 @@ function PerformanceContent() {
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Search employees, cycles..."
-            className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+            className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
           />
         </div>
         <div className="flex items-center gap-2">
           <FiFilter className="w-4 h-4 text-thb-text-muted" />
-          <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+          <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
             <option value="">All Status</option>
             <option value="draft">Draft</option>
             <option value="in_review">In Review</option>
             <option value="completed">Completed</option>
             <option value="acknowledged">Acknowledged</option>
           </select>
-          <select value={filterCycle} onChange={e => setFilterCycle(e.target.value)} className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+          <select value={filterCycle} onChange={e => setFilterCycle(e.target.value)} className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
             <option value="">All Cycles</option>
             {uniqueCycles.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
@@ -430,7 +430,7 @@ function PerformanceContent() {
 
       {/* Embedded CRUD Form */}
       {showForm && (
-        <div id="crud-form" className="thb-card border-l-4 border-l-blue-500 animate-slide-in-down">
+        <div id="crud-form" className="thb-card border-l-4 border-l-green-500 animate-slide-in-down">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-semibold text-thb-text-primary">
@@ -447,7 +447,7 @@ function PerformanceContent() {
                   value={form.employeeId}
                   onChange={e => setForm(p => ({ ...p, employeeId: e.target.value }))}
                   disabled={!!editingId}
-                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 disabled:bg-slate-50 disabled:text-thb-text-muted"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 disabled:bg-slate-50 disabled:text-thb-text-muted"
                 >
                   <option value="">Select Employee</option>
                   {employees.map(emp => (
@@ -462,7 +462,7 @@ function PerformanceContent() {
                 <select
                   value={form.reviewerId}
                   onChange={e => setForm(p => ({ ...p, reviewerId: e.target.value }))}
-                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                 >
                   <option value="">Select Reviewer</option>
                   {employees.map(emp => (
@@ -479,7 +479,7 @@ function PerformanceContent() {
                   value={form.reviewCycle}
                   onChange={e => setForm(p => ({ ...p, reviewCycle: e.target.value }))}
                   placeholder="e.g., Q1 2026, Annual 2026"
-                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                 />
               </div>
               <div>
@@ -489,7 +489,7 @@ function PerformanceContent() {
                   value={form.reviewPeriod}
                   onChange={e => setForm(p => ({ ...p, reviewPeriod: e.target.value }))}
                   placeholder="e.g., Jan-Mar 2026"
-                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                 />
               </div>
               <div>
@@ -497,7 +497,7 @@ function PerformanceContent() {
                 <select
                   value={form.goalsRating}
                   onChange={e => setForm(p => ({ ...p, goalsRating: Number(e.target.value) }))}
-                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                 >
                   {[1, 2, 3, 4, 5].map(v => <option key={v} value={v}>{v} - {v <= 2 ? 'Needs Improvement' : v === 3 ? 'Meets Expectations' : v === 4 ? 'Exceeds' : 'Outstanding'}</option>)}
                 </select>
@@ -507,7 +507,7 @@ function PerformanceContent() {
                 <select
                   value={form.competenciesRating}
                   onChange={e => setForm(p => ({ ...p, competenciesRating: Number(e.target.value) }))}
-                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                 >
                   {[1, 2, 3, 4, 5].map(v => <option key={v} value={v}>{v} - {v <= 2 ? 'Needs Improvement' : v === 3 ? 'Meets Expectations' : v === 4 ? 'Exceeds' : 'Outstanding'}</option>)}
                 </select>
@@ -517,7 +517,7 @@ function PerformanceContent() {
                 <select
                   value={form.behaviorRating}
                   onChange={e => setForm(p => ({ ...p, behaviorRating: Number(e.target.value) }))}
-                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                 >
                   {[1, 2, 3, 4, 5].map(v => <option key={v} value={v}>{v} - {v <= 2 ? 'Needs Improvement' : v === 3 ? 'Meets Expectations' : v === 4 ? 'Exceeds' : 'Outstanding'}</option>)}
                 </select>
@@ -527,7 +527,7 @@ function PerformanceContent() {
                 <select
                   value={form.overallRating}
                   onChange={e => setForm(p => ({ ...p, overallRating: Number(e.target.value) }))}
-                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                 >
                   {[1, 2, 3, 4, 5].map(v => <option key={v} value={v}>{v} - {v <= 2 ? 'Needs Improvement' : v === 3 ? 'Meets Expectations' : v === 4 ? 'Exceeds' : 'Outstanding'}</option>)}
                 </select>
@@ -538,7 +538,7 @@ function PerformanceContent() {
                   <select
                     value={form.status}
                     onChange={e => setForm(p => ({ ...p, status: e.target.value }))}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                   >
                     <option value="draft">Draft</option>
                     <option value="in_review">In Review</option>
@@ -554,13 +554,13 @@ function PerformanceContent() {
                   value={form.comments}
                   onChange={e => setForm(p => ({ ...p, comments: e.target.value }))}
                   placeholder="Review comments..."
-                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 resize-none"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 resize-none"
                 />
               </div>
             </div>
             <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-thb-border">
               <button onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
-              <button onClick={handleSubmit} disabled={submitting} className="px-6 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50 shadow-sm shadow-blue-500/25 transition-colors">
+              <button onClick={handleSubmit} disabled={submitting} className="px-6 py-2.5 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 disabled:opacity-50 shadow-sm shadow-green-500/25 transition-colors">
                 {submitting ? 'Saving...' : editingId ? 'Update' : 'Create'}
               </button>
             </div>
@@ -641,7 +641,7 @@ function PerformanceContent() {
                           {isAdmin && (
                             <td className="px-4 py-3">
                               <div className="flex items-center justify-end gap-1">
-                                <button onClick={() => handleShowEditForm(r)} className="p-2 rounded-lg text-thb-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="Edit">
+                                <button onClick={() => handleShowEditForm(r)} className="p-2 rounded-lg text-thb-text-muted hover:text-green-500 hover:bg-green-50 transition-colors" title="Edit">
                                   <FiEdit2 className="w-4 h-4" />
                                 </button>
                                 <button onClick={() => setDeleteConfirmId(r.id)} className="p-2 rounded-lg text-thb-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete">

@@ -114,7 +114,7 @@ export default function GroupPayrollDashboardPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
-            <FiGlobe className="w-6 h-6 text-blue-500" />
+            <FiGlobe className="w-6 h-6 text-green-500" />
             Group Payroll Dashboard
           </h1>
           <p className="text-thb-text-secondary mt-1">Consolidated payroll liability across all sub-companies (normalized to base currency)</p>
@@ -131,7 +131,7 @@ export default function GroupPayrollDashboardPage() {
         <>
           {/* Group total + alerts */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <div className="thb-card p-5 bg-gradient-to-br from-blue-500 to-violet-500 text-white lg:col-span-1">
+            <div className="thb-card p-5 bg-gradient-to-br from-green-500 to-teal-500 text-white lg:col-span-1">
               <div className="flex items-center gap-2 mb-2 opacity-90">
                 <FiTrendingUp className="w-4 h-4" />
                 <p className="text-xs font-medium uppercase tracking-wide">Group Total Net Pay · {data.period || 'No runs yet'}</p>
@@ -184,7 +184,7 @@ export default function GroupPayrollDashboardPage() {
                       <td className="px-4 py-3 text-thb-text-secondary">{co.sourceCurrency}</td>
                       <td className="px-4 py-3">
                         {co.payrollRun ? (
-                          <span className={`px-2 py-0.5 text-xs font-semibold rounded ${co.payrollRun.runStatus === 'CLOSED' ? 'bg-emerald-100 text-emerald-700' : co.payrollRun.runStatus === 'DISBURSED' || co.payrollRun.runStatus === 'APPROVED' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>
+                          <span className={`px-2 py-0.5 text-xs font-semibold rounded ${co.payrollRun.runStatus === 'CLOSED' ? 'bg-emerald-100 text-emerald-700' : co.payrollRun.runStatus === 'DISBURSED' || co.payrollRun.runStatus === 'APPROVED' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
                             {co.payrollRun.runStatus}
                           </span>
                         ) : (
@@ -289,10 +289,10 @@ export default function GroupPayrollDashboardPage() {
 
 function AlertCard({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: number; color: string }) {
   const colorMap: Record<string, string> = {
-    blue: 'bg-blue-50 text-blue-700',
+    blue: 'bg-green-50 text-green-700',
     emerald: 'bg-emerald-50 text-emerald-700',
     amber: 'bg-amber-50 text-amber-700',
-    violet: 'bg-violet-50 text-violet-700',
+    violet: 'bg-teal-50 text-teal-700',
     red: 'bg-red-50 text-red-700',
     slate: 'bg-slate-50 text-slate-700',
   };

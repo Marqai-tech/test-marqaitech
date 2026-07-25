@@ -357,7 +357,7 @@ export default function CompliancePage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
-            <FiCalendar className="w-6 h-6 text-violet-500" />
+            <FiCalendar className="w-6 h-6 text-teal-500" />
             Compliance Management
           </h1>
           <p className="text-thb-text-secondary mt-1">Track statutory filing obligations and compliance status across countries</p>
@@ -365,7 +365,7 @@ export default function CompliancePage() {
         <div className="flex items-center gap-2">
           <button onClick={() => fetchData()} className="p-2.5 rounded-lg border border-thb-border text-thb-text-secondary hover:bg-slate-50 transition-colors" title="Refresh"><FiRefreshCw className="w-4 h-4" /></button>
           {isAdmin && (
-            <button onClick={handleAddNew} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium text-sm shadow-sm shadow-blue-500/25 transition-colors">
+            <button onClick={handleAddNew} className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-500 text-white rounded-lg hover:bg-green-600 font-medium text-sm shadow-sm shadow-green-500/25 transition-colors">
               <FiPlus className="w-4 h-4" /> Add Obligation
             </button>
           )}
@@ -376,7 +376,7 @@ export default function CompliancePage() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-violet-50 flex items-center justify-center"><FiCalendar className="w-5 h-5 text-violet-500" /></div>
+            <div className="w-10 h-10 rounded-lg bg-teal-50 flex items-center justify-center"><FiCalendar className="w-5 h-5 text-teal-500" /></div>
             <div><p className="text-xs font-medium text-thb-text-secondary">Total Obligations</p><p className="text-xl font-bold text-thb-text-primary">{totalObligations}</p></div>
           </div>
         </div>
@@ -402,8 +402,8 @@ export default function CompliancePage() {
 
       {/* Tab Switcher */}
       <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg w-fit">
-        <button onClick={() => setActiveTab('obligations')} className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'obligations' ? 'bg-white text-blue-600 shadow-sm' : 'text-thb-text-secondary hover:text-thb-text-primary'}`}>Obligations</button>
-        <button onClick={() => setActiveTab('filings')} className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'filings' ? 'bg-white text-blue-600 shadow-sm' : 'text-thb-text-secondary hover:text-thb-text-primary'}`}>Filings</button>
+        <button onClick={() => setActiveTab('obligations')} className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'obligations' ? 'bg-white text-green-600 shadow-sm' : 'text-thb-text-secondary hover:text-thb-text-primary'}`}>Obligations</button>
+        <button onClick={() => setActiveTab('filings')} className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'filings' ? 'bg-white text-green-600 shadow-sm' : 'text-thb-text-secondary hover:text-thb-text-primary'}`}>Filings</button>
       </div>
 
       {/* Filters */}
@@ -411,13 +411,13 @@ export default function CompliancePage() {
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
             <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
-            <input type="text" placeholder={`Search ${activeTab === 'obligations' ? 'by name, country, authority' : 'by period, status'}...`} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+            <input type="text" placeholder={`Search ${activeTab === 'obligations' ? 'by name, country, authority' : 'by period, status'}...`} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
           </div>
-          <select value={countryFilter} onChange={(e) => setCountryFilter(e.target.value)} className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[150px]">
+          <select value={countryFilter} onChange={(e) => setCountryFilter(e.target.value)} className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 min-w-[150px]">
             <option value="">All Countries</option>
             {COUNTRY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
-          <select value={frequencyFilter} onChange={(e) => setFrequencyFilter(e.target.value)} className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[150px]">
+          <select value={frequencyFilter} onChange={(e) => setFrequencyFilter(e.target.value)} className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 min-w-[150px]">
             <option value="">All Frequencies</option>
             {FREQUENCY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
@@ -426,7 +426,7 @@ export default function CompliancePage() {
 
       {/* View Panel */}
       {viewingObligation && (
-        <div className="thb-card border-l-4 border-l-violet-500">
+        <div className="thb-card border-l-4 border-l-teal-500">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
               <div>
@@ -434,7 +434,7 @@ export default function CompliancePage() {
                 <p className="text-sm text-thb-text-secondary mt-0.5">{viewingObligation.countryCode} &middot; {viewingObligation.authorityName}</p>
               </div>
               <div className="flex items-center gap-2">
-                {isAdmin && <button onClick={() => handleEdit(viewingObligation)} className="px-3 py-1.5 rounded-lg bg-blue-500 text-white text-xs font-medium hover:bg-blue-600 transition-colors flex items-center gap-1"><FiEdit2 className="w-3.5 h-3.5" /> Edit</button>}
+                {isAdmin && <button onClick={() => handleEdit(viewingObligation)} className="px-3 py-1.5 rounded-lg bg-green-500 text-white text-xs font-medium hover:bg-green-600 transition-colors flex items-center gap-1"><FiEdit2 className="w-3.5 h-3.5" /> Edit</button>}
                 <button onClick={() => setViewingObligation(null)} className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors"><FiX className="w-5 h-5" /></button>
               </div>
             </div>
@@ -485,7 +485,7 @@ export default function CompliancePage() {
 
       {/* Form */}
       {showForm && (
-        <div id="crud-form" className="thb-card border-l-4 border-l-blue-500">
+        <div id="crud-form" className="thb-card border-l-4 border-l-green-500">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-semibold text-thb-text-primary">{editingId ? 'Edit Compliance Obligation' : 'Create Compliance Obligation'}</h2>
@@ -496,33 +496,33 @@ export default function CompliancePage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-thb-text-secondary mb-1">Name *</label>
-                  <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="e.g. Monthly PF ECR Filing" />
+                  <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="e.g. Monthly PF ECR Filing" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-thb-text-secondary mb-1">Country *</label>
-                  <select value={form.countryCode} onChange={(e) => setForm({ ...form, countryCode: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                  <select value={form.countryCode} onChange={(e) => setForm({ ...form, countryCode: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                     {COUNTRY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-thb-text-secondary mb-1">Authority Name *</label>
-                  <input value={form.authorityName} onChange={(e) => setForm({ ...form, authorityName: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="e.g. EPFO, IRS, HMRC" />
+                  <input value={form.authorityName} onChange={(e) => setForm({ ...form, authorityName: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="e.g. EPFO, IRS, HMRC" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-thb-text-secondary mb-1">Filing Type</label>
-                  <select value={form.filingType} onChange={(e) => setForm({ ...form, filingType: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                  <select value={form.filingType} onChange={(e) => setForm({ ...form, filingType: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                     {FILING_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-thb-text-secondary mb-1">Frequency</label>
-                  <select value={form.frequency} onChange={(e) => setForm({ ...form, frequency: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                  <select value={form.frequency} onChange={(e) => setForm({ ...form, frequency: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                     {FREQUENCY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-thb-text-secondary mb-1">Due Date Rule *</label>
-                  <input value={form.dueDateRule} onChange={(e) => setForm({ ...form, dueDateRule: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder='e.g. "D+15", "Q_END+30"' />
+                  <input value={form.dueDateRule} onChange={(e) => setForm({ ...form, dueDateRule: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder='e.g. "D+15", "Q_END+30"' />
                 </div>
               </div>
             </div>
@@ -531,30 +531,30 @@ export default function CompliancePage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-thb-text-secondary mb-1">Penalty Type</label>
-                  <select value={form.penaltyType} onChange={(e) => setForm({ ...form, penaltyType: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                  <select value={form.penaltyType} onChange={(e) => setForm({ ...form, penaltyType: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                     <option value="">None</option>
                     {PENALTY_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-thb-text-secondary mb-1">Penalty Value</label>
-                  <input type="number" step="0.01" value={form.penaltyValue} onChange={(e) => setForm({ ...form, penaltyValue: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="Amount or percentage" />
+                  <input type="number" step="0.01" value={form.penaltyValue} onChange={(e) => setForm({ ...form, penaltyValue: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="Amount or percentage" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-thb-text-secondary mb-1">Grace Days</label>
-                  <input type="number" value={form.graceDays} onChange={(e) => setForm({ ...form, graceDays: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="e.g. 5" />
+                  <input type="number" value={form.graceDays} onChange={(e) => setForm({ ...form, graceDays: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="e.g. 5" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-thb-text-secondary mb-1">Responsible Role</label>
-                  <input value={form.responsibleRole} onChange={(e) => setForm({ ...form, responsibleRole: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="e.g. PAYROLL_ADMIN" />
+                  <input value={form.responsibleRole} onChange={(e) => setForm({ ...form, responsibleRole: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="e.g. PAYROLL_ADMIN" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-thb-text-secondary mb-1">Escalation Role</label>
-                  <input value={form.escalationRole} onChange={(e) => setForm({ ...form, escalationRole: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="e.g. HR_MANAGER" />
+                  <input value={form.escalationRole} onChange={(e) => setForm({ ...form, escalationRole: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="e.g. HR_MANAGER" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-thb-text-secondary mb-1">Reminder Days Before</label>
-                  <input value={form.reminderDaysBefore} onChange={(e) => setForm({ ...form, reminderDaysBefore: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder='e.g. "7,3,1"' />
+                  <input value={form.reminderDaysBefore} onChange={(e) => setForm({ ...form, reminderDaysBefore: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder='e.g. "7,3,1"' />
                 </div>
               </div>
             </div>
@@ -564,14 +564,14 @@ export default function CompliancePage() {
                 <div className="flex items-end pb-1"><label className="flex items-center gap-2 text-sm text-thb-text-secondary cursor-pointer"><input type="checkbox" checked={form.autoGenerate} onChange={(e) => setForm({ ...form, autoGenerate: e.target.checked })} className="rounded border-thb-border" /><span className="font-medium">Auto-Generate on Payroll Close</span></label></div>
                 <div>
                   <label className="block text-xs font-medium text-thb-text-secondary mb-1">Filing Format</label>
-                  <input value={form.filingFormat} onChange={(e) => setForm({ ...form, filingFormat: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder='e.g. "ECR_CSV", "RTI_XML"' />
+                  <input value={form.filingFormat} onChange={(e) => setForm({ ...form, filingFormat: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder='e.g. "ECR_CSV", "RTI_XML"' />
                 </div>
                 <div className="flex items-end pb-1"><label className="flex items-center gap-2 text-sm text-thb-text-secondary cursor-pointer"><input type="checkbox" checked={form.isActive} onChange={(e) => setForm({ ...form, isActive: e.target.checked })} className="rounded border-thb-border" /><span className="font-medium">Active</span></label></div>
               </div>
             </div>
             <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-thb-border">
               <button onClick={() => { setShowForm(false); setEditingId(null); }} className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
-              <button onClick={handleSubmit} disabled={submitting} className="px-6 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50 shadow-sm shadow-blue-500/25 transition-colors">
+              <button onClick={handleSubmit} disabled={submitting} className="px-6 py-2.5 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 disabled:opacity-50 shadow-sm shadow-green-500/25 transition-colors">
                 {submitting ? 'Saving...' : editingId ? 'Update Obligation' : 'Create Obligation'}
               </button>
             </div>
@@ -619,7 +619,7 @@ export default function CompliancePage() {
                         <td className="px-4 py-3">{o.isActive ? <span className="thb-badge thb-badge-success">Active</span> : <span className="thb-badge thb-badge-error">Inactive</span>}</td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-1">
-                            <button onClick={() => setViewingObligation(o)} className="p-1.5 rounded-lg text-thb-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="View"><FiEye className="w-4 h-4" /></button>
+                            <button onClick={() => setViewingObligation(o)} className="p-1.5 rounded-lg text-thb-text-muted hover:text-green-500 hover:bg-green-50 transition-colors" title="View"><FiEye className="w-4 h-4" /></button>
                             {isAdmin && <button onClick={() => handleEdit(o)} className="p-1.5 rounded-lg text-thb-text-muted hover:text-amber-500 hover:bg-amber-50 transition-colors" title="Edit"><FiEdit2 className="w-4 h-4" /></button>}
                             {isAdmin && <button onClick={() => setDeleteConfirmId(o.id)} className="p-1.5 rounded-lg text-thb-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete"><FiTrash2 className="w-4 h-4" /></button>}
                           </div>

@@ -138,7 +138,7 @@ export default function RecruitmentAnalyticsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
-            <FiBarChart2 className="w-6 h-6 text-violet-500" />
+            <FiBarChart2 className="w-6 h-6 text-teal-500" />
             Recruitment Analytics
           </h1>
           <p className="text-thb-text-secondary mt-1">
@@ -155,7 +155,7 @@ export default function RecruitmentAnalyticsPage() {
           <button
             onClick={() => fetchData(true)}
             disabled={refreshing}
-            className="inline-flex items-center gap-2 px-3 py-2 bg-violet-500 text-white rounded-lg text-sm font-medium hover:bg-violet-600 disabled:opacity-50 transition-colors"
+            className="inline-flex items-center gap-2 px-3 py-2 bg-teal-500 text-white rounded-lg text-sm font-medium hover:bg-teal-600 disabled:opacity-50 transition-colors"
           >
             <FiRefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
             {refreshing ? 'Refreshing...' : 'Refresh'}
@@ -194,18 +194,18 @@ export default function RecruitmentAnalyticsPage() {
               accent="bg-emerald-50"
             />
             <KpiCard
-              icon={<FiClock className="w-5 h-5 text-blue-600" />}
+              icon={<FiClock className="w-5 h-5 text-green-600" />}
               label="Time to Fill"
               value={`${data.timeToFill?.avgDays ?? 0} days`}
               sublabel={`Avg across ${Array.isArray(data.timeToFill?.byDepartment) ? data.timeToFill.byDepartment.length : 0} dept(s)`}
-              accent="bg-blue-50"
+              accent="bg-green-50"
             />
             <KpiCard
-              icon={<FiTrendingUp className="w-5 h-5 text-violet-600" />}
+              icon={<FiTrendingUp className="w-5 h-5 text-teal-600" />}
               label="Offer Acceptance Rate"
               value={`${data.offerAcceptanceRate ?? 0}%`}
               sublabel={`${data.offersAccepted ?? 0} accepted / ${data.offersRejected ?? 0} rejected`}
-              accent="bg-violet-50"
+              accent="bg-teal-50"
             />
             <KpiCard
               icon={<FiBriefcase className="w-5 h-5 text-amber-600" />}
@@ -222,7 +222,7 @@ export default function RecruitmentAnalyticsPage() {
             <div className="thb-card p-5 lg:col-span-2">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-base font-semibold text-thb-text-primary flex items-center gap-2">
-                  <FiTarget className="w-4 h-4 text-blue-500" /> Hiring Funnel
+                  <FiTarget className="w-4 h-4 text-green-500" /> Hiring Funnel
                 </h2>
                 <span className="text-xs text-thb-text-muted">
                   {data.funnelByStage?.applied ?? 0} total applications
@@ -275,7 +275,7 @@ export default function RecruitmentAnalyticsPage() {
             {/* Source breakdown */}
             <div className="thb-card p-5">
               <h2 className="text-base font-semibold text-thb-text-primary mb-4 flex items-center gap-2">
-                <FiUsers className="w-4 h-4 text-violet-500" /> Application Sources
+                <FiUsers className="w-4 h-4 text-teal-500" /> Application Sources
               </h2>
               {sourceData.length > 0 ? (
                 <>
@@ -331,7 +331,7 @@ export default function RecruitmentAnalyticsPage() {
             <div className="thb-card overflow-hidden lg:col-span-1">
               <div className="p-5 border-b border-thb-border">
                 <h2 className="text-base font-semibold text-thb-text-primary flex items-center gap-2">
-                  <FiBriefcase className="w-4 h-4 text-blue-500" /> By Department
+                  <FiBriefcase className="w-4 h-4 text-green-500" /> By Department
                 </h2>
               </div>
               <div className="overflow-x-auto">
@@ -348,7 +348,7 @@ export default function RecruitmentAnalyticsPage() {
                     {deptRows.length > 0 ? deptRows.map((d) => (
                       <tr key={d.department} className="border-b border-thb-border/50 hover:bg-slate-50/50">
                         <td className="px-4 py-2.5 text-sm font-medium text-thb-text-primary">{d.department}</td>
-                        <td className="px-4 py-2.5 text-sm text-right text-blue-600 font-medium">{d.open}</td>
+                        <td className="px-4 py-2.5 text-sm text-right text-green-600 font-medium">{d.open}</td>
                         <td className="px-4 py-2.5 text-sm text-right text-emerald-600 font-medium">{d.filled}</td>
                         <td className="px-4 py-2.5 text-sm text-right text-thb-text-secondary">
                           {d.avgTimeToFill > 0 ? `${d.avgTimeToFill}d` : '—'}
@@ -370,11 +370,11 @@ export default function RecruitmentAnalyticsPage() {
             <div className="thb-card p-5 lg:col-span-2">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-base font-semibold text-thb-text-primary flex items-center gap-2">
-                  <FiTrendingUp className="w-4 h-4 text-violet-500" /> 6-Month Trend
+                  <FiTrendingUp className="w-4 h-4 text-teal-500" /> 6-Month Trend
                 </h2>
                 <div className="flex items-center gap-4 text-xs">
                   <span className="flex items-center gap-1.5">
-                    <span className="w-3 h-1.5 rounded-sm bg-violet-500" />
+                    <span className="w-3 h-1.5 rounded-sm bg-teal-500" />
                     <span className="text-thb-text-secondary">Applications</span>
                   </span>
                   <span className="flex items-center gap-1.5">
@@ -420,7 +420,7 @@ export default function RecruitmentAnalyticsPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="thb-card p-5">
               <h2 className="text-base font-semibold text-thb-text-primary mb-4 flex items-center gap-2">
-                <FiClock className="w-4 h-4 text-blue-500" /> Time to Fill by Department
+                <FiClock className="w-4 h-4 text-green-500" /> Time to Fill by Department
               </h2>
               {Array.isArray(data.timeToFill?.byDepartment) && data.timeToFill.byDepartment.length > 0 ? (
                 <div className="h-56">
@@ -490,7 +490,7 @@ export default function RecruitmentAnalyticsPage() {
             <div className="thb-card p-5">
               <p className="text-xs font-medium text-thb-text-secondary uppercase tracking-wider">Board Postings</p>
               <div className="flex items-center gap-3 mt-2">
-                <FiExternalLink className="w-7 h-7 text-violet-500" />
+                <FiExternalLink className="w-7 h-7 text-teal-500" />
                 <div>
                   <span className="text-2xl font-bold text-thb-text-primary">{data.boardPostings?.total ?? 0}</span>
                   <span className="text-xs text-thb-text-muted ml-2">
@@ -500,7 +500,7 @@ export default function RecruitmentAnalyticsPage() {
               </div>
               <Link
                 href="/recruitment/job-boards"
-                className="text-xs text-violet-600 hover:text-violet-700 font-medium mt-2 inline-block"
+                className="text-xs text-teal-600 hover:text-teal-700 font-medium mt-2 inline-block"
               >
                 Manage board postings →
               </Link>

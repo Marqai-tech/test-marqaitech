@@ -419,7 +419,7 @@ export default function StatutoryComponentsPage() {
           {isAdmin && (
             <button
               onClick={handleAddNew}
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium text-sm shadow-sm shadow-blue-500/25 transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-500 text-white rounded-lg hover:bg-green-600 font-medium text-sm shadow-sm shadow-green-500/25 transition-colors"
             >
               <FiPlus className="w-4 h-4" /> Add Component
             </button>
@@ -442,8 +442,8 @@ export default function StatutoryComponentsPage() {
         </div>
         <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
-              <FiUsers className="w-5 h-5 text-blue-500" />
+            <div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center">
+              <FiUsers className="w-5 h-5 text-green-500" />
             </div>
             <div>
               <p className="text-xs font-medium text-thb-text-secondary">Employee Contributions</p>
@@ -464,8 +464,8 @@ export default function StatutoryComponentsPage() {
         </div>
         <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-purple-50 flex items-center justify-center">
-              <FiGlobe className="w-5 h-5 text-purple-500" />
+            <div className="w-10 h-10 rounded-lg bg-teal-50 flex items-center justify-center">
+              <FiGlobe className="w-5 h-5 text-teal-500" />
             </div>
             <div>
               <p className="text-xs font-medium text-thb-text-secondary">Countries Covered</p>
@@ -485,13 +485,13 @@ export default function StatutoryComponentsPage() {
               placeholder="Search by code, name, country, or authority..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+              className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
             />
           </div>
           <select
             value={countryFilter}
             onChange={(e) => setCountryFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[150px]"
+            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 min-w-[150px]"
           >
             <option value="">All Countries</option>
             {COUNTRY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -499,7 +499,7 @@ export default function StatutoryComponentsPage() {
           <select
             value={partyTypeFilter}
             onChange={(e) => setPartyTypeFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[150px]"
+            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 min-w-[150px]"
           >
             <option value="">All Party Types</option>
             {PARTY_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -513,7 +513,7 @@ export default function StatutoryComponentsPage() {
           <div className="p-6">
             {viewLoading ? (
               <div className="flex items-center justify-center py-8">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500" />
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-500" />
               </div>
             ) : (
               <>
@@ -528,7 +528,7 @@ export default function StatutoryComponentsPage() {
                     {isAdmin && (
                       <button
                         onClick={() => handleEdit(viewingComponent)}
-                        className="px-3 py-1.5 rounded-lg bg-blue-500 text-white text-xs font-medium hover:bg-blue-600 transition-colors flex items-center gap-1"
+                        className="px-3 py-1.5 rounded-lg bg-green-500 text-white text-xs font-medium hover:bg-green-600 transition-colors flex items-center gap-1"
                       >
                         <FiEdit2 className="w-3.5 h-3.5" /> Edit
                       </button>
@@ -573,7 +573,7 @@ export default function StatutoryComponentsPage() {
 
       {/* Embedded Inline Form */}
       {showForm && (
-        <div id="crud-form" className="thb-card border-l-4 border-l-blue-500">
+        <div id="crud-form" className="thb-card border-l-4 border-l-green-500">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-semibold text-thb-text-primary">
@@ -597,7 +597,7 @@ export default function StatutoryComponentsPage() {
                     required
                     value={form.componentCode}
                     onChange={(e) => setForm({ ...form, componentCode: e.target.value.toUpperCase().replace(/\s+/g, '_') })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                     placeholder="e.g. EPF_EE, SS_ER"
                   />
                 </div>
@@ -607,7 +607,7 @@ export default function StatutoryComponentsPage() {
                     required
                     value={form.componentName}
                     onChange={(e) => setForm({ ...form, componentName: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                     placeholder="e.g. Employees Provident Fund (Employee)"
                   />
                 </div>
@@ -616,7 +616,7 @@ export default function StatutoryComponentsPage() {
                   <select
                     value={form.countryCode}
                     onChange={(e) => setForm({ ...form, countryCode: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                   >
                     {COUNTRY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
@@ -627,7 +627,7 @@ export default function StatutoryComponentsPage() {
                     required
                     value={form.authorityName}
                     onChange={(e) => setForm({ ...form, authorityName: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                     placeholder="e.g. EPFO, IRS, HMRC"
                   />
                 </div>
@@ -636,7 +636,7 @@ export default function StatutoryComponentsPage() {
                   <input
                     value={form.authorityCode}
                     onChange={(e) => setForm({ ...form, authorityCode: e.target.value.toUpperCase() })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                     placeholder="e.g. EPFO, SSA"
                   />
                 </div>
@@ -645,7 +645,7 @@ export default function StatutoryComponentsPage() {
                   <select
                     value={form.partyType}
                     onChange={(e) => setForm({ ...form, partyType: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                   >
                     {PARTY_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
@@ -662,7 +662,7 @@ export default function StatutoryComponentsPage() {
                   <select
                     value={form.calculationBasis}
                     onChange={(e) => setForm({ ...form, calculationBasis: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                   >
                     {CALCULATION_BASIS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
@@ -675,7 +675,7 @@ export default function StatutoryComponentsPage() {
                     min="0"
                     value={form.ratePercentage}
                     onChange={(e) => setForm({ ...form, ratePercentage: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                     placeholder="e.g. 12, 6.2"
                   />
                 </div>
@@ -687,7 +687,7 @@ export default function StatutoryComponentsPage() {
                     min="0"
                     value={form.wageCeiling}
                     onChange={(e) => setForm({ ...form, wageCeiling: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                     placeholder="Max basis amount"
                   />
                 </div>
@@ -699,7 +699,7 @@ export default function StatutoryComponentsPage() {
                     min="0"
                     value={form.maxContributionAmt}
                     onChange={(e) => setForm({ ...form, maxContributionAmt: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                     placeholder="e.g. 1800"
                   />
                 </div>
@@ -711,7 +711,7 @@ export default function StatutoryComponentsPage() {
                     min="0"
                     value={form.minContributionAmt}
                     onChange={(e) => setForm({ ...form, minContributionAmt: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                     placeholder="e.g. 75"
                   />
                 </div>
@@ -727,7 +727,7 @@ export default function StatutoryComponentsPage() {
                   <select
                     value={form.remittanceFrequency}
                     onChange={(e) => setForm({ ...form, remittanceFrequency: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                   >
                     {REMITTANCE_FREQUENCY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
@@ -740,7 +740,7 @@ export default function StatutoryComponentsPage() {
                     max="31"
                     value={form.remittanceDueDay}
                     onChange={(e) => setForm({ ...form, remittanceDueDay: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                     placeholder="Day of month (1-31)"
                   />
                 </div>
@@ -749,7 +749,7 @@ export default function StatutoryComponentsPage() {
                   <select
                     value={form.filingFrequency}
                     onChange={(e) => setForm({ ...form, filingFrequency: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                   >
                     <option value="">Select...</option>
                     {FILING_FREQUENCY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -760,7 +760,7 @@ export default function StatutoryComponentsPage() {
                   <input
                     value={form.filingFormat}
                     onChange={(e) => setForm({ ...form, filingFormat: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                     placeholder="e.g. ECR, FPS, W-2, IR8A"
                   />
                 </div>
@@ -772,7 +772,7 @@ export default function StatutoryComponentsPage() {
                     min="0"
                     value={form.penaltyRatePct}
                     onChange={(e) => setForm({ ...form, penaltyRatePct: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                     placeholder="e.g. 1.5"
                   />
                 </div>
@@ -799,7 +799,7 @@ export default function StatutoryComponentsPage() {
                   <input
                     value={form.challanFormat}
                     onChange={(e) => setForm({ ...form, challanFormat: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                     placeholder="e.g. Challan ITNS 1, EPF Challan"
                   />
                 </div>
@@ -809,7 +809,7 @@ export default function StatutoryComponentsPage() {
                     type="date"
                     value={form.effectiveFrom}
                     onChange={(e) => setForm({ ...form, effectiveFrom: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                   />
                 </div>
                 <div>
@@ -818,7 +818,7 @@ export default function StatutoryComponentsPage() {
                     type="date"
                     value={form.effectiveTo}
                     onChange={(e) => setForm({ ...form, effectiveTo: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                   />
                 </div>
               </div>
@@ -835,7 +835,7 @@ export default function StatutoryComponentsPage() {
               <button
                 onClick={handleSubmit}
                 disabled={submitting}
-                className="px-6 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50 shadow-sm shadow-blue-500/25 transition-colors"
+                className="px-6 py-2.5 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 disabled:opacity-50 shadow-sm shadow-green-500/25 transition-colors"
               >
                 {submitting ? 'Saving...' : editingId ? 'Update Component' : 'Create Component'}
               </button>
@@ -923,7 +923,7 @@ export default function StatutoryComponentsPage() {
                         <div className="flex items-center gap-1">
                           <button
                             onClick={() => handleView(c)}
-                            className="p-1.5 rounded-md text-thb-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors"
+                            className="p-1.5 rounded-md text-thb-text-muted hover:text-green-500 hover:bg-green-50 transition-colors"
                             title="View"
                           >
                             <FiEye className="w-4 h-4" />
@@ -961,7 +961,7 @@ export default function StatutoryComponentsPage() {
       <div className="thb-card overflow-hidden">
         <div className="p-4 border-b border-thb-border bg-slate-50/50">
           <h2 className="text-lg font-semibold text-thb-text-primary flex items-center gap-2">
-            <FiGlobe className="w-5 h-5 text-purple-500" />
+            <FiGlobe className="w-5 h-5 text-teal-500" />
             Statutory Component Catalog by Country
           </h2>
           <p className="text-sm text-thb-text-secondary mt-1">Reference guide for common statutory components across jurisdictions</p>
@@ -976,9 +976,9 @@ export default function StatutoryComponentsPage() {
                 <div className="flex items-center gap-3">
                   <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${
                     code === 'IND' ? 'bg-orange-50 text-orange-600' :
-                    code === 'USA' ? 'bg-blue-50 text-blue-600' :
+                    code === 'USA' ? 'bg-green-50 text-green-600' :
                     code === 'GBR' ? 'bg-red-50 text-red-600' :
-                    code === 'SGP' ? 'bg-purple-50 text-purple-600' :
+                    code === 'SGP' ? 'bg-teal-50 text-teal-600' :
                     'bg-slate-50 text-slate-600'
                   }`}>
                     {code}

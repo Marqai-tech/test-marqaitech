@@ -32,13 +32,13 @@ import { FiChevronDown, FiChevronRight, FiInfo } from 'react-icons/fi';
 type AccentColor = 'violet' | 'blue' | 'emerald' | 'amber' | 'rose' | 'sky' | 'indigo';
 
 const ACCENTS: Record<AccentColor, { icon: string; badge: string; border: string }> = {
-  violet:  { icon: 'bg-violet-100 text-violet-600',    badge: 'bg-violet-50 text-violet-700 border-violet-200',    border: 'hover:border-violet-300' },
-  blue:    { icon: 'bg-blue-100 text-blue-600',        badge: 'bg-blue-50 text-blue-700 border-blue-200',          border: 'hover:border-blue-300' },
+  violet:  { icon: 'bg-teal-100 text-teal-600',    badge: 'bg-teal-50 text-teal-700 border-teal-200',    border: 'hover:border-teal-300' },
+  blue:    { icon: 'bg-green-100 text-green-600',        badge: 'bg-green-50 text-green-700 border-green-200',          border: 'hover:border-green-300' },
   emerald: { icon: 'bg-emerald-100 text-emerald-600',  badge: 'bg-emerald-50 text-emerald-700 border-emerald-200', border: 'hover:border-emerald-300' },
   amber:   { icon: 'bg-amber-100 text-amber-600',      badge: 'bg-amber-50 text-amber-700 border-amber-200',       border: 'hover:border-amber-300' },
   rose:    { icon: 'bg-rose-100 text-rose-600',        badge: 'bg-rose-50 text-rose-700 border-rose-200',          border: 'hover:border-rose-300' },
   sky:     { icon: 'bg-sky-100 text-sky-600',          badge: 'bg-sky-50 text-sky-700 border-sky-200',             border: 'hover:border-sky-300' },
-  indigo:  { icon: 'bg-indigo-100 text-indigo-600',    badge: 'bg-indigo-50 text-indigo-700 border-indigo-200',    border: 'hover:border-indigo-300' },
+  indigo:  { icon: 'bg-emerald-100 text-emerald-600',    badge: 'bg-emerald-50 text-emerald-700 border-emerald-200',    border: 'hover:border-emerald-300' },
 };
 
 interface ModuleIntroProps {

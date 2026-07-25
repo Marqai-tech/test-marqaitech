@@ -89,7 +89,7 @@ const fmtCurrency = (amount: number, currency = 'INR') => {
 function MiniBarChart({ data, label, color = 'blue' }: { data: { label: string; value: number }[]; label: string; color?: string }) {
   const maxVal = Math.max(...data.map(d => d.value), 1);
   const barColors: Record<string, string> = {
-    blue: 'bg-blue-400',
+    blue: 'bg-green-400',
     green: 'bg-emerald-400',
     red: 'bg-red-400',
     amber: 'bg-amber-400',
@@ -313,7 +313,7 @@ export default function PayrollReportsPage() {
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
               className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5 ${
-                activeTab === tab.key ? 'bg-white text-blue-600 shadow-sm' : 'text-thb-text-secondary hover:text-thb-text-primary'
+                activeTab === tab.key ? 'bg-white text-green-600 shadow-sm' : 'text-thb-text-secondary hover:text-thb-text-primary'
               }`}
             >
               <IconComp className="w-4 h-4" />
@@ -334,7 +334,7 @@ export default function PayrollReportsPage() {
                 <select
                   value={registerMonth}
                   onChange={(e) => setRegisterMonth(parseInt(e.target.value))}
-                  className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[120px]"
+                  className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 min-w-[120px]"
                 >
                   {months.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
                 </select>
@@ -345,7 +345,7 @@ export default function PayrollReportsPage() {
                   type="number"
                   value={registerYear}
                   onChange={(e) => setRegisterYear(parseInt(e.target.value))}
-                  className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 w-24"
+                  className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 w-24"
                 />
               </div>
               <div>
@@ -353,7 +353,7 @@ export default function PayrollReportsPage() {
                 <select
                   value={registerCompanyId}
                   onChange={(e) => setRegisterCompanyId(e.target.value)}
-                  className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[140px]"
+                  className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 min-w-[140px]"
                 >
                   <option value="">All Companies</option>
                   {companies.map(c => (
@@ -366,7 +366,7 @@ export default function PayrollReportsPage() {
                 <select
                   value={registerMode}
                   onChange={(e) => setRegisterMode(e.target.value as 'summary' | 'detailed')}
-                  className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[120px]"
+                  className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 min-w-[120px]"
                 >
                   <option value="summary">Summary</option>
                   <option value="detailed">Detailed</option>
@@ -375,7 +375,7 @@ export default function PayrollReportsPage() {
               <button
                 onClick={loadSalaryRegister}
                 disabled={loading}
-                className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 font-medium text-sm shadow-sm shadow-blue-500/25 transition-colors whitespace-nowrap"
+                className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 font-medium text-sm shadow-sm shadow-green-500/25 transition-colors whitespace-nowrap"
               >
                 {loading ? <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" /> : <FiSearch className="w-4 h-4" />}
                 Load
@@ -399,12 +399,12 @@ export default function PayrollReportsPage() {
                 <p className="text-lg font-bold text-red-700">{fmtCurrency(registerSummary.totalDeductions)}</p>
               </div>
               <div className="thb-card p-4 text-center">
-                <p className="text-xs font-medium text-blue-700">Net Pay</p>
-                <p className="text-lg font-bold text-blue-700">{fmtCurrency(registerSummary.totalNetPay)}</p>
+                <p className="text-xs font-medium text-green-700">Net Pay</p>
+                <p className="text-lg font-bold text-green-700">{fmtCurrency(registerSummary.totalNetPay)}</p>
               </div>
               <div className="thb-card p-4 text-center">
-                <p className="text-xs font-medium text-purple-700">Employer Contrib</p>
-                <p className="text-lg font-bold text-purple-700">{fmtCurrency(registerSummary.totalEmployerContrib)}</p>
+                <p className="text-xs font-medium text-teal-700">Employer Contrib</p>
+                <p className="text-lg font-bold text-teal-700">{fmtCurrency(registerSummary.totalEmployerContrib)}</p>
               </div>
             </div>
           )}
@@ -458,7 +458,7 @@ export default function PayrollReportsPage() {
                         <td className="px-3 py-2 text-sm text-right text-emerald-700 font-medium">{fmtCurrency(row.grossPay)}</td>
                         <td className="px-3 py-2 text-sm text-right text-red-700">{fmtCurrency(row.totalDeductions)}</td>
                         <td className="px-3 py-2 text-sm text-right font-semibold text-thb-text-primary">{fmtCurrency(row.netPay)}</td>
-                        <td className="px-3 py-2 text-sm text-right text-purple-700">{fmtCurrency(row.totalEmployerContrib)}</td>
+                        <td className="px-3 py-2 text-sm text-right text-teal-700">{fmtCurrency(row.totalEmployerContrib)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -485,7 +485,7 @@ export default function PayrollReportsPage() {
                 key={type}
                 onClick={() => setStatutoryType(type)}
                 className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                  statutoryType === type ? 'bg-white text-blue-600 shadow-sm' : 'text-thb-text-secondary hover:text-thb-text-primary'
+                  statutoryType === type ? 'bg-white text-green-600 shadow-sm' : 'text-thb-text-secondary hover:text-thb-text-primary'
                 }`}
               >
                 {type}
@@ -501,7 +501,7 @@ export default function PayrollReportsPage() {
                 <select
                   value={statutoryMonth}
                   onChange={(e) => setStatutoryMonth(parseInt(e.target.value))}
-                  className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[120px]"
+                  className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 min-w-[120px]"
                 >
                   {months.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
                 </select>
@@ -512,7 +512,7 @@ export default function PayrollReportsPage() {
                   type="number"
                   value={statutoryYear}
                   onChange={(e) => setStatutoryYear(parseInt(e.target.value))}
-                  className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 w-24"
+                  className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 w-24"
                 />
               </div>
               <div>
@@ -520,7 +520,7 @@ export default function PayrollReportsPage() {
                 <select
                   value={statutoryCompanyId}
                   onChange={(e) => setStatutoryCompanyId(e.target.value)}
-                  className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[140px]"
+                  className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 min-w-[140px]"
                 >
                   <option value="">All Companies</option>
                   {companies.map(c => (
@@ -531,7 +531,7 @@ export default function PayrollReportsPage() {
               <button
                 onClick={loadStatutoryReport}
                 disabled={loading}
-                className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 font-medium text-sm shadow-sm shadow-blue-500/25 transition-colors whitespace-nowrap"
+                className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 font-medium text-sm shadow-sm shadow-green-500/25 transition-colors whitespace-nowrap"
               >
                 {loading ? <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" /> : <FiSearch className="w-4 h-4" />}
                 Load
@@ -614,10 +614,10 @@ export default function PayrollReportsPage() {
               { title: 'Reimbursement Report', icon: FiCreditCard, desc: 'Reimbursements processed and pending', color: 'teal' },
             ].map((report) => {
               const colorMap: Record<string, { bg: string; icon: string; ring: string }> = {
-                blue: { bg: 'bg-blue-500/10', icon: 'text-blue-500', ring: 'ring-blue-500/20' },
+                blue: { bg: 'bg-green-500/10', icon: 'text-green-500', ring: 'ring-green-500/20' },
                 emerald: { bg: 'bg-emerald-500/10', icon: 'text-emerald-500', ring: 'ring-emerald-500/20' },
                 amber: { bg: 'bg-amber-500/10', icon: 'text-amber-500', ring: 'ring-amber-500/20' },
-                purple: { bg: 'bg-purple-500/10', icon: 'text-purple-500', ring: 'ring-purple-500/20' },
+                purple: { bg: 'bg-teal-500/10', icon: 'text-teal-500', ring: 'ring-teal-500/20' },
                 rose: { bg: 'bg-rose-500/10', icon: 'text-rose-500', ring: 'ring-rose-500/20' },
                 teal: { bg: 'bg-teal-500/10', icon: 'text-teal-500', ring: 'ring-teal-500/20' },
               };
@@ -657,7 +657,7 @@ export default function PayrollReportsPage() {
                 <select
                   value={dashboardCompanyId}
                   onChange={(e) => setDashboardCompanyId(e.target.value)}
-                  className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[140px]"
+                  className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 min-w-[140px]"
                 >
                   <option value="">All Companies</option>
                   {companies.map(c => (
@@ -668,7 +668,7 @@ export default function PayrollReportsPage() {
               <button
                 onClick={loadDashboard}
                 disabled={loading}
-                className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 font-medium text-sm shadow-sm shadow-blue-500/25 transition-colors whitespace-nowrap"
+                className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 font-medium text-sm shadow-sm shadow-green-500/25 transition-colors whitespace-nowrap"
               >
                 {loading ? <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" /> : <FiRefreshCw className="w-4 h-4" />}
                 Load Dashboard
@@ -682,8 +682,8 @@ export default function PayrollReportsPage() {
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <div className="thb-card thb-card-hover p-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
-                      <FiUsers className="w-5 h-5 text-blue-500" />
+                    <div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center">
+                      <FiUsers className="w-5 h-5 text-green-500" />
                     </div>
                     <div>
                       <p className="text-xs font-medium text-thb-text-secondary">Employees Processed</p>
@@ -729,12 +729,12 @@ export default function PayrollReportsPage() {
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <div className="thb-card thb-card-hover p-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-purple-50 flex items-center justify-center">
-                      <FiShield className="w-5 h-5 text-purple-500" />
+                    <div className="w-10 h-10 rounded-lg bg-teal-50 flex items-center justify-center">
+                      <FiShield className="w-5 h-5 text-teal-500" />
                     </div>
                     <div>
                       <p className="text-xs font-medium text-thb-text-secondary">Employer Contrib</p>
-                      <p className="text-lg font-bold text-purple-700">{fmtCurrency(dashboardMetrics.totalEmployerContrib)}</p>
+                      <p className="text-lg font-bold text-teal-700">{fmtCurrency(dashboardMetrics.totalEmployerContrib)}</p>
                     </div>
                   </div>
                 </div>

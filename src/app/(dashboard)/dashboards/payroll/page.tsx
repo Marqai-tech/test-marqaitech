@@ -305,14 +305,14 @@ const payrollTabs: DashboardTabConfig[] = [
 function PayrollReportsPlaceholder() {
   return (
     <div className="flex flex-col items-center py-8">
-      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg mb-4">
+      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-lg mb-4">
         <FiFileText className="w-7 h-7 text-white" />
       </div>
       <h3 className="text-lg font-bold text-thb-text-primary mb-1">Reports & Analytics</h3>
       <p className="text-sm text-thb-text-secondary text-center max-w-md mb-4">
         Payroll registers, tax reports, and salary analytics
       </p>
-      <a href="/payroll/reports" className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors">
+      <a href="/payroll/reports" className="inline-flex items-center gap-2 px-5 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors">
         <FiBarChart2 className="w-4 h-4" /> Go to Reports
       </a>
     </div>
@@ -329,7 +329,7 @@ function PayrollSettingsPlaceholder() {
       <p className="text-sm text-thb-text-secondary text-center max-w-md mb-4">
         Configure salary structures, tax slabs, deduction rules, and payroll cycles
       </p>
-      <a href="/payroll/salary-settings" className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors">
+      <a href="/payroll/salary-settings" className="inline-flex items-center gap-2 px-5 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors">
         <FiSettings className="w-4 h-4" /> Go to Settings
       </a>
     </div>
@@ -489,10 +489,10 @@ function PayrollContent() {
   /* ─── Quick actions ─── */
   const quickActions = [
     { label: 'Run Payroll', icon: FiPlay, color: 'text-emerald-600', bg: 'bg-emerald-50', route: '/payroll/processing' },
-    { label: 'View Payslips', icon: FiFileText, color: 'text-indigo-600', bg: 'bg-indigo-50', route: '/payroll/payslips' },
+    { label: 'View Payslips', icon: FiFileText, color: 'text-emerald-600', bg: 'bg-emerald-50', route: '/payroll/payslips' },
     { label: 'Tax Settings', icon: FiSettings, color: 'text-amber-600', bg: 'bg-amber-50', route: '/payroll/tax-slabs' },
     { label: 'Bank Files', icon: FiDownload, color: 'text-cyan-600', bg: 'bg-cyan-50', route: '/payroll/bank-files' },
-    { label: 'GL Mapping', icon: FiLayout, color: 'text-violet-600', bg: 'bg-violet-50', route: '/payroll/gl-mapping' },
+    { label: 'GL Mapping', icon: FiLayout, color: 'text-teal-600', bg: 'bg-teal-50', route: '/payroll/gl-mapping' },
     { label: 'Compliance Calendar', icon: FiCalendar, color: 'text-pink-600', bg: 'bg-pink-50', route: '/payroll/compliance' },
   ];
 
@@ -555,8 +555,8 @@ function PayrollContent() {
                 title="Total Gross Pay"
                 value={fmtCurrency(data?.metrics?.totalGrossPay ?? 0)}
                 icon={FiDollarSign}
-                color="text-indigo-600"
-                bgColor="bg-indigo-50"
+                color="text-emerald-600"
+                bgColor="bg-emerald-50"
                 sub={`${data?.metrics?.totalEmployeesProcessed ?? 0} employees`}
               />
               <StatCard
@@ -595,8 +595,8 @@ function PayrollContent() {
                 title="Active Holds"
                 value={String(activeHolds)}
                 icon={FiPauseCircle}
-                color="text-violet-600"
-                bgColor="bg-violet-50"
+                color="text-teal-600"
+                bgColor="bg-teal-50"
                 sub={activeHolds > 0 ? 'On payroll hold' : 'No holds'}
               />
             </>
@@ -613,7 +613,7 @@ function PayrollContent() {
               <>
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-base font-semibold text-slate-800 flex items-center gap-2">
-                    <FiBarChart2 className="w-5 h-5 text-indigo-500" />
+                    <FiBarChart2 className="w-5 h-5 text-emerald-500" />
                     Monthly Payroll Trend
                   </h3>
                   <span className="text-xs text-slate-400">Last 6 months</span>
@@ -664,7 +664,7 @@ function PayrollContent() {
               <>
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-base font-semibold text-slate-800 flex items-center gap-2">
-                    <FiUsers className="w-5 h-5 text-violet-500" />
+                    <FiUsers className="w-5 h-5 text-teal-500" />
                     Dept. Salary Breakdown
                   </h3>
                 </div>
@@ -796,12 +796,12 @@ function PayrollContent() {
             <>
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-base font-semibold text-slate-800 flex items-center gap-2">
-                  <FiFileText className="w-5 h-5 text-indigo-500" />
+                  <FiFileText className="w-5 h-5 text-emerald-500" />
                   Recent Payroll Runs
                 </h3>
                 <a
                   href="/payroll/processing"
-                  className="text-sm text-indigo-600 hover:text-indigo-800 flex items-center gap-1 transition-colors"
+                  className="text-sm text-emerald-600 hover:text-emerald-800 flex items-center gap-1 transition-colors"
                 >
                   View all <FiArrowRight className="w-3.5 h-3.5" />
                 </a>
@@ -834,7 +834,7 @@ function PayrollContent() {
                         <td className="py-3 text-right">
                           <a
                             href={`/payroll/processing`}
-                            className="inline-flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800 transition-colors"
+                            className="inline-flex items-center gap-1 text-xs text-emerald-600 hover:text-emerald-800 transition-colors"
                           >
                             View <FiExternalLink className="w-3 h-3" />
                           </a>
@@ -878,12 +878,12 @@ function PayrollContent() {
 
             {/* Active holds card */}
             <div className="thb-card thb-card-hover p-4 flex items-center gap-4 cursor-pointer" onClick={() => window.location.href = '/payroll/holds'}>
-              <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-violet-50">
-                <FiPauseCircle className="w-5 h-5 text-violet-600" />
+              <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-teal-50">
+                <FiPauseCircle className="w-5 h-5 text-teal-600" />
               </div>
               <div className="flex-1">
                 <p className="text-sm text-slate-600">Active Holds</p>
-                <p className="text-lg font-bold text-violet-600">{activeHolds}</p>
+                <p className="text-lg font-bold text-teal-600">{activeHolds}</p>
               </div>
               <FiArrowRight className="w-4 h-4 text-slate-300" />
             </div>
@@ -920,7 +920,7 @@ function PayrollContent() {
           {/* Quick Actions */}
           <div className="lg:col-span-3">
             <h3 className="text-base font-semibold text-slate-800 flex items-center gap-2 mb-4">
-              <FiZap className="w-5 h-5 text-indigo-500" />
+              <FiZap className="w-5 h-5 text-emerald-500" />
               Quick Actions
             </h3>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
@@ -941,12 +941,12 @@ function PayrollContent() {
             </div>
 
             {/* Summary footer inside quick actions area */}
-            <div className="thb-card mt-4 p-4 bg-gradient-to-r from-indigo-50 to-cyan-50 border-indigo-100">
+            <div className="thb-card mt-4 p-4 bg-gradient-to-r from-emerald-50 to-cyan-50 border-emerald-100">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs text-slate-500">3Boxes HRMS Payroll Module</p>
                   <p className="text-sm font-semibold text-slate-700 mt-0.5">
-                    Current period: <span className="text-indigo-600">{data?.currentPeriod || '—'}</span>
+                    Current period: <span className="text-emerald-600">{data?.currentPeriod || '—'}</span>
                   </p>
                 </div>
                 <div className="flex items-center gap-1 text-xs text-slate-400">

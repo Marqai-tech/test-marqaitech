@@ -273,8 +273,8 @@ export default function PayslipsPage() {
         </div>
         <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
-              <FiDollarSign className="w-5 h-5 text-blue-500" />
+            <div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center">
+              <FiDollarSign className="w-5 h-5 text-green-500" />
             </div>
             <div>
               <p className="text-xs font-medium text-thb-text-secondary">Total Gross</p>
@@ -295,8 +295,8 @@ export default function PayslipsPage() {
         </div>
         <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-violet-50 flex items-center justify-center">
-              <FiFileText className="w-5 h-5 text-violet-500" />
+            <div className="w-10 h-10 rounded-lg bg-teal-50 flex items-center justify-center">
+              <FiFileText className="w-5 h-5 text-teal-500" />
             </div>
             <div>
               <p className="text-xs font-medium text-thb-text-secondary">Generated</p>
@@ -312,20 +312,20 @@ export default function PayslipsPage() {
           <div className="relative flex-1">
             <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
             <input type="text" placeholder="Search by employee..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+              className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
           </div>
           <select value={monthFilter} onChange={(e) => setMonthFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[150px]">
+            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 min-w-[150px]">
             <option value="">All Months</option>
             {MONTH_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
           <select value={yearFilter} onChange={(e) => setYearFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[120px]">
+            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 min-w-[120px]">
             <option value="">All Years</option>
             {YEAR_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
           <select value={employeeFilter} onChange={(e) => setEmployeeFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[160px]">
+            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 min-w-[160px]">
             <option value="">All Employees</option>
             {employees.map(e => (
               <option key={e.id} value={e.employeeId}>{e.firstName} {e.lastName} ({e.employeeId})</option>
@@ -517,7 +517,7 @@ export default function PayslipsPage() {
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1">
                         <button onClick={() => handleViewPayslip(item.id)} disabled={loadingDetail}
-                          className="p-1.5 rounded-lg text-thb-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors disabled:opacity-50" title="View Payslip">
+                          className="p-1.5 rounded-lg text-thb-text-muted hover:text-green-500 hover:bg-green-50 transition-colors disabled:opacity-50" title="View Payslip">
                           <FiSearch className="w-3.5 h-3.5" />
                         </button>
                         {!item.paySlip && (
@@ -528,7 +528,7 @@ export default function PayslipsPage() {
                         )}
                         {item.paySlip && (
                           <button onClick={() => handleViewPayslip(item.id)}
-                            className="p-1.5 rounded-lg text-thb-text-muted hover:text-violet-500 hover:bg-violet-50 transition-colors" title="View Generated Payslip">
+                            className="p-1.5 rounded-lg text-thb-text-muted hover:text-teal-500 hover:bg-teal-50 transition-colors" title="View Generated Payslip">
                             <FiFileText className="w-3.5 h-3.5" />
                           </button>
                         )}

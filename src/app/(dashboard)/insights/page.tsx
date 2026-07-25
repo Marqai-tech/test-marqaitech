@@ -35,17 +35,17 @@ export default function InsightsPage() {
       critical: 'bg-red-100 text-red-700 border-red-200',
       high: 'bg-orange-100 text-orange-700 border-orange-200',
       medium: 'bg-yellow-100 text-yellow-700 border-yellow-200',
-      low: 'bg-blue-100 text-blue-700 border-blue-200',
+      low: 'bg-green-100 text-green-700 border-green-200',
     }[sev] || 'bg-gray-100 text-gray-700 border-gray-200';
   }
 
   function moduleColor(mod: string) {
     return {
-      payroll: 'bg-purple-100 text-purple-700',
-      attendance: 'bg-blue-100 text-blue-700',
+      payroll: 'bg-teal-100 text-teal-700',
+      attendance: 'bg-green-100 text-green-700',
       recruitment: 'bg-green-100 text-green-700',
       marketplace: 'bg-pink-100 text-pink-700',
-      projects: 'bg-indigo-100 text-indigo-700',
+      projects: 'bg-emerald-100 text-emerald-700',
     }[mod] || 'bg-gray-100 text-gray-700';
   }
 
@@ -65,12 +65,12 @@ export default function InsightsPage() {
             <option value="marketplace">Marketplace</option>
             <option value="projects">Projects</option>
           </select>
-          <button onClick={load} className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">Refresh</button>
+          <button onClick={load} className="bg-green-600 text-white px-4 py-2 rounded text-sm hover:bg-green-700">Refresh</button>
         </div>
       </div>
 
       {generatedAt && (
-        <div className={`text-xs px-3 py-2 rounded border ${cached ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-green-50 text-green-700 border-green-200'}`}>
+        <div className={`text-xs px-3 py-2 rounded border ${cached ? 'bg-green-50 text-green-700 border-green-200' : 'bg-green-50 text-green-700 border-green-200'}`}>
           {cached ? '📦 Cached' : '✨ Freshly generated'} at {new Date(generatedAt).toLocaleString()}
         </div>
       )}

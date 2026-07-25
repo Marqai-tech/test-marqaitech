@@ -165,7 +165,7 @@ export default function VendorsPage() {
         <div><h1 className="text-2xl font-bold text-thb-text-primary">Vendors</h1><p className="text-thb-text-secondary mt-1">Manage vendors and sub-vendors</p></div>
         <div className="flex flex-wrap items-center gap-3">
           <SeedEcosystemButton module="vendors" label="Seed Sample Vendors" compact />
-          <button onClick={handleAddNew} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm"><FiPlus className="w-4 h-4" /> Add Vendor</button>
+          <button onClick={handleAddNew} className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium text-sm"><FiPlus className="w-4 h-4" /> Add Vendor</button>
         </div>
       </div>
 
@@ -174,7 +174,7 @@ export default function VendorsPage() {
 
       <div className="flex gap-2">
         {['all', 'vendor', 'sub_vendor'].map((t) => (
-          <button key={t} onClick={() => setTypeFilter(t)} className={`px-3 py-1.5 rounded-lg text-sm font-medium capitalize transition-colors ${typeFilter === t ? 'bg-blue-600 text-white' : 'bg-slate-100 text-thb-text-secondary hover:bg-slate-200'}`}>
+          <button key={t} onClick={() => setTypeFilter(t)} className={`px-3 py-1.5 rounded-lg text-sm font-medium capitalize transition-colors ${typeFilter === t ? 'bg-green-600 text-white' : 'bg-slate-100 text-thb-text-secondary hover:bg-slate-200'}`}>
             {t === 'all' ? 'All' : t.replace('_', '-')}
           </button>
         ))}
@@ -215,7 +215,7 @@ export default function VendorsPage() {
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1">
                           <button onClick={() => { setViewingId(v.id); setShowForm(false); setTimeout(() => document.getElementById('view-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100); }} className="p-1.5 rounded-lg text-thb-text-muted hover:text-emerald-500 hover:bg-emerald-50 transition-colors" title="View"><FiEye className="w-3.5 h-3.5" /></button>
-                          <button onClick={() => handleEdit(v)} className="p-1.5 rounded-lg text-thb-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="Edit"><FiEdit2 className="w-3.5 h-3.5" /></button>
+                          <button onClick={() => handleEdit(v)} className="p-1.5 rounded-lg text-thb-text-muted hover:text-green-500 hover:bg-green-50 transition-colors" title="Edit"><FiEdit2 className="w-3.5 h-3.5" /></button>
                           <button onClick={() => setDeleteConfirmId(v.id)} className="p-1.5 rounded-lg text-thb-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete"><FiTrash2 className="w-3.5 h-3.5" /></button>
                         </div>
                       </td>
@@ -238,7 +238,7 @@ export default function VendorsPage() {
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-lg font-semibold text-thb-text-primary">Vendor Details</h2>
                 <div className="flex items-center gap-2">
-                  <button onClick={() => handleEdit(vendor)} className="px-3 py-1.5 rounded-lg bg-blue-500 text-white text-xs font-medium hover:bg-blue-600 transition-colors flex items-center gap-1"><FiEdit2 className="w-3.5 h-3.5" />Edit</button>
+                  <button onClick={() => handleEdit(vendor)} className="px-3 py-1.5 rounded-lg bg-green-500 text-white text-xs font-medium hover:bg-green-600 transition-colors flex items-center gap-1"><FiEdit2 className="w-3.5 h-3.5" />Edit</button>
                   <button onClick={() => setViewingId(null)} className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors"><FiX className="w-5 h-5" /></button>
                 </div>
               </div>
@@ -266,7 +266,7 @@ export default function VendorsPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                     {vendor.childVendors.map((cv) => (
                       <div key={cv.id} className="flex items-center gap-3 p-3 rounded-lg bg-slate-50 border border-thb-border">
-                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-400 to-pink-500 flex items-center justify-center text-white text-xs font-bold">{cv.name[0]}</div>
+                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-teal-400 to-pink-500 flex items-center justify-center text-white text-xs font-bold">{cv.name[0]}</div>
                         <div>
                           <p className="text-sm font-medium text-thb-text-primary">{cv.name}</p>
                           <p className="text-xs text-thb-text-muted">{cv.type.replace('_', ' ')} · Rating: {cv.rating}/5</p>
@@ -283,7 +283,7 @@ export default function VendorsPage() {
 
       {/* CRUD Form */}
       {showForm && (
-        <div id="crud-form" className="thb-card border-l-4 border-l-blue-500">
+        <div id="crud-form" className="thb-card border-l-4 border-l-green-500">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-semibold text-thb-text-primary">
@@ -293,25 +293,25 @@ export default function VendorsPage() {
             </div>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Name *</label><input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" /></div>
-                <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Code</label><input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" /></div>
+                <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Name *</label><input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500" /></div>
+                <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Code</label><input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500" /></div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Type</label><select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"><option value="vendor">Vendor</option><option value="sub_vendor">Sub-Vendor</option></select></div>
-                <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Industry</label><input value={form.industry} onChange={(e) => setForm({ ...form, industry: e.target.value })} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" /></div>
+                <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Type</label><select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500"><option value="vendor">Vendor</option><option value="sub_vendor">Sub-Vendor</option></select></div>
+                <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Industry</label><input value={form.industry} onChange={(e) => setForm({ ...form, industry: e.target.value })} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500" /></div>
               </div>
               {form.type === 'sub_vendor' && (
-                <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Parent Vendor ID</label><input value={form.parentVendorId} onChange={(e) => setForm({ ...form, parentVendorId: e.target.value })} placeholder="Enter parent vendor ID" className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" /></div>
+                <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Parent Vendor ID</label><input value={form.parentVendorId} onChange={(e) => setForm({ ...form, parentVendorId: e.target.value })} placeholder="Enter parent vendor ID" className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500" /></div>
               )}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Contact Name</label><input value={form.contactName} onChange={(e) => setForm({ ...form, contactName: e.target.value })} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" /></div>
-                <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Contact Email</label><input type="email" value={form.contactEmail} onChange={(e) => setForm({ ...form, contactEmail: e.target.value })} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" /></div>
+                <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Contact Name</label><input value={form.contactName} onChange={(e) => setForm({ ...form, contactName: e.target.value })} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500" /></div>
+                <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Contact Email</label><input type="email" value={form.contactEmail} onChange={(e) => setForm({ ...form, contactEmail: e.target.value })} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500" /></div>
               </div>
-              <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Contact Phone</label><input value={form.contactPhone} onChange={(e) => setForm({ ...form, contactPhone: e.target.value })} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" /></div>
-              <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Specialization</label><input value={form.specialization} onChange={(e) => setForm({ ...form, specialization: e.target.value })} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" /></div>
+              <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Contact Phone</label><input value={form.contactPhone} onChange={(e) => setForm({ ...form, contactPhone: e.target.value })} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500" /></div>
+              <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Specialization</label><input value={form.specialization} onChange={(e) => setForm({ ...form, specialization: e.target.value })} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500" /></div>
               <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-thb-border">
                 <button type="button" onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
-                <button type="submit" disabled={submitting} className="px-6 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50 shadow-sm shadow-blue-500/25 transition-colors">{submitting ? 'Saving...' : editingId ? 'Update' : 'Add Vendor'}</button>
+                <button type="submit" disabled={submitting} className="px-6 py-2.5 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 disabled:opacity-50 shadow-sm shadow-green-500/25 transition-colors">{submitting ? 'Saving...' : editingId ? 'Update' : 'Add Vendor'}</button>
               </div>
             </form>
           </div>

@@ -119,14 +119,14 @@ const accountsShellTabs: DashboardTabConfig[] = [
 function AccountsReportsPlaceholder() {
   return (
     <div className="flex flex-col items-center py-8">
-      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg mb-4">
+      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-lg mb-4">
         <FiFileText className="w-7 h-7 text-white" />
       </div>
       <h3 className="text-lg font-bold text-thb-text-primary mb-1">Reports & Analytics</h3>
       <p className="text-sm text-thb-text-secondary text-center max-w-md mb-4">
         Financial statements, trial balance, and custom accounting reports
       </p>
-      <a href="/accounts/reports" className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors">
+      <a href="/accounts/reports" className="inline-flex items-center gap-2 px-5 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors">
         <FiBarChart2 className="w-4 h-4" /> Go to Reports
       </a>
     </div>
@@ -143,7 +143,7 @@ function AccountsSettingsPlaceholder() {
       <p className="text-sm text-thb-text-secondary text-center max-w-md mb-4">
         Configure fiscal year, currency, tax settings, and automation preferences
       </p>
-      <a href="/accounts/settings" className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors">
+      <a href="/accounts/settings" className="inline-flex items-center gap-2 px-5 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors">
         <FiSettings className="w-4 h-4" /> Go to Settings
       </a>
     </div>
@@ -163,9 +163,9 @@ function getStatusBadge(status: string) {
 
 function getTypeColor(type: string) {
   const map: Record<string, string> = {
-    Asset: 'bg-blue-100 text-blue-700',
+    Asset: 'bg-green-100 text-green-700',
     Liability: 'bg-red-100 text-red-700',
-    Equity: 'bg-purple-100 text-purple-700',
+    Equity: 'bg-teal-100 text-teal-700',
     Revenue: 'bg-emerald-100 text-emerald-700',
     Expense: 'bg-amber-100 text-amber-700',
   };
@@ -227,10 +227,10 @@ function AccountsContent() {
         {[
           { label: 'Total Revenue', value: '₹31.0L', icon: <FiTrendingUp className="w-5 h-5" />, color: 'text-emerald-600', bg: 'bg-emerald-50', trend: '+8.2%' },
           { label: 'Total Expenses', value: '₹18.5L', icon: <FiTrendingDown className="w-5 h-5" />, color: 'text-red-600', bg: 'bg-red-50', trend: '+3.1%' },
-          { label: 'Net Profit', value: `₹${(netProfit / 100000).toFixed(1)}L`, icon: <FiDollarSign className="w-5 h-5" />, color: 'text-blue-600', bg: 'bg-blue-50', trend: '+12.5%' },
+          { label: 'Net Profit', value: `₹${(netProfit / 100000).toFixed(1)}L`, icon: <FiDollarSign className="w-5 h-5" />, color: 'text-green-600', bg: 'bg-green-50', trend: '+12.5%' },
           { label: 'Pending Invoices', value: '12', icon: <FiFileText className="w-5 h-5" />, color: 'text-amber-600', bg: 'bg-amber-50', trend: '-2' },
           { label: 'Overdue Amount', value: '₹4.2L', icon: <FiAlertCircle className="w-5 h-5" />, color: 'text-red-600', bg: 'bg-red-50', trend: '+1' },
-          { label: 'Cash Balance', value: '₹11.4L', icon: <FiCreditCard className="w-5 h-5" />, color: 'text-violet-600', bg: 'bg-violet-50', trend: '+5.3%' },
+          { label: 'Cash Balance', value: '₹11.4L', icon: <FiCreditCard className="w-5 h-5" />, color: 'text-teal-600', bg: 'bg-teal-50', trend: '+5.3%' },
         ].map((stat) => (
           <div key={stat.label} className="thb-card p-4">
             <div className="flex items-center justify-between mb-2">
@@ -246,18 +246,18 @@ function AccountsContent() {
       {/* Quick Actions */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: 'New Journal Entry', icon: <FiPlus className="w-5 h-5" />, onClick: () => setShowAddJournalModal(true), gradient: 'from-blue-500 to-indigo-600' },
+          { label: 'New Journal Entry', icon: <FiPlus className="w-5 h-5" />, onClick: () => setShowAddJournalModal(true), gradient: 'from-green-500 to-emerald-600' },
           { label: 'Record Payment', icon: <FiCreditCard className="w-5 h-5" />, onClick: () => window.location.href = '/accounts/bills', gradient: 'from-emerald-500 to-teal-600' },
           { label: 'Bank Reconciliation', icon: <FiRefreshCw className="w-5 h-5" />, onClick: () => window.location.href = '/accounts/bank-reconciliation', gradient: 'from-amber-500 to-orange-600' },
-          { label: 'Generate Report', icon: <FiBarChart2 className="w-5 h-5" />, onClick: () => window.location.href = '/accounts/reports', gradient: 'from-purple-500 to-pink-600' },
+          { label: 'Generate Report', icon: <FiBarChart2 className="w-5 h-5" />, onClick: () => window.location.href = '/accounts/reports', gradient: 'from-teal-500 to-pink-600' },
         ].map((action) => (
           <button key={action.label} onClick={action.onClick} className={`thb-card p-4 flex items-center gap-3 hover:shadow-md transition-all text-left group`}>
             <div className={`p-2.5 rounded-xl bg-gradient-to-br ${action.gradient} text-white shadow-sm`}>{action.icon}</div>
             <div>
-              <p className="text-sm font-semibold text-thb-text-primary group-hover:text-blue-600 transition-colors">{action.label}</p>
+              <p className="text-sm font-semibold text-thb-text-primary group-hover:text-green-600 transition-colors">{action.label}</p>
               <p className="text-xs text-thb-text-secondary">Click to proceed</p>
             </div>
-            <FiChevronRight className="w-4 h-4 text-thb-text-muted ml-auto group-hover:text-blue-500 transition-colors" />
+            <FiChevronRight className="w-4 h-4 text-thb-text-muted ml-auto group-hover:text-green-500 transition-colors" />
           </button>
         ))}
       </div>
@@ -324,7 +324,7 @@ function AccountsContent() {
             <div className="thb-card p-5">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-sm font-semibold text-thb-text-primary">Recent Transactions</h3>
-                <button onClick={() => setActiveTab('journal-entries')} className="text-xs text-blue-600 hover:underline">View All</button>
+                <button onClick={() => setActiveTab('journal-entries')} className="text-xs text-green-600 hover:underline">View All</button>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs">
@@ -362,9 +362,9 @@ function AccountsContent() {
           <div className="flex items-center gap-3">
             <div className="relative flex-1 max-w-xs">
               <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input type="text" placeholder="Search accounts..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+              <input type="text" placeholder="Search accounts..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
             </div>
-            <select value={filterType} onChange={e => setFilterType(e.target.value)} className="px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+            <select value={filterType} onChange={e => setFilterType(e.target.value)} className="px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20">
               <option value="all">All Types</option>
               <option value="Asset">Assets</option>
               <option value="Liability">Liabilities</option>
@@ -372,7 +372,7 @@ function AccountsContent() {
               <option value="Revenue">Revenue</option>
               <option value="Expense">Expenses</option>
             </select>
-            <button onClick={() => setShowAddAccountModal(true)} className="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors">
+            <button onClick={() => setShowAddAccountModal(true)} className="flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors">
               <FiPlus className="w-4 h-4" /> Add Account
             </button>
           </div>
@@ -398,7 +398,7 @@ function AccountsContent() {
                     <td className="py-3 px-4 text-center"><span className={getStatusBadge(account.status)}>{account.status}</span></td>
                     <td className="py-3 px-4 text-center">
                       <div className="flex items-center justify-center gap-1">
-                        <button className="p-1.5 rounded-lg text-slate-400 hover:text-blue-500 hover:bg-blue-50 transition-colors"><FiEye className="w-3.5 h-3.5" /></button>
+                        <button className="p-1.5 rounded-lg text-slate-400 hover:text-green-500 hover:bg-green-50 transition-colors"><FiEye className="w-3.5 h-3.5" /></button>
                         <button className="p-1.5 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-amber-50 transition-colors"><FiEdit2 className="w-3.5 h-3.5" /></button>
                         <button className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"><FiTrash2 className="w-3.5 h-3.5" /></button>
                       </div>
@@ -416,9 +416,9 @@ function AccountsContent() {
           <div className="flex items-center gap-3">
             <div className="relative flex-1 max-w-xs">
               <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input type="text" placeholder="Search entries..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+              <input type="text" placeholder="Search entries..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
             </div>
-            <button onClick={() => setShowAddJournalModal(true)} className="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors ml-auto">
+            <button onClick={() => setShowAddJournalModal(true)} className="flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors ml-auto">
               <FiPlus className="w-4 h-4" /> New Entry
             </button>
           </div>
@@ -438,7 +438,7 @@ function AccountsContent() {
               <tbody>
                 {filteredJournalEntries.map(je => (
                   <tr key={je.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
-                    <td className="py-3 px-4 font-mono text-blue-600 font-medium">{je.id}</td>
+                    <td className="py-3 px-4 font-mono text-green-600 font-medium">{je.id}</td>
                     <td className="py-3 px-4 text-thb-text-secondary">{je.date}</td>
                     <td className="py-3 px-4 text-thb-text-primary">{je.description}</td>
                     <td className="py-3 px-4 text-right font-medium text-emerald-600">₹{je.debitTotal.toLocaleString()}</td>
@@ -446,7 +446,7 @@ function AccountsContent() {
                     <td className="py-3 px-4 text-center"><span className={getStatusBadge(je.status)}>{je.status}</span></td>
                     <td className="py-3 px-4 text-center">
                       <div className="flex items-center justify-center gap-1">
-                        <button className="p-1.5 rounded-lg text-slate-400 hover:text-blue-500 hover:bg-blue-50 transition-colors"><FiEye className="w-3.5 h-3.5" /></button>
+                        <button className="p-1.5 rounded-lg text-slate-400 hover:text-green-500 hover:bg-green-50 transition-colors"><FiEye className="w-3.5 h-3.5" /></button>
                         {je.status === 'draft' && (
                           <>
                             <button onClick={() => toast.success('Entry posted')} className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 transition-colors"><FiCheck className="w-3.5 h-3.5" /></button>
@@ -466,7 +466,7 @@ function AccountsContent() {
       {activeTab === 'general-ledger' && (
         <div className="space-y-4">
           <div className="flex items-center gap-3">
-            <select value={selectedLedgerAccount} onChange={e => setSelectedLedgerAccount(e.target.value)} className="px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 min-w-[200px]">
+            <select value={selectedLedgerAccount} onChange={e => setSelectedLedgerAccount(e.target.value)} className="px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 min-w-[200px]">
               {chartOfAccounts.map(a => <option key={a.code} value={`${a.code} - ${a.name}`}>{a.code} - {a.name}</option>)}
             </select>
             <button className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg text-sm font-medium transition-colors text-thb-text-primary ml-auto">
@@ -508,7 +508,7 @@ function AccountsContent() {
           {/* Balance Sheet */}
           <div className="thb-card p-5">
             <h3 className="text-lg font-bold text-thb-text-primary mb-4 flex items-center gap-2">
-              <FiBookOpen className="w-5 h-5 text-blue-500" /> Balance Sheet
+              <FiBookOpen className="w-5 h-5 text-green-500" /> Balance Sheet
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
@@ -587,9 +587,9 @@ function AccountsContent() {
                 <span className="text-red-700">Total Expenses</span>
                 <span className="text-red-700">₹7,85,000</span>
               </div>
-              <div className="flex justify-between py-3 text-base font-bold border-t-2 border-blue-300 mt-4 bg-blue-50 -mx-2 px-2 rounded-lg">
-                <span className="text-blue-700">Net Income</span>
-                <span className="text-blue-700">₹3,85,000</span>
+              <div className="flex justify-between py-3 text-base font-bold border-t-2 border-green-300 mt-4 bg-green-50 -mx-2 px-2 rounded-lg">
+                <span className="text-green-700">Net Income</span>
+                <span className="text-green-700">₹3,85,000</span>
               </div>
             </div>
           </div>
@@ -607,15 +607,15 @@ function AccountsContent() {
             <div className="p-5 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-thb-text-secondary mb-1">Account Code</label>
-                <input type="text" placeholder="e.g., 1600" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                <input type="text" placeholder="e.g., 1600" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-thb-text-secondary mb-1">Account Name</label>
-                <input type="text" placeholder="e.g., Petty Cash" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                <input type="text" placeholder="e.g., Petty Cash" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-thb-text-secondary mb-1">Account Type</label>
-                <select className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+                <select className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20">
                   <option value="Asset">Asset</option>
                   <option value="Liability">Liability</option>
                   <option value="Equity">Equity</option>
@@ -625,12 +625,12 @@ function AccountsContent() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-thb-text-secondary mb-1">Opening Balance</label>
-                <input type="number" placeholder="0" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                <input type="number" placeholder="0" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
               </div>
             </div>
             <div className="flex gap-3 p-5 border-t border-slate-100">
               <button onClick={() => setShowAddAccountModal(false)} className="flex-1 px-4 py-2 border border-slate-200 rounded-lg text-sm font-medium text-thb-text-primary hover:bg-slate-50 transition-colors">Cancel</button>
-              <button onClick={() => { setShowAddAccountModal(false); toast.success('Account created successfully'); }} className="flex-1 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors">Create Account</button>
+              <button onClick={() => { setShowAddAccountModal(false); toast.success('Account created successfully'); }} className="flex-1 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors">Create Account</button>
             </div>
           </div>
         </div>
@@ -648,16 +648,16 @@ function AccountsContent() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-thb-text-secondary mb-1">Date</label>
-                  <input type="date" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                  <input type="date" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-thb-text-secondary mb-1">Reference</label>
-                  <input type="text" placeholder="Auto-generated" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                  <input type="text" placeholder="Auto-generated" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20" />
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-thb-text-secondary mb-1">Description</label>
-                <input type="text" placeholder="Entry description" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                <input type="text" placeholder="Entry description" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-thb-text-secondary mb-2">Line Items</label>
@@ -667,16 +667,16 @@ function AccountsContent() {
                     { account: '', debit: '', credit: '' },
                   ].map((line, i) => (
                     <div key={i} className="grid grid-cols-3 gap-2">
-                      <select className="px-2 py-1.5 rounded-lg border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+                      <select className="px-2 py-1.5 rounded-lg border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-green-500/20">
                         <option value="">Select Account</option>
                         {chartOfAccounts.map(a => <option key={a.code} value={a.code}>{a.code} - {a.name}</option>)}
                       </select>
-                      <input type="number" placeholder="Debit" className="px-2 py-1.5 rounded-lg border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
-                      <input type="number" placeholder="Credit" className="px-2 py-1.5 rounded-lg border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                      <input type="number" placeholder="Debit" className="px-2 py-1.5 rounded-lg border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-green-500/20" />
+                      <input type="number" placeholder="Credit" className="px-2 py-1.5 rounded-lg border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-green-500/20" />
                     </div>
                   ))}
                 </div>
-                <button className="mt-2 flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium">
+                <button className="mt-2 flex items-center gap-1 text-xs text-green-600 hover:text-green-700 font-medium">
                   <FiPlus className="w-3 h-3" /> Add Line
                 </button>
               </div>
@@ -684,7 +684,7 @@ function AccountsContent() {
             <div className="flex gap-3 p-5 border-t border-slate-100">
               <button onClick={() => setShowAddJournalModal(false)} className="flex-1 px-4 py-2 border border-slate-200 rounded-lg text-sm font-medium text-thb-text-primary hover:bg-slate-50 transition-colors">Cancel</button>
               <button onClick={() => { setShowAddJournalModal(false); toast.success('Journal entry saved as draft'); }} className="flex-1 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-medium transition-colors">Save as Draft</button>
-              <button onClick={() => { setShowAddJournalModal(false); toast.success('Journal entry posted'); }} className="flex-1 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors">Post Entry</button>
+              <button onClick={() => { setShowAddJournalModal(false); toast.success('Journal entry posted'); }} className="flex-1 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors">Post Entry</button>
             </div>
           </div>
         </div>

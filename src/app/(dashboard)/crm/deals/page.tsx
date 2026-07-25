@@ -150,10 +150,10 @@ export default function CRMDealsPage() {
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: 'Total Pipeline', value: `₹${(totalPipeline / 100000).toFixed(1)}L`, icon: FiDollarSign, color: 'text-blue-500' },
+          { label: 'Total Pipeline', value: `₹${(totalPipeline / 100000).toFixed(1)}L`, icon: FiDollarSign, color: 'text-green-500' },
           { label: 'Weighted Value', value: `₹${(weightedPipeline / 100000).toFixed(1)}L`, icon: FiTrendingUp, color: 'text-emerald-500' },
           { label: 'Active Deals', value: active.length, icon: FiBriefcase, color: 'text-amber-500' },
-          { label: 'Win Rate', value: `${winRate}%`, icon: FiTarget, color: 'text-purple-500' },
+          { label: 'Win Rate', value: `${winRate}%`, icon: FiTarget, color: 'text-teal-500' },
         ].map((s, i) => (
           <div key={i} className="thb-card p-4 flex items-center gap-3">
             <s.icon className={`w-8 h-8 ${s.color}`} />
@@ -187,7 +187,7 @@ export default function CRMDealsPage() {
           <div className="flex flex-1 gap-2 w-full md:w-auto">
             <div className="relative flex-1">
               <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-thb-text-muted w-4 h-4" />
-              <input type="text" placeholder="Search deals..." value={search} onChange={e => setSearch(e.target.value)} className="w-full pl-9 pr-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" />
+              <input type="text" placeholder="Search deals..." value={search} onChange={e => setSearch(e.target.value)} className="w-full pl-9 pr-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white" />
             </div>
             <select value={stageFilter} onChange={e => setStageFilter(e.target.value)} className="px-3 py-2 text-sm border border-thb-border rounded-lg bg-white">
               <option value="All">All Stages</option>
@@ -196,8 +196,8 @@ export default function CRMDealsPage() {
           </div>
           <div className="flex gap-2">
             <div className="flex border border-thb-border rounded-lg overflow-hidden">
-              <button onClick={() => setViewMode('pipeline')} className={`px-3 py-1.5 text-xs font-medium ${viewMode === 'pipeline' ? 'bg-blue-500 text-white' : 'bg-white text-thb-text-secondary hover:bg-gray-50'}`}>Pipeline</button>
-              <button onClick={() => setViewMode('list')} className={`px-3 py-1.5 text-xs font-medium ${viewMode === 'list' ? 'bg-blue-500 text-white' : 'bg-white text-thb-text-secondary hover:bg-gray-50'}`}>List</button>
+              <button onClick={() => setViewMode('pipeline')} className={`px-3 py-1.5 text-xs font-medium ${viewMode === 'pipeline' ? 'bg-green-500 text-white' : 'bg-white text-thb-text-secondary hover:bg-gray-50'}`}>Pipeline</button>
+              <button onClick={() => setViewMode('list')} className={`px-3 py-1.5 text-xs font-medium ${viewMode === 'list' ? 'bg-green-500 text-white' : 'bg-white text-thb-text-secondary hover:bg-gray-50'}`}>List</button>
             </div>
             <button onClick={() => { setForm(emptyForm); setEditingId(null); setShowForm(true); }} className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 text-sm font-medium">
               <FiPlus className="w-4 h-4" /> Add Deal
@@ -214,16 +214,16 @@ export default function CRMDealsPage() {
             <button onClick={() => { setShowForm(false); setEditingId(null); }} className="text-thb-text-muted hover:text-thb-text-primary"><FiX className="w-5 h-5" /></button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <input type="text" placeholder="Deal Name *" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="px-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            <input type="number" placeholder="Value (₹) *" value={form.value} onChange={e => setForm({ ...form, value: e.target.value })} className="px-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            <input type="text" placeholder="Contact" value={form.contact} onChange={e => setForm({ ...form, contact: e.target.value })} className="px-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            <input type="text" placeholder="Company" value={form.company} onChange={e => setForm({ ...form, company: e.target.value })} className="px-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <input type="text" placeholder="Deal Name *" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="px-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" />
+            <input type="number" placeholder="Value (₹) *" value={form.value} onChange={e => setForm({ ...form, value: e.target.value })} className="px-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" />
+            <input type="text" placeholder="Contact" value={form.contact} onChange={e => setForm({ ...form, contact: e.target.value })} className="px-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" />
+            <input type="text" placeholder="Company" value={form.company} onChange={e => setForm({ ...form, company: e.target.value })} className="px-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" />
             <select value={form.stage} onChange={e => setForm({ ...form, stage: e.target.value })} className="px-3 py-2 text-sm border border-thb-border rounded-lg bg-white">
               {STAGES.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
-            <input type="number" placeholder="Probability %" min="0" max="100" value={form.probability} onChange={e => setForm({ ...form, probability: e.target.value })} className="px-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            <input type="date" value={form.closeDate} onChange={e => setForm({ ...form, closeDate: e.target.value })} className="px-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            <textarea placeholder="Description" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="px-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 md:col-span-2" rows={1} />
+            <input type="number" placeholder="Probability %" min="0" max="100" value={form.probability} onChange={e => setForm({ ...form, probability: e.target.value })} className="px-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" />
+            <input type="date" value={form.closeDate} onChange={e => setForm({ ...form, closeDate: e.target.value })} className="px-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" />
+            <textarea placeholder="Description" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="px-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 md:col-span-2" rows={1} />
           </div>
           <div className="flex gap-2 mt-4">
             <button onClick={handleSave} className="px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 text-sm font-medium">Save</button>
@@ -256,7 +256,7 @@ export default function CRMDealsPage() {
                         <FiCalendar className="w-3 h-3" /> {d.closeDate}
                       </div>
                       <div className="flex gap-1 mt-2 pt-2 border-t border-thb-border">
-                        <button onClick={() => startEdit(d)} className="p-1 rounded hover:bg-blue-50 text-blue-500"><FiEdit2 className="w-3 h-3" /></button>
+                        <button onClick={() => startEdit(d)} className="p-1 rounded hover:bg-green-50 text-green-500"><FiEdit2 className="w-3 h-3" /></button>
                         <button onClick={() => handleDelete(d.id)} className="p-1 rounded hover:bg-red-50 text-red-500"><FiTrash2 className="w-3 h-3" /></button>
                       </div>
                     </div>
@@ -294,7 +294,7 @@ export default function CRMDealsPage() {
                     <td className="p-3 text-thb-text-secondary">{d.closeDate}</td>
                     <td className="p-3">
                       <div className="flex gap-1">
-                        <button onClick={() => startEdit(d)} className="p-1 rounded hover:bg-blue-50 text-blue-500"><FiEdit2 className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => startEdit(d)} className="p-1 rounded hover:bg-green-50 text-green-500"><FiEdit2 className="w-3.5 h-3.5" /></button>
                         <button onClick={() => handleDelete(d.id)} className="p-1 rounded hover:bg-red-50 text-red-500"><FiTrash2 className="w-3.5 h-3.5" /></button>
                       </div>
                     </td>

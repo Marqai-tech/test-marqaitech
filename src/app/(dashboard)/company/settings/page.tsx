@@ -82,7 +82,7 @@ export default function SettingsPage() {
       title: 'Company Information',
       description: 'Basic company details and contact information',
       icon: <FiGlobe className="w-5 h-5" />,
-      gradient: 'from-blue-500 to-indigo-600',
+      gradient: 'from-green-500 to-emerald-600',
       settings: [
         { id: 'companyName', label: 'Company Name', description: 'Legal name of the organization', type: 'input', value: settings.companyName as string, placeholder: 'Enter company name' },
         { id: 'companyCode', label: 'Company Code', description: 'Short code used as identifier', type: 'input', value: settings.companyCode as string, placeholder: 'e.g. ACME' },
@@ -110,7 +110,7 @@ export default function SettingsPage() {
       title: 'Fiscal Year Settings',
       description: 'Financial year, payroll cycle, and tax configuration',
       icon: <FiDollarSign className="w-5 h-5" />,
-      gradient: 'from-cyan-500 to-blue-600',
+      gradient: 'from-cyan-500 to-green-600',
       settings: [
         { id: 'fiscalYearStart', label: 'Fiscal Year Start', description: 'Starting month of the financial year', type: 'select', value: settings.fiscalYearStart as string, options: [{ label: 'January', value: 'January' }, { label: 'April', value: 'April' }, { label: 'July', value: 'July' }, { label: 'October', value: 'October' }] },
         { id: 'fiscalYearEnd', label: 'Fiscal Year End', description: 'Ending month of the financial year', type: 'select', value: settings.fiscalYearEnd as string, options: [{ label: 'December', value: 'December' }, { label: 'March', value: 'March' }, { label: 'June', value: 'June' }, { label: 'September', value: 'September' }] },
@@ -144,7 +144,7 @@ export default function SettingsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-md">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-md">
             <FiSettings className="w-5 h-5 text-white" />
           </div>
           <div>
@@ -152,7 +152,7 @@ export default function SettingsPage() {
             <p className="text-sm text-thb-text-secondary">Configure company-wide preferences and policies</p>
           </div>
         </div>
-        <button onClick={handleSave} disabled={saving} className="inline-flex items-center gap-2 px-4 py-2.5 bg-violet-500 text-white rounded-lg hover:bg-violet-600 font-medium text-sm shadow-sm shadow-violet-500/25 transition-colors disabled:opacity-50">
+        <button onClick={handleSave} disabled={saving} className="inline-flex items-center gap-2 px-4 py-2.5 bg-teal-500 text-white rounded-lg hover:bg-teal-600 font-medium text-sm shadow-sm shadow-teal-500/25 transition-colors disabled:opacity-50">
           {saving ? <><FiCheck className="w-4 h-4 animate-spin" /> Saving...</> : <><FiSave className="w-4 h-4" /> Save All Settings</>}
         </button>
       </div>
@@ -182,7 +182,7 @@ export default function SettingsPage() {
                   {item.type === 'toggle' && (
                     <button
                       onClick={() => updateSetting(item.id, !settings[item.id])}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-violet-500/20 ${settings[item.id] ? 'bg-violet-500' : 'bg-slate-200'}`}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-teal-500/20 ${settings[item.id] ? 'bg-teal-500' : 'bg-slate-200'}`}
                     >
                       <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${settings[item.id] ? 'translate-x-6' : 'translate-x-1'}`} />
                     </button>
@@ -193,14 +193,14 @@ export default function SettingsPage() {
                       value={settings[item.id] as string}
                       onChange={e => updateSetting(item.id, e.target.value)}
                       placeholder={item.placeholder}
-                      className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400"
+                      className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400"
                     />
                   )}
                   {item.type === 'select' && (
                     <select
                       value={settings[item.id] as string}
                       onChange={e => updateSetting(item.id, e.target.value)}
-                      className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400"
+                      className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400"
                     >
                       {item.options?.map(opt => (
                         <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -212,7 +212,7 @@ export default function SettingsPage() {
                       type="time"
                       value={settings[item.id] as string}
                       onChange={e => updateSetting(item.id, e.target.value)}
-                      className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400"
+                      className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400"
                     />
                   )}
                 </div>
@@ -224,7 +224,7 @@ export default function SettingsPage() {
 
       {/* Save Footer */}
       <div className="flex items-center justify-end gap-3 pt-2 pb-4">
-        <button onClick={handleSave} disabled={saving} className="inline-flex items-center gap-2 px-6 py-2.5 bg-violet-500 text-white rounded-lg hover:bg-violet-600 font-medium text-sm shadow-sm shadow-violet-500/25 transition-colors disabled:opacity-50">
+        <button onClick={handleSave} disabled={saving} className="inline-flex items-center gap-2 px-6 py-2.5 bg-teal-500 text-white rounded-lg hover:bg-teal-600 font-medium text-sm shadow-sm shadow-teal-500/25 transition-colors disabled:opacity-50">
           {saving ? <><FiCheck className="w-4 h-4 animate-spin" /> Saving...</> : <><FiSave className="w-4 h-4" /> Save All Settings</>}
         </button>
       </div>

@@ -32,8 +32,8 @@ export default function PreboardingSettingsPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <div className="p-2.5 rounded-xl bg-blue-50">
-          <FiSettings className="w-5 h-5 text-blue-600" />
+        <div className="p-2.5 rounded-xl bg-green-50">
+          <FiSettings className="w-5 h-5 text-green-600" />
         </div>
         <div>
           <h1 className="text-xl font-bold text-thb-text-primary">Preboarding Settings</h1>
@@ -53,7 +53,7 @@ export default function PreboardingSettingsPage() {
               const Icon = item.icon;
               return (
                 <div key={item.label} className="flex items-center gap-4 px-5 py-4">
-                  <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${item.enabled ? 'bg-blue-50 text-blue-600' : 'bg-slate-100 text-slate-400'}`}>
+                  <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${item.enabled ? 'bg-green-50 text-green-600' : 'bg-slate-100 text-slate-400'}`}>
                     <Icon className="w-4.5 h-4.5" />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -62,7 +62,7 @@ export default function PreboardingSettingsPage() {
                   </div>
                   <button
                     onClick={() => toggleComm(idx)}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${item.enabled ? 'bg-blue-500' : 'bg-slate-200'}`}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${item.enabled ? 'bg-green-500' : 'bg-slate-200'}`}
                   >
                     <span className={`inline-block h-4 w-4 rounded-full bg-white transition-transform ${item.enabled ? 'translate-x-6' : 'translate-x-1'}`} />
                   </button>

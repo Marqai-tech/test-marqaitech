@@ -210,7 +210,7 @@ export default function JobBoardsAdminPage() {
             <FiArrowLeft className="w-4 h-4" /> Back to Recruitment
           </Link>
           <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
-            <FiExternalLink className="w-6 h-6 text-violet-500" />
+            <FiExternalLink className="w-6 h-6 text-teal-500" />
             Job Board Multi-Posting
           </h1>
           <p className="text-thb-text-secondary mt-1">
@@ -221,7 +221,7 @@ export default function JobBoardsAdminPage() {
           <button
             onClick={handleSync}
             disabled={syncing}
-            className="inline-flex items-center gap-2 px-3 py-2 bg-blue-500 text-white rounded-lg text-sm font-medium hover:bg-blue-600 disabled:opacity-50 transition-colors"
+            className="inline-flex items-center gap-2 px-3 py-2 bg-green-500 text-white rounded-lg text-sm font-medium hover:bg-green-600 disabled:opacity-50 transition-colors"
             title="Auto-close board postings for filled jobs (REQ-SRC-03)"
           >
             <FiZap className={`w-4 h-4 ${syncing ? 'animate-pulse' : ''}`} />
@@ -243,7 +243,7 @@ export default function JobBoardsAdminPage() {
           { label: 'Total', value: stats.total, color: 'text-thb-text-primary', bg: 'bg-slate-100' },
           { label: 'Posted', value: stats.posted, color: 'text-emerald-600', bg: 'bg-emerald-50' },
           { label: 'Pending', value: stats.pending, color: 'text-amber-600', bg: 'bg-amber-50' },
-          { label: 'Closed', value: stats.closed, color: 'text-blue-600', bg: 'bg-blue-50' },
+          { label: 'Closed', value: stats.closed, color: 'text-green-600', bg: 'bg-green-50' },
           { label: 'Failed', value: stats.failed, color: 'text-red-600', bg: 'bg-red-50' },
         ].map((s) => (
           <div key={s.label} className={`thb-card p-3 ${s.bg}`}>
@@ -264,7 +264,7 @@ export default function JobBoardsAdminPage() {
                 placeholder="Search by job title, board, or external ID..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400"
+                className="w-full pl-9 pr-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400"
               />
             </div>
           </div>
@@ -272,7 +272,7 @@ export default function JobBoardsAdminPage() {
             <select
               value={filterBoard}
               onChange={(e) => setFilterBoard(e.target.value)}
-              className="px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+              className="px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20"
             >
               <option value="">All Boards</option>
               {Object.entries(BOARD_LABELS).map(([id, label]) => (
@@ -282,7 +282,7 @@ export default function JobBoardsAdminPage() {
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+              className="px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20"
             >
               <option value="">All Statuses</option>
               <option value="pending">Pending</option>
@@ -297,7 +297,7 @@ export default function JobBoardsAdminPage() {
 
       {/* Bulk action bar */}
       {selectedIds.length > 0 && (
-        <div className="thb-card p-3 flex items-center justify-between bg-violet-50 border-violet-200">
+        <div className="thb-card p-3 flex items-center justify-between bg-teal-50 border-teal-200">
           <p className="text-sm text-thb-text-primary font-medium">
             {selectedIds.length} selected ({selectedOpenCount} closeable)
           </p>
@@ -370,13 +370,13 @@ export default function JobBoardsAdminPage() {
                   const boardColor = BOARD_COLORS[p.board] || '#94a3b8';
                   const isCloseable = p.status === 'posted' || p.status === 'pending';
                   return (
-                    <tr key={p.id} className={`border-b border-thb-border/50 hover:bg-slate-50/50 ${selected[p.id] ? 'bg-violet-50/40' : ''}`}>
+                    <tr key={p.id} className={`border-b border-thb-border/50 hover:bg-slate-50/50 ${selected[p.id] ? 'bg-teal-50/40' : ''}`}>
                       <td className="px-4 py-3">
                         <button
                           onClick={() => setSelected((prev) => ({ ...prev, [p.id]: !prev[p.id] }))}
-                          className="text-thb-text-muted hover:text-violet-500"
+                          className="text-thb-text-muted hover:text-teal-500"
                         >
-                          {selected[p.id] ? <FiCheckSquare className="w-4 h-4 text-violet-500" /> : <FiSquare className="w-4 h-4" />}
+                          {selected[p.id] ? <FiCheckSquare className="w-4 h-4 text-teal-500" /> : <FiSquare className="w-4 h-4" />}
                         </button>
                       </td>
                       <td className="px-4 py-3">
@@ -384,7 +384,7 @@ export default function JobBoardsAdminPage() {
                           <div>
                             <Link
                               href={`/recruitment/${p.jobPostingId}`}
-                              className="text-sm font-medium text-thb-text-primary hover:text-violet-600"
+                              className="text-sm font-medium text-thb-text-primary hover:text-teal-600"
                             >
                               {p.jobPosting.title}
                             </Link>
@@ -393,7 +393,7 @@ export default function JobBoardsAdminPage() {
                             </p>
                           </div>
                         ) : (
-                          <Link href={`/recruitment/${p.jobPostingId}`} className="text-sm text-thb-text-secondary hover:text-violet-600">
+                          <Link href={`/recruitment/${p.jobPostingId}`} className="text-sm text-thb-text-secondary hover:text-teal-600">
                             View job {p.jobPostingId.substring(0, 8)}...
                           </Link>
                         )}
@@ -422,7 +422,7 @@ export default function JobBoardsAdminPage() {
                               href={p.externalUrl}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="p-1.5 rounded text-thb-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors"
+                              className="p-1.5 rounded text-thb-text-muted hover:text-green-500 hover:bg-green-50 transition-colors"
                               title="Open external URL"
                             >
                               <FiExternalLink className="w-3.5 h-3.5" />

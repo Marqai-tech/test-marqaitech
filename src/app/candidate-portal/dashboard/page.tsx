@@ -83,12 +83,12 @@ interface MatchingJobsData {
 
 const STATUS_COLORS: Record<string, string> = {
   applied: 'bg-sky-50 text-sky-700 border-sky-200',
-  screening: 'bg-violet-50 text-violet-700 border-violet-200',
+  screening: 'bg-teal-50 text-teal-700 border-teal-200',
   interview: 'bg-amber-50 text-amber-700 border-amber-200',
   offered: 'bg-emerald-50 text-emerald-700 border-emerald-200',
   hired: 'bg-green-50 text-green-700 border-green-200',
   rejected: 'bg-rose-50 text-rose-700 border-rose-200',
-  talent_pool: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+  talent_pool: 'bg-emerald-50 text-emerald-700 border-emerald-200',
 };
 
 // REQ-CAND-07: Visual status tracker — Applied → AI Screening → Interview → Offer
@@ -97,7 +97,7 @@ const STATUS_STEPS = ['applied', 'screening', 'interview', 'offered', 'hired'];
 function StatusTracker({ status }: { status: string }) {
   // For talent_pool / rejected, show a special pill instead of the stepper
   if (status === 'talent_pool') {
-    return <span className="text-xs px-2 py-1 rounded border bg-indigo-50 text-indigo-700 border-indigo-200">💼 Talent Pool</span>;
+    return <span className="text-xs px-2 py-1 rounded border bg-emerald-50 text-emerald-700 border-emerald-200">💼 Talent Pool</span>;
   }
   if (status === 'rejected') {
     return <span className="text-xs px-2 py-1 rounded border bg-rose-50 text-rose-700 border-rose-200">✗ Not Selected</span>;
@@ -117,14 +117,14 @@ function StatusTracker({ status }: { status: string }) {
         return (
           <div key={step} className="flex items-center">
             <div className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium ${
-              isCurrent ? 'bg-blue-600 text-white' :
-              isDone ? 'bg-blue-100 text-blue-700' :
+              isCurrent ? 'bg-green-600 text-white' :
+              isDone ? 'bg-green-100 text-green-700' :
               'bg-gray-100 text-gray-400'
             }`}>
               {isDone && !isCurrent && <span>✓</span>}
               {label}
             </div>
-            {idx < STATUS_STEPS.length - 1 && <div className={`w-3 h-px ${idx < currentIdx ? 'bg-blue-400' : 'bg-gray-300'}`}></div>}
+            {idx < STATUS_STEPS.length - 1 && <div className={`w-3 h-px ${idx < currentIdx ? 'bg-green-400' : 'bg-gray-300'}`}></div>}
           </div>
         );
       })}
@@ -361,7 +361,7 @@ export default function CandidateDashboardPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="text-center">
-          <div className="w-10 h-10 border-3 border-violet-200 border-t-violet-600 rounded-full animate-spin mx-auto mb-3" />
+          <div className="w-10 h-10 border-3 border-teal-200 border-t-teal-600 rounded-full animate-spin mx-auto mb-3" />
           <p className="text-sm text-slate-500">Loading your dashboard…</p>
         </div>
       </div>
@@ -396,12 +396,12 @@ export default function CandidateDashboardPage() {
           <div className="flex items-center gap-3">
             <Link
               href="/careers"
-              className="hidden sm:inline-flex items-center gap-1 text-xs text-slate-500 hover:text-violet-700 px-2 py-1 rounded-lg hover:bg-violet-50 transition-colors"
+              className="hidden sm:inline-flex items-center gap-1 text-xs text-slate-500 hover:text-teal-700 px-2 py-1 rounded-lg hover:bg-teal-50 transition-colors"
               title="Back to careers page"
             >
               <FiArrowLeft className="w-3.5 h-3.5" /> Careers
             </Link>
-            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-violet-500 to-sky-500 text-white flex items-center justify-center">
+            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-teal-500 to-sky-500 text-white flex items-center justify-center">
               <FiBriefcase className="w-5 h-5" />
             </div>
             <div>
@@ -419,7 +419,7 @@ export default function CandidateDashboardPage() {
             </Link>
             <Link
               href="/careers"
-              className="hidden md:inline-flex items-center gap-1 text-xs text-violet-600 hover:text-violet-700 px-2.5 py-1.5 rounded-lg hover:bg-violet-50 transition-colors"
+              className="hidden md:inline-flex items-center gap-1 text-xs text-teal-600 hover:text-teal-700 px-2.5 py-1.5 rounded-lg hover:bg-teal-50 transition-colors"
               title="Browse open positions"
             >
               <FiSearch className="w-3.5 h-3.5" /> Browse Jobs
@@ -479,7 +479,7 @@ export default function CandidateDashboardPage() {
         {aiSuggestions.length > 0 && (
           <section>
             <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-2">
-              <FiZap className="w-4 h-4 text-violet-500" /> AI Suggestions
+              <FiZap className="w-4 h-4 text-teal-500" /> AI Suggestions
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {aiSuggestions.map((s, i) => (
@@ -516,7 +516,7 @@ export default function CandidateDashboardPage() {
                 <div className="bg-white rounded-xl border border-slate-200 p-8 text-center">
                   <FiBriefcase className="w-10 h-10 text-slate-300 mx-auto mb-2" />
                   <p className="text-sm text-slate-500">You haven't applied to any jobs yet.</p>
-                  <Link href="/recruitment" className="inline-flex items-center gap-1 text-xs text-violet-600 hover:text-violet-700 mt-2">
+                  <Link href="/recruitment" className="inline-flex items-center gap-1 text-xs text-teal-600 hover:text-teal-700 mt-2">
                     Browse open positions <FiArrowRight className="w-3 h-3" />
                   </Link>
                 </div>
@@ -551,8 +551,8 @@ export default function CandidateDashboardPage() {
                     </div>
                     {/* REQ-STAT-05: published AI feedback */}
                     {app.aiFeedback && (
-                      <div className="mt-3 bg-blue-50 border border-blue-200 rounded-lg p-3">
-                        <div className="text-[10px] font-bold uppercase text-blue-700 mb-1">💬 Feedback from the hiring team</div>
+                      <div className="mt-3 bg-green-50 border border-green-200 rounded-lg p-3">
+                        <div className="text-[10px] font-bold uppercase text-green-700 mb-1">💬 Feedback from the hiring team</div>
                         <div className="text-xs text-slate-700 whitespace-pre-wrap">{app.aiFeedback.text}</div>
                         <div className="text-[10px] text-slate-400 mt-1">{fmtDate(app.aiFeedback.publishedAt)}</div>
                       </div>
@@ -569,12 +569,12 @@ export default function CandidateDashboardPage() {
                         {reuploadingAppId === app.id ? 'Uploading…' : 'Re-upload resume'}
                       </button>
                       {!['hired', 'rejected'].includes(app.status) && app.matchScore == null && (
-                        <Link href={`/candidate-portal/resume-optimizer?applicationId=${app.id}`} className="inline-flex items-center gap-1 text-xs text-violet-600 hover:text-violet-700">
+                        <Link href={`/candidate-portal/resume-optimizer?applicationId=${app.id}`} className="inline-flex items-center gap-1 text-xs text-teal-600 hover:text-teal-700">
                           <FiZap className="w-3 h-3" /> Optimize Resume with AI
                         </Link>
                       )}
                       {app.matchScore != null && (
-                        <Link href={`/candidate-portal/resume-optimizer?applicationId=${app.id}`} className="inline-flex items-center gap-1 text-xs text-violet-600 hover:text-violet-700">
+                        <Link href={`/candidate-portal/resume-optimizer?applicationId=${app.id}`} className="inline-flex items-center gap-1 text-xs text-teal-600 hover:text-teal-700">
                           <FiZap className="w-3 h-3" /> Re-optimize Resume (v{app.optimizationVersion || 1})
                         </Link>
                       )}
@@ -596,13 +596,13 @@ export default function CandidateDashboardPage() {
               </h2>
               <div className="space-y-2">
                 {talentPool.map(tp => (
-                  <div key={tp.id} className="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-xl border border-indigo-200 p-3">
+                  <div key={tp.id} className="bg-gradient-to-r from-emerald-50 to-green-50 rounded-xl border border-emerald-200 p-3">
                     <div className="flex items-start justify-between">
                       <div>
                         <div className="text-xs font-semibold text-slate-800">{tp.companyName}</div>
                         <div className="text-[10px] text-slate-500 mt-0.5">Added on {fmtDate(tp.placedAt)}</div>
                       </div>
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">💼 In Talent Pool</span>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">💼 In Talent Pool</span>
                     </div>
                     <p className="text-xs text-slate-600 mt-2 italic">{tp.message}</p>
                     {tp.notes && <p className="text-[11px] text-slate-500 mt-1">Notes: {tp.notes}</p>}
@@ -634,7 +634,7 @@ export default function CandidateDashboardPage() {
                           <div className={`text-sm font-bold ${s.matchScore >= 70 ? 'text-green-600' : 'text-amber-600'}`}>{s.matchScore}%</div>
                         </div>
                       )}
-                      <Link href={`/careers`} className="text-xs text-violet-600 hover:underline">View</Link>
+                      <Link href={`/careers`} className="text-xs text-teal-600 hover:underline">View</Link>
                     </div>
                   </div>
                 ))}
@@ -685,7 +685,7 @@ export default function CandidateDashboardPage() {
                     <p className="text-[10px] text-slate-500 uppercase mt-0.5">{iv.type} Interview</p>
                     <p className="text-[11px] text-slate-700 mt-1">{fmtDateTime(iv.date)}</p>
                     {iv.meetingUrl && (
-                      <a href={iv.meetingUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[11px] text-violet-600 hover:text-violet-700 mt-1">
+                      <a href={iv.meetingUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[11px] text-teal-600 hover:text-teal-700 mt-1">
                         Join meeting <FiArrowRight className="w-3 h-3" />
                       </a>
                     )}
@@ -791,7 +791,7 @@ export default function CandidateDashboardPage() {
                       <div className="w-24 text-[11px] text-slate-700 capitalize truncate">{s.skill.replace(/-/g, ' ')}</div>
                       <div className="flex-1 bg-slate-100 rounded-full h-3">
                         <div
-                          className="h-full bg-gradient-to-r from-violet-500 to-sky-500 rounded-full"
+                          className="h-full bg-gradient-to-r from-teal-500 to-sky-500 rounded-full"
                           style={{ width: `${Math.min(100, s.frequency * 25)}%` }}
                         />
                       </div>
@@ -849,7 +849,7 @@ export default function CandidateDashboardPage() {
               <p className="text-[11px] uppercase tracking-wider text-slate-500 mb-1.5">Your top skills</p>
               <div className="flex flex-wrap gap-1.5">
                 {matchingJobs.candidateSkills.map((s, i) => (
-                  <span key={i} className="text-[11px] bg-violet-50 text-violet-700 border border-violet-200 px-2 py-0.5 rounded-full capitalize">{s}</span>
+                  <span key={i} className="text-[11px] bg-teal-50 text-teal-700 border border-teal-200 px-2 py-0.5 rounded-full capitalize">{s}</span>
                 ))}
               </div>
               {matchingJobs.candidateLocation && (
@@ -861,11 +861,11 @@ export default function CandidateDashboardPage() {
           {/* Internal matching jobs */}
           <div className="mb-4">
             <h3 className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-              <FiBriefcase className="w-3.5 h-3.5 text-violet-500" /> From our portal
+              <FiBriefcase className="w-3.5 h-3.5 text-teal-500" /> From our portal
             </h3>
             {matchingJobsLoading ? (
               <div className="bg-white rounded-xl border border-slate-200 p-4 text-center text-xs text-slate-400">
-                <div className="w-5 h-5 border-2 border-violet-200 border-t-violet-600 rounded-full animate-spin mx-auto mb-1.5" />
+                <div className="w-5 h-5 border-2 border-teal-200 border-t-teal-600 rounded-full animate-spin mx-auto mb-1.5" />
                 Finding matching jobs…
               </div>
             ) : matchingJobs && matchingJobs.internal.length > 0 ? (
@@ -897,7 +897,7 @@ export default function CandidateDashboardPage() {
                     <button
                       onClick={() => handleAutoApply(job)}
                       disabled={autoApplyingJobIds.has(job.id)}
-                      className="inline-flex items-center gap-1 text-[11px] font-semibold text-white bg-gradient-to-r from-violet-500 to-indigo-500 hover:from-violet-600 hover:to-indigo-600 disabled:opacity-60 px-3 py-1.5 rounded-lg mt-2.5 transition-all"
+                      className="inline-flex items-center gap-1 text-[11px] font-semibold text-white bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 disabled:opacity-60 px-3 py-1.5 rounded-lg mt-2.5 transition-all"
                     >
                       {autoApplyingJobIds.has(job.id) ? (
                         <>
@@ -1004,13 +1004,13 @@ export default function CandidateDashboardPage() {
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {learningSuggestions.map((course, i) => (
-                <a key={i} href={course.url} target="_blank" rel="noopener noreferrer" className="bg-white rounded-xl border border-slate-200 p-3 hover:border-violet-300 hover:shadow-md transition-all">
+                <a key={i} href={course.url} target="_blank" rel="noopener noreferrer" className="bg-white rounded-xl border border-slate-200 p-3 hover:border-teal-300 hover:shadow-md transition-all">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <p className="text-xs font-semibold text-slate-800">{course.title}</p>
                       <p className="text-[10px] text-slate-500 mt-0.5">{course.provider} · {course.level}</p>
                     </div>
-                    <FiTrendingUp className="w-3.5 h-3.5 text-violet-500 flex-shrink-0" />
+                    <FiTrendingUp className="w-3.5 h-3.5 text-teal-500 flex-shrink-0" />
                   </div>
                 </a>
               ))}
@@ -1073,7 +1073,7 @@ export default function CandidateDashboardPage() {
 function StatCard({ label, value, icon, color }: { label: string; value: number; icon: React.ReactNode; color: string }) {
   const colorMap: Record<string, string> = {
     sky: 'bg-sky-50 text-sky-700 border-sky-200',
-    violet: 'bg-violet-50 text-violet-700 border-violet-200',
+    violet: 'bg-teal-50 text-teal-700 border-teal-200',
     amber: 'bg-amber-50 text-amber-700 border-amber-200',
     emerald: 'bg-emerald-50 text-emerald-700 border-emerald-200',
     green: 'bg-green-50 text-green-700 border-green-200',

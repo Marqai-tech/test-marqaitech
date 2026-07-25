@@ -77,11 +77,11 @@ export default function TenantUsagePage() {
   return (
     <div className="space-y-6">
       {/* Hero Banner */}
-      <div className="thb-card p-6 bg-gradient-to-r from-cyan-600 via-blue-500 to-indigo-500 border-0">
+      <div className="thb-card p-6 bg-gradient-to-r from-cyan-600 via-green-500 to-emerald-500 border-0">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-white flex items-center gap-3"><FiBarChart2 className="w-7 h-7" /> Tenant Usage Metrics</h1>
-            <p className="text-blue-100 mt-1 text-sm">Monitor resource utilization and usage patterns across all tenants</p>
+            <p className="text-green-100 mt-1 text-sm">Monitor resource utilization and usage patterns across all tenants</p>
           </div>
         </div>
       </div>
@@ -90,8 +90,8 @@ export default function TenantUsagePage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           { label: 'Total Storage Used', value: formatMB(totalStorage), icon: <FiHardDrive className="w-5 h-5" />, bg: 'bg-cyan-50 text-cyan-500' },
-          { label: 'Avg Employee Count', value: avgEmployees, icon: <FiUsers className="w-5 h-5" />, bg: 'bg-blue-50 text-blue-500' },
-          { label: 'Active Modules', value: allModules.length, icon: <FiLayers className="w-5 h-5" />, bg: 'bg-violet-50 text-violet-500' },
+          { label: 'Avg Employee Count', value: avgEmployees, icon: <FiUsers className="w-5 h-5" />, bg: 'bg-green-50 text-green-500' },
+          { label: 'Active Modules', value: allModules.length, icon: <FiLayers className="w-5 h-5" />, bg: 'bg-teal-50 text-teal-500' },
           { label: 'API Calls Today', value: totalApiCalls.toLocaleString(), icon: <FiCpu className="w-5 h-5" />, bg: 'bg-emerald-50 text-emerald-500' },
         ].map((card) => (
           <div key={card.label} className="thb-card p-5">

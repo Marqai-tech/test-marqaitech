@@ -318,7 +318,7 @@ export default function GrievancesPage() {
           </h1>
           <p className="text-thb-text-secondary mt-1">Manage employee grievances and complaints</p>
         </div>
-        <button onClick={handleShowForm} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium text-sm shadow-sm shadow-blue-500/25 transition-colors">
+        <button onClick={handleShowForm} className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-500 text-white rounded-lg hover:bg-green-600 font-medium text-sm shadow-sm shadow-green-500/25 transition-colors">
           <FiPlus className="w-4 h-4" />
           File Grievance
         </button>
@@ -343,12 +343,12 @@ export default function GrievancesPage() {
         </div>
         <div className="thb-card p-4">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-lg bg-blue-50 border border-blue-100">
-              <FiShield className="w-5 h-5 text-blue-600" />
+            <div className="p-2.5 rounded-lg bg-green-50 border border-green-100">
+              <FiShield className="w-5 h-5 text-green-600" />
             </div>
             <div>
               <p className="text-xs font-medium text-thb-text-muted">Investigating</p>
-              <p className="text-xl font-bold text-blue-600">{investigatingCount}</p>
+              <p className="text-xl font-bold text-green-600">{investigatingCount}</p>
             </div>
           </div>
         </div>
@@ -378,7 +378,7 @@ export default function GrievancesPage() {
 
       {/* Embedded Form */}
       {showForm && (
-        <div id="crud-form" className="thb-card border-l-4 border-l-blue-500">
+        <div id="crud-form" className="thb-card border-l-4 border-l-green-500">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-semibold text-thb-text-primary">
@@ -392,7 +392,7 @@ export default function GrievancesPage() {
               {isAdmin && (
                 <div>
                   <label className="block text-xs font-medium text-thb-text-secondary mb-1">Employee</label>
-                  <select value={form.employeeId} onChange={e => setForm(p => ({ ...p, employeeId: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                  <select value={form.employeeId} onChange={e => setForm(p => ({ ...p, employeeId: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                     <option value="">Select Employee</option>
                     {employees.map(emp => (
                       <option key={emp.id} value={emp.id}>{emp.firstName} {emp.lastName} ({emp.employeeId})</option>
@@ -402,7 +402,7 @@ export default function GrievancesPage() {
               )}
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Type *</label>
-                <select value={form.type} onChange={e => setForm(p => ({ ...p, type: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                <select value={form.type} onChange={e => setForm(p => ({ ...p, type: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                   <option value="harassment">Harassment</option>
                   <option value="discrimination">Discrimination</option>
                   <option value="workplace">Workplace</option>
@@ -413,7 +413,7 @@ export default function GrievancesPage() {
               </div>
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Priority *</label>
-                <select value={form.priority} onChange={e => setForm(p => ({ ...p, priority: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                <select value={form.priority} onChange={e => setForm(p => ({ ...p, priority: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                   <option value="low">Low</option>
                   <option value="medium">Medium</option>
                   <option value="high">High</option>
@@ -422,15 +422,15 @@ export default function GrievancesPage() {
               </div>
               <div className="sm:col-span-2 lg:col-span-3">
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Subject *</label>
-                <input type="text" value={form.subject} onChange={e => setForm(p => ({ ...p, subject: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="Brief subject of the grievance" />
+                <input type="text" value={form.subject} onChange={e => setForm(p => ({ ...p, subject: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="Brief subject of the grievance" />
               </div>
               <div className="sm:col-span-2 lg:col-span-3">
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Description *</label>
-                <textarea rows={3} value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 resize-none" placeholder="Describe the grievance in detail..." />
+                <textarea rows={3} value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 resize-none" placeholder="Describe the grievance in detail..." />
               </div>
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Status</label>
-                <select value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                <select value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                   <option value="submitted">Submitted</option>
                   <option value="investigating">Investigating</option>
                   <option value="resolved">Resolved</option>
@@ -441,7 +441,7 @@ export default function GrievancesPage() {
               {isAdmin && (
                 <div>
                   <label className="block text-xs font-medium text-thb-text-secondary mb-1">Assign To</label>
-                  <select value={form.assignedTo} onChange={e => setForm(p => ({ ...p, assignedTo: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                  <select value={form.assignedTo} onChange={e => setForm(p => ({ ...p, assignedTo: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                     <option value="">Unassigned</option>
                     {employees.map(emp => (
                       <option key={emp.id} value={emp.id}>{emp.firstName} {emp.lastName}</option>
@@ -452,13 +452,13 @@ export default function GrievancesPage() {
               {editingId && isAdmin && (
                 <div>
                   <label className="block text-xs font-medium text-thb-text-secondary mb-1">Resolution</label>
-                  <input type="text" value={form.resolution} onChange={e => setForm(p => ({ ...p, resolution: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="Resolution details" />
+                  <input type="text" value={form.resolution} onChange={e => setForm(p => ({ ...p, resolution: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="Resolution details" />
                 </div>
               )}
             </div>
             <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-thb-border">
               <button onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50">Cancel</button>
-              <button onClick={handleSubmit} disabled={submitting} className="px-6 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50 shadow-sm shadow-blue-500/25">
+              <button onClick={handleSubmit} disabled={submitting} className="px-6 py-2.5 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 disabled:opacity-50 shadow-sm shadow-green-500/25">
                 {submitting ? 'Saving...' : editingId ? 'Update' : 'File Grievance'}
               </button>
             </div>
@@ -475,14 +475,14 @@ export default function GrievancesPage() {
               type="text"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+              className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
               placeholder="Search grievances..."
             />
           </div>
           <div className="flex gap-2 flex-wrap">
             <div className="relative">
               <FiFilter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
-              <select value={filterType} onChange={e => setFilterType(e.target.value)} className="pl-9 pr-8 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 appearance-none bg-white">
+              <select value={filterType} onChange={e => setFilterType(e.target.value)} className="pl-9 pr-8 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 appearance-none bg-white">
                 <option value="">All Types</option>
                 <option value="harassment">Harassment</option>
                 <option value="discrimination">Discrimination</option>
@@ -492,14 +492,14 @@ export default function GrievancesPage() {
                 <option value="other">Other</option>
               </select>
             </div>
-            <select value={filterPriority} onChange={e => setFilterPriority(e.target.value)} className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 appearance-none bg-white">
+            <select value={filterPriority} onChange={e => setFilterPriority(e.target.value)} className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 appearance-none bg-white">
               <option value="">All Priority</option>
               <option value="low">Low</option>
               <option value="medium">Medium</option>
               <option value="high">High</option>
               <option value="critical">Critical</option>
             </select>
-            <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 appearance-none bg-white">
+            <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 appearance-none bg-white">
               <option value="">All Status</option>
               <option value="submitted">Submitted</option>
               <option value="open">Open</option>
@@ -569,11 +569,11 @@ export default function GrievancesPage() {
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-end gap-1">
                             {isAdmin && ['submitted', 'open'].includes(g.status) && (
-                              <button onClick={() => handleStatusUpdate(g.id, 'investigating')} className="p-2 rounded-lg text-thb-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="Start Investigation">
+                              <button onClick={() => handleStatusUpdate(g.id, 'investigating')} className="p-2 rounded-lg text-thb-text-muted hover:text-green-500 hover:bg-green-50 transition-colors" title="Start Investigation">
                                 <FiShield className="w-4 h-4" />
                               </button>
                             )}
-                            <button onClick={() => handleEdit(g)} className="p-2 rounded-lg text-thb-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="Edit">
+                            <button onClick={() => handleEdit(g)} className="p-2 rounded-lg text-thb-text-muted hover:text-green-500 hover:bg-green-50 transition-colors" title="Edit">
                               <FiEdit2 className="w-4 h-4" />
                             </button>
                             <button onClick={() => setDeleteConfirmId(g.id)} className="p-2 rounded-lg text-thb-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete">

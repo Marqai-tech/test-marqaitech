@@ -109,7 +109,7 @@ export default function PurchaseTransactionsPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           { label: 'Total Revenue', value: `$${totalRevenue.toLocaleString()}`, icon: <FiDollarSign className="w-5 h-5" />, bg: 'bg-emerald-50 text-emerald-500' },
-          { label: 'This Month', value: `$${thisMonth.toLocaleString()}`, icon: <FiTrendingUp className="w-5 h-5" />, bg: 'bg-blue-50 text-blue-500' },
+          { label: 'This Month', value: `$${thisMonth.toLocaleString()}`, icon: <FiTrendingUp className="w-5 h-5" />, bg: 'bg-green-50 text-green-500' },
           { label: 'Pending', value: `$${pendingAmount.toLocaleString()}`, icon: <FiRefreshCw className="w-5 h-5" />, bg: 'bg-amber-50 text-amber-500' },
           { label: 'Refunded', value: `$${refundedAmount.toLocaleString()}`, icon: <FiCreditCard className="w-5 h-5" />, bg: 'bg-red-50 text-red-500' },
         ].map((card) => (
@@ -131,7 +131,7 @@ export default function PurchaseTransactionsPage() {
           {/* Filters */}
           <div className="thb-card p-4 flex flex-wrap items-center gap-3">
             <FiFilter className="w-4 h-4 text-thb-text-muted" />
-            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="px-3 py-1.5 rounded-lg border border-thb-border text-xs bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="px-3 py-1.5 rounded-lg border border-thb-border text-xs bg-white focus:outline-none focus:ring-2 focus:ring-green-500/20">
               <option value="">All Status</option>
               <option value="completed">Completed</option>
               <option value="pending">Pending</option>
@@ -140,9 +140,9 @@ export default function PurchaseTransactionsPage() {
             </select>
             <div className="flex items-center gap-2">
               <FiCalendar className="w-3.5 h-3.5 text-thb-text-muted" />
-              <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="px-2 py-1.5 rounded-lg border border-thb-border text-xs bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+              <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="px-2 py-1.5 rounded-lg border border-thb-border text-xs bg-white focus:outline-none focus:ring-2 focus:ring-green-500/20" />
               <span className="text-thb-text-muted text-xs">to</span>
-              <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="px-2 py-1.5 rounded-lg border border-thb-border text-xs bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+              <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="px-2 py-1.5 rounded-lg border border-thb-border text-xs bg-white focus:outline-none focus:ring-2 focus:ring-green-500/20" />
             </div>
             <span className="text-xs text-thb-text-muted ml-auto">{filtered.length} transactions</span>
           </div>

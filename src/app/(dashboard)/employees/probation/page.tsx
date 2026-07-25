@@ -222,7 +222,7 @@ export default function ProbationPage() {
         </h2>
         <div>
           <label className="block text-xs font-medium text-thb-text-secondary mb-1">Select Employee *</label>
-          <select value={form.employeeId} onChange={e => handleEmployeeSelect(e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 max-w-md">
+          <select value={form.employeeId} onChange={e => handleEmployeeSelect(e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 max-w-md">
             <option value="">Select Employee</option>
             <option value="emp-001">EMP-001 — Amit Sharma</option>
             <option value="emp-002">EMP-002 — Priya Patel</option>
@@ -246,23 +246,23 @@ export default function ProbationPage() {
       {/* Probation Details */}
       <div className="thb-card p-6 rounded-xl">
         <h2 className="text-lg font-semibold text-thb-text-primary flex items-center gap-2 mb-4">
-          <FiCalendar className="w-5 h-5 text-violet-500" />
+          <FiCalendar className="w-5 h-5 text-teal-500" />
           Probation Details
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <div>
             <label className="block text-xs font-medium text-thb-text-secondary mb-1">Probation Start Date *</label>
-            <input type="date" value={form.probationStartDate} onChange={e => updateField('probationStartDate', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+            <input type="date" value={form.probationStartDate} onChange={e => updateField('probationStartDate', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
           </div>
           <div>
             <label className="block text-xs font-medium text-thb-text-secondary mb-1">Probation Period</label>
-            <select value={form.probationPeriod} onChange={e => updateField('probationPeriod', Number(e.target.value))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+            <select value={form.probationPeriod} onChange={e => updateField('probationPeriod', Number(e.target.value))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
               {PROBATION_PERIODS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
             </select>
           </div>
           <div>
             <label className="block text-xs font-medium text-thb-text-secondary mb-1">Probation End Date</label>
-            <input type="date" value={probationEndDate} readOnly className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+            <input type="date" value={probationEndDate} readOnly className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
           </div>
         </div>
       </div>
@@ -276,20 +276,20 @@ export default function ProbationPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <div>
             <label className="block text-xs font-medium text-thb-text-secondary mb-1">Performance Rating (1-5)</label>
-            <select value={form.performanceRating} onChange={e => updateField('performanceRating', Number(e.target.value))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+            <select value={form.performanceRating} onChange={e => updateField('performanceRating', Number(e.target.value))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
               {[1, 2, 3, 4, 5].map(r => <option key={r} value={r}>{r} — {r <= 2 ? 'Below Expectations' : r === 3 ? 'Meets Expectations' : r === 4 ? 'Exceeds Expectations' : 'Outstanding'}</option>)}
             </select>
           </div>
           <div>
             <label className="block text-xs font-medium text-thb-text-secondary mb-1">KPI Status</label>
-            <select value={form.kpiStatus} onChange={e => updateField('kpiStatus', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+            <select value={form.kpiStatus} onChange={e => updateField('kpiStatus', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
               {KPI_STATUSES.map(k => <option key={k.value} value={k.value}>{k.label}</option>)}
             </select>
           </div>
         </div>
         <div className="mt-4">
           <label className="block text-xs font-medium text-thb-text-secondary mb-1">Review Comments * <span className="font-normal text-slate-400">(min 20 chars)</span></label>
-          <textarea value={form.reviewComments} onChange={e => updateField('reviewComments', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" rows={3} placeholder="Provide detailed performance review comments..." />
+          <textarea value={form.reviewComments} onChange={e => updateField('reviewComments', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" rows={3} placeholder="Provide detailed performance review comments..." />
           <p className="text-[10px] text-slate-400 mt-0.5">{form.reviewComments.length}/20 min characters</p>
         </div>
       </div>
@@ -303,13 +303,13 @@ export default function ProbationPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <div>
             <label className="block text-xs font-medium text-thb-text-secondary mb-1">Decision *</label>
-            <select value={form.decision} onChange={e => updateField('decision', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+            <select value={form.decision} onChange={e => updateField('decision', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
               {DECISIONS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
             </select>
           </div>
           <div>
             <label className="block text-xs font-medium text-thb-text-secondary mb-1 flex items-center gap-1"><FiCalendar className="w-3 h-3" /> Effective Date *</label>
-            <input type="date" value={form.effectiveDate} onChange={e => updateField('effectiveDate', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+            <input type="date" value={form.effectiveDate} onChange={e => updateField('effectiveDate', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
           </div>
           <div className="flex items-center gap-3 pt-5">
             <input type="checkbox" id="confirm-letter" checked={form.confirmationLetter} onChange={e => updateField('confirmationLetter', e.target.checked)} className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" />
@@ -320,7 +320,7 @@ export default function ProbationPage() {
         {form.decision === 'extend' && (
           <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
             <label className="block text-xs font-medium text-amber-700 mb-1">Extension Period (months)</label>
-            <select value={form.extensionPeriod} onChange={e => updateField('extensionPeriod', Number(e.target.value))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 max-w-xs">
+            <select value={form.extensionPeriod} onChange={e => updateField('extensionPeriod', Number(e.target.value))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 max-w-xs">
               <option value={1}>1 Month</option>
               <option value={2}>2 Months</option>
               <option value={3}>3 Months</option>

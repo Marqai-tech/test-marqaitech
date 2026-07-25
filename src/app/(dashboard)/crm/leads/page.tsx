@@ -167,8 +167,8 @@ export default function CRMLeadsPage() {
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: 'Total Leads', value: leads.length, icon: FiTarget, color: 'text-purple-500' },
-          { label: 'New', value: newCount, icon: FiUser, color: 'text-blue-500' },
+          { label: 'Total Leads', value: leads.length, icon: FiTarget, color: 'text-teal-500' },
+          { label: 'New', value: newCount, icon: FiUser, color: 'text-green-500' },
           { label: 'Qualified', value: qualifiedCount, icon: FiTrendingUp, color: 'text-emerald-500' },
           { label: 'Avg Score', value: avgScore, icon: FiTarget, color: 'text-amber-500' },
         ].map((s, i) => (
@@ -188,13 +188,13 @@ export default function CRMLeadsPage() {
           <div className="flex flex-1 gap-2 w-full md:w-auto">
             <div className="relative flex-1">
               <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-thb-text-muted w-4 h-4" />
-              <input type="text" placeholder="Search leads..." value={search} onChange={e => setSearch(e.target.value)} className="w-full pl-9 pr-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" />
+              <input type="text" placeholder="Search leads..." value={search} onChange={e => setSearch(e.target.value)} className="w-full pl-9 pr-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white" />
             </div>
             <button onClick={() => setShowFilters(!showFilters)} className="flex items-center gap-1 px-3 py-2 text-sm border border-thb-border rounded-lg hover:bg-gray-50">
               <FiFilter className="w-4 h-4" /> <FiChevronDown className="w-3 h-3" />
             </button>
           </div>
-          <button onClick={() => { setForm(emptyForm); setEditingId(null); setShowForm(true); }} className="flex items-center gap-2 px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 text-sm font-medium">
+          <button onClick={() => { setForm(emptyForm); setEditingId(null); setShowForm(true); }} className="flex items-center gap-2 px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 text-sm font-medium">
             <FiPlus className="w-4 h-4" /> Add Lead
           </button>
         </div>
@@ -214,28 +214,28 @@ export default function CRMLeadsPage() {
 
       {/* Add/Edit Form */}
       {showForm && (
-        <div className="thb-card p-4 border-l-4 border-l-purple-500">
+        <div className="thb-card p-4 border-l-4 border-l-teal-500">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold text-thb-text-primary">{editingId ? 'Edit Lead' : 'Add New Lead'}</h3>
             <button onClick={() => { setShowForm(false); setEditingId(null); }} className="text-thb-text-muted hover:text-thb-text-primary"><FiX className="w-5 h-5" /></button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <input type="text" placeholder="First Name *" value={form.firstName} onChange={e => setForm({ ...form, firstName: e.target.value })} className="px-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            <input type="text" placeholder="Last Name *" value={form.lastName} onChange={e => setForm({ ...form, lastName: e.target.value })} className="px-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            <input type="email" placeholder="Email *" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className="px-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            <input type="text" placeholder="Phone" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} className="px-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            <input type="text" placeholder="Company" value={form.company} onChange={e => setForm({ ...form, company: e.target.value })} className="px-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <input type="text" placeholder="First Name *" value={form.firstName} onChange={e => setForm({ ...form, firstName: e.target.value })} className="px-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" />
+            <input type="text" placeholder="Last Name *" value={form.lastName} onChange={e => setForm({ ...form, lastName: e.target.value })} className="px-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" />
+            <input type="email" placeholder="Email *" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className="px-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" />
+            <input type="text" placeholder="Phone" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} className="px-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" />
+            <input type="text" placeholder="Company" value={form.company} onChange={e => setForm({ ...form, company: e.target.value })} className="px-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" />
             <select value={form.source} onChange={e => setForm({ ...form, source: e.target.value })} className="px-3 py-2 text-sm border border-thb-border rounded-lg bg-white">
               {SOURCES.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
             <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })} className="px-3 py-2 text-sm border border-thb-border rounded-lg bg-white">
               {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
-            <input type="number" placeholder="Score (0-100)" min="0" max="100" value={form.score} onChange={e => setForm({ ...form, score: e.target.value })} className="px-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            <textarea placeholder="Notes" value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} className="px-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" rows={1} />
+            <input type="number" placeholder="Score (0-100)" min="0" max="100" value={form.score} onChange={e => setForm({ ...form, score: e.target.value })} className="px-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" />
+            <textarea placeholder="Notes" value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} className="px-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" rows={1} />
           </div>
           <div className="flex gap-2 mt-4">
-            <button onClick={handleSave} className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 text-sm font-medium">Save</button>
+            <button onClick={handleSave} className="px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 text-sm font-medium">Save</button>
             <button onClick={() => { setShowForm(false); setEditingId(null); }} className="px-4 py-2 border border-thb-border rounded-lg hover:bg-gray-50 text-sm">Cancel</button>
           </div>
         </div>
@@ -292,7 +292,7 @@ export default function CRMLeadsPage() {
               </div>
               {/* Actions */}
               <div className="flex gap-1 mt-3 pt-2 border-t border-thb-border">
-                <button onClick={() => startEdit(l)} className="p-1.5 rounded hover:bg-purple-50 text-purple-500" title="Edit"><FiEdit2 className="w-3.5 h-3.5" /></button>
+                <button onClick={() => startEdit(l)} className="p-1.5 rounded hover:bg-teal-50 text-teal-500" title="Edit"><FiEdit2 className="w-3.5 h-3.5" /></button>
                 <button onClick={() => handleDelete(l.id)} className="p-1.5 rounded hover:bg-red-50 text-red-500" title="Delete"><FiTrash2 className="w-3.5 h-3.5" /></button>
               </div>
             </div>

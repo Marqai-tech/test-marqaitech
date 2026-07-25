@@ -403,7 +403,7 @@ export default function ModuleStrip({ currentModuleKey, onModuleSelect }: Module
     <aside className="fixed right-0 top-0 h-full w-[72px] bg-thb-sidebar-bg border-l border-white/[0.06] flex flex-col z-40">
       {/* Brand mark at top */}
       <div className="flex items-center justify-center h-14 border-b border-white/[0.06]">
-        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 via-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
+        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-green-500 via-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-green-500/20">
           <svg viewBox="0 0 35 11" className="w-4 h-2.5" fill="none">
             <rect x="0" y="0" width="9" height="9" rx="2" fill="white" opacity="0.9"/>
             <rect x="13" y="0" width="9" height="9" rx="2" fill="white" opacity="0.9"/>
@@ -433,13 +433,13 @@ export default function ModuleStrip({ currentModuleKey, onModuleSelect }: Module
                     onClick={() => onModuleSelect(section.key)}
                     className={`flex flex-col items-center gap-0.5 py-1.5 px-1 rounded-lg transition-all duration-200 group ${
                       isActive
-                        ? 'bg-blue-500/15 text-blue-400 ring-1 ring-blue-500/20'
+                        ? 'bg-green-500/15 text-green-400 ring-1 ring-green-500/20'
                         : 'text-thb-sidebar-text hover:bg-thb-sidebar-hover hover:text-slate-200'
                     }`}
                     title={section.label}
                   >
-                    <SectionIcon className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-blue-400' : 'group-hover:text-slate-200'} transition-colors`} />
-                    <span className={`text-[7px] font-medium text-center leading-tight line-clamp-2 w-full ${isActive ? 'text-blue-400' : ''}`}>
+                    <SectionIcon className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-green-400' : 'group-hover:text-slate-200'} transition-colors`} />
+                    <span className={`text-[7px] font-medium text-center leading-tight line-clamp-2 w-full ${isActive ? 'text-green-400' : ''}`}>
                       {section.label.length > 10 ? section.label.substring(0, 8) + '…' : section.label}
                     </span>
                   </button>

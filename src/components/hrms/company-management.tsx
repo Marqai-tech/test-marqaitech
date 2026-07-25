@@ -380,11 +380,11 @@ export default function CompanyManagement() {
     )
 
     return (
-      <div id="view-detail" className="thb-card border-l-4 border-l-violet-500 transition-all duration-300 ease-in-out">
+      <div id="view-detail" className="thb-card border-l-4 border-l-teal-500 transition-all duration-300 ease-in-out">
         <div className="p-6">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-lg font-semibold text-thb-text-primary flex items-center gap-2">
-              <FiEye className="w-5 h-5 text-violet-500" />
+              <FiEye className="w-5 h-5 text-teal-500" />
               Details
             </h2>
             <button onClick={() => setViewingRecord(null)} className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors">
@@ -452,7 +452,7 @@ export default function CompanyManagement() {
 
   // ============ Form Renderer ============
   const renderForm = () => {
-    const inputClass = 'w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400'
+    const inputClass = 'w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400'
     const selectClass = inputClass
 
     return (
@@ -540,7 +540,7 @@ export default function CompanyManagement() {
         )}
         <div className="flex items-center justify-end gap-3 pt-4 border-t border-thb-border">
           <button type="button" onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
-          <button type="submit" disabled={submitting} className="px-6 py-2.5 rounded-lg bg-violet-500 text-white text-sm font-medium hover:bg-violet-600 disabled:opacity-50 shadow-sm shadow-violet-500/25 transition-colors">
+          <button type="submit" disabled={submitting} className="px-6 py-2.5 rounded-lg bg-teal-500 text-white text-sm font-medium hover:bg-teal-600 disabled:opacity-50 shadow-sm shadow-teal-500/25 transition-colors">
             {submitting ? 'Saving...' : editingId ? 'Update' : 'Create'}
           </button>
         </div>
@@ -554,10 +554,10 @@ export default function CompanyManagement() {
     const name = (record.name || record.title) as string
     return (
       <div className="flex items-center gap-1">
-        <button onClick={() => openView(type, record)} className="p-2 rounded-lg text-thb-text-muted hover:text-violet-500 hover:bg-violet-50 transition-colors" title="View"><FiEye className="w-4 h-4" /></button>
+        <button onClick={() => openView(type, record)} className="p-2 rounded-lg text-thb-text-muted hover:text-teal-500 hover:bg-teal-50 transition-colors" title="View"><FiEye className="w-4 h-4" /></button>
         {isAdmin && (
           <>
-            <button onClick={() => openEdit(type, record)} className="p-2 rounded-lg text-thb-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="Edit"><FiEdit2 className="w-4 h-4" /></button>
+            <button onClick={() => openEdit(type, record)} className="p-2 rounded-lg text-thb-text-muted hover:text-green-500 hover:bg-green-50 transition-colors" title="Edit"><FiEdit2 className="w-4 h-4" /></button>
             <button onClick={() => { setDeleteConfirmId(record.id as string); setDeleteInfo({ type, name }); setViewingRecord(null) }} className="p-2 rounded-lg text-thb-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete"><FiTrash2 className="w-4 h-4" /></button>
           </>
         )}
@@ -608,7 +608,7 @@ export default function CompanyManagement() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
-            <FiLayers className="w-6 h-6 text-violet-500" />
+            <FiLayers className="w-6 h-6 text-teal-500" />
             Company Management
           </h1>
           <p className="text-thb-text-secondary mt-1">Manage companies, branches, departments, and organizational structure</p>
@@ -619,7 +619,7 @@ export default function CompanyManagement() {
             only lists the existing companies for reference and to manage their
             branches / departments / etc. */}
         {isAdmin && activeTab !== 'grades' && activeTab !== 'companies' && (
-          <button onClick={openAdd} className="inline-flex items-center gap-2 px-4 py-2.5 bg-violet-500 text-white rounded-lg hover:bg-violet-600 font-medium text-sm shadow-sm shadow-violet-500/25 transition-colors">
+          <button onClick={openAdd} className="inline-flex items-center gap-2 px-4 py-2.5 bg-teal-500 text-white rounded-lg hover:bg-teal-600 font-medium text-sm shadow-sm shadow-teal-500/25 transition-colors">
             <FiPlus className="w-4 h-4" />
             {addBtnLabel()}
           </button>
@@ -635,11 +635,11 @@ export default function CompanyManagement() {
       />
 
       {/* Getting Started Info Banner */}
-      <div className="thb-card border-l-4 border-l-violet-500 bg-gradient-to-r from-violet-50/50 to-blue-50/50">
+      <div className="thb-card border-l-4 border-l-teal-500 bg-gradient-to-r from-teal-50/50 to-green-50/50">
         <div className="p-5">
           <div className="flex items-start gap-3">
-            <div className="w-10 h-10 rounded-xl bg-violet-100 flex items-center justify-center flex-shrink-0">
-              <FiCheckCircle className="w-5 h-5 text-violet-600" />
+            <div className="w-10 h-10 rounded-xl bg-teal-100 flex items-center justify-center flex-shrink-0">
+              <FiCheckCircle className="w-5 h-5 text-teal-600" />
             </div>
             <div>
               <h3 className="text-sm font-bold text-thb-text-primary mb-1">Getting Started with Company Management</h3>
@@ -673,7 +673,7 @@ export default function CompanyManagement() {
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Search by name, code, city..."
-              className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-thb-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400"
+              className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-thb-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400"
             />
           </div>
         </div>
@@ -688,7 +688,7 @@ export default function CompanyManagement() {
                   onClick={() => { setActiveTab(tab.key); setShowForm(false); setViewingRecord(null); setDeleteConfirmId(null) }}
                   className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                     activeTab === tab.key
-                      ? 'bg-violet-500 text-white shadow-sm'
+                      ? 'bg-teal-500 text-white shadow-sm'
                       : 'text-thb-text-secondary hover:bg-slate-100 hover:text-thb-text-primary'
                   }`}
                 >
@@ -706,7 +706,7 @@ export default function CompanyManagement() {
 
       {/* Inline Add/Edit Form */}
       {showForm && (
-        <div id="crud-form" className="thb-card border-l-4 border-l-violet-500 transition-all duration-300 ease-in-out">
+        <div id="crud-form" className="thb-card border-l-4 border-l-teal-500 transition-all duration-300 ease-in-out">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-semibold text-thb-text-primary">
@@ -724,13 +724,13 @@ export default function CompanyManagement() {
       {/* ── COMPANIES TAB ── */}
       {activeTab === 'companies' && (
         loading.companies ? (
-          <div className="flex items-center justify-center py-12"><FiSettings className="w-8 h-8 animate-spin text-violet-400" /></div>
+          <div className="flex items-center justify-center py-12"><FiSettings className="w-8 h-8 animate-spin text-teal-400" /></div>
         ) : (
           <>
             {/* Info banner — explains where companies are created */}
-            <div className="thb-card border-l-4 border-l-blue-500 bg-gradient-to-r from-blue-50/60 to-indigo-50/40">
+            <div className="thb-card border-l-4 border-l-green-500 bg-gradient-to-r from-green-50/60 to-emerald-50/40">
               <div className="p-4 flex items-start gap-3">
-                <FiInfo className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
+                <FiInfo className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
                 <div className="text-sm text-slate-700 flex-1">
                   <p className="font-semibold text-slate-900 mb-0.5">Companies are managed by admins</p>
                   <p className="text-xs text-slate-600">
@@ -744,22 +744,22 @@ export default function CompanyManagement() {
                     <div className="mt-3 flex items-center gap-2 flex-wrap text-[11px]">
                       <span className="text-slate-500 font-semibold uppercase tracking-wider">Showing:</span>
                       {selectedCompanyId ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200 font-semibold">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold">
                           <FiBriefcase className="w-3 h-3" />
                           {availableCompanies.find((c) => c.id === selectedCompanyId)?.name || 'Selected company'}
                         </span>
                       ) : selectedGroupId ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-violet-50 text-violet-700 border border-violet-200 font-semibold">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-teal-50 text-teal-700 border border-teal-200 font-semibold">
                           <FiLayers className="w-3 h-3" />
                           All companies in group "{availableCompanyGroups.find((g) => g.id === selectedGroupId)?.name || 'selected'}"
                         </span>
                       ) : isSuperAdmin && selectedTenantId ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-violet-50 text-violet-700 border border-violet-200 font-semibold">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-teal-50 text-teal-700 border border-teal-200 font-semibold">
                           <FiHome className="w-3 h-3" />
                           All companies under {availableTenants.find((t) => t.id === selectedTenantId)?.name || 'selected parent'}
                         </span>
                       ) : isTenantAdmin ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-violet-50 text-violet-700 border border-violet-200 font-semibold">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-teal-50 text-teal-700 border border-teal-200 font-semibold">
                           <FiHome className="w-3 h-3" />
                           All companies in your tenant
                         </span>
@@ -782,18 +782,18 @@ export default function CompanyManagement() {
               <div className="thb-card thb-card-hover p-5">
                 <div className="flex items-start justify-between">
                   <div><p className="text-xs font-medium text-thb-text-secondary">Total Companies</p><p className="text-2xl font-bold text-thb-text-primary mt-1">{companies.length}</p></div>
-                  <div className="w-10 h-10 rounded-xl bg-violet-50 flex items-center justify-center text-violet-600 ring-1 ring-violet-100"><FiHome className="w-5 h-5" /></div>
+                  <div className="w-10 h-10 rounded-xl bg-teal-50 flex items-center justify-center text-teal-600 ring-1 ring-teal-100"><FiHome className="w-5 h-5" /></div>
                 </div>
               </div>
               <div className="thb-card thb-card-hover p-5">
                 <div className="flex items-start justify-between">
                   <div><p className="text-xs font-medium text-thb-text-secondary">Total Branches</p><p className="text-2xl font-bold text-thb-text-primary mt-1">{branches.length}</p></div>
-                  <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 ring-1 ring-blue-100"><FiMapPin className="w-5 h-5" /></div>
+                  <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center text-green-600 ring-1 ring-green-100"><FiMapPin className="w-5 h-5" /></div>
                 </div>
               </div>
               <div className="thb-card thb-card-hover p-5">
                 <div className="flex items-start justify-between">
-                  <div><p className="text-xs font-medium text-thb-text-secondary">Total Departments</p><p className="text-2xl font-bold text-violet-600 mt-1">{departments.length}</p></div>
+                  <div><p className="text-xs font-medium text-thb-text-secondary">Total Departments</p><p className="text-2xl font-bold text-teal-600 mt-1">{departments.length}</p></div>
                   <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 ring-1 ring-emerald-100"><FiBriefcase className="w-5 h-5" /></div>
                 </div>
               </div>
@@ -826,7 +826,7 @@ export default function CompanyManagement() {
                       ) : (
                         <>
                           <div className="flex items-start justify-between mb-3">
-                            <div className="w-10 h-10 rounded-lg bg-violet-50 flex items-center justify-center"><FiHome className="w-5 h-5 text-violet-500" /></div>
+                            <div className="w-10 h-10 rounded-lg bg-teal-50 flex items-center justify-center"><FiHome className="w-5 h-5 text-teal-500" /></div>
                             {renderActions('companies', c as unknown as Record<string, unknown>)}
                           </div>
                           <h3 className="text-thb-text-primary font-semibold text-lg">{c.name}</h3>
@@ -839,13 +839,13 @@ export default function CompanyManagement() {
                           {(groupName || tenantName) && (
                             <div className="flex items-center gap-1.5 flex-wrap mb-3 text-[10px]">
                               {groupName && (
-                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-violet-50 text-violet-700 border border-violet-200 font-semibold" title="Parent group company">
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-teal-50 text-teal-700 border border-teal-200 font-semibold" title="Parent group company">
                                   <FiLayers className="w-2.5 h-2.5" />
                                   {groupName}
                                 </span>
                               )}
                               {isSuperAdmin && tenantName && (
-                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 font-semibold" title="Parent company (tenant)">
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold" title="Parent company (tenant)">
                                   <FiHome className="w-2.5 h-2.5" />
                                   {tenantName}
                                 </span>
@@ -870,7 +870,7 @@ export default function CompanyManagement() {
 
       {/* ── BRANCHES TAB ── */}
       {activeTab === 'branches' && (
-        loading.branches ? <div className="flex items-center justify-center py-12"><FiSettings className="w-8 h-8 animate-spin text-violet-400" /></div> : (
+        loading.branches ? <div className="flex items-center justify-center py-12"><FiSettings className="w-8 h-8 animate-spin text-teal-400" /></div> : (
           <>
             {companies.length === 0 && (
               <div className="thb-card border-l-4 border-l-amber-500 bg-gradient-to-r from-amber-50/60 to-orange-50/40">
@@ -888,7 +888,7 @@ export default function CompanyManagement() {
                 </div>
               </div>
             )}
-            <TableWrapper title="Branches" icon={<FiMapPin className="w-4 h-4 text-violet-500" />} count={branches.length}>
+            <TableWrapper title="Branches" icon={<FiMapPin className="w-4 h-4 text-teal-500" />} count={branches.length}>
             <thead><tr><TH>Branch</TH><TH>Company</TH><TH>Location</TH><TH>Status</TH><TH className="text-right">Actions</TH></tr></thead>
             <tbody>
               {fBranches.length === 0 ? (
@@ -901,7 +901,7 @@ export default function CompanyManagement() {
                       <td colSpan={5} className="px-4 py-3">{renderDeleteConfirm(b.id, b.name)}</td>
                     ) : (
                       <>
-                        <TD className="font-medium text-thb-text-primary"><FiMapPin className="w-4 h-4 inline mr-2 text-violet-400" />{b.name}</TD>
+                        <TD className="font-medium text-thb-text-primary"><FiMapPin className="w-4 h-4 inline mr-2 text-teal-400" />{b.name}</TD>
                         <TD>{b.company?.name || '—'}</TD>
                         <TD>{b.city || '—'}, {b.state || ''}</TD>
                         <TD><span className={badge.className}>{badge.label}</span></TD>
@@ -919,7 +919,7 @@ export default function CompanyManagement() {
 
       {/* ── DEPARTMENTS TAB ── */}
       {activeTab === 'departments' && (
-        loading.departments ? <div className="flex items-center justify-center py-12"><FiSettings className="w-8 h-8 animate-spin text-violet-400" /></div> : (
+        loading.departments ? <div className="flex items-center justify-center py-12"><FiSettings className="w-8 h-8 animate-spin text-teal-400" /></div> : (
           <>
             {companies.length === 0 && (
               <div className="thb-card border-l-4 border-l-amber-500 bg-gradient-to-r from-amber-50/60 to-orange-50/40">
@@ -937,7 +937,7 @@ export default function CompanyManagement() {
                 </div>
               </div>
             )}
-            <TableWrapper title="Departments" icon={<FiBriefcase className="w-4 h-4 text-violet-500" />} count={departments.length}>
+            <TableWrapper title="Departments" icon={<FiBriefcase className="w-4 h-4 text-teal-500" />} count={departments.length}>
             <thead><tr><TH>Department</TH><TH>Company</TH><TH>Employees</TH><TH>Designations</TH><TH>Status</TH><TH className="text-right">Actions</TH></tr></thead>
             <tbody>
               {fDepartments.length === 0 ? (
@@ -969,8 +969,8 @@ export default function CompanyManagement() {
 
       {/* ── DESIGNATIONS TAB ── */}
       {activeTab === 'designations' && (
-        loading.designations ? <div className="flex items-center justify-center py-12"><FiSettings className="w-8 h-8 animate-spin text-violet-400" /></div> : (
-          <TableWrapper title="Designations" icon={<FiAward className="w-4 h-4 text-violet-500" />} count={designations.length}>
+        loading.designations ? <div className="flex items-center justify-center py-12"><FiSettings className="w-8 h-8 animate-spin text-teal-400" /></div> : (
+          <TableWrapper title="Designations" icon={<FiAward className="w-4 h-4 text-teal-500" />} count={designations.length}>
             <thead><tr><TH>Designation</TH><TH>Grade</TH><TH>Department</TH><TH>Salary Range</TH><TH>Status</TH><TH className="text-right">Actions</TH></tr></thead>
             <tbody>
               {fDesignations.length === 0 ? (
@@ -1001,7 +1001,7 @@ export default function CompanyManagement() {
 
       {/* ── GRADES TAB ── */}
       {activeTab === 'grades' && (
-        loading.designations ? <div className="flex items-center justify-center py-12"><FiSettings className="w-8 h-8 animate-spin text-violet-400" /></div> : (
+        loading.designations ? <div className="flex items-center justify-center py-12"><FiSettings className="w-8 h-8 animate-spin text-teal-400" /></div> : (
           (() => {
             const grades = designations.reduce((acc, d) => {
               const g = gradeCode(d.level)
@@ -1023,7 +1023,7 @@ export default function CompanyManagement() {
                       <span className="thb-badge thb-badge-success">{g.status}</span>
                     </div>
                     <p className="text-thb-text-primary font-semibold text-lg">{g.name}</p>
-                    <p className="text-violet-600 text-2xl font-bold mt-2">₹{(g.min / 100000).toFixed(0)}-{(g.max / 100000).toFixed(0)}L</p>
+                    <p className="text-teal-600 text-2xl font-bold mt-2">₹{(g.min / 100000).toFixed(0)}-{(g.max / 100000).toFixed(0)}L</p>
                     <p className="text-thb-text-muted text-sm mt-1">Per annum</p>
                     <div className="mt-3 pt-3 border-t border-thb-border space-y-1">
                       <div className="flex justify-between text-sm"><span className="text-thb-text-muted">Employees</span><span className="text-thb-text-primary font-medium">{g.employees}</span></div>
@@ -1040,8 +1040,8 @@ export default function CompanyManagement() {
 
       {/* ── SHIFTS TAB ── */}
       {activeTab === 'shifts' && (
-        loading.shifts ? <div className="flex items-center justify-center py-12"><FiSettings className="w-8 h-8 animate-spin text-violet-400" /></div> : (
-          <TableWrapper title="Shifts" icon={<FiClock className="w-4 h-4 text-violet-500" />} count={shifts.length}>
+        loading.shifts ? <div className="flex items-center justify-center py-12"><FiSettings className="w-8 h-8 animate-spin text-teal-400" /></div> : (
+          <TableWrapper title="Shifts" icon={<FiClock className="w-4 h-4 text-teal-500" />} count={shifts.length}>
             <thead><tr><TH>Shift</TH><TH>Start</TH><TH>End</TH><TH>Break</TH><TH>Grace</TH><TH>Status</TH><TH className="text-right">Actions</TH></tr></thead>
             <tbody>
               {fShifts.length === 0 ? (
@@ -1056,7 +1056,7 @@ export default function CompanyManagement() {
                       <>
                         <TD className="font-medium text-thb-text-primary">
                           <span className="inline-flex items-center gap-2">
-                            {s.name.toLowerCase().includes('night') ? <FiMoon className="w-4 h-4 text-indigo-400" /> : <FiSun className="w-4 h-4 text-amber-400" />}
+                            {s.name.toLowerCase().includes('night') ? <FiMoon className="w-4 h-4 text-emerald-400" /> : <FiSun className="w-4 h-4 text-amber-400" />}
                             {s.name}
                           </span>
                         </TD>
@@ -1078,8 +1078,8 @@ export default function CompanyManagement() {
 
       {/* ── HOLIDAYS TAB ── */}
       {activeTab === 'holidays' && (
-        loading.holidays ? <div className="flex items-center justify-center py-12"><FiSettings className="w-8 h-8 animate-spin text-violet-400" /></div> : (
-          <TableWrapper title="Holidays" icon={<FiCalendar className="w-4 h-4 text-violet-500" />} count={holidays.length}>
+        loading.holidays ? <div className="flex items-center justify-center py-12"><FiSettings className="w-8 h-8 animate-spin text-teal-400" /></div> : (
+          <TableWrapper title="Holidays" icon={<FiCalendar className="w-4 h-4 text-teal-500" />} count={holidays.length}>
             <thead><tr><TH>Holiday</TH><TH>Date</TH><TH>Day</TH><TH>Type</TH><TH className="text-right">Actions</TH></tr></thead>
             <tbody>
               {fHolidays.length === 0 ? (
@@ -1109,8 +1109,8 @@ export default function CompanyManagement() {
 
       {/* ── POLICIES TAB ── */}
       {activeTab === 'policies' && (
-        loading.policies ? <div className="flex items-center justify-center py-12"><FiSettings className="w-8 h-8 animate-spin text-violet-400" /></div> : (
-          <TableWrapper title="Company Policies" icon={<FiFileText className="w-4 h-4 text-violet-500" />} count={policies.length}>
+        loading.policies ? <div className="flex items-center justify-center py-12"><FiSettings className="w-8 h-8 animate-spin text-teal-400" /></div> : (
+          <TableWrapper title="Company Policies" icon={<FiFileText className="w-4 h-4 text-teal-500" />} count={policies.length}>
             <thead><tr><TH>Policy</TH><TH>Category</TH><TH>Version</TH><TH>Effective</TH><TH>Status</TH><TH className="text-right">Actions</TH></tr></thead>
             <tbody>
               {fPolicies.length === 0 ? (

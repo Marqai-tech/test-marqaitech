@@ -129,13 +129,13 @@ export default function AIAssistantPage() {
       {/* Sidebar - Chat History */}
       <div className="hidden md:flex flex-col w-64 bg-white rounded-xl border border-slate-200 overflow-hidden">
         <div className="p-3 border-b border-slate-200">
-          <button onClick={createNewChat} className="w-full px-3 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 flex items-center justify-center gap-2">
+          <button onClick={createNewChat} className="w-full px-3 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 flex items-center justify-center gap-2">
             <FiPlus className="w-4 h-4" /> New Chat
           </button>
         </div>
         <div className="flex-1 overflow-y-auto p-2 space-y-1">
           {sessions.map((s) => (
-            <button key={s.id} onClick={() => setActiveSessionId(s.id)} className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors ${s.id === activeSessionId ? 'bg-blue-50 text-blue-700 font-medium' : 'text-slate-600 hover:bg-slate-50'}`}>
+            <button key={s.id} onClick={() => setActiveSessionId(s.id)} className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors ${s.id === activeSessionId ? 'bg-green-50 text-green-700 font-medium' : 'text-slate-600 hover:bg-slate-50'}`}>
               <div className="flex items-center gap-2"><FiMessageSquare className="w-3.5 h-3.5 flex-shrink-0" /><span className="truncate">{s.title}</span></div>
             </button>
           ))}
@@ -146,7 +146,7 @@ export default function AIAssistantPage() {
       <div className="flex-1 flex flex-col bg-white rounded-xl border border-slate-200 overflow-hidden">
         {/* Header */}
         <div className="px-4 py-3 border-b border-slate-200 flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-white">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-green-500 to-teal-600 flex items-center justify-center text-white">
             <FiHelpCircle className="w-4 h-4" />
           </div>
           <div>
@@ -154,7 +154,7 @@ export default function AIAssistantPage() {
             <p className="text-xs text-slate-500">HRMS Help & Support</p>
           </div>
           <div className="ml-auto md:hidden">
-            <button onClick={createNewChat} className="px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100"><FiPlus className="w-3.5 h-3.5 inline" /> New</button>
+            <button onClick={createNewChat} className="px-3 py-1.5 text-xs font-medium text-green-600 bg-green-50 rounded-lg hover:bg-green-100"><FiPlus className="w-3.5 h-3.5 inline" /> New</button>
           </div>
         </div>
 
@@ -162,9 +162,9 @@ export default function AIAssistantPage() {
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {activeSession?.messages.map((msg) => (
             <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[80%] ${msg.role === 'user' ? 'bg-blue-600 text-white rounded-2xl rounded-br-md' : 'bg-slate-100 text-slate-800 rounded-2xl rounded-bl-md'} px-4 py-3`}>
+              <div className={`max-w-[80%] ${msg.role === 'user' ? 'bg-green-600 text-white rounded-2xl rounded-br-md' : 'bg-slate-100 text-slate-800 rounded-2xl rounded-bl-md'} px-4 py-3`}>
                 <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-                <p className={`text-[10px] mt-1 ${msg.role === 'user' ? 'text-blue-200' : 'text-slate-400'}`}>{msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                <p className={`text-[10px] mt-1 ${msg.role === 'user' ? 'text-green-200' : 'text-slate-400'}`}>{msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
               </div>
             </div>
           ))}
@@ -187,7 +187,7 @@ export default function AIAssistantPage() {
           <div className="px-4 py-2 border-t border-slate-100">
             <div className="flex gap-2 overflow-x-auto pb-1">
               {quickActions.map((qa) => (
-                <button key={qa.label} onClick={() => sendMessage(qa.prompt)} className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-full text-xs font-medium text-slate-600 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-700 whitespace-nowrap transition-colors">
+                <button key={qa.label} onClick={() => sendMessage(qa.prompt)} className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-full text-xs font-medium text-slate-600 hover:bg-green-50 hover:border-green-200 hover:text-green-700 whitespace-nowrap transition-colors">
                   {qa.icon} {qa.label}
                 </button>
               ))}
@@ -203,10 +203,10 @@ export default function AIAssistantPage() {
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendMessage()}
               placeholder="Ask me anything about HR..."
-              className="flex-1 px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+              className="flex-1 px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500"
               disabled={isLoading}
             />
-            <button onClick={() => sendMessage()} disabled={isLoading || !input.trim()} className="px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 transition-colors">
+            <button onClick={() => sendMessage()} disabled={isLoading || !input.trim()} className="px-4 py-2.5 bg-green-600 text-white rounded-xl hover:bg-green-700 disabled:opacity-50 transition-colors">
               <FiSend className="w-4 h-4" />
             </button>
           </div>

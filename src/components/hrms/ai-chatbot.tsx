@@ -128,8 +128,8 @@ export function AIChatbot() {
                   ) : (
                     <div className="flex items-center gap-1.5 justify-end">
                       <span className="text-[10px] font-medium text-muted-foreground">{userName || 'You'}</span>
-                      <div className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-950/30 flex items-center justify-center">
-                        <User className="h-3 w-3 text-blue-600" />
+                      <div className="w-5 h-5 rounded-full bg-green-100 dark:bg-green-950/30 flex items-center justify-center">
+                        <User className="h-3 w-3 text-green-600" />
                       </div>
                     </div>
                   )}

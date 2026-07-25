@@ -113,7 +113,7 @@ export default function FeatureFlagsPage() {
           <FiLock className="w-10 h-10 text-rose-500 mx-auto mb-3" />
           <h2 className="text-lg font-bold text-slate-800">Super Admins Only</h2>
           <p className="text-sm text-slate-500 mt-1">Feature flags are managed by the platform owner.</p>
-          <Link href="/home" className="mt-4 inline-block text-sm font-semibold text-blue-600 hover:text-blue-700">
+          <Link href="/home" className="mt-4 inline-block text-sm font-semibold text-green-600 hover:text-green-700">
             ← Back to Home
           </Link>
         </div>
@@ -137,11 +137,11 @@ export default function FeatureFlagsPage() {
           </Link>
           <div>
             <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
-              <FiZap className="w-6 h-6 text-violet-500" />
+              <FiZap className="w-6 h-6 text-teal-500" />
               Feature Flags
             </h1>
             <p className="text-sm text-thb-text-secondary mt-0.5">
-              <span className="font-mono text-[11px] bg-violet-50 text-violet-700 px-1.5 py-0.5 rounded">REQ-SA-05</span>
+              <span className="font-mono text-[11px] bg-teal-50 text-teal-700 px-1.5 py-0.5 rounded">REQ-SA-05</span>
               {' '}Enable / disable AI modules, beta features, and plan-gated functionality per parent company.
             </p>
           </div>
@@ -155,7 +155,7 @@ export default function FeatureFlagsPage() {
                 setActiveTenantId(e.target.value);
                 setSelectedTenant(e.target.value);
               }}
-              className="px-3 py-2 rounded-lg border border-thb-border text-sm bg-white focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400 cursor-pointer max-w-[260px]"
+              className="px-3 py-2 rounded-lg border border-thb-border text-sm bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 cursor-pointer max-w-[260px]"
             >
               <option value="">Select a parent company…</option>
               {tenants.map((t) => (
@@ -198,7 +198,7 @@ export default function FeatureFlagsPage() {
                 {flags.length} flag{flags.length === 1 ? '' : 's'} · {flags.filter((f) => f.enabled).length} enabled
               </p>
             </div>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-violet-700 bg-violet-50 px-2 py-1 rounded">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-teal-700 bg-teal-50 px-2 py-1 rounded">
               SRS REQ-SA-05
             </span>
           </div>
@@ -221,7 +221,7 @@ export default function FeatureFlagsPage() {
                       {f.source === 'platform_default' ? (
                         <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">platform default</span>
                       ) : (
-                        <span className="text-[9px] font-bold uppercase tracking-wider text-violet-700 bg-violet-50 px-1.5 py-0.5 rounded">override</span>
+                        <span className="text-[9px] font-bold uppercase tracking-wider text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded">override</span>
                       )}
                     </div>
                     {f.notes && <p className="text-[11px] text-slate-500 mt-1 leading-snug">{f.notes}</p>}
@@ -251,12 +251,12 @@ export default function FeatureFlagsPage() {
       )}
 
       {/* Footer note */}
-      <div className="rounded-xl border border-violet-100 bg-violet-50/40 p-4 flex items-start gap-3">
-        <FiInfo className="w-4 h-4 text-violet-600 flex-shrink-0 mt-0.5" />
-        <div className="text-[12px] text-violet-900 leading-relaxed">
+      <div className="rounded-xl border border-teal-100 bg-teal-50/40 p-4 flex items-start gap-3">
+        <FiInfo className="w-4 h-4 text-teal-600 flex-shrink-0 mt-0.5" />
+        <div className="text-[12px] text-teal-900 leading-relaxed">
           <b>How feature flags work:</b> When a flag is <b>disabled</b>, the corresponding AI module or feature is hidden from
-          the tenant admin UI and the underlying API endpoints return 403. Flags marked <code className="font-mono text-[10px] bg-violet-100 px-1 py-0.5 rounded">platform_default</code> are auto-seeded for
-          every tenant; flags you explicitly toggle are marked <code className="font-mono text-[10px] bg-violet-100 px-1 py-0.5 rounded">override</code> and persist across re-seeding. Every change is
+          the tenant admin UI and the underlying API endpoints return 403. Flags marked <code className="font-mono text-[10px] bg-teal-100 px-1 py-0.5 rounded">platform_default</code> are auto-seeded for
+          every tenant; flags you explicitly toggle are marked <code className="font-mono text-[10px] bg-teal-100 px-1 py-0.5 rounded">override</code> and persist across re-seeding. Every change is
           recorded in the <Link href="/super-admin/audit-logs" className="font-semibold underline">audit log</Link>.
         </div>
       </div>

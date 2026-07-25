@@ -40,7 +40,7 @@ const PRIORITY_CFG: Record<TicketPriority, { bg: string; text: string; border: s
 };
 
 const STATUS_CFG: Record<TicketStatus, { bg: string; text: string; icon: React.ReactNode }> = {
-  open:        { bg: 'bg-blue-100', text: 'text-blue-700', icon: <FiCircle className="w-3 h-3" /> },
+  open:        { bg: 'bg-green-100', text: 'text-green-700', icon: <FiCircle className="w-3 h-3" /> },
   in_progress: { bg: 'bg-amber-100', text: 'text-amber-700', icon: <FiClock className="w-3 h-3" /> },
   resolved:    { bg: 'bg-emerald-100', text: 'text-emerald-700', icon: <FiCheckCircle className="w-3 h-3" /> },
   closed:      { bg: 'bg-slate-100', text: 'text-slate-600', icon: <FiX className="w-3 h-3" /> },
@@ -51,7 +51,7 @@ const CATEGORY_LABEL: Record<TicketCategory, string> = {
 };
 
 const KANBAN_COLUMNS: { key: TicketStatus; label: string; color: string }[] = [
-  { key: 'open', label: 'Open', color: 'bg-blue-500' },
+  { key: 'open', label: 'Open', color: 'bg-green-500' },
   { key: 'in_progress', label: 'In Progress', color: 'bg-amber-500' },
   { key: 'resolved', label: 'Resolved', color: 'bg-emerald-500' },
   { key: 'closed', label: 'Closed', color: 'bg-slate-400' },
@@ -106,7 +106,7 @@ export default function ITTicketsPage() {
   });
 
   const statCards = [
-    { label: 'Open', value: tickets.filter(t => t.status === 'open').length, icon: <FiCircle className="w-5 h-5" />, color: 'text-blue-600', bg: 'bg-blue-50' },
+    { label: 'Open', value: tickets.filter(t => t.status === 'open').length, icon: <FiCircle className="w-5 h-5" />, color: 'text-green-600', bg: 'bg-green-50' },
     { label: 'In Progress', value: tickets.filter(t => t.status === 'in_progress').length, icon: <FiClock className="w-5 h-5" />, color: 'text-amber-600', bg: 'bg-amber-50' },
     { label: 'Resolved', value: tickets.filter(t => t.status === 'resolved').length, icon: <FiCheckCircle className="w-5 h-5" />, color: 'text-emerald-600', bg: 'bg-emerald-50' },
     { label: 'Critical', value: tickets.filter(t => t.priority === 'critical').length, icon: <FiAlertTriangle className="w-5 h-5" />, color: 'text-red-600', bg: 'bg-red-50' },

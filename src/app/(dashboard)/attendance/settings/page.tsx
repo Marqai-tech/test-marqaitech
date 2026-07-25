@@ -99,15 +99,15 @@ export default function AttendanceSettingsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-violet-50">
-            <FiSettings className="w-5 h-5 text-violet-600" />
+          <div className="p-2.5 rounded-xl bg-teal-50">
+            <FiSettings className="w-5 h-5 text-teal-600" />
           </div>
           <div>
             <h1 className="text-xl font-bold text-thb-text-primary">Attendance Settings</h1>
             <p className="text-sm text-thb-text-secondary">Configure attendance tracking, policies, grace periods, and auto-approval rules</p>
           </div>
         </div>
-        <button onClick={handleSave} disabled={saving} className="inline-flex items-center gap-2 px-4 py-2.5 bg-violet-600 text-white rounded-lg text-sm font-medium hover:bg-violet-700 disabled:opacity-50 transition-colors">
+        <button onClick={handleSave} disabled={saving} className="inline-flex items-center gap-2 px-4 py-2.5 bg-teal-600 text-white rounded-lg text-sm font-medium hover:bg-teal-700 disabled:opacity-50 transition-colors">
           {saving ? <FiRefreshCw className="w-4 h-4 animate-spin" /> : <FiSave className="w-4 h-4" />}
           Save Settings
         </button>
@@ -118,7 +118,7 @@ export default function AttendanceSettingsPage() {
         <div className="thb-card overflow-hidden">
           <div className="px-5 py-4 border-b border-thb-border bg-slate-50">
             <div className="flex items-center gap-2">
-              <FiMonitor className="w-4 h-4 text-violet-600" />
+              <FiMonitor className="w-4 h-4 text-teal-600" />
               <h3 className="font-semibold text-thb-text-primary">Attendance Tracking</h3>
             </div>
             <p className="text-xs text-thb-text-muted mt-0.5">Check-in methods and tracking rules</p>
@@ -132,7 +132,7 @@ export default function AttendanceSettingsPage() {
               </div>
               <button onClick={() => setEnableBiometric(!enableBiometric)} className="flex items-center gap-2 text-sm">
                 {enableBiometric ? (
-                  <><FiMonitor className="w-5 h-5 text-violet-500" /><span className="text-violet-600 font-medium">On</span></>
+                  <><FiMonitor className="w-5 h-5 text-teal-500" /><span className="text-teal-600 font-medium">On</span></>
                 ) : (
                   <span className="text-slate-400 font-medium">Off</span>
                 )}
@@ -168,7 +168,7 @@ export default function AttendanceSettingsPage() {
               </div>
               <button onClick={() => setEnableSelfieAttendance(!enableSelfieAttendance)} className="flex items-center gap-2 text-sm">
                 {enableSelfieAttendance ? (
-                  <><FiCamera className="w-5 h-5 text-blue-500" /><span className="text-blue-600 font-medium">On</span></>
+                  <><FiCamera className="w-5 h-5 text-green-500" /><span className="text-green-600 font-medium">On</span></>
                 ) : (
                   <span className="text-slate-400 font-medium">Off</span>
                 )}
@@ -185,7 +185,7 @@ export default function AttendanceSettingsPage() {
                     value={lateGraceMinutes}
                     onChange={(e) => setLateGraceMinutes(Number(e.target.value))}
                     min={0}
-                    className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                    className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20"
                   />
                 </div>
                 <div>
@@ -195,7 +195,7 @@ export default function AttendanceSettingsPage() {
                     value={halfDayThreshold}
                     onChange={(e) => setHalfDayThreshold(Number(e.target.value))}
                     min={0}
-                    className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                    className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20"
                   />
                 </div>
                 <div>
@@ -205,7 +205,7 @@ export default function AttendanceSettingsPage() {
                     value={markAbsentAfter}
                     onChange={(e) => setMarkAbsentAfter(Number(e.target.value))}
                     min={0}
-                    className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                    className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20"
                   />
                 </div>
               </div>
@@ -217,7 +217,7 @@ export default function AttendanceSettingsPage() {
         <div className="thb-card overflow-hidden">
           <div className="px-5 py-4 border-b border-thb-border bg-slate-50">
             <div className="flex items-center gap-2">
-              <FiClock className="w-4 h-4 text-indigo-600" />
+              <FiClock className="w-4 h-4 text-emerald-600" />
               <h3 className="font-semibold text-thb-text-primary">Attendance Policy</h3>
             </div>
             <p className="text-xs text-thb-text-muted mt-0.5">Rounding rules, grace periods, overtime and auto-approval</p>
@@ -230,7 +230,7 @@ export default function AttendanceSettingsPage() {
                 type="text"
                 value={config.name}
                 onChange={(e) => update('name', e.target.value)}
-                className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20"
               />
             </div>
 
@@ -241,13 +241,13 @@ export default function AttendanceSettingsPage() {
                 <p className="text-sm font-medium text-thb-text-primary">Round Clock Times</p>
                 <button
                   onClick={() => update('roundEnabled', !config.roundEnabled)}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${config.roundEnabled ? 'bg-violet-500' : 'bg-slate-200'}`}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${config.roundEnabled ? 'bg-teal-500' : 'bg-slate-200'}`}
                 >
                   <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${config.roundEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
                 </button>
               </div>
               {config.roundEnabled && (
-                <div className="grid grid-cols-2 gap-3 pl-4 border-l-2 border-violet-200">
+                <div className="grid grid-cols-2 gap-3 pl-4 border-l-2 border-teal-200">
                   <div>
                     <label className="block text-xs text-thb-text-muted mb-1">Minutes</label>
                     <select value={config.roundMinutes} onChange={(e) => update('roundMinutes', Number(e.target.value))} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm">
@@ -291,13 +291,13 @@ export default function AttendanceSettingsPage() {
                 <p className="text-sm font-medium text-thb-text-primary">Auto Overtime Detection</p>
                 <button
                   onClick={() => update('autoOvertimeEnabled', !config.autoOvertimeEnabled)}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${config.autoOvertimeEnabled ? 'bg-violet-500' : 'bg-slate-200'}`}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${config.autoOvertimeEnabled ? 'bg-teal-500' : 'bg-slate-200'}`}
                 >
                   <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${config.autoOvertimeEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
                 </button>
               </div>
               {config.autoOvertimeEnabled && (
-                <div className="pl-4 border-l-2 border-violet-200">
+                <div className="pl-4 border-l-2 border-teal-200">
                   <label className="block text-xs text-thb-text-muted mb-1">OT Threshold (min)</label>
                   <input type="number" value={config.overtimeThresholdMinutes} onChange={(e) => update('overtimeThresholdMinutes', Number(e.target.value))} min={0} className="w-full max-w-[200px] px-3 py-2 border border-thb-border rounded-lg text-sm" />
                   <p className="text-xs text-thb-text-muted mt-1">Minutes after standard hours before OT kicks in</p>
@@ -327,13 +327,13 @@ export default function AttendanceSettingsPage() {
                 <p className="text-sm font-medium text-thb-text-primary">Activity Monitoring</p>
                 <button
                   onClick={() => update('wfhActivityMonitoringEnabled', !config.wfhActivityMonitoringEnabled)}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${config.wfhActivityMonitoringEnabled ? 'bg-violet-500' : 'bg-slate-200'}`}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${config.wfhActivityMonitoringEnabled ? 'bg-teal-500' : 'bg-slate-200'}`}
                 >
                   <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${config.wfhActivityMonitoringEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
                 </button>
               </div>
               {config.wfhActivityMonitoringEnabled && (
-                <div className="pl-4 border-l-2 border-violet-200">
+                <div className="pl-4 border-l-2 border-teal-200">
                   <label className="block text-xs text-thb-text-muted mb-1">Inactivity Threshold (hrs)</label>
                   <input type="number" value={config.wfhInactivityThresholdHours} onChange={(e) => update('wfhInactivityThresholdHours', Number(e.target.value))} min={1} className="w-full max-w-[200px] px-3 py-2 border border-thb-border rounded-lg text-sm" />
                 </div>

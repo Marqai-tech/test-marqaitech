@@ -357,7 +357,7 @@ export default function OvertimePage() {
           {isAdmin && (
             <button
               onClick={handleAddNew}
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium text-sm shadow-sm shadow-blue-500/25 transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-500 text-white rounded-lg hover:bg-green-600 font-medium text-sm shadow-sm shadow-green-500/25 transition-colors"
             >
               <FiPlus className="w-4 h-4" /> Add Overtime
             </button>
@@ -423,13 +423,13 @@ export default function OvertimePage() {
               placeholder="Search by employee, reason, project..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+              className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
             />
           </div>
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[150px]"
+            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 min-w-[150px]"
           >
             <option value="">All Statuses</option>
             {OT_STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -437,7 +437,7 @@ export default function OvertimePage() {
           <select
             value={employeeFilter}
             onChange={(e) => setEmployeeFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[160px]"
+            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 min-w-[160px]"
           >
             <option value="">All Employees</option>
             {employees.map(e => (
@@ -450,7 +450,7 @@ export default function OvertimePage() {
             type="date"
             value={dateFilter}
             onChange={(e) => setDateFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[150px]"
+            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 min-w-[150px]"
             placeholder="Filter by date"
           />
         </div>
@@ -458,7 +458,7 @@ export default function OvertimePage() {
 
       {/* Embedded Inline Form */}
       {showForm && (
-        <div id="crud-form" className="thb-card border-l-4 border-l-blue-500">
+        <div id="crud-form" className="thb-card border-l-4 border-l-green-500">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-semibold text-thb-text-primary">
@@ -482,7 +482,7 @@ export default function OvertimePage() {
                     <select
                       value={form.employeeId}
                       onChange={(e) => setForm({ ...form, employeeId: e.target.value })}
-                      className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                      className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                     >
                       <option value="">Select Employee...</option>
                       {employees.map(e => (
@@ -496,7 +496,7 @@ export default function OvertimePage() {
                       required
                       value={form.employeeId}
                       onChange={(e) => setForm({ ...form, employeeId: e.target.value })}
-                      className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                      className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                       placeholder="Enter Employee ID"
                     />
                   )}
@@ -507,7 +507,7 @@ export default function OvertimePage() {
                     type="date"
                     value={form.date}
                     onChange={(e) => setForm({ ...form, date: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                   />
                 </div>
                 <div>
@@ -518,7 +518,7 @@ export default function OvertimePage() {
                     min="0.5"
                     value={form.hours}
                     onChange={(e) => setForm({ ...form, hours: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                     placeholder="e.g. 2, 3.5, 8"
                   />
                 </div>
@@ -534,7 +534,7 @@ export default function OvertimePage() {
                   <select
                     value={form.rateType}
                     onChange={(e) => setForm({ ...form, rateType: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                   >
                     {RATE_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
@@ -549,7 +549,7 @@ export default function OvertimePage() {
                     min="0"
                     value={form.rate}
                     onChange={(e) => setForm({ ...form, rate: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                     placeholder={
                       form.rateType === 'FLAT' ? 'e.g. 100' :
                       form.rateType === 'HOURLY_RATE' ? 'e.g. 25' :
@@ -576,7 +576,7 @@ export default function OvertimePage() {
                   <input
                     value={form.project}
                     onChange={(e) => setForm({ ...form, project: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                     placeholder="e.g. Project Alpha, Client Name"
                   />
                 </div>
@@ -586,7 +586,7 @@ export default function OvertimePage() {
                     value={form.reason}
                     onChange={(e) => setForm({ ...form, reason: e.target.value })}
                     rows={2}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 resize-none"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 resize-none"
                     placeholder="Reason for overtime..."
                   />
                 </div>
@@ -604,7 +604,7 @@ export default function OvertimePage() {
               <button
                 onClick={handleSubmit}
                 disabled={submitting}
-                className="px-6 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50 shadow-sm shadow-blue-500/25 transition-colors"
+                className="px-6 py-2.5 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 disabled:opacity-50 shadow-sm shadow-green-500/25 transition-colors"
               >
                 {submitting ? 'Saving...' : editingId ? 'Update Overtime' : 'Create Overtime'}
               </button>

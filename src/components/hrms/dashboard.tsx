@@ -115,8 +115,8 @@ export function Dashboard() {
     { label: 'New Hires (This Month)', value: safeLocaleString(newHires), change: 12.5, icon: UserPlus, color: 'text-teal-600', bg: 'bg-teal-50 dark:bg-teal-950/30' },
     { label: 'Open Positions', value: safeLocaleString(openPositions), change: -8.3, icon: Briefcase, color: 'text-amber-600', bg: 'bg-amber-50 dark:bg-amber-950/30' },
     { label: 'Attrition Rate', value: `${attritionRate}%`, change: -0.8, icon: TrendingDown, color: 'text-red-600', bg: 'bg-red-50 dark:bg-red-950/30' },
-    { label: 'Attendance Today', value: `${attendanceRate}%`, change: 1.2, icon: Clock, color: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-950/30' },
-    { label: 'Pending Approvals', value: safeLocaleString(pendingApprovals), change: -25, icon: CheckSquare, color: 'text-purple-600', bg: 'bg-purple-50 dark:bg-purple-950/30' },
+    { label: 'Attendance Today', value: `${attendanceRate}%`, change: 1.2, icon: Clock, color: 'text-green-600', bg: 'bg-green-50 dark:bg-green-950/30' },
+    { label: 'Pending Approvals', value: safeLocaleString(pendingApprovals), change: -25, icon: CheckSquare, color: 'text-teal-600', bg: 'bg-teal-50 dark:bg-green-950/30' },
   ];
 
   // Convert departmentStats to chart format with colors
@@ -342,7 +342,7 @@ export function Dashboard() {
                     <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${
                       activity.action === 'CREATE' ? 'bg-emerald-500' :
                       activity.action === 'UPDATE' ? 'bg-amber-500' :
-                      activity.action === 'DELETE' ? 'bg-red-500' : 'bg-blue-500'
+                      activity.action === 'DELETE' ? 'bg-red-500' : 'bg-green-500'
                     }`} />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm leading-snug">{activity.details || `${activity.action} on ${activity.entity}`}</p>
@@ -375,7 +375,7 @@ export function Dashboard() {
                     <Badge variant="secondary" className={`text-[10px] h-5 ${
                       insight.severity === 'high' ? 'bg-red-100 text-red-700 dark:bg-red-950/30 dark:text-red-400' :
                       insight.severity === 'medium' ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400' :
-                      'bg-blue-100 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400'
+                      'bg-green-100 text-green-700 dark:bg-green-950/30 dark:text-green-400'
                     }`}>
                       {insight.severity}
                     </Badge>

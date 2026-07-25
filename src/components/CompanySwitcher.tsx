@@ -351,10 +351,10 @@ export default function CompanySwitcher() {
     <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/30 transition-colors text-xs font-semibold text-slate-700 max-w-[180px] sm:max-w-[260px]"
+        className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white border border-slate-200 hover:border-emerald-300 hover:bg-emerald-50/30 transition-colors text-xs font-semibold text-slate-700 max-w-[180px] sm:max-w-[260px]"
         title="Switch company context"
       >
-        <FiLayers className="w-3.5 h-3.5 text-indigo-500 flex-shrink-0" />
+        <FiLayers className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
         <span className="truncate">{effectiveCompanyLabel(user?.role)}</span>
         <FiChevronDown className={`w-3 h-3 text-slate-400 flex-shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
@@ -362,13 +362,13 @@ export default function CompanySwitcher() {
       {open && (
         <div className="absolute right-0 top-full mt-2 w-[340px] sm:w-[460px] bg-white rounded-xl shadow-xl border border-slate-200 z-50 overflow-hidden">
           {/* Header */}
-          <div className="px-4 py-3 bg-gradient-to-r from-indigo-50 to-violet-50 border-b border-slate-100">
+          <div className="px-4 py-3 bg-gradient-to-r from-emerald-50 to-teal-50 border-b border-slate-100">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-bold text-indigo-900 uppercase tracking-wider flex items-center gap-2">
+                <p className="text-xs font-bold text-emerald-900 uppercase tracking-wider flex items-center gap-2">
                   <FiGrid className="w-3.5 h-3.5" /> Company Switcher
                 </p>
-                <p className="text-[11px] text-indigo-700/70 mt-0.5">
+                <p className="text-[11px] text-emerald-700/70 mt-0.5">
                   {isSuperAdmin
                     ? 'Parent (tenant) → Group company → Company'
                     : 'Pick a company in your group'}
@@ -378,7 +378,7 @@ export default function CompanySwitcher() {
                 onClick={() => refreshContext()}
                 disabled={hydrating}
                 title="Refresh tenant & company list"
-                className="flex items-center gap-1 text-[10px] font-semibold text-indigo-600 hover:text-indigo-800 hover:bg-indigo-100/60 px-2 py-1 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+                className="flex items-center gap-1 text-[10px] font-semibold text-emerald-600 hover:text-emerald-800 hover:bg-emerald-100/60 px-2 py-1 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
               >
                 <FiRefreshCw className={`w-3 h-3 ${hydrating ? 'animate-spin' : ''}`} />
                 {hydrating ? 'Loading' : 'Refresh'}
@@ -420,9 +420,9 @@ export default function CompanySwitcher() {
               companies → many companies. The tenant_admin can pick any
               company under any group, but cannot switch parent companies. */}
           {isTenantAdmin && tenant && (
-            <div className="px-4 py-3 border-b border-slate-100 bg-gradient-to-r from-indigo-50/70 to-violet-50/40">
+            <div className="px-4 py-3 border-b border-slate-100 bg-gradient-to-r from-emerald-50/70 to-teal-50/40">
               <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-md bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white text-[11px] font-bold flex-shrink-0">
+                <div className="w-7 h-7 rounded-md bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white text-[11px] font-bold flex-shrink-0">
                   {tenant.name?.[0]?.toUpperCase() || 'T'}
                 </div>
                 <div className="min-w-0">
@@ -463,7 +463,7 @@ export default function CompanySwitcher() {
                       <p className="text-xs text-slate-400 italic">No parent companies loaded yet.</p>
                       <button
                         onClick={() => refreshContext()}
-                        className="text-[10px] font-semibold text-indigo-600 hover:text-indigo-800 mt-1 flex items-center gap-1"
+                        className="text-[10px] font-semibold text-emerald-600 hover:text-emerald-800 mt-1 flex items-center gap-1"
                       >
                         <FiRefreshCw className="w-2.5 h-2.5" /> Click to load
                       </button>
@@ -483,20 +483,20 @@ export default function CompanySwitcher() {
                         }}
                         className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-left transition-colors border ${
                           isSelected
-                            ? 'bg-indigo-50 border-indigo-200'
+                            ? 'bg-emerald-50 border-emerald-200'
                             : 'bg-white border-slate-100 hover:bg-slate-50 hover:border-slate-200'
                         }`}
                       >
                         <div className="flex items-center gap-2 min-w-0">
                           <div className={`w-6 h-6 rounded-md flex items-center justify-center text-[10px] font-bold flex-shrink-0 ${
                             isSelected
-                              ? 'bg-gradient-to-br from-indigo-500 to-violet-600 text-white'
+                              ? 'bg-gradient-to-br from-emerald-500 to-teal-600 text-white'
                               : 'bg-slate-100 text-slate-600'
                           }`}>
                             {t.name?.[0]?.toUpperCase() || 'T'}
                           </div>
                           <div className="min-w-0">
-                            <p className={`text-xs font-semibold truncate ${isSelected ? 'text-indigo-900' : 'text-slate-800'}`}>
+                            <p className={`text-xs font-semibold truncate ${isSelected ? 'text-emerald-900' : 'text-slate-800'}`}>
                               {t.name}
                             </p>
                             <p className="text-[10px] text-slate-500 truncate">
@@ -512,7 +512,7 @@ export default function CompanySwitcher() {
                           }`}>
                             {t.status}
                           </span>
-                          {isSelected && <FiCheck className="w-3.5 h-3.5 text-indigo-600" />}
+                          {isSelected && <FiCheck className="w-3.5 h-3.5 text-emerald-600" />}
                         </div>
                       </button>
                     );
@@ -543,7 +543,7 @@ export default function CompanySwitcher() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search company..."
-                className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400/40 focus:border-indigo-300"
+                className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400/40 focus:border-emerald-300"
               />
             </div>
           </div>
@@ -560,11 +560,11 @@ export default function CompanySwitcher() {
                 setSearch('');
               }}
               className={`w-full text-left px-4 py-2.5 hover:bg-slate-50 transition-colors flex items-center justify-between border-b border-slate-100 ${
-                selectedCompanyId === null && selectedGroupId === null ? 'bg-indigo-50/40' : ''
+                selectedCompanyId === null && selectedGroupId === null ? 'bg-emerald-50/40' : ''
               }`}
             >
               <div className="flex items-center gap-2">
-                <FiLayers className="w-4 h-4 text-indigo-500" />
+                <FiLayers className="w-4 h-4 text-emerald-500" />
                 <div>
                   <p className="text-sm font-semibold text-slate-900">
                     {isSuperAdmin ? 'All companies in parent' : 'All companies (group)'}
@@ -575,7 +575,7 @@ export default function CompanySwitcher() {
                   </p>
                 </div>
               </div>
-              {selectedCompanyId === null && selectedGroupId === null && <FiCheck className="w-4 h-4 text-indigo-600" />}
+              {selectedCompanyId === null && selectedGroupId === null && <FiCheck className="w-4 h-4 text-emerald-600" />}
             </button>
 
             {/* Grouped company list */}
@@ -615,12 +615,12 @@ export default function CompanySwitcher() {
                           }}
                           className={`w-full flex items-center justify-between py-1.5 px-2 rounded mb-1 transition-colors ${
                             isGSelected
-                              ? 'bg-violet-50 text-violet-700 ring-1 ring-violet-200'
+                              ? 'bg-teal-50 text-teal-700 ring-1 ring-teal-200'
                               : 'bg-slate-50 hover:bg-slate-100 text-slate-700'
                           }`}
                         >
                           <span className="text-xs font-medium flex items-center gap-1.5">
-                            <FiLayers className="w-3 h-3 text-violet-500" /> {g.name}
+                            <FiLayers className="w-3 h-3 text-teal-500" /> {g.name}
                           </span>
                           <span className="text-[10px] text-slate-500">0 companies</span>
                         </button>
@@ -629,7 +629,7 @@ export default function CompanySwitcher() {
                     <a
                       href={isSuperAdmin ? '/super-admin' : '/tenant-admin/companies'}
                       onClick={() => setOpen(false)}
-                      className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-700"
+                      className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 hover:text-emerald-700"
                     >
                       <FiBriefcase className="w-3 h-3" />
                       {isSuperAdmin ? 'Create companies in Super Admin →' : 'Induct a company →'}
@@ -657,13 +657,13 @@ export default function CompanySwitcher() {
                       }}
                       className={`w-full px-4 py-1.5 flex items-center justify-between transition-colors ${
                         isGroupSelected
-                          ? 'bg-violet-50/80 hover:bg-violet-100/80'
+                          ? 'bg-teal-50/80 hover:bg-teal-100/80'
                           : 'bg-slate-50/60 hover:bg-slate-100/80'
                       }`}
                       title={`View all companies in the "${g.groupName}" group`}
                     >
                       <p className={`text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 ${
-                        isGroupSelected ? 'text-violet-700' : 'text-slate-500'
+                        isGroupSelected ? 'text-teal-700' : 'text-slate-500'
                       }`}>
                         <FiLayers className="w-3 h-3" /> {g.groupName}
                         <span className="ml-1 normal-case font-medium text-[9px] text-slate-400">
@@ -677,7 +677,7 @@ export default function CompanySwitcher() {
                             {groupMeta.employeeLimitMode === 'per_company' ? 'per-co' : 'group'} cap: {groupMeta.maxEmployees}
                           </span>
                         )}
-                        {isGroupSelected && <FiCheck className="w-3.5 h-3.5 text-violet-600" />}
+                        {isGroupSelected && <FiCheck className="w-3.5 h-3.5 text-teal-600" />}
                       </div>
                     </button>
                     {g.items.map((c) => {
@@ -693,7 +693,7 @@ export default function CompanySwitcher() {
                             setSearch('');
                           }}
                           className={`w-full text-left pl-8 pr-4 py-2.5 hover:bg-slate-50 transition-colors flex items-center justify-between ${
-                            isCompanySelected ? 'bg-indigo-50/40' : ''
+                            isCompanySelected ? 'bg-emerald-50/40' : ''
                           }`}
                         >
                           <div className="flex items-center gap-2 min-w-0">
@@ -705,12 +705,12 @@ export default function CompanySwitcher() {
                                 {c._count?.branches || 0} branches · {empCount} emp
                                 {/* Super admin: show parent (tenant) name on each company */}
                                 {isSuperAdmin && scopedTenant && (
-                                  <span className="text-indigo-500"> · parent: {scopedTenant.name}</span>
+                                  <span className="text-emerald-500"> · parent: {scopedTenant.name}</span>
                                 )}
                               </p>
                             </div>
                           </div>
-                          {isCompanySelected && <FiCheck className="w-4 h-4 text-indigo-600 flex-shrink-0" />}
+                          {isCompanySelected && <FiCheck className="w-4 h-4 text-emerald-600 flex-shrink-0" />}
                         </button>
                       );
                     })}
@@ -730,7 +730,7 @@ export default function CompanySwitcher() {
             {isSuperAdmin && (
               <a
                 href="/super-admin"
-                className="text-indigo-600 hover:text-indigo-700 font-medium"
+                className="text-emerald-600 hover:text-emerald-700 font-medium"
                 onClick={() => setOpen(false)}
               >
                 Manage parents & groups →
@@ -739,7 +739,7 @@ export default function CompanySwitcher() {
             {isTenantAdmin && (
               <a
                 href="/tenant-admin"
-                className="text-indigo-600 hover:text-indigo-700 font-medium"
+                className="text-emerald-600 hover:text-emerald-700 font-medium"
                 onClick={() => setOpen(false)}
               >
                 Manage group companies →

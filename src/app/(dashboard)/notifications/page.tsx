@@ -54,20 +54,20 @@ function getTypeIcon(type: string) {
     case 'success': return <FiCheckCircle className="w-5 h-5 text-emerald-500" />;
     case 'warning': return <FiAlertTriangle className="w-5 h-5 text-amber-500" />;
     case 'error': return <FiAlertCircle className="w-5 h-5 text-red-500" />;
-    case 'reminder': return <FiClock className="w-5 h-5 text-purple-500" />;
-    default: return <FiInfo className="w-5 h-5 text-blue-500" />;
+    case 'reminder': return <FiClock className="w-5 h-5 text-teal-500" />;
+    default: return <FiInfo className="w-5 h-5 text-green-500" />;
   }
 }
 
 function getBorderColor(type: string) {
   const map: Record<string, string> = {
-    info: 'border-l-blue-500',
+    info: 'border-l-green-500',
     warning: 'border-l-amber-500',
     success: 'border-l-emerald-500',
     error: 'border-l-red-500',
-    reminder: 'border-l-purple-500',
-    login: 'border-l-blue-500',
-    logout: 'border-l-blue-500',
+    reminder: 'border-l-teal-500',
+    login: 'border-l-green-500',
+    logout: 'border-l-green-500',
     workflow: 'border-l-cyan-500',
   };
   return map[type] || 'border-l-slate-400';
@@ -178,7 +178,7 @@ export default function NotificationsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
-            <FiBell className="w-6 h-6 text-blue-500" />
+            <FiBell className="w-6 h-6 text-green-500" />
             Notifications
           </h1>
           <p className="text-thb-text-secondary mt-1">
@@ -186,7 +186,7 @@ export default function NotificationsPage() {
           </p>
         </div>
         {unreadCount > 0 && (
-          <button onClick={handleMarkAllRead} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium text-sm shadow-sm shadow-blue-500/25 transition-colors">
+          <button onClick={handleMarkAllRead} className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-500 text-white rounded-lg hover:bg-green-600 font-medium text-sm shadow-sm shadow-green-500/25 transition-colors">
             <FiCheck className="w-4 h-4" />
             Mark All as Read
           </button>
@@ -208,14 +208,14 @@ export default function NotificationsPage() {
               type="text"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+              className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
               placeholder="Search notifications..."
             />
           </div>
           <div className="flex gap-2 flex-wrap">
             <div className="relative">
               <FiFilter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
-              <select value={filterType} onChange={e => setFilterType(e.target.value)} className="pl-9 pr-8 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 appearance-none bg-white">
+              <select value={filterType} onChange={e => setFilterType(e.target.value)} className="pl-9 pr-8 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 appearance-none bg-white">
                 <option value="">All Types</option>
                 <option value="info">Info</option>
                 <option value="warning">Warning</option>
@@ -233,7 +233,7 @@ export default function NotificationsPage() {
                 >
                   {opt}
                   {opt === 'unread' && unreadCount > 0 && (
-                    <span className="ml-1.5 inline-flex items-center justify-center w-5 h-5 text-[10px] font-bold bg-blue-500 text-white rounded-full">{unreadCount > 9 ? '9+' : unreadCount}</span>
+                    <span className="ml-1.5 inline-flex items-center justify-center w-5 h-5 text-[10px] font-bold bg-green-500 text-white rounded-full">{unreadCount > 9 ? '9+' : unreadCount}</span>
                   )}
                 </button>
               ))}
@@ -270,7 +270,7 @@ export default function NotificationsPage() {
             <div
               key={n.id}
               onClick={() => !n.isRead && handleMarkRead(n.id)}
-              className={`thb-card border-l-4 ${getBorderColor(n.type)} transition-all cursor-pointer hover:shadow-md ${!n.isRead ? 'bg-blue-50/40 border-l-4' : 'bg-white'}`}
+              className={`thb-card border-l-4 ${getBorderColor(n.type)} transition-all cursor-pointer hover:shadow-md ${!n.isRead ? 'bg-green-50/40 border-l-4' : 'bg-white'}`}
             >
               <div className="p-4">
                 <div className="flex items-start gap-4">
@@ -280,17 +280,17 @@ export default function NotificationsPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <p className={`text-sm font-medium ${!n.isRead ? 'text-thb-text-primary' : 'text-thb-text-secondary'}`}>{n.title}</p>
-                      {!n.isRead && <span className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0" />}
+                      {!n.isRead && <span className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0" />}
                     </div>
                     <p className={`text-sm mt-0.5 ${!n.isRead ? 'text-thb-text-secondary' : 'text-thb-text-muted'}`}>{n.message}</p>
                     <div className="flex items-center gap-3 mt-2">
                       <span className="text-xs text-thb-text-muted">{formatTimeAgo(n.createdAt)}</span>
                       <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
-                        n.type === 'info' ? 'bg-blue-50 text-blue-600' :
+                        n.type === 'info' ? 'bg-green-50 text-green-600' :
                         n.type === 'warning' ? 'bg-amber-50 text-amber-600' :
                         n.type === 'success' ? 'bg-emerald-50 text-emerald-600' :
                         n.type === 'error' ? 'bg-red-50 text-red-600' :
-                        n.type === 'reminder' ? 'bg-purple-50 text-purple-600' :
+                        n.type === 'reminder' ? 'bg-teal-50 text-teal-600' :
                         'bg-slate-50 text-slate-600'
                       }`}>
                         {n.type}
@@ -304,7 +304,7 @@ export default function NotificationsPage() {
                     <button
                       onClick={(e) => { e.stopPropagation(); handleMarkRead(n.id); }}
                       disabled={markingRead === n.id}
-                      className="p-2 rounded-lg text-thb-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors flex-shrink-0"
+                      className="p-2 rounded-lg text-thb-text-muted hover:text-green-500 hover:bg-green-50 transition-colors flex-shrink-0"
                       title="Mark as read"
                     >
                       <FiCheck className="w-4 h-4" />

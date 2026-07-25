@@ -137,7 +137,7 @@ export default function CandidateSettingsPage() {
       )}
 
       <div className="border-t pt-4">
-        <Link href="/candidate-portal/dashboard" className="text-sm text-blue-600 hover:underline">
+        <Link href="/candidate-portal/dashboard" className="text-sm text-green-600 hover:underline">
           ← Back to Dashboard
         </Link>
       </div>

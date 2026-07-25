@@ -207,28 +207,28 @@ export default function ResignationPage() {
       {/* Resignation Details */}
       <div className="thb-card p-6 rounded-xl">
         <h2 className="text-lg font-semibold text-thb-text-primary flex items-center gap-2 mb-4">
-          <FiCalendar className="w-5 h-5 text-violet-500" />
+          <FiCalendar className="w-5 h-5 text-teal-500" />
           Resignation Details
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <div>
             <label className="block text-xs font-medium text-thb-text-secondary mb-1">Resignation Date *</label>
-            <input type="date" value={form.resignationDate} onChange={e => updateField('resignationDate', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+            <input type="date" value={form.resignationDate} onChange={e => updateField('resignationDate', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
           </div>
           <div>
             <label className="block text-xs font-medium text-thb-text-secondary mb-1">Last Working Date *</label>
-            <input type="date" value={form.lastWorkingDate} onChange={e => updateField('lastWorkingDate', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+            <input type="date" value={form.lastWorkingDate} onChange={e => updateField('lastWorkingDate', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
           </div>
           <div>
             <label className="block text-xs font-medium text-thb-text-secondary mb-1">Reason Category *</label>
-            <select value={form.reasonCategory} onChange={e => updateField('reasonCategory', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+            <select value={form.reasonCategory} onChange={e => updateField('reasonCategory', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
               {REASON_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
             </select>
           </div>
         </div>
         <div className="mt-4">
           <label className="block text-xs font-medium text-thb-text-secondary mb-1">Detailed Reason * <span className="font-normal text-slate-400">(min 20 chars)</span></label>
-          <textarea value={form.detailedReason} onChange={e => updateField('detailedReason', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" rows={3} placeholder="Please describe your reason for resigning in detail..." />
+          <textarea value={form.detailedReason} onChange={e => updateField('detailedReason', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" rows={3} placeholder="Please describe your reason for resigning in detail..." />
           <p className="text-[10px] text-slate-400 mt-0.5">{form.detailedReason.length}/20 min characters</p>
         </div>
       </div>
@@ -242,7 +242,7 @@ export default function ResignationPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-medium text-thb-text-secondary mb-1">Notice Period (Days)</label>
-            <select value={form.noticePeriodDays} onChange={e => updateField('noticePeriodDays', Number(e.target.value))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+            <select value={form.noticePeriodDays} onChange={e => updateField('noticePeriodDays', Number(e.target.value))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
               <option value={7}>7 Days</option>
               <option value={15}>15 Days</option>
               <option value={30}>30 Days</option>
@@ -260,7 +260,7 @@ export default function ResignationPage() {
         {form.isNoticePeriodWaived && (
           <div className="mt-4">
             <label className="block text-xs font-medium text-thb-text-secondary mb-1 flex items-center gap-1"><FiAlertCircle className="w-3 h-3 text-amber-500" /> Waiver Reason *</label>
-            <textarea value={form.waiverReason} onChange={e => updateField('waiverReason', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" rows={2} placeholder="Provide reason for waiving the notice period..." />
+            <textarea value={form.waiverReason} onChange={e => updateField('waiverReason', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" rows={2} placeholder="Provide reason for waiving the notice period..." />
           </div>
         )}
 
@@ -281,11 +281,11 @@ export default function ResignationPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-medium text-thb-text-secondary mb-1">Handover Plan</label>
-            <textarea value={form.handoverPlan} onChange={e => updateField('handoverPlan', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" rows={3} placeholder="Describe your handover plan for ongoing tasks and projects..." />
+            <textarea value={form.handoverPlan} onChange={e => updateField('handoverPlan', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" rows={3} placeholder="Describe your handover plan for ongoing tasks and projects..." />
           </div>
           <div>
             <label className="block text-xs font-medium text-thb-text-secondary mb-1">Pending Tasks</label>
-            <textarea value={form.pendingTasks} onChange={e => updateField('pendingTasks', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" rows={3} placeholder="List any pending tasks or deliverables..." />
+            <textarea value={form.pendingTasks} onChange={e => updateField('pendingTasks', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" rows={3} placeholder="List any pending tasks or deliverables..." />
           </div>
         </div>
       </div>

@@ -60,11 +60,11 @@ interface ArticleDetail extends DocArticle {
 
 // Doc type config
 const docTypeConfig: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
-  technical: { label: 'Technical', color: 'bg-blue-100 text-blue-700', icon: <FiCode className="w-3.5 h-3.5" /> },
+  technical: { label: 'Technical', color: 'bg-green-100 text-green-700', icon: <FiCode className="w-3.5 h-3.5" /> },
   functional: { label: 'Functional', color: 'bg-green-100 text-green-700', icon: <FiFileText className="w-3.5 h-3.5" /> },
-  workflow: { label: 'Workflow', color: 'bg-indigo-100 text-indigo-700', icon: <FiGitBranch className="w-3.5 h-3.5" /> },
+  workflow: { label: 'Workflow', color: 'bg-emerald-100 text-emerald-700', icon: <FiGitBranch className="w-3.5 h-3.5" /> },
   security: { label: 'Security', color: 'bg-red-100 text-red-700', icon: <FiShield className="w-3.5 h-3.5" /> },
-  ai: { label: 'AI', color: 'bg-purple-100 text-purple-700', icon: <FiZap className="w-3.5 h-3.5" /> },
+  ai: { label: 'AI', color: 'bg-teal-100 text-teal-700', icon: <FiZap className="w-3.5 h-3.5" /> },
   sop: { label: 'SOP', color: 'bg-amber-100 text-amber-700', icon: <FiClipboard className="w-3.5 h-3.5" /> },
   training: { label: 'Training', color: 'bg-teal-100 text-teal-700', icon: <FiPlay className="w-3.5 h-3.5" /> },
 };
@@ -154,11 +154,11 @@ function getCategoryIcon(iconName: string) {
 
 function getCategoryColorClass(color: string) {
   const colors: Record<string, string> = {
-    blue: 'bg-blue-50 text-blue-600 border-blue-200',
+    blue: 'bg-green-50 text-green-600 border-green-200',
     green: 'bg-green-50 text-green-600 border-green-200',
-    indigo: 'bg-indigo-50 text-indigo-600 border-indigo-200',
+    indigo: 'bg-emerald-50 text-emerald-600 border-emerald-200',
     red: 'bg-red-50 text-red-600 border-red-200',
-    purple: 'bg-purple-50 text-purple-600 border-purple-200',
+    purple: 'bg-teal-50 text-teal-600 border-teal-200',
     amber: 'bg-amber-50 text-amber-600 border-amber-200',
     teal: 'bg-teal-50 text-teal-600 border-teal-200',
   };
@@ -177,7 +177,7 @@ function DocsPageContent() {
       moduleKey="knowledge"
       moduleLabel="Knowledge Base"
       moduleIcon={<FiBookOpen className="w-5 h-5 text-white" />}
-      gradientColor="from-blue-500 to-cyan-600"
+      gradientColor="from-green-500 to-cyan-600"
       tabs={knowledgeTabs}
       overviewContent={<DocsContent />}
       children={{}}
@@ -187,7 +187,7 @@ function DocsPageContent() {
 
 export default function DocsPage() {
   return (
-    <Suspense fallback={<div className="flex items-center justify-center py-20"><div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full" /></div>}>
+    <Suspense fallback={<div className="flex items-center justify-center py-20"><div className="animate-spin w-8 h-8 border-2 border-green-500 border-t-transparent rounded-full" /></div>}>
       <DocsPageContent />
     </Suspense>
   );
@@ -588,7 +588,7 @@ function DocsContent() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="thb-card p-6 bg-gradient-to-r from-violet-500 to-purple-600 border-0 relative overflow-hidden">
+      <div className="thb-card p-6 bg-gradient-to-r from-teal-500 to-teal-600 border-0 relative overflow-hidden">
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSA2MCAwIEwgMCAwIDAgNjAiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwwLjA1KSIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2dyaWQpIi8+PC9zdmc+')] opacity-50" />
         <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="flex items-center gap-4">
@@ -597,7 +597,7 @@ function DocsContent() {
             </div>
             <div>
               <h1 className="text-2xl font-bold text-white">Documentation Hub</h1>
-              <p className="text-violet-100 mt-0.5 text-sm">Knowledge base, SOPs, training & technical docs</p>
+              <p className="text-teal-100 mt-0.5 text-sm">Knowledge base, SOPs, training & technical docs</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -617,7 +617,7 @@ function DocsContent() {
                 </button>
                 <button
                   onClick={() => openEditor()}
-                  className="px-3 py-2 rounded-lg bg-white text-violet-600 text-sm font-bold hover:bg-white/90 transition-colors shadow-lg flex items-center gap-1.5"
+                  className="px-3 py-2 rounded-lg bg-white text-teal-600 text-sm font-bold hover:bg-white/90 transition-colors shadow-lg flex items-center gap-1.5"
                 >
                   <FiPlus className="w-4 h-4" /> Article
                 </button>
@@ -633,7 +633,7 @@ function DocsContent() {
           <span key={i} className="flex items-center gap-1.5">
             {i > 0 && <FiChevronRight className="w-3.5 h-3.5 text-thb-text-muted" />}
             {i < breadcrumb.length - 1 ? (
-              <button onClick={item.onClick} className="text-thb-text-secondary hover:text-violet-600 transition-colors">
+              <button onClick={item.onClick} className="text-thb-text-secondary hover:text-teal-600 transition-colors">
                 {item.label}
               </button>
             ) : (
@@ -655,7 +655,7 @@ function DocsContent() {
                 placeholder="Search docs..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 rounded-lg border border-thb-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400"
+                className="w-full pl-9 pr-3 py-2 rounded-lg border border-thb-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400"
               />
             </div>
 
@@ -667,7 +667,7 @@ function DocsContent() {
                   onClick={() => setSelectedCategory(null)}
                   className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors ${
                     !selectedCategory
-                      ? 'bg-violet-50 text-violet-700 font-medium'
+                      ? 'bg-teal-50 text-teal-700 font-medium'
                       : 'text-thb-text-secondary hover:bg-slate-50'
                   }`}
                 >
@@ -681,7 +681,7 @@ function DocsContent() {
                     onClick={() => setSelectedCategory(selectedCategory === cat.slug ? null : cat.slug)}
                     className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors ${
                       selectedCategory === cat.slug
-                        ? 'bg-violet-50 text-violet-700 font-medium'
+                        ? 'bg-teal-50 text-teal-700 font-medium'
                         : 'text-thb-text-secondary hover:bg-slate-50'
                     }`}
                   >
@@ -703,7 +703,7 @@ function DocsContent() {
                   onClick={() => setSelectedDocType(null)}
                   className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
                     !selectedDocType
-                      ? 'bg-violet-100 text-violet-700'
+                      ? 'bg-teal-100 text-teal-700'
                       : 'bg-slate-100 text-thb-text-secondary hover:bg-slate-200'
                   }`}
                 >
@@ -737,14 +737,14 @@ function DocsContent() {
                 placeholder="Search docs..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 rounded-lg border border-thb-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400"
+                className="w-full pl-9 pr-3 py-2 rounded-lg border border-thb-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400"
               />
             </div>
             <div className="flex gap-2 overflow-x-auto pb-1">
               <button
                 onClick={() => setSelectedCategory(null)}
                 className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap ${
-                  !selectedCategory ? 'bg-violet-100 text-violet-700' : 'bg-slate-100 text-thb-text-secondary'
+                  !selectedCategory ? 'bg-teal-100 text-teal-700' : 'bg-slate-100 text-thb-text-secondary'
                 }`}
               >
                 All
@@ -754,7 +754,7 @@ function DocsContent() {
                   key={cat.id}
                   onClick={() => setSelectedCategory(selectedCategory === cat.slug ? null : cat.slug)}
                   className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap ${
-                    selectedCategory === cat.slug ? 'bg-violet-100 text-violet-700' : 'bg-slate-100 text-thb-text-secondary'
+                    selectedCategory === cat.slug ? 'bg-teal-100 text-teal-700' : 'bg-slate-100 text-thb-text-secondary'
                   }`}
                 >
                   {cat.name}
@@ -765,7 +765,7 @@ function DocsContent() {
 
           {/* Category Editor (inline) */}
           {showCategoryEditor && (
-            <div className="thb-card p-6 mb-6 border-violet-200">
+            <div className="thb-card p-6 mb-6 border-teal-200">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-bold text-thb-text-primary">New Category</h3>
                 <button onClick={() => setShowCategoryEditor(false)} className="p-1.5 rounded-lg hover:bg-slate-100 text-thb-text-muted">
@@ -778,7 +778,7 @@ function DocsContent() {
                   <input
                     value={categoryForm.name}
                     onChange={(e) => setCategoryForm(f => ({ ...f, name: e.target.value, slug: generateSlug(e.target.value) }))}
-                    className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                    className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20"
                     placeholder="e.g., API Documentation"
                   />
                 </div>
@@ -787,7 +787,7 @@ function DocsContent() {
                   <input
                     value={categoryForm.slug}
                     onChange={(e) => setCategoryForm(f => ({ ...f, slug: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                    className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20"
                     placeholder="e.g., api-documentation"
                   />
                 </div>
@@ -796,7 +796,7 @@ function DocsContent() {
                   <input
                     value={categoryForm.description}
                     onChange={(e) => setCategoryForm(f => ({ ...f, description: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                    className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20"
                     placeholder="Brief description of this category"
                   />
                 </div>
@@ -805,7 +805,7 @@ function DocsContent() {
                   <select
                     value={categoryForm.color}
                     onChange={(e) => setCategoryForm(f => ({ ...f, color: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                    className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20"
                   >
                     {['blue', 'green', 'indigo', 'red', 'purple', 'amber', 'teal'].map(c => (
                       <option key={c} value={c}>{c}</option>
@@ -817,7 +817,7 @@ function DocsContent() {
                   <select
                     value={categoryForm.icon}
                     onChange={(e) => setCategoryForm(f => ({ ...f, icon: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                    className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20"
                   >
                     {['FiBookOpen', 'FiCode', 'FiFileText', 'FiGitBranch', 'FiShield', 'FiZap', 'FiClipboard', 'FiPlay'].map(i => (
                       <option key={i} value={i}>{i.replace('Fi', '')}</option>
@@ -832,7 +832,7 @@ function DocsContent() {
                 <button
                   onClick={handleSaveCategory}
                   disabled={!categoryForm.name || !categoryForm.slug}
-                  className="px-4 py-2 rounded-lg text-sm font-bold bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-4 py-2 rounded-lg text-sm font-bold bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Create Category
                 </button>
@@ -842,7 +842,7 @@ function DocsContent() {
 
           {/* Article Editor (inline) */}
           {showArticleEditor && (
-            <div className="thb-card p-6 mb-6 border-violet-200">
+            <div className="thb-card p-6 mb-6 border-teal-200">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-bold text-thb-text-primary">{editingArticle ? 'Edit Article' : 'New Article'}</h3>
                 <button onClick={() => { setShowArticleEditor(false); setEditingArticle(null); }} className="p-1.5 rounded-lg hover:bg-slate-100 text-thb-text-muted">
@@ -855,7 +855,7 @@ function DocsContent() {
                   <input
                     value={articleForm.title}
                     onChange={(e) => setArticleForm(f => ({ ...f, title: e.target.value, slug: editingArticle ? f.slug : generateSlug(e.target.value) }))}
-                    className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                    className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20"
                     placeholder="Article title"
                   />
                 </div>
@@ -864,7 +864,7 @@ function DocsContent() {
                   <input
                     value={articleForm.slug}
                     onChange={(e) => setArticleForm(f => ({ ...f, slug: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                    className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20"
                     placeholder="url-friendly-slug"
                   />
                 </div>
@@ -873,7 +873,7 @@ function DocsContent() {
                   <select
                     value={articleForm.categoryId}
                     onChange={(e) => setArticleForm(f => ({ ...f, categoryId: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                    className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20"
                   >
                     <option value="">Select category</option>
                     {categories.map(cat => (
@@ -886,7 +886,7 @@ function DocsContent() {
                   <select
                     value={articleForm.docType}
                     onChange={(e) => setArticleForm(f => ({ ...f, docType: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                    className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20"
                   >
                     {Object.entries(docTypeConfig).map(([key, config]) => (
                       <option key={key} value={key}>{config.label}</option>
@@ -898,7 +898,7 @@ function DocsContent() {
                   <select
                     value={articleForm.moduleKey}
                     onChange={(e) => setArticleForm(f => ({ ...f, moduleKey: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                    className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20"
                   >
                     <option value="">None</option>
                     {moduleKeys.map(m => (
@@ -912,7 +912,7 @@ function DocsContent() {
                     value={articleForm.summary}
                     onChange={(e) => setArticleForm(f => ({ ...f, summary: e.target.value }))}
                     rows={2}
-                    className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 resize-none"
+                    className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 resize-none"
                     placeholder="Brief summary of the article"
                   />
                 </div>
@@ -922,7 +922,7 @@ function DocsContent() {
                     value={articleForm.content}
                     onChange={(e) => setArticleForm(f => ({ ...f, content: e.target.value }))}
                     rows={12}
-                    className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm font-mono focus:outline-none focus:ring-2 focus:ring-violet-500/20 resize-y"
+                    className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm font-mono focus:outline-none focus:ring-2 focus:ring-teal-500/20 resize-y"
                     placeholder="# Title&#10;&#10;Write your content in Markdown..."
                   />
                 </div>
@@ -931,7 +931,7 @@ function DocsContent() {
                   <input
                     value={articleForm.tags}
                     onChange={(e) => setArticleForm(f => ({ ...f, tags: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                    className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20"
                     placeholder="e.g., payroll, setup, guide"
                   />
                 </div>
@@ -941,7 +941,7 @@ function DocsContent() {
                     <select
                       value={articleForm.status}
                       onChange={(e) => setArticleForm(f => ({ ...f, status: e.target.value }))}
-                      className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                      className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20"
                     >
                       <option value="draft">Draft</option>
                       <option value="published">Published</option>
@@ -952,7 +952,7 @@ function DocsContent() {
                     <input
                       value={articleForm.version}
                       onChange={(e) => setArticleForm(f => ({ ...f, version: e.target.value }))}
-                      className="w-24 px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                      className="w-24 px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20"
                       placeholder="1.0"
                     />
                   </div>
@@ -965,7 +965,7 @@ function DocsContent() {
                 <button
                   onClick={handleSaveArticle}
                   disabled={!articleForm.title || !articleForm.slug || !articleForm.categoryId || !articleForm.content}
-                  className="px-4 py-2 rounded-lg text-sm font-bold bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-4 py-2 rounded-lg text-sm font-bold bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {editingArticle ? 'Update Article' : 'Create Article'}
                 </button>
@@ -975,10 +975,10 @@ function DocsContent() {
 
           {/* Access Panel (inline) */}
           {showAccessPanel && selectedArticle && (
-            <div className="thb-card p-6 mb-6 border-violet-200">
+            <div className="thb-card p-6 mb-6 border-teal-200">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-bold text-thb-text-primary flex items-center gap-2">
-                  <FiLock className="w-5 h-5 text-violet-600" /> Manage Access — {selectedArticle.title}
+                  <FiLock className="w-5 h-5 text-teal-600" /> Manage Access — {selectedArticle.title}
                 </h3>
                 <button onClick={() => setShowAccessPanel(false)} className="p-1.5 rounded-lg hover:bg-slate-100 text-thb-text-muted">
                   <FiX className="w-5 h-5" />
@@ -1056,7 +1056,7 @@ function DocsContent() {
                   <select
                     value={newAccessRole}
                     onChange={(e) => setNewAccessRole(e.target.value)}
-                    className="px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                    className="px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20"
                   >
                     <option value="">Select role...</option>
                     {roles.map(r => (
@@ -1066,7 +1066,7 @@ function DocsContent() {
                   <select
                     value={newAccessType}
                     onChange={(e) => setNewAccessType(e.target.value)}
-                    className="px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                    className="px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20"
                   >
                     <option value="read">Read</option>
                     <option value="edit">Edit</option>
@@ -1075,7 +1075,7 @@ function DocsContent() {
                   <button
                     onClick={handleAddAccessRule}
                     disabled={!newAccessRole}
-                    className="px-4 py-2 rounded-lg bg-violet-600 text-white text-sm font-bold hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+                    className="px-4 py-2 rounded-lg bg-teal-600 text-white text-sm font-bold hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
                   >
                     <FiPlus className="w-4 h-4" /> Add
                   </button>
@@ -1124,7 +1124,7 @@ function DocsContent() {
                   <div className="flex items-center gap-1.5">
                     <button
                       onClick={() => openAccessPanel(selectedArticle)}
-                      className="p-2 rounded-lg hover:bg-violet-50 text-violet-600 transition-colors"
+                      className="p-2 rounded-lg hover:bg-teal-50 text-teal-600 transition-colors"
                       title="Manage Access"
                     >
                       <FiLock className="w-4 h-4" />
@@ -1177,8 +1177,8 @@ function DocsContent() {
                     </div>
                   ))}
                   {isInitializing && (
-                    <div className="thb-card p-6 text-center border-violet-200">
-                      <div className="w-10 h-10 border-4 border-violet-200 border-t-violet-600 rounded-full animate-spin mx-auto mb-3" />
+                    <div className="thb-card p-6 text-center border-teal-200">
+                      <div className="w-10 h-10 border-4 border-teal-200 border-t-teal-600 rounded-full animate-spin mx-auto mb-3" />
                       <p className="text-sm text-thb-text-secondary font-medium">Initializing Documentation Hub...</p>
                       <p className="text-xs text-thb-text-muted mt-1">Creating tables and seeding sample documentation</p>
                     </div>
@@ -1194,7 +1194,7 @@ function DocsContent() {
                   {canEditDocs && (
                     <button
                       onClick={async () => { await autoInitialize(); fetchCategories(); fetchArticles(); }}
-                      className="px-4 py-2 rounded-lg bg-violet-600 text-white text-sm font-bold hover:bg-violet-700"
+                      className="px-4 py-2 rounded-lg bg-teal-600 text-white text-sm font-bold hover:bg-teal-700"
                     >
                       Initialize Documentation Hub
                     </button>
@@ -1236,7 +1236,7 @@ function DocsContent() {
                                 onClick={() => loadArticle(article.id).then(() => {
                                   if (selectedArticle) openAccessPanel(selectedArticle);
                                 })}
-                                className="p-1.5 rounded hover:bg-violet-50 text-violet-500"
+                                className="p-1.5 rounded hover:bg-teal-50 text-teal-500"
                                 title="Manage Access"
                               >
                                 <FiLock className="w-3.5 h-3.5" />
@@ -1244,7 +1244,7 @@ function DocsContent() {
                             </div>
                           )}
                         </div>
-                        <h3 className="text-sm font-bold text-thb-text-primary group-hover:text-violet-600 transition-colors mb-1.5 line-clamp-2">
+                        <h3 className="text-sm font-bold text-thb-text-primary group-hover:text-teal-600 transition-colors mb-1.5 line-clamp-2">
                           {article.title}
                         </h3>
                         {article.summary && (

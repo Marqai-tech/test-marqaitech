@@ -336,17 +336,17 @@ export function Compliance() {
               <CardContent className="p-4">
                 <div className="flex items-start gap-3">
                   <div className={`p-2 rounded-lg shrink-0 ${
-                    alert.severity === 'high' ? 'bg-red-50 dark:bg-red-950/30' : alert.severity === 'medium' ? 'bg-amber-50 dark:bg-amber-950/30' : 'bg-blue-50 dark:bg-blue-950/30'
+                    alert.severity === 'high' ? 'bg-red-50 dark:bg-red-950/30' : alert.severity === 'medium' ? 'bg-amber-50 dark:bg-amber-950/30' : 'bg-green-50 dark:bg-green-950/30'
                   }`}>
                     <Bell className={`h-4 w-4 ${
-                      alert.severity === 'high' ? 'text-red-600' : alert.severity === 'medium' ? 'text-amber-600' : 'text-blue-600'
+                      alert.severity === 'high' ? 'text-red-600' : alert.severity === 'medium' ? 'text-amber-600' : 'text-green-600'
                     }`} />
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
                       <p className="text-sm font-medium">{alert.title}</p>
                       <Badge className={`text-[10px] ${
-                        alert.severity === 'high' ? 'bg-red-100 text-red-800' : alert.severity === 'medium' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'
+                        alert.severity === 'high' ? 'bg-red-100 text-red-800' : alert.severity === 'medium' ? 'bg-amber-100 text-amber-800' : 'bg-green-100 text-green-800'
                       }`}>{alert.severity}</Badge>
                     </div>
                     <p className="text-xs text-muted-foreground">{alert.description}</p>
@@ -376,7 +376,7 @@ export function Compliance() {
                       <span className="font-medium text-emerald-600">{audit.resolved}</span>
                     </div>
                     <Badge className={`text-[10px] ${
-                      audit.status === 'completed' ? 'bg-emerald-100 text-emerald-800' : audit.status === 'in_progress' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'
+                      audit.status === 'completed' ? 'bg-emerald-100 text-emerald-800' : audit.status === 'in_progress' ? 'bg-amber-100 text-amber-800' : 'bg-green-100 text-green-800'
                     }`}>{audit.status.replace('_', ' ')}</Badge>
                   </div>
                 </div>

@@ -58,11 +58,11 @@ export default function GiftingPage() {
           <h1 className="text-2xl font-bold">Gifting & Rewards</h1>
           <p className="text-sm text-gray-600 mt-1">Milestone automation · P2P kudos · Wallet redemption (REQ-GFT-01/02/03)</p>
         </div>
-        <button onClick={runMilestones} className="px-4 py-2 bg-purple-600 text-white rounded">⚡ Run Milestone Scan</button>
+        <button onClick={runMilestones} className="px-4 py-2 bg-teal-600 text-white rounded">⚡ Run Milestone Scan</button>
       </div>
       <div className="flex gap-2">
-        <button onClick={() => setTab('gifts')} className={`px-4 py-2 rounded ${tab === 'gifts' ? 'bg-blue-600 text-white' : 'bg-gray-100'}`}>My Gifts</button>
-        <button onClick={() => setTab('kudos')} className={`px-4 py-2 rounded ${tab === 'kudos' ? 'bg-blue-600 text-white' : 'bg-gray-100'}`}>My Kudos Points</button>
+        <button onClick={() => setTab('gifts')} className={`px-4 py-2 rounded ${tab === 'gifts' ? 'bg-green-600 text-white' : 'bg-gray-100'}`}>My Gifts</button>
+        <button onClick={() => setTab('kudos')} className={`px-4 py-2 rounded ${tab === 'kudos' ? 'bg-green-600 text-white' : 'bg-gray-100'}`}>My Kudos Points</button>
       </div>
       {tab === 'gifts' && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -71,7 +71,7 @@ export default function GiftingPage() {
               <div className="text-2xl mb-1">{g.triggerEvent === 'birthday' ? '🎂' : g.triggerEvent === 'work_anniversary' ? '🎉' : '🎁'}</div>
               <h3 className="font-semibold capitalize text-sm">{g.triggerEvent.replace(/_/g, ' ')}</h3>
               <p className="text-xs text-gray-600 mt-1">{g.message}</p>
-              {g.product && <p className="text-xs text-blue-600 mt-2">{g.product.name}</p>}
+              {g.product && <p className="text-xs text-green-600 mt-2">{g.product.name}</p>}
               {g.voucherCode && <div className="mt-2 text-xs font-mono bg-gray-100 px-2 py-1 rounded">Code: {g.voucherCode}</div>}
               <div className="mt-2 text-xs text-gray-500">{new Date(g.createdAt).toLocaleDateString()}</div>
             </div>
@@ -81,7 +81,7 @@ export default function GiftingPage() {
       )}
       {tab === 'kudos' && (
         <div className="bg-white border rounded-lg p-4">
-          <div className="text-3xl font-bold text-purple-600">{ledger.length > 0 ? ledger[0].balanceAfter : 0} <span className="text-base text-gray-600">kudos points</span></div>
+          <div className="text-3xl font-bold text-teal-600">{ledger.length > 0 ? ledger[0].balanceAfter : 0} <span className="text-base text-gray-600">kudos points</span></div>
           <table className="min-w-full text-sm mt-4">
             <thead className="bg-gray-50 text-xs uppercase"><tr><th className="px-3 py-2 text-left">Date</th><th className="px-3 py-2 text-left">Source</th><th className="px-3 py-2 text-right">Points</th><th className="px-3 py-2 text-right">Balance</th></tr></thead>
             <tbody>

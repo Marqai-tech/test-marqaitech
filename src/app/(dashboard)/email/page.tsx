@@ -64,16 +64,16 @@ interface Label {
 // ─── Sample Data ─────────────────────────────────────────────────
 
 const AVATARS: Record<string, string> = {
-  RK: 'bg-blue-500',
+  RK: 'bg-green-500',
   SP: 'bg-emerald-500',
-  AM: 'bg-violet-500',
+  AM: 'bg-teal-500',
   PD: 'bg-amber-500',
   LJ: 'bg-rose-500',
   VG: 'bg-cyan-500',
   NS: 'bg-pink-500',
   TM: 'bg-teal-500',
   BK: 'bg-orange-500',
-  HR: 'bg-indigo-400',
+  HR: 'bg-emerald-400',
   IT: 'bg-sky-500',
   MG: 'bg-lime-600',
 };
@@ -90,10 +90,10 @@ const folders: Folder[] = [
 ];
 
 const labels: Label[] = [
-  { name: 'HR Updates', color: 'bg-blue-400', count: 8 },
+  { name: 'HR Updates', color: 'bg-green-400', count: 8 },
   { name: 'Payroll', color: 'bg-emerald-400', count: 5 },
   { name: 'Leave', color: 'bg-amber-400', count: 6 },
-  { name: 'Projects', color: 'bg-violet-400', count: 4 },
+  { name: 'Projects', color: 'bg-teal-400', count: 4 },
 ];
 
 const emails: Email[] = [
@@ -146,7 +146,7 @@ const emails: Email[] = [
     starred: false,
     hasAttachment: false,
     label: 'HR Updates',
-    labelColor: 'bg-blue-100 text-blue-700',
+    labelColor: 'bg-green-100 text-green-700',
   },
   {
     id: 'e4',
@@ -166,7 +166,7 @@ const emails: Email[] = [
       { name: 'Expense_Claim_Policy_2025.pdf', size: '890 KB', type: 'pdf' },
     ],
     label: 'HR Updates',
-    labelColor: 'bg-blue-100 text-blue-700',
+    labelColor: 'bg-green-100 text-green-700',
   },
   {
     id: 'e5',
@@ -183,7 +183,7 @@ const emails: Email[] = [
     starred: false,
     hasAttachment: false,
     label: 'Projects',
-    labelColor: 'bg-violet-100 text-violet-700',
+    labelColor: 'bg-teal-100 text-teal-700',
   },
   {
     id: 'e6',
@@ -199,7 +199,7 @@ const emails: Email[] = [
     starred: false,
     hasAttachment: false,
     label: 'HR Updates',
-    labelColor: 'bg-blue-100 text-blue-700',
+    labelColor: 'bg-green-100 text-green-700',
   },
   {
     id: 'e7',
@@ -218,7 +218,7 @@ const emails: Email[] = [
       { name: 'Q1_Self_Assessment_Template.docx', size: '56 KB', type: 'docx' },
     ],
     label: 'HR Updates',
-    labelColor: 'bg-blue-100 text-blue-700',
+    labelColor: 'bg-green-100 text-green-700',
   },
   {
     id: 'e8',
@@ -265,7 +265,7 @@ const emails: Email[] = [
     starred: false,
     hasAttachment: false,
     label: 'HR Updates',
-    labelColor: 'bg-blue-100 text-blue-700',
+    labelColor: 'bg-green-100 text-green-700',
   },
   {
     id: 'e11',
@@ -281,7 +281,7 @@ const emails: Email[] = [
     starred: false,
     hasAttachment: false,
     label: 'HR Updates',
-    labelColor: 'bg-blue-100 text-blue-700',
+    labelColor: 'bg-green-100 text-green-700',
   },
   {
     id: 'e12',
@@ -333,7 +333,7 @@ const emails: Email[] = [
     starred: true,
     hasAttachment: false,
     label: 'Projects',
-    labelColor: 'bg-violet-100 text-violet-700',
+    labelColor: 'bg-teal-100 text-teal-700',
   },
   {
     id: 'e15',
@@ -349,7 +349,7 @@ const emails: Email[] = [
     starred: false,
     hasAttachment: false,
     label: 'HR Updates',
-    labelColor: 'bg-blue-100 text-blue-700',
+    labelColor: 'bg-green-100 text-green-700',
   },
   {
     id: 'e16',
@@ -428,7 +428,7 @@ const emails: Email[] = [
     starred: true,
     hasAttachment: false,
     label: 'Projects',
-    labelColor: 'bg-violet-100 text-violet-700',
+    labelColor: 'bg-teal-100 text-teal-700',
   },
   {
     id: 'e21',
@@ -444,7 +444,7 @@ const emails: Email[] = [
     starred: false,
     hasAttachment: false,
     label: 'HR Updates',
-    labelColor: 'bg-blue-100 text-blue-700',
+    labelColor: 'bg-green-100 text-green-700',
   },
   {
     id: 'e22',
@@ -503,7 +503,7 @@ const emails: Email[] = [
       { name: 'Reporting_Module_Presentation.pptx', size: '8.5 MB', type: 'pptx' },
     ],
     label: 'Projects',
-    labelColor: 'bg-violet-100 text-violet-700',
+    labelColor: 'bg-teal-100 text-teal-700',
   },
   {
     id: 'e25',
@@ -634,13 +634,13 @@ const getFileIcon = (type: string) => {
     case 'pdf':
       return <FiFileText className="w-4 h-4 text-red-500" />;
     case 'docx':
-      return <FiFileText className="w-4 h-4 text-blue-500" />;
+      return <FiFileText className="w-4 h-4 text-green-500" />;
     case 'zip':
       return <FiFileText className="w-4 h-4 text-amber-500" />;
     case 'pptx':
       return <FiFileText className="w-4 h-4 text-orange-500" />;
     case 'video':
-      return <FiFileText className="w-4 h-4 text-purple-500" />;
+      return <FiFileText className="w-4 h-4 text-teal-500" />;
     default:
       return <FiFileText className="w-4 h-4 text-slate-500" />;
   }
@@ -776,11 +776,11 @@ export default function EmailPage() {
                     }}
                     className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                       isActive
-                        ? 'bg-blue-50 text-blue-700'
+                        ? 'bg-green-50 text-green-700'
                         : 'text-thb-text-secondary hover:bg-slate-50 hover:text-thb-text-primary'
                     }`}
                   >
-                    <span className={isActive ? 'text-blue-500' : 'text-thb-text-muted'}>
+                    <span className={isActive ? 'text-green-500' : 'text-thb-text-muted'}>
                       {folder.icon}
                     </span>
                     <span className="flex-1 text-left">{folder.name}</span>
@@ -788,7 +788,7 @@ export default function EmailPage() {
                       <span
                         className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${
                           isActive
-                            ? 'bg-blue-100 text-blue-600'
+                            ? 'bg-green-100 text-green-600'
                             : 'bg-slate-100 text-thb-text-muted'
                         }`}
                       >
@@ -853,7 +853,7 @@ export default function EmailPage() {
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-thb-text-secondary">Unread</span>
-                  <span className="text-xs font-semibold text-blue-600">
+                  <span className="text-xs font-semibold text-green-600">
                     {emails.filter((e) => e.unread && e.folder.includes('inbox')).length}
                   </span>
                 </div>
@@ -871,7 +871,7 @@ export default function EmailPage() {
                 </div>
                 <div className="w-full bg-slate-100 rounded-full h-1.5">
                   <div
-                    className="bg-blue-500 h-1.5 rounded-full"
+                    className="bg-green-500 h-1.5 rounded-full"
                     style={{
                       width: `${Math.round(
                         (emails.filter((e) => e.unread && e.folder.includes('inbox')).length /
@@ -909,7 +909,7 @@ export default function EmailPage() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search emails..."
-                className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-thb-border bg-slate-50 text-thb-text-primary placeholder:text-thb-text-muted focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
+                className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-thb-border bg-slate-50 text-thb-text-primary placeholder:text-thb-text-muted focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 transition-all"
               />
               {searchQuery && (
                 <button
@@ -928,7 +928,7 @@ export default function EmailPage() {
                   type="checkbox"
                   checked={filteredEmails.length > 0 && selectedEmails.size === filteredEmails.length}
                   onChange={toggleSelectAll}
-                  className="w-3.5 h-3.5 rounded border-slate-300 text-blue-500 focus:ring-blue-500/20"
+                  className="w-3.5 h-3.5 rounded border-slate-300 text-green-500 focus:ring-green-500/20"
                 />
               </label>
               {selectedEmails.size > 0 && (
@@ -971,9 +971,9 @@ export default function EmailPage() {
                     onClick={() => setSelectedEmailId(email.id)}
                     className={`flex items-start gap-2 px-3 py-3 cursor-pointer border-b border-slate-50 transition-colors group ${
                       isSelected
-                        ? 'bg-blue-50/70 border-l-2 border-l-blue-500'
+                        ? 'bg-green-50/70 border-l-2 border-l-green-500'
                         : email.unread
-                        ? 'bg-blue-50/30 border-l-2 border-l-blue-400 hover:bg-slate-50'
+                        ? 'bg-green-50/30 border-l-2 border-l-green-400 hover:bg-slate-50'
                         : 'hover:bg-slate-50 border-l-2 border-l-transparent'
                     }`}
                   >
@@ -986,7 +986,7 @@ export default function EmailPage() {
                         type="checkbox"
                         checked={isChecked}
                         onChange={() => toggleSelect(email.id)}
-                        className="w-3.5 h-3.5 rounded border-slate-300 text-blue-500 focus:ring-blue-500/20"
+                        className="w-3.5 h-3.5 rounded border-slate-300 text-green-500 focus:ring-green-500/20"
                       />
                     </div>
 
@@ -1058,7 +1058,7 @@ export default function EmailPage() {
                       <span
                         className={`text-[11px] ${
                           email.unread
-                            ? 'font-semibold text-blue-500'
+                            ? 'font-semibold text-green-500'
                             : 'text-thb-text-muted'
                         }`}
                       >
@@ -1189,7 +1189,7 @@ export default function EmailPage() {
                   if (line.match(/^\d+\./)) {
                     return (
                       <div key={i} className="flex gap-2 ml-2">
-                        <span className="text-blue-500 font-medium shrink-0">
+                        <span className="text-green-500 font-medium shrink-0">
                           {line.match(/^\d+/)?.[0]}.
                         </span>
                         <span>{line.replace(/^\d+\.\s*/, '')}</span>
@@ -1215,12 +1215,12 @@ export default function EmailPage() {
                       >
                         {getFileIcon(att.type)}
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-thb-text-primary truncate group-hover:text-blue-600 transition-colors">
+                          <p className="text-sm font-medium text-thb-text-primary truncate group-hover:text-green-600 transition-colors">
                             {att.name}
                           </p>
                           <p className="text-[11px] text-thb-text-muted">{att.size}</p>
                         </div>
-                        <button className="p-1.5 rounded-lg text-thb-text-muted hover:bg-white hover:text-blue-500 transition-colors">
+                        <button className="p-1.5 rounded-lg text-thb-text-muted hover:bg-white hover:text-green-500 transition-colors">
                           <FiChevronDown className="w-4 h-4" />
                         </button>
                       </div>
@@ -1233,13 +1233,13 @@ export default function EmailPage() {
             {/* Quick Reply */}
             <div className="p-4 border-t border-thb-border bg-slate-50/50">
               <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-white text-[10px] font-bold shrink-0">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-500 to-teal-600 flex items-center justify-center text-white text-[10px] font-bold shrink-0">
                   ME
                 </div>
                 <div className="flex-1">
                   <textarea
                     placeholder="Write a quick reply..."
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-thb-border bg-white text-thb-text-primary placeholder:text-thb-text-muted focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 resize-none transition-all"
+                    className="w-full px-3 py-2 text-sm rounded-lg border border-thb-border bg-white text-thb-text-primary placeholder:text-thb-text-muted focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 resize-none transition-all"
                     rows={2}
                   />
                   <div className="flex items-center gap-2 mt-2">

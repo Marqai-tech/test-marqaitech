@@ -175,8 +175,8 @@ const leaveSections: SettingSection[] = [
     title: 'Leave Year & Carry Forward',
     description: 'Configure leave year start and carry forward rules',
     icon: <FiCalendar className="w-5 h-5" />,
-    iconBg: 'bg-blue-50',
-    iconColor: 'text-blue-500',
+    iconBg: 'bg-green-50',
+    iconColor: 'text-green-500',
     fields: [
       { key: 'leave_year_start_month', label: 'Leave Year Start Month', type: 'select', defaultValue: 'january', description: 'Month when the leave year begins', options: [{ value: 'january', label: 'January' }, { value: 'april', label: 'April' }, { value: 'july', label: 'July' }, { value: 'october', label: 'October' }] },
       { key: 'leave_max_carry_forward', label: 'Max Carry Forward Days', type: 'number', defaultValue: 5, description: 'Maximum number of leave days that can be carried forward to the next year', min: 0, max: 30 },
@@ -188,8 +188,8 @@ const leaveSections: SettingSection[] = [
     title: 'Leave Application Rules',
     description: 'Rules governing leave applications',
     icon: <FiClock className="w-5 h-5" />,
-    iconBg: 'bg-violet-50',
-    iconColor: 'text-violet-500',
+    iconBg: 'bg-teal-50',
+    iconColor: 'text-teal-500',
     fields: [
       { key: 'leave_comp_off_expiry_days', label: 'Comp-off Expiry Days', type: 'number', defaultValue: 30, description: 'Number of days after which compensatory off expires', min: 1, max: 365 },
       { key: 'leave_min_balance_before_apply', label: 'Minimum Leave Balance Before Applying', type: 'number', defaultValue: 0, description: 'Minimum leaves that must remain after the current application', min: 0, max: 15 },
@@ -257,8 +257,8 @@ const employeeSections: SettingSection[] = [
     title: 'Employee Code',
     description: 'Configure employee code generation rules',
     icon: <FiUserCheck className="w-5 h-5" />,
-    iconBg: 'bg-indigo-50',
-    iconColor: 'text-indigo-500',
+    iconBg: 'bg-emerald-50',
+    iconColor: 'text-emerald-500',
     fields: [
       { key: 'employee_code_prefix', label: 'Employee Code Prefix', type: 'text', defaultValue: 'EMP', description: 'Prefix for auto-generated employee codes' },
       { key: 'employee_code_sequence', label: 'Code Sequence Start', type: 'number', defaultValue: 1001, description: 'Starting number for auto-generated employee codes', min: 1, max: 99999 },
@@ -336,8 +336,8 @@ const performanceSections: SettingSection[] = [
     title: 'Review Cycle',
     description: 'Configure performance review cycle settings',
     icon: <FiCalendar className="w-5 h-5" />,
-    iconBg: 'bg-violet-50',
-    iconColor: 'text-violet-500',
+    iconBg: 'bg-teal-50',
+    iconColor: 'text-teal-500',
     fields: [
       { key: 'performance_review_cycle_frequency', label: 'Review Cycle Frequency', type: 'select', defaultValue: 'quarterly', description: 'How often performance reviews are conducted', options: [{ value: 'monthly', label: 'Monthly' }, { value: 'quarterly', label: 'Quarterly' }, { value: 'semi_annual', label: 'Semi-Annual' }, { value: 'annual', label: 'Annual' }] },
       { key: 'performance_rating_scale', label: 'Rating Scale', type: 'select', defaultValue: '1-5', description: 'Scale used for performance ratings', options: [{ value: '1-3', label: '1-3 (Meets/Exceeds/Below)' }, { value: '1-5', label: '1-5 (Standard 5-point)' }, { value: '1-10', label: '1-10 (Granular 10-point)' }] },
@@ -381,7 +381,7 @@ function ToggleSwitch({ enabled, onToggle, disabled }: { enabled: boolean; onTog
       type="button"
       onClick={onToggle}
       disabled={disabled}
-      className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${enabled ? 'bg-blue-500' : 'bg-slate-200'} ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+      className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${enabled ? 'bg-green-500' : 'bg-slate-200'} ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
     >
       <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-transform ${enabled ? 'translate-x-5' : 'translate-x-0'}`} />
     </button>
@@ -505,7 +505,7 @@ function SettingsSectionCard({
                       <select
                         value={String(settings[field.key] ?? field.defaultValue)}
                         onChange={(e) => onChange(field.key, e.target.value)}
-                        className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 bg-white"
+                        className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 bg-white"
                       >
                         {field.options?.map((opt) => (
                           <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -519,14 +519,14 @@ function SettingsSectionCard({
                         min={field.min}
                         max={field.max}
                         step={field.step ?? 1}
-                        className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                        className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                       />
                     ) : (
                       <input
                         type="text"
                         value={String(settings[field.key] ?? field.defaultValue)}
                         onChange={(e) => onChange(field.key, e.target.value)}
-                        className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                        className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                       />
                     )
                   ) : (
@@ -554,7 +554,7 @@ function SettingsSectionCard({
             <button
               onClick={onSave}
               disabled={saving}
-              className="px-6 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50 shadow-sm shadow-blue-500/25 flex items-center gap-2 transition-colors"
+              className="px-6 py-2.5 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 disabled:opacity-50 shadow-sm shadow-green-500/25 flex items-center gap-2 transition-colors"
             >
               <FiSave className="w-4 h-4" />
               {saving ? 'Saving...' : 'Save Changes'}
@@ -596,7 +596,7 @@ const allNavItems: NavItem[] = [
    ────────────────────────────────────────────── */
 export default function SettingsPage() {
   return (
-    <Suspense fallback={<div className="flex items-center justify-center py-20"><div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full" /></div>}>
+    <Suspense fallback={<div className="flex items-center justify-center py-20"><div className="animate-spin w-8 h-8 border-2 border-green-500 border-t-transparent rounded-full" /></div>}>
       <SettingsContent />
     </Suspense>
   );
@@ -800,7 +800,7 @@ function SettingsContent() {
     return (
       <div className="flex items-center justify-center py-20">
         <div className="text-center">
-          <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-3" />
+          <div className="animate-spin w-8 h-8 border-2 border-green-500 border-t-transparent rounded-full mx-auto mb-3" />
           <p className="text-sm text-thb-text-muted">Redirecting to My Profile...</p>
         </div>
       </div>
@@ -906,7 +906,7 @@ function SettingsContent() {
                 onClick={() => { setActiveTab(item.key); setMobileSidebarOpen(false); }}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                   activeTab === item.key
-                    ? 'bg-blue-50 text-blue-600'
+                    ? 'bg-green-50 text-green-600'
                     : 'text-thb-text-secondary hover:bg-slate-50'
                 }`}
               >
@@ -931,14 +931,14 @@ function SettingsContent() {
                   onClick={() => setActiveTab(item.key)}
                   className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                     activeTab === item.key
-                      ? 'bg-blue-50 text-blue-600'
+                      ? 'bg-green-50 text-green-600'
                       : 'text-thb-text-secondary hover:bg-slate-50 hover:text-thb-text-primary'
                   }`}
                 >
-                  <span className={activeTab === item.key ? 'text-blue-500' : 'text-thb-text-muted'}>{item.icon}</span>
+                  <span className={activeTab === item.key ? 'text-green-500' : 'text-thb-text-muted'}>{item.icon}</span>
                   {item.label}
                   {activeTab === item.key && (
-                    <FiCheck className="w-3.5 h-3.5 ml-auto text-blue-500" />
+                    <FiCheck className="w-3.5 h-3.5 ml-auto text-green-500" />
                   )}
                 </button>
               ))}
@@ -956,7 +956,7 @@ function SettingsContent() {
                 <div className="p-6">
                   <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-500">
+                      <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center text-green-500">
                         <FiGlobe className="w-5 h-5" />
                       </div>
                       <div>
@@ -982,7 +982,7 @@ function SettingsContent() {
                         <span className="flex items-center gap-1"><FiDatabase className="w-3 h-3" /> Company Name</span>
                       </label>
                       {editingSection === 'general' ? (
-                        <input type="text" value={generalForm.companyName} onChange={e => setGeneralForm(p => ({ ...p, companyName: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                        <input type="text" value={generalForm.companyName} onChange={e => setGeneralForm(p => ({ ...p, companyName: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                       ) : (
                         <p className="px-3 py-2.5 text-sm text-thb-text-primary bg-slate-50 rounded-lg border border-thb-border/50">{generalForm.companyName || '—'}</p>
                       )}
@@ -992,7 +992,7 @@ function SettingsContent() {
                         <span className="flex items-center gap-1"><FiClock className="w-3 h-3" /> Timezone</span>
                       </label>
                       {editingSection === 'general' ? (
-                        <select value={generalForm.timezone} onChange={e => setGeneralForm(p => ({ ...p, timezone: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                        <select value={generalForm.timezone} onChange={e => setGeneralForm(p => ({ ...p, timezone: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                           <option value="UTC">UTC</option>
                           <option value="America/New_York">Eastern Time (ET)</option>
                           <option value="America/Chicago">Central Time (CT)</option>
@@ -1011,7 +1011,7 @@ function SettingsContent() {
                         <span className="flex items-center gap-1"><FiCalendar className="w-3 h-3" /> Date Format</span>
                       </label>
                       {editingSection === 'general' ? (
-                        <select value={generalForm.dateFormat} onChange={e => setGeneralForm(p => ({ ...p, dateFormat: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                        <select value={generalForm.dateFormat} onChange={e => setGeneralForm(p => ({ ...p, dateFormat: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                           <option value="MM/DD/YYYY">MM/DD/YYYY</option>
                           <option value="DD/MM/YYYY">DD/MM/YYYY</option>
                           <option value="YYYY-MM-DD">YYYY-MM-DD</option>
@@ -1025,7 +1025,7 @@ function SettingsContent() {
                         <span className="flex items-center gap-1"><FiDollarSign className="w-3 h-3" /> Currency</span>
                       </label>
                       {editingSection === 'general' ? (
-                        <select value={generalForm.currency} onChange={e => setGeneralForm(p => ({ ...p, currency: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                        <select value={generalForm.currency} onChange={e => setGeneralForm(p => ({ ...p, currency: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                           <option value="INR">INR (₹) — Indian Rupee</option>
                           <option value="USD">USD ($) — US Dollar</option>
                           <option value="EUR">EUR (€) — Euro</option>
@@ -1046,7 +1046,7 @@ function SettingsContent() {
                   {editingSection === 'general' && (
                     <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-thb-border">
                       <button onClick={() => setEditingSection(null)} className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50">Cancel</button>
-                      <button onClick={handleSaveGeneral} disabled={saving} className="px-6 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50 shadow-sm shadow-blue-500/25 flex items-center gap-2 transition-colors">
+                      <button onClick={handleSaveGeneral} disabled={saving} className="px-6 py-2.5 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 disabled:opacity-50 shadow-sm shadow-green-500/25 flex items-center gap-2 transition-colors">
                         <FiSave className="w-4 h-4" />
                         {saving ? 'Saving...' : 'Save Changes'}
                       </button>
@@ -1076,7 +1076,7 @@ function SettingsContent() {
             <div className="space-y-2">
               <div className="mb-4">
                 <h2 className="text-lg font-semibold text-thb-text-primary flex items-center gap-2">
-                  <FiCalendar className="w-5 h-5 text-blue-500" />
+                  <FiCalendar className="w-5 h-5 text-green-500" />
                   Leave Settings
                 </h2>
                 <p className="text-xs text-thb-text-muted mt-0.5">Manage leave policies, carry forward rules, and special leaves</p>
@@ -1104,7 +1104,7 @@ function SettingsContent() {
             <div className="space-y-2">
               <div className="mb-4">
                 <h2 className="text-lg font-semibold text-thb-text-primary flex items-center gap-2">
-                  <FiUsers className="w-5 h-5 text-indigo-500" />
+                  <FiUsers className="w-5 h-5 text-emerald-500" />
                   Employee Settings
                 </h2>
                 <p className="text-xs text-thb-text-muted mt-0.5">Configure employee code generation, probation, and access policies</p>
@@ -1132,7 +1132,7 @@ function SettingsContent() {
             <div className="space-y-2">
               <div className="mb-4">
                 <h2 className="text-lg font-semibold text-thb-text-primary flex items-center gap-2">
-                  <FiTrendingUp className="w-5 h-5 text-violet-500" />
+                  <FiTrendingUp className="w-5 h-5 text-teal-500" />
                   Performance Settings
                 </h2>
                 <p className="text-xs text-thb-text-muted mt-0.5">Configure review cycles, appraisal methods, and feedback settings</p>
@@ -1201,7 +1201,7 @@ function SettingsContent() {
               <div className="thb-card">
                 <div className="p-6">
                   <div className="flex items-center gap-3 mb-6">
-                    <div className="w-10 h-10 rounded-xl bg-violet-50 flex items-center justify-center text-violet-500">
+                    <div className="w-10 h-10 rounded-xl bg-teal-50 flex items-center justify-center text-teal-500">
                       <FiShield className="w-5 h-5" />
                     </div>
                     <div>
@@ -1218,7 +1218,7 @@ function SettingsContent() {
                             <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold ${
                               role.key === 'super_admin' ? 'bg-red-500' :
                               role.key === 'tenant_admin' ? 'bg-orange-500' :
-                              role.key === 'admin' ? 'bg-blue-500' :
+                              role.key === 'admin' ? 'bg-green-500' :
                               role.key === 'manager' ? 'bg-emerald-500' :
                               'bg-slate-500'
                             }`}>
@@ -1259,7 +1259,7 @@ function SettingsContent() {
             <div className="space-y-2">
               <div className="mb-4">
                 <h2 className="text-lg font-semibold text-thb-text-primary flex items-center gap-2">
-                  <FiUpload className="w-5 h-5 text-blue-500" />
+                  <FiUpload className="w-5 h-5 text-green-500" />
                   Bulk Import
                 </h2>
                 <p className="text-xs text-thb-text-muted mt-0.5">Upload Excel sheets to import master data for initial setup</p>
@@ -1305,7 +1305,7 @@ function SettingsContent() {
                   </div>
 
                   <div className="flex items-center justify-end mt-6 pt-4 border-t border-thb-border">
-                    <button onClick={handleSaveNotifPrefs} className="px-6 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 shadow-sm shadow-blue-500/25 transition-colors flex items-center gap-2">
+                    <button onClick={handleSaveNotifPrefs} className="px-6 py-2.5 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 shadow-sm shadow-green-500/25 transition-colors flex items-center gap-2">
                       <FiSave className="w-4 h-4" />
                       Save Preferences
                     </button>

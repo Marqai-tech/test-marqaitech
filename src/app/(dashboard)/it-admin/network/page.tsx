@@ -137,7 +137,7 @@ export default function NetworkManagementPage() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <div className="thb-card p-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-blue-50 text-thb-primary"><FiWifi /></div>
+            <div className="p-2 rounded-lg bg-green-50 text-thb-primary"><FiWifi /></div>
             <div><p className="text-2xl font-bold text-thb-text-primary">{devices.length}</p><p className="text-xs text-thb-text-muted">Total Devices</p></div>
           </div>
         </div>

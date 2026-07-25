@@ -125,9 +125,9 @@ export default function ReportsPage() {
         {[
           { label: 'Total Projects', value: summaryStats.total, icon: FiBriefcase, color: 'text-thb-primary bg-thb-primary/10' },
           { label: 'Active', value: summaryStats.active, icon: FiTrendingUp, color: 'text-emerald-600 bg-emerald-50' },
-          { label: 'Completed', value: summaryStats.completed, icon: FiCheckCircle, color: 'text-blue-600 bg-blue-50' },
+          { label: 'Completed', value: summaryStats.completed, icon: FiCheckCircle, color: 'text-green-600 bg-green-50' },
           { label: 'Total Budget', value: formatCurrency(summaryStats.totalBudget), icon: FiDollarSign, color: 'text-amber-600 bg-amber-50' },
-          { label: 'Avg Progress', value: `${summaryStats.avgProgress}%`, icon: FiBarChart2, color: 'text-purple-600 bg-purple-50' },
+          { label: 'Avg Progress', value: `${summaryStats.avgProgress}%`, icon: FiBarChart2, color: 'text-teal-600 bg-teal-50' },
         ].map(stat => (
           <div key={stat.label} className="thb-card p-4">
             <div className="flex items-center justify-between">

@@ -90,7 +90,7 @@ export function VendorPortal() {
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
-            <Users className="h-5 w-5 mx-auto text-blue-600 mb-1" />
+            <Users className="h-5 w-5 mx-auto text-green-600 mb-1" />
             <p className="text-2xl font-bold">{vendors.reduce((s, v) => s + (v.candidatesSubmitted || 0), 0)}</p>
             <p className="text-xs text-muted-foreground">Candidates Submitted</p>
           </CardContent>
@@ -104,7 +104,7 @@ export function VendorPortal() {
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
-            <DollarSign className="h-5 w-5 mx-auto text-purple-600 mb-1" />
+            <DollarSign className="h-5 w-5 mx-auto text-teal-600 mb-1" />
             <p className="text-2xl font-bold">$39.6K</p>
             <p className="text-xs text-muted-foreground">Monthly Spend</p>
           </CardContent>
@@ -190,7 +190,7 @@ export function VendorPortal() {
                   </div>
                   <div className="flex items-center gap-2">
                     <Badge className={`text-[10px] ${
-                      candidate.status === 'shortlisted' ? 'bg-purple-100 text-purple-800' :
+                      candidate.status === 'shortlisted' ? 'bg-teal-100 text-teal-800' :
                       candidate.status === 'interviewing' ? 'bg-amber-100 text-amber-800' :
                       candidate.status === 'offered' ? 'bg-emerald-100 text-emerald-800' :
                       'bg-slate-100 text-slate-800'

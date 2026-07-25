@@ -170,12 +170,12 @@ export default function CandidateLoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-violet-50 via-white to-sky-50 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-teal-50 via-white to-sky-50 p-4">
       {/* Back navigation */}
       <div className="fixed top-4 left-4 flex items-center gap-2 text-xs">
         <Link
           href="/careers"
-          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white/80 backdrop-blur border border-slate-200 text-slate-600 hover:text-violet-700 hover:border-violet-200 transition-colors shadow-sm"
+          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white/80 backdrop-blur border border-slate-200 text-slate-600 hover:text-teal-700 hover:border-teal-200 transition-colors shadow-sm"
         >
           <FiArrowLeft className="w-3.5 h-3.5" /> Back to Careers
         </Link>
@@ -192,7 +192,7 @@ export default function CandidateLoginPage() {
 
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500 to-sky-500 text-white mb-3 shadow-lg">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-teal-500 to-sky-500 text-white mb-3 shadow-lg">
             <FiMail className="w-8 h-8" />
           </div>
           <h1 className="text-2xl font-bold text-slate-800">Candidate Portal</h1>
@@ -210,7 +210,7 @@ export default function CandidateLoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
-                className="w-full pl-9 pr-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+                className="w-full pl-9 pr-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
                 onKeyDown={(e) => {
                   if (e.key !== 'Enter') return;
                   if (tab === 'password' && password) loginWithPassword();
@@ -236,7 +236,7 @@ export default function CandidateLoginPage() {
             <button
               onClick={() => setTab('password')}
               className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                tab === 'password' ? 'bg-white text-violet-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                tab === 'password' ? 'bg-white text-teal-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'
               }`}
             >
               Password
@@ -244,7 +244,7 @@ export default function CandidateLoginPage() {
             <button
               onClick={() => setTab('otp')}
               className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                tab === 'otp' ? 'bg-white text-violet-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                tab === 'otp' ? 'bg-white text-teal-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'
               }`}
             >
               OTP
@@ -262,7 +262,7 @@ export default function CandidateLoginPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="w-full pl-9 pr-9 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+                    className="w-full pl-9 pr-9 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
                     onKeyDown={(e) => e.key === 'Enter' && password && loginWithPassword()}
                   />
                   <button
@@ -278,18 +278,18 @@ export default function CandidateLoginPage() {
               <button
                 onClick={loginWithPassword}
                 disabled={loading || !email || !password}
-                className="w-full flex items-center justify-center gap-2 bg-violet-600 hover:bg-violet-700 disabled:bg-slate-300 text-white font-medium py-2.5 rounded-lg text-sm transition-colors"
+                className="w-full flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 disabled:bg-slate-300 text-white font-medium py-2.5 rounded-lg text-sm transition-colors"
               >
                 {loading ? 'Signing in…' : <>Sign In <FiArrowRight className="w-4 h-4" /></>}
               </button>
               <div className="flex items-center justify-between text-xs">
                 <button
                   onClick={() => setTab('otp')}
-                  className="text-slate-500 hover:text-violet-600 hover:underline"
+                  className="text-slate-500 hover:text-teal-600 hover:underline"
                 >
                   Use OTP instead
                 </button>
-                <Link href="/candidate-portal/forgot-password" className="text-slate-500 hover:text-violet-600 hover:underline">
+                <Link href="/candidate-portal/forgot-password" className="text-slate-500 hover:text-teal-600 hover:underline">
                   Forgot password?
                 </Link>
               </div>
@@ -301,7 +301,7 @@ export default function CandidateLoginPage() {
                   <button
                     onClick={requestOtp}
                     disabled={loading || !email}
-                    className="w-full flex items-center justify-center gap-2 bg-violet-600 hover:bg-violet-700 disabled:bg-slate-300 text-white font-medium py-2.5 rounded-lg text-sm transition-colors"
+                    className="w-full flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 disabled:bg-slate-300 text-white font-medium py-2.5 rounded-lg text-sm transition-colors"
                   >
                     {loading ? 'Sending…' : <>Send OTP <FiArrowRight className="w-4 h-4" /></>}
                   </button>
@@ -322,7 +322,7 @@ export default function CandidateLoginPage() {
                         value={otp}
                         onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
                         placeholder="123456"
-                        className="w-full pl-9 pr-3 py-2.5 border border-slate-300 rounded-lg text-sm tracking-[0.5em] font-mono focus:outline-none focus:ring-2 focus:ring-violet-500"
+                        className="w-full pl-9 pr-3 py-2.5 border border-slate-300 rounded-lg text-sm tracking-[0.5em] font-mono focus:outline-none focus:ring-2 focus:ring-teal-500"
                         onKeyDown={(e) => e.key === 'Enter' && otp.length === 6 && verifyOtp()}
                       />
                     </div>
@@ -345,7 +345,7 @@ export default function CandidateLoginPage() {
                   <button
                     onClick={verifyOtp}
                     disabled={loading || otp.length !== 6}
-                    className="w-full flex items-center justify-center gap-2 bg-violet-600 hover:bg-violet-700 disabled:bg-slate-300 text-white font-medium py-2.5 rounded-lg text-sm transition-colors"
+                    className="w-full flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 disabled:bg-slate-300 text-white font-medium py-2.5 rounded-lg text-sm transition-colors"
                   >
                     {loading ? 'Verifying…' : <>Verify & Continue <FiArrowRight className="w-4 h-4" /></>}
                   </button>
@@ -395,7 +395,7 @@ export default function CandidateLoginPage() {
           By signing in you agree to our <a href="/recruitment/pii-policy" className="underline">PII & Privacy Policy</a>.
         </p>
         <p className="text-center text-[11px] mt-2">
-          <Link href="/careers" className="text-violet-600 hover:underline">← Browse open positions</Link>
+          <Link href="/careers" className="text-teal-600 hover:underline">← Browse open positions</Link>
           <span className="mx-2 text-slate-300">·</span>
           <Link href="/login" className="text-slate-500 hover:text-sky-600 hover:underline">HR / Admin login</Link>
         </p>

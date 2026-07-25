@@ -635,7 +635,7 @@ export default function SetupWizardPage() {
   if (!loaded) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-600" />
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600" />
       </div>
     );
   }
@@ -666,7 +666,7 @@ export default function SetupWizardPage() {
                       isCompleted
                         ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/25'
                         : isActive
-                          ? 'bg-violet-600 text-white shadow-md shadow-violet-600/25'
+                          ? 'bg-teal-600 text-white shadow-md shadow-teal-600/25'
                           : 'bg-slate-100 text-slate-400 group-hover:bg-slate-200'
                     }`}
                   >
@@ -679,7 +679,7 @@ export default function SetupWizardPage() {
                   <span
                     className={`text-[10px] font-semibold whitespace-nowrap transition-colors ${
                       isActive
-                        ? 'text-violet-700'
+                        ? 'text-teal-700'
                         : isCompleted
                           ? 'text-emerald-600'
                           : 'text-slate-400'
@@ -775,7 +775,7 @@ export default function SetupWizardPage() {
           <button
             onClick={handleNext}
             disabled={saving}
-            className="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold text-white bg-violet-600 hover:bg-violet-700 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold text-white bg-teal-600 hover:bg-teal-700 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {saving ? (
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
@@ -806,7 +806,7 @@ export default function SetupWizardPage() {
           </p>
           <button
             onClick={() => router.push('/home')}
-            className="px-6 py-2.5 rounded-lg bg-violet-600 text-white font-semibold hover:bg-violet-700 transition-all shadow-sm"
+            className="px-6 py-2.5 rounded-lg bg-teal-600 text-white font-semibold hover:bg-teal-700 transition-all shadow-sm"
           >
             Go to Dashboard
           </button>
@@ -822,7 +822,7 @@ function StepWelcome({ tenantName }: { tenantName: string }) {
   return (
     <div className="thb-card p-8 text-center">
       {/* Logo placeholder */}
-      <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center mx-auto mb-6 shadow-lg shadow-violet-500/25">
+      <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-teal-500 to-teal-600 flex items-center justify-center mx-auto mb-6 shadow-lg shadow-teal-500/25">
         <FiStar className="w-10 h-10 text-white" />
       </div>
 
@@ -833,7 +833,7 @@ function StepWelcome({ tenantName }: { tenantName: string }) {
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 max-w-xl mx-auto">
         {[
-          { icon: FiBriefcase, label: 'Company Details', color: 'text-blue-500 bg-blue-50' },
+          { icon: FiBriefcase, label: 'Company Details', color: 'text-green-500 bg-green-50' },
           { icon: FiUsers, label: 'Organization', color: 'text-emerald-500 bg-emerald-50' },
           { icon: FiCalendar, label: 'Leave & Attendance', color: 'text-amber-500 bg-amber-50' },
           { icon: FiMail, label: 'Invite Team', color: 'text-rose-500 bg-rose-50' },
@@ -847,10 +847,10 @@ function StepWelcome({ tenantName }: { tenantName: string }) {
         ))}
       </div>
 
-      <div className="mt-8 p-4 bg-violet-50 rounded-xl border border-violet-100 max-w-lg mx-auto">
+      <div className="mt-8 p-4 bg-teal-50 rounded-xl border border-teal-100 max-w-lg mx-auto">
         <div className="flex items-start gap-3">
-          <FiInfo className="w-5 h-5 text-violet-500 mt-0.5 shrink-0" />
-          <p className="text-sm text-violet-700 text-left">
+          <FiInfo className="w-5 h-5 text-teal-500 mt-0.5 shrink-0" />
+          <p className="text-sm text-teal-700 text-left">
             This wizard will guide you through setting up your company. You can save your progress at any step and resume later.
             Each step takes just a minute or two.
           </p>
@@ -872,8 +872,8 @@ function StepCompanyDetails({
   return (
     <div className="thb-card p-6">
       <div className="flex items-center gap-3 mb-6">
-        <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
-          <FiBriefcase className="w-5 h-5 text-blue-500" />
+        <div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center">
+          <FiBriefcase className="w-5 h-5 text-green-500" />
         </div>
         <div>
           <h2 className="text-lg font-bold text-slate-800">Company Details</h2>
@@ -888,7 +888,7 @@ function StepCompanyDetails({
             type="text"
             value={details.legalName}
             onChange={(e) => onUpdate('legalName', e.target.value)}
-            className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none transition-all"
+            className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all"
             placeholder="Enter legal name"
           />
         </div>
@@ -899,7 +899,7 @@ function StepCompanyDetails({
             type="text"
             value={details.registrationNo}
             onChange={(e) => onUpdate('registrationNo', e.target.value)}
-            className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none transition-all"
+            className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all"
             placeholder="e.g., CIN/UIN"
           />
         </div>
@@ -910,7 +910,7 @@ function StepCompanyDetails({
             type="text"
             value={details.taxId}
             onChange={(e) => onUpdate('taxId', e.target.value)}
-            className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none transition-all"
+            className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all"
             placeholder="e.g., 29AABCU9603R1ZM"
           />
         </div>
@@ -922,7 +922,7 @@ function StepCompanyDetails({
           <select
             value={details.country}
             onChange={(e) => onUpdate('country', e.target.value)}
-            className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none transition-all bg-white"
+            className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all bg-white"
           >
             <option value="India">India</option>
             <option value="United States">United States</option>
@@ -941,7 +941,7 @@ function StepCompanyDetails({
             type="text"
             value={details.state}
             onChange={(e) => onUpdate('state', e.target.value)}
-            className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none transition-all"
+            className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all"
             placeholder="e.g., Maharashtra"
           />
         </div>
@@ -952,7 +952,7 @@ function StepCompanyDetails({
             type="text"
             value={details.city}
             onChange={(e) => onUpdate('city', e.target.value)}
-            className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none transition-all"
+            className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all"
             placeholder="e.g., Mumbai"
           />
         </div>
@@ -962,7 +962,7 @@ function StepCompanyDetails({
           <select
             value={details.timezone}
             onChange={(e) => onUpdate('timezone', e.target.value)}
-            className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none transition-all bg-white"
+            className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all bg-white"
           >
             {TIMEZONES.map((tz) => (
               <option key={tz} value={tz}>{tz}</option>
@@ -975,7 +975,7 @@ function StepCompanyDetails({
           <select
             value={details.currency}
             onChange={(e) => onUpdate('currency', e.target.value)}
-            className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none transition-all bg-white"
+            className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all bg-white"
           >
             {CURRENCIES.map((c) => (
               <option key={c.value} value={c.value}>{c.label}</option>
@@ -989,7 +989,7 @@ function StepCompanyDetails({
             value={details.address}
             onChange={(e) => onUpdate('address', e.target.value)}
             rows={2}
-            className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none transition-all resize-none"
+            className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all resize-none"
             placeholder="Full street address"
           />
         </div>
@@ -1069,14 +1069,14 @@ function StepOrganizationStructure({
             onClick={() => setActiveTab(tab.key)}
             className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
               activeTab === tab.key
-                ? 'bg-violet-100 text-violet-700'
+                ? 'bg-teal-100 text-teal-700'
                 : 'text-slate-500 hover:bg-slate-50'
             }`}
           >
             <tab.icon className="w-4 h-4" />
             {tab.label}
             <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
-              activeTab === tab.key ? 'bg-violet-200 text-violet-800' : 'bg-slate-100 text-slate-500'
+              activeTab === tab.key ? 'bg-teal-200 text-teal-800' : 'bg-slate-100 text-slate-500'
             }`}>
               {tab.count}
             </span>
@@ -1096,14 +1096,14 @@ function StepOrganizationStructure({
                     value={dept.name}
                     onChange={(e) => updateDepartment(idx, 'name', e.target.value)}
                     placeholder="Department name"
-                    className="px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none"
+                    className="px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
                   />
                   <input
                     type="text"
                     value={dept.code}
                     onChange={(e) => updateDepartment(idx, 'code', e.target.value.toUpperCase())}
                     placeholder="Code (e.g., ENG)"
-                    className="px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none uppercase"
+                    className="px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none uppercase"
                   />
                 </div>
                 <button
@@ -1117,7 +1117,7 @@ function StepOrganizationStructure({
           </div>
           <button
             onClick={addDepartment}
-            className="mt-3 flex items-center gap-2 px-4 py-2 text-sm font-medium text-violet-600 hover:bg-violet-50 rounded-lg transition-colors"
+            className="mt-3 flex items-center gap-2 px-4 py-2 text-sm font-medium text-teal-600 hover:bg-teal-50 rounded-lg transition-colors"
           >
             <FiPlus className="w-4 h-4" /> Add Department
           </button>
@@ -1136,12 +1136,12 @@ function StepOrganizationStructure({
                     value={des.title}
                     onChange={(e) => updateDesignation(idx, 'title', e.target.value)}
                     placeholder="Title"
-                    className="px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none"
+                    className="px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
                   />
                   <select
                     value={des.departmentCode}
                     onChange={(e) => updateDesignation(idx, 'departmentCode', e.target.value)}
-                    className="px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none bg-white"
+                    className="px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none bg-white"
                   >
                     <option value="">Select dept</option>
                     {departments.filter(d => d.code).map((d) => (
@@ -1153,7 +1153,7 @@ function StepOrganizationStructure({
                     value={des.grade}
                     onChange={(e) => updateDesignation(idx, 'grade', e.target.value)}
                     placeholder="Grade (e.g., E1)"
-                    className="px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none"
+                    className="px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
                   />
                   <input
                     type="number"
@@ -1161,7 +1161,7 @@ function StepOrganizationStructure({
                     onChange={(e) => updateDesignation(idx, 'level', parseInt(e.target.value) || 1)}
                     placeholder="Level"
                     min={1}
-                    className="px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none"
+                    className="px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
                   />
                 </div>
                 <button
@@ -1175,7 +1175,7 @@ function StepOrganizationStructure({
           </div>
           <button
             onClick={addDesignation}
-            className="mt-3 flex items-center gap-2 px-4 py-2 text-sm font-medium text-violet-600 hover:bg-violet-50 rounded-lg transition-colors"
+            className="mt-3 flex items-center gap-2 px-4 py-2 text-sm font-medium text-teal-600 hover:bg-teal-50 rounded-lg transition-colors"
           >
             <FiPlus className="w-4 h-4" /> Add Designation
           </button>
@@ -1195,33 +1195,33 @@ function StepOrganizationStructure({
                       value={branch.name}
                       onChange={(e) => updateBranch(idx, 'name', e.target.value)}
                       placeholder="Branch name"
-                      className="px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none"
+                      className="px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
                     />
                     <input
                       type="text"
                       value={branch.code}
                       onChange={(e) => updateBranch(idx, 'code', e.target.value.toUpperCase())}
                       placeholder="Code"
-                      className="px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none uppercase"
+                      className="px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none uppercase"
                     />
                     <input
                       type="text"
                       value={branch.city}
                       onChange={(e) => updateBranch(idx, 'city', e.target.value)}
                       placeholder="City"
-                      className="px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none"
+                      className="px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
                     />
                     <input
                       type="text"
                       value={branch.state}
                       onChange={(e) => updateBranch(idx, 'state', e.target.value)}
                       placeholder="State"
-                      className="px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none"
+                      className="px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
                     />
                     <select
                       value={branch.country}
                       onChange={(e) => updateBranch(idx, 'country', e.target.value)}
-                      className="px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none bg-white"
+                      className="px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none bg-white"
                     >
                       <option value="India">India</option>
                       <option value="United States">United States</option>
@@ -1233,7 +1233,7 @@ function StepOrganizationStructure({
                       onClick={() => updateBranch(idx, 'isHeadOffice', !branch.isHeadOffice)}
                       className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-all ${
                         branch.isHeadOffice
-                          ? 'border-violet-300 bg-violet-50 text-violet-700'
+                          ? 'border-teal-300 bg-teal-50 text-teal-700'
                           : 'border-slate-200 text-slate-400 hover:bg-slate-100'
                       }`}
                     >
@@ -1253,7 +1253,7 @@ function StepOrganizationStructure({
           </div>
           <button
             onClick={addBranch}
-            className="mt-3 flex items-center gap-2 px-4 py-2 text-sm font-medium text-violet-600 hover:bg-violet-50 rounded-lg transition-colors"
+            className="mt-3 flex items-center gap-2 px-4 py-2 text-sm font-medium text-teal-600 hover:bg-teal-50 rounded-lg transition-colors"
           >
             <FiPlus className="w-4 h-4" /> Add Branch
           </button>
@@ -1324,10 +1324,10 @@ function StepEmployeeImport() {
         </div>
       </div>
 
-      <div className="p-4 bg-blue-50 rounded-xl border border-blue-100 mb-6">
+      <div className="p-4 bg-green-50 rounded-xl border border-green-100 mb-6">
         <div className="flex items-start gap-3">
-          <FiInfo className="w-5 h-5 text-blue-500 mt-0.5 shrink-0" />
-          <div className="text-sm text-blue-700">
+          <FiInfo className="w-5 h-5 text-green-500 mt-0.5 shrink-0" />
+          <div className="text-sm text-green-700">
             <p className="font-medium mb-1">Template Format</p>
             <p>Download the Excel template, fill in your employee data, and upload it back. The template includes columns for personal details, job information, and bank details.</p>
           </div>
@@ -1350,8 +1350,8 @@ function StepEmployeeImport() {
         onClick={() => fileInputRef.current?.click()}
         className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all ${
           dragActive
-            ? 'border-violet-400 bg-violet-50'
-            : 'border-slate-200 hover:border-violet-300 hover:bg-slate-50'
+            ? 'border-teal-400 bg-teal-50'
+            : 'border-slate-200 hover:border-teal-300 hover:bg-slate-50'
         }`}
       >
         <input
@@ -1366,7 +1366,7 @@ function StepEmployeeImport() {
         />
         {uploading ? (
           <div className="flex flex-col items-center gap-3">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-600" />
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600" />
             <p className="text-sm text-slate-600">Uploading and processing...</p>
           </div>
         ) : (
@@ -1431,14 +1431,14 @@ function StepLeavePolicies({
                   value={lt.name}
                   onChange={(e) => updateLeaveType(idx, 'name', e.target.value)}
                   placeholder="Leave type name"
-                  className="px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none"
+                  className="px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
                 />
                 <input
                   type="text"
                   value={lt.code}
                   onChange={(e) => updateLeaveType(idx, 'code', e.target.value.toUpperCase())}
                   placeholder="Code"
-                  className="px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none uppercase"
+                  className="px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none uppercase"
                 />
                 <input
                   type="number"
@@ -1446,7 +1446,7 @@ function StepLeavePolicies({
                   onChange={(e) => updateLeaveType(idx, 'defaultDays', parseInt(e.target.value) || 0)}
                   placeholder="Days"
                   min={0}
-                  className="px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none"
+                  className="px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
                 />
                 <button
                   onClick={() => updateLeaveType(idx, 'isPaid', !lt.isPaid)}
@@ -1463,7 +1463,7 @@ function StepLeavePolicies({
                   onClick={() => updateLeaveType(idx, 'carryForward', !lt.carryForward)}
                   className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-all ${
                     lt.carryForward
-                      ? 'border-violet-300 bg-violet-50 text-violet-700'
+                      ? 'border-teal-300 bg-teal-50 text-teal-700'
                       : 'border-slate-200 text-slate-400 hover:bg-slate-100'
                   }`}
                 >
@@ -1477,7 +1477,7 @@ function StepLeavePolicies({
                     onChange={(e) => updateLeaveType(idx, 'maxCarryForwardDays', parseInt(e.target.value) || 0)}
                     placeholder="Max carry"
                     min={0}
-                    className="px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none"
+                    className="px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
                   />
                 )}
               </div>
@@ -1494,7 +1494,7 @@ function StepLeavePolicies({
 
       <button
         onClick={addLeaveType}
-        className="mt-3 flex items-center gap-2 px-4 py-2 text-sm font-medium text-violet-600 hover:bg-violet-50 rounded-lg transition-colors"
+        className="mt-3 flex items-center gap-2 px-4 py-2 text-sm font-medium text-teal-600 hover:bg-teal-50 rounded-lg transition-colors"
       >
         <FiPlus className="w-4 h-4" /> Add Leave Type
       </button>
@@ -1545,7 +1545,7 @@ function StepAttendanceRules({
               min={1}
               max={12}
               step={0.5}
-              className="w-24 px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none"
+              className="w-24 px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
             />
             <span className="text-sm text-slate-400">hours</span>
           </div>
@@ -1559,7 +1559,7 @@ function StepAttendanceRules({
               value={rules.lateThresholdMinutes}
               onChange={(e) => onUpdate('lateThresholdMinutes', parseInt(e.target.value) || 0)}
               min={0}
-              className="w-24 px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none"
+              className="w-24 px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
             />
             <span className="text-sm text-slate-400">minutes after shift start</span>
           </div>
@@ -1573,7 +1573,7 @@ function StepAttendanceRules({
               value={rules.earlyDepartureThresholdMinutes}
               onChange={(e) => onUpdate('earlyDepartureThresholdMinutes', parseInt(e.target.value) || 0)}
               min={0}
-              className="w-24 px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none"
+              className="w-24 px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
             />
             <span className="text-sm text-slate-400">minutes before shift end</span>
           </div>
@@ -1588,7 +1588,7 @@ function StepAttendanceRules({
               onChange={(e) => onUpdate('halfDayThresholdHours', parseFloat(e.target.value) || 0)}
               min={1}
               step={0.5}
-              className="w-24 px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none"
+              className="w-24 px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
             />
             <span className="text-sm text-slate-400">hours (less than = half day)</span>
           </div>
@@ -1603,7 +1603,7 @@ function StepAttendanceRules({
               onChange={(e) => onUpdate('overtimeStartsAfterHours', parseFloat(e.target.value) || 0)}
               min={1}
               step={0.5}
-              className="w-24 px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none"
+              className="w-24 px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
             />
             <span className="text-sm text-slate-400">hours</span>
           </div>
@@ -1664,7 +1664,7 @@ function StepPayrollSettings({
           <select
             value={settings.payFrequency}
             onChange={(e) => onUpdate('payFrequency', e.target.value)}
-            className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none bg-white"
+            className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none bg-white"
           >
             <option value="monthly">Monthly</option>
             <option value="bi-monthly">Bi-Monthly</option>
@@ -1677,7 +1677,7 @@ function StepPayrollSettings({
           <select
             value={settings.defaultPayDay}
             onChange={(e) => onUpdate('defaultPayDay', parseInt(e.target.value))}
-            className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none bg-white"
+            className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none bg-white"
           >
             {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
               <option key={day} value={day}>
@@ -1697,7 +1697,7 @@ function StepPayrollSettings({
                 onClick={() => onUpdate('taxRegime', regime)}
                 className={`flex-1 px-4 py-2 rounded-lg border text-sm font-medium transition-all ${
                   settings.taxRegime === regime
-                    ? 'border-violet-300 bg-violet-50 text-violet-700'
+                    ? 'border-teal-300 bg-teal-50 text-teal-700'
                     : 'border-slate-200 text-slate-500 hover:bg-slate-50'
                 }`}
               >
@@ -1716,7 +1716,7 @@ function StepPayrollSettings({
               onChange={(e) => onUpdate('overtimeRate', parseFloat(e.target.value) || 1)}
               min={1}
               step={0.25}
-              className="w-24 px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none"
+              className="w-24 px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
             />
             <span className="text-sm text-slate-400">x regular rate</span>
           </div>
@@ -1735,12 +1735,12 @@ function StepPayrollSettings({
                 onClick={() => onUpdate('prorationMethod', method.value)}
                 className={`flex-1 p-3 rounded-xl border text-left transition-all ${
                   settings.prorationMethod === method.value
-                    ? 'border-violet-300 bg-violet-50'
+                    ? 'border-teal-300 bg-teal-50'
                     : 'border-slate-200 hover:bg-slate-50'
                 }`}
               >
                 <p className={`text-sm font-medium ${
-                  settings.prorationMethod === method.value ? 'text-violet-700' : 'text-slate-700'
+                  settings.prorationMethod === method.value ? 'text-teal-700' : 'text-slate-700'
                 }`}>
                   {method.label}
                 </p>
@@ -1772,8 +1772,8 @@ function StepInviteComplete({
   return (
     <div className="thb-card p-6">
       <div className="flex items-center gap-3 mb-6">
-        <div className="w-10 h-10 rounded-lg bg-violet-50 flex items-center justify-center">
-          <FiMail className="w-5 h-5 text-violet-500" />
+        <div className="w-10 h-10 rounded-lg bg-teal-50 flex items-center justify-center">
+          <FiMail className="w-5 h-5 text-teal-500" />
         </div>
         <div>
           <h2 className="text-lg font-bold text-slate-800">Invite Your Team</h2>
@@ -1785,7 +1785,7 @@ function StepInviteComplete({
         <label className="block text-sm font-medium text-slate-700 mb-1">
           Email Addresses
           {emailCount > 0 && (
-            <span className="ml-2 text-xs text-violet-500 font-normal">
+            <span className="ml-2 text-xs text-teal-500 font-normal">
               ({emailCount} valid email{emailCount !== 1 ? 's' : ''})
             </span>
           )}
@@ -1794,7 +1794,7 @@ function StepInviteComplete({
           value={emails}
           onChange={(e) => onEmailsChange(e.target.value)}
           rows={5}
-          className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none resize-none"
+          className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none resize-none"
           placeholder="Enter email addresses, separated by commas or one per line&#10;&#10;e.g.,&#10;john@company.com, jane@company.com&#10;alex@company.com"
         />
         <p className="mt-1 text-xs text-slate-400">
@@ -1806,7 +1806,7 @@ function StepInviteComplete({
         <button
           onClick={onSendInvitations}
           disabled={saving}
-          className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-lg text-sm font-medium hover:bg-violet-700 transition-all disabled:opacity-50"
+          className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg text-sm font-medium hover:bg-teal-700 transition-all disabled:opacity-50"
         >
           {saving ? (
             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />

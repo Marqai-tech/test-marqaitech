@@ -48,7 +48,7 @@ export default function LoansPage() {
         <h1 className="text-2xl font-bold">Loan Marketplace</h1>
         <p className="text-sm text-gray-600 mt-1">Pre-approved offers · e-sign consent · Garnishment (REQ-FIN-04/05/06)</p>
       </div>
-      <div className="bg-blue-50 border-l-4 border-blue-600 p-4 text-sm">
+      <div className="bg-green-50 border-l-4 border-green-600 p-4 text-sm">
         <b>Note:</b> HRMS is a lead generator and repayment facilitator only. No lending is done by the platform. Salary data shared via one-time expiring deep link only.
       </div>
       {!employeeId && (
@@ -61,7 +61,7 @@ export default function LoansPage() {
           <div key={l.id} className="bg-white border rounded-lg p-4">
             <div className="flex justify-between">
               <h3 className="font-semibold">{l.bankName}</h3>
-              <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded">{l.applicationStatus.replace(/_/g, ' ')}</span>
+              <span className="text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded">{l.applicationStatus.replace(/_/g, ' ')}</span>
             </div>
             <div className="grid grid-cols-2 gap-2 mt-3 text-sm">
               <div><div className="text-xs text-gray-500">Amount</div><div className="font-medium">{l.currency} {l.offerAmount.toLocaleString()}</div></div>

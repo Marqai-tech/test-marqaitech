@@ -88,8 +88,8 @@ function getStatusBadge(status: string) {
 function getCategoryBadge(category: string) {
   const map: Record<string, string> = {
     general: 'bg-slate-50 text-slate-700 thb-badge',
-    documentation: 'bg-blue-50 text-blue-700 thb-badge',
-    it_setup: 'bg-violet-50 text-violet-700 thb-badge',
+    documentation: 'bg-green-50 text-green-700 thb-badge',
+    it_setup: 'bg-teal-50 text-teal-700 thb-badge',
     training: 'bg-amber-50 text-amber-700 thb-badge',
     compliance: 'bg-rose-50 text-rose-700 thb-badge',
   };
@@ -142,14 +142,14 @@ const onboardingTabs: DashboardTabConfig[] = [
 function OnboardingReportsPlaceholder() {
   return (
     <div className="flex flex-col items-center py-8">
-      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg mb-4">
+      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-lg mb-4">
         <FiFileText className="w-7 h-7 text-white" />
       </div>
       <h3 className="text-lg font-bold text-thb-text-primary mb-1">Reports & Analytics</h3>
       <p className="text-sm text-thb-text-secondary text-center max-w-md mb-4">
         Onboarding progress reports, completion rates, and analytics
       </p>
-      <a href="/onboarding/reports" className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors">
+      <a href="/onboarding/reports" className="inline-flex items-center gap-2 px-5 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors">
         <FiBarChart2 className="w-4 h-4" /> Go to Reports
       </a>
     </div>
@@ -166,7 +166,7 @@ function OnboardingSettingsPlaceholder() {
       <p className="text-sm text-thb-text-secondary text-center max-w-md mb-4">
         Configure onboarding templates, task checklists, and buddy assignments
       </p>
-      <a href="/onboarding/settings" className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors">
+      <a href="/onboarding/settings" className="inline-flex items-center gap-2 px-5 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors">
         <FiSettings className="w-4 h-4" /> Go to Settings
       </a>
     </div>
@@ -427,7 +427,7 @@ function OnboardingContent() {
             <Link href="/onboarding/templates" className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">
               Templates
             </Link>
-            <button onClick={handleShowAddForm} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium text-sm shadow-sm shadow-blue-500/25 transition-colors">
+            <button onClick={handleShowAddForm} className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-500 text-white rounded-lg hover:bg-green-600 font-medium text-sm shadow-sm shadow-green-500/25 transition-colors">
               <FiPlus className="w-4 h-4" />
               Add Task
             </button>
@@ -482,12 +482,12 @@ function OnboardingContent() {
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Search tasks, employees..."
-            className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+            className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
           />
         </div>
         <div className="flex items-center gap-2">
           <FiFilter className="w-4 h-4 text-thb-text-muted" />
-          <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)} className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+          <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)} className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
             <option value="">All Categories</option>
             <option value="general">General</option>
             <option value="documentation">Documentation</option>
@@ -500,7 +500,7 @@ function OnboardingContent() {
             <option value="payroll_setup">Payroll Setup</option>
             <option value="project_allocation">Project Allocation</option>
           </select>
-          <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+          <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
             <option value="">All Status</option>
             <option value="pending">Pending</option>
             <option value="in_progress">In Progress</option>
@@ -512,7 +512,7 @@ function OnboardingContent() {
 
       {/* Embedded CRUD Form */}
       {showForm && (
-        <div id="crud-form" className="thb-card border-l-4 border-l-blue-500 animate-slide-in-down">
+        <div id="crud-form" className="thb-card border-l-4 border-l-green-500 animate-slide-in-down">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-semibold text-thb-text-primary">
@@ -529,7 +529,7 @@ function OnboardingContent() {
                   value={form.employeeId}
                   onChange={e => setForm(p => ({ ...p, employeeId: e.target.value }))}
                   disabled={!!editingId}
-                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 disabled:bg-slate-50 disabled:text-thb-text-muted"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 disabled:bg-slate-50 disabled:text-thb-text-muted"
                 >
                   <option value="">Select Employee</option>
                   {employees.map(emp => (
@@ -546,7 +546,7 @@ function OnboardingContent() {
                   value={form.task}
                   onChange={e => setForm(p => ({ ...p, task: e.target.value }))}
                   placeholder="e.g., Complete IT orientation"
-                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                 />
               </div>
               <div>
@@ -554,7 +554,7 @@ function OnboardingContent() {
                 <select
                   value={form.category}
                   onChange={e => setForm(p => ({ ...p, category: e.target.value }))}
-                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                 >
                   <option value="general">General</option>
                   <option value="documentation">Documentation</option>
@@ -574,7 +574,7 @@ function OnboardingContent() {
                   type="date"
                   value={form.dueDate}
                   onChange={e => setForm(p => ({ ...p, dueDate: e.target.value }))}
-                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                 />
               </div>
               {editingId && (
@@ -583,7 +583,7 @@ function OnboardingContent() {
                   <select
                     value={form.status}
                     onChange={e => setForm(p => ({ ...p, status: e.target.value }))}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                   >
                     <option value="pending">Pending</option>
                     <option value="in_progress">In Progress</option>
@@ -599,13 +599,13 @@ function OnboardingContent() {
                   value={form.notes}
                   onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
                   placeholder="Optional notes..."
-                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                 />
               </div>
             </div>
             <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-thb-border">
               <button onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
-              <button onClick={handleSubmit} disabled={submitting} className="px-6 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50 shadow-sm shadow-blue-500/25 transition-colors">
+              <button onClick={handleSubmit} disabled={submitting} className="px-6 py-2.5 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 disabled:opacity-50 shadow-sm shadow-green-500/25 transition-colors">
                 {submitting ? 'Saving...' : editingId ? 'Update' : 'Save'}
               </button>
             </div>
@@ -689,7 +689,7 @@ function OnboardingContent() {
                               const tplName = templates.find((tpl) => tpl.id === t.templateId)?.name;
                               return (
                                 <span
-                                  className="ml-2 inline-flex items-center gap-0.5 text-[9px] font-medium text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded"
+                                  className="ml-2 inline-flex items-center gap-0.5 text-[9px] font-medium text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded"
                                   title={`Generated from template ${t.templateId}`}
                                 >
                                   <FiLink className="w-2.5 h-2.5" />
@@ -715,7 +715,7 @@ function OnboardingContent() {
                                     <FiCheck className="w-4 h-4" />
                                   </button>
                                 )}
-                                <button onClick={() => handleShowEditForm(t)} className="p-2 rounded-lg text-thb-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="Edit">
+                                <button onClick={() => handleShowEditForm(t)} className="p-2 rounded-lg text-thb-text-muted hover:text-green-500 hover:bg-green-50 transition-colors" title="Edit">
                                   <FiEdit2 className="w-4 h-4" />
                                 </button>
                                 <button onClick={() => setDeleteConfirmId(t.id)} className="p-2 rounded-lg text-thb-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete">

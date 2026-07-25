@@ -101,15 +101,15 @@ export const ROLE_LABELS: Record<UserRole, string> = {
 
 export const ROLE_COLORS: Record<UserRole, string> = {
   super_admin: 'bg-red-100 text-red-800',
-  tenant_admin: 'bg-blue-100 text-blue-800',
+  tenant_admin: 'bg-green-100 text-green-800',
   admin: 'bg-emerald-100 text-emerald-800',
-  job_seeker: 'bg-violet-100 text-violet-800',
+  job_seeker: 'bg-teal-100 text-teal-800',
 };
 
 export const EMPLOYMENT_STATUS_COLORS: Record<string, string> = {
   active: 'bg-green-100 text-green-800',
   on_leave: 'bg-yellow-100 text-yellow-800',
-  probation: 'bg-blue-100 text-blue-800',
+  probation: 'bg-green-100 text-green-800',
   notice_period: 'bg-orange-100 text-orange-800',
   exited: 'bg-red-100 text-red-800',
 };

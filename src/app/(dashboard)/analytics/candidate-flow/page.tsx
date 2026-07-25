@@ -117,7 +117,7 @@ export default function CandidateFlowAnalyticsPage() {
             <FiArrowLeft className="w-3 h-3" /> Back to Recruitment
           </Link>
           <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
-            <FiBarChart2 className="w-6 h-6 text-violet-600" /> Candidate Flow Analytics
+            <FiBarChart2 className="w-6 h-6 text-teal-600" /> Candidate Flow Analytics
           </h1>
           <p className="text-sm text-thb-text-secondary mt-1">
             Track registrations, applications, resume uploads, and the candidate-to-hire funnel
@@ -127,7 +127,7 @@ export default function CandidateFlowAnalyticsPage() {
           <select
             value={days}
             onChange={(e) => setDays(parseInt(e.target.value, 10))}
-            className="px-3 py-2 border border-thb-border rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-violet-500"
+            className="px-3 py-2 border border-thb-border rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-teal-500"
           >
             <option value={7}>Last 7 days</option>
             <option value={30}>Last 30 days</option>
@@ -155,9 +155,9 @@ export default function CandidateFlowAnalyticsPage() {
           data ? (
             <>
               <span><b className="text-slate-700">{data.summary.uniqueCandidates}</b> candidates</span>
-              <span><b className="text-violet-600">{data.summary.totalApplications}</b> applications</span>
+              <span><b className="text-teal-600">{data.summary.totalApplications}</b> applications</span>
               <span><b className="text-emerald-600">{data.summary.resumeUploadCount}</b> resumes uploaded</span>
-              <span><b className="text-blue-600">{data.funnel.hired}</b> hired</span>
+              <span><b className="text-green-600">{data.funnel.hired}</b> hired</span>
             </>
           ) : null
         }
@@ -165,7 +165,7 @@ export default function CandidateFlowAnalyticsPage() {
 
       {loading || !data ? (
         <div className="thb-card p-12 text-center">
-          <div className="w-10 h-10 border-3 border-violet-200 border-t-violet-600 rounded-full animate-spin mx-auto mb-3" />
+          <div className="w-10 h-10 border-3 border-teal-200 border-t-teal-600 rounded-full animate-spin mx-auto mb-3" />
           <p className="text-sm text-thb-text-secondary">Loading candidate flow analytics…</p>
         </div>
       ) : (
@@ -177,14 +177,14 @@ export default function CandidateFlowAnalyticsPage() {
               label="Unique Candidates"
               value={String(data.summary.uniqueCandidates)}
               sublabel={`${data.summary.applicationsPerCandidate} apps/candidate`}
-              accent="bg-blue-500"
+              accent="bg-green-500"
             />
             <KpiCard
               icon={<FiBriefcase className="w-5 h-5 text-white" />}
               label="Total Applications"
               value={String(data.summary.totalApplications)}
               sublabel={`last ${days} days`}
-              accent="bg-violet-500"
+              accent="bg-teal-500"
             />
             <KpiCard
               icon={<FiFileText className="w-5 h-5 text-white" />}
@@ -212,14 +212,14 @@ export default function CandidateFlowAnalyticsPage() {
               label="Overall Hire Rate"
               value={`${data.conversion.overall_applied_to_hire}%`}
               sublabel={`${data.funnel.hired} hired of ${data.summary.totalApplications}`}
-              accent="bg-indigo-500"
+              accent="bg-emerald-500"
             />
           </div>
 
           {/* Conversion funnel */}
           <div className="thb-card p-5">
             <h3 className="text-sm font-semibold text-thb-text-primary mb-1 flex items-center gap-2">
-              <FiActivity className="w-4 h-4 text-violet-600" /> Candidate Conversion Funnel
+              <FiActivity className="w-4 h-4 text-teal-600" /> Candidate Conversion Funnel
             </h3>
             <p className="text-xs text-thb-text-muted mb-4">
               How candidates progress through each stage of the hiring pipeline
@@ -278,7 +278,7 @@ export default function CandidateFlowAnalyticsPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <div className="thb-card p-5">
               <h3 className="text-sm font-semibold text-thb-text-primary mb-1 flex items-center gap-2">
-                <FiUsers className="w-4 h-4 text-blue-500" /> Candidate Registrations Over Time
+                <FiUsers className="w-4 h-4 text-green-500" /> Candidate Registrations Over Time
               </h3>
               <p className="text-xs text-thb-text-muted mb-4">New unique candidate emails (first application date)</p>
               <ResponsiveContainer width="100%" height={260}>
@@ -300,7 +300,7 @@ export default function CandidateFlowAnalyticsPage() {
 
             <div className="thb-card p-5">
               <h3 className="text-sm font-semibold text-thb-text-primary mb-1 flex items-center gap-2">
-                <FiBriefcase className="w-4 h-4 text-violet-500" /> Applications Over Time
+                <FiBriefcase className="w-4 h-4 text-teal-500" /> Applications Over Time
               </h3>
               <p className="text-xs text-thb-text-muted mb-4">All job applications submitted (daily)</p>
               <ResponsiveContainer width="100%" height={260}>
@@ -342,7 +342,7 @@ export default function CandidateFlowAnalyticsPage() {
             {/* By department */}
             <div className="thb-card p-5">
               <h3 className="text-sm font-semibold text-thb-text-primary mb-3 flex items-center gap-2">
-                <FiUsers className="w-4 h-4 text-blue-600" /> Applications by Department
+                <FiUsers className="w-4 h-4 text-green-600" /> Applications by Department
               </h3>
               <ResponsiveContainer width="100%" height={280}>
                 <BarChart data={data.byDepartment} layout="vertical" margin={{ left: 20, right: 20 }}>
@@ -431,7 +431,7 @@ export default function CandidateFlowAnalyticsPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <div className="thb-card p-5">
               <h3 className="text-sm font-semibold text-thb-text-primary mb-3 flex items-center gap-2">
-                <FiBriefcase className="w-4 h-4 text-violet-600" /> Top Job Postings by Applications
+                <FiBriefcase className="w-4 h-4 text-teal-600" /> Top Job Postings by Applications
               </h3>
               {data.byJobPosting.length === 0 ? (
                 <p className="text-sm text-thb-text-muted text-center py-12">No applications yet</p>
@@ -441,13 +441,13 @@ export default function CandidateFlowAnalyticsPage() {
                     <div key={job.id} className="flex items-center gap-3 py-2 border-b border-slate-50 last:border-0">
                       <span className="text-xs font-mono text-thb-text-muted w-6">#{i + 1}</span>
                       <div className="flex-1 min-w-0">
-                        <Link href={`/recruitment/${job.id}`} className="text-sm font-medium text-thb-text-primary hover:text-violet-600 hover:underline truncate block">
+                        <Link href={`/recruitment/${job.id}`} className="text-sm font-medium text-thb-text-primary hover:text-teal-600 hover:underline truncate block">
                           {job.title}
                         </Link>
                         {job.company && <p className="text-xs text-thb-text-muted">{job.company}</p>}
                       </div>
-                      <span className="text-sm font-bold text-violet-600">{job.count}</span>
-                      <Link href={`/recruitment/${job.id}`} className="text-thb-text-muted hover:text-violet-600">
+                      <span className="text-sm font-bold text-teal-600">{job.count}</span>
+                      <Link href={`/recruitment/${job.id}`} className="text-thb-text-muted hover:text-teal-600">
                         <FiExternalLink className="w-3.5 h-3.5" />
                       </Link>
                     </div>
@@ -480,7 +480,7 @@ export default function CandidateFlowAnalyticsPage() {
           {data.byTenant.length > 1 && (
             <div className="thb-card p-5">
               <h3 className="text-sm font-semibold text-thb-text-primary mb-3 flex items-center gap-2">
-                <FiUsers className="w-4 h-4 text-indigo-600" /> Applications by Tenant
+                <FiUsers className="w-4 h-4 text-emerald-600" /> Applications by Tenant
               </h3>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                 {data.byTenant.map(t => (

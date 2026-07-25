@@ -299,7 +299,7 @@ export default function PayrollDefinitionsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
-            <FiCalendar className="w-6 h-6 text-blue-500" />
+            <FiCalendar className="w-6 h-6 text-green-500" />
             Payroll Definitions
           </h1>
           <p className="text-thb-text-secondary mt-1">Configure payroll frequencies, cut-off dates, and payment methods</p>
@@ -315,7 +315,7 @@ export default function PayrollDefinitionsPage() {
           {isAdmin && (
             <button
               onClick={handleAddNew}
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium text-sm shadow-sm shadow-blue-500/25 transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-500 text-white rounded-lg hover:bg-green-600 font-medium text-sm shadow-sm shadow-green-500/25 transition-colors"
             >
               <FiPlus className="w-4 h-4" /> Add Definition
             </button>
@@ -327,8 +327,8 @@ export default function PayrollDefinitionsPage() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
-              <FiCalendar className="w-5 h-5 text-blue-500" />
+            <div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center">
+              <FiCalendar className="w-5 h-5 text-green-500" />
             </div>
             <div>
               <p className="text-xs font-medium text-thb-text-secondary">Total Definitions</p>
@@ -360,8 +360,8 @@ export default function PayrollDefinitionsPage() {
         </div>
         <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-violet-50 flex items-center justify-center">
-              <FiCreditCard className="w-5 h-5 text-violet-500" />
+            <div className="w-10 h-10 rounded-lg bg-teal-50 flex items-center justify-center">
+              <FiCreditCard className="w-5 h-5 text-teal-500" />
             </div>
             <div>
               <p className="text-xs font-medium text-thb-text-secondary">Direct Deposit</p>
@@ -381,13 +381,13 @@ export default function PayrollDefinitionsPage() {
               placeholder="Search by name, country, or currency..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+              className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
             />
           </div>
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[130px]"
+            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 min-w-[130px]"
           >
             <option value="">All Status</option>
             <option value="active">Active</option>
@@ -396,7 +396,7 @@ export default function PayrollDefinitionsPage() {
           <select
             value={countryFilter}
             onChange={(e) => setCountryFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[150px]"
+            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 min-w-[150px]"
           >
             <option value="">All Countries</option>
             {COUNTRY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -404,7 +404,7 @@ export default function PayrollDefinitionsPage() {
           <select
             value={frequencyFilter}
             onChange={(e) => setFrequencyFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[150px]"
+            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 min-w-[150px]"
           >
             <option value="">All Frequencies</option>
             {PAY_FREQUENCY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -418,7 +418,7 @@ export default function PayrollDefinitionsPage() {
           <div className="p-6">
             {viewLoading ? (
               <div className="flex items-center justify-center py-8">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500" />
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-500" />
               </div>
             ) : (
               <>
@@ -433,7 +433,7 @@ export default function PayrollDefinitionsPage() {
                     {isAdmin && (
                       <button
                         onClick={() => handleEdit(viewingDefinition)}
-                        className="px-3 py-1.5 rounded-lg bg-blue-500 text-white text-xs font-medium hover:bg-blue-600 transition-colors flex items-center gap-1"
+                        className="px-3 py-1.5 rounded-lg bg-green-500 text-white text-xs font-medium hover:bg-green-600 transition-colors flex items-center gap-1"
                       >
                         <FiEdit2 className="w-3.5 h-3.5" /> Edit
                       </button>
@@ -471,7 +471,7 @@ export default function PayrollDefinitionsPage() {
 
       {/* Embedded Inline Form */}
       {showForm && (
-        <div id="crud-form" className="thb-card border-l-4 border-l-blue-500">
+        <div id="crud-form" className="thb-card border-l-4 border-l-green-500">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-semibold text-thb-text-primary">
@@ -495,7 +495,7 @@ export default function PayrollDefinitionsPage() {
                     required
                     value={form.name}
                     onChange={(e) => setForm({ ...form, name: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                     placeholder="e.g. India Monthly Payroll"
                   />
                 </div>
@@ -505,7 +505,7 @@ export default function PayrollDefinitionsPage() {
                     required
                     value={form.companyId}
                     onChange={(e) => setForm({ ...form, companyId: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                     placeholder="Company identifier"
                   />
                 </div>
@@ -514,7 +514,7 @@ export default function PayrollDefinitionsPage() {
                   <select
                     value={form.payFrequency}
                     onChange={(e) => setForm({ ...form, payFrequency: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                   >
                     {PAY_FREQUENCY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
@@ -527,7 +527,7 @@ export default function PayrollDefinitionsPage() {
                     max={31}
                     value={form.processingCutOff}
                     onChange={(e) => setForm({ ...form, processingCutOff: parseInt(e.target.value) || 1 })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                     placeholder="e.g. 25"
                   />
                 </div>
@@ -539,7 +539,7 @@ export default function PayrollDefinitionsPage() {
                     max={31}
                     value={form.paymentDay}
                     onChange={(e) => setForm({ ...form, paymentDay: parseInt(e.target.value) || 1 })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                     placeholder="e.g. 1"
                   />
                 </div>
@@ -548,7 +548,7 @@ export default function PayrollDefinitionsPage() {
                   <select
                     value={form.countryCode}
                     onChange={(e) => setForm({ ...form, countryCode: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                   >
                     {COUNTRY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
@@ -565,7 +565,7 @@ export default function PayrollDefinitionsPage() {
                   <select
                     value={form.currencyCode}
                     onChange={(e) => setForm({ ...form, currencyCode: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                   >
                     {CURRENCY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
@@ -615,7 +615,7 @@ export default function PayrollDefinitionsPage() {
                   <input
                     value={form.costingSegments}
                     onChange={(e) => setForm({ ...form, costingSegments: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                     placeholder='e.g. ["department","cost_center"]'
                   />
                 </div>
@@ -625,7 +625,7 @@ export default function PayrollDefinitionsPage() {
                     type="date"
                     value={form.effectiveFrom}
                     onChange={(e) => setForm({ ...form, effectiveFrom: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                   />
                 </div>
                 <div>
@@ -634,7 +634,7 @@ export default function PayrollDefinitionsPage() {
                     type="date"
                     value={form.effectiveTo}
                     onChange={(e) => setForm({ ...form, effectiveTo: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                   />
                 </div>
               </div>
@@ -651,7 +651,7 @@ export default function PayrollDefinitionsPage() {
               <button
                 onClick={handleSubmit}
                 disabled={submitting}
-                className="px-6 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50 shadow-sm shadow-blue-500/25 transition-colors"
+                className="px-6 py-2.5 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 disabled:opacity-50 shadow-sm shadow-green-500/25 transition-colors"
               >
                 {submitting ? 'Saving...' : editingId ? 'Update Definition' : 'Create Definition'}
               </button>
@@ -739,7 +739,7 @@ export default function PayrollDefinitionsPage() {
                         <div className="flex items-center gap-1">
                           <button
                             onClick={() => handleView(d)}
-                            className="p-1.5 rounded-md text-thb-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors"
+                            className="p-1.5 rounded-md text-thb-text-muted hover:text-green-500 hover:bg-green-50 transition-colors"
                             title="View"
                           >
                             <FiEye className="w-4 h-4" />

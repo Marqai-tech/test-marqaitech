@@ -51,13 +51,13 @@ const initialForm = {
 function getCategoryBadge(category: string) {
   const map: Record<string, string> = {
     general: 'bg-slate-100 text-slate-700',
-    it_setup: 'bg-violet-50 text-violet-700',
-    hr_docs: 'bg-blue-50 text-blue-700',
+    it_setup: 'bg-teal-50 text-teal-700',
+    hr_docs: 'bg-green-50 text-green-700',
     training: 'bg-amber-50 text-amber-700',
     introduction: 'bg-cyan-50 text-cyan-700',
     buddy_setup: 'bg-emerald-50 text-emerald-700',
     payroll_setup: 'bg-rose-50 text-rose-700',
-    project_allocation: 'bg-indigo-50 text-indigo-700',
+    project_allocation: 'bg-emerald-50 text-emerald-700',
   };
   return map[category] || 'bg-slate-100 text-slate-700';
 }
@@ -393,7 +393,7 @@ export default function OnboardingTemplatesPage() {
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-end gap-1">
-                            <button onClick={() => handleEdit(t)} className="p-2 rounded-lg text-thb-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="Edit"><FiEdit2 className="w-4 h-4" /></button>
+                            <button onClick={() => handleEdit(t)} className="p-2 rounded-lg text-thb-text-muted hover:text-green-500 hover:bg-green-50 transition-colors" title="Edit"><FiEdit2 className="w-4 h-4" /></button>
                             <button onClick={() => setDeleteConfirmId(t.id)} className="p-2 rounded-lg text-thb-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete"><FiTrash2 className="w-4 h-4" /></button>
                           </div>
                         </td>

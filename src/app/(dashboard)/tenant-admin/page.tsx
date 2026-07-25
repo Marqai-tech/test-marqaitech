@@ -222,7 +222,7 @@ export default function TenantAdminPage() {
   if (user && user.role === 'super_admin') {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 px-4 text-center">
-        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-violet-600 text-white flex items-center justify-center shadow-lg shadow-blue-500/20">
+        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-green-500 to-teal-600 text-white flex items-center justify-center shadow-lg shadow-green-500/20">
           <FiShield className="w-8 h-8" />
         </div>
         <h2 className="text-xl font-semibold text-thb-text-primary">Super admins use the Super Admin page</h2>
@@ -235,7 +235,7 @@ export default function TenantAdminPage() {
         </p>
         <Link
           href="/super-admin"
-          className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium text-sm shadow-sm transition-colors mt-2"
+          className="inline-flex items-center gap-2 px-5 py-2.5 bg-green-500 text-white rounded-lg hover:bg-green-600 font-medium text-sm shadow-sm transition-colors mt-2"
         >
           <FiServer className="w-4 h-4" /> Go to Super Admin
         </Link>
@@ -356,7 +356,7 @@ export default function TenantAdminPage() {
           </button>
           <Link
             href="/tenant-admin/group-companies"
-            className="inline-flex items-center gap-2 px-3 py-2 border border-violet-200 bg-violet-50 text-violet-700 rounded-lg hover:bg-violet-100 font-medium text-sm shadow-sm transition-colors"
+            className="inline-flex items-center gap-2 px-3 py-2 border border-teal-200 bg-teal-50 text-teal-700 rounded-lg hover:bg-teal-100 font-medium text-sm shadow-sm transition-colors"
             title="View the group companies under your tenant (read-only — only super admin can create or modify)"
           >
             <FiLayers className="w-4 h-4" /> View Group Companies
@@ -368,7 +368,7 @@ export default function TenantAdminPage() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="thb-card p-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-violet-50"><FiLayers className="w-4 h-4 text-violet-600" /></div>
+            <div className="p-2 rounded-lg bg-teal-50"><FiLayers className="w-4 h-4 text-teal-600" /></div>
             <div>
               <p className="text-xs font-medium text-thb-text-secondary">Group Companies</p>
               <p className="text-xl font-bold text-thb-text-primary">{totalGroups}</p>
@@ -377,7 +377,7 @@ export default function TenantAdminPage() {
         </div>
         <div className="thb-card p-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-indigo-50"><FiHome className="w-4 h-4 text-indigo-600" /></div>
+            <div className="p-2 rounded-lg bg-emerald-50"><FiHome className="w-4 h-4 text-emerald-600" /></div>
             <div>
               <p className="text-xs font-medium text-thb-text-secondary">Companies</p>
               <p className="text-xl font-bold text-thb-text-primary">{totalCompanies}</p>
@@ -507,7 +507,7 @@ export default function TenantAdminPage() {
               <div className="thb-card p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-sm font-semibold text-thb-text-secondary flex items-center gap-2">
-                    <FiLayers className="w-4 h-4 text-violet-500" /> Group Companies under this Tenant
+                    <FiLayers className="w-4 h-4 text-teal-500" /> Group Companies under this Tenant
                   </h3>
                   <Link href="/tenant-admin/group-companies" className="inline-flex items-center gap-1 text-xs font-medium text-teal-600 hover:text-teal-700">
                     View all <FiChevronRight className="w-3 h-3" />
@@ -529,7 +529,7 @@ export default function TenantAdminPage() {
                     </p>
                     <Link
                       href="/tenant-admin/companies"
-                      className="inline-flex items-center gap-2 px-3 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 font-medium text-xs shadow-sm"
+                      className="inline-flex items-center gap-2 px-3 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 font-medium text-xs shadow-sm"
                     >
                       <FiBriefcase className="w-3.5 h-3.5" /> Go to Companies page
                     </Link>
@@ -542,7 +542,7 @@ export default function TenantAdminPage() {
                       return (
                         <div key={g.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
                           <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white">
+                            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-teal-500 to-teal-600 flex items-center justify-center text-white">
                               <FiLayers className="w-4 h-4" />
                             </div>
                             <div>
@@ -587,24 +587,24 @@ export default function TenantAdminPage() {
       {activeTab === 'groups' && (
         <div className="space-y-4">
           {/* Educational banner */}
-          <div className="thb-card p-4 bg-gradient-to-r from-indigo-50 to-violet-50 border-indigo-200">
+          <div className="thb-card p-4 bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-200">
             <div className="flex items-start gap-3">
-              <FiLayers className="w-5 h-5 text-indigo-600 flex-shrink-0 mt-0.5" />
-              <div className="text-xs text-indigo-900 flex-1">
+              <FiLayers className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+              <div className="text-xs text-emerald-900 flex-1">
                 <p className="font-bold mb-2 text-sm">Multi-tenancy Hierarchy</p>
                 <div className="flex items-center gap-2 flex-wrap mb-2">
-                  <span className="inline-flex items-center gap-1 px-2 py-1 bg-white rounded-md border border-indigo-200 font-semibold">
+                  <span className="inline-flex items-center gap-1 px-2 py-1 bg-white rounded-md border border-emerald-200 font-semibold">
                     <FiHome className="w-3 h-3" /> Tenant
                   </span>
-                  <span className="text-indigo-400">=</span>
-                  <span className="inline-flex items-center gap-1 px-2 py-1 bg-white rounded-md border border-violet-200 font-semibold">
+                  <span className="text-emerald-400">=</span>
+                  <span className="inline-flex items-center gap-1 px-2 py-1 bg-white rounded-md border border-teal-200 font-semibold">
                     <FiLayers className="w-3 h-3" /> Group Company (parent)
                   </span>
-                  <span className="text-indigo-400">→</span>
-                  <span className="inline-flex items-center gap-1 px-2 py-1 bg-white rounded-md border border-blue-200 font-semibold">
+                  <span className="text-emerald-400">→</span>
+                  <span className="inline-flex items-center gap-1 px-2 py-1 bg-white rounded-md border border-green-200 font-semibold">
                     <FiBriefcase className="w-3 h-3" /> Company
                   </span>
-                  <span className="text-indigo-400">→</span>
+                  <span className="text-emerald-400">→</span>
                   <span className="inline-flex items-center gap-1 px-2 py-1 bg-white rounded-md border border-amber-200 font-semibold">
                     <FiUsers className="w-3 h-3" /> Employees
                   </span>
@@ -614,7 +614,7 @@ export default function TenantAdminPage() {
                   {' '}You are managing tenant <b>{tenantName}</b>, which has a companies cap set by the super admin.
                   {' '}The group companies listed below are <b>created by your super admin</b> — as a tenant admin you
                   {' '}can view them but cannot create or modify them. To induct <b>Companies</b> under any group, use the{' '}
-                  <a href="/tenant-admin/companies" className="font-bold text-indigo-700 underline">Companies</a> page.
+                  <a href="/tenant-admin/companies" className="font-bold text-emerald-700 underline">Companies</a> page.
                 </p>
               </div>
             </div>
@@ -658,7 +658,7 @@ export default function TenantAdminPage() {
               </p>
               <Link
                 href="/tenant-admin/companies"
-                className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-500 to-violet-500 text-white text-sm font-semibold shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 rounded-lg transition-all"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-sm font-semibold shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 rounded-lg transition-all"
               >
                 <FiBriefcase className="w-4 h-4" /> Go to Companies page
               </Link>
@@ -674,7 +674,7 @@ export default function TenantAdminPage() {
                   <div key={g.id} className="thb-card p-5">
                     <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                       <div className="flex items-start gap-4">
-                        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white flex-shrink-0">
+                        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-teal-500 to-teal-600 flex items-center justify-center text-white flex-shrink-0">
                           <FiLayers className="w-5 h-5" />
                         </div>
                         <div className="min-w-0">
@@ -699,13 +699,13 @@ export default function TenantAdminPage() {
                           </span>
                         )}
                         {hasCoCap && (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-blue-50 text-blue-700 ring-1 ring-blue-200 text-[11px] font-semibold">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-green-50 text-green-700 ring-1 ring-green-200 text-[11px] font-semibold">
                             <FiLayers className="w-3 h-3" /> co cap: {coCount}/{g.maxCompanies}
                           </span>
                         )}
                         <Link
                           href="/tenant-admin/group-companies"
-                          className="p-1.5 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg"
+                          className="p-1.5 text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg"
                           title="View details (read-only)"
                         >
                           <FiInfo className="w-3.5 h-3.5" />
@@ -725,7 +725,7 @@ export default function TenantAdminPage() {
                             <div key={c.id} className="flex items-center gap-3 text-xs text-thb-text-secondary bg-slate-50 rounded-lg p-2.5">
                               <FiHome className="w-3.5 h-3.5 text-slate-400" />
                               <span className="font-medium text-thb-text-primary">{c.name}</span>
-                              {c.code && <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 text-[10px] font-semibold">{c.code}</span>}
+                              {c.code && <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 text-[10px] font-semibold">{c.code}</span>}
                               <span className="ml-auto flex items-center gap-1.5">
                                 <span className={atCap ? 'text-red-600 font-semibold' : ''}>{cEmp} emp</span>
                                 {cPlan !== null && cPlan !== undefined && (cPlan as number) > 0 && (
@@ -749,13 +749,13 @@ export default function TenantAdminPage() {
           <div className="flex justify-center gap-2 flex-wrap">
             <Link
               href="/tenant-admin/group-companies"
-              className="inline-flex items-center gap-2 px-4 py-2.5 border border-violet-200 bg-violet-50 text-violet-700 text-sm font-semibold rounded-lg hover:bg-violet-100 transition-all"
+              className="inline-flex items-center gap-2 px-4 py-2.5 border border-teal-200 bg-teal-50 text-teal-700 text-sm font-semibold rounded-lg hover:bg-teal-100 transition-all"
             >
               <FiLayers className="w-4 h-4" /> View Full Group Companies List
             </Link>
             <Link
               href="/tenant-admin/companies"
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-indigo-500 to-violet-500 text-white text-sm font-semibold shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 rounded-lg transition-all"
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-sm font-semibold shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 rounded-lg transition-all"
             >
               <FiBriefcase className="w-4 h-4" /> Create a Company
             </Link>
@@ -1073,8 +1073,8 @@ export default function TenantAdminPage() {
           </Link>
           <div className="thb-card p-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="text-center p-4 bg-blue-50 rounded-xl">
-                <FiGlobe className="w-8 h-8 mx-auto text-blue-500 mb-2" />
+              <div className="text-center p-4 bg-green-50 rounded-xl">
+                <FiGlobe className="w-8 h-8 mx-auto text-green-500 mb-2" />
                 <h4 className="font-semibold text-gray-900">Country Access</h4>
                 <p className="text-xs text-gray-500 mt-1">Select which countries your operations cover. Payroll, compliance & tax policies are auto-configured.</p>
               </div>
@@ -1083,8 +1083,8 @@ export default function TenantAdminPage() {
                 <h4 className="font-semibold text-gray-900">Currency Setup</h4>
                 <p className="text-xs text-gray-500 mt-1">Enable multi-currency payroll with exchange rate configuration and GL integration.</p>
               </div>
-              <div className="text-center p-4 bg-purple-50 rounded-xl">
-                <FiMessageSquare className="w-8 h-8 mx-auto text-purple-500 mb-2" />
+              <div className="text-center p-4 bg-teal-50 rounded-xl">
+                <FiMessageSquare className="w-8 h-8 mx-auto text-teal-500 mb-2" />
                 <h4 className="font-semibold text-gray-900">Language Support</h4>
                 <p className="text-xs text-gray-500 mt-1">Enable UI localisation, document templates, and email translations in multiple languages.</p>
               </div>

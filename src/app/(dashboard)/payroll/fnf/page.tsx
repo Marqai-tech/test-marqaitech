@@ -321,7 +321,7 @@ export default function FNFSettlementPage() {
             <FiRefreshCw className="w-4 h-4" />
           </button>
           {isAdmin && (
-            <button onClick={handleAddNew} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium text-sm shadow-sm shadow-blue-500/25 transition-colors">
+            <button onClick={handleAddNew} className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-500 text-white rounded-lg hover:bg-green-600 font-medium text-sm shadow-sm shadow-green-500/25 transition-colors">
               <FiPlus className="w-4 h-4" /> New F&F
             </button>
           )}
@@ -376,8 +376,8 @@ export default function FNFSettlementPage() {
         </div>
         <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-violet-50 flex items-center justify-center">
-              <FiTrendingUp className="w-5 h-5 text-violet-500" />
+            <div className="w-10 h-10 rounded-lg bg-teal-50 flex items-center justify-center">
+              <FiTrendingUp className="w-5 h-5 text-teal-500" />
             </div>
             <div>
               <p className="text-xs font-medium text-thb-text-secondary">Total Net</p>
@@ -393,14 +393,14 @@ export default function FNFSettlementPage() {
           <div className="relative flex-1">
             <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
             <input type="text" placeholder="Search by employee, remarks..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+              className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
           </div>
           <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[150px]">
+            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 min-w-[150px]">
             {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
           <select value={employeeFilter} onChange={(e) => setEmployeeFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[160px]">
+            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 min-w-[160px]">
             <option value="">All Employees</option>
             {employees.map(e => (
               <option key={e.id} value={e.employeeId}>{e.firstName} {e.lastName} ({e.employeeId})</option>
@@ -411,7 +411,7 @@ export default function FNFSettlementPage() {
 
       {/* Create/Edit Form */}
       {showForm && (
-        <div id="fnf-form" className="thb-card border-l-4 border-l-blue-500">
+        <div id="fnf-form" className="thb-card border-l-4 border-l-green-500">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-semibold text-thb-text-primary">
@@ -430,7 +430,7 @@ export default function FNFSettlementPage() {
                   <label className="block text-xs font-medium text-thb-text-secondary mb-1">Employee *</label>
                   {employees.length > 0 ? (
                     <select value={form.employeeId} onChange={(e) => setForm({ ...form, employeeId: e.target.value })}
-                      className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                      className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                       <option value="">Select Employee...</option>
                       {employees.map(e => (
                         <option key={e.id} value={e.employeeId}>{e.firstName} {e.lastName} ({e.employeeId})</option>
@@ -438,20 +438,20 @@ export default function FNFSettlementPage() {
                     </select>
                   ) : (
                     <input value={form.employeeId} onChange={(e) => setForm({ ...form, employeeId: e.target.value })}
-                      className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                      className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                       placeholder="Enter Employee ID" />
                   )}
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-thb-text-secondary mb-1">Separation ID</label>
                   <input value={form.separationId} onChange={(e) => setForm({ ...form, separationId: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                     placeholder="Optional separation reference" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-thb-text-secondary mb-1">Currency</label>
                   <select value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                     {CURRENCY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
@@ -475,7 +475,7 @@ export default function FNFSettlementPage() {
                     <label className="block text-xs font-medium text-thb-text-secondary mb-1">{label}</label>
                     <input type="number" step="0.01" min="0" value={form[key as keyof typeof form]}
                       onChange={(e) => setForm({ ...form, [key]: e.target.value })}
-                      className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                      className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                       placeholder="0.00" />
                   </div>
                 ))}
@@ -502,7 +502,7 @@ export default function FNFSettlementPage() {
                     <label className="block text-xs font-medium text-thb-text-secondary mb-1">{label}</label>
                     <input type="number" step="0.01" min="0" value={form[key as keyof typeof form]}
                       onChange={(e) => setForm({ ...form, [key]: e.target.value })}
-                      className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                      className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                       placeholder="0.00" />
                   </div>
                 ))}
@@ -525,7 +525,7 @@ export default function FNFSettlementPage() {
                 <div>
                   <label className="block text-xs font-medium text-thb-text-secondary mb-1">Remarks</label>
                   <textarea value={form.remarks} onChange={(e) => setForm({ ...form, remarks: e.target.value })} rows={3}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 resize-none"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 resize-none"
                     placeholder="Additional notes..." />
                 </div>
               </div>
@@ -537,7 +537,7 @@ export default function FNFSettlementPage() {
                 Cancel
               </button>
               <button onClick={handleSubmit} disabled={submitting}
-                className="px-6 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50 shadow-sm shadow-blue-500/25 transition-colors">
+                className="px-6 py-2.5 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 disabled:opacity-50 shadow-sm shadow-green-500/25 transition-colors">
                 {submitting ? 'Saving...' : editingId ? 'Update F&F' : 'Create F&F'}
               </button>
             </div>
@@ -547,7 +547,7 @@ export default function FNFSettlementPage() {
 
       {/* Detail View */}
       {detailId && detailData && (
-        <div className="thb-card border-l-4 border-l-violet-500">
+        <div className="thb-card border-l-4 border-l-teal-500">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-semibold text-thb-text-primary">F&F Settlement Detail</h2>
@@ -658,7 +658,7 @@ export default function FNFSettlementPage() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1">
-                        <button onClick={() => handleViewDetail(item.id)} className="p-1.5 rounded-lg text-thb-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="View Details">
+                        <button onClick={() => handleViewDetail(item.id)} className="p-1.5 rounded-lg text-thb-text-muted hover:text-green-500 hover:bg-green-50 transition-colors" title="View Details">
                           <FiSearch className="w-3.5 h-3.5" />
                         </button>
                         {isAdmin && item.status === 'pending' && (

@@ -34,7 +34,7 @@ export default function SOWPage() {
           <h1 className="text-2xl font-bold">Statements of Work (SOW)</h1>
           <p className="text-sm text-gray-600 mt-1">AI-parsed SOWs · auto-generate project shells on approval (REQ-CLT-04/05)</p>
         </div>
-        <button onClick={() => setShowCreate(!showCreate)} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+        <button onClick={() => setShowCreate(!showCreate)} className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
           {showCreate ? 'Close' : '+ New SOW'}
         </button>
       </div>
@@ -50,7 +50,7 @@ export default function SOWPage() {
                   <h3 className="font-semibold">{s.title}</h3>
                   <p className="text-xs text-gray-500">{s.client?.name}</p>
                 </div>
-                <span className={`text-xs px-2 py-1 rounded ${s.status === 'approved' ? 'bg-green-100 text-green-700' : s.status === 'ai_parsed' ? 'bg-blue-100 text-blue-700' : 'bg-yellow-100 text-yellow-700'}`}>{s.status}</span>
+                <span className={`text-xs px-2 py-1 rounded ${s.status === 'approved' ? 'bg-green-100 text-green-700' : s.status === 'ai_parsed' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>{s.status}</span>
               </div>
               <div className="mt-3 space-y-1 text-sm">
                 <div className="flex justify-between"><span className="text-gray-500">Value:</span><span className="font-medium">{s.currency} {(s.totalValue || 0).toLocaleString()}</span></div>
@@ -58,7 +58,7 @@ export default function SOWPage() {
                 <div className="flex justify-between"><span className="text-gray-500">AI Confidence:</span><span className="font-medium">{((s.aiConfidence || 0) * 100).toFixed(0)}%</span></div>
                 <div className="flex justify-between"><span className="text-gray-500">Start:</span><span className="font-medium">{s.startDate ? new Date(s.startDate).toLocaleDateString() : '-'}</span></div>
                 <div className="flex justify-between"><span className="text-gray-500">End:</span><span className="font-medium">{s.endDate ? new Date(s.endDate).toLocaleDateString() : '-'}</span></div>
-                {s.project && <div className="flex justify-between"><span className="text-gray-500">Project:</span><Link href={`/projects/${s.project.id}`} className="text-blue-600 hover:underline">{s.project.name}</Link></div>}
+                {s.project && <div className="flex justify-between"><span className="text-gray-500">Project:</span><Link href={`/projects/${s.project.id}`} className="text-green-600 hover:underline">{s.project.name}</Link></div>}
               </div>
               {s.status === 'ai_parsed' && (
                 <button onClick={() => approve(s.id)} className="mt-3 w-full px-3 py-1.5 bg-green-600 text-white text-sm rounded hover:bg-green-700">Approve & Generate Project</button>
@@ -96,7 +96,7 @@ export default function SOWPage() {
         <input placeholder="SOW title" required value={form.title} onChange={e => setForm({...form, title: e.target.value})} className="w-full border rounded px-3 py-2" />
         <input placeholder="File name (e.g., microsoft-sow-q1.pdf)" value={form.fileName} onChange={e => setForm({...form, fileName: e.target.value})} className="w-full border rounded px-3 py-2" />
         <textarea placeholder="Paste SOW raw text here — AI extracts dates, headcount, bill rates, value" rows={6} value={form.rawText} onChange={e => setForm({...form, rawText: e.target.value})} className="w-full border rounded px-3 py-2 font-mono text-xs" />
-        <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded">AI Parse & Save</button>
+        <button type="submit" className="px-4 py-2 bg-green-600 text-white rounded">AI Parse & Save</button>
       </form>
     );
   }

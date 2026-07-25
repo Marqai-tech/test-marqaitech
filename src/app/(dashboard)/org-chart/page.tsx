@@ -156,15 +156,15 @@ function countDirectReports(nodes: OrgNode[]): number {
 }
 
 const DEPT_GRADIENTS = [
-  'from-blue-500 to-indigo-500',
+  'from-green-500 to-emerald-500',
   'from-emerald-500 to-teal-500',
-  'from-violet-500 to-purple-500',
+  'from-teal-500 to-teal-500',
   'from-orange-500 to-amber-500',
   'from-pink-500 to-rose-500',
-  'from-cyan-500 to-blue-500',
+  'from-cyan-500 to-green-500',
   'from-red-500 to-pink-500',
   'from-lime-500 to-green-500',
-  'from-fuchsia-500 to-purple-500',
+  'from-fuchsia-500 to-teal-500',
   'from-yellow-500 to-orange-500',
 ];
 
@@ -176,12 +176,12 @@ function getDeptColor(deptName: string): string {
 
 function getAvatarGradient(name: string): string {
   const colors = [
-    'from-blue-500 to-cyan-500',
-    'from-violet-500 to-purple-500',
+    'from-green-500 to-cyan-500',
+    'from-teal-500 to-teal-500',
     'from-emerald-500 to-teal-500',
     'from-orange-500 to-amber-500',
     'from-pink-500 to-rose-500',
-    'from-indigo-500 to-blue-500',
+    'from-emerald-500 to-green-500',
     'from-teal-500 to-green-500',
     'from-red-500 to-pink-500',
   ];
@@ -240,7 +240,7 @@ function TreeNode({ node, depth, collapsed, onToggle, search, selectedId, onSele
         onClick={() => onSelect(node.id)}
         className={`text-left w-60 bg-white rounded-xl border p-3 shadow-sm hover:shadow-md transition-all duration-200 ${
           matchesSearch ? 'border-amber-400 ring-2 ring-amber-200' :
-          isSelected ? 'border-violet-400 ring-2 ring-violet-200' :
+          isSelected ? 'border-teal-400 ring-2 ring-teal-200' :
           'border-slate-200'
         }`}
       >
@@ -260,7 +260,7 @@ function TreeNode({ node, depth, collapsed, onToggle, search, selectedId, onSele
               tabIndex={0}
               onClick={(e) => { e.stopPropagation(); onToggle(node.id); }}
               onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); onToggle(node.id); } }}
-              className="flex-shrink-0 -mr-1 p-1 rounded-md text-slate-400 hover:text-violet-600 hover:bg-violet-50 transition-colors"
+              className="flex-shrink-0 -mr-1 p-1 rounded-md text-slate-400 hover:text-teal-600 hover:bg-teal-50 transition-colors"
               aria-label={isCollapsed ? 'Expand' : 'Collapse'}
             >
               {isCollapsed ? <FiChevronRight className="w-3.5 h-3.5" /> : <FiChevronDown className="w-3.5 h-3.5" />}
@@ -287,7 +287,7 @@ function TreeNode({ node, depth, collapsed, onToggle, search, selectedId, onSele
           <span className="truncate">{emp.email}</span>
         </div>
         {hasChildren && isCollapsed && (
-          <div className="mt-2 text-[10px] text-center text-violet-600 font-medium bg-violet-50 rounded-md py-1">
+          <div className="mt-2 text-[10px] text-center text-teal-600 font-medium bg-teal-50 rounded-md py-1">
             {node.children.length} hidden report{node.children.length === 1 ? '' : 's'}
           </div>
         )}
@@ -468,7 +468,7 @@ export default function OrgChartPage() {
           <div className="mb-3 sm:mb-0">
             <h2 className="text-xl font-bold text-slate-900 mb-1">Org Chart</h2>
             <nav className="flex items-center gap-1.5 text-sm text-slate-500">
-              <button onClick={() => router.push('/')} className="hover:text-blue-600 transition-colors">Home</button>
+              <button onClick={() => router.push('/')} className="hover:text-green-600 transition-colors">Home</button>
               <span>/</span>
               <span className="text-slate-400">Employees</span>
               <span>/</span>
@@ -486,7 +486,7 @@ export default function OrgChartPage() {
             </button>
             <button
               onClick={() => router.push('/employees/add')}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 shadow-sm transition-colors"
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg bg-green-600 text-white hover:bg-green-700 shadow-sm transition-colors"
             >
               <FiPlus className="w-3.5 h-3.5" />
               Add Employee
@@ -515,7 +515,7 @@ export default function OrgChartPage() {
             </div>
           </div>
           <div className="bg-white rounded-xl border border-slate-200 p-4 flex items-center gap-3">
-            <div className="w-12 h-12 rounded-full bg-violet-500 flex items-center justify-center text-white">
+            <div className="w-12 h-12 rounded-full bg-teal-500 flex items-center justify-center text-white">
               <FiLayers className="w-5 h-5" />
             </div>
             <div>
@@ -544,7 +544,7 @@ export default function OrgChartPage() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search by name or email..."
-                className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
               />
             </div>
             <div className="flex items-center gap-2 flex-wrap">
@@ -552,7 +552,7 @@ export default function OrgChartPage() {
                 type="button"
                 onClick={() => setDeptFilter(null)}
                 className={`inline-flex items-center gap-1 text-xs font-semibold px-3 py-2 rounded-lg transition-colors ${
-                  !deptFilter ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-100'
+                  !deptFilter ? 'bg-green-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-100'
                 }`}
               >
                 All
@@ -563,7 +563,7 @@ export default function OrgChartPage() {
                   type="button"
                   onClick={() => setDeptFilter(deptFilter === dept.name ? null : dept.name)}
                   className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg transition-colors ${
-                    deptFilter === dept.name ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-100'
+                    deptFilter === dept.name ? 'bg-green-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-100'
                   }`}
                 >
                   <span className={`w-2 h-2 rounded-full bg-gradient-to-br ${getDeptColor(dept.name)}`} />
@@ -595,7 +595,7 @@ export default function OrgChartPage() {
             <h2 className="text-xl font-bold text-slate-900 mb-2">Org Chart Error</h2>
             <p className="text-sm text-slate-600 mb-4">{error}</p>
             <div className="flex gap-3 justify-center">
-              <button onClick={fetchEmployees} className="px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-medium text-sm">Try Again</button>
+              <button onClick={fetchEmployees} className="px-4 py-2.5 bg-green-600 text-white rounded-xl hover:bg-green-700 font-medium text-sm">Try Again</button>
               <button onClick={() => router.push('/employees')} className="px-4 py-2.5 border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 font-medium text-sm">Go to Employees</button>
             </div>
           </div>
@@ -609,14 +609,14 @@ export default function OrgChartPage() {
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h3 className="text-base font-semibold text-slate-900 flex items-center gap-2">
-                    <FiGitBranch className="w-4 h-4 text-violet-500" />
+                    <FiGitBranch className="w-4 h-4 text-teal-500" />
                     Organization Tree
                   </h3>
                   <p className="text-xs text-slate-500 mt-0.5">
                     {deptFilter ? `Filtered by ${deptFilter}` : 'Complete reporting hierarchy'}
                   </p>
                 </div>
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-blue-50 text-blue-700">
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-green-50 text-green-700">
                   {filteredTree.reduce((sum, root) => {
                     const count = (ns: OrgNode[]): number => ns.reduce((s, n) => s + 1 + count(n.children), 0);
                     return sum + count([root]);
@@ -627,7 +627,7 @@ export default function OrgChartPage() {
               {loading ? (
                 <div className="bg-white rounded-xl border border-slate-200 flex items-center justify-center py-16">
                   <div className="flex flex-col items-center gap-3">
-                    <FiRefreshCw className="w-6 h-6 text-blue-500 animate-spin" />
+                    <FiRefreshCw className="w-6 h-6 text-green-500 animate-spin" />
                     <p className="text-sm text-slate-500">Loading org chart...</p>
                   </div>
                 </div>
@@ -641,7 +641,7 @@ export default function OrgChartPage() {
                       : 'There are no employees to display in the organization chart. Add employees first to see the reporting hierarchy.'}
                   </p>
                   {!deptFilter && (
-                    <button onClick={() => router.push('/employees/add')} className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">
+                    <button onClick={() => router.push('/employees/add')} className="inline-flex items-center gap-1.5 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700">
                       <FiPlus className="w-4 h-4" /> Add Employees
                     </button>
                   )}
@@ -676,7 +676,7 @@ export default function OrgChartPage() {
               {/* Department Breakdown */}
               <div className="bg-white rounded-xl border border-slate-200 p-4">
                 <h4 className="text-sm font-semibold text-slate-900 flex items-center gap-2 mb-3">
-                  <FiBriefcase className="w-3.5 h-3.5 text-violet-600" />
+                  <FiBriefcase className="w-3.5 h-3.5 text-teal-600" />
                   Department Breakdown
                 </h4>
                 <div className="space-y-2 max-h-72 overflow-y-auto">
@@ -689,7 +689,7 @@ export default function OrgChartPage() {
                         type="button"
                         onClick={() => setDeptFilter(deptFilter === dept.name ? null : dept.name)}
                         className={`w-full flex items-center gap-2.5 p-2 rounded-lg transition-colors text-left ${
-                          deptFilter === dept.name ? 'bg-violet-50 ring-1 ring-violet-200' : 'hover:bg-slate-50'
+                          deptFilter === dept.name ? 'bg-teal-50 ring-1 ring-teal-200' : 'hover:bg-slate-50'
                         }`}
                       >
                         <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${color} flex items-center justify-center text-white text-xs font-bold flex-shrink-0`}>
@@ -715,7 +715,7 @@ export default function OrgChartPage() {
               {selectedEmployee && (
                 <div className="bg-white rounded-xl border border-slate-200 p-4">
                   <h4 className="text-sm font-semibold text-slate-900 flex items-center gap-2 mb-3">
-                    <FiUsers className="w-3.5 h-3.5 text-blue-600" />
+                    <FiUsers className="w-3.5 h-3.5 text-green-600" />
                     Employee Details
                   </h4>
                   <div className="space-y-3">
@@ -754,7 +754,7 @@ export default function OrgChartPage() {
                       }`}>
                         {selectedEmployee.status || 'Unknown'}
                       </span>
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-blue-50 text-blue-700">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-green-50 text-green-700">
                         {selectedEmployee.designation?.title || 'Employee'}
                       </span>
                     </div>
@@ -806,7 +806,7 @@ export default function OrgChartPage() {
                         onClick={() => setDeptFilter(deptFilter === dept.name ? null : dept.name)}
                         className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
                           deptFilter === dept.name
-                            ? 'bg-violet-100 text-violet-700 ring-1 ring-violet-200'
+                            ? 'bg-teal-100 text-teal-700 ring-1 ring-teal-200'
                             : 'bg-slate-50 border border-slate-200 text-slate-700 hover:bg-slate-100'
                         }`}
                       >

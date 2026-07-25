@@ -433,7 +433,7 @@ export function HelpTraining() {
                         {/* Workflow */}
                         <div>
                           <h4 className="text-sm font-semibold mb-2 flex items-center gap-1">
-                            <WorkflowIcon className="h-3.5 w-3.5 text-blue-500" />
+                            <WorkflowIcon className="h-3.5 w-3.5 text-green-500" />
                             Workflow Steps
                           </h4>
                           <div className="space-y-1">
@@ -569,7 +569,7 @@ export function HelpTraining() {
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <Building2 className="h-4 w-4 text-blue-600" />
+                  <Building2 className="h-4 w-4 text-green-600" />
                   System Architecture
                 </CardTitle>
               </CardHeader>
@@ -593,7 +593,7 @@ export function HelpTraining() {
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <Globe className="h-4 w-4 text-purple-600" />
+                  <Globe className="h-4 w-4 text-teal-600" />
                   API Documentation
                 </CardTitle>
               </CardHeader>
@@ -703,7 +703,7 @@ export function HelpTraining() {
                   <AccordionItem key={module.id} value={module.id}>
                     <AccordionTrigger className="hover:no-underline">
                       <div className="flex items-center gap-3">
-                        <div className="p-1.5 bg-blue-100 rounded text-blue-600">
+                        <div className="p-1.5 bg-green-100 rounded text-green-600">
                           {module.icon}
                         </div>
                         <div className="text-left">
@@ -723,7 +723,7 @@ export function HelpTraining() {
                                 <code className="bg-muted px-1 rounded">/api/{module.key}</code>
                               </div>
                               <div className="flex items-center gap-2">
-                                <Badge className="bg-blue-100 text-blue-800 text-[9px]">POST</Badge>
+                                <Badge className="bg-green-100 text-green-800 text-[9px]">POST</Badge>
                                 <code className="bg-muted px-1 rounded">/api/{module.key}</code>
                               </div>
                               <div className="flex items-center gap-2">
@@ -741,7 +741,7 @@ export function HelpTraining() {
                             <div className="space-y-1 text-xs text-muted-foreground">
                               {module.keyFeatures.slice(0, 4).map((feature, idx) => (
                                 <div key={idx} className="flex items-center gap-1.5">
-                                  <ArrowRight className="h-3 w-3 text-blue-500 shrink-0" />
+                                  <ArrowRight className="h-3 w-3 text-green-500 shrink-0" />
                                   <span>{feature}</span>
                                 </div>
                               ))}

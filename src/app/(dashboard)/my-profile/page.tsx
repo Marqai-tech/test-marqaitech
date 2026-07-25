@@ -63,9 +63,9 @@ const profileTabs: { key: ProfileTab; label: string; icon: React.ReactNode }[] =
 type AccentColor = 'blue' | 'emerald' | 'violet' | 'rose' | 'amber' | 'teal' | 'slate';
 
 const accentMap: Record<AccentColor, { strip: string; iconBg: string; iconColor: string }> = {
-  blue:    { strip: 'from-blue-500 to-blue-400',   iconBg: 'bg-blue-50',    iconColor: 'text-blue-500' },
+  blue:    { strip: 'from-green-500 to-green-400',   iconBg: 'bg-green-50',    iconColor: 'text-green-500' },
   emerald: { strip: 'from-emerald-500 to-emerald-400', iconBg: 'bg-emerald-50', iconColor: 'text-emerald-500' },
-  violet:  { strip: 'from-violet-500 to-violet-400',   iconBg: 'bg-violet-50',  iconColor: 'text-violet-500' },
+  violet:  { strip: 'from-teal-500 to-teal-400',   iconBg: 'bg-teal-50',  iconColor: 'text-teal-500' },
   rose:    { strip: 'from-rose-500 to-rose-400',       iconBg: 'bg-rose-50',    iconColor: 'text-rose-500' },
   amber:   { strip: 'from-amber-500 to-amber-400',     iconBg: 'bg-amber-50',   iconColor: 'text-amber-500' },
   teal:    { strip: 'from-teal-500 to-teal-400',       iconBg: 'bg-teal-50',    iconColor: 'text-teal-500' },
@@ -211,7 +211,7 @@ export default function MyProfilePage() {
         <div className="text-center">
           <div className="relative w-16 h-16 mx-auto mb-4">
             <div className="absolute inset-0 rounded-full border-4 border-slate-100" />
-            <div className="absolute inset-0 rounded-full border-4 border-blue-500 border-t-transparent animate-spin" />
+            <div className="absolute inset-0 rounded-full border-4 border-green-500 border-t-transparent animate-spin" />
           </div>
           <p className="text-sm font-medium text-thb-text-secondary">Loading your profile...</p>
           <p className="text-xs text-thb-text-muted mt-1">Fetching employee details</p>
@@ -233,7 +233,7 @@ export default function MyProfilePage() {
           <p className="text-sm text-thb-text-secondary mb-6">{error}</p>
           <button
             onClick={() => fetchProfile()}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 transition-colors shadow-sm"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 transition-colors shadow-sm"
           >
             <FiRefreshCw className="w-4 h-4" />
             Retry
@@ -257,7 +257,7 @@ export default function MyProfilePage() {
           ═══════════════════════════════════════════ */}
       <div className="thb-card overflow-hidden">
         {/* Gradient Banner */}
-        <div className="relative h-[120px] bg-gradient-to-r from-blue-600 via-blue-500 to-teal-400 overflow-hidden">
+        <div className="relative h-[120px] bg-gradient-to-r from-green-600 via-green-500 to-teal-400 overflow-hidden">
           {/* Decorative pattern */}
           <div className="absolute inset-0 opacity-10">
             <svg width="100%" height="100%">
@@ -280,7 +280,7 @@ export default function MyProfilePage() {
           {/* Avatar – overlapping the banner */}
           <div className="-mt-[60px] mb-4 flex items-end justify-between">
             <div className="flex items-end gap-4">
-              <div className="w-[120px] h-[120px] rounded-full bg-gradient-to-br from-blue-500 to-teal-400 flex items-center justify-center text-white text-[40px] font-bold shadow-xl ring-4 ring-white shrink-0">
+              <div className="w-[120px] h-[120px] rounded-full bg-gradient-to-br from-green-500 to-teal-400 flex items-center justify-center text-white text-[40px] font-bold shadow-xl ring-4 ring-white shrink-0">
                 {displayName ? getInitials(displayName) : '??'}
               </div>
               <div className="pb-2">
@@ -292,7 +292,7 @@ export default function MyProfilePage() {
               </div>
             </div>
             <div className="hidden md:flex items-center gap-2 pb-2">
-              <button className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-50 text-blue-600 text-sm font-medium hover:bg-blue-100 transition-colors border border-blue-100">
+              <button className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-green-50 text-green-600 text-sm font-medium hover:bg-green-100 transition-colors border border-green-100">
                 <FiEdit2 className="w-4 h-4" />
                 Edit Profile
               </button>
@@ -308,13 +308,13 @@ export default function MyProfilePage() {
               </span>
             )}
             {department && (
-              <span className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600 font-medium border border-blue-100">
+              <span className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-green-50 text-green-600 font-medium border border-green-100">
                 <FiBriefcase className="w-3 h-3" />
                 {department}
               </span>
             )}
             {designation && (
-              <span className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-violet-50 text-violet-600 font-medium border border-violet-100">
+              <span className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-teal-50 text-teal-600 font-medium border border-teal-100">
                 <FiStar className="w-3 h-3" />
                 {designation}
               </span>
@@ -340,11 +340,11 @@ export default function MyProfilePage() {
           ═══════════════════════════════════════════ */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          icon={<FiCalendar className="w-5 h-5 text-blue-500" />}
+          icon={<FiCalendar className="w-5 h-5 text-green-500" />}
           label="Days Employed"
           value={getDaysEmployed()}
           subtext={emp?.dateOfJoining ? `Since ${formatDate(emp.dateOfJoining).split(',')[0]}` : undefined}
-          colorClass="bg-blue-50"
+          colorClass="bg-green-50"
         />
         <StatCard
           icon={<FiActivity className="w-5 h-5 text-emerald-500" />}
@@ -361,11 +361,11 @@ export default function MyProfilePage() {
           colorClass="bg-amber-50"
         />
         <StatCard
-          icon={<FiDollarSign className="w-5 h-5 text-violet-500" />}
+          icon={<FiDollarSign className="w-5 h-5 text-teal-500" />}
           label="Salary"
           value={emp?.salary ? `${str(emp?.salaryCurrency) || 'INR'} ${Number(emp.salary).toLocaleString()}` : '—'}
           subtext={emp?.salary ? 'CTC per month' : undefined}
-          colorClass="bg-violet-50"
+          colorClass="bg-teal-50"
         />
       </div>
 
@@ -383,15 +383,15 @@ export default function MyProfilePage() {
                   onClick={() => setActiveTab(tab.key)}
                   className={`relative flex items-center gap-2 px-4 py-3 text-sm font-medium transition-all whitespace-nowrap ${
                     isActive
-                      ? 'text-blue-600'
+                      ? 'text-green-600'
                       : 'text-thb-text-secondary hover:text-thb-text-primary'
                   }`}
                 >
-                  <span className={isActive ? 'text-blue-500' : 'text-thb-text-muted'}>{tab.icon}</span>
+                  <span className={isActive ? 'text-green-500' : 'text-thb-text-muted'}>{tab.icon}</span>
                   {tab.label}
                   {/* Active indicator – blue bottom border */}
                   {isActive && (
-                    <span className="absolute bottom-0 left-2 right-2 h-[2.5px] rounded-t-full bg-gradient-to-r from-blue-500 to-teal-400" />
+                    <span className="absolute bottom-0 left-2 right-2 h-[2.5px] rounded-t-full bg-gradient-to-r from-green-500 to-teal-400" />
                   )}
                 </button>
               );
@@ -583,8 +583,8 @@ export default function MyProfilePage() {
             {Array.isArray(emp?.qualifications) && (emp?.qualifications as unknown[]).length > 0 && (
               <div className="space-y-5 mt-5">
                 <h3 className="text-sm font-semibold text-thb-text-primary flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-violet-50 flex items-center justify-center shadow-sm">
-                    <FiBookOpen className="w-4 h-4 text-violet-500" />
+                  <div className="w-8 h-8 rounded-lg bg-teal-50 flex items-center justify-center shadow-sm">
+                    <FiBookOpen className="w-4 h-4 text-teal-500" />
                   </div>
                   Qualifications
                 </h3>
@@ -610,8 +610,8 @@ export default function MyProfilePage() {
                   {(emp?.documents as Record<string, unknown>[]).map((doc, idx) => (
                     <div key={idx} className="flex items-center justify-between p-3.5 bg-slate-50/60 rounded-xl border border-thb-border/40 hover:border-thb-border/80 transition-colors">
                       <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
-                          <FiFileText className="w-4.5 h-4.5 text-blue-500" />
+                        <div className="w-9 h-9 rounded-lg bg-green-50 flex items-center justify-center shrink-0">
+                          <FiFileText className="w-4.5 h-4.5 text-green-500" />
                         </div>
                         <div>
                           <p className="text-sm font-medium text-thb-text-primary">{str(doc.name)}</p>

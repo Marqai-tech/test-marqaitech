@@ -50,7 +50,7 @@ export default function InsurancePage() {
             <div key={p.id} className="border-b last:border-0 py-2">
               <div className="flex justify-between">
                 <span className="font-medium">{p.policyType.replace(/_/g, ' ')}</span>
-                <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded">{p.providerName}</span>
+                <span className="text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded">{p.providerName}</span>
               </div>
               <div className="text-xs text-gray-500 mt-1">Coverage: {p.premiumCurrency} {p.coverageAmount.toLocaleString()} · Premium: {p.premiumAmount}/mo · {p.paymentMode}</div>
             </div>

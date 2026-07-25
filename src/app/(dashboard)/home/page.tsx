@@ -56,7 +56,7 @@ function statusBadge(status: string) {
   const map: Record<string, string> = {
     pending: 'bg-amber-50 text-amber-700 ring-amber-200',
     draft: 'bg-slate-100 text-slate-700 ring-slate-200',
-    submitted: 'bg-blue-50 text-blue-700 ring-blue-200',
+    submitted: 'bg-green-50 text-green-700 ring-green-200',
     approved: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
     paid: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
     processed: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
@@ -64,12 +64,12 @@ function statusBadge(status: string) {
     closed: 'bg-slate-100 text-slate-700 ring-slate-200',
     rejected: 'bg-rose-50 text-rose-700 ring-rose-200',
     open: 'bg-amber-50 text-amber-700 ring-amber-200',
-    in_progress: 'bg-blue-50 text-blue-700 ring-blue-200',
+    in_progress: 'bg-green-50 text-green-700 ring-green-200',
     completed: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
-    ongoing: 'bg-blue-50 text-blue-700 ring-blue-200',
-    upcoming: 'bg-violet-50 text-violet-700 ring-violet-200',
+    ongoing: 'bg-green-50 text-green-700 ring-green-200',
+    upcoming: 'bg-teal-50 text-teal-700 ring-teal-200',
     available: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
-    assigned: 'bg-blue-50 text-blue-700 ring-blue-200',
+    assigned: 'bg-green-50 text-green-700 ring-green-200',
     active: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
   };
   const cls = map[s] || 'bg-slate-100 text-slate-700 ring-slate-200';
@@ -97,20 +97,20 @@ function RoleHero({ role, firstName, greeting, today, subtitle, searchQuery, onS
   const { effectiveCompanyLabel, canSwitch, ownCompany } = useCompanyContextStore();
   const companyLabel = effectiveCompanyLabel();
   return (
-    <div className="relative rounded-2xl overflow-hidden border-0 shadow-xl shadow-indigo-500/10">
+    <div className="relative rounded-2xl overflow-hidden border-0 shadow-xl shadow-emerald-500/10">
       <div className="absolute inset-0 bg-gradient-to-br from-[#0F172A] via-[#1E3A5F] to-[#312E81]" />
-      <div className="absolute top-0 right-0 w-72 h-72 bg-blue-500/20 rounded-full blur-[100px]" />
-      <div className="absolute bottom-0 left-0 w-56 h-56 bg-violet-500/20 rounded-full blur-[80px]" />
+      <div className="absolute top-0 right-0 w-72 h-72 bg-green-500/20 rounded-full blur-[100px]" />
+      <div className="absolute bottom-0 left-0 w-56 h-56 bg-teal-500/20 rounded-full blur-[80px]" />
       <div className="relative z-10 px-6 sm:px-8 py-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="flex-shrink-0 w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-lg ring-2 ring-white/20 text-white text-xl font-bold">
+            <div className="flex-shrink-0 w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 via-teal-500 to-pink-500 flex items-center justify-center shadow-lg ring-2 ring-white/20 text-white text-xl font-bold">
               {firstName[0]?.toUpperCase()}
             </div>
             <div>
               <div className="flex items-center gap-2 mb-1 flex-wrap">
-                <p className="text-blue-300/60 text-xs font-medium tracking-widest uppercase">{roleLabel}</p>
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-white/10 text-[10px] font-semibold text-blue-200 ring-1 ring-white/20">
+                <p className="text-green-300/60 text-xs font-medium tracking-widest uppercase">{roleLabel}</p>
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-white/10 text-[10px] font-semibold text-green-200 ring-1 ring-white/20">
                   {roleLabel}
                 </span>
                 <span
@@ -122,21 +122,21 @@ function RoleHero({ role, firstName, greeting, today, subtitle, searchQuery, onS
                 </span>
               </div>
               <h1 className="text-2xl font-bold text-white">
-                {greeting}, <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-violet-300">{firstName}</span>!
+                {greeting}, <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-300 to-teal-300">{firstName}</span>!
               </h1>
-              <p className="text-blue-100/60 text-sm font-medium mt-0.5">{subtitle}</p>
-              <p className="text-blue-200/40 text-xs mt-0.5">{today}</p>
+              <p className="text-green-100/60 text-sm font-medium mt-0.5">{subtitle}</p>
+              <p className="text-green-200/40 text-xs mt-0.5">{today}</p>
             </div>
           </div>
           <div className="flex flex-col items-stretch gap-2 max-w-md w-full">
             {onSearch && (
               <div className="relative">
-                <FiSearch className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-blue-200" />
+                <FiSearch className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-green-200" />
                 <input
                   placeholder="Search modules, employees, requests..."
                   value={searchQuery || ''}
                   onChange={(e) => onSearch(e.target.value)}
-                  className="w-full pl-12 pr-4 py-2.5 rounded-xl bg-white/[0.08] backdrop-blur-md border border-white/[0.15] text-white placeholder:text-blue-200/40 focus:outline-none focus:ring-2 focus:ring-blue-400/40 focus:bg-white/[0.12] transition-all text-sm font-medium"
+                  className="w-full pl-12 pr-4 py-2.5 rounded-xl bg-white/[0.08] backdrop-blur-md border border-white/[0.15] text-white placeholder:text-green-200/40 focus:outline-none focus:ring-2 focus:ring-green-400/40 focus:bg-white/[0.12] transition-all text-sm font-medium"
                 />
               </div>
             )}
@@ -144,7 +144,7 @@ function RoleHero({ role, firstName, greeting, today, subtitle, searchQuery, onS
               {primaryCta && (
                 <button
                   onClick={() => router.push(primaryCta.href)}
-                  className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 text-white text-sm font-semibold shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 transition-all"
+                  className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-sm font-semibold shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 transition-all"
                 >
                   {primaryCta.icon} {primaryCta.label}
                 </button>
@@ -180,7 +180,7 @@ function StatCard({ label, value, sub, icon, bg, ring }: { label: string; value:
   );
 }
 
-function Panel({ title, icon, href, children, accent = 'text-indigo-500' }: { title: string; icon: React.ReactNode; href?: string; children: React.ReactNode; accent?: string }) {
+function Panel({ title, icon, href, children, accent = 'text-emerald-500' }: { title: string; icon: React.ReactNode; href?: string; children: React.ReactNode; accent?: string }) {
   const router = useRouter();
   return (
     <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
@@ -189,7 +189,7 @@ function Panel({ title, icon, href, children, accent = 'text-indigo-500' }: { ti
           <span className={accent}>{icon}</span> {title}
         </h2>
         {href && (
-          <button onClick={() => router.push(href)} className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 inline-flex items-center">
+          <button onClick={() => router.push(href)} className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 inline-flex items-center">
             View all <FiChevronRight className="w-3 h-3" />
           </button>
         )}
@@ -212,15 +212,15 @@ function QuickLinkGrid({ links }: { links: { icon: React.ReactNode; label: strin
   const router = useRouter();
   // Map gradient classes to accent colors for the icon circle
   const accentMap: Record<string, string> = {
-    'from-indigo-400 to-blue-500': 'bg-indigo-50 text-indigo-600',
-    'from-violet-400 to-purple-500': 'bg-violet-50 text-violet-600',
+    'from-emerald-400 to-green-500': 'bg-emerald-50 text-emerald-600',
+    'from-teal-400 to-teal-500': 'bg-teal-50 text-teal-600',
     'from-cyan-400 to-sky-500': 'bg-cyan-50 text-cyan-600',
     'from-emerald-400 to-green-500': 'bg-emerald-50 text-emerald-600',
     'from-amber-400 to-orange-500': 'bg-amber-50 text-amber-600',
     'from-rose-400 to-pink-500': 'bg-rose-50 text-rose-600',
     'from-fuchsia-400 to-pink-500': 'bg-fuchsia-50 text-fuchsia-600',
     'from-teal-400 to-cyan-500': 'bg-teal-50 text-teal-600',
-    'from-blue-400 to-indigo-500': 'bg-blue-50 text-blue-600',
+    'from-green-400 to-emerald-500': 'bg-green-50 text-green-600',
     'from-green-400 to-emerald-500': 'bg-green-50 text-green-600',
     'from-orange-400 to-red-500': 'bg-orange-50 text-orange-600',
     'from-pink-400 to-rose-500': 'bg-pink-50 text-pink-600',
@@ -309,8 +309,8 @@ function SuperAdminHome({ firstName, greeting, today }: { firstName: string; gre
   }, [hydrated, hydrate, fetchData]);
 
   const quickLinks = [
-    { icon: <FiUsers className="w-5 h-5" />, label: 'Employees', href: '/employees', bg: 'from-indigo-400 to-blue-500', shadow: 'shadow-blue-500/25' },
-    { icon: <FiShield className="w-5 h-5" />, label: 'Roles & Access', href: '/super-admin/rbac', bg: 'from-violet-400 to-purple-500', shadow: 'shadow-purple-500/25' },
+    { icon: <FiUsers className="w-5 h-5" />, label: 'Employees', href: '/employees', bg: 'from-emerald-400 to-green-500', shadow: 'shadow-green-500/25' },
+    { icon: <FiShield className="w-5 h-5" />, label: 'Roles & Access', href: '/super-admin/rbac', bg: 'from-teal-400 to-teal-500', shadow: 'shadow-teal-500/25' },
     { icon: <FiSettings className="w-5 h-5" />, label: 'Tenant Setup', href: '/tenant-admin', bg: 'from-cyan-400 to-sky-500', shadow: 'shadow-sky-500/25' },
     { icon: <FiServer className="w-5 h-5" />, label: 'System Health', href: '/super-admin', bg: 'from-emerald-400 to-green-500', shadow: 'shadow-green-500/25' },
     { icon: <FiGrid className="w-5 h-5" />, label: 'Modules', href: '/super-admin', bg: 'from-amber-400 to-orange-500', shadow: 'shadow-orange-500/25' },
@@ -331,13 +331,13 @@ function SuperAdminHome({ firstName, greeting, today }: { firstName: string; gre
       />
 
       {/* Scope banner */}
-      <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-gradient-to-r from-indigo-50 to-violet-50 border border-indigo-100">
-        <FiLayers className="w-4 h-4 text-indigo-500 flex-shrink-0" />
+      <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-100">
+        <FiLayers className="w-4 h-4 text-emerald-500 flex-shrink-0" />
         <div className="text-xs text-slate-700">
           <span className="font-semibold text-slate-900">Viewing scope:</span>{' '}
-          <span className="font-semibold text-indigo-700">{selectedTenantName}</span>
+          <span className="font-semibold text-emerald-700">{selectedTenantName}</span>
           <span className="mx-2 text-slate-400">›</span>
-          <span className="font-semibold text-indigo-700">{selectedCompanyName}</span>
+          <span className="font-semibold text-emerald-700">{selectedCompanyName}</span>
         </div>
         <span className="ml-auto text-[11px] text-slate-500 hidden sm:block">Use the company switcher in the header to change</span>
       </div>
@@ -347,10 +347,10 @@ function SuperAdminHome({ firstName, greeting, today }: { firstName: string; gre
           Array.from({ length: 4 }).map((_, i) => <StatSkeleton key={i} />)
         ) : (
           [
-            { label: 'Total Employees', value: stats.totalEmployees, sub: 'Across all branches', icon: <FiUsers className="w-5 h-5" />, bg: 'bg-indigo-50 text-indigo-600', ring: 'ring-indigo-100' },
+            { label: 'Total Employees', value: stats.totalEmployees, sub: 'Across all branches', icon: <FiUsers className="w-5 h-5" />, bg: 'bg-emerald-50 text-emerald-600', ring: 'ring-emerald-100' },
             { label: 'User Accounts', value: stats.totalUsers, sub: 'Active login accounts', icon: <FiUserCheck className="w-5 h-5" />, bg: 'bg-emerald-50 text-emerald-600', ring: 'ring-emerald-100' },
             { label: 'Departments', value: stats.totalDepartments, sub: 'Org structure units', icon: <FiLayers className="w-5 h-5" />, bg: 'bg-amber-50 text-amber-600', ring: 'ring-amber-100' },
-            { label: 'Branches', value: stats.totalBranches, sub: 'Office locations', icon: <FiBriefcase className="w-5 h-5" />, bg: 'bg-violet-50 text-violet-600', ring: 'ring-violet-100' },
+            { label: 'Branches', value: stats.totalBranches, sub: 'Office locations', icon: <FiBriefcase className="w-5 h-5" />, bg: 'bg-teal-50 text-teal-600', ring: 'ring-teal-100' },
           ].map((s) => <StatCard key={s.label} {...s} />)
         )}
       </div>
@@ -467,10 +467,10 @@ function HRAdminHome({ firstName, greeting, today }: { firstName: string; greeti
   }, [hydrated, hydrate, fetchData]);
 
   const quickLinks = [
-    { icon: <FiUsers className="w-5 h-5" />, label: 'Employees', href: '/employees', bg: 'from-indigo-400 to-blue-500', shadow: 'shadow-blue-500/25' },
+    { icon: <FiUsers className="w-5 h-5" />, label: 'Employees', href: '/employees', bg: 'from-emerald-400 to-green-500', shadow: 'shadow-green-500/25' },
     { icon: <FiUserPlus className="w-5 h-5" />, label: 'Onboarding', href: '/onboarding', bg: 'from-emerald-400 to-green-500', shadow: 'shadow-green-500/25' },
     { icon: <FiCalendar className="w-5 h-5" />, label: 'Leave Approvals', href: '/leave', bg: 'from-amber-400 to-orange-500', shadow: 'shadow-orange-500/25' },
-    { icon: <FiDollarSign className="w-5 h-5" />, label: 'Payroll', href: '/payroll/processing', bg: 'from-violet-400 to-purple-500', shadow: 'shadow-purple-500/25' },
+    { icon: <FiDollarSign className="w-5 h-5" />, label: 'Payroll', href: '/payroll/processing', bg: 'from-teal-400 to-teal-500', shadow: 'shadow-teal-500/25' },
     { icon: <FiBriefcase className="w-5 h-5" />, label: 'Recruitment', href: '/recruitment', bg: 'from-rose-400 to-pink-500', shadow: 'shadow-pink-500/25' },
     { icon: <FiBarChart2 className="w-5 h-5" />, label: 'Candidate Flow', href: '/analytics/candidate-flow', bg: 'from-fuchsia-400 to-pink-500', shadow: 'shadow-pink-500/25' },
     { icon: <FiTrendingUp className="w-5 h-5" />, label: 'Performance', href: '/performance', bg: 'from-cyan-400 to-sky-500', shadow: 'shadow-sky-500/25' },
@@ -489,11 +489,11 @@ function HRAdminHome({ firstName, greeting, today }: { firstName: string; greeti
       />
 
       {/* Scope banner */}
-      <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-gradient-to-r from-indigo-50 to-violet-50 border border-indigo-100">
-        <FiLayers className="w-4 h-4 text-indigo-500 flex-shrink-0" />
+      <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-100">
+        <FiLayers className="w-4 h-4 text-emerald-500 flex-shrink-0" />
         <div className="text-xs text-slate-700">
           <span className="font-semibold text-slate-900">Viewing:</span>{' '}
-          <span className="font-semibold text-indigo-700">{selectedCompanyName}</span>
+          <span className="font-semibold text-emerald-700">{selectedCompanyName}</span>
         </div>
         <span className="ml-auto text-[11px] text-slate-500 hidden sm:block">Switch via the header company dropdown</span>
       </div>
@@ -503,10 +503,10 @@ function HRAdminHome({ firstName, greeting, today }: { firstName: string; greeti
           Array.from({ length: 4 }).map((_, i) => <StatSkeleton key={i} />)
         ) : (
           [
-            { label: 'Total Employees', value: stats.totalEmployees, sub: 'Active headcount', icon: <FiUsers className="w-5 h-5" />, bg: 'bg-indigo-50 text-indigo-600', ring: 'ring-indigo-100' },
+            { label: 'Total Employees', value: stats.totalEmployees, sub: 'Active headcount', icon: <FiUsers className="w-5 h-5" />, bg: 'bg-emerald-50 text-emerald-600', ring: 'ring-emerald-100' },
             { label: 'New Joiners', value: stats.newJoiners, sub: 'This month', icon: <FiUserPlus className="w-5 h-5" />, bg: 'bg-emerald-50 text-emerald-600', ring: 'ring-emerald-100' },
             { label: 'Pending Leaves', value: stats.pendingLeaves, sub: 'Awaiting approval', icon: <FiCalendar className="w-5 h-5" />, bg: 'bg-amber-50 text-amber-600', ring: 'ring-amber-100' },
-            { label: 'Draft Payrolls', value: stats.pendingPayroll, sub: 'To be processed', icon: <FiDollarSign className="w-5 h-5" />, bg: 'bg-violet-50 text-violet-600', ring: 'ring-violet-100' },
+            { label: 'Draft Payrolls', value: stats.pendingPayroll, sub: 'To be processed', icon: <FiDollarSign className="w-5 h-5" />, bg: 'bg-teal-50 text-teal-600', ring: 'ring-teal-100' },
           ].map((s) => <StatCard key={s.label} {...s} />)
         )}
       </div>
@@ -514,7 +514,7 @@ function HRAdminHome({ firstName, greeting, today }: { firstName: string; greeti
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Department distribution */}
         <div className="lg:col-span-2">
-          <Panel title="Department Distribution" icon={<FiBarChart2 className="w-4 h-4" />} href="/employees" accent="text-indigo-500">
+          <Panel title="Department Distribution" icon={<FiBarChart2 className="w-4 h-4" />} href="/employees" accent="text-emerald-500">
             {loading ? (
               <div className="h-64"><SkeletonBlock className="h-full w-full" /></div>
             ) : departmentDist.length === 0 ? (
@@ -580,7 +580,7 @@ function HRAdminHome({ firstName, greeting, today }: { firstName: string; greeti
                       <p className="text-sm font-semibold text-slate-900">{e.firstName} {e.lastName}</p>
                       <p className="text-xs text-slate-500">{e.department?.name || 'Unassigned'} · Joined {new Date(e.dateOfJoining).toLocaleDateString()}</p>
                     </div>
-                    <button onClick={() => router.push(`/employees/${e.id}`)} className="text-slate-400 hover:text-indigo-600">
+                    <button onClick={() => router.push(`/employees/${e.id}`)} className="text-slate-400 hover:text-emerald-600">
                       <FiEye className="w-4 h-4" />
                     </button>
                   </div>
@@ -652,12 +652,12 @@ function ManagerHome({ firstName, greeting, today }: { firstName: string; greeti
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const quickLinks = [
-    { icon: <FiUsers className="w-5 h-5" />, label: 'My Team', href: '/employees', bg: 'from-indigo-400 to-blue-500', shadow: 'shadow-blue-500/25' },
+    { icon: <FiUsers className="w-5 h-5" />, label: 'My Team', href: '/employees', bg: 'from-emerald-400 to-green-500', shadow: 'shadow-green-500/25' },
     { icon: <FiCheckCircle className="w-5 h-5" />, label: 'Approvals', href: '/leave', bg: 'from-amber-400 to-orange-500', shadow: 'shadow-orange-500/25' },
     { icon: <FiTrendingUp className="w-5 h-5" />, label: 'Team Performance', href: '/performance', bg: 'from-rose-400 to-pink-500', shadow: 'shadow-pink-500/25' },
     { icon: <FiClock className="w-5 h-5" />, label: 'Timesheets', href: '/timesheets', bg: 'from-cyan-400 to-sky-500', shadow: 'shadow-sky-500/25' },
     { icon: <FiCalendar className="w-5 h-5" />, label: 'Roster', href: '/attendance', bg: 'from-emerald-400 to-green-500', shadow: 'shadow-green-500/25' },
-    { icon: <FiTarget className="w-5 h-5" />, label: 'Goals', href: '/performance', bg: 'from-violet-400 to-purple-500', shadow: 'shadow-purple-500/25' },
+    { icon: <FiTarget className="w-5 h-5" />, label: 'Goals', href: '/performance', bg: 'from-teal-400 to-teal-500', shadow: 'shadow-teal-500/25' },
   ];
 
   return (
@@ -677,7 +677,7 @@ function ManagerHome({ firstName, greeting, today }: { firstName: string; greeti
           Array.from({ length: 4 }).map((_, i) => <StatSkeleton key={i} />)
         ) : (
           [
-            { label: 'Team Size', value: stats.teamSize, sub: 'Direct + extended reports', icon: <FiUsers className="w-5 h-5" />, bg: 'bg-indigo-50 text-indigo-600', ring: 'ring-indigo-100' },
+            { label: 'Team Size', value: stats.teamSize, sub: 'Direct + extended reports', icon: <FiUsers className="w-5 h-5" />, bg: 'bg-emerald-50 text-emerald-600', ring: 'ring-emerald-100' },
             { label: 'Present Today', value: stats.presentToday, sub: 'Checked in today', icon: <FiUserCheck className="w-5 h-5" />, bg: 'bg-emerald-50 text-emerald-600', ring: 'ring-emerald-100' },
             { label: 'On Leave', value: stats.onLeave, sub: 'Today / approved', icon: <FiCalendar className="w-5 h-5" />, bg: 'bg-amber-50 text-amber-600', ring: 'ring-amber-100' },
             { label: 'Pending Approvals', value: stats.pendingApprovals, sub: 'Awaiting your action', icon: <FiClock className="w-5 h-5" />, bg: 'bg-rose-50 text-rose-600', ring: 'ring-rose-100' },
@@ -707,7 +707,7 @@ function ManagerHome({ firstName, greeting, today }: { firstName: string; greeti
           </Panel>
         </div>
         <div>
-          <Panel title="My Team" icon={<FiUsers className="w-4 h-4" />} href="/employees" accent="text-indigo-500">
+          <Panel title="My Team" icon={<FiUsers className="w-4 h-4" />} href="/employees" accent="text-emerald-500">
             {loading ? (
               <div className="space-y-2">{Array.from({ length: 4 }).map((_, i) => <SkeletonBlock key={i} className="h-12 w-full" />)}</div>
             ) : teamMembers.length === 0 ? (
@@ -716,7 +716,7 @@ function ManagerHome({ firstName, greeting, today }: { firstName: string; greeti
               <div className="divide-y divide-slate-100">
                 {teamMembers.map((m) => (
                   <div key={m.id} className="flex items-center gap-3 py-2.5">
-                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-400 to-blue-500 text-white flex items-center justify-center font-bold text-sm">
+                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-emerald-400 to-green-500 text-white flex items-center justify-center font-bold text-sm">
                       {m.firstName[0]}{m.lastName[0]}
                     </div>
                     <div className="min-w-0 flex-1">
@@ -795,10 +795,10 @@ function RecruiterHome({ firstName, greeting, today }: { firstName: string; gree
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const quickLinks = [
-    { icon: <FiBriefcase className="w-5 h-5" />, label: 'Requisitions', href: '/requisitions', bg: 'from-indigo-400 to-blue-500', shadow: 'shadow-blue-500/25' },
+    { icon: <FiBriefcase className="w-5 h-5" />, label: 'Requisitions', href: '/requisitions', bg: 'from-emerald-400 to-green-500', shadow: 'shadow-green-500/25' },
     { icon: <FiUsers className="w-5 h-5" />, label: 'Candidates', href: '/candidates', bg: 'from-emerald-400 to-green-500', shadow: 'shadow-green-500/25' },
     { icon: <FiCalendar className="w-5 h-5" />, label: 'Interviews', href: '/interviews', bg: 'from-amber-400 to-orange-500', shadow: 'shadow-orange-500/25' },
-    { icon: <FiFileText className="w-5 h-5" />, label: 'Offers', href: '/offers', bg: 'from-violet-400 to-purple-500', shadow: 'shadow-purple-500/25' },
+    { icon: <FiFileText className="w-5 h-5" />, label: 'Offers', href: '/offers', bg: 'from-teal-400 to-teal-500', shadow: 'shadow-teal-500/25' },
     { icon: <FiUserPlus className="w-5 h-5" />, label: 'Onboarding', href: '/onboarding', bg: 'from-rose-400 to-pink-500', shadow: 'shadow-pink-500/25' },
     { icon: <FiGrid className="w-5 h-5" />, label: 'Job Portal', href: '/job-portal', bg: 'from-cyan-400 to-sky-500', shadow: 'shadow-sky-500/25' },
     { icon: <FiBarChart2 className="w-5 h-5" />, label: 'Candidate Flow', href: '/analytics/candidate-flow', bg: 'from-fuchsia-400 to-pink-500', shadow: 'shadow-pink-500/25' },
@@ -821,17 +821,17 @@ function RecruiterHome({ firstName, greeting, today }: { firstName: string; gree
           Array.from({ length: 4 }).map((_, i) => <StatSkeleton key={i} />)
         ) : (
           [
-            { label: 'Open Positions', value: stats.openPositions, sub: 'Active requisitions', icon: <FiBriefcase className="w-5 h-5" />, bg: 'bg-indigo-50 text-indigo-600', ring: 'ring-indigo-100' },
+            { label: 'Open Positions', value: stats.openPositions, sub: 'Active requisitions', icon: <FiBriefcase className="w-5 h-5" />, bg: 'bg-emerald-50 text-emerald-600', ring: 'ring-emerald-100' },
             { label: 'Candidates', value: stats.totalCandidates, sub: 'In pipeline', icon: <FiUsers className="w-5 h-5" />, bg: 'bg-emerald-50 text-emerald-600', ring: 'ring-emerald-100' },
             { label: 'Interviews', value: stats.interviewsScheduled, sub: 'Scheduled', icon: <FiCalendar className="w-5 h-5" />, bg: 'bg-amber-50 text-amber-600', ring: 'ring-amber-100' },
-            { label: 'Pending Offers', value: stats.offersPending, sub: 'Awaiting response', icon: <FiFileText className="w-5 h-5" />, bg: 'bg-violet-50 text-violet-600', ring: 'ring-violet-100' },
+            { label: 'Pending Offers', value: stats.offersPending, sub: 'Awaiting response', icon: <FiFileText className="w-5 h-5" />, bg: 'bg-teal-50 text-teal-600', ring: 'ring-teal-100' },
           ].map((s) => <StatCard key={s.label} {...s} />)
         )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-          <Panel title="Recruitment Pipeline" icon={<FiBarChart2 className="w-4 h-4" />} href="/candidates" accent="text-indigo-500">
+          <Panel title="Recruitment Pipeline" icon={<FiBarChart2 className="w-4 h-4" />} href="/candidates" accent="text-emerald-500">
             {loading ? (
               <div className="h-64"><SkeletonBlock className="h-full w-full" /></div>
             ) : (
@@ -923,10 +923,10 @@ function FinanceHome({ firstName, greeting, today }: { firstName: string; greeti
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const quickLinks = [
-    { icon: <FiDollarSign className="w-5 h-5" />, label: 'Payroll', href: '/payroll/processing', bg: 'from-indigo-400 to-blue-500', shadow: 'shadow-blue-500/25' },
+    { icon: <FiDollarSign className="w-5 h-5" />, label: 'Payroll', href: '/payroll/processing', bg: 'from-emerald-400 to-green-500', shadow: 'shadow-green-500/25' },
     { icon: <FiCreditCard className="w-5 h-5" />, label: 'Expenses', href: '/expenses', bg: 'from-emerald-400 to-green-500', shadow: 'shadow-green-500/25' },
     { icon: <FiFileText className="w-5 h-5" />, label: 'Invoices', href: '/payroll', bg: 'from-amber-400 to-orange-500', shadow: 'shadow-orange-500/25' },
-    { icon: <FiPercent className="w-5 h-5" />, label: 'Tax Setup', href: '/payroll/income-tax', bg: 'from-violet-400 to-purple-500', shadow: 'shadow-purple-500/25' },
+    { icon: <FiPercent className="w-5 h-5" />, label: 'Tax Setup', href: '/payroll/income-tax', bg: 'from-teal-400 to-teal-500', shadow: 'shadow-teal-500/25' },
     { icon: <FiLayers className="w-5 h-5" />, label: 'Salary Struct', href: '/payroll/ctc-templates', bg: 'from-rose-400 to-pink-500', shadow: 'shadow-pink-500/25' },
     { icon: <FiBarChart2 className="w-5 h-5" />, label: 'Reports', href: '/payroll', bg: 'from-cyan-400 to-sky-500', shadow: 'shadow-sky-500/25' },
   ];
@@ -954,16 +954,16 @@ function FinanceHome({ firstName, greeting, today }: { firstName: string; greeti
           Array.from({ length: 4 }).map((_, i) => <StatSkeleton key={i} />)
         ) : (
           [
-            { label: 'Pending Payrolls', value: stats.pendingPayroll, sub: 'Awaiting processing', icon: <FiDollarSign className="w-5 h-5" />, bg: 'bg-indigo-50 text-indigo-600', ring: 'ring-indigo-100' },
+            { label: 'Pending Payrolls', value: stats.pendingPayroll, sub: 'Awaiting processing', icon: <FiDollarSign className="w-5 h-5" />, bg: 'bg-emerald-50 text-emerald-600', ring: 'ring-emerald-100' },
             { label: 'Pending Expenses', value: stats.pendingExpenses, sub: 'Awaiting approval', icon: <FiCreditCard className="w-5 h-5" />, bg: 'bg-amber-50 text-amber-600', ring: 'ring-amber-100' },
             { label: 'Total Disbursed', value: fmtMoney(stats.totalDisbursed), sub: 'Paid payrolls (recent)', icon: <FiTrendingUp className="w-5 h-5" />, bg: 'bg-emerald-50 text-emerald-600', ring: 'ring-emerald-100' },
-            { label: 'Pending Invoices', value: stats.pendingInvoices, sub: 'Awaiting clearance', icon: <FiFileText className="w-5 h-5" />, bg: 'bg-violet-50 text-violet-600', ring: 'ring-violet-100' },
+            { label: 'Pending Invoices', value: stats.pendingInvoices, sub: 'Awaiting clearance', icon: <FiFileText className="w-5 h-5" />, bg: 'bg-teal-50 text-teal-600', ring: 'ring-teal-100' },
           ].map((s) => <StatCard key={s.label} {...s} />)
         )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Panel title="Recent Payrolls" icon={<FiDollarSign className="w-4 h-4" />} href="/payroll" accent="text-indigo-500">
+        <Panel title="Recent Payrolls" icon={<FiDollarSign className="w-4 h-4" />} href="/payroll" accent="text-emerald-500">
           {loading ? (
             <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <SkeletonBlock key={i} className="h-12 w-full" />)}</div>
           ) : recentPayrolls.length === 0 ? (
@@ -1054,10 +1054,10 @@ function ITAdminHome({ firstName, greeting, today }: { firstName: string; greeti
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const quickLinks = [
-    { icon: <FiPackage className="w-5 h-5" />, label: 'Assets', href: '/assets', bg: 'from-indigo-400 to-blue-500', shadow: 'shadow-blue-500/25' },
+    { icon: <FiPackage className="w-5 h-5" />, label: 'Assets', href: '/assets', bg: 'from-emerald-400 to-green-500', shadow: 'shadow-green-500/25' },
     { icon: <FiHeadphones className="w-5 h-5" />, label: 'Helpdesk', href: '/helpdesk', bg: 'from-emerald-400 to-green-500', shadow: 'shadow-green-500/25' },
     { icon: <FiServer className="w-5 h-5" />, label: 'Asset Categories', href: '/assets', bg: 'from-amber-400 to-orange-500', shadow: 'shadow-orange-500/25' },
-    { icon: <FiShield className="w-5 h-5" />, label: 'Access Mgmt', href: '/tenant-admin/rbac', bg: 'from-violet-400 to-purple-500', shadow: 'shadow-purple-500/25' },
+    { icon: <FiShield className="w-5 h-5" />, label: 'Access Mgmt', href: '/tenant-admin/rbac', bg: 'from-teal-400 to-teal-500', shadow: 'shadow-teal-500/25' },
     { icon: <FiSettings className="w-5 h-5" />, label: 'Config', href: '/tenant-admin', bg: 'from-rose-400 to-pink-500', shadow: 'shadow-pink-500/25' },
     { icon: <FiActivity className="w-5 h-5" />, label: 'Audit Logs', href: '/audit-logs', bg: 'from-cyan-400 to-sky-500', shadow: 'shadow-sky-500/25' },
   ];
@@ -1079,8 +1079,8 @@ function ITAdminHome({ firstName, greeting, today }: { firstName: string; greeti
           Array.from({ length: 4 }).map((_, i) => <StatSkeleton key={i} />)
         ) : (
           [
-            { label: 'Total Assets', value: stats.totalAssets, sub: 'In inventory', icon: <FiPackage className="w-5 h-5" />, bg: 'bg-indigo-50 text-indigo-600', ring: 'ring-indigo-100' },
-            { label: 'Assigned Assets', value: stats.assignedAssets, sub: 'Currently in use', icon: <FiServer className="w-5 h-5" />, bg: 'bg-blue-50 text-blue-600', ring: 'ring-blue-100' },
+            { label: 'Total Assets', value: stats.totalAssets, sub: 'In inventory', icon: <FiPackage className="w-5 h-5" />, bg: 'bg-emerald-50 text-emerald-600', ring: 'ring-emerald-100' },
+            { label: 'Assigned Assets', value: stats.assignedAssets, sub: 'Currently in use', icon: <FiServer className="w-5 h-5" />, bg: 'bg-green-50 text-green-600', ring: 'ring-green-100' },
             { label: 'Open Tickets', value: stats.openTickets, sub: 'Awaiting resolution', icon: <FiHeadphones className="w-5 h-5" />, bg: 'bg-amber-50 text-amber-600', ring: 'ring-amber-100' },
             { label: 'Resolved Tickets', value: stats.resolvedTickets, sub: 'Recently closed', icon: <FiCheckCircle className="w-5 h-5" />, bg: 'bg-emerald-50 text-emerald-600', ring: 'ring-emerald-100' },
           ].map((s) => <StatCard key={s.label} {...s} />)
@@ -1089,7 +1089,7 @@ function ITAdminHome({ firstName, greeting, today }: { firstName: string; greeti
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-          <Panel title="Recent Helpdesk Tickets" icon={<FiHeadphones className="w-4 h-4" />} href="/helpdesk" accent="text-violet-500">
+          <Panel title="Recent Helpdesk Tickets" icon={<FiHeadphones className="w-4 h-4" />} href="/helpdesk" accent="text-teal-500">
             {loading ? (
               <div className="space-y-2">{Array.from({ length: 4 }).map((_, i) => <SkeletonBlock key={i} className="h-12 w-full" />)}</div>
             ) : recentTickets.length === 0 ? (
@@ -1184,9 +1184,9 @@ function EmployeeHome({ firstName, greeting, today }: { firstName: string; greet
 
   const quickActions = [
     { icon: <FiCalendar className="w-5 h-5" />, label: 'Apply Leave', href: '/leave', bg: 'from-amber-400 to-orange-500', shadow: 'shadow-orange-500/25' },
-    { icon: <FiClock className="w-5 h-5" />, label: 'Attendance', href: '/attendance', bg: 'from-cyan-400 to-blue-500', shadow: 'shadow-blue-500/25' },
+    { icon: <FiClock className="w-5 h-5" />, label: 'Attendance', href: '/attendance', bg: 'from-cyan-400 to-green-500', shadow: 'shadow-green-500/25' },
     { icon: <FiFileText className="w-5 h-5" />, label: 'My Payslip', href: '/payroll', bg: 'from-emerald-400 to-green-500', shadow: 'shadow-green-500/25' },
-    { icon: <FiHeadphones className="w-5 h-5" />, label: 'Helpdesk', href: '/helpdesk', bg: 'from-violet-400 to-purple-500', shadow: 'shadow-purple-500/25' },
+    { icon: <FiHeadphones className="w-5 h-5" />, label: 'Helpdesk', href: '/helpdesk', bg: 'from-teal-400 to-teal-500', shadow: 'shadow-teal-500/25' },
     { icon: <FiUserPlus className="w-5 h-5" />, label: 'My Profile', href: '/my-profile', bg: 'from-pink-400 to-rose-500', shadow: 'shadow-rose-500/25' },
     { icon: <FiDollarSign className="w-5 h-5" />, label: 'Expenses', href: '/expenses', bg: 'from-teal-400 to-emerald-500', shadow: 'shadow-emerald-500/25' },
   ];
@@ -1210,24 +1210,24 @@ function EmployeeHome({ firstName, greeting, today }: { firstName: string; greet
           [
             { label: 'Attendance Rate', value: `${attendanceRate}%`, sub: 'This month', icon: <FiActivity className="w-5 h-5" />, bg: 'bg-emerald-50 text-emerald-600', ring: 'ring-emerald-100' },
             { label: 'Leave Balance', value: totalRemaining, sub: 'Days available', icon: <FiCalendar className="w-5 h-5" />, bg: 'bg-amber-50 text-amber-600', ring: 'ring-amber-100' },
-            { label: 'Open Tickets', value: openTickets, sub: 'Helpdesk requests', icon: <FiHeadphones className="w-5 h-5" />, bg: 'bg-violet-50 text-violet-600', ring: 'ring-violet-100' },
-            { label: 'Quick Actions', value: '12+', sub: 'Self-service flows', icon: <FiZap className="w-5 h-5" />, bg: 'bg-blue-50 text-blue-600', ring: 'ring-blue-100' },
+            { label: 'Open Tickets', value: openTickets, sub: 'Helpdesk requests', icon: <FiHeadphones className="w-5 h-5" />, bg: 'bg-teal-50 text-teal-600', ring: 'ring-teal-100' },
+            { label: 'Quick Actions', value: '12+', sub: 'Self-service flows', icon: <FiZap className="w-5 h-5" />, bg: 'bg-green-50 text-green-600', ring: 'ring-green-100' },
           ].map((s) => <StatCard key={s.label} {...s} />)
         )}
       </div>
 
       {/* Banner: full ESS available at /dashboard */}
-      <div className="relative rounded-2xl overflow-hidden border border-indigo-100 bg-gradient-to-r from-indigo-50 via-violet-50 to-purple-50">
+      <div className="relative rounded-2xl overflow-hidden border border-emerald-100 bg-gradient-to-r from-emerald-50 via-teal-50 to-teal-50">
         <div className="px-6 py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h3 className="text-sm font-bold text-indigo-900 flex items-center gap-2">
+            <h3 className="text-sm font-bold text-emerald-900 flex items-center gap-2">
               <FiGrid className="w-4 h-4" /> Full Employee Self-Service
             </h3>
-            <p className="text-xs text-indigo-700/80 mt-1">Access your complete dashboard — leave, attendance, payslips, performance, training, timesheets, documents and more.</p>
+            <p className="text-xs text-emerald-700/80 mt-1">Access your complete dashboard — leave, attendance, payslips, performance, training, timesheets, documents and more.</p>
           </div>
           <button
             onClick={() => router.push('/dashboard')}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 text-white text-sm font-semibold shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 transition-all whitespace-nowrap"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-sm font-semibold shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 transition-all whitespace-nowrap"
           >
             Open ESS Dashboard <FiArrowRight className="w-4 h-4" />
           </button>
@@ -1275,9 +1275,9 @@ function EmployeeHome({ firstName, greeting, today }: { firstName: string; greet
               {announcements.map((a, i) => {
                 const iconBg =
                   a.type === 'holiday' ? 'bg-emerald-50 text-emerald-600' :
-                  a.type === 'event' ? 'bg-blue-50 text-blue-600' :
+                  a.type === 'event' ? 'bg-green-50 text-green-600' :
                   a.type === 'policy' ? 'bg-amber-50 text-amber-600' :
-                  'bg-violet-50 text-violet-600';
+                  'bg-teal-50 text-teal-600';
                 const icon =
                   a.type === 'holiday' ? <FiCalendar className="w-4 h-4" /> :
                   a.type === 'event' ? <FiStar className="w-4 h-4" /> :

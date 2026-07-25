@@ -302,7 +302,7 @@ export default function OfferTemplatesPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
-            <FiFileText className="w-6 h-6 text-blue-500" />
+            <FiFileText className="w-6 h-6 text-green-500" />
             Offer Letter Templates
           </h1>
           <p className="text-thb-text-secondary mt-1">
@@ -318,7 +318,7 @@ export default function OfferTemplatesPage() {
           </Link>
           <button
             onClick={handleAddNew}
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium text-sm shadow-sm shadow-blue-500/25 transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-500 text-white rounded-lg hover:bg-green-600 font-medium text-sm shadow-sm shadow-green-500/25 transition-colors"
           >
             <FiPlus className="w-4 h-4" /> New Template
           </button>
@@ -327,7 +327,7 @@ export default function OfferTemplatesPage() {
 
       {/* Embedded Form */}
       {showForm && (
-        <div id="crud-form" className="thb-card border-l-4 border-l-blue-500">
+        <div id="crud-form" className="thb-card border-l-4 border-l-green-500">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-semibold text-thb-text-primary">
@@ -352,7 +352,7 @@ export default function OfferTemplatesPage() {
                     required
                     value={form.name}
                     onChange={(e) => setForm({ ...form, name: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                     placeholder="e.g., India Standard Offer"
                   />
                 </div>
@@ -363,7 +363,7 @@ export default function OfferTemplatesPage() {
                     <select
                       value={form.country}
                       onChange={(e) => setForm({ ...form, country: e.target.value })}
-                      className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                      className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                     >
                       {COUNTRY_OPTIONS.map((c) => (
                         <option key={c.value} value={c.value}>{c.label}</option>
@@ -375,7 +375,7 @@ export default function OfferTemplatesPage() {
                     <select
                       value={form.language}
                       onChange={(e) => setForm({ ...form, language: e.target.value })}
-                      className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                      className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                     >
                       {LANGUAGE_OPTIONS.map((l) => (
                         <option key={l.value} value={l.value}>{l.label}</option>
@@ -394,7 +394,7 @@ export default function OfferTemplatesPage() {
                         key={ph}
                         type="button"
                         onClick={() => insertPlaceholder(ph)}
-                        className="px-2 py-0.5 text-[10px] font-mono bg-slate-100 text-slate-700 rounded border border-slate-200 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 transition-colors"
+                        className="px-2 py-0.5 text-[10px] font-mono bg-slate-100 text-slate-700 rounded border border-slate-200 hover:bg-green-50 hover:text-green-700 hover:border-green-200 transition-colors"
                         title={`Insert ${ph}`}
                       >
                         {ph}
@@ -405,7 +405,7 @@ export default function OfferTemplatesPage() {
                     rows={14}
                     value={form.body}
                     onChange={(e) => setForm({ ...form, body: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm font-mono focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                     placeholder="Enter the offer letter body..."
                   />
                 </div>
@@ -418,7 +418,7 @@ export default function OfferTemplatesPage() {
                     rows={2}
                     value={form.header}
                     onChange={(e) => setForm({ ...form, header: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm font-mono focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                     placeholder="<h1>Marq AI Tech Pvt Ltd</h1>"
                   />
                 </div>
@@ -431,7 +431,7 @@ export default function OfferTemplatesPage() {
                     rows={2}
                     value={form.footer}
                     onChange={(e) => setForm({ ...form, footer: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm font-mono focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                     placeholder="<p>Marq AI Tech Pvt Ltd, Mumbai, India</p>"
                   />
                 </div>
@@ -472,7 +472,7 @@ export default function OfferTemplatesPage() {
               <button
                 onClick={handleSubmit}
                 disabled={submitting}
-                className="px-6 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50 shadow-sm shadow-blue-500/25 transition-colors"
+                className="px-6 py-2.5 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 disabled:opacity-50 shadow-sm shadow-green-500/25 transition-colors"
               >
                 {submitting ? 'Saving...' : editingId ? 'Update Template' : 'Create Template'}
               </button>
@@ -545,7 +545,7 @@ export default function OfferTemplatesPage() {
                               </td>
                               <td className="px-4 py-3">
                                 <div className="flex items-center justify-end gap-1">
-                                  <button onClick={() => handleEdit(t)} className="p-2 rounded-lg text-thb-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="Edit"><FiEdit2 className="w-4 h-4" /></button>
+                                  <button onClick={() => handleEdit(t)} className="p-2 rounded-lg text-thb-text-muted hover:text-green-500 hover:bg-green-50 transition-colors" title="Edit"><FiEdit2 className="w-4 h-4" /></button>
                                   <button onClick={() => handleDuplicate(t)} className="p-2 rounded-lg text-thb-text-muted hover:text-emerald-500 hover:bg-emerald-50 transition-colors" title="Duplicate"><FiCopy className="w-4 h-4" /></button>
                                   <button onClick={() => setDeleteConfirmId(t.id)} className="p-2 rounded-lg text-thb-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete"><FiTrash2 className="w-4 h-4" /></button>
                                 </div>

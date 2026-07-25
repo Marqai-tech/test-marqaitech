@@ -125,7 +125,7 @@ export default function CandidateResumeBuilderApprovalPage() {
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-violet-500 to-indigo-600 text-white flex items-center justify-center">
+            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-teal-500 to-emerald-600 text-white flex items-center justify-center">
               <FiZap className="w-5 h-5" />
             </div>
             <h1 className="text-xl font-bold text-slate-900">AI Resume Builder Approvals</h1>
@@ -197,7 +197,7 @@ export default function CandidateResumeBuilderApprovalPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by name or email..."
-            className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400"
+            className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400"
           />
         </div>
       </div>
@@ -205,7 +205,7 @@ export default function CandidateResumeBuilderApprovalPage() {
       {/* Table */}
       {loading ? (
         <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
-          <div className="w-8 h-8 border-2 border-violet-200 border-t-violet-600 rounded-full animate-spin mx-auto mb-3" />
+          <div className="w-8 h-8 border-2 border-teal-200 border-t-teal-600 rounded-full animate-spin mx-auto mb-3" />
           <p className="text-sm text-slate-500">Loading candidates…</p>
         </div>
       ) : candidates.length === 0 ? (

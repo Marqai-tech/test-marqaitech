@@ -54,9 +54,9 @@ function getDayColor(status: string) {
     absent: 'bg-red-500',
     late: 'bg-orange-400',
     half_day: 'bg-amber-400',
-    holiday: 'bg-blue-400',
+    holiday: 'bg-green-400',
     weekend: 'bg-slate-200',
-    on_leave: 'bg-purple-400',
+    on_leave: 'bg-teal-400',
     '': 'bg-slate-100',
   };
   return colors[status] || 'bg-slate-100';
@@ -229,7 +229,7 @@ export default function MusterRollPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-nexus-text-primary flex items-center gap-2">
-            <FiCalendar className="w-6 h-6 text-blue-500" />
+            <FiCalendar className="w-6 h-6 text-green-500" />
             Muster Roll
           </h1>
           <p className="text-nexus-text-secondary mt-1">
@@ -237,7 +237,7 @@ export default function MusterRollPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <button className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium text-sm">
+          <button className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-500 text-white rounded-lg hover:bg-green-600 font-medium text-sm">
             <FiDownload className="w-4 h-4" />
             Export
           </button>
@@ -273,7 +273,7 @@ export default function MusterRollPage() {
               <select
                 value={departmentFilter}
                 onChange={(e) => setDepartmentFilter(e.target.value)}
-                className="px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                className="px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20"
               >
                 <option value="">All Departments</option>
                 {departments.map(dept => (
@@ -283,7 +283,7 @@ export default function MusterRollPage() {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                className="px-3 py-2 rounded-lg border border-nexus-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20"
               >
                 <option value="">All Status</option>
                 <option value="present">Present</option>
@@ -316,7 +316,7 @@ export default function MusterRollPage() {
             <span>Half Day</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 bg-purple-400 rounded"></div>
+            <div className="w-6 h-6 bg-teal-400 rounded"></div>
             <span>On Leave</span>
           </div>
           <div className="flex items-center gap-2">
@@ -369,7 +369,7 @@ export default function MusterRollPage() {
                           {emp.avatar ? (
                             <img src={emp.avatar} alt="" className="w-9 h-9 rounded-full object-cover" />
                           ) : (
-                            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-white text-xs font-bold">
+                            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-green-500 to-teal-600 flex items-center justify-center text-white text-xs font-bold">
                               {initials}
                             </div>
                           )}
@@ -409,7 +409,7 @@ export default function MusterRollPage() {
                             <span>{stats.late}L</span>
                           </div>
                           <div className="flex items-center gap-1">
-                            <div className="w-3 h-3 bg-purple-400 rounded"></div>
+                            <div className="w-3 h-3 bg-teal-400 rounded"></div>
                             <span>{stats.leave}Lv</span>
                           </div>
                         </div>
@@ -432,7 +432,7 @@ export default function MusterRollPage() {
                 <p className="text-sm text-nexus-text-muted">Total Employees</p>
                 <p className="text-2xl font-bold text-nexus-text-primary">{employees.length}</p>
               </div>
-              <FiUsers className="w-8 h-8 text-blue-500" />
+              <FiUsers className="w-8 h-8 text-green-500" />
             </div>
           </div>
           <div className="nexus-card p-4">
@@ -467,7 +467,7 @@ export default function MusterRollPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-nexus-text-muted">Attendance Rate</p>
-                <p className="text-2xl font-bold text-blue-600">
+                <p className="text-2xl font-bold text-green-600">
                   {employees.length > 0
                     ? Math.round(
                         (employees.reduce((sum, emp) => sum + calculateStats(emp.id).present, 0) /
@@ -477,7 +477,7 @@ export default function MusterRollPage() {
                   %
                 </p>
               </div>
-              <FiCalendar className="w-8 h-8 text-blue-500" />
+              <FiCalendar className="w-8 h-8 text-green-500" />
             </div>
           </div>
         </div>

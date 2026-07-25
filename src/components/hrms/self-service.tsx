@@ -261,7 +261,7 @@ export default function SelfServiceModule() {
       total: lt.maxPerYear,
       used: Math.round(used),
       balance: Math.max(0, lt.maxPerYear - Math.round(used)),
-      color: ['bg-emerald-500', 'bg-teal-500', 'bg-cyan-500', 'bg-purple-500', 'bg-amber-500'][leaveTypes.indexOf(lt) % 5],
+      color: ['bg-emerald-500', 'bg-teal-500', 'bg-cyan-500', 'bg-teal-500', 'bg-amber-500'][leaveTypes.indexOf(lt) % 5],
     }
   })
 

@@ -306,7 +306,7 @@ export default function PayrollHoldsPage() {
             <FiRefreshCw className="w-4 h-4" />
           </button>
           {isAdmin && (
-            <button onClick={handleAddNew} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium text-sm shadow-sm shadow-blue-500/25 transition-colors">
+            <button onClick={handleAddNew} className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-500 text-white rounded-lg hover:bg-green-600 font-medium text-sm shadow-sm shadow-green-500/25 transition-colors">
               <FiPlus className="w-4 h-4" /> New Hold
             </button>
           )}
@@ -367,14 +367,14 @@ export default function PayrollHoldsPage() {
           <div className="relative flex-1">
             <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
             <input type="text" placeholder="Search by employee, reason, hold type..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+              className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
           </div>
           <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[150px]">
+            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 min-w-[150px]">
             {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
           <select value={employeeFilter} onChange={(e) => setEmployeeFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[160px]">
+            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 min-w-[160px]">
             <option value="">All Employees</option>
             {employees.map(e => (
               <option key={e.id} value={e.employeeId}>{e.firstName} {e.lastName} ({e.employeeId})</option>
@@ -401,7 +401,7 @@ export default function PayrollHoldsPage() {
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Employee *</label>
                 {employees.length > 0 ? (
                   <select value={form.employeeId} onChange={(e) => setForm({ ...form, employeeId: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                     <option value="">Select Employee...</option>
                     {employees.map(e => (
                       <option key={e.id} value={e.employeeId}>{e.firstName} {e.lastName} ({e.employeeId})</option>
@@ -409,33 +409,33 @@ export default function PayrollHoldsPage() {
                   </select>
                 ) : (
                   <input value={form.employeeId} onChange={(e) => setForm({ ...form, employeeId: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                     placeholder="Enter Employee ID" />
                 )}
               </div>
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Hold Type *</label>
                 <select value={form.holdType} onChange={(e) => setForm({ ...form, holdType: e.target.value, heldComponents: e.target.value === 'FULL_HOLD' ? [] : form.heldComponents })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                   {HOLD_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
               </div>
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Hold From Period *</label>
                 <input type="month" value={form.holdFromPeriod} onChange={(e) => setForm({ ...form, holdFromPeriod: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                   placeholder="e.g. 2026-06" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Hold To Period</label>
                 <input type="month" value={form.holdToPeriod} onChange={(e) => setForm({ ...form, holdToPeriod: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                   placeholder="Leave empty for indefinite" />
               </div>
               <div className="sm:col-span-2">
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Reason *</label>
                 <textarea value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} rows={2}
-                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 resize-none"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 resize-none"
                   placeholder="Reason for payroll hold..." />
               </div>
             </div>
@@ -461,7 +461,7 @@ export default function PayrollHoldsPage() {
                 Cancel
               </button>
               <button onClick={handleSubmit} disabled={submitting}
-                className="px-6 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50 shadow-sm shadow-blue-500/25 transition-colors">
+                className="px-6 py-2.5 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 disabled:opacity-50 shadow-sm shadow-green-500/25 transition-colors">
                 {submitting ? 'Saving...' : editingId ? 'Update Hold' : 'Create Hold'}
               </button>
             </div>

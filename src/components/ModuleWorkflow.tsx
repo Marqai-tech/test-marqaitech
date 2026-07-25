@@ -50,36 +50,36 @@ const accentColorMap = {
     previewHeader: 'from-emerald-100 to-teal-100 text-emerald-700',
   },
   blue: {
-    headerBg: 'bg-gradient-to-r from-blue-50 to-indigo-50',
-    headerBorder: 'border-blue-100',
-    headerIconBg: 'bg-blue-100',
-    headerIconColor: 'text-blue-600',
-    badgeBg: 'text-blue-700 bg-blue-100',
-    infoBannerBg: 'bg-blue-50 border-blue-100',
-    infoBannerText: 'text-blue-700',
-    completeBg: 'bg-blue-500',
-    completeShadow: 'shadow-blue-500/25',
-    completeText: 'text-blue-600',
-    arrowColor: 'text-blue-400',
-    lineColor: 'bg-blue-300',
-    previewBorder: 'border-blue-200',
-    previewHeader: 'from-blue-100 to-indigo-100 text-blue-700',
+    headerBg: 'bg-gradient-to-r from-green-50 to-emerald-50',
+    headerBorder: 'border-green-100',
+    headerIconBg: 'bg-green-100',
+    headerIconColor: 'text-green-600',
+    badgeBg: 'text-green-700 bg-green-100',
+    infoBannerBg: 'bg-green-50 border-green-100',
+    infoBannerText: 'text-green-700',
+    completeBg: 'bg-green-500',
+    completeShadow: 'shadow-green-500/25',
+    completeText: 'text-green-600',
+    arrowColor: 'text-green-400',
+    lineColor: 'bg-green-300',
+    previewBorder: 'border-green-200',
+    previewHeader: 'from-green-100 to-emerald-100 text-green-700',
   },
   violet: {
-    headerBg: 'bg-gradient-to-r from-violet-50 to-purple-50',
-    headerBorder: 'border-violet-100',
-    headerIconBg: 'bg-violet-100',
-    headerIconColor: 'text-violet-600',
-    badgeBg: 'text-violet-700 bg-violet-100',
-    infoBannerBg: 'bg-violet-50 border-violet-100',
-    infoBannerText: 'text-violet-700',
-    completeBg: 'bg-violet-500',
-    completeShadow: 'shadow-violet-500/25',
-    completeText: 'text-violet-600',
-    arrowColor: 'text-violet-400',
-    lineColor: 'bg-violet-300',
-    previewBorder: 'border-violet-200',
-    previewHeader: 'from-violet-100 to-purple-100 text-violet-700',
+    headerBg: 'bg-gradient-to-r from-teal-50 to-teal-50',
+    headerBorder: 'border-teal-100',
+    headerIconBg: 'bg-teal-100',
+    headerIconColor: 'text-teal-600',
+    badgeBg: 'text-teal-700 bg-teal-100',
+    infoBannerBg: 'bg-teal-50 border-teal-100',
+    infoBannerText: 'text-teal-700',
+    completeBg: 'bg-teal-500',
+    completeShadow: 'shadow-teal-500/25',
+    completeText: 'text-teal-600',
+    arrowColor: 'text-teal-400',
+    lineColor: 'bg-teal-300',
+    previewBorder: 'border-teal-200',
+    previewHeader: 'from-teal-100 to-teal-100 text-teal-700',
   },
   amber: {
     headerBg: 'bg-gradient-to-r from-amber-50 to-orange-50',
@@ -311,7 +311,7 @@ export default function ModuleWorkflow({
                               status === 'complete'
                                 ? `${colors.completeBg} text-white shadow-md ${colors.completeShadow}`
                                 : status === 'current'
-                                ? 'bg-blue-500 text-white shadow-md shadow-blue-500/25 ring-4 ring-blue-100'
+                                ? 'bg-green-500 text-white shadow-md shadow-green-500/25 ring-4 ring-green-100'
                                 : 'bg-slate-100 text-slate-400 group-hover:bg-slate-200'
                             }`}
                           >
@@ -327,7 +327,7 @@ export default function ModuleWorkflow({
                               status === 'complete'
                                 ? colors.completeText
                                 : status === 'current'
-                                ? 'text-blue-600'
+                                ? 'text-green-600'
                                 : 'text-slate-400 group-hover:text-slate-500'
                             }`}
                           >
@@ -367,7 +367,7 @@ export default function ModuleWorkflow({
                             status === 'complete'
                               ? `${colors.completeBg} text-white shadow-sm`
                               : status === 'current'
-                              ? 'bg-blue-500 text-white shadow-sm ring-2 ring-blue-100'
+                              ? 'bg-green-500 text-white shadow-sm ring-2 ring-green-100'
                               : 'bg-slate-100 text-slate-400'
                           }`}
                           disabled={!isClickable}
@@ -392,14 +392,14 @@ export default function ModuleWorkflow({
                               status === 'complete'
                                 ? colors.completeText
                                 : status === 'current'
-                                ? 'text-blue-600'
+                                ? 'text-green-600'
                                 : 'text-slate-400'
                             }`}
                           >
                             {step.title}
                           </p>
                           {status === 'current' && (
-                            <span className="text-[9px] font-medium text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full">
+                            <span className="text-[9px] font-medium text-green-600 bg-green-50 px-1.5 py-0.5 rounded-full">
                               Next Step
                             </span>
                           )}
@@ -422,7 +422,7 @@ export default function ModuleWorkflow({
                   <span className="text-[10px] text-thb-text-muted">Complete</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <span className="w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center">
+                  <span className="w-4 h-4 rounded-full bg-green-500 flex items-center justify-center">
                     <span className="text-[8px] text-white font-bold">•</span>
                   </span>
                   <span className="text-[10px] text-thb-text-muted">Current Step</span>
@@ -462,7 +462,7 @@ export default function ModuleWorkflow({
                             status === 'complete'
                               ? `${colors.completeBg} text-white`
                               : status === 'current'
-                              ? 'bg-blue-500 text-white ring-2 ring-blue-100'
+                              ? 'bg-green-500 text-white ring-2 ring-green-100'
                               : 'bg-slate-100 text-slate-400'
                           }`}
                         >
@@ -478,13 +478,13 @@ export default function ModuleWorkflow({
                             status === 'complete'
                               ? colors.completeText
                               : status === 'current'
-                              ? 'text-blue-600'
+                              ? 'text-green-600'
                               : 'text-slate-600'
                           }`}>
                             {step.title}
                           </p>
                           {status === 'current' && (
-                            <span className="text-[9px] font-medium text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full">
+                            <span className="text-[9px] font-medium text-green-600 bg-green-50 px-1.5 py-0.5 rounded-full">
                               Next
                             </span>
                           )}

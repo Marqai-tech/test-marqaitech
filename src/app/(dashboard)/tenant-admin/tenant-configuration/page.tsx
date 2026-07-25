@@ -90,14 +90,14 @@ interface TenantConfiguration {
 // ─── Badge helpers ───
 const tierBadge: Record<string, string> = {
   standard: 'bg-gray-100 text-gray-700',
-  custom: 'bg-blue-100 text-blue-700',
-  full: 'bg-purple-100 text-purple-700',
+  custom: 'bg-green-100 text-green-700',
+  full: 'bg-teal-100 text-teal-700',
 };
 
 const sourceBadge: Record<string, string> = {
   system_default: 'bg-green-100 text-green-700',
   tenant_override: 'bg-orange-100 text-orange-700',
-  custom: 'bg-blue-100 text-blue-700',
+  custom: 'bg-green-100 text-green-700',
 };
 
 const statusBadge: Record<string, string> = {
@@ -107,10 +107,10 @@ const statusBadge: Record<string, string> = {
 };
 
 const categoryBadge: Record<string, string> = {
-  payroll: 'bg-blue-100 text-blue-700',
+  payroll: 'bg-green-100 text-green-700',
   leave: 'bg-green-100 text-green-700',
   compliance: 'bg-red-100 text-red-700',
-  benefits: 'bg-purple-100 text-purple-700',
+  benefits: 'bg-teal-100 text-teal-700',
   labour_law: 'bg-orange-100 text-orange-700',
   custom: 'bg-gray-100 text-gray-700',
 };
@@ -355,7 +355,7 @@ export default function TenantConfigurationPage() {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
-          <FiRefreshCw className="animate-spin h-8 w-8 mx-auto text-blue-500 mb-3" />
+          <FiRefreshCw className="animate-spin h-8 w-8 mx-auto text-green-500 mb-3" />
           <p className="text-gray-500">Loading tenant configuration...</p>
         </div>
       </div>
@@ -368,7 +368,7 @@ export default function TenantConfigurationPage() {
         <div className="text-center text-red-500">
           <FiAlertTriangle className="h-8 w-8 mx-auto mb-3" />
           <p>Failed to load configuration. Please try again.</p>
-          <button onClick={fetchConfig} className="mt-3 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+          <button onClick={fetchConfig} className="mt-3 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
             Retry
           </button>
         </div>
@@ -382,7 +382,7 @@ export default function TenantConfigurationPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-            <FiSettings className="text-blue-600" />
+            <FiSettings className="text-green-600" />
             Tenant Configuration
           </h1>
           <p className="text-sm text-gray-500 mt-1">
@@ -421,7 +421,7 @@ export default function TenantConfigurationPage() {
               onClick={() => setActiveTab(tab.key as typeof activeTab)}
               className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === tab.key
-                  ? 'border-blue-600 text-blue-600'
+                  ? 'border-green-600 text-green-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
@@ -441,7 +441,7 @@ export default function TenantConfigurationPage() {
             {isSuperAdmin && (
               <button
                 onClick={() => { setAddType('country'); setShowAddModal(true); setSelectedItems([]); setSearchTerm(''); }}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm"
               >
                 <FiPlus /> Add Countries
               </button>
@@ -505,7 +505,7 @@ export default function TenantConfigurationPage() {
                   {(isSuperAdmin || (isTenantAdmin && config.customisationTier !== 'standard')) && (
                     <button
                       onClick={() => setEditingCountry(country)}
-                      className="mt-3 flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800"
+                      className="mt-3 flex items-center gap-1 text-xs text-green-600 hover:text-green-800"
                     >
                       <FiEdit2 className="h-3 w-3" /> Edit Configuration
                     </button>
@@ -527,7 +527,7 @@ export default function TenantConfigurationPage() {
             {isSuperAdmin && (
               <button
                 onClick={() => { setAddType('currency'); setShowAddModal(true); setSelectedItems([]); setSearchTerm(''); }}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm"
               >
                 <FiPlus /> Add Currencies
               </button>
@@ -601,7 +601,7 @@ export default function TenantConfigurationPage() {
             {isSuperAdmin && (
               <button
                 onClick={() => { setAddType('language'); setShowAddModal(true); setSelectedItems([]); setSearchTerm(''); }}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm"
               >
                 <FiPlus /> Add Languages
               </button>
@@ -659,7 +659,7 @@ export default function TenantConfigurationPage() {
             {(isSuperAdmin || config.customisationTier !== 'standard') && (
               <button
                 onClick={() => { setAddType('policy'); setShowAddModal(true); }}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm"
               >
                 <FiPlus /> Create Policy
               </button>
@@ -719,7 +719,7 @@ export default function TenantConfigurationPage() {
                                   setEditPolicyContent(policy.policyContent);
                                   setEditPolicyNotes(policy.notes || '');
                                 }}
-                                className="p-1.5 text-blue-500 hover:text-blue-700 rounded hover:bg-blue-50"
+                                className="p-1.5 text-green-500 hover:text-green-700 rounded hover:bg-green-50"
                                 title="Edit policy"
                               >
                                 <FiEdit2 className="h-4 w-4" />
@@ -754,7 +754,7 @@ export default function TenantConfigurationPage() {
           {/* Auto-Provisioning */}
           <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6">
             <h3 className="font-medium text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-              <FiSettings className="text-blue-500" /> Auto-Provisioning
+              <FiSettings className="text-green-500" /> Auto-Provisioning
             </h3>
             <p className="text-sm text-gray-500 mb-4">
               When a country is added, the system can automatically create default payroll policies, compliance obligations, tax slabs, and minimum wage configurations.
@@ -790,7 +790,7 @@ export default function TenantConfigurationPage() {
           {/* Customisation Tier */}
           <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6">
             <h3 className="font-medium text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-              <FiShield className="text-purple-500" /> Customisation Tier
+              <FiShield className="text-teal-500" /> Customisation Tier
             </h3>
             <p className="text-sm text-gray-500 mb-4">
               Controls how much the tenant admin can override pre-configured policies.
@@ -806,7 +806,7 @@ export default function TenantConfigurationPage() {
                   onClick={() => handleUpdateConfig({ customisationTier: tier.value })}
                   className={`p-4 rounded-xl border-2 text-left transition-all ${
                     config.customisationTier === tier.value
-                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                      ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
                       : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
                   }`}
                 >
@@ -929,7 +929,7 @@ export default function TenantConfigurationPage() {
               <div className="flex gap-2">
                 <button
                   onClick={() => setSelectedItems(filteredAvailable.map(i => i.code))}
-                  className="text-xs text-blue-600 hover:text-blue-800"
+                  className="text-xs text-green-600 hover:text-green-800"
                 >
                   Select All
                 </button>
@@ -948,11 +948,11 @@ export default function TenantConfigurationPage() {
                     key={item.code}
                     onClick={() => toggleItem(item.code)}
                     className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-colors ${
-                      isSelected ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800' : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                      isSelected ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800' : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'
                     }`}
                   >
                     <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
-                      isSelected ? 'bg-blue-600 border-blue-600' : 'border-gray-300 dark:border-gray-600'
+                      isSelected ? 'bg-green-600 border-green-600' : 'border-gray-300 dark:border-gray-600'
                     }`}>
                       {isSelected && <FiCheck className="h-3 w-3 text-white" />}
                     </div>
@@ -980,7 +980,7 @@ export default function TenantConfigurationPage() {
             <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
               <div className="text-sm text-gray-500">
                 {selectedItems.length > 0 && addType === 'country' && (
-                  <span className="text-blue-600">Policies will be auto-provisioned for selected countries</span>
+                  <span className="text-green-600">Policies will be auto-provisioned for selected countries</span>
                 )}
               </div>
               <div className="flex gap-2">
@@ -990,7 +990,7 @@ export default function TenantConfigurationPage() {
                 <button
                   onClick={handleAddItems}
                   disabled={selectedItems.length === 0 || saving}
-                  className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  className="px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                 >
                   {saving && <FiRefreshCw className="animate-spin h-4 w-4" />}
                   Add {selectedItems.length} {addType}{selectedItems.length !== 1 ? 's' : ''}
@@ -1089,7 +1089,7 @@ export default function TenantConfigurationPage() {
               <button
                 onClick={handleCreatePolicy}
                 disabled={saving}
-                className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+                className="px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
               >
                 {saving && <FiRefreshCw className="animate-spin h-4 w-4" />}
                 Create Policy
@@ -1151,7 +1151,7 @@ export default function TenantConfigurationPage() {
               <button
                 onClick={handleSavePolicy}
                 disabled={saving}
-                className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+                className="px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
               >
                 {saving && <FiRefreshCw className="animate-spin h-4 w-4" />}
                 <FiSave /> Save Changes
@@ -1192,12 +1192,12 @@ export default function TenantConfigurationPage() {
 
 function StatCard({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: number | string; color: string }) {
   const colorMap: Record<string, string> = {
-    blue: 'bg-blue-50 text-blue-700',
+    blue: 'bg-green-50 text-green-700',
     green: 'bg-green-50 text-green-700',
-    purple: 'bg-purple-50 text-purple-700',
+    purple: 'bg-teal-50 text-teal-700',
     orange: 'bg-orange-50 text-orange-700',
     emerald: 'bg-emerald-50 text-emerald-700',
-    indigo: 'bg-indigo-50 text-indigo-700',
+    indigo: 'bg-emerald-50 text-emerald-700',
   };
   return (
     <div className={`p-4 rounded-xl ${colorMap[color] || colorMap.blue}`}>
@@ -1221,11 +1221,11 @@ function DetailItem({ label, value }: { label: string; value: string }) {
 
 function ComplianceTag({ label, color }: { label: string; color: string }) {
   const colorMap: Record<string, string> = {
-    blue: 'bg-blue-100 text-blue-700',
+    blue: 'bg-green-100 text-green-700',
     green: 'bg-green-100 text-green-700',
-    purple: 'bg-purple-100 text-purple-700',
+    purple: 'bg-teal-100 text-teal-700',
     orange: 'bg-orange-100 text-orange-700',
-    indigo: 'bg-indigo-100 text-indigo-700',
+    indigo: 'bg-emerald-100 text-emerald-700',
     red: 'bg-red-100 text-red-700',
   };
   return (
@@ -1244,7 +1244,7 @@ function ToggleSetting({ label, description, value, onChange }: { label: string;
       </div>
       <button
         onClick={() => onChange(!value)}
-        className={`relative w-11 h-6 rounded-full transition-colors ${value ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'}`}
+        className={`relative w-11 h-6 rounded-full transition-colors ${value ? 'bg-green-600' : 'bg-gray-300 dark:bg-gray-600'}`}
       >
         <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${value ? 'translate-x-5' : 'translate-x-0'}`} />
       </button>
@@ -1453,7 +1453,7 @@ function CountryEditor({ country, isSuperAdmin, configTier, onSave, onCancel, sa
         <button
           onClick={() => onSave(country.id, form)}
           disabled={saving || !canEdit}
-          className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+          className="px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
         >
           {saving && <FiRefreshCw className="animate-spin h-4 w-4" />}
           Save

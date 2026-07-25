@@ -179,7 +179,7 @@ function getJobStatusBadge(status: string) {
 function getAppStatusBadge(status: string) {
   const map: Record<string, string> = {
     applied: 'thb-badge thb-badge-info',
-    screening: 'bg-purple-50 text-purple-700 thb-badge',
+    screening: 'bg-teal-50 text-teal-700 thb-badge',
     interview: 'bg-amber-50 text-amber-700 thb-badge',
     offered: 'thb-badge thb-badge-success',
     hired: 'bg-emerald-50 text-emerald-700 thb-badge',
@@ -219,7 +219,7 @@ function getJobTypeBadge(type: string) {
     'full-time': { className: 'bg-emerald-50 text-emerald-700 border border-emerald-200', label: 'Full-time' },
     'part-time': { className: 'bg-sky-50 text-sky-700 border border-sky-200', label: 'Part-time' },
     'contract': { className: 'bg-amber-50 text-amber-700 border border-amber-200', label: 'Contract' },
-    'internship': { className: 'bg-purple-50 text-purple-700 border border-purple-200', label: 'Internship' },
+    'internship': { className: 'bg-teal-50 text-teal-700 border border-teal-200', label: 'Internship' },
   };
   return map[type] || { className: 'bg-slate-50 text-slate-700 border border-slate-200', label: type };
 }
@@ -234,7 +234,7 @@ function getAvatarColor(name: string) {
     'bg-emerald-100 text-emerald-700',
     'bg-amber-100 text-amber-700',
     'bg-sky-100 text-sky-700',
-    'bg-violet-100 text-violet-700',
+    'bg-teal-100 text-teal-700',
     'bg-pink-100 text-pink-700',
     'bg-teal-100 text-teal-700',
     'bg-orange-100 text-orange-700',
@@ -250,7 +250,7 @@ function getAvatarGradient(name: string) {
     'from-emerald-400 to-emerald-600',
     'from-amber-400 to-amber-600',
     'from-sky-400 to-sky-600',
-    'from-violet-400 to-violet-600',
+    'from-teal-400 to-teal-600',
     'from-pink-400 to-pink-600',
     'from-teal-400 to-teal-600',
     'from-orange-400 to-orange-600',
@@ -787,12 +787,12 @@ export default function RecruitmentPage() {
     { label: 'Open Positions', value: openPositions, icon: FiBriefcase, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200' },
     { label: 'Total Applications', value: totalApplications, icon: FiUsers, color: 'text-sky-600', bg: 'bg-sky-50', border: 'border-sky-200' },
     { label: 'Interviews Scheduled', value: interviewsScheduled, icon: FiCalendar, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200' },
-    { label: 'Offers Pending', value: offersPending, icon: FiTarget, color: 'text-violet-600', bg: 'bg-violet-50', border: 'border-violet-200' },
+    { label: 'Offers Pending', value: offersPending, icon: FiTarget, color: 'text-teal-600', bg: 'bg-teal-50', border: 'border-teal-200' },
   ];
 
   const candidateStatsCards = [
     { label: 'Total Candidates', value: totalApplications, icon: FiUsers, color: 'text-sky-600', bg: 'bg-sky-50', border: 'border-sky-200' },
-    { label: 'Shortlisted', value: shortlisted, icon: FiFilter, color: 'text-purple-600', bg: 'bg-purple-50', border: 'border-purple-200' },
+    { label: 'Shortlisted', value: shortlisted, icon: FiFilter, color: 'text-teal-600', bg: 'bg-teal-50', border: 'border-teal-200' },
     { label: 'Interviewed', value: interviewsScheduled, icon: FiCalendar, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200' },
     { label: 'Hired', value: hired, icon: FiCheckCircle, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200' },
   ];
@@ -803,7 +803,7 @@ export default function RecruitmentPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
-            <FiBriefcase className="w-6 h-6 text-violet-500" />
+            <FiBriefcase className="w-6 h-6 text-teal-500" />
             Recruitment
           </h1>
           <p className="text-thb-text-secondary mt-1">Manage job postings and applications</p>
@@ -813,7 +813,7 @@ export default function RecruitmentPage() {
               <FiShield className="w-3 h-3" /> PII masked for hiring panel
             </span>
           ) : (
-            <Link href="/recruitment/pii-policy" className="inline-flex items-center gap-1.5 mt-2 text-[11px] font-semibold text-violet-600 hover:text-violet-700">
+            <Link href="/recruitment/pii-policy" className="inline-flex items-center gap-1.5 mt-2 text-[11px] font-semibold text-teal-600 hover:text-teal-700">
               <FiLock className="w-3 h-3" /> Configure PII masking policy
             </Link>
           )}
@@ -822,7 +822,7 @@ export default function RecruitmentPage() {
           <div className="flex items-center gap-2">
             <Link
               href="/recruitment/analytics"
-              className="inline-flex items-center gap-2 px-3 py-2.5 border border-violet-200 text-violet-700 rounded-lg hover:bg-violet-50 font-medium text-sm transition-colors"
+              className="inline-flex items-center gap-2 px-3 py-2.5 border border-teal-200 text-teal-700 rounded-lg hover:bg-teal-50 font-medium text-sm transition-colors"
               title="Recruitment Analytics: Cost per Hire, Time to Fill, source effectiveness"
             >
               <FiBarChart2 className="w-4 h-4" />
@@ -836,7 +836,7 @@ export default function RecruitmentPage() {
               <FiExternalLink className="w-4 h-4" />
               <span className="hidden sm:inline">Job Boards</span>
             </Link>
-            <button onClick={handleOpenAddJobForm} className="inline-flex items-center gap-2 px-4 py-2.5 bg-violet-600 text-white rounded-lg hover:bg-violet-700 font-medium text-sm shadow-sm shadow-violet-500/25 transition-colors">
+            <button onClick={handleOpenAddJobForm} className="inline-flex items-center gap-2 px-4 py-2.5 bg-teal-600 text-white rounded-lg hover:bg-teal-700 font-medium text-sm shadow-sm shadow-teal-500/25 transition-colors">
               <FiPlus className="w-4 h-4" />
               Create Job
             </button>
@@ -854,7 +854,7 @@ export default function RecruitmentPage() {
         quickStats={
           <>
             <span><b className="text-slate-700">{displayJobs.length}</b> jobs</span>
-            <span><b className="text-violet-600">{displayJobs.reduce((n, j) => n + (j._count?.applications || 0), 0)}</b> applications</span>
+            <span><b className="text-teal-600">{displayJobs.reduce((n, j) => n + (j._count?.applications || 0), 0)}</b> applications</span>
           </>
         }
       >
@@ -896,7 +896,7 @@ export default function RecruitmentPage() {
 
       {/* Embedded Job Posting Form (Add/Edit) */}
       {showJobForm && (
-        <div id="crud-form" className="thb-card border-l-4 border-l-violet-500 transition-all duration-300 ease-in-out">
+        <div id="crud-form" className="thb-card border-l-4 border-l-teal-500 transition-all duration-300 ease-in-out">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-semibold text-thb-text-primary">
@@ -910,26 +910,26 @@ export default function RecruitmentPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-thb-text-secondary mb-1">Job Title *</label>
-                  <input type="text" value={jobForm.title} onChange={e => setJobForm(p => ({ ...p, title: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400" />
+                  <input type="text" value={jobForm.title} onChange={e => setJobForm(p => ({ ...p, title: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-thb-text-secondary mb-1">Department *</label>
-                  <select value={jobForm.departmentId} onChange={e => setJobForm(p => ({ ...p, departmentId: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400">
+                  <select value={jobForm.departmentId} onChange={e => setJobForm(p => ({ ...p, departmentId: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400">
                     <option value="">Select Department</option>
                     {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-thb-text-secondary mb-1">Position</label>
-                  <input type="text" value={jobForm.position} onChange={e => setJobForm(p => ({ ...p, position: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400" />
+                  <input type="text" value={jobForm.position} onChange={e => setJobForm(p => ({ ...p, position: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-thb-text-secondary mb-1">Location</label>
-                  <input type="text" value={jobForm.location} onChange={e => setJobForm(p => ({ ...p, location: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400" />
+                  <input type="text" value={jobForm.location} onChange={e => setJobForm(p => ({ ...p, location: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-thb-text-secondary mb-1">Type</label>
-                  <select value={jobForm.type} onChange={e => setJobForm(p => ({ ...p, type: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400">
+                  <select value={jobForm.type} onChange={e => setJobForm(p => ({ ...p, type: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400">
                     <option value="full-time">Full-time</option>
                     <option value="part-time">Part-time</option>
                     <option value="contract">Contract</option>
@@ -938,32 +938,32 @@ export default function RecruitmentPage() {
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-thb-text-secondary mb-1">Experience</label>
-                  <input type="text" value={jobForm.experience} onChange={e => setJobForm(p => ({ ...p, experience: e.target.value }))} placeholder="e.g., 3-5 years" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400" />
+                  <input type="text" value={jobForm.experience} onChange={e => setJobForm(p => ({ ...p, experience: e.target.value }))} placeholder="e.g., 3-5 years" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-thb-text-secondary mb-1">Salary Range</label>
-                  <input type="text" value={jobForm.salary} onChange={e => setJobForm(p => ({ ...p, salary: e.target.value }))} placeholder="e.g., $80K - $120K" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400" />
+                  <input type="text" value={jobForm.salary} onChange={e => setJobForm(p => ({ ...p, salary: e.target.value }))} placeholder="e.g., $80K - $120K" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-thb-text-secondary mb-1">Vacancies</label>
-                  <input type="number" min="1" value={jobForm.vacancies} onChange={e => setJobForm(p => ({ ...p, vacancies: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400" />
+                  <input type="number" min="1" value={jobForm.vacancies} onChange={e => setJobForm(p => ({ ...p, vacancies: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400" />
                 </div>
                 <div className="sm:col-span-2">
                   <label className="block text-xs font-medium text-thb-text-secondary mb-1">Closing Date</label>
-                  <input type="date" value={jobForm.closingDate} onChange={e => setJobForm(p => ({ ...p, closingDate: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400" />
+                  <input type="date" value={jobForm.closingDate} onChange={e => setJobForm(p => ({ ...p, closingDate: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400" />
                 </div>
               </div>
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Description *</label>
-                <textarea rows={4} value={jobForm.description} onChange={e => setJobForm(p => ({ ...p, description: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400 resize-none" />
+                <textarea rows={4} value={jobForm.description} onChange={e => setJobForm(p => ({ ...p, description: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 resize-none" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Requirements</label>
-                <textarea rows={3} value={jobForm.requirements} onChange={e => setJobForm(p => ({ ...p, requirements: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400 resize-none" />
+                <textarea rows={3} value={jobForm.requirements} onChange={e => setJobForm(p => ({ ...p, requirements: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 resize-none" />
               </div>
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-thb-border">
                 <button onClick={handleCancelJobForm} className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
-                <button onClick={handleSaveJob} disabled={submittingJob} className="px-6 py-2.5 rounded-lg bg-violet-600 text-white text-sm font-medium hover:bg-violet-700 disabled:opacity-50 shadow-sm shadow-violet-500/25 transition-colors">
+                <button onClick={handleSaveJob} disabled={submittingJob} className="px-6 py-2.5 rounded-lg bg-teal-600 text-white text-sm font-medium hover:bg-teal-700 disabled:opacity-50 shadow-sm shadow-teal-500/25 transition-colors">
                   {submittingJob ? 'Saving...' : editingJobId ? 'Update Job' : 'Post Job'}
                 </button>
               </div>
@@ -1067,7 +1067,7 @@ export default function RecruitmentPage() {
               onClick={() => setActiveTab(tab.key)}
               className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
                 activeTab === tab.key
-                  ? 'bg-violet-600 text-white shadow-sm shadow-violet-500/25'
+                  ? 'bg-teal-600 text-white shadow-sm shadow-teal-500/25'
                   : 'text-thb-text-secondary hover:bg-slate-100 hover:text-thb-text-primary'
               }`}
             >
@@ -1093,14 +1093,14 @@ export default function RecruitmentPage() {
                   placeholder="Search jobs by title or position..."
                   value={jobSearch}
                   onChange={e => setJobSearch(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400"
                 />
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <select
                   value={jobTypeFilter}
                   onChange={e => setJobTypeFilter(e.target.value)}
-                  className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400 bg-white min-w-[130px]"
+                  className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 bg-white min-w-[130px]"
                 >
                   <option value="">All Types</option>
                   <option value="full-time">Full-time</option>
@@ -1111,7 +1111,7 @@ export default function RecruitmentPage() {
                 <select
                   value={jobStatusFilter}
                   onChange={e => setJobStatusFilter(e.target.value)}
-                  className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400 bg-white min-w-[130px]"
+                  className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 bg-white min-w-[130px]"
                 >
                   <option value="">All Status</option>
                   <option value="open">Open</option>
@@ -1122,7 +1122,7 @@ export default function RecruitmentPage() {
                 <select
                   value={jobDeptFilter}
                   onChange={e => setJobDeptFilter(e.target.value)}
-                  className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400 bg-white min-w-[150px]"
+                  className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 bg-white min-w-[150px]"
                 >
                   <option value="">All Departments</option>
                   {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
@@ -1206,7 +1206,7 @@ export default function RecruitmentPage() {
                             </tr>
                           ) : (
                             <>
-                              <tr className={`border-b border-thb-border/50 hover:bg-slate-50/50 transition-colors ${isExpanded ? 'bg-violet-50/30' : ''}`}>
+                              <tr className={`border-b border-thb-border/50 hover:bg-slate-50/50 transition-colors ${isExpanded ? 'bg-teal-50/30' : ''}`}>
                                 <td className="px-5 py-4">
                                   <div className="min-w-0">
                                     <p className="text-sm font-semibold text-thb-text-primary">{job.title}</p>
@@ -1233,7 +1233,7 @@ export default function RecruitmentPage() {
                                   <span className="text-sm font-semibold text-thb-text-primary">{job.vacancies}</span>
                                 </td>
                                 <td className="px-5 py-4 text-center">
-                                  <span className="text-sm font-semibold text-violet-600">{job._count?.applications || job.applications?.length || 0}</span>
+                                  <span className="text-sm font-semibold text-teal-600">{job._count?.applications || job.applications?.length || 0}</span>
                                 </td>
                                 <td className="px-5 py-4">
                                   <span className="text-sm text-thb-text-secondary">{formatDate(job.postedDate)}</span>
@@ -1245,7 +1245,7 @@ export default function RecruitmentPage() {
                                   <div className="flex items-center justify-end gap-1">
                                     <Link
                                       href={`/recruitment/${job.id}`}
-                                      className="p-2 rounded-lg text-thb-text-muted hover:text-violet-600 hover:bg-violet-50 transition-colors"
+                                      className="p-2 rounded-lg text-thb-text-muted hover:text-teal-600 hover:bg-teal-50 transition-colors"
                                       title="View Detail"
                                     >
                                       <FiEye className="w-4 h-4" />
@@ -1263,7 +1263,7 @@ export default function RecruitmentPage() {
                                         </button>
                                       </>
                                     )}
-                                    <button onClick={() => setExpandedJob(isExpanded ? null : job.id)} className={`p-2 rounded-lg transition-colors ${isExpanded ? 'text-violet-600 bg-violet-50' : 'text-thb-text-muted hover:bg-slate-100'}`}>
+                                    <button onClick={() => setExpandedJob(isExpanded ? null : job.id)} className={`p-2 rounded-lg transition-colors ${isExpanded ? 'text-teal-600 bg-teal-50' : 'text-thb-text-muted hover:bg-slate-100'}`}>
                                       {isExpanded ? <FiChevronUp className="w-4 h-4" /> : <FiChevronDown className="w-4 h-4" />}
                                     </button>
                                   </div>
@@ -1321,7 +1321,7 @@ export default function RecruitmentPage() {
                                               const isEditing = editingAppId === app.id;
                                               const maskedFields = app.__piiMaskedFields || [];
                                               return (
-                                                <div key={app.id} className={`flex items-center justify-between p-3 bg-white rounded-lg border transition-colors ${isEditing ? 'border-violet-300 bg-violet-50/50' : 'border-thb-border'}`}>
+                                                <div key={app.id} className={`flex items-center justify-between p-3 bg-white rounded-lg border transition-colors ${isEditing ? 'border-teal-300 bg-teal-50/50' : 'border-thb-border'}`}>
                                                   <div className="min-w-0">
                                                     <div className="flex items-center gap-1.5">
                                                       <p className="text-sm font-medium text-thb-text-primary">{app.candidateName}</p>
@@ -1341,7 +1341,7 @@ export default function RecruitmentPage() {
                                                       <select
                                                         value={editAppStatus}
                                                         onChange={e => setEditAppStatus(e.target.value)}
-                                                        className="px-2 py-1 rounded border border-thb-border text-xs focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                                                        className="px-2 py-1 rounded border border-thb-border text-xs focus:outline-none focus:ring-2 focus:ring-teal-500/20"
                                                       >
                                                         <option value="applied">Applied</option>
                                                         <option value="screening">Screening</option>
@@ -1350,7 +1350,7 @@ export default function RecruitmentPage() {
                                                         <option value="hired">Hired</option>
                                                         <option value="rejected">Rejected</option>
                                                       </select>
-                                                      <button onClick={() => handleSaveAppStatus(app.id)} className="px-2.5 py-1 bg-violet-600 text-white text-xs font-medium rounded hover:bg-violet-700 transition-colors">
+                                                      <button onClick={() => handleSaveAppStatus(app.id)} className="px-2.5 py-1 bg-teal-600 text-white text-xs font-medium rounded hover:bg-teal-700 transition-colors">
                                                         Save
                                                       </button>
                                                       <button onClick={handleCancelAppEdit} className="px-2.5 py-1 border border-thb-border text-xs font-medium rounded hover:bg-slate-50 transition-colors">
@@ -1405,14 +1405,14 @@ export default function RecruitmentPage() {
                   placeholder="Search candidates by name, email, or role..."
                   value={candidateSearch}
                   onChange={e => setCandidateSearch(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400"
                 />
               </div>
               <div className="flex items-center gap-2">
                 <select
                   value={candidateStatusFilter}
                   onChange={e => setCandidateStatusFilter(e.target.value)}
-                  className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400 bg-white min-w-[140px]"
+                  className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 bg-white min-w-[140px]"
                 >
                   <option value="">All Status</option>
                   <option value="applied">Applied</option>
@@ -1434,14 +1434,14 @@ export default function RecruitmentPage() {
                 <div className="flex items-center gap-1 ml-1 border-l border-thb-border pl-2">
                   <button
                     onClick={() => setCandidateViewMode('list')}
-                    className={`p-2 rounded-lg transition-colors ${candidateViewMode === 'list' ? 'bg-violet-500 text-white shadow-sm' : 'bg-white text-thb-text-secondary hover:bg-slate-50 border border-thb-border'}`}
+                    className={`p-2 rounded-lg transition-colors ${candidateViewMode === 'list' ? 'bg-teal-500 text-white shadow-sm' : 'bg-white text-thb-text-secondary hover:bg-slate-50 border border-thb-border'}`}
                     title="List View"
                   >
                     <FiList className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => setCandidateViewMode('grid')}
-                    className={`p-2 rounded-lg transition-colors ${candidateViewMode === 'grid' ? 'bg-violet-500 text-white shadow-sm' : 'bg-white text-thb-text-secondary hover:bg-slate-50 border border-thb-border'}`}
+                    className={`p-2 rounded-lg transition-colors ${candidateViewMode === 'grid' ? 'bg-teal-500 text-white shadow-sm' : 'bg-white text-thb-text-secondary hover:bg-slate-50 border border-thb-border'}`}
                     title="Grid View"
                   >
                     <FiGrid className="w-4 h-4" />
@@ -1503,7 +1503,7 @@ export default function RecruitmentPage() {
                       const candId = `CAN-${app.id.slice(0, 6).toUpperCase()}`;
                       return (
                         <Fragment key={app.id}>
-                          <tr className={`border-b border-thb-border/50 transition-colors ${isEditing ? 'bg-violet-50/50' : 'hover:bg-slate-50/50'}`}>
+                          <tr className={`border-b border-thb-border/50 transition-colors ${isEditing ? 'bg-teal-50/50' : 'hover:bg-slate-50/50'}`}>
                             <td className="px-5 py-3">
                               <span className="text-xs font-mono text-thb-text-muted">{candId}</span>
                             </td>
@@ -1537,7 +1537,7 @@ export default function RecruitmentPage() {
                                   <button
                                     onClick={() => handleRunSentiment(app.id)}
                                     disabled={runningSentimentAppId === app.id}
-                                    className="p-1 rounded text-thb-text-muted hover:text-violet-600 hover:bg-violet-50 transition-colors disabled:opacity-50"
+                                    className="p-1 rounded text-thb-text-muted hover:text-teal-600 hover:bg-teal-50 transition-colors disabled:opacity-50"
                                     title="Run sentiment analysis"
                                   >
                                     {runningSentimentAppId === app.id ? <FiRefreshCw className="w-3 h-3 animate-spin" /> : <FiActivity className="w-3 h-3" />}
@@ -1550,7 +1550,7 @@ export default function RecruitmentPage() {
                                 <select
                                   value={editAppStatus}
                                   onChange={e => setEditAppStatus(e.target.value)}
-                                  className="px-2 py-1 rounded border border-thb-border text-xs focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                                  className="px-2 py-1 rounded border border-thb-border text-xs focus:outline-none focus:ring-2 focus:ring-teal-500/20"
                                 >
                                   <option value="applied">Applied</option>
                                   <option value="screening">Screening</option>
@@ -1566,7 +1566,7 @@ export default function RecruitmentPage() {
                             <td className="px-5 py-3">
                               {isEditing ? (
                                 <div className="flex items-center justify-end gap-1">
-                                  <button onClick={() => handleSaveAppStatus(app.id)} className="px-2.5 py-1 bg-violet-600 text-white text-xs font-medium rounded hover:bg-violet-700 transition-colors">
+                                  <button onClick={() => handleSaveAppStatus(app.id)} className="px-2.5 py-1 bg-teal-600 text-white text-xs font-medium rounded hover:bg-teal-700 transition-colors">
                                     Save
                                   </button>
                                   <button onClick={handleCancelAppEdit} className="px-2.5 py-1 border border-thb-border text-xs font-medium rounded hover:bg-slate-50 transition-colors">
@@ -1580,7 +1580,7 @@ export default function RecruitmentPage() {
                                       <FiEdit2 className="w-4 h-4" />
                                     </button>
                                   )}
-                                  <button onClick={() => handleToggleAppExpand(app.id)} className={`p-2 rounded-lg border transition-colors ${isAppExpanded ? 'bg-violet-50 text-violet-600 border-violet-200' : 'text-thb-text-secondary border-thb-border hover:bg-slate-50'}`} title="View parsed resume">
+                                  <button onClick={() => handleToggleAppExpand(app.id)} className={`p-2 rounded-lg border transition-colors ${isAppExpanded ? 'bg-teal-50 text-teal-600 border-teal-200' : 'text-thb-text-secondary border-thb-border hover:bg-slate-50'}`} title="View parsed resume">
                                     {isAppExpanded ? <FiChevronUp className="w-4 h-4" /> : <FiChevronDown className="w-4 h-4" />}
                                   </button>
                                 </div>
@@ -1677,7 +1677,7 @@ export default function RecruitmentPage() {
                       <div className="flex items-center gap-1">
                         <button
                           onClick={() => { if (!isDemo) handleToggleAppExpand(app.id); }}
-                          className="p-1.5 rounded-lg text-thb-text-muted hover:text-violet-600 hover:bg-violet-50 transition-colors"
+                          className="p-1.5 rounded-lg text-thb-text-muted hover:text-teal-600 hover:bg-teal-50 transition-colors"
                           title="View"
                         >
                           <FiEye className="w-3.5 h-3.5" />
@@ -1719,7 +1719,7 @@ export default function RecruitmentPage() {
           {/* Filter panel */}
           <div className="thb-card p-5">
             <div className="flex items-center gap-2 mb-4">
-              <FiUsers className="w-4 h-4 text-violet-600" />
+              <FiUsers className="w-4 h-4 text-teal-600" />
               <h3 className="text-sm font-semibold text-thb-text-primary">Candidate Shortlist Filters</h3>
               <span className="text-[11px] text-thb-text-muted ml-2">
                 Filter candidates across all applications by skill, experience, salary, and more
@@ -1734,7 +1734,7 @@ export default function RecruitmentPage() {
                   value={searchFilters.skills}
                   onChange={(e) => setSearchFilters({ ...searchFilters, skills: e.target.value })}
                   placeholder="react, nodejs, aws"
-                  className="mt-1 w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+                  className="mt-1 w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
                 />
                 <p className="text-[10px] text-thb-text-muted mt-0.5">Candidate must have ALL listed skills</p>
               </div>
@@ -1748,7 +1748,7 @@ export default function RecruitmentPage() {
                     value={searchFilters.minExperienceYears}
                     onChange={(e) => setSearchFilters({ ...searchFilters, minExperienceYears: e.target.value })}
                     placeholder="Min"
-                    className="w-full px-2 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+                    className="w-full px-2 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
                   />
                   <input
                     type="number"
@@ -1756,7 +1756,7 @@ export default function RecruitmentPage() {
                     value={searchFilters.maxExperienceYears}
                     onChange={(e) => setSearchFilters({ ...searchFilters, maxExperienceYears: e.target.value })}
                     placeholder="Max"
-                    className="w-full px-2 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+                    className="w-full px-2 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
                   />
                 </div>
               </div>
@@ -1770,7 +1770,7 @@ export default function RecruitmentPage() {
                     value={searchFilters.minSalary}
                     onChange={(e) => setSearchFilters({ ...searchFilters, minSalary: e.target.value })}
                     placeholder="Min"
-                    className="w-full px-2 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+                    className="w-full px-2 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
                   />
                   <input
                     type="number"
@@ -1778,7 +1778,7 @@ export default function RecruitmentPage() {
                     value={searchFilters.maxSalary}
                     onChange={(e) => setSearchFilters({ ...searchFilters, maxSalary: e.target.value })}
                     placeholder="Max"
-                    className="w-full px-2 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+                    className="w-full px-2 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
                   />
                 </div>
               </div>
@@ -1788,7 +1788,7 @@ export default function RecruitmentPage() {
                 <select
                   value={searchFilters.status}
                   onChange={(e) => setSearchFilters({ ...searchFilters, status: e.target.value })}
-                  className="mt-1 w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white"
+                  className="mt-1 w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
                 >
                   <option value="">All (excl. rejected)</option>
                   <option value="applied">Applied</option>
@@ -1806,7 +1806,7 @@ export default function RecruitmentPage() {
                 <select
                   value={searchFilters.jobPostingId}
                   onChange={(e) => setSearchFilters({ ...searchFilters, jobPostingId: e.target.value })}
-                  className="mt-1 w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white"
+                  className="mt-1 w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
                 >
                   <option value="">All jobs</option>
                   {displayJobs.map(j => (
@@ -1822,7 +1822,7 @@ export default function RecruitmentPage() {
                   value={searchFilters.q}
                   onChange={(e) => setSearchFilters({ ...searchFilters, q: e.target.value })}
                   placeholder="e.g. alice@example.com or python"
-                  className="mt-1 w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+                  className="mt-1 w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
                   onKeyDown={(e) => { if (e.key === 'Enter') runCandidateSearch(); }}
                 />
               </div>
@@ -1832,7 +1832,7 @@ export default function RecruitmentPage() {
               <button
                 onClick={runCandidateSearch}
                 disabled={searching}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-violet-600 hover:bg-violet-700 disabled:bg-slate-300 text-white text-sm font-medium transition-colors"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-teal-600 hover:bg-teal-700 disabled:bg-slate-300 text-white text-sm font-medium transition-colors"
               >
                 {searching ? (
                   <><div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" /> Searching…</>
@@ -1859,7 +1859,7 @@ export default function RecruitmentPage() {
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div className="thb-card p-3">
                   <p className="text-[10px] uppercase tracking-wider text-thb-text-muted font-medium">Total Matches</p>
-                  <p className="text-2xl font-bold text-violet-600 mt-0.5">{searchResults.summary.totalMatches}</p>
+                  <p className="text-2xl font-bold text-teal-600 mt-0.5">{searchResults.summary.totalMatches}</p>
                 </div>
                 <div className="thb-card p-3">
                   <p className="text-[10px] uppercase tracking-wider text-thb-text-muted font-medium">Avg Experience</p>
@@ -1895,7 +1895,7 @@ export default function RecruitmentPage() {
                             setSearchFilters({ ...searchFilters, skills: [...current, s].join(', ') });
                           }
                         }}
-                        className="text-[10px] px-2 py-0.5 rounded bg-violet-50 text-violet-700 border border-violet-200 hover:bg-violet-100 transition-colors"
+                        className="text-[10px] px-2 py-0.5 rounded bg-teal-50 text-teal-700 border border-teal-200 hover:bg-teal-100 transition-colors"
                       >
                         {s}
                       </button>
@@ -2023,7 +2023,7 @@ function ParsedResumePanel({
       {/* Header row */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="flex items-center gap-2">
-          <FiFileText className="w-5 h-5 text-violet-500" />
+          <FiFileText className="w-5 h-5 text-teal-500" />
           <h4 className="text-sm font-semibold text-thb-text-primary">Parsed Resume</h4>
           {parse && (
             <div className="flex items-center gap-2 ml-2">
@@ -2049,7 +2049,7 @@ function ParsedResumePanel({
           />
           <label
             htmlFor={`resume-upload-${appId}`}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-violet-600 text-white text-xs font-medium rounded-lg hover:bg-violet-700 cursor-pointer transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-teal-600 text-white text-xs font-medium rounded-lg hover:bg-teal-700 cursor-pointer transition-colors"
           >
             <FiUpload className="w-3.5 h-3.5" />
             Upload &amp; Parse

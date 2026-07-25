@@ -200,7 +200,7 @@ export function TravelExpense() {
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
-            <Receipt className="h-5 w-5 mx-auto text-blue-600 mb-1" />
+            <Receipt className="h-5 w-5 mx-auto text-green-600 mb-1" />
             <p className="text-2xl font-bold">${expenseClaims.reduce((s, e) => s + (e.amount || 0), 0).toLocaleString()}</p>
             <p className="text-xs text-muted-foreground">Pending Claims</p>
           </CardContent>

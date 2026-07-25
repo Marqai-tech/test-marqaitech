@@ -166,8 +166,8 @@ export default function LeaveEncashmentPage() {
                   <input type="number" min="0.5" step="0.5" value={form.days} onChange={e => setForm({ ...form, days: Number(e.target.value) })} className="3boxes-input w-full" />
                 </div>
               </div>
-              <div className="mt-4 p-3 bg-blue-50 border border-blue-100 rounded-lg">
-                <p className="text-xs text-blue-700">
+              <div className="mt-4 p-3 bg-green-50 border border-green-100 rounded-lg">
+                <p className="text-xs text-green-700">
                   <FiInfo className="w-3.5 h-3.5 inline mr-1" />
                   The amount will be auto-computed based on your salary and the leave type&apos;s basis. The system will verify you have sufficient balance before submission.
                 </p>

@@ -33,11 +33,11 @@ function getNotificationIcon(type: string) {
       return <FiAlertCircle className="w-4 h-4 text-red-500" />;
     case 'login':
     case 'logout':
-      return <HiShieldCheck className="w-4 h-4 text-violet-500" />;
+      return <HiShieldCheck className="w-4 h-4 text-teal-500" />;
     case 'workflow':
       return <FiInfo className="w-4 h-4 text-orange-500" />;
     default:
-      return <FiInfo className="w-4 h-4 text-blue-500" />;
+      return <FiInfo className="w-4 h-4 text-green-500" />;
   }
 }
 
@@ -110,7 +110,7 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
 
       {/* 3Boxes Logo + Name in Header */}
       <div className="flex items-center gap-2.5 pr-3 border-r border-slate-200">
-        <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 via-indigo-500 to-violet-600 flex items-center justify-center shadow-sm shadow-blue-500/20">
+        <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-gradient-to-br from-green-500 via-emerald-500 to-teal-600 flex items-center justify-center shadow-sm shadow-green-500/20">
           <svg viewBox="0 0 35 11" className="w-5 h-3.5" fill="none">
             <rect x="0" y="0" width="9" height="9" rx="2" fill="white" opacity="0.9"/>
             <rect x="13" y="0" width="9" height="9" rx="2" fill="white" opacity="0.9"/>
@@ -119,19 +119,19 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
         </div>
         <div className="hidden sm:block">
           <span className="text-sm font-extrabold text-slate-800 tracking-tight">3Boxes</span>
-          <span className="text-[10px] font-bold text-blue-500 ml-1 tracking-wider">HRMS</span>
+          <span className="text-[10px] font-bold text-green-500 ml-1 tracking-wider">HRMS</span>
         </div>
       </div>
 
       {/* Search Bar */}
       <div className="flex-1 max-w-xl relative">
-        <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-400" />
+        <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-green-400" />
         <input
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="Search employees, modules, actions..."
-          className="w-full pl-10 pr-4 py-2 rounded-lg border border-blue-200 bg-blue-50/30 text-sm text-thb-text-primary placeholder:text-blue-400/60 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 focus:bg-white transition-all"
+          className="w-full pl-10 pr-4 py-2 rounded-lg border border-green-200 bg-green-50/30 text-sm text-thb-text-primary placeholder:text-green-400/60 focus:outline-none focus:ring-2 focus:ring-green-500/30 focus:border-green-400 focus:bg-white transition-all"
         />
       </div>
 
@@ -167,7 +167,7 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
                       await markAllAsRead();
                       toast.success('All notifications marked as read');
                     }}
-                    className="text-xs text-blue-500 hover:text-blue-700 font-medium flex items-center gap-1"
+                    className="text-xs text-green-500 hover:text-green-700 font-medium flex items-center gap-1"
                   >
                     <FiCheck className="w-3 h-3" />
                     Mark all read
@@ -185,7 +185,7 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
                     <div
                       key={notif.id}
                       className={`flex items-start gap-3 p-4 border-b border-thb-border/50 hover:bg-slate-50 transition-colors cursor-pointer ${
-                        !notif.isRead ? 'bg-blue-50/30' : ''
+                        !notif.isRead ? 'bg-green-50/30' : ''
                       }`}
                       onClick={async () => {
                         if (!notif.isRead) {
@@ -205,7 +205,7 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
                             {notif.title}
                           </p>
                           {!notif.isRead && (
-                            <span className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0" />
+                            <span className="w-2 h-2 rounded-full bg-green-500 flex-shrink-0" />
                           )}
                         </div>
                         <p className="text-xs text-thb-text-muted mt-0.5 line-clamp-2">
@@ -222,7 +222,7 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
               <Link
                 href="/notifications"
                 onClick={() => setShowNotifications(false)}
-                className="block text-center py-3 text-sm font-medium text-blue-500 hover:text-blue-700 hover:bg-slate-50 border-t border-thb-border transition-colors"
+                className="block text-center py-3 text-sm font-medium text-green-500 hover:text-green-700 hover:bg-slate-50 border-t border-thb-border transition-colors"
               >
                 View all notifications
               </Link>
@@ -244,7 +244,7 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
                 className="w-8 h-8 rounded-full object-cover ring-2 ring-white shadow-sm"
               />
             ) : (
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-white text-xs font-bold shadow-sm">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-500 to-teal-600 flex items-center justify-center text-white text-xs font-bold shadow-sm">
                 {user?.name ? getInitials(user.name) : '??'}
               </div>
             )}

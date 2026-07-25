@@ -163,10 +163,10 @@ export default function EmployeeManagement() {
     switch (status) {
       case 'active': return 'bg-emerald-600/20 text-emerald-400'
       case 'on_leave': return 'bg-amber-600/20 text-amber-400'
-      case 'probation': return 'bg-blue-600/20 text-blue-400'
+      case 'probation': return 'bg-green-600/20 text-green-400'
       case 'inactive': return 'bg-slate-600/20 text-slate-400'
       case 'exited': return 'bg-red-600/20 text-red-400'
-      case 'onboarding': return 'bg-purple-600/20 text-purple-400'
+      case 'onboarding': return 'bg-teal-600/20 text-teal-400'
       default: return 'bg-slate-600/20 text-slate-400'
     }
   }
@@ -308,7 +308,7 @@ export default function EmployeeManagement() {
             <Card className="bg-slate-900 border-slate-800"><CardContent className="p-4"><p className="text-sm text-slate-400">Total Employees</p><p className="text-2xl font-bold text-white">{employees.length}</p></CardContent></Card>
             <Card className="bg-slate-900 border-slate-800"><CardContent className="p-4"><p className="text-sm text-slate-400">Active</p><p className="text-2xl font-bold text-emerald-400">{activeCount}</p></CardContent></Card>
             <Card className="bg-slate-900 border-slate-800"><CardContent className="p-4"><p className="text-sm text-slate-400">On Leave</p><p className="text-2xl font-bold text-amber-400">{onLeaveCount}</p></CardContent></Card>
-            <Card className="bg-slate-900 border-slate-800"><CardContent className="p-4"><p className="text-sm text-slate-400">On Probation</p><p className="text-2xl font-bold text-blue-400">{probationCount}</p></CardContent></Card>
+            <Card className="bg-slate-900 border-slate-800"><CardContent className="p-4"><p className="text-sm text-slate-400">On Probation</p><p className="text-2xl font-bold text-green-400">{probationCount}</p></CardContent></Card>
           </div>
 
           <div className="flex items-center gap-3 mt-4 flex-wrap">

@@ -31,9 +31,9 @@ export default function OAuthBridgePage() {
   }, [router, searchParams]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-violet-50 via-white to-sky-50 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-teal-50 via-white to-sky-50 p-4">
       <div className="w-full max-w-md text-center">
-        <div className="animate-spin h-10 w-10 border-4 border-violet-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+        <div className="animate-spin h-10 w-10 border-4 border-teal-500 border-t-transparent rounded-full mx-auto mb-4"></div>
         <h1 className="text-lg font-semibold text-slate-800">Signing you in…</h1>
         <p className="text-sm text-slate-500 mt-1">Completing your Google sign-in.</p>
         {error && (

@@ -8,17 +8,17 @@ import { useAuthStore } from '@/store/authStore';
 
 /* ── Report Types ── */
 const reportTypes = [
-  { key: 'travel', label: 'Travel Summary', icon: FiMap, color: 'bg-blue-50 text-blue-600' },
+  { key: 'travel', label: 'Travel Summary', icon: FiMap, color: 'bg-green-50 text-green-600' },
   { key: 'expense', label: 'Expense by Category', icon: FiCreditCard, color: 'bg-emerald-50 text-emerald-600' },
   { key: 'compliance', label: 'Policy Compliance', icon: FiBarChart2, color: 'bg-amber-50 text-amber-600' },
-  { key: 'department', label: 'Cost by Department', icon: FiBarChart2, color: 'bg-purple-50 text-purple-600' },
+  { key: 'department', label: 'Cost by Department', icon: FiBarChart2, color: 'bg-teal-50 text-teal-600' },
 ];
 
 /* ── Expense Category Data ── */
 const expenseCategories = [
-  { label: 'Flights', percent: 40, amount: '₹8,40,000', color: 'bg-blue-500' },
+  { label: 'Flights', percent: 40, amount: '₹8,40,000', color: 'bg-green-500' },
   { label: 'Hotels', percent: 25, amount: '₹5,25,000', color: 'bg-emerald-500' },
-  { label: 'Misc', percent: 15, amount: '₹3,15,000', color: 'bg-purple-500' },
+  { label: 'Misc', percent: 15, amount: '₹3,15,000', color: 'bg-teal-500' },
   { label: 'Meals', percent: 12, amount: '₹2,52,000', color: 'bg-amber-500' },
   { label: 'Transport', percent: 8, amount: '₹1,68,000', color: 'bg-rose-500' },
 ];
@@ -31,8 +31,8 @@ export default function TravelReportsPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <div className="p-2.5 rounded-xl bg-blue-50">
-          <FiBarChart2 className="w-5 h-5 text-blue-600" />
+        <div className="p-2.5 rounded-xl bg-green-50">
+          <FiBarChart2 className="w-5 h-5 text-green-600" />
         </div>
         <div>
           <h1 className="text-xl font-bold text-thb-text-primary">Travel & Expense Reports</h1>
@@ -49,12 +49,12 @@ export default function TravelReportsPage() {
             <button
               key={rt.key}
               onClick={() => setActiveReport(rt.key)}
-              className={`thb-card p-4 flex flex-col items-center gap-2 text-center transition-all hover:shadow-md ${isActive ? 'ring-2 ring-blue-500 shadow-md' : ''}`}
+              className={`thb-card p-4 flex flex-col items-center gap-2 text-center transition-all hover:shadow-md ${isActive ? 'ring-2 ring-green-500 shadow-md' : ''}`}
             >
               <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${rt.color}`}>
                 <Icon className="w-5 h-5" />
               </div>
-              <span className={`text-xs font-medium ${isActive ? 'text-blue-600' : 'text-thb-text-secondary'}`}>{rt.label}</span>
+              <span className={`text-xs font-medium ${isActive ? 'text-green-600' : 'text-thb-text-secondary'}`}>{rt.label}</span>
             </button>
           );
         })}

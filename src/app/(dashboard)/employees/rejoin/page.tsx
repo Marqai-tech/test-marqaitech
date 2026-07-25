@@ -209,7 +209,7 @@ export default function RejoinPage() {
         </h2>
         <div>
           <label className="block text-xs font-medium text-thb-text-secondary mb-1">Select Past Employee *</label>
-          <select value={form.previousEmployeeId} onChange={e => handlePreviousEmployeeSelect(e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 max-w-md">
+          <select value={form.previousEmployeeId} onChange={e => handlePreviousEmployeeSelect(e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 max-w-md">
             <option value="">Select Previously Employed</option>
             <option value="ex-001">EX-001 — Amit Sharma (Resigned)</option>
             <option value="ex-002">EX-002 — Priya Patel (Resigned)</option>
@@ -232,41 +232,41 @@ export default function RejoinPage() {
       {/* Rejoin Details */}
       <div className="thb-card p-6 rounded-xl">
         <h2 className="text-lg font-semibold text-thb-text-primary flex items-center gap-2 mb-4">
-          <FiCalendar className="w-5 h-5 text-violet-500" />
+          <FiCalendar className="w-5 h-5 text-teal-500" />
           Rejoin Details
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <div>
             <label className="block text-xs font-medium text-thb-text-secondary mb-1 flex items-center gap-1"><FiCalendar className="w-3 h-3" /> Rejoin Date *</label>
-            <input type="date" value={form.rejoinDate} onChange={e => updateField('rejoinDate', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+            <input type="date" value={form.rejoinDate} onChange={e => updateField('rejoinDate', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
           </div>
           <div>
             <label className="block text-xs font-medium text-thb-text-secondary mb-1">New Department *</label>
-            <select value={form.newDepartment} onChange={e => updateField('newDepartment', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+            <select value={form.newDepartment} onChange={e => updateField('newDepartment', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
               <option value="">Select Department</option>
               {DEPARTMENTS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
             </select>
           </div>
           <div>
             <label className="block text-xs font-medium text-thb-text-secondary mb-1">New Designation *</label>
-            <select value={form.newDesignation} onChange={e => updateField('newDesignation', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+            <select value={form.newDesignation} onChange={e => updateField('newDesignation', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
               <option value="">Select Designation</option>
               {DESIGNATIONS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
             </select>
           </div>
           <div>
             <label className="block text-xs font-medium text-thb-text-secondary mb-1">New Employee Code</label>
-            <input type="text" value={form.newEmployeeCode} onChange={e => updateField('newEmployeeCode', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="Auto-generated if empty" />
+            <input type="text" value={form.newEmployeeCode} onChange={e => updateField('newEmployeeCode', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="Auto-generated if empty" />
           </div>
           <div>
             <label className="block text-xs font-medium text-thb-text-secondary mb-1">Employment Type</label>
-            <select value={form.employmentType} onChange={e => updateField('employmentType', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+            <select value={form.employmentType} onChange={e => updateField('employmentType', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
               {EMPLOYMENT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
             </select>
           </div>
           <div>
             <label className="block text-xs font-medium text-thb-text-secondary mb-1">Reporting Manager</label>
-            <input type="text" value={form.reportingManager} onChange={e => updateField('reportingManager', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="Enter manager name" />
+            <input type="text" value={form.reportingManager} onChange={e => updateField('reportingManager', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="Enter manager name" />
           </div>
         </div>
       </div>
@@ -310,12 +310,12 @@ export default function RejoinPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-medium text-thb-text-secondary mb-1">Rejoin Reason * <span className="font-normal text-slate-400">(min 20 chars)</span></label>
-            <textarea value={form.rejoinReason} onChange={e => updateField('rejoinReason', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" rows={3} placeholder="Describe the reason for rejoining the organization..." />
+            <textarea value={form.rejoinReason} onChange={e => updateField('rejoinReason', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" rows={3} placeholder="Describe the reason for rejoining the organization..." />
             <p className="text-[10px] text-slate-400 mt-0.5">{form.rejoinReason.length}/20 min characters</p>
           </div>
           <div>
             <label className="block text-xs font-medium text-thb-text-secondary mb-1">HR Comments</label>
-            <textarea value={form.hrComments} onChange={e => updateField('hrComments', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" rows={3} placeholder="Any additional comments from HR..." />
+            <textarea value={form.hrComments} onChange={e => updateField('hrComments', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" rows={3} placeholder="Any additional comments from HR..." />
           </div>
         </div>
       </div>

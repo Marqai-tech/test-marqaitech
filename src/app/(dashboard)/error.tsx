@@ -36,7 +36,7 @@ export default function DashboardError({
           </button>
           <button
             onClick={reset}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 shadow-sm shadow-blue-500/25 transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 shadow-sm shadow-green-500/25 transition-colors"
           >
             <FiRefreshCw className="w-4 h-4" />
             Try Again

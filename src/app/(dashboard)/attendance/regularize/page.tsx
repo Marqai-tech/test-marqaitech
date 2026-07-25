@@ -195,7 +195,7 @@ export default function RegularizePage() {
                   <td className="px-4 py-3 text-slate-700">{fmtTime(r.requestedTime)}</td>
                   <td className="px-4 py-3 text-slate-700">
                     {r.aiSuggestedTime ? (
-                      <span className="text-blue-700 text-xs">
+                      <span className="text-green-700 text-xs">
                         {fmtTime(r.aiSuggestedTime)}
                         {r.aiConfidence != null && <span className="text-slate-400 ml-1">({Math.round(r.aiConfidence * 100)}%)</span>}
                       </span>
@@ -204,7 +204,7 @@ export default function RegularizePage() {
                   <td className="px-4 py-3 text-slate-600 max-w-xs truncate">{r.reason}</td>
                   <td className="px-4 py-3">
                     {r.isWeekend && <span className="text-[10px] px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded mr-1">Weekend</span>}
-                    {r.isHoliday && <span className="text-[10px] px-1.5 py-0.5 bg-violet-100 text-violet-700 rounded">Holiday</span>}
+                    {r.isHoliday && <span className="text-[10px] px-1.5 py-0.5 bg-teal-100 text-teal-700 rounded">Holiday</span>}
                   </td>
                   <td className="px-4 py-3">
                     <span className={`thb-badge ${

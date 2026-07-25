@@ -252,7 +252,7 @@ export function Engagement() {
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
-            <MessageSquare className="h-5 w-5 mx-auto text-blue-600 mb-1" />
+            <MessageSquare className="h-5 w-5 mx-auto text-green-600 mb-1" />
             {isLoading ? (
               <Skeleton className="h-7 w-12 mx-auto" />
             ) : (

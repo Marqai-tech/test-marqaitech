@@ -108,18 +108,18 @@ export default function SubscriptionsPage() {
     setShowForm(true);
   };
 
-  const inputCls = 'w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400';
+  const inputCls = 'w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400';
 
   return (
     <div className="space-y-6">
       {/* Hero Banner */}
-      <div className="thb-card p-6 bg-gradient-to-r from-blue-600 via-blue-500 to-violet-500 border-0">
+      <div className="thb-card p-6 bg-gradient-to-r from-green-600 via-green-500 to-teal-500 border-0">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-white flex items-center gap-3">
               <FiCreditCard className="w-7 h-7" /> Subscriptions Management
             </h1>
-            <p className="text-blue-100 mt-1 text-sm">Monitor and manage all tenant subscriptions across the platform</p>
+            <p className="text-green-100 mt-1 text-sm">Monitor and manage all tenant subscriptions across the platform</p>
           </div>
           <button onClick={() => { setShowForm(true); setEditingId(null); setForm({ companyName: '', plan: 'Starter', status: 'active', startDate: '', endDate: '', amount: 0, billingCycle: 'monthly' }); }} className="inline-flex items-center gap-2 px-4 py-2.5 bg-white/20 backdrop-blur text-white rounded-lg font-medium text-sm hover:bg-white/30 transition-colors">
             <FiPlus className="w-4 h-4" /> Add Subscription
@@ -130,10 +130,10 @@ export default function SubscriptionsPage() {
       {/* Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Total Subscriptions', value: totalSubs, icon: <FiCreditCard className="w-5 h-5" />, bg: 'bg-blue-50 text-blue-500' },
+          { label: 'Total Subscriptions', value: totalSubs, icon: <FiCreditCard className="w-5 h-5" />, bg: 'bg-green-50 text-green-500' },
           { label: 'Active', value: activeSubs, icon: <FiCheck className="w-5 h-5" />, bg: 'bg-emerald-50 text-emerald-500' },
           { label: 'Expiring Soon', value: expiringSoon, icon: <FiAlertCircle className="w-5 h-5" />, bg: 'bg-amber-50 text-amber-500' },
-          { label: 'Total Revenue', value: `$${totalRevenue.toLocaleString()}`, icon: <FiDollarSign className="w-5 h-5" />, bg: 'bg-violet-50 text-violet-500' },
+          { label: 'Total Revenue', value: `$${totalRevenue.toLocaleString()}`, icon: <FiDollarSign className="w-5 h-5" />, bg: 'bg-teal-50 text-teal-500' },
         ].map((card) => (
           <div key={card.label} className="thb-card p-5">
             <div className="flex items-start justify-between">
@@ -155,7 +155,7 @@ export default function SubscriptionsPage() {
             <FiFilter className="w-4 h-4 text-thb-text-muted" />
             <span className="text-sm text-thb-text-secondary">Filter:</span>
             {['', 'active', 'expired', 'trialing', 'cancelled'].map((s) => (
-              <button key={s} onClick={() => setStatusFilter(s)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${statusFilter === s ? 'bg-blue-500 text-white' : 'bg-slate-100 text-thb-text-secondary hover:bg-slate-200'}`}>
+              <button key={s} onClick={() => setStatusFilter(s)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${statusFilter === s ? 'bg-green-500 text-white' : 'bg-slate-100 text-thb-text-secondary hover:bg-slate-200'}`}>
                 {s || 'All'}
               </button>
             ))}
@@ -163,7 +163,7 @@ export default function SubscriptionsPage() {
 
           {/* Form */}
           {showForm && (
-            <div className="thb-card border-l-4 border-l-blue-500 p-6">
+            <div className="thb-card border-l-4 border-l-green-500 p-6">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-thb-text-primary">{editingId ? 'Edit Subscription' : 'Add Subscription'}</h3>
                 <button onClick={() => { setShowForm(false); setEditingId(null); }} className="p-1.5 text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 rounded-lg"><FiX className="w-4 h-4" /></button>
@@ -176,7 +176,7 @@ export default function SubscriptionsPage() {
                 <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Start Date</label><input type="date" className={inputCls} value={form.startDate} onChange={(e) => setForm((p) => ({ ...p, startDate: e.target.value }))} /></div>
                 <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">End Date</label><input type="date" className={inputCls} value={form.endDate} onChange={(e) => setForm((p) => ({ ...p, endDate: e.target.value }))} /></div>
                 <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Amount ($)</label><input type="number" className={inputCls} value={form.amount} onChange={(e) => setForm((p) => ({ ...p, amount: Number(e.target.value) }))} /></div>
-                <div className="flex items-end gap-2"><button type="submit" className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg font-medium text-sm hover:bg-blue-600 transition-colors"><FiCheck className="w-4 h-4" />{editingId ? 'Update' : 'Create'}</button></div>
+                <div className="flex items-end gap-2"><button type="submit" className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-500 text-white rounded-lg font-medium text-sm hover:bg-green-600 transition-colors"><FiCheck className="w-4 h-4" />{editingId ? 'Update' : 'Create'}</button></div>
               </form>
             </div>
           )}
@@ -205,7 +205,7 @@ export default function SubscriptionsPage() {
                       <td className="px-4 py-3 text-thb-text-secondary">{sub.startDate}</td>
                       <td className="px-4 py-3 text-thb-text-secondary">{sub.endDate}</td>
                       <td className="px-4 py-3 font-medium text-thb-text-primary">${sub.amount.toLocaleString()}</td>
-                      <td className="px-4 py-3"><button onClick={() => handleEdit(sub)} className="inline-flex items-center gap-1 text-blue-500 hover:text-blue-700 text-xs font-medium"><FiEdit2 className="w-3.5 h-3.5" />Edit</button></td>
+                      <td className="px-4 py-3"><button onClick={() => handleEdit(sub)} className="inline-flex items-center gap-1 text-green-500 hover:text-green-700 text-xs font-medium"><FiEdit2 className="w-3.5 h-3.5" />Edit</button></td>
                     </tr>
                   ))}
                 </tbody>

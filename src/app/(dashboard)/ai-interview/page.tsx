@@ -101,11 +101,11 @@ const MODES = [
 function getStatusBadge(status: string) {
   const map: Record<string, string> = {
     draft: 'bg-slate-100 text-slate-700', active: 'bg-emerald-100 text-emerald-700',
-    archived: 'bg-slate-100 text-slate-500', invited: 'bg-blue-100 text-blue-700',
-    pre_screen: 'bg-amber-100 text-amber-700', in_progress: 'bg-purple-100 text-purple-700',
+    archived: 'bg-slate-100 text-slate-500', invited: 'bg-green-100 text-green-700',
+    pre_screen: 'bg-amber-100 text-amber-700', in_progress: 'bg-teal-100 text-teal-700',
     completed: 'bg-emerald-100 text-emerald-800', expired: 'bg-red-100 text-red-700',
     disqualified: 'bg-red-100 text-red-800', pending: 'bg-slate-100 text-slate-600',
-    sent: 'bg-blue-100 text-blue-700', opened: 'bg-purple-100 text-purple-700',
+    sent: 'bg-green-100 text-green-700', opened: 'bg-teal-100 text-teal-700',
     started: 'bg-amber-100 text-amber-700', bounced: 'bg-red-100 text-red-600',
   };
   return map[status] || 'bg-slate-100 text-slate-600';
@@ -553,8 +553,8 @@ export default function AIInterviewPage() {
             <button onClick={endLiveInterview} className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100">
               <FiArrowLeft className="w-5 h-5" />
             </button>
-            <div className="w-10 h-10 rounded-xl bg-purple-50 border border-purple-200 flex items-center justify-center">
-              <FiCpu className="w-5 h-5 text-purple-600" />
+            <div className="w-10 h-10 rounded-xl bg-teal-50 border border-teal-200 flex items-center justify-center">
+              <FiCpu className="w-5 h-5 text-teal-600" />
             </div>
             <div>
               <h2 className="text-base font-bold text-thb-text-primary">Live AI Interview</h2>
@@ -562,7 +562,7 @@ export default function AIInterviewPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <span className="px-2 py-1 rounded-full bg-purple-100 text-purple-700 text-xs font-semibold flex items-center gap-1">
+            <span className="px-2 py-1 rounded-full bg-teal-100 text-teal-700 text-xs font-semibold flex items-center gap-1">
               <FiCpu className="w-3 h-3" /> AI Active
             </span>
             <button onClick={endLiveInterview} className="px-4 py-2 rounded-lg bg-red-500 text-white text-sm font-medium hover:bg-red-600">End Interview</button>
@@ -572,9 +572,9 @@ export default function AIInterviewPage() {
           <div className="h-[calc(100vh-320px)] min-h-[400px] overflow-y-auto p-4 space-y-4 bg-slate-50/50">
             {chatMessages.map((msg, i) => (
               <div key={i} className={`flex ${msg.role === 'ai' ? 'justify-start' : 'justify-end'}`}>
-                <div className={`max-w-[80%] p-4 rounded-xl text-sm leading-relaxed ${msg.role === 'ai' ? 'bg-white border border-thb-border rounded-tl-none shadow-sm text-thb-text-primary' : 'bg-purple-600 text-white rounded-tr-none shadow-sm'}`}>
+                <div className={`max-w-[80%] p-4 rounded-xl text-sm leading-relaxed ${msg.role === 'ai' ? 'bg-white border border-thb-border rounded-tl-none shadow-sm text-thb-text-primary' : 'bg-teal-600 text-white rounded-tr-none shadow-sm'}`}>
                   <div className="flex items-center gap-1.5 mb-1.5">
-                    {msg.role === 'ai' ? <><FiCpu className="w-3.5 h-3.5 text-purple-500" /><span className="text-[10px] font-semibold text-purple-500">AI Interviewer</span></>
+                    {msg.role === 'ai' ? <><FiCpu className="w-3.5 h-3.5 text-teal-500" /><span className="text-[10px] font-semibold text-teal-500">AI Interviewer</span></>
                       : <><FiUser className="w-3.5 h-3.5" /><span className="text-[10px] font-semibold">You</span></>}
                   </div>
                   <p className="whitespace-pre-wrap">{msg.content}</p>
@@ -583,7 +583,7 @@ export default function AIInterviewPage() {
             ))}
             {chatSending && (
               <div className="flex justify-start"><div className="max-w-[80%] p-4 rounded-xl rounded-tl-none bg-white border border-thb-border shadow-sm">
-                <div className="flex items-center gap-2"><div className="flex gap-1">{[0, 150, 300].map((d, i) => <div key={i} className="w-2 h-2 rounded-full bg-purple-400 animate-bounce" style={{ animationDelay: `${d}ms` }} />)}<span className="text-xs text-thb-text-muted">AI is thinking...</span></div></div>
+                <div className="flex items-center gap-2"><div className="flex gap-1">{[0, 150, 300].map((d, i) => <div key={i} className="w-2 h-2 rounded-full bg-teal-400 animate-bounce" style={{ animationDelay: `${d}ms` }} />)}<span className="text-xs text-thb-text-muted">AI is thinking...</span></div></div>
               </div></div>
             )}
             <div ref={chatEndRef} />
@@ -592,9 +592,9 @@ export default function AIInterviewPage() {
             <div className="flex items-end gap-3">
               <textarea value={chatInput} onChange={e => setChatInput(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChatMessage(); } }}
-                placeholder="Type your response..." className="flex-1 px-4 py-3 rounded-xl border border-thb-border text-sm resize-none focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-400 min-h-[48px] max-h-[120px]" rows={1} disabled={chatSending} />
+                placeholder="Type your response..." className="flex-1 px-4 py-3 rounded-xl border border-thb-border text-sm resize-none focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 min-h-[48px] max-h-[120px]" rows={1} disabled={chatSending} />
               <button onClick={sendChatMessage} disabled={!chatInput.trim() || chatSending}
-                className="flex-shrink-0 w-12 h-12 rounded-xl bg-purple-600 text-white flex items-center justify-center hover:bg-purple-700 disabled:opacity-50 shadow-sm shadow-purple-500/25">
+                className="flex-shrink-0 w-12 h-12 rounded-xl bg-teal-600 text-white flex items-center justify-center hover:bg-teal-700 disabled:opacity-50 shadow-sm shadow-teal-500/25">
                 <FiSend className="w-5 h-5" />
               </button>
             </div>
@@ -647,12 +647,12 @@ export default function AIInterviewPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
-            <FiCpu className="w-6 h-6 text-purple-500" /> AI Interview Platform
+            <FiCpu className="w-6 h-6 text-teal-500" /> AI Interview Platform
           </h1>
           <p className="text-thb-text-secondary mt-1">Conduct AI-powered interviews with smart evaluation and scoring</p>
         </div>
         <button onClick={() => { resetSetForm(); setShowSetForm(true); }}
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium text-sm shadow-sm shadow-purple-500/25 transition-colors">
+          className="inline-flex items-center gap-2 px-4 py-2.5 bg-teal-600 text-white rounded-lg hover:bg-teal-700 font-medium text-sm shadow-sm shadow-teal-500/25 transition-colors">
           <FiPlus className="w-4 h-4" /> Create Interview Set
         </button>
       </div>
@@ -667,7 +667,7 @@ export default function AIInterviewPage() {
       <div className="flex gap-1 p-1 bg-slate-100 rounded-xl overflow-x-auto">
         {tabs.map(tab => (
           <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${activeTab === tab.id ? 'bg-white text-purple-700 shadow-sm' : 'text-thb-text-muted hover:text-thb-text-primary hover:bg-white/50'}`}>
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${activeTab === tab.id ? 'bg-white text-teal-700 shadow-sm' : 'text-thb-text-muted hover:text-thb-text-primary hover:bg-white/50'}`}>
             {tab.icon} {tab.label}
           </button>
         ))}
@@ -679,10 +679,10 @@ export default function AIInterviewPage() {
           {/* Stats Cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {[
-              { label: 'Active Sets', value: activeSets.length, icon: <FiLayers className="w-5 h-5" />, color: 'text-purple-600', bg: 'bg-purple-50' },
+              { label: 'Active Sets', value: activeSets.length, icon: <FiLayers className="w-5 h-5" />, color: 'text-teal-600', bg: 'bg-teal-50' },
               { label: 'Active Sessions', value: inProgressSessions.length, icon: <FiActivity className="w-5 h-5" />, color: 'text-amber-600', bg: 'bg-amber-50' },
               { label: 'Completion Rate', value: `${completionRate}%`, icon: <FiTrendingUp className="w-5 h-5" />, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-              { label: 'Avg Score', value: avgScore || '—', icon: <FiAward className="w-5 h-5" />, color: 'text-blue-600', bg: 'bg-blue-50' },
+              { label: 'Avg Score', value: avgScore || '—', icon: <FiAward className="w-5 h-5" />, color: 'text-green-600', bg: 'bg-green-50' },
             ].map(stat => (
               <div key={stat.label} className="thb-card p-5">
                 <div className="flex items-center justify-between mb-3">
@@ -699,7 +699,7 @@ export default function AIInterviewPage() {
             {/* Recent Sessions */}
             <div className="thb-card p-5">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-base font-semibold text-thb-text-primary flex items-center gap-2"><FiClock className="w-4 h-4 text-purple-500" /> Recent Sessions</h3>
+                <h3 className="text-base font-semibold text-thb-text-primary flex items-center gap-2"><FiClock className="w-4 h-4 text-teal-500" /> Recent Sessions</h3>
                 <button onClick={fetchData} className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100"><FiRefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /></button>
               </div>
               {sessions.length === 0 ? (
@@ -709,7 +709,7 @@ export default function AIInterviewPage() {
                   {sessions.slice(0, 10).map(s => (
                     <div key={s.id} className="flex items-center justify-between p-3 rounded-lg border border-thb-border hover:bg-slate-50/50 transition-colors">
                       <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-full bg-purple-50 flex items-center justify-center"><FiUser className="w-4 h-4 text-purple-600" /></div>
+                        <div className="w-9 h-9 rounded-full bg-teal-50 flex items-center justify-center"><FiUser className="w-4 h-4 text-teal-600" /></div>
                         <div>
                           <p className="text-sm font-medium text-thb-text-primary">{s.candidateName}</p>
                           <p className="text-xs text-thb-text-muted">{s.set?.roleTitle || 'N/A'} · {s.set?.interviewMode || 'N/A'}</p>
@@ -717,7 +717,7 @@ export default function AIInterviewPage() {
                       </div>
                       <div className="flex items-center gap-2">
                         {s.overallScore !== null && s.overallScore !== undefined && <span className={`text-sm font-bold ${getScoreColor(s.overallScore)}`}>{s.overallScore}%</span>}
-                        {s.status === 'completed' && <button onClick={() => handleViewSession(s.id)} className="p-1.5 rounded-lg text-thb-text-muted hover:text-purple-600 hover:bg-purple-50" title="Review"><FiEye className="w-4 h-4" /></button>}
+                        {s.status === 'completed' && <button onClick={() => handleViewSession(s.id)} className="p-1.5 rounded-lg text-thb-text-muted hover:text-teal-600 hover:bg-teal-50" title="Review"><FiEye className="w-4 h-4" /></button>}
                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${getStatusBadge(s.status)}`}>{s.status}</span>
                       </div>
                     </div>
@@ -728,7 +728,7 @@ export default function AIInterviewPage() {
 
             {/* Active Sets */}
             <div className="thb-card p-5">
-              <h3 className="text-base font-semibold text-thb-text-primary flex items-center gap-2 mb-4"><FiLayers className="w-4 h-4 text-purple-500" /> Active Interview Sets</h3>
+              <h3 className="text-base font-semibold text-thb-text-primary flex items-center gap-2 mb-4"><FiLayers className="w-4 h-4 text-teal-500" /> Active Interview Sets</h3>
               {activeSets.length === 0 ? (
                 <div className="py-8 text-center"><FiCpu className="w-10 h-10 text-thb-text-muted mx-auto mb-2" /><p className="text-thb-text-secondary font-medium">No active sets</p><p className="text-xs text-thb-text-muted mt-1">Create and activate an interview set to get started</p></div>
               ) : (
@@ -771,8 +771,8 @@ export default function AIInterviewPage() {
               <div className="flex items-center gap-2 mb-6">
                 {[1, 2, 3].map(step => (
                   <div key={step} className="flex items-center gap-2 flex-1">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${wizardStep >= step ? 'bg-purple-600 text-white' : 'bg-slate-100 text-thb-text-muted'}`}>{step}</div>
-                    {step < 3 && <div className={`flex-1 h-1 rounded ${wizardStep > step ? 'bg-purple-600' : 'bg-slate-200'}`} />}
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${wizardStep >= step ? 'bg-teal-600 text-white' : 'bg-slate-100 text-thb-text-muted'}`}>{step}</div>
+                    {step < 3 && <div className={`flex-1 h-1 rounded ${wizardStep > step ? 'bg-teal-600' : 'bg-slate-200'}`} />}
                   </div>
                 ))}
               </div>
@@ -783,21 +783,21 @@ export default function AIInterviewPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Set Title *</label>
-                      <input value={setForm.title} onChange={e => setSetForm(p => ({ ...p, title: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-400" placeholder="e.g., Senior Frontend Developer Assessment" />
+                      <input value={setForm.title} onChange={e => setSetForm(p => ({ ...p, title: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400" placeholder="e.g., Senior Frontend Developer Assessment" />
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Role Title *</label>
-                      <input value={setForm.roleTitle} onChange={e => setSetForm(p => ({ ...p, roleTitle: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-400" placeholder="e.g., Senior Frontend Developer" />
+                      <input value={setForm.roleTitle} onChange={e => setSetForm(p => ({ ...p, roleTitle: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400" placeholder="e.g., Senior Frontend Developer" />
                     </div>
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-thb-text-secondary mb-1">Job Description</label>
-                    <textarea value={setForm.jobDescription} onChange={e => setSetForm(p => ({ ...p, jobDescription: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-400 min-h-[100px]" placeholder="Paste the JD here for AI-tailored questions..." />
+                    <textarea value={setForm.jobDescription} onChange={e => setSetForm(p => ({ ...p, jobDescription: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 min-h-[100px]" placeholder="Paste the JD here for AI-tailored questions..." />
                   </div>
 
                   <div className="flex items-center gap-3 mb-2">
                     <button onClick={handleAutoGenerate} disabled={generating || !setForm.roleTitle}
-                      className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm font-medium disabled:opacity-50 shadow-sm shadow-purple-500/25">
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 text-sm font-medium disabled:opacity-50 shadow-sm shadow-teal-500/25">
                       {generating ? <><FiRefreshCw className="w-4 h-4 animate-spin" /> Generating...</> : <><FiZap className="w-4 h-4" /> Auto-Generate Questions</>}
                     </button>
                     <button onClick={addManualQuestion} className="inline-flex items-center gap-2 px-4 py-2 border border-thb-border rounded-lg text-sm font-medium text-thb-text-secondary hover:bg-slate-50">
@@ -810,7 +810,7 @@ export default function AIInterviewPage() {
                     {wizardQuestions.map((q, i) => (
                       <div key={i} className="p-3 rounded-lg border border-thb-border space-y-2">
                         <div className="flex items-center justify-between">
-                          <span className="text-xs font-bold text-purple-600">Q{i + 1}</span>
+                          <span className="text-xs font-bold text-teal-600">Q{i + 1}</span>
                           <div className="flex items-center gap-2">
                             <select value={q.category} onChange={e => { const updated = [...wizardQuestions]; updated[i] = { ...updated[i], category: e.target.value }; setWizardQuestions(updated); }}
                               className="px-2 py-1 rounded border border-thb-border text-xs">
@@ -824,7 +824,7 @@ export default function AIInterviewPage() {
                           </div>
                         </div>
                         <input value={q.question} onChange={e => { const updated = [...wizardQuestions]; updated[i] = { ...updated[i], question: e.target.value }; setWizardQuestions(updated); }}
-                          className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-400" placeholder="Enter question..." />
+                          className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400" placeholder="Enter question..." />
                       </div>
                     ))}
                     {wizardQuestions.length === 0 && <div className="py-8 text-center"><FiMessageSquare className="w-8 h-8 text-thb-text-muted mx-auto mb-2" /><p className="text-sm text-thb-text-muted">No questions yet. Auto-generate or add manually.</p></div>}
@@ -839,14 +839,14 @@ export default function AIInterviewPage() {
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Interview Mode</label>
                       <select value={setForm.interviewMode} onChange={e => setSetForm(p => ({ ...p, interviewMode: e.target.value }))}
-                        className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-400">
+                        className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400">
                         {MODES.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
                       </select>
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Language</label>
                       <select value={setForm.language} onChange={e => setSetForm(p => ({ ...p, language: e.target.value }))}
-                        className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-400">
+                        className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400">
                         {['en', 'es', 'fr', 'de', 'pt', 'zh', 'ja', 'ko', 'ar', 'hi', 'it', 'nl', 'ru', 'tr'].map(l => <option key={l} value={l}>{l.toUpperCase()}</option>)}
                       </select>
                     </div>
@@ -855,12 +855,12 @@ export default function AIInterviewPage() {
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Time Limit (min)</label>
                       <input type="number" value={setForm.timeLimit} onChange={e => setSetForm(p => ({ ...p, timeLimit: parseInt(e.target.value) || 30 }))}
-                        className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-400" />
+                        className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400" />
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">CV Probe Duration (min)</label>
                       <input type="number" value={setForm.cvProbeDuration} onChange={e => setSetForm(p => ({ ...p, cvProbeDuration: parseInt(e.target.value) || 10 }))}
-                        className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-400" />
+                        className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400" />
                     </div>
                   </div>
 
@@ -874,7 +874,7 @@ export default function AIInterviewPage() {
                       <label key={f.key} className="flex items-start gap-3 p-3 rounded-lg border border-thb-border cursor-pointer hover:bg-slate-50/50">
                         <input type="checkbox" checked={setForm[f.key as keyof typeof setForm] as boolean}
                           onChange={e => setSetForm(p => ({ ...p, [f.key]: e.target.checked }))}
-                          className="mt-0.5 w-4 h-4 rounded border-slate-300 text-purple-600 focus:ring-purple-500" />
+                          className="mt-0.5 w-4 h-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500" />
                         <div><p className="text-sm font-medium text-thb-text-primary">{f.label}</p><p className="text-xs text-thb-text-muted">{f.desc}</p></div>
                       </label>
                     ))}
@@ -918,7 +918,7 @@ export default function AIInterviewPage() {
                       <h3 className="text-sm font-bold text-thb-text-primary">Questions ({wizardQuestions.length})</h3>
                       {wizardQuestions.map((q, i) => (
                         <div key={i} className="p-3 rounded-lg border border-thb-border flex items-start gap-3">
-                          <span className="text-xs font-bold text-purple-600 mt-0.5">Q{i + 1}</span>
+                          <span className="text-xs font-bold text-teal-600 mt-0.5">Q{i + 1}</span>
                           <div className="flex-1">
                             <p className="text-sm text-thb-text-primary">{q.question || '(empty)'}</p>
                             <div className="flex gap-2 mt-1">
@@ -941,12 +941,12 @@ export default function AIInterviewPage() {
                 </button>
                 {wizardStep < 3 ? (
                   <button onClick={() => setWizardStep(wizardStep + 1)}
-                    className="px-6 py-2.5 rounded-lg bg-purple-600 text-white text-sm font-medium hover:bg-purple-700 shadow-sm shadow-purple-500/25">
+                    className="px-6 py-2.5 rounded-lg bg-teal-600 text-white text-sm font-medium hover:bg-teal-700 shadow-sm shadow-teal-500/25">
                     Next <FiChevronRight className="w-4 h-4 inline" />
                   </button>
                 ) : (
                   <button onClick={handleSaveSet} disabled={saving}
-                    className="px-6 py-2.5 rounded-lg bg-purple-600 text-white text-sm font-medium hover:bg-purple-700 disabled:opacity-50 shadow-sm shadow-purple-500/25">
+                    className="px-6 py-2.5 rounded-lg bg-teal-600 text-white text-sm font-medium hover:bg-teal-700 disabled:opacity-50 shadow-sm shadow-teal-500/25">
                     {saving ? 'Saving...' : <><FiSave className="w-4 h-4 inline" /> Save Set</>}
                   </button>
                 )}
@@ -1001,13 +1001,13 @@ export default function AIInterviewPage() {
               <div className="flex items-center gap-2">
                 <FiSearch className="w-4 h-4 text-thb-text-muted" />
                 <select value={sessionFilter.status} onChange={e => setSessionFilter(p => ({ ...p, status: e.target.value }))}
-                  className="px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20">
+                  className="px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20">
                   <option value="">All Statuses</option>
                   {['invited', 'pre_screen', 'in_progress', 'completed', 'expired', 'disqualified'].map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
               <select value={sessionFilter.setId} onChange={e => setSessionFilter(p => ({ ...p, setId: e.target.value }))}
-                className="px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20">
+                className="px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20">
                 <option value="">All Sets</option>
                 {sets.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}
               </select>
@@ -1016,7 +1016,7 @@ export default function AIInterviewPage() {
                 if (sessionFilter.status) url += `status=${sessionFilter.status}&`;
                 if (sessionFilter.setId) url += `setId=${sessionFilter.setId}`;
                 fetch(url, { headers: getAuthHeaders() }).then(r => r.json()).then(d => setSessions(d.data || [])).catch(() => {});
-              }} className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 shadow-sm">
+              }} className="px-4 py-2 bg-teal-600 text-white rounded-lg text-sm font-medium hover:bg-teal-700 shadow-sm">
                 Apply Filters
               </button>
             </div>
@@ -1036,7 +1036,7 @@ export default function AIInterviewPage() {
                     <tr><td colSpan={7} className="px-4 py-12 text-center text-thb-text-muted"><FiUsers className="w-8 h-8 mx-auto mb-2" />No sessions found</td></tr>
                   ) : sessions.map(s => (
                     <tr key={s.id} className="border-b border-thb-border hover:bg-slate-50/50">
-                      <td className="px-4 py-3"><div className="flex items-center gap-2"><div className="w-8 h-8 rounded-full bg-purple-50 flex items-center justify-center"><FiUser className="w-3.5 h-3.5 text-purple-600" /></div><div><p className="text-sm font-medium text-thb-text-primary">{s.candidateName}</p><p className="text-xs text-thb-text-muted">{s.candidateEmail}</p></div></div></td>
+                      <td className="px-4 py-3"><div className="flex items-center gap-2"><div className="w-8 h-8 rounded-full bg-teal-50 flex items-center justify-center"><FiUser className="w-3.5 h-3.5 text-teal-600" /></div><div><p className="text-sm font-medium text-thb-text-primary">{s.candidateName}</p><p className="text-xs text-thb-text-muted">{s.candidateEmail}</p></div></div></td>
                       <td className="px-4 py-3 text-sm text-thb-text-secondary">{s.set?.roleTitle || '—'}</td>
                       <td className="px-4 py-3"><span className="flex items-center gap-1.5 text-sm text-thb-text-secondary">{MODES.find(m => m.id === s.set?.interviewMode)?.icon} {s.set?.interviewMode || '—'}</span></td>
                       <td className="px-4 py-3"><span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${getStatusBadge(s.status)}`}>{s.status}</span></td>
@@ -1044,7 +1044,7 @@ export default function AIInterviewPage() {
                       <td className="px-4 py-3 text-sm text-thb-text-muted">{formatDuration(s.durationSeconds)}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1">
-                          {s.status === 'completed' && <button onClick={() => handleViewSession(s.id)} className="p-1.5 rounded-lg text-thb-text-muted hover:text-purple-600 hover:bg-purple-50" title="Review"><FiEye className="w-4 h-4" /></button>}
+                          {s.status === 'completed' && <button onClick={() => handleViewSession(s.id)} className="p-1.5 rounded-lg text-thb-text-muted hover:text-teal-600 hover:bg-teal-50" title="Review"><FiEye className="w-4 h-4" /></button>}
                           {s.status === 'invited' && <button onClick={() => startLiveInterview(s.id)} className="p-1.5 rounded-lg text-thb-text-muted hover:text-emerald-600 hover:bg-emerald-50" title="Start"><FiPlay className="w-4 h-4" /></button>}
                           {s.status === 'completed' && !s.aiSummary && <button onClick={() => handleEvaluate(s.id)} className="p-1.5 rounded-lg text-thb-text-muted hover:text-amber-600 hover:bg-amber-50" title="Evaluate"><FiZap className="w-4 h-4" /></button>}
                         </div>
@@ -1072,7 +1072,7 @@ export default function AIInterviewPage() {
                     <button key={s.id} onClick={() => handleViewSession(s.id)}
                       className="w-full p-3 rounded-lg border border-thb-border text-left hover:bg-slate-50/50 transition-colors flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-purple-50 flex items-center justify-center"><FiUser className="w-3.5 h-3.5 text-purple-600" /></div>
+                        <div className="w-8 h-8 rounded-full bg-teal-50 flex items-center justify-center"><FiUser className="w-3.5 h-3.5 text-teal-600" /></div>
                         <div><p className="text-sm font-medium text-thb-text-primary">{s.candidateName}</p><p className="text-xs text-thb-text-muted">{s.set?.roleTitle}</p></div>
                       </div>
                       {s.overallScore !== null && s.overallScore !== undefined && <span className={`text-sm font-bold ${getScoreColor(s.overallScore)}`}>{s.overallScore}%</span>}
@@ -1093,7 +1093,7 @@ export default function AIInterviewPage() {
               <div className="thb-card p-5">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-xl bg-purple-50 border border-purple-200 flex items-center justify-center"><FiUser className="w-6 h-6 text-purple-600" /></div>
+                    <div className="w-12 h-12 rounded-xl bg-teal-50 border border-teal-200 flex items-center justify-center"><FiUser className="w-6 h-6 text-teal-600" /></div>
                     <div>
                       <h2 className="text-lg font-bold text-thb-text-primary">{viewingSession.candidateName}</h2>
                       <p className="text-sm text-thb-text-muted">{viewingSession.candidateEmail} · {viewingSession.set?.roleTitle}</p>
@@ -1109,7 +1109,7 @@ export default function AIInterviewPage() {
                       </span>
                     )}
                     {!viewingSession.aiSummary && (
-                      <button onClick={() => handleEvaluate(viewingSession.id)} className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 shadow-sm flex items-center gap-2">
+                      <button onClick={() => handleEvaluate(viewingSession.id)} className="px-4 py-2 bg-teal-600 text-white rounded-lg text-sm font-medium hover:bg-teal-700 shadow-sm flex items-center gap-2">
                         <FiZap className="w-4 h-4" /> Evaluate
                       </button>
                     )}
@@ -1120,7 +1120,7 @@ export default function AIInterviewPage() {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Score Radar (simplified as metric cards) */}
                 <div className="thb-card p-5">
-                  <h3 className="text-sm font-semibold text-thb-text-primary flex items-center gap-2 mb-4"><FiTarget className="w-4 h-4 text-purple-500" /> Communication Metrics</h3>
+                  <h3 className="text-sm font-semibold text-thb-text-primary flex items-center gap-2 mb-4"><FiTarget className="w-4 h-4 text-teal-500" /> Communication Metrics</h3>
                   <div className="space-y-3">
                     {[
                       { label: 'Communication', score: viewingSession.communicationScore },
@@ -1156,7 +1156,7 @@ export default function AIInterviewPage() {
 
                 {/* AI Summary */}
                 <div className="thb-card p-5">
-                  <h3 className="text-sm font-semibold text-thb-text-primary flex items-center gap-2 mb-4"><FiCpu className="w-4 h-4 text-purple-500" /> AI Evaluation</h3>
+                  <h3 className="text-sm font-semibold text-thb-text-primary flex items-center gap-2 mb-4"><FiCpu className="w-4 h-4 text-teal-500" /> AI Evaluation</h3>
                   {viewingSession.aiSummary ? (
                     <div className="prose prose-sm max-w-none">
                       <p className="text-sm text-thb-text-primary leading-relaxed whitespace-pre-wrap">{viewingSession.aiSummary}</p>
@@ -1186,16 +1186,16 @@ export default function AIInterviewPage() {
 
               {/* Transcript */}
               <div className="thb-card p-5">
-                <h3 className="text-sm font-semibold text-thb-text-primary flex items-center gap-2 mb-4"><FiFileText className="w-4 h-4 text-purple-500" /> Transcript & Responses</h3>
+                <h3 className="text-sm font-semibold text-thb-text-primary flex items-center gap-2 mb-4"><FiFileText className="w-4 h-4 text-teal-500" /> Transcript & Responses</h3>
                 {viewingSession.responses && viewingSession.responses.length > 0 ? (
                   <div className="space-y-4 max-h-96 overflow-y-auto">
                     {viewingSession.responses.map((r, i) => (
                       <div key={r.id} className="p-4 rounded-lg border border-thb-border">
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center gap-2">
-                            <span className="text-xs font-bold text-purple-600">Q{r.order}</span>
+                            <span className="text-xs font-bold text-teal-600">Q{r.order}</span>
                             {r.isFollowUp && <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 text-[10px] font-bold">Follow-up</span>}
-                            {r.isCvBased && <span className="px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 text-[10px] font-bold">CV-Based</span>}
+                            {r.isCvBased && <span className="px-1.5 py-0.5 rounded bg-green-100 text-green-700 text-[10px] font-bold">CV-Based</span>}
                           </div>
                           {r.aiScore !== null && r.aiScore !== undefined && <span className={`text-xs font-bold ${getScoreColor(r.aiScore)}`}>{r.aiScore}%</span>}
                         </div>
@@ -1215,7 +1215,7 @@ export default function AIInterviewPage() {
               {/* ─── WAVE2-C: Time-Stamped Interview Feedback panel ─── */}
               <div className="thb-card p-5">
                 <h3 className="text-sm font-semibold text-thb-text-primary flex items-center gap-2 mb-1">
-                  <FiActivity className="w-4 h-4 text-purple-500" /> Time-Stamped Feedback
+                  <FiActivity className="w-4 h-4 text-teal-500" /> Time-Stamped Feedback
                 </h3>
                 <p className="text-xs text-thb-text-muted mb-4">
                   Add timestamped notes during interview review. Click a timestamp to seek the video (if embedded below).
@@ -1256,7 +1256,7 @@ export default function AIInterviewPage() {
                             {fb.timestampSec !== null && fb.timestampSec !== undefined && (
                               <button
                                 onClick={() => seekVideoTo(fb.timestampSec as number)}
-                                className="px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 text-[11px] font-mono font-semibold hover:bg-purple-100 transition-colors"
+                                className="px-2 py-0.5 rounded-md bg-teal-50 text-teal-700 text-[11px] font-mono font-semibold hover:bg-teal-100 transition-colors"
                                 title="Seek video to this timestamp"
                               >
                                 {formatSecToTimestamp(fb.timestampSec)}
@@ -1265,7 +1265,7 @@ export default function AIInterviewPage() {
                             <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
                               fb.sentiment === 'positive' ? 'bg-emerald-100 text-emerald-700'
                               : fb.sentiment === 'negative' ? 'bg-red-100 text-red-700'
-                              : fb.sentiment === 'highlight' ? 'bg-violet-100 text-violet-700'
+                              : fb.sentiment === 'highlight' ? 'bg-teal-100 text-teal-700'
                               : fb.sentiment === 'concern' ? 'bg-amber-100 text-amber-700'
                               : 'bg-slate-100 text-slate-600'
                             }`}>{fb.sentiment}</span>
@@ -1305,7 +1305,7 @@ export default function AIInterviewPage() {
                         value={feedbackForm.timestamp}
                         onChange={e => setFeedbackForm(p => ({ ...p, timestamp: e.target.value }))}
                         placeholder="mm:ss"
-                        className="w-full px-2.5 py-2 rounded-lg border border-thb-border text-sm font-mono focus:outline-none focus:ring-2 focus:ring-purple-500/20"
+                        className="w-full px-2.5 py-2 rounded-lg border border-thb-border text-sm font-mono focus:outline-none focus:ring-2 focus:ring-teal-500/20"
                       />
                     </div>
                     <div className="sm:col-span-4">
@@ -1313,7 +1313,7 @@ export default function AIInterviewPage() {
                       <select
                         value={feedbackForm.sentiment}
                         onChange={e => setFeedbackForm(p => ({ ...p, sentiment: e.target.value }))}
-                        className="w-full px-2.5 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20"
+                        className="w-full px-2.5 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20"
                       >
                         <option value="neutral">Neutral</option>
                         <option value="positive">Positive</option>
@@ -1355,14 +1355,14 @@ export default function AIInterviewPage() {
                       onChange={e => setFeedbackForm(p => ({ ...p, body: e.target.value }))}
                       rows={3}
                       placeholder="e.g. Strong answer on system design — could go deeper on edge cases."
-                      className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 resize-none"
+                      className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 resize-none"
                     />
                   </div>
                   <div className="flex justify-end">
                     <button
                       onClick={handleAddFeedback}
                       disabled={feedbackSaving || !feedbackForm.body.trim()}
-                      className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 disabled:opacity-50 shadow-sm shadow-purple-500/25 transition-colors"
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg text-sm font-medium hover:bg-teal-700 disabled:opacity-50 shadow-sm shadow-teal-500/25 transition-colors"
                     >
                       {feedbackSaving ? <FiRefreshCw className="w-4 h-4 animate-spin" /> : <FiPlus className="w-4 h-4" />}
                       Add Feedback
@@ -1380,33 +1380,33 @@ export default function AIInterviewPage() {
         <div className="space-y-6">
           {/* Create invitation form */}
           <div className="thb-card p-5">
-            <h3 className="text-sm font-semibold text-thb-text-primary flex items-center gap-2 mb-4"><FiMail className="w-4 h-4 text-purple-500" /> Create Invitation</h3>
+            <h3 className="text-sm font-semibold text-thb-text-primary flex items-center gap-2 mb-4"><FiMail className="w-4 h-4 text-teal-500" /> Create Invitation</h3>
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
               <select value={invitationForm.setId} onChange={e => setInvitationForm(p => ({ ...p, setId: e.target.value }))}
-                className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20">
+                className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20">
                 <option value="">Select Interview Set</option>
                 {sets.filter(s => s.status === 'active').map(s => <option key={s.id} value={s.id}>{s.title}</option>)}
               </select>
               <input value={invitationForm.candidateName} onChange={e => setInvitationForm(p => ({ ...p, candidateName: e.target.value }))}
-                className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20" placeholder="Candidate Name" />
+                className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20" placeholder="Candidate Name" />
               <input value={invitationForm.candidateEmail} onChange={e => setInvitationForm(p => ({ ...p, candidateEmail: e.target.value }))}
-                className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20" placeholder="Candidate Email" />
-              <button onClick={handleCreateInvitation} className="px-4 py-2.5 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 shadow-sm shadow-purple-500/25">Send Invite</button>
+                className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20" placeholder="Candidate Email" />
+              <button onClick={handleCreateInvitation} className="px-4 py-2.5 bg-teal-600 text-white rounded-lg text-sm font-medium hover:bg-teal-700 shadow-sm shadow-teal-500/25">Send Invite</button>
             </div>
 
             <div className="mt-4 pt-4 border-t border-thb-border">
               <h4 className="text-xs font-semibold text-thb-text-secondary mb-2">Bulk Invite (one per line: email, name)</h4>
               <div className="flex gap-3">
                 <textarea value={bulkInvitations} onChange={e => setBulkInvitations(e.target.value)}
-                  className="flex-1 px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 min-h-[60px]" placeholder="john@example.com, John Smith&#10;jane@example.com, Jane Doe" />
-                <button onClick={handleBulkInvitations} className="px-4 py-2.5 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 self-end shadow-sm shadow-purple-500/25">Bulk Create</button>
+                  className="flex-1 px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 min-h-[60px]" placeholder="john@example.com, John Smith&#10;jane@example.com, Jane Doe" />
+                <button onClick={handleBulkInvitations} className="px-4 py-2.5 bg-teal-600 text-white rounded-lg text-sm font-medium hover:bg-teal-700 self-end shadow-sm shadow-teal-500/25">Bulk Create</button>
               </div>
             </div>
           </div>
 
           {/* Invitations list */}
           <div className="thb-card p-5">
-            <h3 className="text-base font-semibold text-thb-text-primary flex items-center gap-2 mb-4"><FiMail className="w-5 h-5 text-purple-500" /> Invitations ({invitations.length})</h3>
+            <h3 className="text-base font-semibold text-thb-text-primary flex items-center gap-2 mb-4"><FiMail className="w-5 h-5 text-teal-500" /> Invitations ({invitations.length})</h3>
             {invitations.length === 0 ? (
               <div className="py-8 text-center"><FiMail className="w-10 h-10 text-thb-text-muted mx-auto mb-2" /><p className="text-thb-text-secondary font-medium">No invitations yet</p></div>
             ) : (
@@ -1414,17 +1414,17 @@ export default function AIInterviewPage() {
                 {invitations.map(inv => (
                   <div key={inv.id} className="flex items-center justify-between p-3 rounded-lg border border-thb-border hover:bg-slate-50/50 transition-colors">
                     <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-full bg-purple-50 flex items-center justify-center"><FiMail className="w-4 h-4 text-purple-600" /></div>
+                      <div className="w-9 h-9 rounded-full bg-teal-50 flex items-center justify-center"><FiMail className="w-4 h-4 text-teal-600" /></div>
                       <div>
                         <p className="text-sm font-medium text-thb-text-primary">{inv.candidateName}</p>
                         <p className="text-xs text-thb-text-muted">{inv.candidateEmail} · {inv.set?.title}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <button onClick={() => copyInvitationLink(inv.invitationToken)} className="p-1.5 rounded-lg text-thb-text-muted hover:text-purple-600 hover:bg-purple-50" title="Copy link">
+                      <button onClick={() => copyInvitationLink(inv.invitationToken)} className="p-1.5 rounded-lg text-thb-text-muted hover:text-teal-600 hover:bg-teal-50" title="Copy link">
                         <FiLink className="w-4 h-4" />
                       </button>
-                      <button onClick={() => { navigator.clipboard.writeText(inv.invitationToken); toast.success('Token copied'); }} className="p-1.5 rounded-lg text-thb-text-muted hover:text-purple-600 hover:bg-purple-50" title="Copy token">
+                      <button onClick={() => { navigator.clipboard.writeText(inv.invitationToken); toast.success('Token copied'); }} className="p-1.5 rounded-lg text-thb-text-muted hover:text-teal-600 hover:bg-teal-50" title="Copy token">
                         <FiCopy className="w-4 h-4" />
                       </button>
                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${getStatusBadge(inv.status)}`}>{inv.status}</span>

@@ -154,7 +154,7 @@ export function Learning() {
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
-            <Users className="h-5 w-5 mx-auto text-blue-600 mb-1" />
+            <Users className="h-5 w-5 mx-auto text-green-600 mb-1" />
             <p className="text-2xl font-bold">{courses.reduce((s, c) => s + (c.enrolled || 0), 0)}</p>
             <p className="text-xs text-muted-foreground">Total Enrollments</p>
           </CardContent>

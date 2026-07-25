@@ -64,7 +64,7 @@ function getRiskBadge(risk: string) {
   const map: Record<string, { className: string; label: string }> = {
     critical: { className: 'bg-red-100 text-red-800 text-xs font-medium px-2 py-0.5 rounded-full', label: 'Critical' },
     high: { className: 'bg-amber-100 text-amber-800 text-xs font-medium px-2 py-0.5 rounded-full', label: 'High' },
-    medium: { className: 'bg-blue-100 text-blue-800 text-xs font-medium px-2 py-0.5 rounded-full', label: 'Medium' },
+    medium: { className: 'bg-green-100 text-green-800 text-xs font-medium px-2 py-0.5 rounded-full', label: 'Medium' },
     low: { className: 'bg-emerald-100 text-emerald-800 text-xs font-medium px-2 py-0.5 rounded-full', label: 'Low' },
   };
   return map[risk] || { className: 'bg-slate-100 text-slate-800 text-xs font-medium px-2 py-0.5 rounded-full', label: risk };
@@ -73,11 +73,11 @@ function getRiskBadge(risk: string) {
 function getReadinessBadge(readiness: string) {
   const map: Record<string, { className: string; label: string }> = {
     ready_now: { className: 'bg-emerald-100 text-emerald-800 text-xs font-medium px-2 py-0.5 rounded-full', label: 'Ready Now' },
-    ready_1_2_years: { className: 'bg-blue-100 text-blue-800 text-xs font-medium px-2 py-0.5 rounded-full', label: '1-2 Years' },
+    ready_1_2_years: { className: 'bg-green-100 text-green-800 text-xs font-medium px-2 py-0.5 rounded-full', label: '1-2 Years' },
     ready_3_5_years: { className: 'bg-amber-100 text-amber-800 text-xs font-medium px-2 py-0.5 rounded-full', label: '3-5 Years' },
     development_needed: { className: 'bg-red-100 text-red-800 text-xs font-medium px-2 py-0.5 rounded-full', label: 'Dev Needed' },
     developing: { className: 'bg-amber-100 text-amber-800 text-xs font-medium px-2 py-0.5 rounded-full', label: 'Developing' },
-    identified: { className: 'bg-blue-100 text-blue-800 text-xs font-medium px-2 py-0.5 rounded-full', label: 'Identified' },
+    identified: { className: 'bg-green-100 text-green-800 text-xs font-medium px-2 py-0.5 rounded-full', label: 'Identified' },
   };
   return map[readiness] || { className: 'bg-slate-100 text-slate-800 text-xs font-medium px-2 py-0.5 rounded-full', label: readiness };
 }
@@ -85,7 +85,7 @@ function getReadinessBadge(readiness: string) {
 function getReadinessDotColor(readiness: string) {
   switch (readiness) {
     case 'ready_now': return 'bg-emerald-500';
-    case 'ready_1_2_years': return 'bg-blue-500';
+    case 'ready_1_2_years': return 'bg-green-500';
     case 'ready_3_5_years': case 'developing': return 'bg-amber-500';
     case 'development_needed': return 'bg-red-500';
     default: return 'bg-slate-400';
@@ -240,12 +240,12 @@ export function Succession() {
           ) : (
             <div className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div><label className="block text-xs font-medium text-muted-foreground mb-1">Employee *</label><select value={candidateForm.employeeId} onChange={e => setCandidateForm(p => ({ ...p, employeeId: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-border text-sm bg-background focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"><option value="">Select</option>{employees.map(emp => <option key={emp.id} value={emp.id}>{emp.firstName} {emp.lastName}</option>)}</select></div>
-                <div><label className="block text-xs font-medium text-muted-foreground mb-1">Readiness</label><select value={candidateForm.readinessLevel} onChange={e => setCandidateForm(p => ({ ...p, readinessLevel: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-border text-sm bg-background focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"><option value="ready_now">Ready Now</option><option value="ready_1_2_years">1-2 Years</option><option value="ready_3_5_years">3-5 Years</option><option value="development_needed">Development Needed</option><option value="developing">Developing</option></select></div>
+                <div><label className="block text-xs font-medium text-muted-foreground mb-1">Employee *</label><select value={candidateForm.employeeId} onChange={e => setCandidateForm(p => ({ ...p, employeeId: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-border text-sm bg-background focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"><option value="">Select</option>{employees.map(emp => <option key={emp.id} value={emp.id}>{emp.firstName} {emp.lastName}</option>)}</select></div>
+                <div><label className="block text-xs font-medium text-muted-foreground mb-1">Readiness</label><select value={candidateForm.readinessLevel} onChange={e => setCandidateForm(p => ({ ...p, readinessLevel: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-border text-sm bg-background focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"><option value="ready_now">Ready Now</option><option value="ready_1_2_years">1-2 Years</option><option value="ready_3_5_years">3-5 Years</option><option value="development_needed">Development Needed</option><option value="developing">Developing</option></select></div>
               </div>
               <div><label className="block text-xs font-medium text-muted-foreground mb-1">Development Needs</label><textarea rows={2} value={candidateForm.developmentNeeds} onChange={e => setCandidateForm(p => ({ ...p, developmentNeeds: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-border text-sm bg-background resize-none" /></div>
               <div><label className="block text-xs font-medium text-muted-foreground mb-1">Notes</label><textarea rows={2} value={candidateForm.notes} onChange={e => setCandidateForm(p => ({ ...p, notes: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-border text-sm bg-background resize-none" /></div>
-              <div className="flex justify-end gap-3 pt-4 border-t border-border"><button onClick={handleCancelCandidateForm} className="px-4 py-2.5 rounded-lg border border-border text-sm font-medium text-muted-foreground hover:bg-muted transition-colors">Cancel</button><button onClick={handleSaveCandidate} disabled={submittingCandidate} className="px-6 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50 shadow-sm transition-colors">{submittingCandidate ? 'Adding...' : 'Add Candidate'}</button></div>
+              <div className="flex justify-end gap-3 pt-4 border-t border-border"><button onClick={handleCancelCandidateForm} className="px-4 py-2.5 rounded-lg border border-border text-sm font-medium text-muted-foreground hover:bg-muted transition-colors">Cancel</button><button onClick={handleSaveCandidate} disabled={submittingCandidate} className="px-6 py-2.5 rounded-lg bg-green-600 text-white text-sm font-medium hover:bg-green-700 disabled:opacity-50 shadow-sm transition-colors">{submittingCandidate ? 'Adding...' : 'Add Candidate'}</button></div>
             </div>
           )}
         </div>
@@ -255,7 +255,7 @@ export function Succession() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           { label: 'Critical Roles', value: stats.criticalRoles, icon: <FiAlertTriangle className="w-5 h-5" />, color: 'text-red-500 bg-red-50' },
-          { label: 'Successors', value: stats.successorsIdentified, icon: <FiUsers className="w-5 h-5" />, color: 'text-blue-500 bg-blue-50' },
+          { label: 'Successors', value: stats.successorsIdentified, icon: <FiUsers className="w-5 h-5" />, color: 'text-green-500 bg-green-50' },
           { label: 'Ready Now', value: stats.readyNow, icon: <FiCheck className="w-5 h-5" />, color: 'text-emerald-500 bg-emerald-50' },
           { label: 'Dev Needed', value: stats.developmentNeeded, icon: <FiTrendingUp className="w-5 h-5" />, color: 'text-amber-500 bg-amber-50' },
         ].map(s => (
@@ -273,10 +273,10 @@ export function Succession() {
             { label: 'Talent Pool', count: plans.reduce((s, p) => s + p.candidates.filter(c => c.readinessLevel === 'identified').length, 0), color: 'bg-slate-500' },
             { label: 'Development', count: plans.reduce((s, p) => s + p.candidates.filter(c => c.readinessLevel === 'developing' || c.readinessLevel === 'development_needed' || c.readinessLevel === 'ready_3_5_years').length, 0), color: 'bg-amber-500' },
             { label: 'Ready Now', count: plans.reduce((s, p) => s + p.candidates.filter(c => c.readinessLevel === 'ready_now' || c.readinessLevel === 'ready_1_2_years').length, 0), color: 'bg-emerald-500' },
-            { label: 'Promoted', count: 0, color: 'bg-violet-500' },
+            { label: 'Promoted', count: 0, color: 'bg-teal-500' },
           ].map((stage, idx) => (
             <div key={stage.label} className="flex items-center gap-2 flex-1 min-w-0">
-              <div className={`flex-1 p-4 rounded-lg border border-border text-center ${idx === 1 ? 'bg-amber-50/50' : idx === 2 ? 'bg-emerald-50/50' : idx === 3 ? 'bg-violet-50/50' : ''}`}>
+              <div className={`flex-1 p-4 rounded-lg border border-border text-center ${idx === 1 ? 'bg-amber-50/50' : idx === 2 ? 'bg-emerald-50/50' : idx === 3 ? 'bg-teal-50/50' : ''}`}>
                 <div className={`w-8 h-8 rounded-full ${stage.color} flex items-center justify-center mx-auto mb-2`}><span className="text-white text-xs font-bold">{stage.count}</span></div>
                 <p className="text-xs font-medium">{stage.label}</p>
               </div>
@@ -288,7 +288,7 @@ export function Succession() {
 
       {/* 9-Box Grid */}
       <div className="bg-card border border-border rounded-lg p-6 shadow-sm">
-        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4 flex items-center gap-2"><FiZap className="w-4 h-4 text-violet-500" /> 9-Box Grid</h3>
+        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4 flex items-center gap-2"><FiZap className="w-4 h-4 text-teal-500" /> 9-Box Grid</h3>
         <div className="overflow-x-auto"><div className="min-w-[400px]">
           {[['high', 'High Potential'], ['medium', 'Medium'], ['low', 'Low Potential']].map(([pot, potLabel]) => (
             <div key={pot} className="flex items-stretch mb-1">
@@ -297,7 +297,7 @@ export function Succession() {
                 {[['low', 'Low'], ['medium', 'Med'], ['high', 'High']].map(([perf, perfLabel]) => {
                   const key = `${perf}-${pot}`;
                   const items = nineBoxData[key] || [];
-                  const bgColors: Record<string, string> = { 'high-high': 'bg-emerald-100 border-emerald-300', 'high-medium': 'bg-blue-100 border-blue-300', 'high-low': 'bg-amber-100 border-amber-300', 'medium-high': 'bg-blue-100 border-blue-300', 'medium-medium': 'bg-slate-100 border-slate-300', 'medium-low': 'bg-orange-100 border-orange-300', 'low-high': 'bg-amber-100 border-amber-300', 'low-medium': 'bg-orange-100 border-orange-300', 'low-low': 'bg-red-100 border-red-300' };
+                  const bgColors: Record<string, string> = { 'high-high': 'bg-emerald-100 border-emerald-300', 'high-medium': 'bg-green-100 border-green-300', 'high-low': 'bg-amber-100 border-amber-300', 'medium-high': 'bg-green-100 border-green-300', 'medium-medium': 'bg-slate-100 border-slate-300', 'medium-low': 'bg-orange-100 border-orange-300', 'low-high': 'bg-amber-100 border-amber-300', 'low-medium': 'bg-orange-100 border-orange-300', 'low-low': 'bg-red-100 border-red-300' };
                   return (
                     <div key={key} className={`p-2 rounded-lg border ${bgColors[key] || 'bg-slate-50 border-slate-200'} min-h-[50px]`}>
                       <p className="text-[10px] text-muted-foreground mb-0.5">{perfLabel}</p>
@@ -345,7 +345,7 @@ export function Succession() {
                         )}
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
-                        {isAdmin && <><button onClick={() => handleOpenCandidateForm(plan.id)} className="px-3 py-2 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700"><FiPlus className="w-3.5 h-3.5 inline mr-1" />Candidate</button><button onClick={() => handleOpenPlanForm(plan)} className="p-2 rounded-lg text-muted-foreground hover:text-amber-500 hover:bg-amber-50"><FiEdit2 className="w-4 h-4" /></button><button onClick={() => setDeleteConfirmId(plan.id)} className="p-2 rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-50"><FiTrash2 className="w-4 h-4" /></button></>}
+                        {isAdmin && <><button onClick={() => handleOpenCandidateForm(plan.id)} className="px-3 py-2 bg-green-600 text-white rounded-lg text-xs font-medium hover:bg-green-700"><FiPlus className="w-3.5 h-3.5 inline mr-1" />Candidate</button><button onClick={() => handleOpenPlanForm(plan)} className="p-2 rounded-lg text-muted-foreground hover:text-amber-500 hover:bg-amber-50"><FiEdit2 className="w-4 h-4" /></button><button onClick={() => setDeleteConfirmId(plan.id)} className="p-2 rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-50"><FiTrash2 className="w-4 h-4" /></button></>}
                         <button onClick={() => setExpandedPlan(isExpanded ? null : plan.id)} className="p-2 rounded-lg border border-border text-muted-foreground hover:bg-muted">{isExpanded ? <FiChevronUp className="w-4 h-4" /> : <FiChevronDown className="w-4 h-4" />}</button>
                       </div>
                     </div>

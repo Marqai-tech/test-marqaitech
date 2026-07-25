@@ -192,8 +192,8 @@ export default function ProjectsModule() {
       'active': 'bg-emerald-600/20 text-emerald-400',
       'in_progress': 'bg-emerald-600/20 text-emerald-400',
       'completed': 'bg-emerald-600/20 text-emerald-400',
-      'draft': 'bg-blue-600/20 text-blue-400',
-      'planning': 'bg-blue-600/20 text-blue-400',
+      'draft': 'bg-green-600/20 text-green-400',
+      'planning': 'bg-green-600/20 text-green-400',
       'on_hold': 'bg-amber-600/20 text-amber-400',
       'closed': 'bg-slate-600/20 text-slate-400',
       'todo': 'bg-slate-600/20 text-slate-400',
@@ -416,7 +416,7 @@ export default function ProjectsModule() {
         <Card className="bg-slate-900 border-slate-800">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-purple-600/20"><Users className="w-5 h-5 text-purple-400" /></div>
+              <div className="p-2 rounded-lg bg-teal-600/20"><Users className="w-5 h-5 text-teal-400" /></div>
               <div><p className="text-sm text-slate-400">Team Members</p><p className="text-2xl font-bold text-white">{uniqueAllocatedEmployees}</p></div>
             </div>
           </CardContent>

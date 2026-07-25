@@ -44,7 +44,7 @@ export default function ExternalSettingsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-blue-50 text-blue-600">
+          <div className="p-2.5 rounded-xl bg-green-50 text-green-600">
             <FiSettings className="w-5 h-5" />
           </div>
           <div>
@@ -66,7 +66,7 @@ export default function ExternalSettingsPage() {
             <button
               onClick={handleSave}
               disabled={saving}
-              className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-green-600 text-white text-sm font-medium hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <FiSave className="w-3.5 h-3.5" />
               {saving ? 'Saving...' : 'Save'}
@@ -92,7 +92,7 @@ export default function ExternalSettingsPage() {
             <button
               onClick={() => setAutoCreateSOW(!autoCreateSOW)}
               className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${
-                autoCreateSOW ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-500'
+                autoCreateSOW ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'
               }`}
             >
               {autoCreateSOW ? 'Enabled' : 'Disabled'}
@@ -110,7 +110,7 @@ export default function ExternalSettingsPage() {
             <button
               onClick={() => setClientPortalAccess(!clientPortalAccess)}
               className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${
-                clientPortalAccess ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-500'
+                clientPortalAccess ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'
               }`}
             >
               {clientPortalAccess ? 'Enabled' : 'Disabled'}
@@ -133,7 +133,7 @@ export default function ExternalSettingsPage() {
             <button
               onClick={() => setOnboardingApproval(!onboardingApproval)}
               className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${
-                onboardingApproval ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-500'
+                onboardingApproval ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'
               }`}
             >
               {onboardingApproval ? 'Enabled' : 'Disabled'}
@@ -151,7 +151,7 @@ export default function ExternalSettingsPage() {
             <button
               onClick={() => setAutoComplianceCheck(!autoComplianceCheck)}
               className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${
-                autoComplianceCheck ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-500'
+                autoComplianceCheck ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'
               }`}
             >
               {autoComplianceCheck ? 'Enabled' : 'Disabled'}

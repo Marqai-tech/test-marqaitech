@@ -42,18 +42,18 @@ export default function LandingLayout({
         }`}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-20 sm:h-24">
+          <div className="flex items-center justify-between h-20 sm:h-28">
             {/* Logo */}
             <Link href="/landing" className="flex items-center gap-3">
               <Image
                 src="/images/logo-3boxes-hrms.png"
                 alt="3Boxes HRMS Logo"
-                width={48}
-                height={48}
-                className="rounded-lg"
+                width={56}
+                height={56}
+                className="rounded-xl"
                 priority
               />
-              <span className="text-xl sm:text-2xl font-bold text-slate-900">
+              <span className="text-2xl sm:text-3xl font-bold text-slate-900">
                 3Boxes <span className="gradient-text">HRMS</span>
               </span>
             </Link>
@@ -118,7 +118,7 @@ export default function LandingLayout({
       </header>
 
       {/* ─── Main Content ─── */}
-      <main className="flex-1 pt-20 sm:pt-24">{children}</main>
+      <main className="flex-1 pt-20 sm:pt-28">{children}</main>
 
       {/* ─── Shared Footer ─── */}
       <footer className="bg-slate-900 text-slate-400 mt-auto">

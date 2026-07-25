@@ -28,7 +28,7 @@ export default function GradesPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center shadow-md">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-500 to-pink-600 flex items-center justify-center shadow-md">
             <FiLayers className="w-5 h-5 text-white" />
           </div>
           <div>
@@ -39,9 +39,9 @@ export default function GradesPage() {
       </div>
 
       {/* Info banner */}
-      <div className="thb-card border-l-4 border-l-purple-500 bg-gradient-to-r from-purple-50/60 to-pink-50/40">
+      <div className="thb-card border-l-4 border-l-teal-500 bg-gradient-to-r from-teal-50/60 to-pink-50/40">
         <div className="p-4 flex items-start gap-3">
-          <FiLayers className="w-5 h-5 text-purple-500 flex-shrink-0 mt-0.5" />
+          <FiLayers className="w-5 h-5 text-teal-500 flex-shrink-0 mt-0.5" />
           <div className="text-sm text-slate-700">
             <p className="font-semibold text-slate-900 mb-0.5">Grades are derived from designations</p>
             <p className="text-xs text-slate-600">
@@ -55,15 +55,15 @@ export default function GradesPage() {
       {/* Search */}
       <div className="relative">
         <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
-        <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by grade name..." className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-thb-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400" />
+        <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by grade name..." className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-thb-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400" />
       </div>
 
       {/* View Detail */}
       {viewingGrade && (
-        <div className="thb-card border-l-4 border-l-purple-500">
+        <div className="thb-card border-l-4 border-l-teal-500">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold text-thb-text-primary flex items-center gap-2"><FiEye className="w-5 h-5 text-purple-500" /> Grade Details</h2>
+              <h2 className="text-lg font-semibold text-thb-text-primary flex items-center gap-2"><FiEye className="w-5 h-5 text-teal-500" /> Grade Details</h2>
               <button onClick={() => setViewingGrade(null)} className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors"><FiX className="w-5 h-5" /></button>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -84,7 +84,7 @@ export default function GradesPage() {
 
       {/* Grades Card Grid */}
       {loading.designations ? (
-        <div className="flex items-center justify-center py-12"><FiSettings className="w-8 h-8 animate-spin text-violet-400" /></div>
+        <div className="flex items-center justify-center py-12"><FiSettings className="w-8 h-8 animate-spin text-teal-400" /></div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {gradeList.length === 0 ? (
@@ -100,7 +100,7 @@ export default function GradesPage() {
                 <span className="thb-badge thb-badge-success">{g.status}</span>
               </div>
               <p className="text-thb-text-primary font-semibold text-lg">{g.name}</p>
-              <p className="text-violet-600 text-2xl font-bold mt-2">₹{(g.min / 100000).toFixed(0)}-{(g.max / 100000).toFixed(0)}L</p>
+              <p className="text-teal-600 text-2xl font-bold mt-2">₹{(g.min / 100000).toFixed(0)}-{(g.max / 100000).toFixed(0)}L</p>
               <p className="text-thb-text-muted text-sm mt-1">Per annum</p>
               <div className="mt-3 pt-3 border-t border-thb-border space-y-1">
                 <div className="flex justify-between text-sm"><span className="text-thb-text-muted">Employees</span><span className="text-thb-text-primary font-medium">{g.employees}</span></div>

@@ -145,7 +145,7 @@ export default function DashboardLayout({
     return (
       <div className="min-h-screen flex items-center justify-center bg-thb-background">
         <div className="text-center">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 via-indigo-500 to-violet-600 mb-4 shadow-lg shadow-blue-500/25 animate-pulse-subtle ring-2 ring-blue-400/20">
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-br from-green-500 via-emerald-500 to-teal-600 mb-4 shadow-lg shadow-green-500/25 animate-pulse-subtle ring-2 ring-green-400/20">
             <svg viewBox="0 0 30 30" className="w-7 h-7" fill="none">
               <path d="M15 2L3 8V16C3 24 8.1 31.2 15 33C21.9 31.2 27 24 27 16V8L15 2Z" fill="rgba(255,255,255,0.2)" stroke="white" strokeWidth="0.5"/>
               <path d="M9 23V11H12.5L20 20V11H23V23H19.5L12 14V23H9Z" fill="white"/>
@@ -171,14 +171,14 @@ export default function DashboardLayout({
         <NotificationPopup />
         <header className="h-14 bg-white border-b border-slate-200 flex items-center px-3 gap-2 sticky top-0 z-30 shrink-0">
           <div className="flex items-center gap-2 flex-1 min-w-0">
-            <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 via-indigo-500 to-violet-600 flex items-center justify-center shadow-sm">
+            <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-gradient-to-br from-green-500 via-emerald-500 to-teal-600 flex items-center justify-center shadow-sm">
               <svg viewBox="0 0 35 11" className="w-4 h-3" fill="none"><rect x="0" y="0" width="9" height="9" rx="2" fill="white" opacity="0.9"/><rect x="13" y="0" width="9" height="9" rx="2" fill="white" opacity="0.9"/><rect x="26" y="0" width="9" height="9" rx="2" fill="white" opacity="0.9"/></svg>
             </div>
-            <span className="text-sm font-extrabold text-slate-800 truncate">3Boxes <span className="text-[9px] font-bold text-blue-500 tracking-wider">HRMS</span></span>
+            <span className="text-sm font-extrabold text-slate-800 truncate">3Boxes <span className="text-[9px] font-bold text-green-500 tracking-wider">HRMS</span></span>
           </div>
           <button onClick={() => { setShowMobileNotif(false); setShowMobileProfile(false); setShowMobileMenu(!showMobileMenu); }} className="p-2 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"><FiMenu className="w-5 h-5" /></button>
           <button onClick={() => { setShowMobileMenu(false); setShowMobileProfile(false); setShowMobileNotif(!showMobileNotif); }} className="p-2 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors relative"><FiBell className="w-5 h-5" /></button>
-          <button onClick={() => { setShowMobileMenu(false); setShowMobileNotif(false); setShowMobileProfile(!showMobileProfile); }} className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-white text-[10px] font-bold shadow-sm">{user?.name ? getInitials(user.name) : '??'}</button>
+          <button onClick={() => { setShowMobileMenu(false); setShowMobileNotif(false); setShowMobileProfile(!showMobileProfile); }} className="w-8 h-8 rounded-full bg-gradient-to-br from-green-500 to-teal-600 flex items-center justify-center text-white text-[10px] font-bold shadow-sm">{user?.name ? getInitials(user.name) : '??'}</button>
         </header>
         {showMobileMenu && (
           <div className="fixed inset-0 z-50" onClick={() => setShowMobileMenu(false)}>
@@ -205,7 +205,7 @@ export default function DashboardLayout({
             <div className="absolute inset-0 bg-black/30" />
             <div className="absolute top-14 right-0 w-64 bg-white border border-slate-200 shadow-xl rounded-b-xl animate-slide-in-down" onClick={(e) => e.stopPropagation()}>
               <div className="p-4 border-b border-slate-100 text-center">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-white text-lg font-bold mx-auto mb-2">{user?.name ? getInitials(user.name) : '??'}</div>
+                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-green-500 to-teal-600 flex items-center justify-center text-white text-lg font-bold mx-auto mb-2">{user?.name ? getInitials(user.name) : '??'}</div>
                 <p className="text-sm font-semibold text-slate-800">{user?.name}</p>
                 <p className="text-[11px] text-slate-400 capitalize">{user?.role?.replace('_', ' ')}</p>
               </div>
@@ -224,9 +224,9 @@ export default function DashboardLayout({
               const isActive = item.href === '#more' ? false : pathname === item.href || pathname?.startsWith(item.href + '/');
               const Icon = item.icon;
               return (
-                <button key={item.label} onClick={() => { if (item.href === '#more') setShowMobileMenu(true); else router.push(item.href); }} className={`flex flex-col items-center justify-center gap-0.5 flex-1 h-full transition-colors ${isActive ? 'text-blue-500' : 'text-slate-400 hover:text-slate-600'}`}>
+                <button key={item.label} onClick={() => { if (item.href === '#more') setShowMobileMenu(true); else router.push(item.href); }} className={`flex flex-col items-center justify-center gap-0.5 flex-1 h-full transition-colors ${isActive ? 'text-green-500' : 'text-slate-400 hover:text-slate-600'}`}>
                   <Icon className={`w-5 h-5 ${isActive ? 'stroke-[2.5px]' : ''}`} />
-                  <span className={`text-[9px] font-semibold tracking-wide ${isActive ? 'text-blue-500' : ''}`}>{item.label}</span>
+                  <span className={`text-[9px] font-semibold tracking-wide ${isActive ? 'text-green-500' : ''}`}>{item.label}</span>
                 </button>
               );
             })}

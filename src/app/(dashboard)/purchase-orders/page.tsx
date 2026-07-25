@@ -20,7 +20,7 @@ export default function PurchaseOrdersPage() {
           <h1 className="text-2xl font-bold">Purchase Orders</h1>
           <p className="text-sm text-gray-600 mt-1">Multi-currency POs against vendors (REQ-VEN-08/10)</p>
         </div>
-        <button onClick={() => setShowCreate(!showCreate)} className="px-4 py-2 bg-blue-600 text-white rounded">+ New PO</button>
+        <button onClick={() => setShowCreate(!showCreate)} className="px-4 py-2 bg-green-600 text-white rounded">+ New PO</button>
       </div>
       {showCreate && <CreatePOForm onCreated={() => { setShowCreate(false); loadPOs(); }} />}
       {loading ? <div className="text-gray-500">Loading...</div> : (
@@ -103,9 +103,9 @@ export default function PurchaseOrdersPage() {
               <div className="col-span-2 text-right text-sm pt-2">{(li.quantity * li.unitPrice).toFixed(2)}</div>
             </div>
           ))}
-          <button type="button" onClick={addLine} className="text-sm text-blue-600">+ Add line item</button>
+          <button type="button" onClick={addLine} className="text-sm text-green-600">+ Add line item</button>
         </div>
-        <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded">Create PO</button>
+        <button type="submit" className="px-4 py-2 bg-green-600 text-white rounded">Create PO</button>
       </form>
     );
   }

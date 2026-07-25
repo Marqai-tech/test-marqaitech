@@ -322,7 +322,7 @@ export default function PayrollValidationsPage() {
           <select
             value={selectedCompanyId}
             onChange={(e) => setSelectedCompanyId(e.target.value)}
-            className="flex-1 px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+            className="flex-1 px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
           >
             <option value="">Select Company</option>
             {companies.map(c => (
@@ -365,9 +365,9 @@ export default function PayrollValidationsPage() {
                 <p className="text-xs font-medium text-red-700">Invalid</p>
                 <p className="text-xl font-bold text-red-700">{selectedValidation.invalidEmployees}</p>
               </div>
-              <div className="p-3 bg-blue-50 rounded-lg text-center">
-                <p className="text-xs font-medium text-blue-700">Pass Rate</p>
-                <p className="text-xl font-bold text-blue-700">
+              <div className="p-3 bg-green-50 rounded-lg text-center">
+                <p className="text-xs font-medium text-green-700">Pass Rate</p>
+                <p className="text-xl font-bold text-green-700">
                   {selectedValidation.totalEmployees > 0
                     ? Math.round((selectedValidation.validEmployees / selectedValidation.totalEmployees) * 100)
                     : 0}%
@@ -441,16 +441,16 @@ export default function PayrollValidationsPage() {
             <CategoryCard
               title="New Joiners This Period"
               icon={FiUserPlus}
-              iconColor="text-blue-500"
-              iconBg="bg-blue-50"
+              iconColor="text-green-500"
+              iconBg="bg-green-50"
               count={selectedValidation.newJoiners?.length || 0}
               employees={selectedValidation.newJoiners || []}
             />
             <CategoryCard
               title="Terminations This Period"
               icon={FiLogOut}
-              iconColor="text-purple-500"
-              iconBg="bg-purple-50"
+              iconColor="text-teal-500"
+              iconBg="bg-teal-50"
               count={selectedValidation.terminations?.length || 0}
               employees={selectedValidation.terminations || []}
             />
@@ -467,7 +467,7 @@ export default function PayrollValidationsPage() {
             placeholder="Search validation history..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+            className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
           />
         </div>
       </div>
@@ -475,7 +475,7 @@ export default function PayrollValidationsPage() {
       {/* Validation History */}
       {loading ? (
         <div className="thb-card p-12 text-center">
-          <div className="animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-3" />
+          <div className="animate-spin h-8 w-8 border-4 border-green-500 border-t-transparent rounded-full mx-auto mb-3" />
           <p className="text-thb-text-secondary">Loading validation history...</p>
         </div>
       ) : filteredValidations.length === 0 ? (

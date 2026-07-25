@@ -72,7 +72,7 @@ export default function EmployeeReportsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-md">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-md">
             <FiFileText className="w-5 h-5 text-white" />
           </div>
           <div>
@@ -84,7 +84,7 @@ export default function EmployeeReportsPage() {
           <select
             value={dateRange}
             onChange={e => setDateRange(e.target.value)}
-            className="px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+            className="px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20"
           >
             <option value="this_month">This Month</option>
             <option value="last_month">Last Month</option>
@@ -94,7 +94,7 @@ export default function EmployeeReportsPage() {
           </select>
           <button
             onClick={() => handleExport('csv')}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-violet-500 hover:bg-violet-600 text-white rounded-lg text-sm font-medium transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-teal-500 hover:bg-teal-600 text-white rounded-lg text-sm font-medium transition-colors"
           >
             <FiDownload className="w-4 h-4" /> Export CSV
           </button>
@@ -107,9 +107,9 @@ export default function EmployeeReportsPage() {
           <button
             key={r.key}
             onClick={() => setActiveReport(r.key)}
-            className={`thb-card p-3.5 text-left hover:shadow-md transition-all ${activeReport === r.key ? 'ring-2 ring-violet-500 shadow-md' : ''}`}
+            className={`thb-card p-3.5 text-left hover:shadow-md transition-all ${activeReport === r.key ? 'ring-2 ring-teal-500 shadow-md' : ''}`}
           >
-            <div className={`p-2 rounded-lg inline-flex mb-2 ${activeReport === r.key ? 'bg-violet-500 text-white' : 'bg-slate-100 text-slate-600'}`}>
+            <div className={`p-2 rounded-lg inline-flex mb-2 ${activeReport === r.key ? 'bg-teal-500 text-white' : 'bg-slate-100 text-slate-600'}`}>
               {r.icon}
             </div>
             <p className="text-sm font-semibold text-thb-text-primary leading-tight">{r.label}</p>
@@ -123,7 +123,7 @@ export default function EmployeeReportsPage() {
         <div className="thb-card overflow-hidden">
           <div className="px-5 py-4 border-b border-thb-border flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-violet-500 text-white">
+              <div className="p-2 rounded-lg bg-teal-500 text-white">
                 {activeReportData.icon}
               </div>
               <div>
@@ -132,9 +132,9 @@ export default function EmployeeReportsPage() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <button onClick={() => handleExport('pdf')} className="text-xs text-violet-500 hover:text-violet-700 font-medium px-2 py-1 rounded hover:bg-violet-50 transition-colors">PDF</button>
+              <button onClick={() => handleExport('pdf')} className="text-xs text-teal-500 hover:text-teal-700 font-medium px-2 py-1 rounded hover:bg-teal-50 transition-colors">PDF</button>
               <button onClick={() => handleExport('excel')} className="text-xs text-emerald-500 hover:text-emerald-700 font-medium px-2 py-1 rounded hover:bg-emerald-50 transition-colors">Excel</button>
-              <button onClick={() => handleExport('csv')} className="text-xs text-blue-500 hover:text-blue-700 font-medium px-2 py-1 rounded hover:bg-blue-50 transition-colors">CSV</button>
+              <button onClick={() => handleExport('csv')} className="text-xs text-green-500 hover:text-green-700 font-medium px-2 py-1 rounded hover:bg-green-50 transition-colors">CSV</button>
             </div>
           </div>
 
@@ -142,10 +142,10 @@ export default function EmployeeReportsPage() {
             {activeReport === 'headcount' && (
               <div className="space-y-6">
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                  <div className="p-4 rounded-lg bg-blue-50"><p className="text-xs text-blue-600 font-medium">Total Headcount</p><p className="text-2xl font-bold text-blue-700 mt-1">140</p></div>
+                  <div className="p-4 rounded-lg bg-green-50"><p className="text-xs text-green-600 font-medium">Total Headcount</p><p className="text-2xl font-bold text-green-700 mt-1">140</p></div>
                   <div className="p-4 rounded-lg bg-emerald-50"><p className="text-xs text-emerald-600 font-medium">Active</p><p className="text-2xl font-bold text-emerald-700 mt-1">132</p></div>
                   <div className="p-4 rounded-lg bg-amber-50"><p className="text-xs text-amber-600 font-medium">On Probation</p><p className="text-2xl font-bold text-amber-700 mt-1">5</p></div>
-                  <div className="p-4 rounded-lg bg-violet-50"><p className="text-xs text-violet-600 font-medium">Vacancies</p><p className="text-2xl font-bold text-violet-700 mt-1">15</p></div>
+                  <div className="p-4 rounded-lg bg-teal-50"><p className="text-xs text-teal-600 font-medium">Vacancies</p><p className="text-2xl font-bold text-teal-700 mt-1">15</p></div>
                 </div>
                 <div>
                   <h4 className="text-sm font-semibold text-thb-text-primary mb-3">Department-wise Headcount</h4>
@@ -154,16 +154,16 @@ export default function EmployeeReportsPage() {
                       <div key={d.department} className="flex items-center gap-3">
                         <span className="w-28 text-sm text-thb-text-primary font-medium">{d.department}</span>
                         <div className="flex-1 h-8 bg-slate-100 rounded-lg overflow-hidden relative">
-                          <div className="h-full bg-blue-500 rounded-lg transition-all" style={{ width: `${(d.count / 50) * 100}%` }} />
-                          <div className="absolute inset-0 h-full border-2 border-dashed border-violet-300 rounded-lg" style={{ width: `${(d.budget / 50) * 100}%` }} />
+                          <div className="h-full bg-green-500 rounded-lg transition-all" style={{ width: `${(d.count / 50) * 100}%` }} />
+                          <div className="absolute inset-0 h-full border-2 border-dashed border-teal-300 rounded-lg" style={{ width: `${(d.budget / 50) * 100}%` }} />
                         </div>
                         <span className="w-20 text-xs text-thb-text-muted text-right">{d.count}/{d.budget}</span>
                       </div>
                     ))}
                   </div>
                   <div className="flex items-center gap-4 mt-3 text-xs text-thb-text-muted">
-                    <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-blue-500 inline-block" /> Current</span>
-                    <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded border-2 border-dashed border-violet-300 inline-block" /> Budget</span>
+                    <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-green-500 inline-block" /> Current</span>
+                    <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded border-2 border-dashed border-teal-300 inline-block" /> Budget</span>
                   </div>
                 </div>
               </div>
@@ -174,7 +174,7 @@ export default function EmployeeReportsPage() {
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                   <div className="p-4 rounded-lg bg-red-50"><p className="text-xs text-red-600 font-medium">Turnover Rate</p><p className="text-2xl font-bold text-red-700 mt-1">12.5%</p></div>
                   <div className="p-4 rounded-lg bg-amber-50"><p className="text-xs text-amber-600 font-medium">Voluntary</p><p className="text-2xl font-bold text-amber-700 mt-1">8</p></div>
-                  <div className="p-4 rounded-lg bg-blue-50"><p className="text-xs text-blue-600 font-medium">Involuntary</p><p className="text-2xl font-bold text-blue-700 mt-1">3</p></div>
+                  <div className="p-4 rounded-lg bg-green-50"><p className="text-xs text-green-600 font-medium">Involuntary</p><p className="text-2xl font-bold text-green-700 mt-1">3</p></div>
                   <div className="p-4 rounded-lg bg-emerald-50"><p className="text-xs text-emerald-600 font-medium">Avg Tenure</p><p className="text-2xl font-bold text-emerald-700 mt-1">2.8 yrs</p></div>
                 </div>
                 <div>
@@ -203,9 +203,9 @@ export default function EmployeeReportsPage() {
             {activeReport === 'department' && (
               <div className="space-y-6">
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                  <div className="p-4 rounded-lg bg-blue-50"><p className="text-xs text-blue-600 font-medium">Total Departments</p><p className="text-2xl font-bold text-blue-700 mt-1">6</p></div>
+                  <div className="p-4 rounded-lg bg-green-50"><p className="text-xs text-green-600 font-medium">Total Departments</p><p className="text-2xl font-bold text-green-700 mt-1">6</p></div>
                   <div className="p-4 rounded-lg bg-emerald-50"><p className="text-xs text-emerald-600 font-medium">Avg Dept Size</p><p className="text-2xl font-bold text-emerald-700 mt-1">23</p></div>
-                  <div className="p-4 rounded-lg bg-violet-50"><p className="text-xs text-violet-600 font-medium">Total Vacancies</p><p className="text-2xl font-bold text-violet-700 mt-1">15</p></div>
+                  <div className="p-4 rounded-lg bg-teal-50"><p className="text-xs text-teal-600 font-medium">Total Vacancies</p><p className="text-2xl font-bold text-teal-700 mt-1">15</p></div>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
@@ -239,7 +239,7 @@ export default function EmployeeReportsPage() {
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                   <div className="p-4 rounded-lg bg-amber-50"><p className="text-xs text-amber-600 font-medium">On Probation</p><p className="text-2xl font-bold text-amber-700 mt-1">5</p></div>
                   <div className="p-4 rounded-lg bg-emerald-50"><p className="text-xs text-emerald-600 font-medium">Completed This Month</p><p className="text-2xl font-bold text-emerald-700 mt-1">3</p></div>
-                  <div className="p-4 rounded-lg bg-blue-50"><p className="text-xs text-blue-600 font-medium">Extended</p><p className="text-2xl font-bold text-blue-700 mt-1">1</p></div>
+                  <div className="p-4 rounded-lg bg-green-50"><p className="text-xs text-green-600 font-medium">Extended</p><p className="text-2xl font-bold text-green-700 mt-1">1</p></div>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
@@ -268,7 +268,7 @@ export default function EmployeeReportsPage() {
                           <td className="px-4 py-2.5 text-center text-thb-text-secondary">{emp.end}</td>
                           <td className="px-4 py-2.5 text-center"><span className={`text-xs font-medium ${emp.daysLeft < 0 ? 'text-red-600' : emp.daysLeft < 30 ? 'text-amber-600' : 'text-thb-text-primary'}`}>{emp.daysLeft < 0 ? `${Math.abs(emp.daysLeft)}d overdue` : `${emp.daysLeft}d`}</span></td>
                           <td className="px-4 py-2.5 text-center">
-                            <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${emp.status === 'On Track' ? 'bg-emerald-50 text-emerald-700' : emp.status === 'Review Due' ? 'bg-amber-50 text-amber-700' : emp.status === 'Overdue' ? 'bg-red-50 text-red-700' : 'bg-blue-50 text-blue-700'}`}>{emp.status}</span>
+                            <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${emp.status === 'On Track' ? 'bg-emerald-50 text-emerald-700' : emp.status === 'Review Due' ? 'bg-amber-50 text-amber-700' : emp.status === 'Overdue' ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>{emp.status}</span>
                           </td>
                         </tr>
                       ))}
@@ -283,7 +283,7 @@ export default function EmployeeReportsPage() {
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                   <div className="p-4 rounded-lg bg-red-50"><p className="text-xs text-red-600 font-medium">YTD Attrition</p><p className="text-2xl font-bold text-red-700 mt-1">14.2%</p></div>
                   <div className="p-4 rounded-lg bg-amber-50"><p className="text-xs text-amber-600 font-medium">At Risk</p><p className="text-2xl font-bold text-amber-700 mt-1">8</p></div>
-                  <div className="p-4 rounded-lg bg-blue-50"><p className="text-xs text-blue-600 font-medium">Avg Stay</p><p className="text-2xl font-bold text-blue-700 mt-1">2.4 yrs</p></div>
+                  <div className="p-4 rounded-lg bg-green-50"><p className="text-xs text-green-600 font-medium">Avg Stay</p><p className="text-2xl font-bold text-green-700 mt-1">2.4 yrs</p></div>
                   <div className="p-4 rounded-lg bg-emerald-50"><p className="text-xs text-emerald-600 font-medium">Retention Rate</p><p className="text-2xl font-bold text-emerald-700 mt-1">85.8%</p></div>
                 </div>
                 <div className="p-4 rounded-lg bg-amber-50 border border-amber-200">
@@ -301,8 +301,8 @@ export default function EmployeeReportsPage() {
             {activeReport === 'demographics' && (
               <div className="space-y-6">
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                  <div className="p-4 rounded-lg bg-blue-50"><p className="text-xs text-blue-600 font-medium">Avg Age</p><p className="text-2xl font-bold text-blue-700 mt-1">31.2</p></div>
-                  <div className="p-4 rounded-lg bg-violet-50"><p className="text-xs text-violet-600 font-medium">Male/Female</p><p className="text-2xl font-bold text-violet-700 mt-1">58/42%</p></div>
+                  <div className="p-4 rounded-lg bg-green-50"><p className="text-xs text-green-600 font-medium">Avg Age</p><p className="text-2xl font-bold text-green-700 mt-1">31.2</p></div>
+                  <div className="p-4 rounded-lg bg-teal-50"><p className="text-xs text-teal-600 font-medium">Male/Female</p><p className="text-2xl font-bold text-teal-700 mt-1">58/42%</p></div>
                   <div className="p-4 rounded-lg bg-emerald-50"><p className="text-xs text-emerald-600 font-medium">Avg Tenure</p><p className="text-2xl font-bold text-emerald-700 mt-1">2.8 yrs</p></div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -320,7 +320,7 @@ export default function EmployeeReportsPage() {
                         <div key={item.range} className="flex items-center gap-3">
                           <span className="w-12 text-xs text-thb-text-muted">{item.range}</span>
                           <div className="flex-1 h-5 bg-slate-100 rounded-full overflow-hidden">
-                            <div className="h-full bg-indigo-400 rounded-full" style={{ width: `${item.percent}%` }} />
+                            <div className="h-full bg-emerald-400 rounded-full" style={{ width: `${item.percent}%` }} />
                           </div>
                           <span className="w-16 text-xs text-thb-text-muted text-right">{item.count} ({item.percent}%)</span>
                         </div>
@@ -356,8 +356,8 @@ export default function EmployeeReportsPage() {
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                   <div className="p-4 rounded-lg bg-emerald-50"><p className="text-xs text-emerald-600 font-medium">Total Joiners</p><p className="text-2xl font-bold text-emerald-700 mt-1">29</p></div>
                   <div className="p-4 rounded-lg bg-red-50"><p className="text-xs text-red-600 font-medium">Total Leavers</p><p className="text-2xl font-bold text-red-700 mt-1">17</p></div>
-                  <div className="p-4 rounded-lg bg-blue-50"><p className="text-xs text-blue-600 font-medium">Net Change</p><p className="text-2xl font-bold text-blue-700 mt-1">+12</p></div>
-                  <div className="p-4 rounded-lg bg-violet-50"><p className="text-xs text-violet-600 font-medium">Growth Rate</p><p className="text-2xl font-bold text-violet-700 mt-1">8.6%</p></div>
+                  <div className="p-4 rounded-lg bg-green-50"><p className="text-xs text-green-600 font-medium">Net Change</p><p className="text-2xl font-bold text-green-700 mt-1">+12</p></div>
+                  <div className="p-4 rounded-lg bg-teal-50"><p className="text-xs text-teal-600 font-medium">Growth Rate</p><p className="text-2xl font-bold text-teal-700 mt-1">8.6%</p></div>
                 </div>
                 <div>
                   <h4 className="text-sm font-semibold text-thb-text-primary mb-3">Monthly Trend</h4>
@@ -396,7 +396,7 @@ export default function EmployeeReportsPage() {
                   <div className="p-4 rounded-lg bg-emerald-50"><p className="text-xs text-emerald-600 font-medium">Active Users</p><p className="text-2xl font-bold text-emerald-700 mt-1">128</p></div>
                   <div className="p-4 rounded-lg bg-amber-50"><p className="text-xs text-amber-600 font-medium">Never Logged In</p><p className="text-2xl font-bold text-amber-700 mt-1">12</p></div>
                   <div className="p-4 rounded-lg bg-red-50"><p className="text-xs text-red-600 font-medium">Locked Accounts</p><p className="text-2xl font-bold text-red-700 mt-1">2</p></div>
-                  <div className="p-4 rounded-lg bg-blue-50"><p className="text-xs text-blue-600 font-medium">Inactive (30d+)</p><p className="text-2xl font-bold text-blue-700 mt-1">8</p></div>
+                  <div className="p-4 rounded-lg bg-green-50"><p className="text-xs text-green-600 font-medium">Inactive (30d+)</p><p className="text-2xl font-bold text-green-700 mt-1">8</p></div>
                 </div>
                 <div className="p-4 rounded-lg bg-amber-50 border border-amber-200">
                   <div className="flex items-start gap-2">

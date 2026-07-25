@@ -410,10 +410,10 @@ export default function SuperAdminRBACPage() {
   };
 
   // ─── Input helpers ──────────────────────────────────────
-  const inputCls = 'w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400';
+  const inputCls = 'w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400';
   const labelCls = 'block text-xs font-medium text-thb-text-secondary mb-1';
-  const selectCls = 'w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 bg-white';
-  const btnPrimary = 'inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white hover:bg-blue-600 shadow-sm shadow-blue-500/25 rounded-lg font-medium text-sm transition-colors disabled:opacity-50';
+  const selectCls = 'w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 bg-white';
+  const btnPrimary = 'inline-flex items-center gap-2 px-4 py-2.5 bg-green-500 text-white hover:bg-green-600 shadow-sm shadow-green-500/25 rounded-lg font-medium text-sm transition-colors disabled:opacity-50';
   const btnSecondary = 'px-4 py-2 text-sm font-medium text-thb-text-secondary bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors';
 
   // ─── Error UI ───────────────────────────────────────────
@@ -487,7 +487,7 @@ export default function SuperAdminRBACPage() {
             <div className="relative flex-1">
               <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
               <input type="text" value={roleSearch} onChange={(e) => setRoleSearch(e.target.value)}
-                placeholder="Search roles..." className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                placeholder="Search roles..." className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20" />
             </div>
             <select value={tenantFilter} onChange={(e) => setTenantFilter(e.target.value)} className={selectCls + ' sm:w-48'}>
               <option value="">All Tenants</option>
@@ -508,7 +508,7 @@ export default function SuperAdminRBACPage() {
                   <FiEye className="w-5 h-5 text-emerald-500" /> Role Details
                 </h3>
                 <div className="flex gap-2">
-                  <button onClick={() => handleEditRole(viewingRole)} className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100">
+                  <button onClick={() => handleEditRole(viewingRole)} className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-green-600 bg-green-50 rounded-lg hover:bg-green-100">
                     <FiEdit2 className="w-3.5 h-3.5" /> Edit
                   </button>
                   <button onClick={() => { setViewingId(null); setViewingRole(null); }} className="p-1.5 text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 rounded-lg">
@@ -556,7 +556,7 @@ export default function SuperAdminRBACPage() {
 
           {/* Create/Edit Form */}
           {showRoleForm && (
-            <div ref={formRef} className="thb-card border-l-4 border-l-blue-500 p-6 animate-slide-in-down">
+            <div ref={formRef} className="thb-card border-l-4 border-l-green-500 p-6 animate-slide-in-down">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-thb-text-primary">{editingRoleId ? 'Edit Role' : 'Create Role'}</h3>
                 <button onClick={handleCancelForm} className="p-1.5 text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 rounded-lg"><FiX className="w-4 h-4" /></button>
@@ -649,7 +649,7 @@ export default function SuperAdminRBACPage() {
                             <td className="px-4 py-3">
                               <div className="flex items-center justify-end gap-1">
                                 <button onClick={() => handleViewRole(role.id)} className="p-2 rounded-lg text-thb-text-muted hover:text-emerald-500 hover:bg-emerald-50 transition-colors" title="View"><FiEye className="w-4 h-4" /></button>
-                                <button onClick={() => handleEditRole(role)} className="p-2 rounded-lg text-thb-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="Edit"><FiEdit2 className="w-4 h-4" /></button>
+                                <button onClick={() => handleEditRole(role)} className="p-2 rounded-lg text-thb-text-muted hover:text-green-500 hover:bg-green-50 transition-colors" title="Edit"><FiEdit2 className="w-4 h-4" /></button>
                                 {!role.isSystem && (
                                   <button onClick={() => setDeleteConfirmId(role.id)} className="p-2 rounded-lg text-thb-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete"><FiTrash2 className="w-4 h-4" /></button>
                                 )}
@@ -762,7 +762,7 @@ export default function SuperAdminRBACPage() {
             <div className="relative flex-1">
               <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
               <input type="text" value={userSearch} onChange={(e) => setUserSearch(e.target.value)}
-                placeholder="Search users..." className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                placeholder="Search users..." className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20" />
             </div>
             <select value={userTenantFilter} onChange={(e) => setUserTenantFilter(e.target.value)} className={selectCls + ' sm:w-48'}>
               <option value="">All Tenants</option>
@@ -810,7 +810,7 @@ export default function SuperAdminRBACPage() {
                       <tr key={u.id} className="border-b border-thb-border/50 hover:bg-slate-50/50 transition-colors">
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold flex-shrink-0">
+                            <div className="w-8 h-8 rounded-full bg-green-100 text-green-600 flex items-center justify-center text-xs font-bold flex-shrink-0">
                               {u.name?.[0] || '?'}
                             </div>
                             <div>
@@ -848,11 +848,11 @@ export default function SuperAdminRBACPage() {
                                     <option key={r.id} value={r.id}>{r.name}</option>
                                   ))}
                                 </select>
-                                <button onClick={handleAssignRole} className="px-2 py-1.5 text-xs bg-blue-500 text-white rounded hover:bg-blue-600">Assign</button>
+                                <button onClick={handleAssignRole} className="px-2 py-1.5 text-xs bg-green-500 text-white rounded hover:bg-green-600">Assign</button>
                                 <button onClick={() => { setAssigningUserId(null); setAssignRoleId(''); }} className="px-2 py-1.5 text-xs border border-thb-border rounded hover:bg-slate-50">Cancel</button>
                               </div>
                             ) : (
-                              <button onClick={() => setAssigningUserId(u.id)} className="p-2 rounded-lg text-thb-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="Assign Role">
+                              <button onClick={() => setAssigningUserId(u.id)} className="p-2 rounded-lg text-thb-text-muted hover:text-green-500 hover:bg-green-50 transition-colors" title="Assign Role">
                                 <FiPlus className="w-4 h-4" />
                               </button>
                             )}
@@ -915,7 +915,7 @@ function PermissionCategoryRow({
                 {perm ? (
                   <button
                     onClick={() => !disabled && onTogglePermission(perm.id)}
-                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${isOn ? 'bg-blue-500' : 'bg-slate-300'} ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${isOn ? 'bg-green-500' : 'bg-slate-300'} ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                   >
                     <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform shadow-sm ${isOn ? 'translate-x-4' : 'translate-x-0.5'}`} />
                   </button>

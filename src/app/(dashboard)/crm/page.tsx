@@ -102,8 +102,8 @@ const tabs: { key: TabKey; label: string; icon: React.ReactNode }[] = [
 
 function getStageColor(stage: string) {
   const map: Record<string, string> = {
-    Qualification: 'bg-blue-100 text-blue-700',
-    Proposal: 'bg-purple-100 text-purple-700',
+    Qualification: 'bg-green-100 text-green-700',
+    Proposal: 'bg-teal-100 text-teal-700',
     Negotiation: 'bg-amber-100 text-amber-700',
     'Closed Won': 'bg-emerald-100 text-emerald-700',
     'Closed Lost': 'bg-red-100 text-red-700',
@@ -131,14 +131,14 @@ const crmTabs: DashboardTabConfig[] = [
 function CRMReportsPlaceholder() {
   return (
     <div className="flex flex-col items-center py-8">
-      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg mb-4">
+      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-lg mb-4">
         <FiFileText className="w-7 h-7 text-white" />
       </div>
       <h3 className="text-lg font-bold text-thb-text-primary mb-1">Reports & Analytics</h3>
       <p className="text-sm text-thb-text-secondary text-center max-w-md mb-4">
         Sales pipeline reports, revenue forecasts, and deal analytics
       </p>
-      <a href="/crm/reports" className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors">
+      <a href="/crm/reports" className="inline-flex items-center gap-2 px-5 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors">
         <FiBarChart2 className="w-4 h-4" /> Go to Reports
       </a>
     </div>
@@ -155,7 +155,7 @@ function CRMSettingsPlaceholder() {
       <p className="text-sm text-thb-text-secondary text-center max-w-md mb-4">
         Configure pipeline stages, lead sources, and sales automation rules
       </p>
-      <a href="/crm/settings" className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors">
+      <a href="/crm/settings" className="inline-flex items-center gap-2 px-5 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors">
         <FiSettings className="w-4 h-4" /> Go to Settings
       </a>
     </div>
@@ -235,8 +235,8 @@ function CRMContent() {
       {/* Stats Row */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         {[
-          { label: 'Total Contacts', value: '248', icon: <FiUsers className="w-5 h-5" />, color: 'text-blue-600', bg: 'bg-blue-50', trend: '+12' },
-          { label: 'Active Deals', value: '34', icon: <FiBriefcase className="w-5 h-5" />, color: 'text-purple-600', bg: 'bg-purple-50', trend: '+5' },
+          { label: 'Total Contacts', value: '248', icon: <FiUsers className="w-5 h-5" />, color: 'text-green-600', bg: 'bg-green-50', trend: '+12' },
+          { label: 'Active Deals', value: '34', icon: <FiBriefcase className="w-5 h-5" />, color: 'text-teal-600', bg: 'bg-teal-50', trend: '+5' },
           { label: 'Pipeline Value', value: '₹38.5L', icon: <FiDollarSign className="w-5 h-5" />, color: 'text-emerald-600', bg: 'bg-emerald-50', trend: '+8.2%' },
           { label: 'Won This Month', value: '8', icon: <FiCheckCircle className="w-5 h-5" />, color: 'text-emerald-600', bg: 'bg-emerald-50', trend: '+3' },
           { label: 'Lost This Month', value: '3', icon: <FiX className="w-5 h-5" />, color: 'text-red-600', bg: 'bg-red-50', trend: '-1' },
@@ -362,7 +362,7 @@ function CRMContent() {
           <div className="flex items-center gap-3">
             <div className="relative flex-1 max-w-xs">
               <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input type="text" placeholder="Search contacts..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+              <input type="text" placeholder="Search contacts..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
             </div>
             <button onClick={() => setShowAddContactModal(true)} className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-sm font-medium transition-colors ml-auto">
               <FiPlus className="w-4 h-4" /> Add Contact
@@ -394,12 +394,12 @@ function CRMContent() {
                     <td className="py-3 px-4 text-thb-text-secondary">{contact.company}</td>
                     <td className="py-3 px-4 text-thb-text-secondary">{contact.email}</td>
                     <td className="py-3 px-4 text-thb-text-secondary">{contact.phone}</td>
-                    <td className="py-3 px-4"><span className={`px-2 py-1 rounded-full text-xs font-medium ${contact.type === 'Customer' ? 'bg-emerald-100 text-emerald-700' : contact.type === 'Lead' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>{contact.type}</span></td>
+                    <td className="py-3 px-4"><span className={`px-2 py-1 rounded-full text-xs font-medium ${contact.type === 'Customer' ? 'bg-emerald-100 text-emerald-700' : contact.type === 'Lead' ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'}`}>{contact.type}</span></td>
                     <td className="py-3 px-4 text-center"><span className={contact.status === 'Active' ? 'thb-badge thb-badge-success' : 'thb-badge thb-badge-warning'}>{contact.status}</span></td>
                     <td className="py-3 px-4 text-right font-medium text-emerald-600">₹{contact.dealValue.toLocaleString()}</td>
                     <td className="py-3 px-4 text-center">
                       <div className="flex items-center justify-center gap-1">
-                        <button className="p-1.5 rounded-lg text-slate-400 hover:text-blue-500 hover:bg-blue-50 transition-colors"><FiEye className="w-3.5 h-3.5" /></button>
+                        <button className="p-1.5 rounded-lg text-slate-400 hover:text-green-500 hover:bg-green-50 transition-colors"><FiEye className="w-3.5 h-3.5" /></button>
                         <button className="p-1.5 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-amber-50 transition-colors"><FiEdit2 className="w-3.5 h-3.5" /></button>
                         <button className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"><FiTrash2 className="w-3.5 h-3.5" /></button>
                       </div>
@@ -418,7 +418,7 @@ function CRMContent() {
           <div className="flex items-center gap-3">
             <div className="relative flex-1 max-w-xs">
               <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input type="text" placeholder="Search deals..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+              <input type="text" placeholder="Search deals..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
             </div>
             <button onClick={() => setShowAddDealModal(true)} className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-sm font-medium transition-colors ml-auto">
               <FiPlus className="w-4 h-4" /> New Deal
@@ -427,8 +427,8 @@ function CRMContent() {
           {/* Pipeline Stats */}
           <div className="grid grid-cols-4 gap-3">
             {[
-              { label: 'Total Pipeline', value: '₹38.5L', color: 'text-blue-600' },
-              { label: 'Weighted Pipeline', value: '₹22.8L', color: 'text-purple-600' },
+              { label: 'Total Pipeline', value: '₹38.5L', color: 'text-green-600' },
+              { label: 'Weighted Pipeline', value: '₹22.8L', color: 'text-teal-600' },
               { label: 'Avg Deal Size', value: '₹3.5L', color: 'text-emerald-600' },
               { label: 'Avg Close Time', value: '28 days', color: 'text-amber-600' },
             ].map(s => (
@@ -445,7 +445,7 @@ function CRMContent() {
               return (
                 <div key={stage} className="min-w-[220px]">
                   <div className="flex items-center gap-2 mb-3">
-                    <span className={`w-2 h-2 rounded-full ${stage === 'Closed Won' ? 'bg-emerald-500' : stage === 'Closed Lost' ? 'bg-red-500' : stage === 'Negotiation' ? 'bg-amber-500' : stage === 'Proposal' ? 'bg-purple-500' : 'bg-blue-500'}`} />
+                    <span className={`w-2 h-2 rounded-full ${stage === 'Closed Won' ? 'bg-emerald-500' : stage === 'Closed Lost' ? 'bg-red-500' : stage === 'Negotiation' ? 'bg-amber-500' : stage === 'Proposal' ? 'bg-teal-500' : 'bg-green-500'}`} />
                     <span className="text-xs font-semibold text-thb-text-primary">{stage}</span>
                     <span className="text-xs text-thb-text-muted bg-slate-100 px-1.5 py-0.5 rounded">{stageDeals.length}</span>
                   </div>
@@ -477,7 +477,7 @@ function CRMContent() {
           <div className="flex items-center gap-3">
             <div className="relative flex-1 max-w-xs">
               <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input type="text" placeholder="Search leads..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+              <input type="text" placeholder="Search leads..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
             </div>
             <button onClick={() => setShowAddLeadModal(true)} className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-sm font-medium transition-colors ml-auto">
               <FiPlus className="w-4 h-4" /> Add Lead
@@ -518,11 +518,11 @@ function CRMContent() {
                       </div>
                     </td>
                     <td className="py-3 px-4 text-center"><span className={getTempBadge(lead.temperature)}>{lead.temperature}</span></td>
-                    <td className="py-3 px-4 text-center"><span className={`px-2 py-1 rounded-full text-xs font-medium ${lead.status === 'Qualified' ? 'bg-emerald-100 text-emerald-700' : lead.status === 'Contacted' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-700'}`}>{lead.status}</span></td>
+                    <td className="py-3 px-4 text-center"><span className={`px-2 py-1 rounded-full text-xs font-medium ${lead.status === 'Qualified' ? 'bg-emerald-100 text-emerald-700' : lead.status === 'Contacted' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-700'}`}>{lead.status}</span></td>
                     <td className="py-3 px-4 text-thb-text-secondary">{lead.assignedTo}</td>
                     <td className="py-3 px-4 text-center">
                       <div className="flex items-center justify-center gap-1">
-                        <button className="p-1.5 rounded-lg text-slate-400 hover:text-blue-500 hover:bg-blue-50 transition-colors"><FiPhone className="w-3.5 h-3.5" /></button>
+                        <button className="p-1.5 rounded-lg text-slate-400 hover:text-green-500 hover:bg-green-50 transition-colors"><FiPhone className="w-3.5 h-3.5" /></button>
                         <button className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 transition-colors"><FiMail className="w-3.5 h-3.5" /></button>
                         <button className="p-1.5 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-amber-50 transition-colors"><FiCalendar className="w-3.5 h-3.5" /></button>
                       </div>
@@ -541,9 +541,9 @@ function CRMContent() {
           <h3 className="text-sm font-semibold text-thb-text-primary mb-4">Recent Activities</h3>
           <div className="space-y-3">
             {[
-              { type: 'call', icon: <FiPhone className="w-4 h-4" />, color: 'text-blue-500 bg-blue-50', title: 'Call with Rajesh Kumar', desc: 'Discussed ERP implementation timeline', time: '2 hours ago' },
+              { type: 'call', icon: <FiPhone className="w-4 h-4" />, color: 'text-green-500 bg-green-50', title: 'Call with Rajesh Kumar', desc: 'Discussed ERP implementation timeline', time: '2 hours ago' },
               { type: 'email', icon: <FiMail className="w-4 h-4" />, color: 'text-emerald-500 bg-emerald-50', title: 'Email to Priya Sharma', desc: 'Sent proposal for cloud migration project', time: '4 hours ago' },
-              { type: 'meeting', icon: <FiUsers className="w-4 h-4" />, color: 'text-purple-500 bg-purple-50', title: 'Meeting with Amit Patel', desc: 'Quarterly review and next steps discussion', time: 'Yesterday' },
+              { type: 'meeting', icon: <FiUsers className="w-4 h-4" />, color: 'text-teal-500 bg-teal-50', title: 'Meeting with Amit Patel', desc: 'Quarterly review and next steps discussion', time: 'Yesterday' },
               { type: 'deal', icon: <FiBriefcase className="w-4 h-4" />, color: 'text-amber-500 bg-amber-50', title: 'Deal Won: HRMS Customization', desc: 'Closed deal with Zenith Corp worth ₹1.8L', time: '2 days ago' },
               { type: 'task', icon: <FiCheckCircle className="w-4 h-4" />, color: 'text-teal-500 bg-teal-50', title: 'Follow-up: DataFlow Inc', desc: 'Schedule security audit proposal presentation', time: '3 days ago' },
             ].map((activity, i) => (
@@ -569,12 +569,12 @@ function CRMContent() {
               <button onClick={() => setShowAddContactModal(false)} className="p-2 rounded-lg hover:bg-slate-100 transition-colors"><FiX className="w-5 h-5 text-slate-400" /></button>
             </div>
             <div className="p-5 space-y-3">
-              <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Name</label><input type="text" placeholder="Contact name" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20" /></div>
-              <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Email</label><input type="email" placeholder="email@company.com" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20" /></div>
-              <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Company</label><input type="text" placeholder="Company name" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20" /></div>
+              <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Name</label><input type="text" placeholder="Contact name" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20" /></div>
+              <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Email</label><input type="email" placeholder="email@company.com" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20" /></div>
+              <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Company</label><input type="text" placeholder="Company name" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20" /></div>
               <div className="grid grid-cols-2 gap-3">
-                <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Phone</label><input type="tel" placeholder="+91 XXXXX XXXXX" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20" /></div>
-                <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Type</label><select className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"><option>Lead</option><option>Customer</option><option>Partner</option></select></div>
+                <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Phone</label><input type="tel" placeholder="+91 XXXXX XXXXX" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20" /></div>
+                <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Type</label><select className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20"><option>Lead</option><option>Customer</option><option>Partner</option></select></div>
               </div>
             </div>
             <div className="flex gap-3 p-5 border-t border-slate-100">
@@ -594,15 +594,15 @@ function CRMContent() {
               <button onClick={() => setShowAddDealModal(false)} className="p-2 rounded-lg hover:bg-slate-100 transition-colors"><FiX className="w-5 h-5 text-slate-400" /></button>
             </div>
             <div className="p-5 space-y-3">
-              <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Deal Name</label><input type="text" placeholder="e.g., ERP Implementation" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20" /></div>
-              <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Company</label><input type="text" placeholder="Client company" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20" /></div>
+              <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Deal Name</label><input type="text" placeholder="e.g., ERP Implementation" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20" /></div>
+              <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Company</label><input type="text" placeholder="Client company" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20" /></div>
               <div className="grid grid-cols-2 gap-3">
-                <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Value (₹)</label><input type="number" placeholder="0" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20" /></div>
-                <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Stage</label><select className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"><option>Qualification</option><option>Proposal</option><option>Negotiation</option></select></div>
+                <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Value (₹)</label><input type="number" placeholder="0" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20" /></div>
+                <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Stage</label><select className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20"><option>Qualification</option><option>Proposal</option><option>Negotiation</option></select></div>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Close Date</label><input type="date" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20" /></div>
-                <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Probability %</label><input type="number" placeholder="50" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20" /></div>
+                <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Close Date</label><input type="date" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20" /></div>
+                <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Probability %</label><input type="number" placeholder="50" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20" /></div>
               </div>
             </div>
             <div className="flex gap-3 p-5 border-t border-slate-100">
@@ -622,15 +622,15 @@ function CRMContent() {
               <button onClick={() => setShowAddLeadModal(false)} className="p-2 rounded-lg hover:bg-slate-100 transition-colors"><FiX className="w-5 h-5 text-slate-400" /></button>
             </div>
             <div className="p-5 space-y-3">
-              <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Lead Name</label><input type="text" placeholder="Full name" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20" /></div>
-              <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Email</label><input type="email" placeholder="lead@company.com" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20" /></div>
+              <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Lead Name</label><input type="text" placeholder="Full name" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20" /></div>
+              <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Email</label><input type="email" placeholder="lead@company.com" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20" /></div>
               <div className="grid grid-cols-2 gap-3">
-                <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Company</label><input type="text" placeholder="Company" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20" /></div>
-                <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Source</label><select className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"><option>Website</option><option>Referral</option><option>LinkedIn</option><option>Events</option><option>Cold Call</option></select></div>
+                <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Company</label><input type="text" placeholder="Company" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20" /></div>
+                <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Source</label><select className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20"><option>Website</option><option>Referral</option><option>LinkedIn</option><option>Events</option><option>Cold Call</option></select></div>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Score (1-100)</label><input type="number" min="1" max="100" defaultValue="50" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20" /></div>
-                <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Assigned To</label><select className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"><option>Sales Rep A</option><option>Sales Rep B</option><option>Sales Rep C</option></select></div>
+                <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Score (1-100)</label><input type="number" min="1" max="100" defaultValue="50" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20" /></div>
+                <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Assigned To</label><select className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20"><option>Sales Rep A</option><option>Sales Rep B</option><option>Sales Rep C</option></select></div>
               </div>
             </div>
             <div className="flex gap-3 p-5 border-t border-slate-100">

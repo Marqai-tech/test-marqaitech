@@ -56,14 +56,14 @@ export default function UtilizationPage() {
           Project ID (optional):
           <input type="text" value={projectId} onChange={(e) => setProjectId(e.target.value)} placeholder="Filter by project" className="ml-2 border rounded px-2 py-1 w-64" />
         </label>
-        <button onClick={load} className="ml-auto bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">Refresh</button>
+        <button onClick={load} className="ml-auto bg-green-600 text-white px-4 py-2 rounded text-sm hover:bg-green-700">Refresh</button>
       </div>
 
       {summary && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="bg-white border rounded-lg p-4">
             <div className="text-xs uppercase text-gray-500">Avg Utilization</div>
-            <div className="text-2xl font-bold text-blue-600">{summary.avgUtilizationPct}%</div>
+            <div className="text-2xl font-bold text-green-600">{summary.avgUtilizationPct}%</div>
           </div>
           <div className="bg-white border rounded-lg p-4">
             <div className="text-xs uppercase text-gray-500">Billable Hours</div>

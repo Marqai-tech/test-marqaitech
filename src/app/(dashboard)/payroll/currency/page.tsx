@@ -389,7 +389,7 @@ export default function CurrencyFXPage() {
               <button onClick={handleAddRate} className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 font-medium text-sm shadow-sm shadow-emerald-500/25 transition-colors">
                 <FiTrendingUp className="w-4 h-4" /> Add Rate
               </button>
-              <button onClick={handleAddConfig} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium text-sm shadow-sm shadow-blue-500/25 transition-colors">
+              <button onClick={handleAddConfig} className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-500 text-white rounded-lg hover:bg-green-600 font-medium text-sm shadow-sm shadow-green-500/25 transition-colors">
                 <FiPlus className="w-4 h-4" /> Add Config
               </button>
             </>
@@ -401,7 +401,7 @@ export default function CurrencyFXPage() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center"><FiDollarSign className="w-5 h-5 text-blue-500" /></div>
+            <div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center"><FiDollarSign className="w-5 h-5 text-green-500" /></div>
             <div>
               <p className="text-xs font-medium text-thb-text-secondary">Currency Configs</p>
               <p className="text-xl font-bold text-thb-text-primary">{totalConfigs}</p>
@@ -428,7 +428,7 @@ export default function CurrencyFXPage() {
         </div>
         <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-purple-50 flex items-center justify-center"><FiTrendingUp className="w-5 h-5 text-purple-500" /></div>
+            <div className="w-10 h-10 rounded-lg bg-teal-50 flex items-center justify-center"><FiTrendingUp className="w-5 h-5 text-teal-500" /></div>
             <div>
               <p className="text-xs font-medium text-thb-text-secondary">Active Rates</p>
               <p className="text-xl font-bold text-thb-text-primary">{activeRates}</p>
@@ -441,13 +441,13 @@ export default function CurrencyFXPage() {
       <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg w-fit">
         <button
           onClick={() => setActiveTab('configs')}
-          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'configs' ? 'bg-white text-blue-600 shadow-sm' : 'text-thb-text-secondary hover:text-thb-text-primary'}`}
+          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'configs' ? 'bg-white text-green-600 shadow-sm' : 'text-thb-text-secondary hover:text-thb-text-primary'}`}
         >
           Currency Configurations
         </button>
         <button
           onClick={() => setActiveTab('rates')}
-          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'rates' ? 'bg-white text-blue-600 shadow-sm' : 'text-thb-text-secondary hover:text-thb-text-primary'}`}
+          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'rates' ? 'bg-white text-green-600 shadow-sm' : 'text-thb-text-secondary hover:text-thb-text-primary'}`}
         >
           Exchange Rates
         </button>
@@ -462,7 +462,7 @@ export default function CurrencyFXPage() {
             placeholder={`Search by ${activeTab === 'configs' ? 'base/payroll currency, source' : 'currency pair, source'}...`}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+            className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
           />
         </div>
       </div>
@@ -477,7 +477,7 @@ export default function CurrencyFXPage() {
                 <p className="text-sm text-thb-text-secondary mt-0.5">{viewingConfig.baseCurrency} → {viewingConfig.payrollCurrency}</p>
               </div>
               <div className="flex items-center gap-2">
-                {isAdmin && <button onClick={() => handleEditConfig(viewingConfig)} className="px-3 py-1.5 rounded-lg bg-blue-500 text-white text-xs font-medium hover:bg-blue-600 transition-colors flex items-center gap-1"><FiEdit2 className="w-3.5 h-3.5" /> Edit</button>}
+                {isAdmin && <button onClick={() => handleEditConfig(viewingConfig)} className="px-3 py-1.5 rounded-lg bg-green-500 text-white text-xs font-medium hover:bg-green-600 transition-colors flex items-center gap-1"><FiEdit2 className="w-3.5 h-3.5" /> Edit</button>}
                 <button onClick={() => setViewingConfig(null)} className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors"><FiX className="w-5 h-5" /></button>
               </div>
             </div>
@@ -508,7 +508,7 @@ export default function CurrencyFXPage() {
                 <p className="text-sm text-thb-text-secondary mt-0.5">1 {viewingRate.fromCurrency} = {viewingRate.exchangeRate} {viewingRate.toCurrency}</p>
               </div>
               <div className="flex items-center gap-2">
-                {isAdmin && <button onClick={() => handleEditRate(viewingRate)} className="px-3 py-1.5 rounded-lg bg-blue-500 text-white text-xs font-medium hover:bg-blue-600 transition-colors flex items-center gap-1"><FiEdit2 className="w-3.5 h-3.5" /> Edit</button>}
+                {isAdmin && <button onClick={() => handleEditRate(viewingRate)} className="px-3 py-1.5 rounded-lg bg-green-500 text-white text-xs font-medium hover:bg-green-600 transition-colors flex items-center gap-1"><FiEdit2 className="w-3.5 h-3.5" /> Edit</button>}
                 <button onClick={() => setViewingRate(null)} className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors"><FiX className="w-5 h-5" /></button>
               </div>
             </div>
@@ -528,7 +528,7 @@ export default function CurrencyFXPage() {
 
       {/* Config Form */}
       {showConfigForm && (
-        <div id="config-form" className="thb-card border-l-4 border-l-blue-500">
+        <div id="config-form" className="thb-card border-l-4 border-l-green-500">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-semibold text-thb-text-primary">{editingConfigId ? 'Edit Currency Config' : 'Create Currency Config'}</h2>
@@ -539,23 +539,23 @@ export default function CurrencyFXPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-thb-text-secondary mb-1">Legal Entity ID *</label>
-                  <input value={configForm.legalEntityId} onChange={(e) => setConfigForm({ ...configForm, legalEntityId: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="e.g. LE-001" />
+                  <input value={configForm.legalEntityId} onChange={(e) => setConfigForm({ ...configForm, legalEntityId: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="e.g. LE-001" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-thb-text-secondary mb-1">Base Currency *</label>
-                  <select value={configForm.baseCurrency} onChange={(e) => setConfigForm({ ...configForm, baseCurrency: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                  <select value={configForm.baseCurrency} onChange={(e) => setConfigForm({ ...configForm, baseCurrency: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                     {CURRENCY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-thb-text-secondary mb-1">Payroll Currency *</label>
-                  <select value={configForm.payrollCurrency} onChange={(e) => setConfigForm({ ...configForm, payrollCurrency: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                  <select value={configForm.payrollCurrency} onChange={(e) => setConfigForm({ ...configForm, payrollCurrency: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                     {CURRENCY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-thb-text-secondary mb-1">Reporting Currency</label>
-                  <select value={configForm.reportingCurrency} onChange={(e) => setConfigForm({ ...configForm, reportingCurrency: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                  <select value={configForm.reportingCurrency} onChange={(e) => setConfigForm({ ...configForm, reportingCurrency: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                     <option value="">Same as Base</option>
                     {CURRENCY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
@@ -567,25 +567,25 @@ export default function CurrencyFXPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-thb-text-secondary mb-1">Rate Source</label>
-                  <select value={configForm.exchangeRateSource} onChange={(e) => setConfigForm({ ...configForm, exchangeRateSource: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                  <select value={configForm.exchangeRateSource} onChange={(e) => setConfigForm({ ...configForm, exchangeRateSource: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                     {RATE_SOURCE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-thb-text-secondary mb-1">Rate Type</label>
-                  <select value={configForm.rateType} onChange={(e) => setConfigForm({ ...configForm, rateType: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                  <select value={configForm.rateType} onChange={(e) => setConfigForm({ ...configForm, rateType: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                     {RATE_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-thb-text-secondary mb-1">Rounding Rule</label>
-                  <select value={configForm.roundingRule} onChange={(e) => setConfigForm({ ...configForm, roundingRule: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                  <select value={configForm.roundingRule} onChange={(e) => setConfigForm({ ...configForm, roundingRule: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                     {ROUNDING_RULE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-thb-text-secondary mb-1">Rounding Precision</label>
-                  <input type="number" value={configForm.roundingPrecision} onChange={(e) => setConfigForm({ ...configForm, roundingPrecision: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                  <input type="number" value={configForm.roundingPrecision} onChange={(e) => setConfigForm({ ...configForm, roundingPrecision: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                 </div>
                 <div className="flex items-end pb-1">
                   <label className="flex items-center gap-2 text-sm text-thb-text-secondary cursor-pointer">
@@ -596,7 +596,7 @@ export default function CurrencyFXPage() {
                 {configForm.autoFetchEnabled && (
                   <div>
                     <label className="block text-xs font-medium text-thb-text-secondary mb-1">Fetch Frequency</label>
-                    <select value={configForm.fetchFrequency} onChange={(e) => setConfigForm({ ...configForm, fetchFrequency: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                    <select value={configForm.fetchFrequency} onChange={(e) => setConfigForm({ ...configForm, fetchFrequency: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                       <option value="">Select</option>
                       {FETCH_FREQUENCY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                     </select>
@@ -604,13 +604,13 @@ export default function CurrencyFXPage() {
                 )}
                 <div>
                   <label className="block text-xs font-medium text-thb-text-secondary mb-1">Gain/Loss GL Account</label>
-                  <input value={configForm.gainLossAccount} onChange={(e) => setConfigForm({ ...configForm, gainLossAccount: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="e.g. GL-EXCH-001" />
+                  <input value={configForm.gainLossAccount} onChange={(e) => setConfigForm({ ...configForm, gainLossAccount: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="e.g. GL-EXCH-001" />
                 </div>
               </div>
             </div>
             <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-thb-border">
               <button onClick={() => { setShowConfigForm(false); setEditingConfigId(null); }} className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
-              <button onClick={handleSubmitConfig} disabled={submitting} className="px-6 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50 shadow-sm shadow-blue-500/25 transition-colors">
+              <button onClick={handleSubmitConfig} disabled={submitting} className="px-6 py-2.5 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 disabled:opacity-50 shadow-sm shadow-green-500/25 transition-colors">
                 {submitting ? 'Saving...' : editingConfigId ? 'Update Config' : 'Create Config'}
               </button>
             </div>
@@ -629,33 +629,33 @@ export default function CurrencyFXPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">From Currency *</label>
-                <select value={rateForm.fromCurrency} onChange={(e) => setRateForm({ ...rateForm, fromCurrency: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                <select value={rateForm.fromCurrency} onChange={(e) => setRateForm({ ...rateForm, fromCurrency: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                   {CURRENCY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
               </div>
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">To Currency *</label>
-                <select value={rateForm.toCurrency} onChange={(e) => setRateForm({ ...rateForm, toCurrency: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                <select value={rateForm.toCurrency} onChange={(e) => setRateForm({ ...rateForm, toCurrency: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                   {CURRENCY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
               </div>
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Exchange Rate *</label>
-                <input type="number" step="0.000001" value={rateForm.exchangeRate} onChange={(e) => setRateForm({ ...rateForm, exchangeRate: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="e.g. 83.45" />
+                <input type="number" step="0.000001" value={rateForm.exchangeRate} onChange={(e) => setRateForm({ ...rateForm, exchangeRate: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="e.g. 83.45" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Rate Date *</label>
-                <input type="date" value={rateForm.rateDate} onChange={(e) => setRateForm({ ...rateForm, rateDate: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                <input type="date" value={rateForm.rateDate} onChange={(e) => setRateForm({ ...rateForm, rateDate: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Rate Type</label>
-                <select value={rateForm.rateType} onChange={(e) => setRateForm({ ...rateForm, rateType: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                <select value={rateForm.rateType} onChange={(e) => setRateForm({ ...rateForm, rateType: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                   {RATE_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
               </div>
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Source</label>
-                <input value={rateForm.source} onChange={(e) => setRateForm({ ...rateForm, source: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="e.g. RBI, ECB, Manual Entry" />
+                <input value={rateForm.source} onChange={(e) => setRateForm({ ...rateForm, source: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="e.g. RBI, ECB, Manual Entry" />
               </div>
             </div>
             <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-thb-border">
@@ -714,7 +714,7 @@ export default function CurrencyFXPage() {
                         <td className="px-4 py-3 text-sm text-thb-text-secondary">{formatStr(c.roundingRule)} ({c.roundingPrecision}dp)</td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-1">
-                            <button onClick={() => { setViewingConfig(c); setViewingRate(null); }} className="p-1.5 rounded-lg text-thb-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="View"><FiEye className="w-4 h-4" /></button>
+                            <button onClick={() => { setViewingConfig(c); setViewingRate(null); }} className="p-1.5 rounded-lg text-thb-text-muted hover:text-green-500 hover:bg-green-50 transition-colors" title="View"><FiEye className="w-4 h-4" /></button>
                             {isAdmin && <button onClick={() => handleEditConfig(c)} className="p-1.5 rounded-lg text-thb-text-muted hover:text-amber-500 hover:bg-amber-50 transition-colors" title="Edit"><FiEdit2 className="w-4 h-4" /></button>}
                             {isAdmin && <button onClick={() => { setDeleteConfirmId(c.id); setDeleteType('config'); }} className="p-1.5 rounded-lg text-thb-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete"><FiTrash2 className="w-4 h-4" /></button>}
                           </div>
@@ -767,7 +767,7 @@ export default function CurrencyFXPage() {
                       <td className="px-4 py-3">{r.isActive ? <span className="thb-badge thb-badge-success">Active</span> : <span className="thb-badge thb-badge-error">Inactive</span>}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1">
-                          <button onClick={() => { setViewingRate(r); setViewingConfig(null); }} className="p-1.5 rounded-lg text-thb-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="View"><FiEye className="w-4 h-4" /></button>
+                          <button onClick={() => { setViewingRate(r); setViewingConfig(null); }} className="p-1.5 rounded-lg text-thb-text-muted hover:text-green-500 hover:bg-green-50 transition-colors" title="View"><FiEye className="w-4 h-4" /></button>
                           {isAdmin && <button onClick={() => handleEditRate(r)} className="p-1.5 rounded-lg text-thb-text-muted hover:text-amber-500 hover:bg-amber-50 transition-colors" title="Edit"><FiEdit2 className="w-4 h-4" /></button>}
                           {isAdmin && <button onClick={() => { setDeleteConfirmId(r.id); setDeleteType('rate'); }} className="p-1.5 rounded-lg text-thb-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete"><FiTrash2 className="w-4 h-4" /></button>}
                         </div>

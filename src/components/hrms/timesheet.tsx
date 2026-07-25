@@ -131,8 +131,8 @@ export default function Timesheet() {
     const map: Record<string, string> = {
       'Approved': 'bg-emerald-600/20 text-emerald-400',
       'approved': 'bg-emerald-600/20 text-emerald-400',
-      'Submitted': 'bg-blue-600/20 text-blue-400',
-      'submitted': 'bg-blue-600/20 text-blue-400',
+      'Submitted': 'bg-green-600/20 text-green-400',
+      'submitted': 'bg-green-600/20 text-green-400',
       'Pending': 'bg-amber-600/20 text-amber-400',
       'pending': 'bg-amber-600/20 text-amber-400',
       'Rejected': 'bg-red-600/20 text-red-400',
@@ -393,7 +393,7 @@ export default function Timesheet() {
         <Card className="bg-slate-900 border-slate-800">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-purple-600/20"><BarChart3 className="w-5 h-5 text-purple-400" /></div>
+              <div className="p-2 rounded-lg bg-teal-600/20"><BarChart3 className="w-5 h-5 text-teal-400" /></div>
               <div><p className="text-sm text-slate-400">Billable %</p><p className="text-2xl font-bold text-white">{totalWeeklyHours > 0 ? Math.round((billableHours / totalWeeklyHours) * 100) : 0}%</p></div>
             </div>
           </CardContent>
@@ -647,7 +647,7 @@ export default function Timesheet() {
             <Card className="bg-slate-900 border-slate-800">
               <CardContent className="p-6">
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="p-2 rounded-lg bg-purple-600/20"><Users className="w-5 h-5 text-purple-400" /></div>
+                  <div className="p-2 rounded-lg bg-teal-600/20"><Users className="w-5 h-5 text-teal-400" /></div>
                   <h3 className="text-white font-semibold">Team Performance</h3>
                 </div>
                 <div className="space-y-3">

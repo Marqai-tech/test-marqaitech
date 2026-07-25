@@ -341,7 +341,7 @@ export default function EmployeePaymentMethodsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
-            <FiCreditCard className="w-6 h-6 text-blue-500" />
+            <FiCreditCard className="w-6 h-6 text-green-500" />
             Employee Payment Methods
           </h1>
           <p className="text-thb-text-secondary mt-1">Manage bank details and split payment configurations for employees</p>
@@ -357,7 +357,7 @@ export default function EmployeePaymentMethodsPage() {
           {isAdmin && (
             <button
               onClick={handleAddNew}
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium text-sm shadow-sm shadow-blue-500/25 transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-500 text-white rounded-lg hover:bg-green-600 font-medium text-sm shadow-sm shadow-green-500/25 transition-colors"
             >
               <FiPlus className="w-4 h-4" /> Add Payment Method
             </button>
@@ -369,8 +369,8 @@ export default function EmployeePaymentMethodsPage() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
-              <FiCreditCard className="w-5 h-5 text-blue-500" />
+            <div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center">
+              <FiCreditCard className="w-5 h-5 text-green-500" />
             </div>
             <div>
               <p className="text-xs font-medium text-thb-text-secondary">Total Methods</p>
@@ -423,13 +423,13 @@ export default function EmployeePaymentMethodsPage() {
               placeholder="Search by employee name, ID, or bank..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+              className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
             />
           </div>
           <select
             value={employeeFilter}
             onChange={(e) => setEmployeeFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[180px]"
+            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 min-w-[180px]"
           >
             <option value="">All Employees</option>
             {employees.map(e => <option key={e.id} value={e.id}>{e.firstName} {e.lastName} ({e.employeeId})</option>)}
@@ -437,7 +437,7 @@ export default function EmployeePaymentMethodsPage() {
           <select
             value={paymentTypeFilter}
             onChange={(e) => setPaymentTypeFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[150px]"
+            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 min-w-[150px]"
           >
             <option value="">All Types</option>
             {PAYMENT_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -445,7 +445,7 @@ export default function EmployeePaymentMethodsPage() {
           <select
             value={primaryFilter}
             onChange={(e) => setPrimaryFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[140px]"
+            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 min-w-[140px]"
           >
             <option value="">All Priority</option>
             <option value="true">Primary</option>
@@ -454,7 +454,7 @@ export default function EmployeePaymentMethodsPage() {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[130px]"
+            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 min-w-[130px]"
           >
             <option value="">All Status</option>
             <option value="active">Active</option>
@@ -469,7 +469,7 @@ export default function EmployeePaymentMethodsPage() {
           <div className="p-6">
             {viewLoading ? (
               <div className="flex items-center justify-center py-8">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500" />
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-500" />
               </div>
             ) : (
               <>
@@ -489,7 +489,7 @@ export default function EmployeePaymentMethodsPage() {
                     {isAdmin && (
                       <button
                         onClick={() => handleEdit(viewingMethod)}
-                        className="px-3 py-1.5 rounded-lg bg-blue-500 text-white text-xs font-medium hover:bg-blue-600 transition-colors flex items-center gap-1"
+                        className="px-3 py-1.5 rounded-lg bg-green-500 text-white text-xs font-medium hover:bg-green-600 transition-colors flex items-center gap-1"
                       >
                         <FiEdit2 className="w-3.5 h-3.5" /> Edit
                       </button>
@@ -529,7 +529,7 @@ export default function EmployeePaymentMethodsPage() {
 
       {/* Embedded Inline Form */}
       {showForm && (
-        <div id="crud-form" className="thb-card border-l-4 border-l-blue-500">
+        <div id="crud-form" className="thb-card border-l-4 border-l-green-500">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-semibold text-thb-text-primary">
@@ -552,7 +552,7 @@ export default function EmployeePaymentMethodsPage() {
                   <select
                     value={form.employeeId}
                     onChange={(e) => setForm({ ...form, employeeId: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                   >
                     <option value="">Select Employee</option>
                     {employees.map(e => <option key={e.id} value={e.id}>{e.firstName} {e.lastName} ({e.employeeId})</option>)}
@@ -563,7 +563,7 @@ export default function EmployeePaymentMethodsPage() {
                   <select
                     value={form.paymentType}
                     onChange={(e) => setForm({ ...form, paymentType: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                   >
                     {PAYMENT_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
@@ -573,7 +573,7 @@ export default function EmployeePaymentMethodsPage() {
                   <select
                     value={form.currencyCode}
                     onChange={(e) => setForm({ ...form, currencyCode: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                   >
                     {CURRENCY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
@@ -591,7 +591,7 @@ export default function EmployeePaymentMethodsPage() {
                     <input
                       value={form.bankName}
                       onChange={(e) => setForm({ ...form, bankName: e.target.value })}
-                      className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                      className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                       placeholder="e.g. HDFC Bank"
                     />
                   </div>
@@ -600,7 +600,7 @@ export default function EmployeePaymentMethodsPage() {
                     <input
                       value={form.bankAccountNo}
                       onChange={(e) => setForm({ ...form, bankAccountNo: e.target.value })}
-                      className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                      className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                       placeholder="e.g. 1234567890"
                     />
                   </div>
@@ -609,7 +609,7 @@ export default function EmployeePaymentMethodsPage() {
                     <input
                       value={form.bankIfscCode}
                       onChange={(e) => setForm({ ...form, bankIfscCode: e.target.value.toUpperCase() })}
-                      className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                      className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                       placeholder="e.g. HDFC0001234"
                     />
                   </div>
@@ -618,7 +618,7 @@ export default function EmployeePaymentMethodsPage() {
                     <input
                       value={form.bankBranch}
                       onChange={(e) => setForm({ ...form, bankBranch: e.target.value })}
-                      className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                      className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                       placeholder="e.g. Mumbai Branch"
                     />
                   </div>
@@ -627,7 +627,7 @@ export default function EmployeePaymentMethodsPage() {
                     <select
                       value={form.accountType}
                       onChange={(e) => setForm({ ...form, accountType: e.target.value })}
-                      className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                      className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                     >
                       {ACCOUNT_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                     </select>
@@ -645,7 +645,7 @@ export default function EmployeePaymentMethodsPage() {
                   <select
                     value={form.splitType}
                     onChange={(e) => setForm({ ...form, splitType: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                   >
                     {SPLIT_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
@@ -661,7 +661,7 @@ export default function EmployeePaymentMethodsPage() {
                       min={0}
                       value={form.splitValue}
                       onChange={(e) => setForm({ ...form, splitValue: e.target.value })}
-                      className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                      className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                       placeholder={form.splitType === 'PERCENTAGE' ? 'e.g. 80' : 'e.g. 50000'}
                     />
                   </div>
@@ -692,7 +692,7 @@ export default function EmployeePaymentMethodsPage() {
                     max={10}
                     value={form.priority}
                     onChange={(e) => setForm({ ...form, priority: parseInt(e.target.value) || 1 })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                     placeholder="1 = highest"
                   />
                 </div>
@@ -702,7 +702,7 @@ export default function EmployeePaymentMethodsPage() {
                     type="date"
                     value={form.effectiveFrom}
                     onChange={(e) => setForm({ ...form, effectiveFrom: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                   />
                 </div>
                 <div>
@@ -711,7 +711,7 @@ export default function EmployeePaymentMethodsPage() {
                     type="date"
                     value={form.effectiveTo}
                     onChange={(e) => setForm({ ...form, effectiveTo: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                   />
                 </div>
               </div>
@@ -728,7 +728,7 @@ export default function EmployeePaymentMethodsPage() {
               <button
                 onClick={handleSubmit}
                 disabled={submitting}
-                className="px-6 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50 shadow-sm shadow-blue-500/25 transition-colors"
+                className="px-6 py-2.5 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 disabled:opacity-50 shadow-sm shadow-green-500/25 transition-colors"
               >
                 {submitting ? 'Saving...' : editingId ? 'Update Payment Method' : 'Create Payment Method'}
               </button>
@@ -794,8 +794,8 @@ export default function EmployeePaymentMethodsPage() {
                     <tr key={m.id} className="hover:bg-slate-50/50 transition-colors">
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
-                          <div className="w-7 h-7 rounded-full bg-blue-50 flex items-center justify-center">
-                            <FiUser className="w-3.5 h-3.5 text-blue-500" />
+                          <div className="w-7 h-7 rounded-full bg-green-50 flex items-center justify-center">
+                            <FiUser className="w-3.5 h-3.5 text-green-500" />
                           </div>
                           <div>
                             <p className="text-sm font-medium text-thb-text-primary">{getEmployeeName(m)}</p>
@@ -842,7 +842,7 @@ export default function EmployeePaymentMethodsPage() {
                         <div className="flex items-center gap-1">
                           <button
                             onClick={() => handleView(m)}
-                            className="p-1.5 rounded-md text-thb-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors"
+                            className="p-1.5 rounded-md text-thb-text-muted hover:text-green-500 hover:bg-green-50 transition-colors"
                             title="View"
                           >
                             <FiEye className="w-4 h-4" />

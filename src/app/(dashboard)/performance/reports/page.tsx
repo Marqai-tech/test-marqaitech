@@ -15,7 +15,7 @@ const reports: { key: ReportType; label: string; icon: React.ReactNode; desc: st
 
 const ratingData = [
   { rating: '5 — Exceptional', count: 12, pct: 8, color: 'bg-emerald-500' },
-  { rating: '4 — Exceeds Expectations', count: 45, pct: 30, color: 'bg-blue-500' },
+  { rating: '4 — Exceeds Expectations', count: 45, pct: 30, color: 'bg-green-500' },
   { rating: '3 — Meets Expectations', count: 68, pct: 45, color: 'bg-amber-500' },
   { rating: '2 — Needs Improvement', count: 20, pct: 13, color: 'bg-orange-500' },
   { rating: '1 — Unsatisfactory', count: 5, pct: 4, color: 'bg-red-500' },
@@ -35,7 +35,7 @@ export default function PerformanceReportsPage() {
         </div>
         <button
           onClick={() => toast.success('Report exported successfully')}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium"
+          className="flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium"
         >
           <FiDownload className="w-4 h-4" /> Export Report
         </button>
@@ -46,9 +46,9 @@ export default function PerformanceReportsPage() {
           <button
             key={r.key}
             onClick={() => setActiveReport(r.key)}
-            className={`thb-card p-4 text-left hover:shadow-md transition-all ${activeReport === r.key ? 'ring-2 ring-blue-500 shadow-md' : ''}`}
+            className={`thb-card p-4 text-left hover:shadow-md transition-all ${activeReport === r.key ? 'ring-2 ring-green-500 shadow-md' : ''}`}
           >
-            <div className={`p-2 rounded-lg inline-flex ${activeReport === r.key ? 'bg-blue-500 text-white' : 'bg-slate-100 text-slate-600'} mb-2`}>{r.icon}</div>
+            <div className={`p-2 rounded-lg inline-flex ${activeReport === r.key ? 'bg-green-500 text-white' : 'bg-slate-100 text-slate-600'} mb-2`}>{r.icon}</div>
             <p className="text-sm font-semibold text-thb-text-primary">{r.label}</p>
             <p className="text-xs text-thb-text-muted mt-0.5">{r.desc}</p>
           </button>

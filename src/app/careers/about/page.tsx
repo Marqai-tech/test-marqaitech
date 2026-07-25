@@ -38,8 +38,8 @@ const VALUES = [
 const WHY_JOIN_FEATURES = [
   { icon: FiZap, title: 'Apply in seconds', body: 'Upload your resume once and apply to any role across our group companies with a single click.', accent: 'from-amber-500 to-orange-600' },
   { icon: FiShield, title: 'Privacy-first', body: 'Your data is encrypted at rest, consent-driven, and never shared without your explicit permission.', accent: 'from-emerald-500 to-teal-600' },
-  { icon: FiTrendingUp, title: 'AI-assisted matching', body: 'Our smart matching engine surfaces roles that fit your skills, experience, and career goals.', accent: 'from-blue-500 to-indigo-600' },
-  { icon: FiAward, title: 'Transparent process', body: 'Track every application in real time — from screening to interview to offer — with no black boxes.', accent: 'from-violet-500 to-purple-600' },
+  { icon: FiTrendingUp, title: 'AI-assisted matching', body: 'Our smart matching engine surfaces roles that fit your skills, experience, and career goals.', accent: 'from-green-500 to-emerald-600' },
+  { icon: FiAward, title: 'Transparent process', body: 'Track every application in real time — from screening to interview to offer — with no black boxes.', accent: 'from-teal-500 to-teal-600' },
 ];
 
 export default function AboutPage() {
@@ -79,7 +79,7 @@ export default function AboutPage() {
       <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <Link href="/careers" className="flex items-center gap-2.5 group">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-600 flex items-center justify-center shadow-md shadow-blue-500/30 group-hover:shadow-lg transition-shadow">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-green-600 via-emerald-600 to-teal-600 flex items-center justify-center shadow-md shadow-green-500/30 group-hover:shadow-lg transition-shadow">
               <FiBriefcase className="w-5 h-5 text-white" />
             </div>
             <div>
@@ -88,17 +88,17 @@ export default function AboutPage() {
             </div>
           </Link>
           <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-slate-600">
-            <Link href="/careers" className="hover:text-blue-600 transition-colors">Home</Link>
-            <Link href="/careers/categories" className="hover:text-blue-600 transition-colors">Categories</Link>
-            <Link href="/careers/companies" className="hover:text-blue-600 transition-colors">Companies</Link>
-            <Link href="/careers/about" className="text-blue-600 font-semibold">About</Link>
-            <Link href="/careers/contact" className="hover:text-blue-600 transition-colors">Contact</Link>
+            <Link href="/careers" className="hover:text-green-600 transition-colors">Home</Link>
+            <Link href="/careers/categories" className="hover:text-green-600 transition-colors">Categories</Link>
+            <Link href="/careers/companies" className="hover:text-green-600 transition-colors">Companies</Link>
+            <Link href="/careers/about" className="text-green-600 font-semibold">About</Link>
+            <Link href="/careers/contact" className="hover:text-green-600 transition-colors">Contact</Link>
           </nav>
           <div className="flex items-center gap-2">
-            <Link href="/login?mode=candidate" className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold text-slate-700 hover:text-blue-600 transition-colors">
+            <Link href="/login?mode=candidate" className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold text-slate-700 hover:text-green-600 transition-colors">
               Sign In <FiExternalLink className="w-3.5 h-3.5" />
             </Link>
-            <Link href="/careers#openings" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-700 hover:to-violet-700 transition-all shadow-md shadow-blue-500/20">
+            <Link href="/careers#openings" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold text-white bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700 transition-all shadow-md shadow-green-500/20">
               Browse Jobs <FiArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>
@@ -106,10 +106,10 @@ export default function AboutPage() {
       </header>
 
       {/* ───────────── Hero ───────────── */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-blue-700 via-indigo-700 to-violet-700 text-white">
+      <section className="relative overflow-hidden bg-gradient-to-br from-green-700 via-emerald-700 to-teal-700 text-white">
         <div className="absolute inset-0 -z-10 pointer-events-none">
-          <div className="absolute -top-32 -left-32 w-96 h-96 bg-blue-400/30 rounded-full blur-3xl" />
-          <div className="absolute -top-40 right-0 w-[28rem] h-[28rem] bg-violet-400/30 rounded-full blur-3xl" />
+          <div className="absolute -top-32 -left-32 w-96 h-96 bg-green-400/30 rounded-full blur-3xl" />
+          <div className="absolute -top-40 right-0 w-[28rem] h-[28rem] bg-teal-400/30 rounded-full blur-3xl" />
           <div className="absolute bottom-0 left-1/3 w-96 h-96 bg-fuchsia-400/20 rounded-full blur-3xl" />
         </div>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-16 sm:pt-20 pb-12 text-center">
@@ -118,13 +118,13 @@ export default function AboutPage() {
           </span>
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-[1.05] mb-5">
             About 3 Boxes HRMS <br />
-            <span className="bg-gradient-to-r from-cyan-200 via-white to-violet-200 bg-clip-text text-transparent">Career Portal</span>
+            <span className="bg-gradient-to-r from-cyan-200 via-white to-teal-200 bg-clip-text text-transparent">Career Portal</span>
           </h1>
-          <p className="text-base sm:text-lg text-blue-100 max-w-2xl mx-auto mb-8">
+          <p className="text-base sm:text-lg text-green-100 max-w-2xl mx-auto mb-8">
             A unified talent platform connecting candidates with opportunities across our group companies.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Link href="/careers#openings" className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold text-blue-700 bg-white hover:bg-blue-50 transition-colors shadow-lg">
+            <Link href="/careers#openings" className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold text-green-700 bg-white hover:bg-green-50 transition-colors shadow-lg">
               Browse open roles <FiArrowRight className="w-4 h-4" />
             </Link>
             <Link href="/careers/contact" className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold text-white ring-1 ring-white/40 hover:bg-white/10 transition-colors">
@@ -139,7 +139,7 @@ export default function AboutPage() {
         {/* Our Mission */}
         <section id="mission" className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
           <div>
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-semibold ring-1 ring-blue-200 mb-4">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-green-50 text-green-700 text-xs font-semibold ring-1 ring-green-200 mb-4">
               <FiTarget className="w-3.5 h-3.5" /> Our Mission
             </span>
             <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight mb-4">Reimagining how talent and opportunity meet</h2>
@@ -160,14 +160,14 @@ export default function AboutPage() {
             </ul>
           </div>
           <div className="relative">
-            <div className="absolute inset-0 -z-10 bg-gradient-to-br from-blue-100 to-violet-100 rounded-3xl rotate-2" />
+            <div className="absolute inset-0 -z-10 bg-gradient-to-br from-green-100 to-teal-100 rounded-3xl rotate-2" />
             <Card className="p-6">
               <div className="grid grid-cols-2 gap-4">
                 {VALUES.map((v) => {
                   const Icon = v.icon;
                   return (
-                    <div key={v.label} className="aspect-square rounded-xl bg-gradient-to-br from-slate-50 to-blue-50 border border-slate-200 p-4 flex flex-col items-center justify-center text-center">
-                      <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-600 to-violet-600 flex items-center justify-center mb-2">
+                    <div key={v.label} className="aspect-square rounded-xl bg-gradient-to-br from-slate-50 to-green-50 border border-slate-200 p-4 flex flex-col items-center justify-center text-center">
+                      <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-green-600 to-teal-600 flex items-center justify-center mb-2">
                         <Icon className="w-5 h-5 text-white" />
                       </div>
                       <p className="text-xs font-semibold text-slate-700">{v.label}</p>
@@ -182,7 +182,7 @@ export default function AboutPage() {
         {/* Why Join Us */}
         <section id="why">
           <div className="text-center max-w-2xl mx-auto mb-10">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-violet-50 text-violet-700 text-xs font-semibold ring-1 ring-violet-200 mb-4">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-50 text-teal-700 text-xs font-semibold ring-1 ring-teal-200 mb-4">
               <FiZap className="w-3.5 h-3.5" /> Why Join Us
             </span>
             <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">Built for candidates, not just recruiters</h2>
@@ -207,7 +207,7 @@ export default function AboutPage() {
         {/* Stats */}
         <section id="stats">
           <div className="text-center max-w-2xl mx-auto mb-10">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-semibold ring-1 ring-blue-200 mb-4">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-green-50 text-green-700 text-xs font-semibold ring-1 ring-green-200 mb-4">
               <FiTrendingUp className="w-3.5 h-3.5" /> Live Stats
             </span>
             <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">The portal in numbers</h2>
@@ -227,21 +227,21 @@ export default function AboutPage() {
         </section>
 
         {/* CTA */}
-        <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-700 via-indigo-700 to-violet-700 text-white">
+        <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-green-700 via-emerald-700 to-teal-700 text-white">
           <div className="absolute inset-0 -z-10 pointer-events-none">
-            <div className="absolute -top-20 -right-20 w-72 h-72 bg-violet-400/30 rounded-full blur-3xl" />
-            <div className="absolute -bottom-20 -left-20 w-72 h-72 bg-blue-400/30 rounded-full blur-3xl" />
+            <div className="absolute -top-20 -right-20 w-72 h-72 bg-teal-400/30 rounded-full blur-3xl" />
+            <div className="absolute -bottom-20 -left-20 w-72 h-72 bg-green-400/30 rounded-full blur-3xl" />
           </div>
           <div className="px-6 sm:px-12 py-10 sm:py-14 text-center">
             <div className="w-14 h-14 mx-auto rounded-2xl bg-white/15 ring-1 ring-white/30 flex items-center justify-center mb-5">
               <FiGrid className="w-7 h-7 text-white" />
             </div>
             <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight mb-3">Ready to find your next role?</h2>
-            <p className="text-blue-100 max-w-xl mx-auto mb-6 text-sm sm:text-base">
+            <p className="text-green-100 max-w-xl mx-auto mb-6 text-sm sm:text-base">
               Browse open positions across all our group companies. No account required to get started.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <Link href="/careers#openings" className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold text-blue-700 bg-white hover:bg-blue-50 transition-colors shadow-lg">
+              <Link href="/careers#openings" className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold text-green-700 bg-white hover:bg-green-50 transition-colors shadow-lg">
                 Browse open roles <FiArrowRight className="w-4 h-4" />
               </Link>
               <Link href="/careers/categories" className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold text-white ring-1 ring-white/40 hover:bg-white/10 transition-colors">

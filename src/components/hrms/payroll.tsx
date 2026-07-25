@@ -19,7 +19,7 @@ import { toast } from 'sonner';
 
 const PAYROLL_STATUS_COLORS: Record<string, string> = {
   paid: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-400',
-  processed: 'bg-blue-100 text-blue-800 dark:bg-blue-950/30 dark:text-blue-400',
+  processed: 'bg-green-100 text-green-800 dark:bg-green-950/30 dark:text-green-400',
   draft: 'bg-slate-100 text-slate-800 dark:bg-slate-950/30 dark:text-slate-400',
   pending: 'bg-amber-100 text-amber-800 dark:bg-amber-950/30 dark:text-amber-400',
 };
@@ -174,8 +174,8 @@ export function Payroll() {
         </Card>
         <Card>
           <CardContent className="p-4 flex items-center gap-3">
-            <div className="p-2.5 rounded-lg bg-blue-50 dark:bg-blue-950/30">
-              <CheckCircle2 className="h-5 w-5 text-blue-600" />
+            <div className="p-2.5 rounded-lg bg-green-50 dark:bg-green-950/30">
+              <CheckCircle2 className="h-5 w-5 text-green-600" />
             </div>
             <div>
               <p className="text-2xl font-bold">{payrollData.filter(p => p.status === 'paid').length}/{payrollData.length}</p>

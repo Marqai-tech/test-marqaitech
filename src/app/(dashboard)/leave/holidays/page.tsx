@@ -44,8 +44,8 @@ export default function HolidaysPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-blue-50">
-            <FiCalendar className="w-5 h-5 text-blue-600" />
+          <div className="p-2.5 rounded-xl bg-green-50">
+            <FiCalendar className="w-5 h-5 text-green-600" />
           </div>
           <div>
             <h1 className="text-xl font-bold text-thb-text-primary">Holiday Calendar</h1>
@@ -58,7 +58,7 @@ export default function HolidaysPage() {
           <select
             value={selectedYear}
             onChange={(e) => setSelectedYear(e.target.value)}
-            className="appearance-none bg-white border border-thb-border rounded-lg px-4 py-2 pr-8 text-sm font-medium text-thb-text-primary focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+            className="appearance-none bg-white border border-thb-border rounded-lg px-4 py-2 pr-8 text-sm font-medium text-thb-text-primary focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500"
           >
             <option value="2025">2025</option>
             <option value="2026">2026</option>
@@ -71,7 +71,7 @@ export default function HolidaysPage() {
       {/* Legend */}
       <div className="flex items-center gap-6">
         <div className="flex items-center gap-2">
-          <span className="w-3 h-3 rounded-full bg-blue-500" />
+          <span className="w-3 h-3 rounded-full bg-green-500" />
           <span className="text-sm text-thb-text-secondary">Public Holiday ({publicCount})</span>
         </div>
         <div className="flex items-center gap-2">
@@ -99,8 +99,8 @@ export default function HolidaysPage() {
                   <td className="px-5 py-3 text-sm text-thb-text-secondary">{h.day}</td>
                   <td className="px-5 py-3 text-sm text-thb-text-primary">{h.name}</td>
                   <td className="px-5 py-3 text-center">
-                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${h.type === 'Public' ? 'bg-blue-50 text-blue-700' : 'bg-amber-50 text-amber-700'}`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${h.type === 'Public' ? 'bg-blue-500' : 'bg-amber-500'}`} />
+                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${h.type === 'Public' ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700'}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${h.type === 'Public' ? 'bg-green-500' : 'bg-amber-500'}`} />
                       {h.type}
                     </span>
                   </td>

@@ -7,7 +7,7 @@ import { useAuthStore } from '@/store/authStore';
 
 /* ── Data ── */
 const leaveBalances = [
-  { type: 'Casual Leave', code: 'CL', total: 12, used: 4, pending: 1, color: 'bg-blue-500', lightColor: 'bg-blue-100', textColor: 'text-blue-600' },
+  { type: 'Casual Leave', code: 'CL', total: 12, used: 4, pending: 1, color: 'bg-green-500', lightColor: 'bg-green-100', textColor: 'text-green-600' },
   { type: 'Sick Leave', code: 'SL', total: 10, used: 2, pending: 0, color: 'bg-rose-500', lightColor: 'bg-rose-100', textColor: 'text-rose-600' },
   { type: 'Earned Leave', code: 'EL', total: 15, used: 5, pending: 2, color: 'bg-emerald-500', lightColor: 'bg-emerald-100', textColor: 'text-emerald-600' },
   { type: 'Comp Off', code: 'CO', total: 3, used: 1, pending: 0, color: 'bg-amber-500', lightColor: 'bg-amber-100', textColor: 'text-amber-600' },
@@ -42,8 +42,8 @@ export default function LeaveBalancePage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <div className="p-2.5 rounded-xl bg-blue-50">
-          <FiPieChart className="w-5 h-5 text-blue-600" />
+        <div className="p-2.5 rounded-xl bg-green-50">
+          <FiPieChart className="w-5 h-5 text-green-600" />
         </div>
         <div>
           <h1 className="text-xl font-bold text-thb-text-primary">My Leave Balance</h1>

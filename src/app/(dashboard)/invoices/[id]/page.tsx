@@ -279,7 +279,7 @@ export default function InvoiceDetailPage() {
   if (loading) {
     return (
       <div className="p-6 flex items-center justify-center">
-        <FiRefreshCw className="w-6 h-6 animate-spin text-violet-600" />
+        <FiRefreshCw className="w-6 h-6 animate-spin text-teal-600" />
       </div>
     );
   }
@@ -449,7 +449,7 @@ export default function InvoiceDetailPage() {
             )}
             <div className="pt-2 border-t border-slate-200 flex justify-between">
               <span className="font-semibold text-slate-800">Total</span>
-              <span className="font-bold text-violet-700 text-lg">{formatCurrency(invoice.totalAmount, invoice.currency)}</span>
+              <span className="font-bold text-teal-700 text-lg">{formatCurrency(invoice.totalAmount, invoice.currency)}</span>
             </div>
             {hasDifferentBase && invoice.totalAmountBase !== null && (
               <div className="pt-2 border-t border-slate-100 flex justify-between text-xs text-slate-500">
@@ -569,7 +569,7 @@ export default function InvoiceDetailPage() {
                 )}
                 <tr className="border-t border-slate-200">
                   <td colSpan={hasDifferentBase ? 5 : 4} className="px-4 py-3 text-right font-semibold text-slate-800">Total</td>
-                  <td className="px-4 py-3 text-right font-bold text-violet-700 text-base">{formatCurrency(invoice.totalAmount, invoice.currency)}</td>
+                  <td className="px-4 py-3 text-right font-bold text-teal-700 text-base">{formatCurrency(invoice.totalAmount, invoice.currency)}</td>
                   {isDraft && <td></td>}
                 </tr>
                 {hasDifferentBase && invoice.totalAmountBase !== null && (

@@ -115,8 +115,8 @@ function getStatusConfig(status: string) {
     present: { label: 'Present', dotColor: 'bg-emerald-500', bgColor: 'bg-emerald-50', textColor: 'text-emerald-700' },
     absent: { label: 'Absent', dotColor: 'bg-red-500', bgColor: 'bg-red-50', textColor: 'text-red-700' },
     late: { label: 'Late', dotColor: 'bg-amber-500', bgColor: 'bg-amber-50', textColor: 'text-amber-700' },
-    on_leave: { label: 'On Leave', dotColor: 'bg-blue-500', bgColor: 'bg-blue-50', textColor: 'text-blue-700' },
-    half_day: { label: 'Half Day', dotColor: 'bg-purple-500', bgColor: 'bg-purple-50', textColor: 'text-purple-700' },
+    on_leave: { label: 'On Leave', dotColor: 'bg-green-500', bgColor: 'bg-green-50', textColor: 'text-green-700' },
+    half_day: { label: 'Half Day', dotColor: 'bg-teal-500', bgColor: 'bg-teal-50', textColor: 'text-teal-700' },
     holiday: { label: 'Holiday', dotColor: 'bg-sky-500', bgColor: 'bg-sky-50', textColor: 'text-sky-700' },
     weekend: { label: 'Weekend', dotColor: 'bg-slate-400', bgColor: 'bg-slate-50', textColor: 'text-slate-600' },
   };
@@ -129,9 +129,9 @@ function getDayStatusColor(status: string) {
     absent: 'bg-red-500 text-white',
     late: 'bg-orange-400 text-white',
     half_day: 'bg-amber-400 text-white',
-    holiday: 'bg-blue-400 text-white',
+    holiday: 'bg-green-400 text-white',
     weekend: 'bg-slate-200 text-slate-500',
-    on_leave: 'bg-blue-400 text-white',
+    on_leave: 'bg-green-400 text-white',
   };
   return map[status] || 'bg-slate-100 text-slate-400';
 }
@@ -516,9 +516,9 @@ export default function AttendancePage() {
               icon={<FiCalendar className="w-5 h-5" />}
               label="On Leave"
               value={stats.onLeave}
-              iconBg="bg-blue-100"
-              iconColor="text-blue-600"
-              accent="border-l-blue-500"
+              iconBg="bg-green-100"
+              iconColor="text-green-600"
+              accent="border-l-green-500"
             />
           </div>
 
@@ -737,9 +737,9 @@ export default function AttendancePage() {
               icon={<FiLogIn className="w-5 h-5" />}
               label="Check In"
               value={todayRecord?.checkIn ? formatTime(todayRecord.checkIn) : '—'}
-              iconBg="bg-blue-100"
-              iconColor="text-blue-600"
-              accent="border-l-blue-500"
+              iconBg="bg-green-100"
+              iconColor="text-green-600"
+              accent="border-l-green-500"
               isText
             />
             <StatCard
@@ -808,12 +808,12 @@ export default function AttendancePage() {
                 <span className="w-2 h-2 rounded-full bg-amber-500" />
                 {lateCount} Late
               </span>
-              <span className="flex items-center gap-1.5 text-blue-600 font-medium">
-                <span className="w-2 h-2 rounded-full bg-blue-500" />
+              <span className="flex items-center gap-1.5 text-green-600 font-medium">
+                <span className="w-2 h-2 rounded-full bg-green-500" />
                 {totalHours.toFixed(0)}h Total
               </span>
-              <span className="flex items-center gap-1.5 text-violet-600 font-medium">
-                <span className="w-2 h-2 rounded-full bg-violet-500" />
+              <span className="flex items-center gap-1.5 text-teal-600 font-medium">
+                <span className="w-2 h-2 rounded-full bg-teal-500" />
                 {totalOvertime.toFixed(1)}h OT
               </span>
             </div>
@@ -870,7 +870,7 @@ export default function AttendancePage() {
                     { label: 'Late', color: 'bg-orange-400' },
                     { label: 'Absent', color: 'bg-red-500' },
                     { label: 'Half Day', color: 'bg-amber-400' },
-                    { label: 'On Leave', color: 'bg-blue-400' },
+                    { label: 'On Leave', color: 'bg-green-400' },
                     { label: 'Weekend', color: 'bg-slate-200' },
                   ].map(l => (
                     <div key={l.label} className="flex items-center gap-1.5">
@@ -953,8 +953,8 @@ export default function AttendancePage() {
                 <div className="space-y-4">
                   <SummaryRow label="Present Days" value={`${presentCount}`} color="text-emerald-600" barBg="bg-emerald-100" barFill="bg-emerald-500" pct={Math.min(100, (presentCount / 22) * 100)} />
                   <SummaryRow label="Late Arrivals" value={`${lateCount}`} color="text-amber-600" barBg="bg-amber-100" barFill="bg-amber-500" pct={Math.min(100, (lateCount / 22) * 100)} />
-                  <SummaryRow label="Total Hours" value={`${totalHours.toFixed(1)}h`} color="text-blue-600" barBg="bg-blue-100" barFill="bg-blue-500" pct={Math.min(100, (totalHours / 176) * 100)} />
-                  <SummaryRow label="Overtime" value={`${totalOvertime.toFixed(1)}h`} color="text-violet-600" barBg="bg-violet-100" barFill="bg-violet-500" pct={Math.min(100, totalOvertime > 0 ? (totalOvertime / 20) * 100 : 0)} />
+                  <SummaryRow label="Total Hours" value={`${totalHours.toFixed(1)}h`} color="text-green-600" barBg="bg-green-100" barFill="bg-green-500" pct={Math.min(100, (totalHours / 176) * 100)} />
+                  <SummaryRow label="Overtime" value={`${totalOvertime.toFixed(1)}h`} color="text-teal-600" barBg="bg-teal-100" barFill="bg-teal-500" pct={Math.min(100, totalOvertime > 0 ? (totalOvertime / 20) * 100 : 0)} />
                 </div>
               </div>
 
@@ -981,7 +981,7 @@ export default function AttendancePage() {
                 <h3 className="text-xs font-semibold text-thb-text-secondary uppercase tracking-wider mb-3">Quick Links</h3>
                 <div className="space-y-1.5">
                   <QuickLinkSmall href="/attendance/regularize" icon={<FiAlertTriangle className="w-3.5 h-3.5" />} label="Regularize" color="text-amber-600" />
-                  <QuickLinkSmall href="/attendance/permission" icon={<FiClock className="w-3.5 h-3.5" />} label="Permission" color="text-blue-600" />
+                  <QuickLinkSmall href="/attendance/permission" icon={<FiClock className="w-3.5 h-3.5" />} label="Permission" color="text-green-600" />
                   <QuickLinkSmall href="/attendance/gatepass" icon={<FiList className="w-3.5 h-3.5" />} label="Gatepass" color="text-cyan-600" />
                   <QuickLinkSmall href="/attendance/comp-off" icon={<FiCalendar className="w-3.5 h-3.5" />} label="Comp-Off" color="text-emerald-600" />
                 </div>
@@ -1135,10 +1135,10 @@ function QuickLink({ href, icon, label, sub, color }: {
   href: string; icon: React.ReactNode; label: string; sub: string; color: string;
 }) {
   const colorMap: Record<string, string> = {
-    violet: 'border-violet-200 hover:border-violet-300 hover:bg-violet-50 text-violet-600',
+    violet: 'border-teal-200 hover:border-teal-300 hover:bg-teal-50 text-teal-600',
     emerald: 'border-emerald-200 hover:border-emerald-300 hover:bg-emerald-50 text-emerald-600',
     amber: 'border-amber-200 hover:border-amber-300 hover:bg-amber-50 text-amber-600',
-    blue: 'border-blue-200 hover:border-blue-300 hover:bg-blue-50 text-blue-600',
+    blue: 'border-green-200 hover:border-green-300 hover:bg-green-50 text-green-600',
     cyan: 'border-cyan-200 hover:border-cyan-300 hover:bg-cyan-50 text-cyan-600',
     rose: 'border-rose-200 hover:border-rose-300 hover:bg-rose-50 text-rose-600',
   };

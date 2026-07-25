@@ -30,7 +30,7 @@ export default function ReportsPage() {
       title: 'Company Structure Report',
       description: 'Complete organizational hierarchy including companies, branches, departments, and reporting lines. Shows the full tenant → group company → company → branch → department tree.',
       icon: <FiLayers className="w-5 h-5" />,
-      gradient: 'from-indigo-500 to-blue-600',
+      gradient: 'from-emerald-500 to-green-600',
       lastGenerated: null,
       format: 'PDF',
       category: 'Organization',
@@ -40,7 +40,7 @@ export default function ReportsPage() {
       title: 'Headcount Distribution',
       description: 'Employee headcount breakdown by company, department, designation, and grade level. Includes charts for demographic analysis and headcount trends over time.',
       icon: <FiUsers className="w-5 h-5" />,
-      gradient: 'from-violet-500 to-purple-600',
+      gradient: 'from-teal-500 to-teal-600',
       lastGenerated: null,
       format: 'Excel',
       category: 'Workforce',
@@ -50,7 +50,7 @@ export default function ReportsPage() {
       title: 'Branch-wise Summary',
       description: 'Comprehensive summary of each branch including location details, employee count, active departments, and operating status. Useful for multi-location management.',
       icon: <FiMapPin className="w-5 h-5" />,
-      gradient: 'from-blue-500 to-cyan-600',
+      gradient: 'from-green-500 to-cyan-600',
       lastGenerated: null,
       format: 'PDF',
       category: 'Location',
@@ -125,11 +125,11 @@ export default function ReportsPage() {
 
   // Quick stats for the reports overview
   const stats = [
-    { label: 'Companies', value: companies.length, icon: <FiLayers className="w-4 h-4" />, color: 'text-indigo-500 bg-indigo-50' },
-    { label: 'Branches', value: branches.length, icon: <FiMapPin className="w-4 h-4" />, color: 'text-blue-500 bg-blue-50' },
+    { label: 'Companies', value: companies.length, icon: <FiLayers className="w-4 h-4" />, color: 'text-emerald-500 bg-emerald-50' },
+    { label: 'Branches', value: branches.length, icon: <FiMapPin className="w-4 h-4" />, color: 'text-green-500 bg-green-50' },
     { label: 'Departments', value: departments.length, icon: <FiBriefcase className="w-4 h-4" />, color: 'text-emerald-500 bg-emerald-50' },
     { label: 'Designations', value: designations.length, icon: <FiAward className="w-4 h-4" />, color: 'text-amber-500 bg-amber-50' },
-    { label: 'Shifts', value: shifts.length, icon: <FiClock className="w-4 h-4" />, color: 'text-violet-500 bg-violet-50' },
+    { label: 'Shifts', value: shifts.length, icon: <FiClock className="w-4 h-4" />, color: 'text-teal-500 bg-teal-50' },
     { label: 'Holidays', value: holidays.length, icon: <FiCalendar className="w-4 h-4" />, color: 'text-red-500 bg-red-50' },
     { label: 'Policies', value: policies.length, icon: <FiFileText className="w-4 h-4" />, color: 'text-teal-500 bg-teal-50' },
   ]
@@ -184,7 +184,7 @@ export default function ReportsPage() {
                     <button
                       onClick={() => handleGenerate(report.id)}
                       disabled={generating === report.id}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-violet-500 text-white text-xs font-medium rounded-lg hover:bg-violet-600 disabled:opacity-50 shadow-sm shadow-violet-500/25 transition-colors"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-teal-500 text-white text-xs font-medium rounded-lg hover:bg-teal-600 disabled:opacity-50 shadow-sm shadow-teal-500/25 transition-colors"
                     >
                       {generating === report.id ? (
                         <><FiCheckCircle className="w-3 h-3 animate-spin" /> Generating...</>

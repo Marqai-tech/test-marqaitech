@@ -57,12 +57,12 @@ export default function LockScreenPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 relative overflow-hidden">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-green-950 to-slate-900 relative overflow-hidden">
       {/* Decorative background elements */}
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-indigo-500/10 rounded-full blur-3xl" />
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-violet-500/10 rounded-full blur-3xl" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-blue-500/5 rounded-full blur-3xl" />
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl" />
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-teal-500/10 rounded-full blur-3xl" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-green-500/5 rounded-full blur-3xl" />
       </div>
 
       {/* Lock Screen Card */}
@@ -70,20 +70,20 @@ export default function LockScreenPage() {
         <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl shadow-black/20 p-8">
           {/* Brand */}
           <div className="flex items-center justify-center gap-2 mb-8">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 via-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-blue-500/20 ring-1 ring-white/10">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500 via-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-green-500/20 ring-1 ring-white/10">
               <svg viewBox="0 0 35 11" className="w-5 h-3" fill="none">
                 <rect x="0" y="0" width="9" height="9" rx="2" fill="white" opacity="0.9"/>
                 <rect x="13" y="0" width="9" height="9" rx="2" fill="white" opacity="0.9"/>
                 <rect x="26" y="0" width="9" height="9" rx="2" fill="white" opacity="0.9"/>
               </svg>
             </div>
-            <span className="text-lg font-bold text-slate-800">3Boxes <span className="text-xs font-semibold text-indigo-500">HRMS</span></span>
+            <span className="text-lg font-bold text-slate-800">3Boxes <span className="text-xs font-semibold text-emerald-500">HRMS</span></span>
           </div>
 
           {/* Lock Icon */}
           <div className="flex justify-center mb-4">
-            <div className="w-12 h-12 rounded-full bg-indigo-50 flex items-center justify-center">
-              <FiLock className="w-5 h-5 text-indigo-500" />
+            <div className="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center">
+              <FiLock className="w-5 h-5 text-emerald-500" />
             </div>
           </div>
 
@@ -92,7 +92,7 @@ export default function LockScreenPage() {
 
           {/* Avatar */}
           <div className="flex justify-center my-5">
-            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white text-2xl font-bold shadow-lg shadow-indigo-500/25 ring-4 ring-white">
+            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white text-2xl font-bold shadow-lg shadow-emerald-500/25 ring-4 ring-white">
               {initials}
             </div>
           </div>
@@ -108,7 +108,7 @@ export default function LockScreenPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Enter Your Password"
-                className="w-full px-4 py-3 pr-12 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-colors"
+                className="w-full px-4 py-3 pr-12 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-colors"
                 autoFocus
               />
               <button
@@ -123,7 +123,7 @@ export default function LockScreenPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 bg-gradient-to-r from-indigo-500 to-violet-600 text-white rounded-xl font-medium text-sm hover:from-indigo-600 hover:to-violet-700 disabled:opacity-50 shadow-lg shadow-indigo-500/25 transition-all"
+              className="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl font-medium text-sm hover:from-emerald-600 hover:to-teal-700 disabled:opacity-50 shadow-lg shadow-emerald-500/25 transition-all"
             >
               {loading ? 'Signing in...' : 'Sign In'}
             </button>

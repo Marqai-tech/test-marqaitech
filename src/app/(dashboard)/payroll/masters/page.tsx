@@ -20,9 +20,9 @@ const masters: MasterTile[] = [
     icon: FiLayers,
     route: '/payroll/ctc-templates',
     description: 'Define and manage Cost to Company salary structures',
-    gradientBg: 'bg-blue-500/10',
-    iconColor: 'text-blue-500',
-    ringColor: 'ring-blue-500/20',
+    gradientBg: 'bg-green-500/10',
+    iconColor: 'text-green-500',
+    ringColor: 'ring-green-500/20',
   },
   {
     title: 'CTC Calculator',
@@ -38,9 +38,9 @@ const masters: MasterTile[] = [
     icon: FiDatabase,
     route: '/payroll/components',
     description: 'Configure payroll earnings, deductions, and allowances',
-    gradientBg: 'bg-purple-500/10',
-    iconColor: 'text-purple-500',
-    ringColor: 'ring-purple-500/20',
+    gradientBg: 'bg-teal-500/10',
+    iconColor: 'text-teal-500',
+    ringColor: 'ring-teal-500/20',
   },
   {
     title: 'Salary Settings',
@@ -152,7 +152,7 @@ export default function PayrollMastersPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <h3 className="text-sm font-semibold text-slate-800 group-hover:text-emerald-600 transition-colors">{m.title}</h3>
-                    {m.isNew && <span className="text-[9px] font-bold uppercase px-1 py-0.5 rounded bg-violet-100 text-violet-700">New</span>}
+                    {m.isNew && <span className="text-[9px] font-bold uppercase px-1 py-0.5 rounded bg-teal-100 text-teal-700">New</span>}
                   </div>
                   <p className="text-xs text-slate-500 mt-1 line-clamp-2">{m.description}</p>
                 </div>

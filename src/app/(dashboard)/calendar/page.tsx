@@ -37,11 +37,11 @@ interface CalendarEvent {
 /* ─────────── Sample Data ─────────── */
 
 const EVENT_COLORS: Record<EventType, { bg: string; text: string; dot: string; bar: string; icon: typeof FiCalendar }> = {
-  meeting:   { bg: 'bg-blue-50',    text: 'text-blue-700',    dot: 'bg-blue-500',    bar: 'bg-blue-500',    icon: FiUsers },
+  meeting:   { bg: 'bg-green-50',    text: 'text-green-700',    dot: 'bg-green-500',    bar: 'bg-green-500',    icon: FiUsers },
   leave:     { bg: 'bg-amber-50',   text: 'text-amber-700',   dot: 'bg-amber-500',   bar: 'bg-amber-500',   icon: FiCoffee },
   holiday:   { bg: 'bg-emerald-50', text: 'text-emerald-700', dot: 'bg-emerald-500', bar: 'bg-emerald-500', icon: FiSun },
   birthday:  { bg: 'bg-pink-50',    text: 'text-pink-700',    dot: 'bg-pink-500',    bar: 'bg-pink-500',    icon: FiGift },
-  training:  { bg: 'bg-violet-50',  text: 'text-violet-700',  dot: 'bg-violet-500',  bar: 'bg-violet-500',  icon: FiBookOpen },
+  training:  { bg: 'bg-teal-50',  text: 'text-teal-700',  dot: 'bg-teal-500',  bar: 'bg-teal-500',  icon: FiBookOpen },
   anniversary: { bg: 'bg-rose-50',  text: 'text-rose-700',    dot: 'bg-rose-400',    bar: 'bg-rose-400',    icon: FiStar },
 };
 
@@ -229,7 +229,7 @@ export default function CalendarPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center shadow-sm">
+            <div className="w-10 h-10 rounded-xl bg-green-600 flex items-center justify-center shadow-sm">
               <FiCalendar className="w-5 h-5 text-white" />
             </div>
             <div>
@@ -242,7 +242,7 @@ export default function CalendarPage() {
         </div>
         <button
           onClick={() => setShowNewEventModal(true)}
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+          className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-600 text-white text-sm font-semibold rounded-lg hover:bg-green-700 transition-colors shadow-sm"
         >
           <FiPlus className="w-4 h-4" />
           New Event
@@ -284,7 +284,7 @@ export default function CalendarPage() {
               </button>
               <button
                 onClick={goToToday}
-                className="ml-2 px-3 py-1.5 text-xs font-semibold text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+                className="ml-2 px-3 py-1.5 text-xs font-semibold text-green-600 bg-green-50 rounded-lg hover:bg-green-100 transition-colors"
               >
                 Today
               </button>
@@ -338,16 +338,16 @@ export default function CalendarPage() {
                         cell.isCurrentMonth
                           ? 'bg-white hover:bg-slate-50 cursor-pointer'
                           : 'bg-slate-50/50 cursor-default'
-                      } ${isSelected ? 'ring-2 ring-inset ring-blue-500 bg-blue-50/30' : ''}`}
+                      } ${isSelected ? 'ring-2 ring-inset ring-green-500 bg-green-50/30' : ''}`}
                     >
                       <span
                         className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-sm font-medium ${
                           isTodayCell
-                            ? 'bg-blue-600 text-white font-bold'
+                            ? 'bg-green-600 text-white font-bold'
                             : cell.isCurrentMonth
                             ? 'text-thb-text-primary'
                             : 'text-thb-text-muted'
-                        } ${isSelected && !isTodayCell ? 'bg-blue-100 text-blue-700' : ''}`}
+                        } ${isSelected && !isTodayCell ? 'bg-green-100 text-green-700' : ''}`}
                       >
                         {cell.day}
                       </span>
@@ -403,13 +403,13 @@ export default function CalendarPage() {
                     <div
                       key={wd.dayName}
                       className={`py-3 text-center border-r border-thb-border last:border-r-0 ${
-                        isTodayCell ? 'bg-blue-50/50' : ''
+                        isTodayCell ? 'bg-green-50/50' : ''
                       }`}
                     >
                       <div className="text-xs font-semibold text-thb-text-muted uppercase">{wd.dayName}</div>
                       <div
                         className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold mt-1 ${
-                          isTodayCell ? 'bg-blue-600 text-white' : 'text-thb-text-primary'
+                          isTodayCell ? 'bg-green-600 text-white' : 'text-thb-text-primary'
                         }`}
                       >
                         {wd.date}
@@ -559,7 +559,7 @@ export default function CalendarPage() {
                     <p className="text-sm text-thb-text-secondary">No events scheduled</p>
                     <button
                       onClick={() => setShowNewEventModal(true)}
-                      className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+                      className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-green-600 bg-green-50 rounded-lg hover:bg-green-100 transition-colors"
                     >
                       <FiPlus className="w-3 h-3" />
                       Add Event
@@ -653,11 +653,11 @@ export default function CalendarPage() {
             <h3 className="text-sm font-bold text-thb-text-primary mb-3">This Month</h3>
             <div className="space-y-3">
               {([
-                { label: 'Meetings', count: eventsForMonth.filter((e) => e.type === 'meeting').length, color: 'bg-blue-500' },
+                { label: 'Meetings', count: eventsForMonth.filter((e) => e.type === 'meeting').length, color: 'bg-green-500' },
                 { label: 'Leaves', count: eventsForMonth.filter((e) => e.type === 'leave').length, color: 'bg-amber-500' },
                 { label: 'Holidays', count: eventsForMonth.filter((e) => e.type === 'holiday').length, color: 'bg-emerald-500' },
                 { label: 'Birthdays', count: eventsForMonth.filter((e) => e.type === 'birthday').length, color: 'bg-pink-500' },
-                { label: 'Training', count: eventsForMonth.filter((e) => e.type === 'training').length, color: 'bg-violet-500' },
+                { label: 'Training', count: eventsForMonth.filter((e) => e.type === 'training').length, color: 'bg-teal-500' },
                 { label: 'Anniversaries', count: eventsForMonth.filter((e) => e.type === 'anniversary').length, color: 'bg-rose-400' },
               ]).map((item) => (
                 <div key={item.label} className="flex items-center justify-between">
@@ -681,7 +681,7 @@ export default function CalendarPage() {
             {/* Modal Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-thb-border">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center">
+                <div className="w-9 h-9 rounded-lg bg-green-600 flex items-center justify-center">
                   <FiPlus className="w-4 h-4 text-white" />
                 </div>
                 <h2 className="text-base font-bold text-thb-text-primary">Create New Event</h2>
@@ -706,7 +706,7 @@ export default function CalendarPage() {
                   value={newEvent.title}
                   onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
                   placeholder="Enter event title"
-                  className="w-full px-3 py-2.5 border border-thb-border rounded-lg text-sm text-thb-text-primary placeholder:text-thb-text-muted focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors"
+                  className="w-full px-3 py-2.5 border border-thb-border rounded-lg text-sm text-thb-text-primary placeholder:text-thb-text-muted focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-colors"
                 />
               </div>
 
@@ -719,7 +719,7 @@ export default function CalendarPage() {
                   type="date"
                   value={newEvent.date}
                   onChange={(e) => setNewEvent({ ...newEvent, date: e.target.value })}
-                  className="w-full px-3 py-2.5 border border-thb-border rounded-lg text-sm text-thb-text-primary focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors"
+                  className="w-full px-3 py-2.5 border border-thb-border rounded-lg text-sm text-thb-text-primary focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-colors"
                 />
               </div>
 
@@ -731,7 +731,7 @@ export default function CalendarPage() {
                     type="time"
                     value={newEvent.time}
                     onChange={(e) => setNewEvent({ ...newEvent, time: e.target.value })}
-                    className="w-full px-3 py-2.5 border border-thb-border rounded-lg text-sm text-thb-text-primary focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors"
+                    className="w-full px-3 py-2.5 border border-thb-border rounded-lg text-sm text-thb-text-primary focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-colors"
                   />
                 </div>
                 <div>
@@ -740,7 +740,7 @@ export default function CalendarPage() {
                     type="time"
                     value={newEvent.endTime}
                     onChange={(e) => setNewEvent({ ...newEvent, endTime: e.target.value })}
-                    className="w-full px-3 py-2.5 border border-thb-border rounded-lg text-sm text-thb-text-primary focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors"
+                    className="w-full px-3 py-2.5 border border-thb-border rounded-lg text-sm text-thb-text-primary focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-colors"
                   />
                 </div>
               </div>
@@ -780,7 +780,7 @@ export default function CalendarPage() {
                     value={newEvent.location}
                     onChange={(e) => setNewEvent({ ...newEvent, location: e.target.value })}
                     placeholder="Add location"
-                    className="w-full pl-10 pr-3 py-2.5 border border-thb-border rounded-lg text-sm text-thb-text-primary placeholder:text-thb-text-muted focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors"
+                    className="w-full pl-10 pr-3 py-2.5 border border-thb-border rounded-lg text-sm text-thb-text-primary placeholder:text-thb-text-muted focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-colors"
                   />
                 </div>
               </div>
@@ -793,7 +793,7 @@ export default function CalendarPage() {
                   onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })}
                   placeholder="Add event description..."
                   rows={3}
-                  className="w-full px-3 py-2.5 border border-thb-border rounded-lg text-sm text-thb-text-primary placeholder:text-thb-text-muted focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors resize-none"
+                  className="w-full px-3 py-2.5 border border-thb-border rounded-lg text-sm text-thb-text-primary placeholder:text-thb-text-muted focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-colors resize-none"
                 />
               </div>
             </div>
@@ -812,7 +812,7 @@ export default function CalendarPage() {
                   setShowNewEventModal(false);
                   setNewEvent({ title: '', date: '', time: '09:00', endTime: '10:00', type: 'meeting', description: '', location: '' });
                 }}
-                className="px-5 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+                className="px-5 py-2.5 bg-green-600 text-white text-sm font-semibold rounded-lg hover:bg-green-700 transition-colors shadow-sm"
               >
                 Create Event
               </button>
@@ -838,8 +838,8 @@ function StatCard({
   color: 'blue' | 'violet' | 'amber' | 'emerald';
 }) {
   const colorMap = {
-    blue:    { bg: 'bg-blue-50',    iconBg: 'bg-blue-100',    iconText: 'text-blue-600',    valueText: 'text-blue-700' },
-    violet:  { bg: 'bg-violet-50',  iconBg: 'bg-violet-100',  iconText: 'text-violet-600',  valueText: 'text-violet-700' },
+    blue:    { bg: 'bg-green-50',    iconBg: 'bg-green-100',    iconText: 'text-green-600',    valueText: 'text-green-700' },
+    violet:  { bg: 'bg-teal-50',  iconBg: 'bg-teal-100',  iconText: 'text-teal-600',  valueText: 'text-teal-700' },
     amber:   { bg: 'bg-amber-50',   iconBg: 'bg-amber-100',   iconText: 'text-amber-600',   valueText: 'text-amber-700' },
     emerald: { bg: 'bg-emerald-50', iconBg: 'bg-emerald-100', iconText: 'text-emerald-600', valueText: 'text-emerald-700' },
   };

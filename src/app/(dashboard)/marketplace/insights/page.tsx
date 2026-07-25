@@ -40,7 +40,7 @@ export default function MarketplaceInsightsPage() {
           <h1 className="text-2xl font-bold">AI Marketplace Insights</h1>
           <p className="text-sm text-gray-600 mt-1">Financial stress prediction (REQ-AI-MKT-03) · Fraud detection (REQ-AI-MKT-02)</p>
         </div>
-        <button onClick={runStress} disabled={loading} className="px-4 py-2 bg-purple-600 text-white rounded">{loading ? 'Scanning...' : '⚡ Run Stress Analysis'}</button>
+        <button onClick={runStress} disabled={loading} className="px-4 py-2 bg-teal-600 text-white rounded">{loading ? 'Scanning...' : '⚡ Run Stress Analysis'}</button>
       </div>
       <div className="bg-yellow-50 border-l-4 border-yellow-500 p-3 text-xs">
         ⚠ Per local privacy laws, results may be anonymized. Tenant Admins can configure identification policy.

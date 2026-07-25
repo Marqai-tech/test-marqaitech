@@ -84,7 +84,7 @@ export default function LocaleSwitcher() {
               onClick={() => handleChange(l)}
               disabled={switching}
               className={`w-full text-left px-3 py-2 text-sm hover:bg-slate-50 flex items-center gap-2 disabled:opacity-50 ${
-                l === locale ? 'bg-violet-50 text-violet-700 font-medium' : 'text-slate-700'
+                l === locale ? 'bg-teal-50 text-teal-700 font-medium' : 'text-slate-700'
               }`}
             >
               <span className="text-base">{localeNames[l].flag}</span>

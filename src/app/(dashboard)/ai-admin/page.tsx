@@ -90,7 +90,7 @@ function getApprovalStatusBadge(status: string) {
     pending: 'thb-badge thb-badge-warning',
     approved: 'thb-badge thb-badge-success',
     rejected: 'thb-badge thb-badge-error',
-    modified: 'bg-blue-50 text-blue-700 thb-badge',
+    modified: 'bg-green-50 text-green-700 thb-badge',
   };
   return { className: map[status] || 'thb-badge thb-badge-info', label: status.charAt(0).toUpperCase() + status.slice(1) };
 }
@@ -303,7 +303,7 @@ export default function AIAdminPage() {
         </div>
         <div className="thb-card p-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-blue-50"><FiMonitor className="w-4 h-4 text-blue-600" /></div>
+            <div className="p-2 rounded-lg bg-green-50"><FiMonitor className="w-4 h-4 text-green-600" /></div>
             <div>
               <p className="text-xs font-medium text-thb-text-secondary">Total Prompts</p>
               <p className="text-xl font-bold text-thb-text-primary">{totalPrompts}</p>

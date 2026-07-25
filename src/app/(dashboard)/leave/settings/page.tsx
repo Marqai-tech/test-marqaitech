@@ -52,8 +52,8 @@ export default function LeaveSettingsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-blue-50">
-            <FiSettings className="w-5 h-5 text-blue-600" />
+          <div className="p-2.5 rounded-xl bg-green-50">
+            <FiSettings className="w-5 h-5 text-green-600" />
           </div>
           <div>
             <h1 className="text-xl font-bold text-thb-text-primary">Leave Policy Config</h1>
@@ -64,7 +64,7 @@ export default function LeaveSettingsPage() {
           <button
             onClick={handleSave}
             disabled={saving}
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50 transition-colors"
           >
             <FiSave className="w-4 h-4" />
             {saving ? 'Saving...' : 'Save Settings'}
@@ -91,7 +91,7 @@ export default function LeaveSettingsPage() {
                   value={casualLeavePerYear}
                   onChange={(e) => setCasualLeavePerYear(Number(e.target.value))}
                   min={0}
-                  className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm text-thb-text-primary focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm text-thb-text-primary focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500"
                 />
                 <p className="text-xs text-thb-text-muted mt-1">Number of casual leaves per year</p>
               </div>
@@ -102,7 +102,7 @@ export default function LeaveSettingsPage() {
                   value={sickLeavePerYear}
                   onChange={(e) => setSickLeavePerYear(Number(e.target.value))}
                   min={0}
-                  className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm text-thb-text-primary focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm text-thb-text-primary focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500"
                 />
                 <p className="text-xs text-thb-text-muted mt-1">Number of sick leaves per year</p>
               </div>
@@ -113,7 +113,7 @@ export default function LeaveSettingsPage() {
                   value={earnedLeavePerYear}
                   onChange={(e) => setEarnedLeavePerYear(Number(e.target.value))}
                   min={0}
-                  className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm text-thb-text-primary focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm text-thb-text-primary focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500"
                 />
                 <p className="text-xs text-thb-text-muted mt-1">Number of earned/privilege leaves per year</p>
               </div>
@@ -124,7 +124,7 @@ export default function LeaveSettingsPage() {
                   value={probationLeaveQuota}
                   onChange={(e) => setProbationLeaveQuota(Number(e.target.value))}
                   min={0}
-                  className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm text-thb-text-primary focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm text-thb-text-primary focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500"
                 />
                 <p className="text-xs text-thb-text-muted mt-1">Leave quota during probation period</p>
               </div>
@@ -168,7 +168,7 @@ export default function LeaveSettingsPage() {
                 className="flex items-center gap-2 text-sm"
               >
                 {carryForward ? (
-                  <><FiToggleRight className="w-6 h-6 text-blue-500" /><span className="text-blue-600 font-medium">Enabled</span></>
+                  <><FiToggleRight className="w-6 h-6 text-green-500" /><span className="text-green-600 font-medium">Enabled</span></>
                 ) : (
                   <><FiToggleLeft className="w-6 h-6 text-slate-400" /><span className="text-slate-400 font-medium">Disabled</span></>
                 )}
@@ -177,14 +177,14 @@ export default function LeaveSettingsPage() {
 
             {/* Max Carry Forward */}
             {carryForward && (
-              <div className="pl-4 border-l-2 border-blue-200">
+              <div className="pl-4 border-l-2 border-green-200">
                 <label className="block text-sm font-medium text-thb-text-primary mb-1.5">Max Carry Forward Days</label>
                 <input
                   type="number"
                   value={maxCarryForward}
                   onChange={(e) => setMaxCarryForward(Number(e.target.value))}
                   min={0}
-                  className="w-full max-w-[200px] px-3 py-2 border border-thb-border rounded-lg text-sm text-thb-text-primary focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  className="w-full max-w-[200px] px-3 py-2 border border-thb-border rounded-lg text-sm text-thb-text-primary focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500"
                 />
                 <p className="text-xs text-thb-text-muted mt-1">Maximum number of leave days that can be carried forward</p>
               </div>
@@ -201,7 +201,7 @@ export default function LeaveSettingsPage() {
                 className="flex items-center gap-2 text-sm"
               >
                 {proRateJoining ? (
-                  <><FiToggleRight className="w-6 h-6 text-blue-500" /><span className="text-blue-600 font-medium">Enabled</span></>
+                  <><FiToggleRight className="w-6 h-6 text-green-500" /><span className="text-green-600 font-medium">Enabled</span></>
                 ) : (
                   <><FiToggleLeft className="w-6 h-6 text-slate-400" /><span className="text-slate-400 font-medium">Disabled</span></>
                 )}
@@ -244,7 +244,7 @@ export default function LeaveSettingsPage() {
                   value={minAdvanceNotice}
                   onChange={(e) => setMinAdvanceNotice(Number(e.target.value))}
                   min={0}
-                  className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm text-thb-text-primary focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm text-thb-text-primary focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500"
                 />
                 <p className="text-xs text-thb-text-muted mt-1">Minimum days before leave start date that application must be submitted</p>
               </div>
@@ -260,7 +260,7 @@ export default function LeaveSettingsPage() {
                   className="flex items-center gap-2 text-sm"
                 >
                   {probationRestriction ? (
-                    <><FiToggleRight className="w-6 h-6 text-blue-500" /><span className="text-blue-600 font-medium">On</span></>
+                    <><FiToggleRight className="w-6 h-6 text-green-500" /><span className="text-green-600 font-medium">On</span></>
                   ) : (
                     <><FiToggleLeft className="w-6 h-6 text-slate-400" /><span className="text-slate-400 font-medium">Off</span></>
                   )}

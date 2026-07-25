@@ -51,7 +51,7 @@ interface Employee { id: string; firstName: string; lastName: string; employeeId
 function getStatusBadge(status: string) {
   const map: Record<string, { cls: string; icon: React.ReactNode }> = {
     draft:     { cls: 'bg-slate-100 text-slate-600',     icon: <FiClock className="w-3 h-3" /> },
-    active:    { cls: 'bg-blue-100 text-blue-700',        icon: <FiTrendingUp className="w-3 h-3" /> },
+    active:    { cls: 'bg-green-100 text-green-700',        icon: <FiTrendingUp className="w-3 h-3" /> },
     at_risk:   { cls: 'bg-amber-100 text-amber-700',      icon: <FiAlertCircle className="w-3 h-3" /> },
     completed: { cls: 'bg-emerald-100 text-emerald-700',  icon: <FiCheckCircle className="w-3 h-3" /> },
     missed:    { cls: 'bg-red-100 text-red-700',          icon: <FiAlertCircle className="w-3 h-3" /> },
@@ -66,8 +66,8 @@ function getStatusBadge(status: string) {
 
 function getCategoryBadge(category: string) {
   const map: Record<string, { cls: string; label: string; icon: React.ReactNode }> = {
-    company:     { cls: 'bg-violet-100 text-violet-700 border-violet-200',   label: 'Company',     icon: <FiBriefcase className="w-3 h-3" /> },
-    sub_company: { cls: 'bg-indigo-100 text-indigo-700 border-indigo-200',   label: 'Sub-Company', icon: <FiBriefcase className="w-3 h-3" /> },
+    company:     { cls: 'bg-teal-100 text-teal-700 border-teal-200',   label: 'Company',     icon: <FiBriefcase className="w-3 h-3" /> },
+    sub_company: { cls: 'bg-emerald-100 text-emerald-700 border-emerald-200',   label: 'Sub-Company', icon: <FiBriefcase className="w-3 h-3" /> },
     project:     { cls: 'bg-cyan-100 text-cyan-700 border-cyan-200',         label: 'Project',     icon: <FiGrid className="w-3 h-3" /> },
     individual:  { cls: 'bg-pink-100 text-pink-700 border-pink-200',         label: 'Individual',  icon: <FiUser className="w-3 h-3" /> },
   };
@@ -93,7 +93,7 @@ function getProgress(krs: KeyResult[] | undefined | null): number {
 
 function getProgressColor(pct: number): string {
   if (pct >= 80) return 'bg-emerald-500';
-  if (pct >= 50) return 'bg-blue-500';
+  if (pct >= 50) return 'bg-green-500';
   if (pct >= 25) return 'bg-amber-500';
   return 'bg-slate-400';
 }
@@ -162,14 +162,14 @@ function OKRNode({
             </div>
             <button
               onClick={() => onAddChild(okr)}
-              className="p-1.5 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded"
+              className="p-1.5 text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded"
               title="Add child OKR"
             >
               <FiPlus className="w-4 h-4" />
             </button>
             <button
               onClick={() => onEdit(okr)}
-              className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded"
+              className="p-1.5 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded"
               title="Edit"
             >
               <FiEdit2 className="w-4 h-4" />
@@ -219,7 +219,7 @@ function OKRNode({
                       type="number"
                       value={kr.currentValue}
                       onChange={e => onUpdateKR(kr, Number(e.target.value))}
-                      className="w-16 px-1.5 py-0.5 text-xs border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-violet-400"
+                      className="w-16 px-1.5 py-0.5 text-xs border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-teal-400"
                       title="Update current value"
                     />
                   </div>
@@ -489,7 +489,7 @@ export default function OKRCascadePage() {
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-            <FiTarget className="w-7 h-7 text-violet-600" />
+            <FiTarget className="w-7 h-7 text-teal-600" />
             OKR Cascade
           </h1>
           <p className="text-sm text-slate-500 mt-1">
@@ -512,8 +512,8 @@ export default function OKRCascadePage() {
           <p className="text-2xl font-bold text-slate-800 mt-1">{stats.total}</p>
         </div>
         <div className="bg-white rounded-xl p-4 border border-slate-200">
-          <p className="text-xs uppercase tracking-wider text-violet-600">Company</p>
-          <p className="text-2xl font-bold text-violet-700 mt-1">{stats.company}</p>
+          <p className="text-xs uppercase tracking-wider text-teal-600">Company</p>
+          <p className="text-2xl font-bold text-teal-700 mt-1">{stats.company}</p>
         </div>
         <div className="bg-white rounded-xl p-4 border border-slate-200">
           <p className="text-xs uppercase tracking-wider text-cyan-600">Project</p>
@@ -560,7 +560,7 @@ export default function OKRCascadePage() {
       <div>
         {loading ? (
           <div className="flex items-center justify-center py-12">
-            <FiRefreshCw className="w-6 h-6 animate-spin text-violet-600" />
+            <FiRefreshCw className="w-6 h-6 animate-spin text-teal-600" />
           </div>
         ) : okrs.length === 0 ? (
           <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
@@ -727,7 +727,7 @@ export default function OKRCascadePage() {
                       ...form,
                       keyResults: [...form.keyResults, { title: '', targetValue: 100, unit: '' }],
                     })}
-                    className="text-xs text-violet-600 hover:text-violet-700 flex items-center gap-1"
+                    className="text-xs text-teal-600 hover:text-teal-700 flex items-center gap-1"
                   >
                     <FiPlus className="w-3 h-3" /> Add KR
                   </button>

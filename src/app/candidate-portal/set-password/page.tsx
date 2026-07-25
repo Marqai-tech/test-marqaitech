@@ -72,11 +72,11 @@ export default function SetPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-violet-50 via-white to-sky-50 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-teal-50 via-white to-sky-50 p-4">
       <div className="fixed top-4 left-4 flex items-center gap-2 text-xs">
         <Link
           href="/candidate-portal/login"
-          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white/80 backdrop-blur border border-slate-200 text-slate-600 hover:text-violet-700 hover:border-violet-200 transition-colors shadow-sm"
+          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white/80 backdrop-blur border border-slate-200 text-slate-600 hover:text-teal-700 hover:border-teal-200 transition-colors shadow-sm"
         >
           <FiArrowLeft className="w-3.5 h-3.5" /> Back to Login
         </Link>
@@ -84,7 +84,7 @@ export default function SetPasswordPage() {
 
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-violet-500 text-white mb-3 shadow-lg">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-500 text-white mb-3 shadow-lg">
             <FiLock className="w-8 h-8" />
           </div>
           <h1 className="text-2xl font-bold text-slate-800">Set Your Password</h1>
@@ -115,7 +115,7 @@ export default function SetPasswordPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="At least 8 characters"
-                    className="w-full pl-9 pr-9 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+                    className="w-full pl-9 pr-9 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
                     onKeyDown={(e) => e.key === 'Enter' && confirm && submit()}
                   />
                   <button
@@ -151,7 +151,7 @@ export default function SetPasswordPage() {
                     value={confirm}
                     onChange={(e) => setConfirm(e.target.value)}
                     placeholder="Re-enter your password"
-                    className="w-full pl-9 pr-9 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+                    className="w-full pl-9 pr-9 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
                     onKeyDown={(e) => e.key === 'Enter' && password && confirm && submit()}
                   />
                   <button
@@ -171,7 +171,7 @@ export default function SetPasswordPage() {
               <button
                 onClick={submit}
                 disabled={loading || password.length < 8 || password !== confirm}
-                className="w-full flex items-center justify-center gap-2 bg-violet-600 hover:bg-violet-700 disabled:bg-slate-300 text-white font-medium py-2.5 rounded-lg text-sm transition-colors"
+                className="w-full flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 disabled:bg-slate-300 text-white font-medium py-2.5 rounded-lg text-sm transition-colors"
               >
                 {loading ? 'Setting password…' : <>Set Password & Continue <FiArrowRight className="w-4 h-4" /></>}
               </button>

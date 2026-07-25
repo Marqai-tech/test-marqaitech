@@ -148,14 +148,14 @@ export function Performance() {
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
-            <Users className="h-5 w-5 mx-auto text-blue-600 mb-1" />
+            <Users className="h-5 w-5 mx-auto text-green-600 mb-1" />
             <p className="text-2xl font-bold">45%</p>
             <p className="text-xs text-muted-foreground">Review Completion</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
-            <Award className="h-5 w-5 mx-auto text-purple-600 mb-1" />
+            <Award className="h-5 w-5 mx-auto text-teal-600 mb-1" />
             <p className="text-2xl font-bold">8</p>
             <p className="text-xs text-muted-foreground">Top Performers</p>
           </CardContent>
@@ -293,11 +293,11 @@ export function Performance() {
                 <p className="text-sm font-medium">Performance Risk</p>
                 <p className="text-xs text-muted-foreground mt-1">5 employees have declining performance scores over 2 quarters. Suggest intervention meetings.</p>
               </div>
-              <div className="p-3 rounded-lg border border-border bg-blue-50/50 dark:bg-blue-950/20">
+              <div className="p-3 rounded-lg border border-border bg-green-50/50 dark:bg-green-950/20">
                 <p className="text-sm font-medium">Calibration Recommendation</p>
                 <p className="text-xs text-muted-foreground mt-1">Sales team ratings are 15% above company average. Consider calibration session for consistency.</p>
               </div>
-              <div className="p-3 rounded-lg border border-border bg-purple-50/50 dark:bg-purple-950/20">
+              <div className="p-3 rounded-lg border border-border bg-teal-50/50 dark:bg-green-950/20">
                 <p className="text-sm font-medium">Skill Development</p>
                 <p className="text-xs text-muted-foreground mt-1">Leadership skills gap identified in 12 mid-level managers. Recommend enrolling in management training.</p>
               </div>

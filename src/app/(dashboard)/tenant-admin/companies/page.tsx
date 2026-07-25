@@ -180,7 +180,7 @@ export default function TenantCompaniesPage() {
   if (user && user.role === 'super_admin') {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 px-4 text-center">
-        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-500 text-white flex items-center justify-center shadow-lg shadow-indigo-500/20">
+        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-500 text-white flex items-center justify-center shadow-lg shadow-emerald-500/20">
           <FiBriefcase className="w-8 h-8" />
         </div>
         <h2 className="text-xl font-semibold text-thb-text-primary">Super admins use the Super Admin page</h2>
@@ -194,7 +194,7 @@ export default function TenantCompaniesPage() {
         </p>
         <Link
           href="/super-admin"
-          className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 font-medium text-sm shadow-sm transition-colors mt-2"
+          className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 font-medium text-sm shadow-sm transition-colors mt-2"
         >
           <FiServer className="w-4 h-4" /> Go to Super Admin
         </Link>
@@ -290,15 +290,15 @@ export default function TenantCompaniesPage() {
   return (
     <div className="space-y-6">
       {/* HERO */}
-      <div className="relative rounded-2xl overflow-hidden border-0 shadow-xl shadow-indigo-500/10">
+      <div className="relative rounded-2xl overflow-hidden border-0 shadow-xl shadow-emerald-500/10">
         <div className="absolute inset-0 bg-gradient-to-br from-[#0F172A] via-[#1E3A5F] to-[#312E81]" />
-        <div className="absolute top-0 right-0 w-72 h-72 bg-blue-500/20 rounded-full blur-[100px]" />
+        <div className="absolute top-0 right-0 w-72 h-72 bg-green-500/20 rounded-full blur-[100px]" />
         <div className="relative z-10 px-6 sm:px-8 py-6">
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div>
-              <p className="text-blue-300/60 text-xs font-medium tracking-widest uppercase">Tenant Administration</p>
+              <p className="text-green-300/60 text-xs font-medium tracking-widest uppercase">Tenant Administration</p>
               <h1 className="text-2xl font-bold text-white mt-1">Companies</h1>
-              <p className="text-blue-100/60 text-sm font-medium mt-1 flex items-center gap-1.5 flex-wrap">
+              <p className="text-green-100/60 text-sm font-medium mt-1 flex items-center gap-1.5 flex-wrap">
                 <FiHome className="w-3.5 h-3.5" />
                 <span>Inducted under tenant:</span>
                 <span className="font-bold text-white">{tenantName}</span>
@@ -334,7 +334,7 @@ export default function TenantCompaniesPage() {
                   setShowCreate(true);
                 }}
                 disabled={quotaReached}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 text-white text-sm font-semibold shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-sm font-semibold shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
                 title={
                   quotaReached
                     ? 'Company quota reached'
@@ -349,23 +349,23 @@ export default function TenantCompaniesPage() {
       </div>
 
       {/* HIERARCHY BANNER */}
-      <div className="rounded-xl p-4 border border-indigo-200 bg-gradient-to-r from-indigo-50 to-violet-50/60 flex items-start gap-3">
-        <FiLayers className="w-5 h-5 text-indigo-600 flex-shrink-0 mt-0.5" />
-        <div className="text-xs text-indigo-900 flex-1">
+      <div className="rounded-xl p-4 border border-emerald-200 bg-gradient-to-r from-emerald-50 to-teal-50/60 flex items-start gap-3">
+        <FiLayers className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+        <div className="text-xs text-emerald-900 flex-1">
           <p className="font-bold mb-2 text-sm">Where am I in the hierarchy?</p>
           <div className="flex items-center gap-2 flex-wrap mb-2">
-            <span className="inline-flex items-center gap-1 px-2 py-1 bg-white rounded-md border border-indigo-200 font-semibold">
+            <span className="inline-flex items-center gap-1 px-2 py-1 bg-white rounded-md border border-emerald-200 font-semibold">
               <FiHome className="w-3 h-3" /> Tenant: {tenantName}
             </span>
-            <span className="text-indigo-400">=</span>
-            <span className="inline-flex items-center gap-1 px-2 py-1 bg-white rounded-md border border-violet-200 font-semibold">
+            <span className="text-emerald-400">=</span>
+            <span className="inline-flex items-center gap-1 px-2 py-1 bg-white rounded-md border border-teal-200 font-semibold">
               <FiLayers className="w-3 h-3" /> Group Company (parent)
             </span>
-            <span className="text-indigo-400">→</span>
-            <span className="inline-flex items-center gap-1 px-2 py-1 bg-gradient-to-br from-indigo-500 to-violet-500 text-white rounded-md font-semibold">
+            <span className="text-emerald-400">→</span>
+            <span className="inline-flex items-center gap-1 px-2 py-1 bg-gradient-to-br from-emerald-500 to-teal-500 text-white rounded-md font-semibold">
               <FiBriefcase className="w-3 h-3" /> Company (this page)
             </span>
-            <span className="text-indigo-400">→</span>
+            <span className="text-emerald-400">→</span>
             <span className="inline-flex items-center gap-1 px-2 py-1 bg-white rounded-md border border-amber-200 font-semibold">
               <FiUsers className="w-3 h-3" /> Employees
             </span>
@@ -411,8 +411,8 @@ export default function TenantCompaniesPage() {
 
       {/* STATS */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Total Companies" value={companies.length} icon={<FiBriefcase className="w-5 h-5" />} bg="bg-indigo-50 text-indigo-600" ring="ring-indigo-100" />
-        <StatCard label="Group Companies" value={totalGroups} icon={<FiLayers className="w-5 h-5" />} bg="bg-violet-50 text-violet-600" ring="ring-violet-100" />
+        <StatCard label="Total Companies" value={companies.length} icon={<FiBriefcase className="w-5 h-5" />} bg="bg-emerald-50 text-emerald-600" ring="ring-emerald-100" />
+        <StatCard label="Group Companies" value={totalGroups} icon={<FiLayers className="w-5 h-5" />} bg="bg-teal-50 text-teal-600" ring="ring-teal-100" />
         <StatCard label="Branches" value={totalBranches} icon={<FiServer className="w-5 h-5" />} bg="bg-emerald-50 text-emerald-600" ring="ring-emerald-100" />
         <StatCard label="Employees" value={totalEmployees} icon={<FiUsers className="w-5 h-5" />} bg="bg-amber-50 text-amber-600" ring="ring-amber-100" />
       </div>
@@ -425,7 +425,7 @@ export default function TenantCompaniesPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by name, code or group..."
-            className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400/40 focus:border-indigo-300"
+            className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400/40 focus:border-emerald-300"
           />
         </div>
       </div>
@@ -443,7 +443,7 @@ export default function TenantCompaniesPage() {
             <FiAlertCircle className="w-10 h-10 mb-3" />
             <p className="text-sm font-medium">No companies found</p>
             {!quotaReached && (
-              <button onClick={() => setShowCreate(true)} className="mt-3 text-xs font-semibold text-indigo-600 hover:text-indigo-700">
+              <button onClick={() => setShowCreate(true)} className="mt-3 text-xs font-semibold text-emerald-600 hover:text-emerald-700">
                 + Create your first company
               </button>
             )}
@@ -473,7 +473,7 @@ export default function TenantCompaniesPage() {
                     <tr key={c.id} className="hover:bg-slate-50/60 transition-colors">
                       <td className="px-5 py-3">
                         <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-indigo-400 to-blue-500 text-white flex items-center justify-center font-bold text-sm flex-shrink-0">
+                          <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-emerald-400 to-green-500 text-white flex items-center justify-center font-bold text-sm flex-shrink-0">
                             {c.name[0]?.toUpperCase()}
                           </div>
                           <div className="min-w-0">
@@ -518,7 +518,7 @@ export default function TenantCompaniesPage() {
                       <td className="px-5 py-3 text-right">
                         <button
                           onClick={() => toast('Open in sidebar for full editing')}
-                          className="text-slate-400 hover:text-indigo-600"
+                          className="text-slate-400 hover:text-emerald-600"
                           title="Edit"
                         >
                           <FiEdit2 className="w-4 h-4" />
@@ -537,15 +537,15 @@ export default function TenantCompaniesPage() {
       {showCreate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
-            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-indigo-50 to-violet-50">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-emerald-50 to-teal-50">
               <div>
                 <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                  <FiPlus className="w-4 h-4 text-indigo-500" /> Create New Company
+                  <FiPlus className="w-4 h-4 text-emerald-500" /> Create New Company
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1 flex-wrap">
                   <FiHome className="w-3 h-3" />
                   <span>Inducting under tenant:</span>
-                  <span className="font-bold text-indigo-700">{tenantName}</span>
+                  <span className="font-bold text-emerald-700">{tenantName}</span>
                 </p>
               </div>
               <button
@@ -558,13 +558,13 @@ export default function TenantCompaniesPage() {
 
             <form onSubmit={handleCreate} className="flex-1 overflow-y-auto p-6 space-y-4">
               {/* Tenant context badge — read-only */}
-              <div className="px-4 py-3 rounded-xl bg-indigo-50/60 border border-indigo-100 flex items-center gap-3">
-                <FiHome className="w-5 h-5 text-indigo-600 flex-shrink-0" />
+              <div className="px-4 py-3 rounded-xl bg-emerald-50/60 border border-emerald-100 flex items-center gap-3">
+                <FiHome className="w-5 h-5 text-emerald-600 flex-shrink-0" />
                 <div className="flex-1">
-                  <p className="text-[11px] uppercase tracking-wider text-indigo-700/70 font-semibold">Parent Tenant</p>
-                  <p className="text-sm font-bold text-indigo-900">{tenantName}</p>
+                  <p className="text-[11px] uppercase tracking-wider text-emerald-700/70 font-semibold">Parent Tenant</p>
+                  <p className="text-sm font-bold text-emerald-900">{tenantName}</p>
                 </div>
-                <span className="text-[11px] text-indigo-700/70">
+                <span className="text-[11px] text-emerald-700/70">
                   {quota && quota.maxCompanies > 0
                     ? `${quota.used}/${quota.maxCompanies} used`
                     : `${quota?.used || 0} created (unlimited)`}
@@ -786,7 +786,7 @@ export default function TenantCompaniesPage() {
                 <button
                   type="submit"
                   disabled={creating}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-indigo-500 to-violet-500 text-white text-sm font-semibold shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 disabled:opacity-60"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-sm font-semibold shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 disabled:opacity-60"
                 >
                   {creating ? 'Creating...' : (<><FiCheck className="w-4 h-4" /> Create Company</>)}
                 </button>

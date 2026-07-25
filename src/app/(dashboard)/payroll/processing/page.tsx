@@ -126,8 +126,8 @@ const emptyForm = {
 // --- Badge Helpers ---
 function getStatusBadge(status: string) {
   const map: Record<string, string> = {
-    OPEN: 'bg-blue-100 text-blue-700 border-blue-200',
-    INPUT_COLLECTION: 'bg-purple-100 text-purple-700 border-purple-200',
+    OPEN: 'bg-green-100 text-green-700 border-green-200',
+    INPUT_COLLECTION: 'bg-teal-100 text-teal-700 border-teal-200',
     PROCESSING: 'bg-amber-100 text-amber-700 border-amber-200',
     REVIEW: 'bg-sky-100 text-sky-700 border-sky-200',
     APPROVED: 'bg-emerald-100 text-emerald-700 border-emerald-200',
@@ -438,7 +438,7 @@ export default function PayrollProcessingPage() {
             <button
               onClick={() => handleStatusTransition(run.id, 'INPUT_COLLECTION', 'start input collection')}
               disabled={isTransitioning}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-500 text-white text-xs font-medium rounded-lg hover:bg-purple-600 disabled:opacity-50 shadow-sm transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-teal-500 text-white text-xs font-medium rounded-lg hover:bg-teal-600 disabled:opacity-50 shadow-sm transition-colors"
             >
               {isTransitioning ? <span className="animate-spin h-3 w-3 border-2 border-white border-t-transparent rounded-full" /> : <FiArrowRight className="w-3.5 h-3.5" />}
               Start Input Collection
@@ -559,11 +559,11 @@ export default function PayrollProcessingPage() {
                 <div className="flex flex-col items-center flex-1">
                   <div
                     className={`w-full h-1.5 rounded-full transition-colors ${
-                      isCompleted ? 'bg-emerald-400' : isCurrent ? 'bg-blue-400' : 'bg-slate-200'
+                      isCompleted ? 'bg-emerald-400' : isCurrent ? 'bg-green-400' : 'bg-slate-200'
                     }`}
                   />
                   <span className={`text-[10px] mt-1 font-medium whitespace-nowrap ${
-                    isCompleted ? 'text-emerald-600' : isCurrent ? 'text-blue-600' : 'text-slate-400'
+                    isCompleted ? 'text-emerald-600' : isCurrent ? 'text-green-600' : 'text-slate-400'
                   }`}>
                     {stageLabels[idx]}
                   </span>
@@ -623,7 +623,7 @@ export default function PayrollProcessingPage() {
       <div>
         {renderGroup('Earnings', earnings, 'text-emerald-600')}
         {renderGroup('Deductions', deductions, 'text-red-600')}
-        {renderGroup('Employer Contributions', employerContrib, 'text-blue-600')}
+        {renderGroup('Employer Contributions', employerContrib, 'text-green-600')}
       </div>
     );
   };
@@ -698,7 +698,7 @@ export default function PayrollProcessingPage() {
           {isAdmin && (
             <button
               onClick={handleAddNew}
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium text-sm shadow-sm shadow-blue-500/25 transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-500 text-white rounded-lg hover:bg-green-600 font-medium text-sm shadow-sm shadow-green-500/25 transition-colors"
             >
               <FiPlus className="w-4 h-4" /> Create Payroll Run
             </button>
@@ -710,8 +710,8 @@ export default function PayrollProcessingPage() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
-              <FiActivity className="w-5 h-5 text-blue-500" />
+            <div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center">
+              <FiActivity className="w-5 h-5 text-green-500" />
             </div>
             <div>
               <p className="text-xs font-medium text-thb-text-secondary">Total Runs</p>
@@ -764,20 +764,20 @@ export default function PayrollProcessingPage() {
               placeholder="Search by period, run type, status, entity..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+              className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
             />
           </div>
           <input
             type="month"
             value={payrollPeriodFilter}
             onChange={(e) => setPayrollPeriodFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[160px]"
+            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 min-w-[160px]"
             placeholder="Payroll Period"
           />
           <select
             value={runStatusFilter}
             onChange={(e) => setRunStatusFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[160px]"
+            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 min-w-[160px]"
           >
             <option value="">All Statuses</option>
             {RUN_STATUS_FILTER_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -785,7 +785,7 @@ export default function PayrollProcessingPage() {
           <select
             value={companyFilter}
             onChange={(e) => setCompanyFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[160px]"
+            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 min-w-[160px]"
           >
             <option value="">All Companies</option>
             {companies.map(c => (
@@ -799,7 +799,7 @@ export default function PayrollProcessingPage() {
 
       {/* Create Form */}
       {showForm && (
-        <div id="crud-form" className="thb-card border-l-4 border-l-blue-500">
+        <div id="crud-form" className="thb-card border-l-4 border-l-green-500">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-semibold text-thb-text-primary">
@@ -823,7 +823,7 @@ export default function PayrollProcessingPage() {
                     required
                     value={form.legalEntityId}
                     onChange={(e) => setForm({ ...form, legalEntityId: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                     placeholder="e.g. LE-001"
                   />
                 </div>
@@ -845,7 +845,7 @@ export default function PayrollProcessingPage() {
                         } : {}),
                       });
                     }}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                   />
                 </div>
                 <div>
@@ -853,7 +853,7 @@ export default function PayrollProcessingPage() {
                   <select
                     value={form.runType}
                     onChange={(e) => setForm({ ...form, runType: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                   >
                     {RUN_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
@@ -872,7 +872,7 @@ export default function PayrollProcessingPage() {
                     required
                     value={form.periodStartDate}
                     onChange={(e) => setForm({ ...form, periodStartDate: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                   />
                 </div>
                 <div>
@@ -882,7 +882,7 @@ export default function PayrollProcessingPage() {
                     required
                     value={form.periodEndDate}
                     onChange={(e) => setForm({ ...form, periodEndDate: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                   />
                 </div>
                 <div>
@@ -892,7 +892,7 @@ export default function PayrollProcessingPage() {
                     required
                     value={form.payDate}
                     onChange={(e) => setForm({ ...form, payDate: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                   />
                 </div>
               </div>
@@ -907,7 +907,7 @@ export default function PayrollProcessingPage() {
                   <select
                     value={form.currencyCode}
                     onChange={(e) => setForm({ ...form, currencyCode: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                   >
                     {CURRENCY_CODE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
@@ -917,7 +917,7 @@ export default function PayrollProcessingPage() {
                   <select
                     value={form.taxProjectionMethod}
                     onChange={(e) => setForm({ ...form, taxProjectionMethod: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                   >
                     {TAX_METHOD_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
@@ -927,7 +927,7 @@ export default function PayrollProcessingPage() {
                   <select
                     value={form.processingMode}
                     onChange={(e) => setForm({ ...form, processingMode: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                   >
                     {PROCESSING_MODE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
@@ -949,7 +949,7 @@ export default function PayrollProcessingPage() {
                     <select
                       value={form.companyId}
                       onChange={(e) => setForm({ ...form, companyId: e.target.value })}
-                      className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                      className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                     >
                       <option value="">Select Company (optional)</option>
                       {companies.map(c => (
@@ -960,7 +960,7 @@ export default function PayrollProcessingPage() {
                     <input
                       value={form.companyId}
                       onChange={(e) => setForm({ ...form, companyId: e.target.value })}
-                      className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                      className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                       placeholder="Company ID (optional)"
                     />
                   )}
@@ -979,7 +979,7 @@ export default function PayrollProcessingPage() {
               <button
                 onClick={handleSubmit}
                 disabled={submitting}
-                className="px-6 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50 shadow-sm shadow-blue-500/25 transition-colors"
+                className="px-6 py-2.5 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 disabled:opacity-50 shadow-sm shadow-green-500/25 transition-colors"
               >
                 {submitting ? 'Saving...' : editingId ? 'Update Run' : 'Create Run'}
               </button>
@@ -1051,14 +1051,14 @@ export default function PayrollProcessingPage() {
                           ['APPROVED', 'ACCOUNTING', 'DISBURSED'].includes(run.runStatus) ? 'bg-emerald-50' :
                           run.runStatus === 'PROCESSING' ? 'bg-amber-50' :
                           run.runStatus === 'REVIEW' ? 'bg-sky-50' :
-                          'bg-blue-50'
+                          'bg-green-50'
                         }`}>
                           <FiPlayCircle className={`w-5 h-5 ${
                             run.runStatus === 'CLOSED' ? 'text-slate-400' :
                             ['APPROVED', 'ACCOUNTING', 'DISBURSED'].includes(run.runStatus) ? 'text-emerald-500' :
                             run.runStatus === 'PROCESSING' ? 'text-amber-500' :
                             run.runStatus === 'REVIEW' ? 'text-sky-500' :
-                            'text-blue-500'
+                            'text-green-500'
                           }`} />
                         </div>
                         <div>
@@ -1094,13 +1094,13 @@ export default function PayrollProcessingPage() {
                         <p className="text-[10px] font-medium text-red-600 uppercase">Deductions</p>
                         <p className="text-lg font-bold text-red-700">{formatCurrency(run.totalDeductions, run.currencyCode)}</p>
                       </div>
-                      <div className="bg-blue-50 rounded-lg p-3">
-                        <p className="text-[10px] font-medium text-blue-600 uppercase">Net Pay</p>
-                        <p className="text-lg font-bold text-blue-700">{formatCurrency(run.totalNetPay, run.currencyCode)}</p>
+                      <div className="bg-green-50 rounded-lg p-3">
+                        <p className="text-[10px] font-medium text-green-600 uppercase">Net Pay</p>
+                        <p className="text-lg font-bold text-green-700">{formatCurrency(run.totalNetPay, run.currencyCode)}</p>
                       </div>
-                      <div className="bg-purple-50 rounded-lg p-3">
-                        <p className="text-[10px] font-medium text-purple-600 uppercase">Employer Contrib</p>
-                        <p className="text-lg font-bold text-purple-700">{formatCurrency(run.totalEmployerContrib, run.currencyCode)}</p>
+                      <div className="bg-teal-50 rounded-lg p-3">
+                        <p className="text-[10px] font-medium text-teal-600 uppercase">Employer Contrib</p>
+                        <p className="text-lg font-bold text-teal-700">{formatCurrency(run.totalEmployerContrib, run.currencyCode)}</p>
                       </div>
                     </div>
 
@@ -1126,7 +1126,7 @@ export default function PayrollProcessingPage() {
                     <div className="border-t border-thb-border bg-slate-50/50">
                       {expandLoading ? (
                         <div className="flex items-center justify-center py-8">
-                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500" />
+                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-500" />
                           <span className="ml-3 text-sm text-thb-text-secondary">Loading details...</span>
                         </div>
                       ) : expandedRunData ? (

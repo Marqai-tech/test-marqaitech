@@ -124,7 +124,7 @@ export default function ApprovalRoutingPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-            <FiShuffle className="w-6 h-6 text-violet-500" />
+            <FiShuffle className="w-6 h-6 text-teal-500" />
             Approval Routing Rules
           </h1>
           <p className="text-sm text-slate-500 mt-1">Matrix routing: route requests to alternate managers based on project assignment</p>
@@ -139,7 +139,7 @@ export default function ApprovalRoutingPage() {
       </ModuleTips>
 
       {showForm && (
-        <div className="thb-card p-6 border-l-4 border-l-violet-500">
+        <div className="thb-card p-6 border-l-4 border-l-teal-500">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-slate-800">{editingId ? 'Edit Rule' : 'New Routing Rule'}</h2>
             <button onClick={() => setShowForm(false)} className="text-slate-400 hover:text-slate-700"><FiX /></button>
@@ -222,7 +222,7 @@ export default function ApprovalRoutingPage() {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <button onClick={() => handleEdit(r)} className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded mr-1" title="Edit">
+                    <button onClick={() => handleEdit(r)} className="p-1.5 text-slate-500 hover:text-green-600 hover:bg-green-50 rounded mr-1" title="Edit">
                       <FiEdit2 className="w-4 h-4" />
                     </button>
                     <button onClick={() => handleDelete(r.id)} className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded" title="Delete">

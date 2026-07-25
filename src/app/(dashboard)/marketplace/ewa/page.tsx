@@ -88,7 +88,7 @@ export default function EWAPage() {
             <label className="text-xs text-gray-600">Amount (INR)</label>
             <input type="number" value={amount} onChange={e => setAmount(parseFloat(e.target.value))} className="w-full border rounded px-3 py-2" />
           </div>
-          <button onClick={request} className="px-6 py-2 bg-blue-600 text-white rounded">Request Advance</button>
+          <button onClick={request} className="px-6 py-2 bg-green-600 text-white rounded">Request Advance</button>
         </div>
       )}
       <div className="bg-white border rounded-lg p-4">

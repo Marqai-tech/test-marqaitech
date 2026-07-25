@@ -11,7 +11,7 @@ import { Shield, Users, UserCheck, Building2, Truck, Hexagon, ArrowRight, Sparkl
 
 const DEMO_LOGINS: { role: UserRole; name: string; email: string; password: string; icon: React.ReactNode; color: string }[] = [
   { role: 'super_admin', name: 'Super Admin', email: 'admin@3boxeshrms.com', password: 'admin123', icon: <Shield className="h-4 w-4" />, color: 'bg-red-500 hover:bg-red-600' },
-  { role: 'tenant_admin', name: 'Tenant Admin', email: 'admin@marqaitechgroup.com', password: 'MarqAI@2026', icon: <Users className="h-4 w-4" />, color: 'bg-blue-500 hover:bg-blue-600' },
+  { role: 'tenant_admin', name: 'Tenant Admin', email: 'admin@marqaitechgroup.com', password: 'MarqAI@2026', icon: <Users className="h-4 w-4" />, color: 'bg-green-500 hover:bg-green-600' },
   { role: 'admin', name: 'Admin', email: 'admin@marqai.com', password: 'MarqAI@2026', icon: <UserCheck className="h-4 w-4" />, color: 'bg-emerald-500 hover:bg-emerald-600' },
 ];
 

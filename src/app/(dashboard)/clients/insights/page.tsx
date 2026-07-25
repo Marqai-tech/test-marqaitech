@@ -31,8 +31,8 @@ export default function ClientInsightsPage() {
         <p className="text-sm text-gray-600 mt-1">Churn prediction (REQ-AI-CLT-01) & Margin analysis (REQ-AI-CLT-02)</p>
       </div>
       <div className="flex gap-2">
-        <button onClick={() => setTab('churn')} className={`px-4 py-2 rounded ${tab === 'churn' ? 'bg-blue-600 text-white' : 'bg-gray-100'}`}>Churn Risk</button>
-        <button onClick={() => setTab('margin')} className={`px-4 py-2 rounded ${tab === 'margin' ? 'bg-blue-600 text-white' : 'bg-gray-100'}`}>Margin Analysis</button>
+        <button onClick={() => setTab('churn')} className={`px-4 py-2 rounded ${tab === 'churn' ? 'bg-green-600 text-white' : 'bg-gray-100'}`}>Churn Risk</button>
+        <button onClick={() => setTab('margin')} className={`px-4 py-2 rounded ${tab === 'margin' ? 'bg-green-600 text-white' : 'bg-gray-100'}`}>Margin Analysis</button>
       </div>
       {loading && <div className="text-gray-500">Running AI analysis...</div>}
 

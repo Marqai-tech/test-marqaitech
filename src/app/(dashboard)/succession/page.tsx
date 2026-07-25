@@ -165,10 +165,10 @@ export default function SuccessionPage() {
   function getGridCellStyle(perf: string, pot: string) {
     if (perf === 'High' && pot === 'High') return 'bg-emerald-100 border-emerald-300';
     if (perf === 'High' && pot === 'Medium') return 'bg-emerald-50 border-emerald-200';
-    if (perf === 'Medium' && pot === 'High') return 'bg-blue-50 border-blue-200';
+    if (perf === 'Medium' && pot === 'High') return 'bg-green-50 border-green-200';
     if (perf === 'Medium' && pot === 'Medium') return 'bg-amber-50 border-amber-200';
     if (perf === 'High' && pot === 'Low') return 'bg-cyan-50 border-cyan-200';
-    if (perf === 'Low' && pot === 'High') return 'bg-violet-50 border-violet-200';
+    if (perf === 'Low' && pot === 'High') return 'bg-teal-50 border-teal-200';
     if (perf === 'Medium' && pot === 'Low') return 'bg-orange-50 border-orange-200';
     if (perf === 'Low' && pot === 'Medium') return 'bg-rose-50 border-rose-200';
     return 'bg-slate-50 border-slate-200';
@@ -241,13 +241,13 @@ export default function SuccessionPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
-            <FiTarget className="w-6 h-6 text-violet-500" />
+            <FiTarget className="w-6 h-6 text-teal-500" />
             Succession Planning
           </h1>
           <p className="text-thb-text-secondary mt-1">Manage talent pipeline and succession readiness</p>
         </div>
         {isAdmin && (
-          <button onClick={handleShowAddForm} className="inline-flex items-center gap-2 px-4 py-2.5 bg-violet-500 text-white rounded-lg hover:bg-violet-600 font-medium text-sm shadow-sm shadow-violet-500/25 transition-colors">
+          <button onClick={handleShowAddForm} className="inline-flex items-center gap-2 px-4 py-2.5 bg-teal-500 text-white rounded-lg hover:bg-teal-600 font-medium text-sm shadow-sm shadow-teal-500/25 transition-colors">
             <FiPlus className="w-4 h-4" />Add Successor
           </button>
         )}
@@ -261,7 +261,7 @@ export default function SuccessionPage() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="thb-card p-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-violet-50"><FiTarget className="w-4 h-4 text-violet-600" /></div>
+            <div className="p-2 rounded-lg bg-teal-50"><FiTarget className="w-4 h-4 text-teal-600" /></div>
             <div>
               <p className="text-xs font-medium text-thb-text-secondary">Key Positions</p>
               <p className="text-xl font-bold text-thb-text-primary">{keyPositions}</p>
@@ -270,7 +270,7 @@ export default function SuccessionPage() {
         </div>
         <div className="thb-card p-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-blue-50"><FiUsers className="w-4 h-4 text-blue-600" /></div>
+            <div className="p-2 rounded-lg bg-green-50"><FiUsers className="w-4 h-4 text-green-600" /></div>
             <div>
               <p className="text-xs font-medium text-thb-text-secondary">Identified Successors</p>
               <p className="text-xl font-bold text-thb-text-primary">{identifiedSuccessors}</p>
@@ -300,7 +300,7 @@ export default function SuccessionPage() {
       {/* Tabs */}
       <div className="flex items-center gap-1 border-b border-thb-border overflow-x-auto">
         {tabs.map(tab => (
-          <button key={tab.key} onClick={() => setActiveTab(tab.key)} className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === tab.key ? 'border-violet-500 text-violet-600' : 'border-transparent text-thb-text-secondary hover:text-thb-text-primary'}`}>
+          <button key={tab.key} onClick={() => setActiveTab(tab.key)} className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === tab.key ? 'border-teal-500 text-teal-600' : 'border-transparent text-thb-text-secondary hover:text-thb-text-primary'}`}>
             <tab.icon className="w-4 h-4" />{tab.label}
           </button>
         ))}
@@ -310,13 +310,13 @@ export default function SuccessionPage() {
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
-          <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search successors, positions..." className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400" />
+          <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search successors, positions..." className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400" />
         </div>
       </div>
 
       {/* Inline Form */}
       {showForm && (
-        <div id="crud-form" className="thb-card border-l-4 border-l-violet-500 animate-slide-in-down">
+        <div id="crud-form" className="thb-card border-l-4 border-l-teal-500 animate-slide-in-down">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-semibold text-thb-text-primary">{editingId ? 'Edit Successor' : 'Add Successor Candidate'}</h2>
@@ -325,46 +325,46 @@ export default function SuccessionPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Name *</label>
-                <input type="text" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="Employee name" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400" />
+                <input type="text" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="Employee name" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Current Role *</label>
-                <input type="text" value={form.currentRole} onChange={e => setForm(p => ({ ...p, currentRole: e.target.value }))} placeholder="e.g., Senior Developer" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400" />
+                <input type="text" value={form.currentRole} onChange={e => setForm(p => ({ ...p, currentRole: e.target.value }))} placeholder="e.g., Senior Developer" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Department</label>
-                <input type="text" value={form.department} onChange={e => setForm(p => ({ ...p, department: e.target.value }))} placeholder="e.g., Engineering" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400" />
+                <input type="text" value={form.department} onChange={e => setForm(p => ({ ...p, department: e.target.value }))} placeholder="e.g., Engineering" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Performance</label>
-                <select value={form.performance} onChange={e => setForm(p => ({ ...p, performance: e.target.value as 'Low' | 'Medium' | 'High' }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400">
+                <select value={form.performance} onChange={e => setForm(p => ({ ...p, performance: e.target.value as 'Low' | 'Medium' | 'High' }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400">
                   <option value="Low">Low</option><option value="Medium">Medium</option><option value="High">High</option>
                 </select>
               </div>
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Potential</label>
-                <select value={form.potential} onChange={e => setForm(p => ({ ...p, potential: e.target.value as 'Low' | 'Medium' | 'High' }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400">
+                <select value={form.potential} onChange={e => setForm(p => ({ ...p, potential: e.target.value as 'Low' | 'Medium' | 'High' }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400">
                   <option value="Low">Low</option><option value="Medium">Medium</option><option value="High">High</option>
                 </select>
               </div>
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Readiness</label>
-                <select value={form.readiness} onChange={e => setForm(p => ({ ...p, readiness: e.target.value as 'Ready Now' | '1-2 Years' | '3+ Years' }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400">
+                <select value={form.readiness} onChange={e => setForm(p => ({ ...p, readiness: e.target.value as 'Ready Now' | '1-2 Years' | '3+ Years' }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400">
                   <option value="Ready Now">Ready Now</option><option value="1-2 Years">1-2 Years</option><option value="3+ Years">3+ Years</option>
                 </select>
               </div>
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Skills Gap</label>
-                <input type="text" value={form.skillsGap} onChange={e => setForm(p => ({ ...p, skillsGap: e.target.value }))} placeholder="e.g., Leadership (20%)" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400" />
+                <input type="text" value={form.skillsGap} onChange={e => setForm(p => ({ ...p, skillsGap: e.target.value }))} placeholder="e.g., Leadership (20%)" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400" />
               </div>
               <div className="sm:col-span-2">
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Development Needs</label>
-                <input type="text" value={form.developmentNeeds} onChange={e => setForm(p => ({ ...p, developmentNeeds: e.target.value }))} placeholder="e.g., Executive coaching" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400" />
+                <input type="text" value={form.developmentNeeds} onChange={e => setForm(p => ({ ...p, developmentNeeds: e.target.value }))} placeholder="e.g., Executive coaching" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400" />
               </div>
             </div>
             <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-thb-border">
               <button onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
-              <button onClick={handleSubmit} disabled={submitting} className="px-6 py-2.5 rounded-lg bg-violet-500 text-white text-sm font-medium hover:bg-violet-600 disabled:opacity-50 shadow-sm shadow-violet-500/25 transition-colors">{submitting ? 'Saving...' : editingId ? 'Update' : 'Add'}</button>
+              <button onClick={handleSubmit} disabled={submitting} className="px-6 py-2.5 rounded-lg bg-teal-500 text-white text-sm font-medium hover:bg-teal-600 disabled:opacity-50 shadow-sm shadow-teal-500/25 transition-colors">{submitting ? 'Saving...' : editingId ? 'Update' : 'Add'}</button>
             </div>
           </div>
         </div>
@@ -444,7 +444,7 @@ export default function SuccessionPage() {
                           <span className={readyBadge.className}>{readyBadge.label}</span>
                           {isAdmin && (
                             <div className="flex items-center gap-1">
-                              <button onClick={() => handleShowEditForm(successor)} className="p-1.5 rounded-lg text-thb-text-muted hover:text-violet-500 hover:bg-violet-50 transition-colors" title="Edit"><FiEdit2 className="w-3.5 h-3.5" /></button>
+                              <button onClick={() => handleShowEditForm(successor)} className="p-1.5 rounded-lg text-thb-text-muted hover:text-teal-500 hover:bg-teal-50 transition-colors" title="Edit"><FiEdit2 className="w-3.5 h-3.5" /></button>
                               <button onClick={() => setDeleteConfirmId(successor.id)} className="p-1.5 rounded-lg text-thb-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete"><FiTrash2 className="w-3.5 h-3.5" /></button>
                             </div>
                           )}
@@ -476,7 +476,7 @@ export default function SuccessionPage() {
                     </div>
                     <div className="flex items-center justify-between text-xs">
                       <span className="text-thb-text-secondary">Development</span>
-                      <span className="text-blue-600 font-medium truncate ml-2 max-w-[150px]">{c.developmentNeeds || 'None'}</span>
+                      <span className="text-green-600 font-medium truncate ml-2 max-w-[150px]">{c.developmentNeeds || 'None'}</span>
                     </div>
                   </div>
                 </div>

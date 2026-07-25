@@ -56,7 +56,7 @@ function SettingSection({ title, icon, enabled, onToggle, children }: {
         </div>
         <button onClick={() => onToggle(!enabled)} className="flex items-center gap-2 text-sm">
           {enabled ? (
-            <><FiToggleRight className="w-6 h-6 text-blue-500" /><span className="text-blue-600 font-medium">Enabled</span></>
+            <><FiToggleRight className="w-6 h-6 text-green-500" /><span className="text-green-600 font-medium">Enabled</span></>
           ) : (
             <><FiToggleLeft className="w-6 h-6 text-slate-400" /><span className="text-slate-400 font-medium">Disabled</span></>
           )}
@@ -134,7 +134,7 @@ export default function SalarySettingsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
-            <FiSettings className="w-6 h-6 text-blue-500" />
+            <FiSettings className="w-6 h-6 text-green-500" />
             Salary Settings
           </h1>
           <p className="text-thb-text-secondary mt-1">Configure salary components, statutory deductions, and tax settings</p>
@@ -145,7 +145,7 @@ export default function SalarySettingsPage() {
           </button>
           {isAdmin && (
             <button onClick={handleSave} disabled={saving}
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 font-medium text-sm">
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 font-medium text-sm">
               <FiSave className="w-4 h-4" /> {saving ? 'Saving...' : 'Save Settings'}
             </button>
           )}
@@ -153,12 +153,12 @@ export default function SalarySettingsPage() {
       </div>
 
       {/* Info Banner */}
-      <div className="thb-card border-l-4 border-l-blue-500 bg-gradient-to-r from-blue-50/50 to-white p-4">
+      <div className="thb-card border-l-4 border-l-green-500 bg-gradient-to-r from-green-50/50 to-white p-4">
         <div className="flex items-start gap-3">
-          <FiInfo className="w-5 h-5 text-blue-500 mt-0.5" />
+          <FiInfo className="w-5 h-5 text-green-500 mt-0.5" />
           <div>
-            <p className="text-sm font-medium text-blue-700">Configure salary component settings</p>
-            <p className="text-xs text-blue-600 mt-1">
+            <p className="text-sm font-medium text-green-700">Configure salary component settings</p>
+            <p className="text-xs text-green-600 mt-1">
               These settings control how salary components are calculated in the payroll system.
               Toggle each section on/off and adjust the percentages as needed. Changes will apply to new payroll runs.
             </p>
@@ -170,7 +170,7 @@ export default function SalarySettingsPage() {
         {/* DA and HRA */}
         <SettingSection
           title="DA and HRA"
-          icon={<div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center"><span className="text-sm font-bold text-blue-600">DH</span></div>}
+          icon={<div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center"><span className="text-sm font-bold text-green-600">DH</span></div>}
           enabled={settings.daHra.enabled}
           onToggle={v => updateSetting('daHra', 'enabled', v)}
         >
@@ -255,7 +255,7 @@ export default function SalarySettingsPage() {
         {/* Professional Tax */}
         <SettingSection
           title="Professional Tax"
-          icon={<div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center"><span className="text-sm font-bold text-purple-600">PT</span></div>}
+          icon={<div className="w-8 h-8 rounded-lg bg-teal-100 flex items-center justify-center"><span className="text-sm font-bold text-teal-600">PT</span></div>}
           enabled={settings.professionalTax.enabled}
           onToggle={v => updateSetting('professionalTax', 'enabled', v)}
         >
@@ -395,7 +395,7 @@ export default function SalarySettingsPage() {
           const lastSlab = settings.tds.slabs[settings.tds.slabs.length - 1];
           const newSlabs = [...settings.tds.slabs, { salaryFrom: (lastSlab?.salaryTo || 0) + 1, salaryTo: null, percentage: 0 }];
           updateSetting('tds', 'slabs', newSlabs);
-        }} className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-blue-600 hover:bg-blue-50 border border-blue-200">
+        }} className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-green-600 hover:bg-green-50 border border-green-200">
           <FiPlus className="w-3.5 h-3.5" /> Add Slab
         </button>
       </SettingSection>

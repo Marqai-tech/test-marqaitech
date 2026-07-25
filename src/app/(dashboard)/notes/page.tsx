@@ -39,9 +39,9 @@ const categoryConfig: Record<string, { label: string; icon: React.ReactNode; col
   policy: {
     label: 'Policy Notes',
     icon: <FiShield className="w-3.5 h-3.5" />,
-    color: 'text-violet-700',
-    bgAccent: 'bg-violet-50',
-    borderAccent: 'border-l-violet-400',
+    color: 'text-teal-700',
+    bgAccent: 'bg-teal-50',
+    borderAccent: 'border-l-teal-400',
   },
   personal: {
     label: 'Personal',
@@ -61,7 +61,7 @@ const colorOptions = [
   { value: 'emerald', label: 'Emerald', bg: 'bg-emerald-50', ring: 'ring-emerald-200' },
   { value: 'teal', label: 'Teal', bg: 'bg-teal-50', ring: 'ring-teal-200' },
   { value: 'sky', label: 'Sky', bg: 'bg-sky-50', ring: 'ring-sky-200' },
-  { value: 'violet', label: 'Violet', bg: 'bg-violet-50', ring: 'ring-violet-200' },
+  { value: 'violet', label: 'Violet', bg: 'bg-teal-50', ring: 'ring-teal-200' },
 ];
 
 const colorCardMap: Record<string, string> = {
@@ -72,7 +72,7 @@ const colorCardMap: Record<string, string> = {
   emerald: 'bg-emerald-50',
   teal: 'bg-teal-50',
   sky: 'bg-sky-50',
-  violet: 'bg-violet-50',
+  violet: 'bg-teal-50',
 };
 
 // ── Sample Data (15+ notes with realistic HR content) ──────────────────

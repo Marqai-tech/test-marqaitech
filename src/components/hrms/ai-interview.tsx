@@ -27,8 +27,8 @@ import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Responsi
 
 // TODO: Replace with API-driven interview type configuration when endpoint is available
 const INTERVIEW_TYPES = [
-  { id: 'text', label: 'Text Chat', description: 'AI conducts a text-based interview with smart follow-up questions', icon: <Type className="h-6 w-6" />, color: 'bg-blue-50 dark:bg-blue-950/30 text-blue-600', enabled: true },
-  { id: 'voice', label: 'Voice Interview', description: 'AI conducts a voice-based interview with speech analysis', icon: <Mic className="h-6 w-6" />, color: 'bg-purple-50 dark:bg-purple-950/30 text-purple-600', enabled: true },
+  { id: 'text', label: 'Text Chat', description: 'AI conducts a text-based interview with smart follow-up questions', icon: <Type className="h-6 w-6" />, color: 'bg-green-50 dark:bg-green-950/30 text-green-600', enabled: true },
+  { id: 'voice', label: 'Voice Interview', description: 'AI conducts a voice-based interview with speech analysis', icon: <Mic className="h-6 w-6" />, color: 'bg-teal-50 dark:bg-green-950/30 text-teal-600', enabled: true },
   { id: 'video', label: 'Video Interview', description: 'AI conducts a video interview with facial expression analysis', icon: <Video className="h-6 w-6" />, color: 'bg-amber-50 dark:bg-amber-950/30 text-amber-600', enabled: true },
   { id: 'mcq', label: 'MCQ Assessment', description: 'AI generates adaptive multiple-choice questions', icon: <CheckSquare className="h-6 w-6" />, color: 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600', enabled: true },
   { id: 'coding', label: 'Coding Challenge', description: 'AI evaluates code submissions with test cases', icon: <Code className="h-6 w-6" />, color: 'bg-teal-50 dark:bg-teal-950/30 text-teal-600', enabled: true },
@@ -355,7 +355,7 @@ export function AIInterview() {
                       </div>
                       <Badge className={`text-[10px] ${
                         interview.status === 'completed' ? 'bg-emerald-100 text-emerald-800' :
-                        interview.status === 'scheduled' ? 'bg-blue-100 text-blue-800' :
+                        interview.status === 'scheduled' ? 'bg-green-100 text-green-800' :
                         interview.status === 'cancelled' ? 'bg-red-100 text-red-800' :
                         'bg-slate-100 text-slate-800'
                       }`}>

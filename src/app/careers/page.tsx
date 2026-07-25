@@ -624,7 +624,7 @@ export default function CareersPage() {
       <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-slate-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 via-violet-500 to-purple-600 flex items-center justify-center shadow-md shadow-indigo-500/30">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 via-teal-500 to-teal-600 flex items-center justify-center shadow-md shadow-emerald-500/30">
               <FiBriefcase className="w-5 h-5 text-white" />
             </div>
             <div>
@@ -633,19 +633,19 @@ export default function CareersPage() {
             </div>
           </div>
           <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-slate-600">
-            <a href="#openings" className="hover:text-indigo-600 transition-colors">Openings</a>
-            <a href="#companies" className="hover:text-indigo-600 transition-colors">Companies</a>
-            <a href="#why" className="hover:text-indigo-600 transition-colors">Why Join Us</a>
+            <a href="#openings" className="hover:text-emerald-600 transition-colors">Openings</a>
+            <a href="#companies" className="hover:text-emerald-600 transition-colors">Companies</a>
+            <a href="#why" className="hover:text-emerald-600 transition-colors">Why Join Us</a>
           </nav>
           <div className="flex items-center gap-2">
             {loggedInCandidateEmail ? (
               <div className="hidden sm:flex items-center gap-2 px-4 py-2">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-sm font-bold">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white text-sm font-bold">
                   {loggedInCandidateEmail.charAt(0).toUpperCase()}
                 </div>
                 <div className="text-sm">
                   <div className="font-semibold text-slate-900">{loggedInCandidateEmail}</div>
-                  <Link href="/candidate-portal/dashboard" className="text-xs text-indigo-600 hover:text-indigo-700">
+                  <Link href="/candidate-portal/dashboard" className="text-xs text-emerald-600 hover:text-emerald-700">
                     Go to Dashboard →
                   </Link>
                 </div>
@@ -653,14 +653,14 @@ export default function CareersPage() {
             ) : (
               <Link
                 href="/candidate-portal/login"
-                className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold text-slate-700 hover:text-indigo-600 transition-colors"
+                className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold text-slate-700 hover:text-emerald-600 transition-colors"
               >
                 Sign In <FiExternalLink className="w-3.5 h-3.5" />
               </Link>
             )}
             <a
               href="#openings"
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold text-white bg-gradient-to-r from-indigo-500 to-violet-500 hover:shadow-lg hover:shadow-indigo-500/30 transition-all"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold text-white bg-gradient-to-r from-emerald-500 to-teal-500 hover:shadow-lg hover:shadow-emerald-500/30 transition-all"
             >
               Browse Jobs <FiArrowRight className="w-3.5 h-3.5" />
             </a>
@@ -672,19 +672,19 @@ export default function CareersPage() {
       <section className="relative overflow-hidden">
         {/* Decorative background */}
         <div className="absolute inset-0 -z-10">
-          <div className="absolute -top-32 -left-32 w-96 h-96 bg-indigo-200/40 rounded-full blur-3xl" />
-          <div className="absolute -top-40 right-0 w-[28rem] h-[28rem] bg-violet-200/40 rounded-full blur-3xl" />
-          <div className="absolute bottom-0 left-1/3 w-96 h-96 bg-purple-200/30 rounded-full blur-3xl" />
+          <div className="absolute -top-32 -left-32 w-96 h-96 bg-emerald-200/40 rounded-full blur-3xl" />
+          <div className="absolute -top-40 right-0 w-[28rem] h-[28rem] bg-teal-200/40 rounded-full blur-3xl" />
+          <div className="absolute bottom-0 left-1/3 w-96 h-96 bg-teal-200/30 rounded-full blur-3xl" />
         </div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-16 sm:pt-24 pb-12">
           <div className="text-center max-w-3xl mx-auto">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 text-indigo-700 text-xs font-semibold ring-1 ring-indigo-200 mb-5">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-semibold ring-1 ring-emerald-200 mb-5">
               <FiZap className="w-3.5 h-3.5" /> {totalOpen} open positions across {totalCompanies} companies
             </span>
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-[1.05] mb-5">
               Find the work <br />
-              <span className="bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-emerald-600 via-teal-600 to-teal-600 bg-clip-text text-transparent">
                 that moves you.
               </span>
             </h1>
@@ -698,7 +698,7 @@ export default function CareersPage() {
             {scopeInfo.checked && (
               <div className="mb-6">
                 {scopeInfo.effectiveTenantSlug ? (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-violet-50 text-violet-700 text-[11px] font-semibold ring-1 ring-violet-200">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-50 text-teal-700 text-[11px] font-semibold ring-1 ring-teal-200">
                     <FiLayers className="w-3 h-3" />
                     {scopeInfo.userRole
                       ? `Scoped to your tenant: ${scopeInfo.userTenantName || scopeInfo.effectiveTenantSlug}`
@@ -722,15 +722,15 @@ export default function CareersPage() {
                 application will be attributed to the referring employee. */}
             {referralToken && (
               <div className="mb-6 max-w-2xl mx-auto">
-                <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-gradient-to-r from-violet-50 to-indigo-50 ring-1 ring-violet-200 text-left">
-                  <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-white flex-shrink-0">
+                <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-gradient-to-r from-teal-50 to-emerald-50 ring-1 ring-teal-200 text-left">
+                  <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-teal-500 to-emerald-600 flex items-center justify-center text-white flex-shrink-0">
                     <FiHeart className="w-4 h-4" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-violet-900">
+                    <p className="text-sm font-bold text-teal-900">
                       You were referred by a Marq AI Tech Pvt Ltd employee!
                     </p>
-                    <p className="text-xs text-violet-700 mt-0.5">
+                    <p className="text-xs text-teal-700 mt-0.5">
                       Your application will be attributed to the person who shared this link.
                       {referralJobId && jobs.find((j) => j.id === referralJobId) && (
                         <> Scroll down to the <b>“{jobs.find((j) => j.id === referralJobId)?.title}”</b> role and hit Apply.</>
@@ -763,7 +763,7 @@ export default function CareersPage() {
               </div>
               <button
                 onClick={() => fetchJobs()}
-                className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-indigo-500 to-violet-500 hover:shadow-lg hover:shadow-indigo-500/30 transition-all"
+                className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-emerald-500 to-teal-500 hover:shadow-lg hover:shadow-emerald-500/30 transition-all"
               >
                 Search <FiArrowRight className="w-4 h-4" />
               </button>
@@ -772,15 +772,15 @@ export default function CareersPage() {
             {/* Quick stats */}
             <div className="grid grid-cols-3 gap-4 max-w-md mx-auto mt-10">
               <div className="text-center">
-                <p className="text-2xl sm:text-3xl font-extrabold text-indigo-600">{totalOpen}</p>
+                <p className="text-2xl sm:text-3xl font-extrabold text-emerald-600">{totalOpen}</p>
                 <p className="text-[11px] text-slate-500 font-medium uppercase tracking-wider">Open Roles</p>
               </div>
               <div className="text-center">
-                <p className="text-2xl sm:text-3xl font-extrabold text-violet-600">{totalCompanies}</p>
+                <p className="text-2xl sm:text-3xl font-extrabold text-teal-600">{totalCompanies}</p>
                 <p className="text-[11px] text-slate-500 font-medium uppercase tracking-wider">Companies</p>
               </div>
               <div className="text-center">
-                <p className="text-2xl sm:text-3xl font-extrabold text-purple-600">{totalApplicants}</p>
+                <p className="text-2xl sm:text-3xl font-extrabold text-teal-600">{totalApplicants}</p>
                 <p className="text-[11px] text-slate-500 font-medium uppercase tracking-wider">Applicants</p>
               </div>
             </div>
@@ -803,7 +803,7 @@ export default function CareersPage() {
               <select
                 value={typeFilter}
                 onChange={(e) => setTypeFilter(e.target.value)}
-                className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-medium bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-400/40"
+                className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-medium bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-400/40"
               >
                 <option value="">All types</option>
                 {Object.entries(JOB_TYPE_LABELS).map(([v, l]) => (
@@ -813,7 +813,7 @@ export default function CareersPage() {
               <select
                 value={companyFilter}
                 onChange={(e) => setCompanyFilter(e.target.value)}
-                className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-medium bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-400/40"
+                className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-medium bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-400/40"
               >
                 <option value="">All companies</option>
                 {companies.map((c) => (
@@ -852,7 +852,7 @@ export default function CareersPage() {
               <p className="text-sm text-slate-500 mt-1">Try clearing filters or check back soon — new roles open weekly.</p>
               <button
                 onClick={() => { setSearch(''); setTypeFilter(''); setLocationFilter(''); setCompanyFilter(''); }}
-                className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold text-indigo-600 hover:bg-indigo-50"
+                className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold text-emerald-600 hover:bg-emerald-50"
               >
                 <FiX className="w-3.5 h-3.5" /> Clear all filters
               </button>
@@ -889,9 +889,9 @@ export default function CareersPage() {
                   <button
                     key={c.id}
                     onClick={() => setCompanyFilter(c.id)}
-                    className="text-left bg-white border border-slate-200 rounded-2xl p-5 hover:border-indigo-300 hover:shadow-md transition-all"
+                    className="text-left bg-white border border-slate-200 rounded-2xl p-5 hover:border-emerald-300 hover:shadow-md transition-all"
                   >
-                    <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white font-bold mb-3">
+                    <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-bold mb-3">
                       {c.name.charAt(0).toUpperCase()}
                     </div>
                     <p className="font-semibold text-slate-900 truncate">{c.name}</p>
@@ -908,7 +908,7 @@ export default function CareersPage() {
       <section id="why" className="bg-white border-t border-slate-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-16">
           <div className="text-center max-w-2xl mx-auto mb-10">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-violet-50 text-violet-700 text-xs font-semibold ring-1 ring-violet-200 mb-4">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-50 text-teal-700 text-xs font-semibold ring-1 ring-teal-200 mb-4">
               <FiAward className="w-3.5 h-3.5" /> Why candidates choose us
             </span>
             <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">More than just a job</h2>
@@ -919,7 +919,7 @@ export default function CareersPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {[
               { icon: FiTrendingUp, title: 'Fast Growth', desc: 'Clear career paths and promotion cycles — most team leads were promoted from within.', color: 'from-emerald-500 to-teal-600' },
-              { icon: FiUsers, title: 'Mentorship', desc: 'Every new hire is paired with a senior mentor for their first 90 days.', color: 'from-indigo-500 to-violet-600' },
+              { icon: FiUsers, title: 'Mentorship', desc: 'Every new hire is paired with a senior mentor for their first 90 days.', color: 'from-emerald-500 to-teal-600' },
               { icon: FiTarget, title: 'Real Impact', desc: 'Work on production systems from week one — no busy work, no make-work projects.', color: 'from-amber-500 to-orange-600' },
               { icon: FiHeart, title: 'Wellness First', desc: 'Flexible hours, remote-friendly, comprehensive health coverage, and generous PTO.', color: 'from-pink-500 to-rose-600' },
             ].map((f) => {
@@ -944,7 +944,7 @@ export default function CareersPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div>
               <div className="flex items-center gap-2 mb-3">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
                   <FiBriefcase className="w-4 h-4 text-white" />
                 </div>
                 <p className="font-extrabold text-white">3Boxes HRMS</p>
@@ -1033,13 +1033,13 @@ export default function CareersPage() {
               We've received your application. Create a candidate portal account to track its
               status, see interview feedback, and optimize your resume with AI.
             </p>
-            <div className="bg-violet-50 border border-violet-200 rounded-lg p-3 mb-4">
-              <p className="text-xs text-violet-700 font-medium mb-1">Your email</p>
-              <p className="text-sm font-mono text-violet-900 break-all">{submittedEmail}</p>
+            <div className="bg-teal-50 border border-teal-200 rounded-lg p-3 mb-4">
+              <p className="text-xs text-teal-700 font-medium mb-1">Your email</p>
+              <p className="text-sm font-mono text-teal-900 break-all">{submittedEmail}</p>
             </div>
             <a
               href={`/candidate-portal/login?email=${encodeURIComponent(submittedEmail)}`}
-              className="block w-full px-4 py-2.5 bg-gradient-to-r from-violet-600 to-sky-600 hover:from-violet-700 hover:to-sky-700 text-white rounded-lg text-sm font-medium mb-2"
+              className="block w-full px-4 py-2.5 bg-gradient-to-r from-teal-600 to-sky-600 hover:from-teal-700 hover:to-sky-700 text-white rounded-lg text-sm font-medium mb-2"
             >
               Set up my candidate portal →
             </a>
@@ -1085,18 +1085,18 @@ function JobCard({ job, onApply, isReferred }: { job: PublicJob; onApply: () => 
     <div
       className={`group bg-white border rounded-2xl p-5 hover:shadow-lg hover:shadow-slate-200/50 transition-all flex flex-col relative ${
         isReferred
-          ? 'border-violet-400 ring-2 ring-violet-200 shadow-md shadow-violet-200/40'
-          : 'border-slate-200 hover:border-indigo-300'
+          ? 'border-teal-400 ring-2 ring-teal-200 shadow-md shadow-teal-200/40'
+          : 'border-slate-200 hover:border-emerald-300'
       }`}
     >
       {/* REQ-SRC-05 — "Referred for you" badge when the visitor arrived via a referral link to this specific job */}
       {isReferred && (
-        <div className="absolute -top-2.5 left-4 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-violet-600 text-white text-[10px] font-bold uppercase tracking-wider shadow-sm">
+        <div className="absolute -top-2.5 left-4 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-teal-600 text-white text-[10px] font-bold uppercase tracking-wider shadow-sm">
           <FiHeart className="w-2.5 h-2.5" /> Referred for you
         </div>
       )}
       <div className="flex items-start gap-3 mb-3">
-        <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white font-bold text-base flex-shrink-0">
+        <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-bold text-base flex-shrink-0">
           {job.company?.name?.charAt(0) || 'J'}
         </div>
         <div className="flex-1 min-w-0">
@@ -1104,7 +1104,7 @@ function JobCard({ job, onApply, isReferred }: { job: PublicJob; onApply: () => 
             {job.company?.name || 'Confidential'}
             {job.tenant && <span className="text-slate-400"> · {job.tenant.name}</span>}
           </p>
-          <p className="font-bold text-slate-900 truncate group-hover:text-indigo-600 transition-colors">
+          <p className="font-bold text-slate-900 truncate group-hover:text-emerald-600 transition-colors">
             {job.title}
           </p>
         </div>
@@ -1112,7 +1112,7 @@ function JobCard({ job, onApply, isReferred }: { job: PublicJob; onApply: () => 
 
       <div className="flex flex-wrap gap-2 mb-3">
         {job.type && (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 text-[11px] font-semibold ring-1 ring-indigo-100">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 text-[11px] font-semibold ring-1 ring-emerald-100">
             <FiClock className="w-3 h-3" /> {JOB_TYPE_LABELS[job.type] || job.type}
           </span>
         )}
@@ -1144,8 +1144,8 @@ function JobCard({ job, onApply, isReferred }: { job: PublicJob; onApply: () => 
           onClick={onApply}
           className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold text-white transition-all ${
             isReferred
-              ? 'bg-gradient-to-r from-violet-500 to-purple-600 hover:shadow-md hover:shadow-violet-500/30'
-              : 'bg-gradient-to-r from-indigo-500 to-violet-500 hover:shadow-md hover:shadow-indigo-500/30'
+              ? 'bg-gradient-to-r from-teal-500 to-teal-600 hover:shadow-md hover:shadow-teal-500/30'
+              : 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:shadow-md hover:shadow-emerald-500/30'
           }`}
         >
           Apply <FiArrowRight className="w-3 h-3" />
@@ -1194,9 +1194,9 @@ function ApplyModal({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="px-5 py-4 bg-gradient-to-r from-indigo-50 to-violet-50 border-b border-slate-100 flex items-start justify-between">
+        <div className="px-5 py-4 bg-gradient-to-r from-emerald-50 to-teal-50 border-b border-slate-100 flex items-start justify-between">
           <div>
-            <p className="text-[11px] text-indigo-700 font-semibold uppercase tracking-wider">Apply for</p>
+            <p className="text-[11px] text-emerald-700 font-semibold uppercase tracking-wider">Apply for</p>
             <h3 className="font-bold text-slate-900">{job.title}</h3>
             <p className="text-xs text-slate-500 mt-0.5">
               {job.company?.name}{job.location && ` · ${job.location}`}{job.type && ` · ${JOB_TYPE_LABELS[job.type] || job.type}`}
@@ -1212,8 +1212,8 @@ function ApplyModal({
           {/* REQ-CAND-05: Logged-in candidate banner — warns the user when
               they're applying under an existing candidate-portal session. */}
           {loggedInCandidateEmail && (
-            <div className="rounded-xl border border-indigo-200 bg-indigo-50/60 px-3 py-2.5 flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2 text-[11px] text-indigo-800 min-w-0">
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 px-3 py-2.5 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 text-[11px] text-emerald-800 min-w-0">
                 <FiCheckCircle className="w-4 h-4 flex-shrink-0" />
                 <span className="truncate">
                   Signed in as <strong className="font-semibold">{loggedInCandidateEmail}</strong> — applying under this account.
@@ -1222,7 +1222,7 @@ function ApplyModal({
               <button
                 type="button"
                 onClick={onLogoutCandidate}
-                className="text-[10px] font-semibold text-indigo-700 hover:text-indigo-900 hover:underline whitespace-nowrap"
+                className="text-[10px] font-semibold text-emerald-700 hover:text-emerald-900 hover:underline whitespace-nowrap"
               >
                 Use a different email →
               </button>
@@ -1232,8 +1232,8 @@ function ApplyModal({
           {/* Resume upload FIRST — once uploaded we parse it server-side and
               auto-fill the name/email/phone fields below. */}
           <Field label="Resume *" icon={<FiUpload className="w-3.5 h-3.5" />}>
-            <label className="flex items-center gap-3 px-3 py-3 border-2 border-dashed border-slate-200 rounded-xl cursor-pointer hover:border-indigo-300 hover:bg-indigo-50/40 transition-all">
-              <div className="w-9 h-9 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center flex-shrink-0">
+            <label className="flex items-center gap-3 px-3 py-3 border-2 border-dashed border-slate-200 rounded-xl cursor-pointer hover:border-emerald-300 hover:bg-emerald-50/40 transition-all">
+              <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center flex-shrink-0">
                 <FiUpload className="w-4 h-4" />
               </div>
               <div className="flex-1 min-w-0">
@@ -1250,8 +1250,8 @@ function ApplyModal({
               />
             </label>
             {parsingResume && (
-              <div className="flex items-center gap-2 mt-2 text-xs text-indigo-700 font-medium">
-                <div className="w-3 h-3 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
+              <div className="flex items-center gap-2 mt-2 text-xs text-emerald-700 font-medium">
+                <div className="w-3 h-3 border-2 border-emerald-200 border-t-emerald-600 rounded-full animate-spin" />
                 Parsing your resume & auto-filling details…
               </div>
             )}
@@ -1356,7 +1356,7 @@ function ApplyModal({
           {/* REQ-SEC-REC-04 — Consent checkboxes (4 required) */}
           <div className="rounded-xl border border-slate-200 p-3 space-y-2.5">
             <div className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-700 uppercase tracking-wider">
-              <FiShield className="w-3.5 h-3.5 text-indigo-500" />
+              <FiShield className="w-3.5 h-3.5 text-emerald-500" />
               Your Consents <span className="text-rose-500 normal-case font-normal lowercase">(all 4 required)</span>
             </div>
             <ConsentCheckbox
@@ -1440,7 +1440,7 @@ function ApplyModal({
           <button
             onClick={onSubmit}
             disabled={submitting}
-            className="inline-flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-bold text-white bg-gradient-to-r from-indigo-500 to-violet-500 hover:shadow-lg hover:shadow-indigo-500/30 disabled:opacity-60 transition-all"
+            className="inline-flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-bold text-white bg-gradient-to-r from-emerald-500 to-teal-500 hover:shadow-lg hover:shadow-emerald-500/30 disabled:opacity-60 transition-all"
           >
             {submitting ? 'Submitting…' : <>Submit Application <FiArrowRight className="w-4 h-4" /></>}
           </button>
@@ -1488,7 +1488,7 @@ function ConsentCheckbox({
   const accentClass =
     accent === 'amber'
       ? 'border-amber-300 text-amber-600 focus:ring-amber-500'
-      : 'border-slate-300 text-indigo-600 focus:ring-indigo-500';
+      : 'border-slate-300 text-emerald-600 focus:ring-emerald-500';
   return (
     <label className="flex items-start gap-2.5 cursor-pointer group">
       <input

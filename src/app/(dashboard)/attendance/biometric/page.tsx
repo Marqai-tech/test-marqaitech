@@ -373,7 +373,7 @@ export default function BiometricPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
-            <FiCpu className="w-6 h-6 text-violet-500" />
+            <FiCpu className="w-6 h-6 text-teal-500" />
             Biometric Devices
           </h1>
           <p className="text-thb-text-secondary mt-1">
@@ -391,7 +391,7 @@ export default function BiometricPage() {
           {isAdmin && tab === 'devices' && (
             <button
               onClick={() => setShowDeviceForm(true)}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-violet-600 text-white hover:bg-violet-700 text-sm font-medium shadow-sm shadow-violet-500/25"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-teal-600 text-white hover:bg-teal-700 text-sm font-medium shadow-sm shadow-teal-500/25"
             >
               <FiPlus className="w-4 h-4" />
               Register Device
@@ -400,7 +400,7 @@ export default function BiometricPage() {
           {isAdmin && tab === 'enrollments' && (
             <button
               onClick={() => setShowEnrollForm(true)}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-violet-600 text-white hover:bg-violet-700 text-sm font-medium shadow-sm shadow-violet-500/25"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-teal-600 text-white hover:bg-teal-700 text-sm font-medium shadow-sm shadow-teal-500/25"
             >
               <FiPlus className="w-4 h-4" />
               Enroll Employee
@@ -438,14 +438,14 @@ export default function BiometricPage() {
             onClick={() => setTab(t.key)}
             className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
               tab === t.key
-                ? 'border-violet-500 text-violet-600'
+                ? 'border-teal-500 text-teal-600'
                 : 'border-transparent text-thb-text-secondary hover:text-thb-text-primary'
             }`}
           >
             <t.icon className="w-4 h-4" />
             {t.label}
             {typeof t.count === 'number' && (
-              <span className={`px-1.5 py-0.5 rounded text-xs ${tab === t.key ? 'bg-violet-100 text-violet-700' : 'bg-slate-100 text-slate-600'}`}>
+              <span className={`px-1.5 py-0.5 rounded text-xs ${tab === t.key ? 'bg-teal-100 text-teal-700' : 'bg-slate-100 text-slate-600'}`}>
                 {t.count}
               </span>
             )}
@@ -786,7 +786,7 @@ export default function BiometricPage() {
           <button
             onClick={handleSaveThresholds}
             disabled={submitting}
-            className="px-4 py-2 rounded bg-violet-600 text-white text-sm font-medium hover:bg-violet-700 disabled:opacity-50"
+            className="px-4 py-2 rounded bg-teal-600 text-white text-sm font-medium hover:bg-teal-700 disabled:opacity-50"
           >
             {submitting ? 'Saving…' : 'Save thresholds'}
           </button>
@@ -846,7 +846,7 @@ export default function BiometricPage() {
                 </select>
               </div>
             </div>
-            <div className="text-xs bg-violet-50 border border-violet-100 rounded p-3 text-violet-900">
+            <div className="text-xs bg-teal-50 border border-teal-100 rounded p-3 text-teal-900">
               <strong>REQ-SEC-ATT-02:</strong> Device-to-server traffic MUST use TLS 1.3. The API token is shown ONCE after registration — save it to the device config immediately.
             </div>
             <div className="flex justify-end gap-2 pt-2">
@@ -854,7 +854,7 @@ export default function BiometricPage() {
               <button
                 onClick={handleDeviceSubmit}
                 disabled={submitting}
-                className="px-4 py-2 text-sm rounded bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50"
+                className="px-4 py-2 text-sm rounded bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-50"
               >
                 {submitting ? 'Registering…' : 'Register & generate token'}
               </button>
@@ -933,7 +933,7 @@ export default function BiometricPage() {
               <button
                 onClick={handleEnrollSubmit}
                 disabled={submitting}
-                className="px-4 py-2 text-sm rounded bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50"
+                className="px-4 py-2 text-sm rounded bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-50"
               >
                 {submitting ? 'Saving…' : 'Save enrollment'}
               </button>
@@ -981,7 +981,7 @@ export default function BiometricPage() {
             <div className="flex justify-end pt-2">
               <button
                 onClick={() => setNewToken(null)}
-                className="px-4 py-2 text-sm rounded bg-violet-600 text-white hover:bg-violet-700"
+                className="px-4 py-2 text-sm rounded bg-teal-600 text-white hover:bg-teal-700"
               >
                 I&apos;ve saved it — close
               </button>
@@ -1024,7 +1024,7 @@ function ThresholdSlider({ label, description, value, onChange }: {
     <div>
       <div className="flex items-center justify-between">
         <label className="text-sm font-medium text-thb-text-primary">{label}</label>
-        <span className="text-sm font-bold text-violet-600">{Math.round(value * 100)}%</span>
+        <span className="text-sm font-bold text-teal-600">{Math.round(value * 100)}%</span>
       </div>
       <p className="text-xs text-thb-text-muted mt-0.5">{description}</p>
       <input
@@ -1034,7 +1034,7 @@ function ThresholdSlider({ label, description, value, onChange }: {
         step="0.05"
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full mt-2 accent-violet-600"
+        className="w-full mt-2 accent-teal-600"
       />
     </div>
   );

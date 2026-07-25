@@ -36,7 +36,7 @@ export default function VendorCompliancePage() {
           <h1 className="text-2xl font-bold">Vendor Compliance Tracker</h1>
           <p className="text-sm text-gray-600 mt-1">Track insurance, DPA, labor licenses with expiry alerts (REQ-VEN-02/03)</p>
         </div>
-        <button onClick={runScan} disabled={showScan} className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50">
+        <button onClick={runScan} disabled={showScan} className="px-4 py-2 bg-teal-600 text-white rounded hover:bg-teal-700 disabled:opacity-50">
           {showScan ? 'Scanning...' : '⚡ Run AI Compliance Scan'}
         </button>
       </div>
@@ -45,7 +45,7 @@ export default function VendorCompliancePage() {
         <div className="col-span-3 bg-white border rounded-lg p-3 max-h-[70vh] overflow-y-auto">
           <input placeholder="Search vendors..." className="w-full border rounded px-2 py-1 mb-2 text-sm" onChange={e => loadVendors()} />
           {vendors.map(v => (
-            <button key={v.id} onClick={() => { setSelected(v); loadDocs(v.id); }} className={`w-full text-left px-3 py-2 rounded text-sm ${selected?.id === v.id ? 'bg-blue-50 border-l-4 border-blue-600' : 'hover:bg-gray-50'}`}>
+            <button key={v.id} onClick={() => { setSelected(v); loadDocs(v.id); }} className={`w-full text-left px-3 py-2 rounded text-sm ${selected?.id === v.id ? 'bg-green-50 border-l-4 border-green-600' : 'hover:bg-gray-50'}`}>
               <div className="font-medium">{v.name}</div>
               <div className="text-xs text-gray-500">{v.specialization || '-'}</div>
             </button>
@@ -99,7 +99,7 @@ export default function VendorCompliancePage() {
       await fetch(`/api/vendors/${vendorId}/documents`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(form) });
       setOpen(false); setForm({ name: '', type: 'insurance', expiryDate: '' }); onAdded();
     }
-    if (!open) return <button onClick={() => setOpen(true)} className="text-sm px-3 py-1 bg-blue-600 text-white rounded">+ Add</button>;
+    if (!open) return <button onClick={() => setOpen(true)} className="text-sm px-3 py-1 bg-green-600 text-white rounded">+ Add</button>;
     return (
       <form onSubmit={submit} className="flex gap-2 items-end">
         <input placeholder="Doc name" required value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="border rounded px-2 py-1 text-sm" />

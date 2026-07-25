@@ -93,13 +93,13 @@ export default function ModulesPage() {
         </div>
         {/* Search Bar */}
         <div className="relative max-w-sm">
-          <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-400" />
+          <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-green-400" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search modules..."
-            className="w-full pl-10 pr-4 py-2 rounded-xl border border-blue-200 bg-blue-50/30 text-sm text-thb-text-primary placeholder:text-blue-400/60 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 focus:bg-white transition-all"
+            className="w-full pl-10 pr-4 py-2 rounded-xl border border-green-200 bg-green-50/30 text-sm text-thb-text-primary placeholder:text-green-400/60 focus:outline-none focus:ring-2 focus:ring-green-500/30 focus:border-green-400 focus:bg-white transition-all"
           />
         </div>
       </div>
@@ -125,7 +125,7 @@ export default function ModulesPage() {
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
                 {group.sections.map((section) => {
                   const SectionIcon = section.sectionIcon;
-                  const gradientColor = section.sectionColor || 'from-blue-500 to-indigo-600';
+                  const gradientColor = section.sectionColor || 'from-green-500 to-emerald-600';
                   const tabCount = section.dashboardTabs?.length || 0;
                   const itemCount = section.items.length;
 
@@ -133,7 +133,7 @@ export default function ModulesPage() {
                     <div
                       key={section.key}
                       onClick={() => handleModuleClick(section)}
-                      className="group relative rounded-xl border border-slate-200 hover:border-blue-300 bg-white hover:bg-gradient-to-b hover:from-white hover:to-blue-50/30 transition-all duration-200 cursor-pointer hover:shadow-lg hover:shadow-blue-500/8 overflow-hidden"
+                      className="group relative rounded-xl border border-slate-200 hover:border-green-300 bg-white hover:bg-gradient-to-b hover:from-white hover:to-green-50/30 transition-all duration-200 cursor-pointer hover:shadow-lg hover:shadow-green-500/8 overflow-hidden"
                     >
                       {/* Card Content */}
                       <div className="p-3">
@@ -148,7 +148,7 @@ export default function ModulesPage() {
 
                         {/* Stats Row */}
                         <div className="flex items-center gap-2 mt-2">
-                          <span className="text-[9px] font-semibold text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded">
+                          <span className="text-[9px] font-semibold text-green-500 bg-green-50 px-1.5 py-0.5 rounded">
                             {itemCount} {itemCount === 1 ? 'section' : 'sections'}
                           </span>
                           {tabCount > 0 && (
@@ -164,7 +164,7 @@ export default function ModulesPage() {
                             {section.dashboardTabs.map((tab) => (
                               <span
                                 key={tab.key}
-                                className="inline-flex items-center gap-0.5 text-[8px] font-medium text-slate-500 bg-slate-50 px-1.5 py-0.5 rounded group-hover:text-blue-500 group-hover:bg-blue-50/50 transition-colors"
+                                className="inline-flex items-center gap-0.5 text-[8px] font-medium text-slate-500 bg-slate-50 px-1.5 py-0.5 rounded group-hover:text-green-500 group-hover:bg-green-50/50 transition-colors"
                               >
                                 {getTabIcon(tab.key)}
                                 {tab.label}
@@ -176,7 +176,7 @@ export default function ModulesPage() {
 
                       {/* Hover Arrow */}
                       <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <FiArrowRight className="w-3.5 h-3.5 text-blue-400" />
+                        <FiArrowRight className="w-3.5 h-3.5 text-green-400" />
                       </div>
                     </div>
                   );

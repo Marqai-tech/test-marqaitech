@@ -57,7 +57,7 @@ function formatDate(d: string | null | undefined) {
 
 function getStatusBadge(status: string) {
   const map: Record<string, string> = {
-    upcoming: 'bg-blue-50 text-blue-700 thb-badge',
+    upcoming: 'bg-green-50 text-green-700 thb-badge',
     ongoing: 'thb-badge thb-badge-warning',
     completed: 'thb-badge thb-badge-success',
     cancelled: 'thb-badge thb-badge-error',
@@ -73,7 +73,7 @@ function getStatusBadge(status: string) {
 
 function getModeBadge(mode: string) {
   const map: Record<string, string> = {
-    online: 'bg-violet-50 text-violet-700 thb-badge',
+    online: 'bg-teal-50 text-teal-700 thb-badge',
     offline: 'bg-rose-50 text-rose-700 thb-badge',
     hybrid: 'bg-amber-50 text-amber-700 thb-badge',
   };
@@ -87,11 +87,11 @@ function getModeBadge(mode: string) {
 
 function getCategoryBadge(category: string) {
   const map: Record<string, string> = {
-    technical: 'bg-blue-50 text-blue-700 thb-badge',
+    technical: 'bg-green-50 text-green-700 thb-badge',
     soft_skills: 'bg-emerald-50 text-emerald-700 thb-badge',
     compliance: 'bg-rose-50 text-rose-700 thb-badge',
     leadership: 'bg-amber-50 text-amber-700 thb-badge',
-    onboarding: 'bg-violet-50 text-violet-700 thb-badge',
+    onboarding: 'bg-teal-50 text-teal-700 thb-badge',
   };
   const labels: Record<string, string> = {
     technical: 'Technical',
@@ -337,13 +337,13 @@ export default function TrainingPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
-            <FiBookOpen className="w-6 h-6 text-violet-500" />
+            <FiBookOpen className="w-6 h-6 text-teal-500" />
             Training
           </h1>
           <p className="text-thb-text-secondary mt-1">Manage training programs and enrollments</p>
         </div>
         {isAdmin && (
-          <button onClick={handleShowAddForm} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium text-sm shadow-sm shadow-blue-500/25 transition-colors">
+          <button onClick={handleShowAddForm} className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-500 text-white rounded-lg hover:bg-green-600 font-medium text-sm shadow-sm shadow-green-500/25 transition-colors">
             <FiPlus className="w-4 h-4" />
             Add Training
           </button>
@@ -377,12 +377,12 @@ export default function TrainingPage() {
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Search trainings, categories, trainers..."
-            className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+            className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
           />
         </div>
         <div className="flex items-center gap-2">
           <FiFilter className="w-4 h-4 text-thb-text-muted" />
-          <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)} className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+          <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)} className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
             <option value="">All Categories</option>
             <option value="technical">Technical</option>
             <option value="soft_skills">Soft Skills</option>
@@ -390,13 +390,13 @@ export default function TrainingPage() {
             <option value="leadership">Leadership</option>
             <option value="onboarding">Onboarding</option>
           </select>
-          <select value={filterMode} onChange={e => setFilterMode(e.target.value)} className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+          <select value={filterMode} onChange={e => setFilterMode(e.target.value)} className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
             <option value="">All Modes</option>
             <option value="online">Online</option>
             <option value="offline">Offline</option>
             <option value="hybrid">Hybrid</option>
           </select>
-          <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+          <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
             <option value="">All Status</option>
             <option value="upcoming">Upcoming</option>
             <option value="ongoing">Ongoing</option>
@@ -408,7 +408,7 @@ export default function TrainingPage() {
 
       {/* Embedded CRUD Form */}
       {showForm && (
-        <div id="crud-form" className="thb-card border-l-4 border-l-blue-500 animate-slide-in-down">
+        <div id="crud-form" className="thb-card border-l-4 border-l-green-500 animate-slide-in-down">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-semibold text-thb-text-primary">
@@ -426,7 +426,7 @@ export default function TrainingPage() {
                   value={form.title}
                   onChange={e => setForm(p => ({ ...p, title: e.target.value }))}
                   placeholder="Training title"
-                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                 />
               </div>
               <div>
@@ -434,7 +434,7 @@ export default function TrainingPage() {
                 <select
                   value={form.category}
                   onChange={e => setForm(p => ({ ...p, category: e.target.value }))}
-                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                 >
                   <option value="technical">Technical</option>
                   <option value="soft_skills">Soft Skills</option>
@@ -450,7 +450,7 @@ export default function TrainingPage() {
                   value={form.trainer}
                   onChange={e => setForm(p => ({ ...p, trainer: e.target.value }))}
                   placeholder="Trainer name"
-                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                 />
               </div>
               <div>
@@ -459,7 +459,7 @@ export default function TrainingPage() {
                   type="date"
                   value={form.startDate}
                   onChange={e => setForm(p => ({ ...p, startDate: e.target.value }))}
-                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                 />
               </div>
               <div>
@@ -468,7 +468,7 @@ export default function TrainingPage() {
                   type="date"
                   value={form.endDate}
                   onChange={e => setForm(p => ({ ...p, endDate: e.target.value }))}
-                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                 />
               </div>
               <div>
@@ -476,7 +476,7 @@ export default function TrainingPage() {
                 <select
                   value={form.mode}
                   onChange={e => setForm(p => ({ ...p, mode: e.target.value }))}
-                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                 >
                   <option value="online">Online</option>
                   <option value="offline">Offline</option>
@@ -489,7 +489,7 @@ export default function TrainingPage() {
                   <select
                     value={form.status}
                     onChange={e => setForm(p => ({ ...p, status: e.target.value }))}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                   >
                     <option value="upcoming">Upcoming</option>
                     <option value="ongoing">Ongoing</option>
@@ -505,7 +505,7 @@ export default function TrainingPage() {
                   value={form.maxParticipants}
                   onChange={e => setForm(p => ({ ...p, maxParticipants: e.target.value }))}
                   placeholder="Leave empty for unlimited"
-                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                 />
               </div>
               <div className="sm:col-span-2 lg:col-span-3">
@@ -515,13 +515,13 @@ export default function TrainingPage() {
                   value={form.description}
                   onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
                   placeholder="Training description..."
-                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 resize-none"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 resize-none"
                 />
               </div>
             </div>
             <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-thb-border">
               <button onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
-              <button onClick={handleSubmit} disabled={submitting} className="px-6 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50 shadow-sm shadow-blue-500/25 transition-colors">
+              <button onClick={handleSubmit} disabled={submitting} className="px-6 py-2.5 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 disabled:opacity-50 shadow-sm shadow-green-500/25 transition-colors">
                 {submitting ? 'Saving...' : editingId ? 'Update' : 'Create'}
               </button>
             </div>
@@ -531,7 +531,7 @@ export default function TrainingPage() {
 
       {/* Enroll Employee Inline */}
       {enrollTrainingId && (
-        <div className="thb-card border-l-4 border-l-violet-500 animate-slide-in-down">
+        <div className="thb-card border-l-4 border-l-teal-500 animate-slide-in-down">
           <div className="p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-thb-text-primary">Enroll Employee</h2>
@@ -545,7 +545,7 @@ export default function TrainingPage() {
                 <select
                   value={enrollEmpId}
                   onChange={e => setEnrollEmpId(e.target.value)}
-                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                 >
                   <option value="">Select Employee</option>
                   {employees.map(emp => (
@@ -555,7 +555,7 @@ export default function TrainingPage() {
                   ))}
                 </select>
               </div>
-              <button onClick={handleEnroll} disabled={enrolling || !enrollEmpId} className="px-6 py-2.5 rounded-lg bg-violet-500 text-white text-sm font-medium hover:bg-violet-600 disabled:opacity-50 shadow-sm shadow-violet-500/25 transition-colors">
+              <button onClick={handleEnroll} disabled={enrolling || !enrollEmpId} className="px-6 py-2.5 rounded-lg bg-teal-500 text-white text-sm font-medium hover:bg-teal-600 disabled:opacity-50 shadow-sm shadow-teal-500/25 transition-colors">
                 {enrolling ? 'Enrolling...' : 'Enroll'}
               </button>
             </div>
@@ -639,11 +639,11 @@ export default function TrainingPage() {
                       {isAdmin && (
                         <div className="flex items-center gap-1">
                           {t.status !== 'completed' && t.status !== 'cancelled' && (
-                            <button onClick={() => { setEnrollTrainingId(t.id); setEnrollEmpId(''); }} className="p-1.5 rounded-lg text-thb-text-muted hover:text-violet-500 hover:bg-violet-50 transition-colors" title="Enroll">
+                            <button onClick={() => { setEnrollTrainingId(t.id); setEnrollEmpId(''); }} className="p-1.5 rounded-lg text-thb-text-muted hover:text-teal-500 hover:bg-teal-50 transition-colors" title="Enroll">
                               <FiPlay className="w-3.5 h-3.5" />
                             </button>
                           )}
-                          <button onClick={() => handleShowEditForm(t)} className="p-1.5 rounded-lg text-thb-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="Edit">
+                          <button onClick={() => handleShowEditForm(t)} className="p-1.5 rounded-lg text-thb-text-muted hover:text-green-500 hover:bg-green-50 transition-colors" title="Edit">
                             <FiEdit2 className="w-3.5 h-3.5" />
                           </button>
                           <button onClick={() => setDeleteConfirmId(t.id)} className="p-1.5 rounded-lg text-thb-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete">

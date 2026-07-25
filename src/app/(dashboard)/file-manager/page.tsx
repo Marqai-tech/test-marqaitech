@@ -69,11 +69,11 @@ const DRIVES = [
     key: 'project' as const,
     label: 'Project Drive',
     icon: FiUsers,
-    color: 'text-violet-500',
+    color: 'text-teal-500',
     used: 8.2,
     total: 20,
-    bgColor: 'bg-violet-50',
-    barColor: 'bg-violet-500',
+    bgColor: 'bg-teal-50',
+    barColor: 'bg-teal-500',
   },
   {
     key: 'company' as const,
@@ -88,10 +88,10 @@ const DRIVES = [
 ];
 
 const CATEGORIES = [
-  { key: 'doc', label: 'Documents', icon: FiFileText, color: 'text-blue-500', count: 8 },
+  { key: 'doc', label: 'Documents', icon: FiFileText, color: 'text-green-500', count: 8 },
   { key: 'xls', label: 'Spreadsheets', icon: FiHash, color: 'text-green-500', count: 6 },
   { key: 'ppt', label: 'Presentations', icon: FiFile, color: 'text-orange-500', count: 4 },
-  { key: 'img', label: 'Images', icon: FiImage, color: 'text-violet-500', count: 5 },
+  { key: 'img', label: 'Images', icon: FiImage, color: 'text-teal-500', count: 5 },
   { key: 'pdf', label: 'PDFs', icon: FiFile, color: 'text-red-500', count: 9 },
 ];
 
@@ -205,9 +205,9 @@ const FILE_TYPE_ICONS: Record<FileType, typeof FiFolder> = {
 const FILE_TYPE_COLORS: Record<FileType, { icon: string; bg: string; border: string; text: string }> = {
   folder: { icon: 'text-amber-500', bg: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-700' },
   pdf: { icon: 'text-red-500', bg: 'bg-red-50', border: 'border-red-200', text: 'text-red-700' },
-  doc: { icon: 'text-blue-500', bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-700' },
+  doc: { icon: 'text-green-500', bg: 'bg-green-50', border: 'border-green-200', text: 'text-green-700' },
   xls: { icon: 'text-green-500', bg: 'bg-green-50', border: 'border-green-200', text: 'text-green-700' },
-  img: { icon: 'text-violet-500', bg: 'bg-violet-50', border: 'border-violet-200', text: 'text-violet-700' },
+  img: { icon: 'text-teal-500', bg: 'bg-teal-50', border: 'border-teal-200', text: 'text-teal-700' },
   ppt: { icon: 'text-orange-500', bg: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-700' },
   other: { icon: 'text-slate-500', bg: 'bg-slate-50', border: 'border-slate-200', text: 'text-slate-700' },
 };
@@ -888,8 +888,8 @@ export default function FileManagerPage() {
                         <div className="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center shrink-0 mt-0.5">
                           {act.action === 'viewed' && <FiEye className="w-2.5 h-2.5 text-slate-400" />}
                           {act.action === 'uploaded' && <FiArrowUp className="w-2.5 h-2.5 text-emerald-500" />}
-                          {act.action === 'edited' && <FiEdit3 className="w-2.5 h-2.5 text-blue-500" />}
-                          {act.action === 'shared' && <FiShare2 className="w-2.5 h-2.5 text-violet-500" />}
+                          {act.action === 'edited' && <FiEdit3 className="w-2.5 h-2.5 text-green-500" />}
+                          {act.action === 'shared' && <FiShare2 className="w-2.5 h-2.5 text-teal-500" />}
                           {act.action === 'downloaded' && <FiDownload className="w-2.5 h-2.5 text-amber-500" />}
                         </div>
                         <div className="flex-1 min-w-0">

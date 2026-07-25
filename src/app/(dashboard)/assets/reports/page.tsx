@@ -34,7 +34,7 @@ export default function AssetsReportsPage() {
         </div>
         <button
           onClick={() => toast.success('Report exported successfully')}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium"
+          className="flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium"
         >
           <FiDownload className="w-4 h-4" /> Export Report
         </button>
@@ -45,9 +45,9 @@ export default function AssetsReportsPage() {
           <button
             key={r.key}
             onClick={() => setActiveReport(r.key)}
-            className={`thb-card p-4 text-left hover:shadow-md transition-all ${activeReport === r.key ? 'ring-2 ring-blue-500 shadow-md' : ''}`}
+            className={`thb-card p-4 text-left hover:shadow-md transition-all ${activeReport === r.key ? 'ring-2 ring-green-500 shadow-md' : ''}`}
           >
-            <div className={`p-2 rounded-lg inline-flex ${activeReport === r.key ? 'bg-blue-500 text-white' : 'bg-slate-100 text-slate-600'} mb-2`}>{r.icon}</div>
+            <div className={`p-2 rounded-lg inline-flex ${activeReport === r.key ? 'bg-green-500 text-white' : 'bg-slate-100 text-slate-600'} mb-2`}>{r.icon}</div>
             <p className="text-sm font-semibold text-thb-text-primary">{r.label}</p>
             <p className="text-xs text-thb-text-muted mt-0.5">{r.desc}</p>
           </button>
@@ -77,11 +77,11 @@ export default function AssetsReportsPage() {
                   <td className="py-2.5 px-4 text-right font-medium">₹{a.bookValue.toLocaleString('en-IN')}</td>
                 </tr>
               ))}
-              <tr className="bg-blue-50 font-bold">
-                <td className="py-3 px-4 text-blue-700">Total</td>
-                <td className="py-3 px-4 text-right text-blue-700">{assetData.reduce((s, a) => s + a.count, 0)}</td>
-                <td className="py-3 px-4 text-right text-blue-700">₹{assetData.reduce((s, a) => s + a.totalValue, 0).toLocaleString('en-IN')}</td>
-                <td className="py-3 px-4 text-right text-blue-700">₹{assetData.reduce((s, a) => s + a.bookValue, 0).toLocaleString('en-IN')}</td>
+              <tr className="bg-green-50 font-bold">
+                <td className="py-3 px-4 text-green-700">Total</td>
+                <td className="py-3 px-4 text-right text-green-700">{assetData.reduce((s, a) => s + a.count, 0)}</td>
+                <td className="py-3 px-4 text-right text-green-700">₹{assetData.reduce((s, a) => s + a.totalValue, 0).toLocaleString('en-IN')}</td>
+                <td className="py-3 px-4 text-right text-green-700">₹{assetData.reduce((s, a) => s + a.bookValue, 0).toLocaleString('en-IN')}</td>
               </tr>
             </tbody>
           </table>

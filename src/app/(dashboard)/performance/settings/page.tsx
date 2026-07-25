@@ -26,7 +26,7 @@ export default function PerformanceSettingsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-thb-text-primary flex items-center gap-2">
-            <FiSettings className="w-5 h-5 text-blue-500" /> Performance Settings
+            <FiSettings className="w-5 h-5 text-green-500" /> Performance Settings
           </h1>
           <p className="text-sm text-thb-text-secondary mt-1">Configure appraisal cycles, rating scales, and review settings</p>
         </div>
@@ -35,7 +35,7 @@ export default function PerformanceSettingsPage() {
             <FiRefreshCw className="w-4 h-4" />
           </button>
           {isAdmin && (
-            <button onClick={handleSave} disabled={saving} className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 text-sm font-medium">
+            <button onClick={handleSave} disabled={saving} className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 text-sm font-medium">
               <FiSave className="w-4 h-4" /> {saving ? 'Saving...' : 'Save Settings'}
             </button>
           )}
@@ -59,21 +59,21 @@ export default function PerformanceSettingsPage() {
                 <p className="text-sm font-medium text-thb-text-primary">360 Feedback</p>
                 <p className="text-xs text-thb-text-muted">Enable multi-rater feedback</p>
               </div>
-              <button className="px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">Enabled</button>
+              <button className="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">Enabled</button>
             </div>
             <div className="flex items-center justify-between py-2">
               <div>
                 <p className="text-sm font-medium text-thb-text-primary">Self-assessment</p>
                 <p className="text-xs text-thb-text-muted">Require self-evaluation before review</p>
               </div>
-              <button className="px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">Enabled</button>
+              <button className="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">Enabled</button>
             </div>
             <div className="flex items-center justify-between py-2">
               <div>
                 <p className="text-sm font-medium text-thb-text-primary">Goal alignment</p>
                 <p className="text-xs text-thb-text-muted">Link individual goals to company OKRs</p>
               </div>
-              <button className="px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">Enabled</button>
+              <button className="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">Enabled</button>
             </div>
           </div>
         </div>
@@ -108,7 +108,7 @@ export default function PerformanceSettingsPage() {
                 <p className="text-sm font-medium text-thb-text-primary">Calibration sessions</p>
                 <p className="text-xs text-thb-text-muted">Require calibration before final ratings</p>
               </div>
-              <button className="px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">Enabled</button>
+              <button className="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">Enabled</button>
             </div>
           </div>
         </div>
@@ -122,21 +122,21 @@ export default function PerformanceSettingsPage() {
               <p className="text-sm font-medium text-thb-text-primary">Start reminder</p>
               <p className="text-xs text-thb-text-muted">Notify at cycle start</p>
             </div>
-            <button className="px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">Enabled</button>
+            <button className="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">Enabled</button>
           </div>
           <div className="flex items-center justify-between py-2">
             <div>
               <p className="text-sm font-medium text-thb-text-primary">Mid-cycle nudge</p>
               <p className="text-xs text-thb-text-muted">Reminder at half-way point</p>
             </div>
-            <button className="px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">Enabled</button>
+            <button className="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">Enabled</button>
           </div>
           <div className="flex items-center justify-between py-2">
             <div>
               <p className="text-sm font-medium text-thb-text-primary">Deadline alert</p>
               <p className="text-xs text-thb-text-muted">3 days before due date</p>
             </div>
-            <button className="px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">Enabled</button>
+            <button className="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">Enabled</button>
           </div>
         </div>
       </div>

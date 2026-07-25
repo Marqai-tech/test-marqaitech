@@ -42,8 +42,8 @@ interface Optimization {
 }
 
 const TYPE_LABELS: Record<string, { label: string; color: string }> = {
-  quantify: { label: 'Quantify', color: 'bg-blue-100 text-blue-700' },
-  action_verb: { label: 'Action Verb', color: 'bg-purple-100 text-purple-700' },
+  quantify: { label: 'Quantify', color: 'bg-green-100 text-green-700' },
+  action_verb: { label: 'Action Verb', color: 'bg-teal-100 text-teal-700' },
   concise: { label: 'Concise', color: 'bg-yellow-100 text-yellow-700' },
   keyword: { label: 'Keyword', color: 'bg-green-100 text-green-700' },
   grammar: { label: 'Grammar', color: 'bg-red-100 text-red-700' },
@@ -52,7 +52,7 @@ const TYPE_LABELS: Record<string, { label: string; color: string }> = {
 const SEVERITY_COLORS: Record<string, string> = {
   high: 'border-red-300 bg-red-50',
   medium: 'border-yellow-300 bg-yellow-50',
-  low: 'border-blue-300 bg-blue-50',
+  low: 'border-green-300 bg-green-50',
 };
 
 export default function ResumeOptimizerPage() {
@@ -156,7 +156,7 @@ export default function ResumeOptimizerPage() {
         <h1 className="text-2xl font-bold mb-4">AI Resume Optimizer</h1>
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
           No application selected. Please visit your{' '}
-          <Link href="/candidate-portal/dashboard" className="text-blue-600 underline">dashboard</Link>{' '}
+          <Link href="/candidate-portal/dashboard" className="text-green-600 underline">dashboard</Link>{' '}
           and click "Optimize Resume" on an application.
         </div>
       </div>
@@ -175,7 +175,7 @@ export default function ResumeOptimizerPage() {
         </div>
         <div className="flex items-center gap-3">
           {matchScore !== null && (
-            <div className="text-center px-4 py-2 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 text-white">
+            <div className="text-center px-4 py-2 rounded-lg bg-gradient-to-br from-green-500 to-emerald-600 text-white">
               <div className="text-[10px] uppercase tracking-wider opacity-80">Match Score</div>
               <div className="text-3xl font-bold">{matchScore}%</div>
             </div>
@@ -183,7 +183,7 @@ export default function ResumeOptimizerPage() {
           <button
             onClick={runOptimization}
             disabled={loading}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm hover:bg-indigo-700 disabled:bg-gray-400"
+            className="px-4 py-2 bg-emerald-600 text-white rounded-md text-sm hover:bg-emerald-700 disabled:bg-gray-400"
           >
             {loading ? 'Analyzing…' : optimization ? 'Re-run Analysis' : 'Run AI Analysis'}
           </button>
@@ -212,7 +212,7 @@ export default function ResumeOptimizerPage() {
             {/* Gap Analysis (REQ-AI-RES-04) */}
             <div className="bg-white border rounded-lg p-4">
               <h3 className="font-semibold mb-3 flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
+                <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
                 Gap Analysis
               </h3>
               {optimization.gapAnalysis ? (
@@ -333,7 +333,7 @@ export default function ResumeOptimizerPage() {
                 <p className="text-xs text-gray-500 mb-3">Pick one to add to your resume (or write your own).</p>
                 <div className="space-y-2">
                   {optimization.summaryOptions.map((s, i) => (
-                    <label key={i} className={`block text-xs border rounded p-2 cursor-pointer ${selectedSummary === s ? 'bg-blue-50 border-blue-400' : 'bg-white hover:bg-gray-50'}`}>
+                    <label key={i} className={`block text-xs border rounded p-2 cursor-pointer ${selectedSummary === s ? 'bg-green-50 border-green-400' : 'bg-white hover:bg-gray-50'}`}>
                       <div className="flex items-start gap-2">
                         <input
                           type="radio"
@@ -388,7 +388,7 @@ export default function ResumeOptimizerPage() {
       )}
 
       <div className="text-center pt-4">
-        <Link href="/candidate-portal/dashboard" className="text-sm text-blue-600 hover:underline">
+        <Link href="/candidate-portal/dashboard" className="text-sm text-green-600 hover:underline">
           ← Back to Dashboard
         </Link>
       </div>

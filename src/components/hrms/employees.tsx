@@ -194,7 +194,7 @@ export function Employees() {
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
-            <p className="text-2xl font-bold text-blue-600">{employees.filter(e => e.status === 'probation').length}</p>
+            <p className="text-2xl font-bold text-green-600">{employees.filter(e => e.status === 'probation').length}</p>
             <p className="text-xs text-muted-foreground">On Probation</p>
           </CardContent>
         </Card>

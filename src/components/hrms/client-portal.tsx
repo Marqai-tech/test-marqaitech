@@ -91,7 +91,7 @@ export function ClientPortal() {
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
-            <Briefcase className="h-5 w-5 mx-auto text-blue-600 mb-1" />
+            <Briefcase className="h-5 w-5 mx-auto text-green-600 mb-1" />
             <p className="text-2xl font-bold">{clients.reduce((s, c) => s + (c.activeJobs || 0), 0)}</p>
             <p className="text-xs text-muted-foreground">Active Jobs</p>
           </CardContent>
@@ -105,7 +105,7 @@ export function ClientPortal() {
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
-            <Star className="h-5 w-5 mx-auto text-purple-600 mb-1" />
+            <Star className="h-5 w-5 mx-auto text-teal-600 mb-1" />
             <p className="text-2xl font-bold">4.6</p>
             <p className="text-xs text-muted-foreground">Avg Satisfaction</p>
           </CardContent>
@@ -189,7 +189,7 @@ export function ClientPortal() {
                         <TableCell>
                           <Badge className={`text-[10px] ${
                             sla.status === 'exceeded' ? 'bg-emerald-100 text-emerald-800' :
-                            sla.status === 'met' ? 'bg-blue-100 text-blue-800' :
+                            sla.status === 'met' ? 'bg-green-100 text-green-800' :
                             'bg-red-100 text-red-800'
                           }`}>
                             {sla.status === 'exceeded' && <CheckCircle2 className="h-3 w-3 mr-1" />}
@@ -221,7 +221,7 @@ export function ClientPortal() {
                 <p className="text-sm font-medium">Time-to-Hire Optimization</p>
                 <p className="text-xs text-muted-foreground mt-1">Reducing interview rounds from 4 to 3 could decrease time-to-hire by 20% without impacting quality.</p>
               </div>
-              <div className="p-3 rounded-lg border bg-blue-50/50 dark:bg-blue-950/20">
+              <div className="p-3 rounded-lg border bg-green-50/50 dark:bg-green-950/20">
                 <p className="text-sm font-medium">Vendor Performance</p>
                 <p className="text-xs text-muted-foreground mt-1">TalentHunt Agency has the highest conversion rate at 78%. Recommend increasing allocation.</p>
               </div>

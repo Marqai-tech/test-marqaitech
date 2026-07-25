@@ -57,32 +57,32 @@ function AddLeaveTypeDialog({ open, onClose, onAdd }: { open: boolean; onClose: 
         <div className="p-5 space-y-4">
           <div>
             <label className="block text-sm font-medium text-thb-text-primary mb-1">Leave Type Name</label>
-            <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Casual Leave" className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" />
+            <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Casual Leave" className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500" />
           </div>
           <div>
             <label className="block text-sm font-medium text-thb-text-primary mb-1">Code</label>
-            <input value={code} onChange={e => setCode(e.target.value)} placeholder="e.g. CL" className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" />
+            <input value={code} onChange={e => setCode(e.target.value)} placeholder="e.g. CL" className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500" />
           </div>
           <div>
             <label className="block text-sm font-medium text-thb-text-primary mb-1">Annual Quota</label>
-            <input value={quota} onChange={e => setQuota(e.target.value)} placeholder="Number or leave blank for Unlimited" className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" />
+            <input value={quota} onChange={e => setQuota(e.target.value)} placeholder="Number or leave blank for Unlimited" className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500" />
           </div>
           <div className="flex items-center justify-between">
             <span className="text-sm text-thb-text-primary">Carry Forward</span>
-            <button onClick={() => setCarryFwd(!carryFwd)} className={carryFwd ? 'text-blue-600' : 'text-slate-400'}>
+            <button onClick={() => setCarryFwd(!carryFwd)} className={carryFwd ? 'text-green-600' : 'text-slate-400'}>
               {carryFwd ? <FiCheck className="w-5 h-5" /> : <FiX className="w-5 h-5" />}
             </button>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-sm text-thb-text-primary">Paid</span>
-            <button onClick={() => setPaid(!paid)} className={paid ? 'text-blue-600' : 'text-slate-400'}>
+            <button onClick={() => setPaid(!paid)} className={paid ? 'text-green-600' : 'text-slate-400'}>
               {paid ? <FiCheck className="w-5 h-5" /> : <FiX className="w-5 h-5" />}
             </button>
           </div>
         </div>
         <div className="flex items-center justify-end gap-3 px-5 py-4 border-t border-thb-border">
           <button onClick={onClose} className="px-4 py-2 text-sm text-thb-text-secondary hover:text-thb-text-primary transition-colors">Cancel</button>
-          <button onClick={handleSubmit} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">Add Leave Type</button>
+          <button onClick={handleSubmit} className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors">Add Leave Type</button>
         </div>
       </div>
     </div>
@@ -110,8 +110,8 @@ export default function LeaveTypesPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-blue-50">
-            <FiLayers className="w-5 h-5 text-blue-600" />
+          <div className="p-2.5 rounded-xl bg-green-50">
+            <FiLayers className="w-5 h-5 text-green-600" />
           </div>
           <div>
             <h1 className="text-xl font-bold text-thb-text-primary">Leave Types</h1>
@@ -121,7 +121,7 @@ export default function LeaveTypesPage() {
         {isAdmin && (
           <button
             onClick={() => setShowAdd(true)}
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors"
           >
             <FiPlus className="w-4 h-4" />
             Add Leave Type
@@ -157,14 +157,14 @@ export default function LeaveTypesPage() {
                     </span>
                   </td>
                   <td className="px-5 py-3 text-center">
-                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${lt.isPaid ? 'bg-blue-50 text-blue-700' : 'bg-amber-50 text-amber-700'}`}>
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${lt.isPaid ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700'}`}>
                       {lt.isPaid ? 'Paid' : 'Unpaid'}
                     </span>
                   </td>
                   {isAdmin && (
                     <td className="px-5 py-3 text-center">
                       <div className="flex items-center justify-center gap-2">
-                        <button className="p-1.5 text-thb-text-muted hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                        <button className="p-1.5 text-thb-text-muted hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors">
                           <FiEdit2 className="w-4 h-4" />
                         </button>
                         <button onClick={() => handleDelete(lt.id)} className="p-1.5 text-thb-text-muted hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">

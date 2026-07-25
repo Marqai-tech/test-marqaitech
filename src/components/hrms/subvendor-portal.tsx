@@ -118,7 +118,7 @@ export default function SubvendorPortalModule() {
     { label: 'Sub-Vendors', value: allSubVendors.length, icon: Layers, color: 'from-emerald-500 to-emerald-600' },
     { label: 'Active Sub-Vendors', value: activeSV, icon: Briefcase, color: 'from-teal-500 to-teal-600' },
     { label: 'Parent Vendors', value: vendors.length, icon: Users, color: 'from-cyan-500 to-cyan-600' },
-    { label: 'With Contact Info', value: allSubVendors.filter(sv => sv.contactName).length, icon: Layers, color: 'from-purple-500 to-purple-600' },
+    { label: 'With Contact Info', value: allSubVendors.filter(sv => sv.contactName).length, icon: Layers, color: 'from-teal-500 to-teal-600' },
   ]
 
   const handleAddSubVendor = async () => {

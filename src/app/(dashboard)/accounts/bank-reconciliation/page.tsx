@@ -39,7 +39,7 @@ export default function BankReconciliationPage() {
           <h1 className="text-xl font-bold text-thb-text-primary">Bank Reconciliation</h1>
           <p className="text-sm text-thb-text-secondary mt-1">Match bank statement lines with your book entries</p>
         </div>
-        <button onClick={() => toast.success('Reconciliation saved')} className="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium">
+        <button onClick={() => toast.success('Reconciliation saved')} className="flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium">
           <FiCheck className="w-4 h-4" /> Save Reconciliation
         </button>
       </div>
@@ -54,7 +54,7 @@ export default function BankReconciliationPage() {
           <p className="text-xs text-thb-text-secondary">Unmatched</p>
         </div>
         <div className="thb-card p-4">
-          <p className="text-lg font-bold text-blue-600">{bankLines.length}</p>
+          <p className="text-lg font-bold text-green-600">{bankLines.length}</p>
           <p className="text-xs text-thb-text-secondary">Total Lines</p>
         </div>
       </div>
@@ -67,7 +67,7 @@ export default function BankReconciliationPage() {
         </select>
         <div className="relative flex-1 max-w-xs">
           <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <input type="text" placeholder="Search transactions..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+          <input type="text" placeholder="Search transactions..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20" />
         </div>
       </div>
 
@@ -91,7 +91,7 @@ export default function BankReconciliationPage() {
                   <td className="py-2 px-2 text-thb-text-primary">{line.description}</td>
                   <td className={`py-2 px-2 text-right font-medium ${line.type === 'credit' ? 'text-emerald-600' : 'text-red-600'}`}>{line.type === 'credit' ? '+' : '-'}₹{line.amount.toLocaleString()}</td>
                   <td className="py-2 px-2 text-center"><span className={line.matched ? 'thb-badge thb-badge-success' : 'thb-badge thb-badge-warning'}>{line.matched ? 'Matched' : 'Unmatched'}</span></td>
-                  <td className="py-2 px-2 text-center">{!line.matched && <button onClick={() => toast.success('Line matched')} className="p-1 rounded text-blue-600 hover:bg-blue-50"><FiCheck className="w-3 h-3" /></button>}</td>
+                  <td className="py-2 px-2 text-center">{!line.matched && <button onClick={() => toast.success('Line matched')} className="p-1 rounded text-green-600 hover:bg-green-50"><FiCheck className="w-3 h-3" /></button>}</td>
                 </tr>
               ))}
             </tbody>

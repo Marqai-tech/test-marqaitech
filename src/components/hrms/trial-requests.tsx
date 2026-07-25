@@ -152,7 +152,7 @@ export function TrialRequests() {
     const colors: Record<string, string> = {
       pending: 'bg-yellow-100 text-yellow-800',
       approved: 'bg-green-100 text-green-800',
-      active: 'bg-blue-100 text-blue-800',
+      active: 'bg-green-100 text-green-800',
       rejected: 'bg-red-100 text-red-800',
       expired: 'bg-orange-100 text-orange-800',
       suspended: 'bg-gray-100 text-gray-800',
@@ -217,14 +217,14 @@ export function TrialRequests() {
                   <p className="text-sm text-muted-foreground mt-1">
                     Code: <span className="font-mono bg-muted px-1.5 py-0.5 rounded">{reg.companyCode}</span>
                     {reg.tenantId && (
-                      <span className="ml-3">Tenant: <span className="font-mono text-xs bg-blue-50 dark:bg-blue-950 px-1.5 py-0.5 rounded">{reg.tenantId.slice(0, 8)}...</span></span>
+                      <span className="ml-3">Tenant: <span className="font-mono text-xs bg-green-50 dark:bg-green-950 px-1.5 py-0.5 rounded">{reg.tenantId.slice(0, 8)}...</span></span>
                     )}
                   </p>
                 </div>
                 <div className="text-right">
                   <p className="text-sm text-muted-foreground">Applied: {new Date(reg.createdAt).toLocaleDateString()}</p>
                   {reg.daysRemaining !== null && reg.daysRemaining > 0 && (
-                    <p className="text-sm font-medium text-blue-600 dark:text-blue-400">{reg.daysRemaining} days remaining</p>
+                    <p className="text-sm font-medium text-green-600 dark:text-green-400">{reg.daysRemaining} days remaining</p>
                   )}
                   {reg.isExpired && (
                     <p className="text-sm font-medium text-red-600 dark:text-red-400">Trial expired</p>
@@ -311,7 +311,7 @@ export function TrialRequests() {
                     <button
                       onClick={() => handleExtend(reg.id)}
                       disabled={actionLoading === `extend-${reg.id}`}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 text-sm font-medium"
+                      className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 text-sm font-medium"
                     >
                       {actionLoading === `extend-${reg.id}` ? 'Extending...' : 'Extend Days'}
                     </button>

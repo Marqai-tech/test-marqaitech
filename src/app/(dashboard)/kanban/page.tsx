@@ -53,7 +53,7 @@ const BOARDS = ['HR Pipeline', 'Recruitment', 'Onboarding', 'Projects'] as const
 
 const COLUMNS: { key: KanbanColumn; color: string; headerBg: string; headerText: string }[] = [
   { key: 'Backlog', color: 'border-l-slate-400', headerBg: 'bg-slate-100', headerText: 'text-slate-700' },
-  { key: 'To Do', color: 'border-l-blue-500', headerBg: 'bg-blue-50', headerText: 'text-blue-700' },
+  { key: 'To Do', color: 'border-l-green-500', headerBg: 'bg-green-50', headerText: 'text-green-700' },
   { key: 'In Progress', color: 'border-l-amber-500', headerBg: 'bg-amber-50', headerText: 'text-amber-700' },
   { key: 'Done', color: 'border-l-emerald-500', headerBg: 'bg-emerald-50', headerText: 'text-emerald-700' },
 ];
@@ -65,9 +65,9 @@ const PRIORITY_STYLES: Record<Priority, { border: string; dot: string; label: st
 };
 
 const CATEGORY_STYLES: Record<Category, string> = {
-  HR: 'bg-violet-100 text-violet-700',
+  HR: 'bg-teal-100 text-teal-700',
   Payroll: 'bg-emerald-100 text-emerald-700',
-  Recruitment: 'bg-blue-100 text-blue-700',
+  Recruitment: 'bg-green-100 text-green-700',
   Admin: 'bg-slate-100 text-slate-600',
   Compliance: 'bg-red-100 text-red-700',
   Training: 'bg-amber-100 text-amber-700',
@@ -78,13 +78,13 @@ const CATEGORY_STYLES: Record<Category, string> = {
 };
 
 const AVATAR_GRADIENTS = [
-  'from-blue-500 to-indigo-600',
+  'from-green-500 to-emerald-600',
   'from-emerald-500 to-teal-600',
-  'from-violet-500 to-purple-600',
+  'from-teal-500 to-teal-600',
   'from-amber-500 to-orange-600',
   'from-rose-500 to-pink-600',
-  'from-cyan-500 to-blue-600',
-  'from-fuchsia-500 to-violet-600',
+  'from-cyan-500 to-green-600',
+  'from-fuchsia-500 to-teal-600',
   'from-lime-500 to-green-600',
 ];
 
@@ -152,7 +152,7 @@ function getSubtaskProgress(done: number, total: number): { percent: number; col
   const percent = total > 0 ? (done / total) * 100 : 0;
   let color = 'bg-amber-400';
   if (percent === 100) color = 'bg-emerald-500';
-  else if (percent >= 60) color = 'bg-blue-500';
+  else if (percent >= 60) color = 'bg-green-500';
   return { percent, color };
 }
 
@@ -237,7 +237,7 @@ export default function KanbanBoardPage() {
       {/* ═══════ Header ═══════ */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white shadow-sm">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-500 to-teal-600 flex items-center justify-center text-white shadow-sm">
             <FiLayers className="w-5 h-5" />
           </div>
           <div>
@@ -255,7 +255,7 @@ export default function KanbanBoardPage() {
               placeholder="Search cards..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              className="thb-input pl-9 pr-3 py-2 text-sm rounded-lg border border-thb-border bg-white text-thb-text-primary placeholder:text-thb-text-muted focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400 w-48"
+              className="thb-input pl-9 pr-3 py-2 text-sm rounded-lg border border-thb-border bg-white text-thb-text-primary placeholder:text-thb-text-muted focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 w-48"
             />
           </div>
 
@@ -277,7 +277,7 @@ export default function KanbanBoardPage() {
                     onClick={() => { setSelectedBoard(board); setShowBoardDropdown(false); }}
                     className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
                       selectedBoard === board
-                        ? 'bg-violet-50 text-violet-700 font-medium'
+                        ? 'bg-teal-50 text-teal-700 font-medium'
                         : 'text-thb-text-primary hover:bg-slate-50'
                     }`}
                   >
@@ -291,7 +291,7 @@ export default function KanbanBoardPage() {
           {/* Add Card Button */}
           <button
             onClick={() => openAddModal('To Do')}
-            className="thb-btn inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-gradient-to-r from-violet-500 to-purple-600 text-white hover:from-violet-600 hover:to-purple-700 shadow-sm transition-all"
+            className="thb-btn inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-gradient-to-r from-teal-500 to-teal-600 text-white hover:from-teal-600 hover:to-teal-700 shadow-sm transition-all"
           >
             <FiPlus className="w-4 h-4" />
             Add Card
@@ -334,7 +334,7 @@ export default function KanbanBoardPage() {
                   <h3 className={`font-semibold text-sm ${col.headerText}`}>{col.key}</h3>
                   <span className={`inline-flex items-center justify-center min-w-[22px] h-[22px] rounded-full text-[11px] font-bold ${
                     col.key === 'Backlog' ? 'bg-slate-200 text-slate-600' :
-                    col.key === 'To Do' ? 'bg-blue-100 text-blue-600' :
+                    col.key === 'To Do' ? 'bg-green-100 text-green-600' :
                     col.key === 'In Progress' ? 'bg-amber-100 text-amber-600' :
                     'bg-emerald-100 text-emerald-600'
                   }`}>
@@ -494,7 +494,7 @@ export default function KanbanBoardPage() {
                   value={newCard.title}
                   onChange={e => setNewCard(prev => ({ ...prev, title: e.target.value }))}
                   placeholder="Enter card title..."
-                  className="thb-input w-full px-3 py-2.5 text-sm rounded-lg border border-thb-border bg-white text-thb-text-primary placeholder:text-thb-text-muted focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400"
+                  className="thb-input w-full px-3 py-2.5 text-sm rounded-lg border border-thb-border bg-white text-thb-text-primary placeholder:text-thb-text-muted focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400"
                   autoFocus
                 />
               </div>
@@ -507,7 +507,7 @@ export default function KanbanBoardPage() {
                   onChange={e => setNewCard(prev => ({ ...prev, description: e.target.value }))}
                   placeholder="Describe this card..."
                   rows={3}
-                  className="thb-input w-full px-3 py-2.5 text-sm rounded-lg border border-thb-border bg-white text-thb-text-primary placeholder:text-thb-text-muted focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400 resize-none"
+                  className="thb-input w-full px-3 py-2.5 text-sm rounded-lg border border-thb-border bg-white text-thb-text-primary placeholder:text-thb-text-muted focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 resize-none"
                 />
               </div>
 
@@ -518,7 +518,7 @@ export default function KanbanBoardPage() {
                   <select
                     value={newCard.priority}
                     onChange={e => setNewCard(prev => ({ ...prev, priority: e.target.value as Priority }))}
-                    className="thb-select w-full px-3 py-2.5 text-sm rounded-lg border border-thb-border bg-white text-thb-text-primary focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400 appearance-none cursor-pointer"
+                    className="thb-select w-full px-3 py-2.5 text-sm rounded-lg border border-thb-border bg-white text-thb-text-primary focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 appearance-none cursor-pointer"
                   >
                     <option value="High">🔴 High</option>
                     <option value="Medium">🟡 Medium</option>
@@ -530,7 +530,7 @@ export default function KanbanBoardPage() {
                   <select
                     value={newCard.category}
                     onChange={e => setNewCard(prev => ({ ...prev, category: e.target.value as Category }))}
-                    className="thb-select w-full px-3 py-2.5 text-sm rounded-lg border border-thb-border bg-white text-thb-text-primary focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400 appearance-none cursor-pointer"
+                    className="thb-select w-full px-3 py-2.5 text-sm rounded-lg border border-thb-border bg-white text-thb-text-primary focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 appearance-none cursor-pointer"
                   >
                     {(['HR', 'Payroll', 'Recruitment', 'Admin', 'Compliance', 'Training', 'Benefits', 'Operations', 'Onboarding', 'Engagement'] as Category[]).map(cat => (
                       <option key={cat} value={cat}>{cat}</option>
@@ -547,7 +547,7 @@ export default function KanbanBoardPage() {
                     type="date"
                     value={newCard.dueDate}
                     onChange={e => setNewCard(prev => ({ ...prev, dueDate: e.target.value }))}
-                    className="thb-input w-full px-3 py-2.5 text-sm rounded-lg border border-thb-border bg-white text-thb-text-primary focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400"
+                    className="thb-input w-full px-3 py-2.5 text-sm rounded-lg border border-thb-border bg-white text-thb-text-primary focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400"
                   />
                 </div>
                 <div>
@@ -555,7 +555,7 @@ export default function KanbanBoardPage() {
                   <select
                     value={newCard.assigneeName}
                     onChange={e => setNewCard(prev => ({ ...prev, assigneeName: e.target.value }))}
-                    className="thb-select w-full px-3 py-2.5 text-sm rounded-lg border border-thb-border bg-white text-thb-text-primary focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400 appearance-none cursor-pointer"
+                    className="thb-select w-full px-3 py-2.5 text-sm rounded-lg border border-thb-border bg-white text-thb-text-primary focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 appearance-none cursor-pointer"
                   >
                     {ASSIGNEES.map(a => (
                       <option key={a.name} value={a.name}>{a.name}</option>
@@ -596,7 +596,7 @@ export default function KanbanBoardPage() {
               </button>
               <button
                 onClick={handleAddCard}
-                className="thb-btn px-5 py-2 text-sm font-medium rounded-lg bg-gradient-to-r from-violet-500 to-purple-600 text-white hover:from-violet-600 hover:to-purple-700 shadow-sm transition-all"
+                className="thb-btn px-5 py-2 text-sm font-medium rounded-lg bg-gradient-to-r from-teal-500 to-teal-600 text-white hover:from-teal-600 hover:to-teal-700 shadow-sm transition-all"
               >
                 Add Card
               </button>

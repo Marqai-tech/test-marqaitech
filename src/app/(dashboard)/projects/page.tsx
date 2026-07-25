@@ -135,7 +135,7 @@ const initialForm = {
 const taskBoardColumns = [
   { key: 'todo', label: 'To Do', color: 'border-slate-300' },
   { key: 'in_progress', label: 'In Progress', color: 'border-amber-400' },
-  { key: 'review', label: 'Review', color: 'border-blue-400' },
+  { key: 'review', label: 'Review', color: 'border-green-400' },
   { key: 'done', label: 'Done', color: 'border-emerald-400' },
 ];
 
@@ -394,14 +394,14 @@ export default function ProjectsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
-            <FiBriefcase className="w-6 h-6 text-violet-500" />
+            <FiBriefcase className="w-6 h-6 text-teal-500" />
             Projects
           </h1>
           <p className="text-thb-text-secondary mt-1">Manage projects, tasks, and team allocations</p>
         </div>
         <button
           onClick={handleAddNew}
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium text-sm shadow-sm shadow-blue-500/25 transition-colors"
+          className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-500 text-white rounded-lg hover:bg-green-600 font-medium text-sm shadow-sm shadow-green-500/25 transition-colors"
         >
           <FiPlus className="w-4 h-4" />
           Create Project
@@ -426,8 +426,8 @@ export default function ProjectsPage() {
         </div>
         <div className="thb-card p-5">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
-              <FiList className="w-5 h-5 text-blue-500" />
+            <div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center">
+              <FiList className="w-5 h-5 text-green-500" />
             </div>
             <div>
               <p className="text-xs font-medium text-thb-text-secondary">Completed</p>
@@ -437,8 +437,8 @@ export default function ProjectsPage() {
         </div>
         <div className="thb-card p-5">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-violet-50 flex items-center justify-center">
-              <FiBriefcase className="w-5 h-5 text-violet-500" />
+            <div className="w-10 h-10 rounded-lg bg-teal-50 flex items-center justify-center">
+              <FiBriefcase className="w-5 h-5 text-teal-500" />
             </div>
             <div>
               <p className="text-xs font-medium text-thb-text-secondary">Total Budget</p>
@@ -466,7 +466,7 @@ export default function ProjectsPage() {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => { handleEdit(item); }}
-                    className="px-3 py-1.5 rounded-lg bg-blue-500 text-white text-xs font-medium hover:bg-blue-600 transition-colors flex items-center gap-1"
+                    className="px-3 py-1.5 rounded-lg bg-green-500 text-white text-xs font-medium hover:bg-green-600 transition-colors flex items-center gap-1"
                   >
                     <FiEdit2 className="w-3.5 h-3.5" />
                     Edit
@@ -549,7 +549,7 @@ export default function ProjectsPage() {
 
               {viewLoading ? (
                 <div className="flex items-center justify-center py-12">
-                  <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                  <div className="w-6 h-6 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
                 </div>
               ) : (
                 <>
@@ -586,12 +586,12 @@ export default function ProjectsPage() {
                           value={newTask.name}
                           onChange={(e) => setNewTask({ ...newTask, name: e.target.value })}
                           placeholder="New task name..."
-                          className="flex-1 px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                          className="flex-1 px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                         />
                         <select
                           value={newTask.priority}
                           onChange={(e) => setNewTask({ ...newTask, priority: e.target.value })}
-                          className="px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                          className="px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                         >
                           <option value="low">Low</option>
                           <option value="medium">Medium</option>
@@ -599,7 +599,7 @@ export default function ProjectsPage() {
                         </select>
                         <button
                           onClick={handleAddTask}
-                          className="px-4 py-2 bg-blue-500 text-white rounded-lg text-sm hover:bg-blue-600 transition-colors flex items-center gap-1"
+                          className="px-4 py-2 bg-green-500 text-white rounded-lg text-sm hover:bg-green-600 transition-colors flex items-center gap-1"
                         >
                           <FiPlus className="w-4 h-4" />
                           Add Task
@@ -617,7 +617,7 @@ export default function ProjectsPage() {
                         (item.allocations || []).map((a) => (
                           <div key={a.id} className="flex items-center justify-between p-3 border border-thb-border rounded-lg">
                             <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 rounded-full bg-violet-100 flex items-center justify-center text-xs font-semibold text-violet-700">
+                              <div className="w-8 h-8 rounded-full bg-teal-100 flex items-center justify-center text-xs font-semibold text-teal-700">
                                 {a.employee.firstName[0]}{a.employee.lastName[0]}
                               </div>
                               <div>
@@ -651,7 +651,7 @@ export default function ProjectsPage() {
                             </div>
                             <div className="flex items-center gap-3">
                               <div className="w-24 h-2 bg-slate-100 rounded-full">
-                                <div className="h-full bg-blue-500 rounded-full" style={{ width: `${m.completionPct}%` }} />
+                                <div className="h-full bg-green-500 rounded-full" style={{ width: `${m.completionPct}%` }} />
                               </div>
                               <span className="text-xs text-thb-text-secondary">{m.completionPct}%</span>
                             </div>
@@ -691,7 +691,7 @@ export default function ProjectsPage() {
 
       {/* Embedded Form */}
       {showForm && (
-        <div id="crud-form" className="thb-card border-l-4 border-l-blue-500">
+        <div id="crud-form" className="thb-card border-l-4 border-l-green-500">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-semibold text-thb-text-primary">
@@ -712,7 +712,7 @@ export default function ProjectsPage() {
                   type="text"
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                   placeholder="Project name"
                 />
               </div>
@@ -722,7 +722,7 @@ export default function ProjectsPage() {
                   type="text"
                   value={form.code}
                   onChange={(e) => setForm({ ...form, code: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                   placeholder="PRJ-001"
                 />
               </div>
@@ -733,7 +733,7 @@ export default function ProjectsPage() {
                     type="text"
                     value={form.companyId}
                     onChange={(e) => setForm({ ...form, companyId: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                     placeholder="Company ID"
                   />
                 </div>
@@ -743,7 +743,7 @@ export default function ProjectsPage() {
                 <select
                   value={form.projectType}
                   onChange={(e) => setForm({ ...form, projectType: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                 >
                   <option value="internal">Internal</option>
                   <option value="client">Client</option>
@@ -756,7 +756,7 @@ export default function ProjectsPage() {
                 <select
                   value={form.billingType}
                   onChange={(e) => setForm({ ...form, billingType: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                 >
                   <option value="fixed">Fixed</option>
                   <option value="time_and_material">T&M</option>
@@ -771,7 +771,7 @@ export default function ProjectsPage() {
                 <select
                   value={form.currency}
                   onChange={(e) => setForm({ ...form, currency: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                 >
                   <option value="INR">INR</option>
                   <option value="USD">USD</option>
@@ -785,7 +785,7 @@ export default function ProjectsPage() {
                   type="number"
                   value={form.budgetAmount}
                   onChange={(e) => setForm({ ...form, budgetAmount: parseFloat(e.target.value) || 0 })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                   placeholder="0"
                 />
               </div>
@@ -795,7 +795,7 @@ export default function ProjectsPage() {
                   type="number"
                   value={form.estimatedHours}
                   onChange={(e) => setForm({ ...form, estimatedHours: parseFloat(e.target.value) || 0 })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                   placeholder="0"
                 />
               </div>
@@ -805,7 +805,7 @@ export default function ProjectsPage() {
                   type="date"
                   value={form.startDate}
                   onChange={(e) => setForm({ ...form, startDate: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                 />
               </div>
               <div>
@@ -814,7 +814,7 @@ export default function ProjectsPage() {
                   type="date"
                   value={form.endDate}
                   onChange={(e) => setForm({ ...form, endDate: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                 />
               </div>
               <div className="sm:col-span-2 lg:col-span-3">
@@ -823,7 +823,7 @@ export default function ProjectsPage() {
                   rows={3}
                   value={form.description}
                   onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 resize-none"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 resize-none"
                   placeholder="Project description..."
                 />
               </div>
@@ -839,7 +839,7 @@ export default function ProjectsPage() {
               <button
                 onClick={handleSubmit}
                 disabled={submitting}
-                className="px-6 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50 shadow-sm shadow-blue-500/25 transition-colors"
+                className="px-6 py-2.5 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 disabled:opacity-50 shadow-sm shadow-green-500/25 transition-colors"
               >
                 {submitting ? 'Saving...' : editingId ? 'Update' : 'Create'}
               </button>
@@ -934,7 +934,7 @@ export default function ProjectsPage() {
                         e.stopPropagation();
                         handleView(p);
                       }}
-                      className="text-xs font-medium text-blue-500 hover:text-blue-600 flex items-center gap-1 transition-colors"
+                      className="text-xs font-medium text-green-500 hover:text-green-600 flex items-center gap-1 transition-colors"
                     >
                       <FiEye className="w-3.5 h-3.5" />
                       View
@@ -945,7 +945,7 @@ export default function ProjectsPage() {
                           e.stopPropagation();
                           handleEdit(p);
                         }}
-                        className="p-1.5 rounded-lg text-thb-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors"
+                        className="p-1.5 rounded-lg text-thb-text-muted hover:text-green-500 hover:bg-green-50 transition-colors"
                         title="Edit"
                       >
                         <FiEdit2 className="w-3.5 h-3.5" />

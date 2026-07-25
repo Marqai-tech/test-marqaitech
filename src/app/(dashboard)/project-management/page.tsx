@@ -175,14 +175,14 @@ const projectTabs: DashboardTabConfig[] = [
 function ProjectReportsPlaceholder() {
   return (
     <div className="flex flex-col items-center py-8">
-      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg mb-4">
+      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-lg mb-4">
         <FiFileText className="w-7 h-7 text-white" />
       </div>
       <h3 className="text-lg font-bold text-thb-text-primary mb-1">Reports & Analytics</h3>
       <p className="text-sm text-thb-text-secondary text-center max-w-md mb-4">
         Project progress reports, resource utilization, and timeline analytics
       </p>
-      <a href="/project-management/reports" className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors">
+      <a href="/project-management/reports" className="inline-flex items-center gap-2 px-5 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors">
         <FiBarChart2 className="w-4 h-4" /> Go to Reports
       </a>
     </div>
@@ -199,7 +199,7 @@ function ProjectSettingsPlaceholder() {
       <p className="text-sm text-thb-text-secondary text-center max-w-md mb-4">
         Configure project templates, default views, and notification preferences
       </p>
-      <a href="/project-management/settings" className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors">
+      <a href="/project-management/settings" className="inline-flex items-center gap-2 px-5 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors">
         <FiSettings className="w-4 h-4" /> Go to Settings
       </a>
     </div>
@@ -264,9 +264,9 @@ function ProjectManagementContent() {
 
   const kanbanColumns = useMemo(() => [
     { key: 'backlog', label: 'Backlog', color: 'bg-slate-100', borderColor: 'border-t-slate-400', tasks: DEMO_TASKS.filter(t => t.status === 'backlog') },
-    { key: 'todo', label: 'To Do', color: 'bg-blue-50', borderColor: 'border-t-blue-500', tasks: DEMO_TASKS.filter(t => t.status === 'todo') },
+    { key: 'todo', label: 'To Do', color: 'bg-green-50', borderColor: 'border-t-green-500', tasks: DEMO_TASKS.filter(t => t.status === 'todo') },
     { key: 'in_progress', label: 'In Progress', color: 'bg-amber-50', borderColor: 'border-t-amber-500', tasks: DEMO_TASKS.filter(t => t.status === 'in_progress') },
-    { key: 'review', label: 'Review', color: 'bg-purple-50', borderColor: 'border-t-purple-500', tasks: DEMO_TASKS.filter(t => t.status === 'review') },
+    { key: 'review', label: 'Review', color: 'bg-teal-50', borderColor: 'border-t-teal-500', tasks: DEMO_TASKS.filter(t => t.status === 'review') },
     { key: 'done', label: 'Done', color: 'bg-emerald-50', borderColor: 'border-t-emerald-500', tasks: DEMO_TASKS.filter(t => t.status === 'done') },
   ], []);
 
@@ -375,12 +375,12 @@ function ProjectManagementContent() {
         {/* Recent Activity */}
         <div className="thb-card p-4">
           <h3 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
-            <FiActivity className="w-4 h-4 text-purple-500" /> Recent Activity
+            <FiActivity className="w-4 h-4 text-teal-500" /> Recent Activity
           </h3>
           <div className="space-y-2 max-h-64 overflow-y-auto">
             {recentActivity.map(a => (
               <div key={a.id} className="flex gap-2 p-2 rounded-lg hover:bg-slate-50 transition-colors">
-                <div className="w-7 h-7 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center flex-shrink-0 text-xs font-semibold">
+                <div className="w-7 h-7 rounded-full bg-teal-100 text-teal-600 flex items-center justify-center flex-shrink-0 text-xs font-semibold">
                   {a.user.split(' ').map(w => w[0]).join('')}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -422,7 +422,7 @@ function ProjectManagementContent() {
       <div className="thb-card p-4">
         <h3 className="text-sm font-semibold text-slate-700 mb-3">Quick Actions</h3>
         <div className="flex flex-wrap gap-3">
-          <button onClick={() => setShowCreateProject(true)} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-purple-600 text-white text-sm font-medium hover:bg-purple-700 transition-colors">
+          <button onClick={() => setShowCreateProject(true)} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-teal-600 text-white text-sm font-medium hover:bg-teal-700 transition-colors">
             <FiPlus className="w-4 h-4" /> New Project
           </button>
           <button onClick={() => setShowCreateSprint(true)} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 transition-colors">
@@ -444,9 +444,9 @@ function ProjectManagementContent() {
         <div className="flex gap-2 items-center flex-1 w-full sm:w-auto">
           <div className="relative flex-1 max-w-md">
             <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input type="text" placeholder="Search projects..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500" />
+            <input type="text" placeholder="Search projects..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500" />
           </div>
-          <select value={projectFilter} onChange={e => setProjectFilter(e.target.value)} className="px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20">
+          <select value={projectFilter} onChange={e => setProjectFilter(e.target.value)} className="px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20">
             <option value="all">All Status</option>
             <option value="active">Active</option>
             <option value="on_hold">On Hold</option>
@@ -456,13 +456,13 @@ function ProjectManagementContent() {
           </select>
         </div>
         <div className="flex gap-2">
-          <button onClick={() => setProjectViewMode('grid')} className={`p-2 rounded-lg border ${projectViewMode === 'grid' ? 'bg-purple-50 border-purple-200 text-purple-600' : 'border-slate-200 text-slate-400 hover:text-slate-600'}`}>
+          <button onClick={() => setProjectViewMode('grid')} className={`p-2 rounded-lg border ${projectViewMode === 'grid' ? 'bg-teal-50 border-teal-200 text-teal-600' : 'border-slate-200 text-slate-400 hover:text-slate-600'}`}>
             <FiGrid className="w-4 h-4" />
           </button>
-          <button onClick={() => setProjectViewMode('list')} className={`p-2 rounded-lg border ${projectViewMode === 'list' ? 'bg-purple-50 border-purple-200 text-purple-600' : 'border-slate-200 text-slate-400 hover:text-slate-600'}`}>
+          <button onClick={() => setProjectViewMode('list')} className={`p-2 rounded-lg border ${projectViewMode === 'list' ? 'bg-teal-50 border-teal-200 text-teal-600' : 'border-slate-200 text-slate-400 hover:text-slate-600'}`}>
             <FiList className="w-4 h-4" />
           </button>
-          <button onClick={() => setShowCreateProject(true)} className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-purple-600 text-white text-sm font-medium hover:bg-purple-700 transition-colors">
+          <button onClick={() => setShowCreateProject(true)} className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-teal-600 text-white text-sm font-medium hover:bg-teal-700 transition-colors">
             <FiPlus className="w-4 h-4" /> New Project
           </button>
         </div>
@@ -646,7 +646,7 @@ function ProjectManagementContent() {
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
         <div className="flex gap-2 items-center">
           <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
-            <input type="checkbox" checked={myTasksOnly} onChange={e => setMyTasksOnly(e.target.checked)} className="rounded border-slate-300 text-purple-600 focus:ring-purple-500" />
+            <input type="checkbox" checked={myTasksOnly} onChange={e => setMyTasksOnly(e.target.checked)} className="rounded border-slate-300 text-teal-600 focus:ring-teal-500" />
             My Tasks Only
           </label>
         </div>
@@ -778,7 +778,7 @@ function ProjectManagementContent() {
         {/* Milestones */}
         <div className="thb-card p-4">
           <h4 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
-            <FiFlag className="w-4 h-4 text-purple-500" /> Key Milestones
+            <FiFlag className="w-4 h-4 text-teal-500" /> Key Milestones
           </h4>
           <div className="space-y-2">
             {[
@@ -906,7 +906,7 @@ function ProjectManagementContent() {
         {/* Summary Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="thb-card p-4 text-center">
-            <p className="text-2xl font-bold text-purple-600">124</p>
+            <p className="text-2xl font-bold text-teal-600">124</p>
             <p className="text-xs text-slate-500 mt-1">Total Story Points</p>
           </div>
           <div className="thb-card p-4 text-center">
@@ -918,7 +918,7 @@ function ProjectManagementContent() {
             <p className="text-xs text-slate-500 mt-1">Utilization Rate</p>
           </div>
           <div className="thb-card p-4 text-center">
-            <p className="text-2xl font-bold text-blue-600">$2.35M</p>
+            <p className="text-2xl font-bold text-green-600">$2.35M</p>
             <p className="text-xs text-slate-500 mt-1">Total Budget</p>
           </div>
         </div>
@@ -937,16 +937,16 @@ function ProjectManagementContent() {
         <div className="p-4 space-y-4">
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Project Name *</label>
-            <input type="text" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500" placeholder="Enter project name" />
+            <input type="text" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500" placeholder="Enter project name" />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Client</label>
-              <input type="text" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500" placeholder="Client name" />
+              <input type="text" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500" placeholder="Client name" />
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Manager</label>
-              <select className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20">
+              <select className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20">
                 <option>Select manager</option>
                 <option>Rajesh Kumar</option>
                 <option>Priya Sharma</option>
@@ -958,21 +958,21 @@ function ProjectManagementContent() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Start Date</label>
-              <input type="date" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500" />
+              <input type="date" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500" />
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">End Date</label>
-              <input type="date" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500" />
+              <input type="date" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500" />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Budget ($)</label>
-              <input type="number" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500" placeholder="0" />
+              <input type="number" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500" placeholder="0" />
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Priority</label>
-              <select className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20">
+              <select className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20">
                 <option value="low">Low</option>
                 <option value="medium">Medium</option>
                 <option value="high">High</option>
@@ -982,16 +982,16 @@ function ProjectManagementContent() {
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
-            <textarea rows={3} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500" placeholder="Project description..." />
+            <textarea rows={3} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500" placeholder="Project description..." />
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Team Members</label>
-            <input type="text" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500" placeholder="Search and add team members..." />
+            <input type="text" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500" placeholder="Search and add team members..." />
           </div>
         </div>
         <div className="flex items-center justify-end gap-3 p-4 border-t border-slate-100">
           <button onClick={() => setShowCreateProject(false)} className="px-4 py-2 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition-colors">Cancel</button>
-          <button onClick={() => { setShowCreateProject(false); toast.success('Project created successfully!'); }} className="px-4 py-2 rounded-lg bg-purple-600 text-white text-sm font-medium hover:bg-purple-700 transition-colors">Create Project</button>
+          <button onClick={() => { setShowCreateProject(false); toast.success('Project created successfully!'); }} className="px-4 py-2 rounded-lg bg-teal-600 text-white text-sm font-medium hover:bg-teal-700 transition-colors">Create Project</button>
         </div>
       </div>
     </div>
@@ -1008,11 +1008,11 @@ function ProjectManagementContent() {
         <div className="p-4 space-y-4">
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Sprint Name *</label>
-            <input type="text" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500" placeholder="e.g., Sprint 14 - Feature X" />
+            <input type="text" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500" placeholder="e.g., Sprint 14 - Feature X" />
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Project *</label>
-            <select className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20">
+            <select className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20">
               <option>Select project</option>
               {DEMO_PROJECTS.filter(p => p.status === 'active').map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
@@ -1020,16 +1020,16 @@ function ProjectManagementContent() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Start Date</label>
-              <input type="date" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500" />
+              <input type="date" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500" />
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">End Date</label>
-              <input type="date" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500" />
+              <input type="date" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500" />
             </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Sprint Goal</label>
-            <textarea rows={2} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500" placeholder="What should this sprint achieve?" />
+            <textarea rows={2} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500" placeholder="What should this sprint achieve?" />
           </div>
         </div>
         <div className="flex items-center justify-end gap-3 p-4 border-t border-slate-100">
@@ -1051,23 +1051,23 @@ function ProjectManagementContent() {
         <div className="p-4 space-y-4">
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Task Title *</label>
-            <input type="text" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500" placeholder="Enter task title" />
+            <input type="text" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500" placeholder="Enter task title" />
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
-            <textarea rows={3} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500" placeholder="Task description..." />
+            <textarea rows={3} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500" placeholder="Task description..." />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Project</label>
-              <select className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20">
+              <select className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20">
                 <option>Select project</option>
                 {DEMO_PROJECTS.filter(p => p.status === 'active').map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Sprint</label>
-              <select className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20">
+              <select className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20">
                 <option>Select sprint</option>
                 {DEMO_SPRINTS.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
@@ -1076,7 +1076,7 @@ function ProjectManagementContent() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Assignee</label>
-              <select className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20">
+              <select className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20">
                 <option>Select assignee</option>
                 <option>Amit K.</option>
                 <option>Neha R.</option>
@@ -1088,7 +1088,7 @@ function ProjectManagementContent() {
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Priority</label>
-              <select className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20">
+              <select className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20">
                 <option value="low">Low</option>
                 <option value="medium">Medium</option>
                 <option value="high">High</option>
@@ -1099,11 +1099,11 @@ function ProjectManagementContent() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Due Date</label>
-              <input type="date" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500" />
+              <input type="date" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500" />
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Story Points</label>
-              <select className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20">
+              <select className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20">
                 <option value="1">1</option>
                 <option value="2">2</option>
                 <option value="3">3</option>
@@ -1116,7 +1116,7 @@ function ProjectManagementContent() {
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Labels</label>
-            <input type="text" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500" placeholder="bug, feature, enhancement (comma-separated)" />
+            <input type="text" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500" placeholder="bug, feature, enhancement (comma-separated)" />
           </div>
         </div>
         <div className="flex items-center justify-end gap-3 p-4 border-t border-slate-100">
@@ -1130,7 +1130,7 @@ function ProjectManagementContent() {
   return (
     <div className="min-h-screen bg-[var(--thb-background)]">
       {/* Hero Gradient */}
-      <div className="bg-gradient-to-r from-purple-600 via-fuchsia-600 to-pink-600 px-6 py-8">
+      <div className="bg-gradient-to-r from-teal-600 via-fuchsia-600 to-pink-600 px-6 py-8">
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center gap-3 mb-2">
             <FiBriefcase className="w-7 h-7 text-white/90" />
@@ -1165,7 +1165,7 @@ function ProjectManagementContent() {
               <button key={tab.id} onClick={() => setActiveTab(tab.id)}
                 className={`inline-flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                   activeTab === tab.id
-                    ? 'border-purple-600 text-purple-600'
+                    ? 'border-teal-600 text-teal-600'
                     : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
                 }`}
               >

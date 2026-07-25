@@ -65,9 +65,9 @@ const subModules: SubModuleTile[] = [
     icon: FiLayers,
     route: '/payroll/ctc-templates',
     description: 'Define and manage Cost to Company salary structures',
-    gradientBg: 'bg-blue-500/10',
-    iconColor: 'text-blue-500',
-    ringColor: 'ring-blue-500/20',
+    gradientBg: 'bg-green-500/10',
+    iconColor: 'text-green-500',
+    ringColor: 'ring-green-500/20',
     category: 'masters',
   },
   {
@@ -105,9 +105,9 @@ const subModules: SubModuleTile[] = [
     icon: FiDatabase,
     route: '/payroll/components',
     description: 'Configure payroll earnings, deductions, and allowances',
-    gradientBg: 'bg-purple-500/10',
-    iconColor: 'text-purple-500',
-    ringColor: 'ring-purple-500/20',
+    gradientBg: 'bg-teal-500/10',
+    iconColor: 'text-teal-500',
+    ringColor: 'ring-teal-500/20',
     category: 'masters',
   },
   {
@@ -237,9 +237,9 @@ const subModules: SubModuleTile[] = [
     icon: FiFile,
     route: '/payroll/bank-files',
     description: 'Generate NACH/NEFT/RTGS bank payment files',
-    gradientBg: 'bg-blue-500/10',
-    iconColor: 'text-blue-500',
-    ringColor: 'ring-blue-500/20',
+    gradientBg: 'bg-green-500/10',
+    iconColor: 'text-green-500',
+    ringColor: 'ring-green-500/20',
     category: 'transactions',
   },
   {
@@ -309,9 +309,9 @@ const subModules: SubModuleTile[] = [
     icon: FiCalendar,
     route: '/payroll/compliance',
     description: 'Statutory filing calendar and obligation tracking',
-    gradientBg: 'bg-violet-500/10',
-    iconColor: 'text-violet-500',
-    ringColor: 'ring-violet-500/20',
+    gradientBg: 'bg-teal-500/10',
+    iconColor: 'text-teal-500',
+    ringColor: 'ring-teal-500/20',
     category: 'reports',
   },
   {
@@ -319,9 +319,9 @@ const subModules: SubModuleTile[] = [
     icon: FiBook,
     route: '/payroll/gl-mapping',
     description: 'Map payroll components to general ledger accounts',
-    gradientBg: 'bg-indigo-500/10',
-    iconColor: 'text-indigo-500',
-    ringColor: 'ring-indigo-500/20',
+    gradientBg: 'bg-emerald-500/10',
+    iconColor: 'text-emerald-500',
+    ringColor: 'ring-emerald-500/20',
     category: 'reports',
   },
   {
@@ -329,9 +329,9 @@ const subModules: SubModuleTile[] = [
     icon: FiCpu,
     route: '/payroll/ai-insights',
     description: 'Anomaly detection, compliance alerts, ghost employee detection',
-    gradientBg: 'bg-violet-500/10',
-    iconColor: 'text-violet-500',
-    ringColor: 'ring-violet-500/20',
+    gradientBg: 'bg-teal-500/10',
+    iconColor: 'text-teal-500',
+    ringColor: 'ring-teal-500/20',
     isNew: true,
     category: 'reports',
   },
@@ -349,7 +349,7 @@ const subModules: SubModuleTile[] = [
 ];
 
 const categoryConfig: Record<string, { label: string; icon: React.ComponentType<{ className?: string }>; description: string; gradientFrom: string; gradientTo: string }> = {
-  masters: { label: 'Payroll Masters', icon: FiDatabase, description: 'Setup & configure payroll structure, components, and statutory definitions', gradientFrom: 'from-blue-600', gradientTo: 'to-indigo-600' },
+  masters: { label: 'Payroll Masters', icon: FiDatabase, description: 'Setup & configure payroll structure, components, and statutory definitions', gradientFrom: 'from-green-600', gradientTo: 'to-emerald-600' },
   transactions: { label: 'Payroll Transactions', icon: FiPlayCircle, description: 'Run payroll cycles, process payments, and manage employee deductions', gradientFrom: 'from-emerald-600', gradientTo: 'to-teal-600' },
   reports: { label: 'Payroll Reports', icon: FiBarChart2, description: 'Analytics, compliance reporting, and payroll insights', gradientFrom: 'from-amber-600', gradientTo: 'to-orange-600' },
 };
@@ -610,9 +610,9 @@ export default function PayrollManagementPage() {
       label: 'Total Employees',
       value: stats.totalEmployees,
       icon: FiUsers,
-      bg: 'bg-blue-50',
-      iconColor: 'text-blue-600',
-      ring: 'ring-blue-100',
+      bg: 'bg-green-50',
+      iconColor: 'text-green-600',
+      ring: 'ring-green-100',
     },
     {
       label: 'Active CTC Templates',
@@ -736,9 +736,9 @@ export default function PayrollManagementPage() {
 
         {/* Info Banner */}
         {workflowExpanded && completedCount < workflowSteps.length && (
-          <div className="mx-5 mt-4 px-4 py-3 rounded-lg bg-blue-50 border border-blue-100 flex items-center gap-3">
-            <FiInfo className="w-4 h-4 text-blue-500 flex-shrink-0" />
-            <p className="text-xs text-blue-700">
+          <div className="mx-5 mt-4 px-4 py-3 rounded-lg bg-green-50 border border-green-100 flex items-center gap-3">
+            <FiInfo className="w-4 h-4 text-green-500 flex-shrink-0" />
+            <p className="text-xs text-green-700">
               <span className="font-medium">Getting started?</span> Follow this step-by-step workflow to set up and process your first payroll. Each step links to the relevant module.
             </p>
           </div>
@@ -765,7 +765,7 @@ export default function PayrollManagementPage() {
                             status === 'complete'
                               ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/25'
                               : status === 'current'
-                              ? 'bg-blue-500 text-white shadow-md shadow-blue-500/25 ring-4 ring-blue-100'
+                              ? 'bg-green-500 text-white shadow-md shadow-green-500/25 ring-4 ring-green-100'
                               : 'bg-slate-100 text-slate-400 group-hover:bg-slate-200'
                           }`}
                         >
@@ -781,7 +781,7 @@ export default function PayrollManagementPage() {
                             status === 'complete'
                               ? 'text-emerald-600'
                               : status === 'current'
-                              ? 'text-blue-600'
+                              ? 'text-green-600'
                               : 'text-slate-400 group-hover:text-slate-500'
                           }`}
                         >
@@ -820,7 +820,7 @@ export default function PayrollManagementPage() {
                           status === 'complete'
                             ? 'bg-emerald-500 text-white shadow-sm'
                             : status === 'current'
-                            ? 'bg-blue-500 text-white shadow-sm ring-2 ring-blue-100'
+                            ? 'bg-green-500 text-white shadow-sm ring-2 ring-green-100'
                             : 'bg-slate-100 text-slate-400'
                         }`}
                       >
@@ -843,14 +843,14 @@ export default function PayrollManagementPage() {
                             status === 'complete'
                               ? 'text-emerald-600'
                               : status === 'current'
-                              ? 'text-blue-600'
+                              ? 'text-green-600'
                               : 'text-slate-400'
                           }`}
                         >
                           {step.title}
                         </p>
                         {status === 'current' && (
-                          <span className="text-[9px] font-medium text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full">
+                          <span className="text-[9px] font-medium text-green-600 bg-green-50 px-1.5 py-0.5 rounded-full">
                             Next Step
                           </span>
                         )}
@@ -873,7 +873,7 @@ export default function PayrollManagementPage() {
                 <span className="text-[10px] text-thb-text-muted">Complete</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <span className="w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center">
+                <span className="w-4 h-4 rounded-full bg-green-500 flex items-center justify-center">
                   <span className="text-[8px] text-white font-bold">•</span>
                 </span>
                 <span className="text-[10px] text-thb-text-muted">Current Step</span>
@@ -922,9 +922,9 @@ export default function PayrollManagementPage() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between gap-2">
-                            <h3 className="text-sm font-semibold text-thb-text-primary group-hover:text-blue-600 transition-colors inline-flex items-center gap-2">
+                            <h3 className="text-sm font-semibold text-thb-text-primary group-hover:text-green-600 transition-colors inline-flex items-center gap-2">
                               {tile.title}
-                              {tile.isNew && <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-violet-100 text-violet-700 uppercase tracking-wide">New</span>}
+                              {tile.isNew && <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-teal-100 text-teal-700 uppercase tracking-wide">New</span>}
                             </h3>
                             <FiArrowRight className="w-4 h-4 text-thb-text-muted opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex-shrink-0" />
                           </div>

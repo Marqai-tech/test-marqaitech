@@ -96,7 +96,7 @@ export default function TenantTicketsPage() {
     setShowForm(true);
   };
 
-  const inputCls = 'w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400';
+  const inputCls = 'w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400';
 
   return (
     <div className="space-y-6">
@@ -119,7 +119,7 @@ export default function TenantTicketsPage() {
           { label: 'Open', value: openCount, icon: <FiAlertTriangle className="w-5 h-5" />, bg: 'bg-red-50 text-red-500' },
           { label: 'In Progress', value: inProgressCount, icon: <FiClock className="w-5 h-5" />, bg: 'bg-amber-50 text-amber-500' },
           { label: 'Resolved', value: resolvedCount, icon: <FiCheck className="w-5 h-5" />, bg: 'bg-emerald-50 text-emerald-500' },
-          { label: 'Avg Resolution', value: avgResolution, icon: <FiClock className="w-5 h-5" />, bg: 'bg-violet-50 text-violet-500' },
+          { label: 'Avg Resolution', value: avgResolution, icon: <FiClock className="w-5 h-5" />, bg: 'bg-teal-50 text-teal-500' },
         ].map((card) => (
           <div key={card.label} className="thb-card p-5">
             <div className="flex items-start justify-between">
@@ -183,7 +183,7 @@ export default function TenantTicketsPage() {
                 <div className="flex items-center gap-1"><FiUser className="w-3.5 h-3.5" /> {ticket.tenant}</div>
                 <div className="flex items-center gap-1"><FiClock className="w-3.5 h-3.5" /> {ticket.assignee}</div>
                 <div className="text-thb-text-muted">{ticket.createdDate}</div>
-                <button onClick={() => handleEdit(ticket)} className="inline-flex items-center gap-1 text-blue-500 hover:text-blue-700 font-medium"><FiEdit2 className="w-3.5 h-3.5" />Edit</button>
+                <button onClick={() => handleEdit(ticket)} className="inline-flex items-center gap-1 text-green-500 hover:text-green-700 font-medium"><FiEdit2 className="w-3.5 h-3.5" />Edit</button>
               </div>
             </div>
           </div>

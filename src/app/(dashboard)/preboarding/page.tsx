@@ -84,9 +84,9 @@ function getStageBadge(stage: string) {
   const idx = STAGES.indexOf(stage);
   const colors = [
     'bg-slate-50 text-slate-700 thb-badge',
-    'bg-blue-50 text-blue-700 thb-badge',
+    'bg-green-50 text-green-700 thb-badge',
     'bg-amber-50 text-amber-700 thb-badge',
-    'bg-violet-50 text-violet-700 thb-badge',
+    'bg-teal-50 text-teal-700 thb-badge',
     'bg-cyan-50 text-cyan-700 thb-badge',
     'bg-emerald-50 text-emerald-700 thb-badge',
     'thb-badge thb-badge-success',
@@ -97,7 +97,7 @@ function getStageBadge(stage: string) {
 function getDocStatusBadge(status: string) {
   const map: Record<string, string> = {
     pending: 'thb-badge thb-badge-warning',
-    uploaded: 'bg-blue-50 text-blue-700 thb-badge',
+    uploaded: 'bg-green-50 text-green-700 thb-badge',
     verified: 'thb-badge thb-badge-success',
     rejected: 'thb-badge thb-badge-error',
   };
@@ -167,14 +167,14 @@ const preboardingTabs: DashboardTabConfig[] = [
 function PreboardingReportsPlaceholder() {
   return (
     <div className="flex flex-col items-center py-8">
-      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg mb-4">
+      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-lg mb-4">
         <FiFileText className="w-7 h-7 text-white" />
       </div>
       <h3 className="text-lg font-bold text-thb-text-primary mb-1">Reports & Analytics</h3>
       <p className="text-sm text-thb-text-secondary text-center max-w-md mb-4">
         BGV status reports, document tracking, and onboarding-readiness analytics
       </p>
-      <a href="/preboarding/reports" className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors">
+      <a href="/preboarding/reports" className="inline-flex items-center gap-2 px-5 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors">
         <FiBarChart2 className="w-4 h-4" /> Go to Reports
       </a>
     </div>
@@ -558,7 +558,7 @@ function PreboardingContent() {
                                       <FiChevronRight className="w-4 h-4" />
                                     </button>
                                   )}
-                                  <button onClick={() => handleShowEditForm(c)} className="p-2 rounded-lg text-thb-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="Edit"><FiEdit2 className="w-4 h-4" /></button>
+                                  <button onClick={() => handleShowEditForm(c)} className="p-2 rounded-lg text-thb-text-muted hover:text-green-500 hover:bg-green-50 transition-colors" title="Edit"><FiEdit2 className="w-4 h-4" /></button>
                                   <button onClick={() => setDeleteConfirmId(c.id)} className="p-2 rounded-lg text-thb-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete"><FiTrash2 className="w-4 h-4" /></button>
                                 </div>
                               </td>

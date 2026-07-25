@@ -68,7 +68,7 @@ const statusColor: Record<string, string> = {
 const typeColor: Record<string, string> = {
   'resignation': 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
   'termination': 'bg-red-500/10 text-red-400 border-red-500/20',
-  'mutual': 'bg-purple-500/10 text-purple-400 border-purple-500/20',
+  'mutual': 'bg-teal-500/10 text-teal-400 border-teal-500/20',
 }
 
 const CLEARANCE_ITEMS: { key: keyof ExitRequest; label: string }[] = [
@@ -226,7 +226,7 @@ export default function ExitWorkflowModule() {
     { label: 'Pending Approval', value: exitStats?.pending ?? requests.filter(r => r.status === 'pending').length, icon: Clock, color: 'from-amber-500 to-amber-600' },
     { label: 'In Progress', value: exitStats?.inProgress ?? requests.filter(r => r.status === 'in_progress').length, icon: FileCheck, color: 'from-teal-500 to-teal-600' },
     { label: 'Completed', value: exitStats?.completed ?? requests.filter(r => r.status === 'completed').length, icon: CheckCircle2, color: 'from-emerald-500 to-emerald-600' },
-    { label: 'Total Requests', value: exitStats?.total ?? requests.length, icon: Users, color: 'from-purple-500 to-purple-600' },
+    { label: 'Total Requests', value: exitStats?.total ?? requests.length, icon: Users, color: 'from-teal-500 to-teal-600' },
   ]
 
   if (loading) {

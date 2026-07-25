@@ -14,14 +14,14 @@ const marketplaceTabs: DashboardTabConfig[] = [
 function MarketplaceReportsPlaceholder() {
   return (
     <div className="flex flex-col items-center py-8">
-      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg mb-4">
+      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-lg mb-4">
         <FiFileText className="w-7 h-7 text-white" />
       </div>
       <h3 className="text-lg font-bold text-thb-text-primary mb-1">Reports & Analytics</h3>
       <p className="text-sm text-thb-text-secondary text-center max-w-md mb-4">
         Wallet usage analytics, spending reports, and wellness program metrics
       </p>
-      <a href="/marketplace/insights" className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors">
+      <a href="/marketplace/insights" className="inline-flex items-center gap-2 px-5 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors">
         <FiBarChart2 className="w-4 h-4" /> Go to Reports
       </a>
     </div>
@@ -61,11 +61,11 @@ function MarketplaceContent() {
   const { seeded } = useAutoSeedDemo('marketplace');
 
   const tiles = [
-    { href: '/marketplace/wallet', title: 'My Wallet', desc: 'Multi-bucket wallet · Co-pay · Tax-exempt categories', icon: '👛', color: 'from-purple-500 to-pink-500' },
-    { href: '/marketplace/catalog', title: 'Corporate Catalog', desc: 'Sodexo · Xoxoday · Amazon Business · Corporate rates', icon: '🛍️', color: 'from-blue-500 to-cyan-500' },
+    { href: '/marketplace/wallet', title: 'My Wallet', desc: 'Multi-bucket wallet · Co-pay · Tax-exempt categories', icon: '👛', color: 'from-teal-500 to-pink-500' },
+    { href: '/marketplace/catalog', title: 'Corporate Catalog', desc: 'Sodexo · Xoxoday · Amazon Business · Corporate rates', icon: '🛍️', color: 'from-green-500 to-cyan-500' },
     { href: '/marketplace/insurance', title: 'Insurance Top-Up', desc: 'Group + voluntary · AI claims assistant · Payroll deduction', icon: '🛡️', color: 'from-green-500 to-emerald-500' },
     { href: '/marketplace/ewa', title: 'Earned Wage Access', desc: 'Real-time earned-to-date · Wagestream/EarnIn API · 70% cap', icon: '💸', color: 'from-yellow-500 to-orange-500' },
-    { href: '/marketplace/loans', title: 'Loan Marketplace', desc: 'Pre-approved offers · e-sign consent · Garnishment', icon: '🏦', color: 'from-indigo-500 to-blue-500' },
+    { href: '/marketplace/loans', title: 'Loan Marketplace', desc: 'Pre-approved offers · e-sign consent · Garnishment', icon: '🏦', color: 'from-emerald-500 to-green-500' },
     { href: '/marketplace/gifting', title: 'Gifting & Rewards', desc: 'Milestone automation · P2P kudos · Wallet redemption', icon: '🎁', color: 'from-red-500 to-pink-500' },
     { href: '/marketplace/insights', title: 'AI Insights (Admin)', desc: 'Financial stress · Fraud patterns · Wallet audit trail', icon: '🧠', color: 'from-gray-700 to-gray-900' },
   ];

@@ -378,7 +378,7 @@ export default function TaxSlabsPage() {
           {isAdmin && (
             <button
               onClick={handleAddNew}
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium text-sm shadow-sm shadow-blue-500/25 transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-500 text-white rounded-lg hover:bg-green-600 font-medium text-sm shadow-sm shadow-green-500/25 transition-colors"
             >
               <FiPlus className="w-4 h-4" /> Add Tax Slab
             </button>
@@ -401,8 +401,8 @@ export default function TaxSlabsPage() {
         </div>
         <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
-              <FiGlobe className="w-5 h-5 text-blue-500" />
+            <div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center">
+              <FiGlobe className="w-5 h-5 text-green-500" />
             </div>
             <div>
               <p className="text-xs font-medium text-thb-text-secondary">Countries</p>
@@ -423,8 +423,8 @@ export default function TaxSlabsPage() {
         </div>
         <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-purple-50 flex items-center justify-center">
-              <FiCheckCircle className="w-5 h-5 text-purple-500" />
+            <div className="w-10 h-10 rounded-lg bg-teal-50 flex items-center justify-center">
+              <FiCheckCircle className="w-5 h-5 text-teal-500" />
             </div>
             <div>
               <p className="text-xs font-medium text-thb-text-secondary">Active Tables</p>
@@ -444,13 +444,13 @@ export default function TaxSlabsPage() {
               placeholder="Search by name, country, tax year, filing status..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+              className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
             />
           </div>
           <select
             value={countryFilter}
             onChange={(e) => setCountryFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[160px]"
+            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 min-w-[160px]"
           >
             <option value="">All Countries</option>
             {COUNTRY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -458,7 +458,7 @@ export default function TaxSlabsPage() {
           <select
             value={taxYearFilter}
             onChange={(e) => setTaxYearFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[140px]"
+            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 min-w-[140px]"
           >
             <option value="">All Tax Years</option>
             {[...new Set(slabs.map(s => s.taxYear))].sort().map(yr => (
@@ -474,7 +474,7 @@ export default function TaxSlabsPage() {
           <div className="p-6">
             {viewLoading ? (
               <div className="flex items-center justify-center py-8">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500" />
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-500" />
               </div>
             ) : (
               <>
@@ -491,7 +491,7 @@ export default function TaxSlabsPage() {
                     {isAdmin && (
                       <button
                         onClick={() => handleEdit(viewingSlab)}
-                        className="px-3 py-1.5 rounded-lg bg-blue-500 text-white text-xs font-medium hover:bg-blue-600 transition-colors flex items-center gap-1"
+                        className="px-3 py-1.5 rounded-lg bg-green-500 text-white text-xs font-medium hover:bg-green-600 transition-colors flex items-center gap-1"
                       >
                         <FiEdit2 className="w-3.5 h-3.5" /> Edit
                       </button>
@@ -565,7 +565,7 @@ export default function TaxSlabsPage() {
 
       {/* Embedded Inline Form */}
       {showForm && (
-        <div id="crud-form" className="thb-card border-l-4 border-l-blue-500">
+        <div id="crud-form" className="thb-card border-l-4 border-l-green-500">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-semibold text-thb-text-primary">
@@ -587,7 +587,7 @@ export default function TaxSlabsPage() {
                   required
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                   placeholder="e.g. India New Regime FY 2024-25"
                 />
               </div>
@@ -596,7 +596,7 @@ export default function TaxSlabsPage() {
                 <select
                   value={form.countryCode}
                   onChange={(e) => setForm({ ...form, countryCode: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                 >
                   {COUNTRY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
@@ -607,7 +607,7 @@ export default function TaxSlabsPage() {
                   required
                   value={form.taxYear}
                   onChange={(e) => setForm({ ...form, taxYear: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                   placeholder="e.g. 2024-25 or 2024"
                 />
               </div>
@@ -616,7 +616,7 @@ export default function TaxSlabsPage() {
                 <select
                   value={form.filingStatus}
                   onChange={(e) => setForm({ ...form, filingStatus: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                 >
                   {FILING_STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
@@ -626,7 +626,7 @@ export default function TaxSlabsPage() {
                 <select
                   value={form.regimeType}
                   onChange={(e) => setForm({ ...form, regimeType: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                 >
                   {REGIME_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
@@ -637,7 +637,7 @@ export default function TaxSlabsPage() {
                   type="date"
                   value={form.effectiveFrom}
                   onChange={(e) => setForm({ ...form, effectiveFrom: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                 />
               </div>
               <div>
@@ -646,7 +646,7 @@ export default function TaxSlabsPage() {
                   type="date"
                   value={form.effectiveTo}
                   onChange={(e) => setForm({ ...form, effectiveTo: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                 />
               </div>
             </div>
@@ -658,7 +658,7 @@ export default function TaxSlabsPage() {
                 <button
                   type="button"
                   onClick={addRateLine}
-                  className="text-xs font-medium text-blue-500 hover:text-blue-600 flex items-center gap-1"
+                  className="text-xs font-medium text-green-500 hover:text-green-600 flex items-center gap-1"
                 >
                   <FiPlus className="w-3.5 h-3.5" /> Add Rate Line
                 </button>
@@ -694,7 +694,7 @@ export default function TaxSlabsPage() {
                               step="0.01"
                               value={rl.incomeFrom}
                               onChange={(e) => updateRateLine(idx, 'incomeFrom', parseFloat(e.target.value) || 0)}
-                              className="w-full pl-6 pr-2 py-1.5 border border-thb-border rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500/20 bg-white"
+                              className="w-full pl-6 pr-2 py-1.5 border border-thb-border rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500/20 bg-white"
                               placeholder="0"
                             />
                           </div>
@@ -711,7 +711,7 @@ export default function TaxSlabsPage() {
                                 const val = e.target.value;
                                 updateRateLine(idx, 'incomeTo', val === '' ? null : parseFloat(val) || null);
                               }}
-                              className="w-full pl-6 pr-2 py-1.5 border border-thb-border rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500/20 bg-white"
+                              className="w-full pl-6 pr-2 py-1.5 border border-thb-border rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500/20 bg-white"
                               placeholder="No limit"
                             />
                           </div>
@@ -724,7 +724,7 @@ export default function TaxSlabsPage() {
                             step="0.01"
                             value={rl.ratePercentage}
                             onChange={(e) => updateRateLine(idx, 'ratePercentage', parseFloat(e.target.value) || 0)}
-                            className="w-full px-2 py-1.5 border border-thb-border rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500/20 bg-white"
+                            className="w-full px-2 py-1.5 border border-thb-border rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500/20 bg-white"
                             placeholder="0"
                           />
                         </td>
@@ -738,7 +738,7 @@ export default function TaxSlabsPage() {
                               const val = e.target.value;
                               updateRateLine(idx, 'fixedAmount', val === '' ? null : parseFloat(val) || null);
                             }}
-                            className="w-full px-2 py-1.5 border border-thb-border rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500/20 bg-white"
+                            className="w-full px-2 py-1.5 border border-thb-border rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500/20 bg-white"
                             placeholder="—"
                           />
                         </td>
@@ -753,7 +753,7 @@ export default function TaxSlabsPage() {
                               const val = e.target.value;
                               updateRateLine(idx, 'surchargeRate', val === '' ? null : parseFloat(val) || null);
                             }}
-                            className="w-full px-2 py-1.5 border border-thb-border rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500/20 bg-white"
+                            className="w-full px-2 py-1.5 border border-thb-border rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500/20 bg-white"
                             placeholder="—"
                           />
                         </td>
@@ -768,7 +768,7 @@ export default function TaxSlabsPage() {
                               const val = e.target.value;
                               updateRateLine(idx, 'cessRate', val === '' ? null : parseFloat(val) || null);
                             }}
-                            className="w-full px-2 py-1.5 border border-thb-border rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500/20 bg-white"
+                            className="w-full px-2 py-1.5 border border-thb-border rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500/20 bg-white"
                             placeholder="—"
                           />
                         </td>
@@ -800,7 +800,7 @@ export default function TaxSlabsPage() {
               <button
                 onClick={handleSubmit}
                 disabled={submitting}
-                className="px-6 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50 shadow-sm shadow-blue-500/25 transition-colors"
+                className="px-6 py-2.5 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 disabled:opacity-50 shadow-sm shadow-green-500/25 transition-colors"
               >
                 {submitting ? 'Saving...' : editingId ? 'Update Tax Slab' : 'Create Tax Slab'}
               </button>
@@ -895,7 +895,7 @@ export default function TaxSlabsPage() {
                         <div className="flex items-center gap-1">
                           <button
                             onClick={() => handleView(s)}
-                            className="p-1.5 rounded-lg text-thb-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors"
+                            className="p-1.5 rounded-lg text-thb-text-muted hover:text-green-500 hover:bg-green-50 transition-colors"
                             title="View"
                           >
                             <FiEye className="w-4 h-4" />

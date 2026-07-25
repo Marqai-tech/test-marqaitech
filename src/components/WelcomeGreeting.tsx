@@ -143,7 +143,7 @@ export default function WelcomeGreeting({ onComplete }: WelcomeGreetingProps) {
                 animation: showContent ? 'fadeInUp 0.6s ease-out 0.2s both' : 'none',
               }}
             >
-              <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-500 via-indigo-500 to-violet-600 flex items-center justify-center shadow-lg mx-auto mb-4">
+              <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-green-500 via-indigo-500 to-violet-600 flex items-center justify-center shadow-lg mx-auto mb-4">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={user?.tenant?.logo || user?.employee?.companyLogo || '/images/logo-3boxes-hrms.png'} alt="Company Logo" className="w-16 h-16 rounded-xl object-contain" />
               </div>

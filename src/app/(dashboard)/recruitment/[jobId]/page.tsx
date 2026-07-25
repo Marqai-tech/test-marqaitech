@@ -38,12 +38,12 @@ function getJobStatusBadge(status: string) {
 function getAppStatusBadge(status: string) {
   const map: Record<string, string> = {
     applied: 'thb-badge thb-badge-info',
-    screening: 'bg-purple-50 text-purple-700 thb-badge',
+    screening: 'bg-teal-50 text-teal-700 thb-badge',
     interview: 'bg-amber-50 text-amber-700 thb-badge',
     offered: 'thb-badge thb-badge-success',
     hired: 'bg-emerald-50 text-emerald-700 thb-badge',
     rejected: 'thb-badge thb-badge-error',
-    talent_pool: 'bg-indigo-50 text-indigo-700 thb-badge',
+    talent_pool: 'bg-emerald-50 text-emerald-700 thb-badge',
   };
   const labels: Record<string, string> = {
     applied: 'Applied', screening: 'Screening', interview: 'Interview',
@@ -68,7 +68,7 @@ function getJobTypeBadge(type: string) {
     'full-time': { className: 'bg-emerald-50 text-emerald-700 border border-emerald-200', label: 'Full-time' },
     'part-time': { className: 'bg-sky-50 text-sky-700 border border-sky-200', label: 'Part-time' },
     'contract': { className: 'bg-amber-50 text-amber-700 border border-amber-200', label: 'Contract' },
-    'internship': { className: 'bg-purple-50 text-purple-700 border border-purple-200', label: 'Internship' },
+    'internship': { className: 'bg-teal-50 text-teal-700 border border-teal-200', label: 'Internship' },
   };
   return map[type] || { className: 'bg-slate-50 text-slate-700 border border-slate-200', label: type };
 }
@@ -83,7 +83,7 @@ function getAvatarColor(name: string) {
     'bg-emerald-100 text-emerald-700',
     'bg-amber-100 text-amber-700',
     'bg-sky-100 text-sky-700',
-    'bg-violet-100 text-violet-700',
+    'bg-teal-100 text-teal-700',
     'bg-pink-100 text-pink-700',
     'bg-teal-100 text-teal-700',
     'bg-orange-100 text-orange-700',
@@ -369,7 +369,7 @@ export default function JobDetailPage() {
             <FiArrowLeft className="w-4 h-4" /> Back to Recruitment
           </Link>
           <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
-            <FiBriefcase className="w-6 h-6 text-violet-500" />
+            <FiBriefcase className="w-6 h-6 text-teal-500" />
             {jobPosting.title}
           </h1>
         </div>
@@ -393,7 +393,7 @@ export default function JobDetailPage() {
 
       {/* ─── Job Header Card ─── */}
       <div className="thb-card overflow-hidden">
-        <div className="bg-gradient-to-r from-violet-600 to-violet-500 px-6 py-5">
+        <div className="bg-gradient-to-r from-teal-600 to-teal-500 px-6 py-5">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="min-w-0">
               <div className="flex items-center gap-3 flex-wrap">
@@ -402,7 +402,7 @@ export default function JobDetailPage() {
                   {badge.label}
                 </span>
               </div>
-              <p className="text-violet-100 text-sm mt-1">{jobPosting.position || jobPosting.title}</p>
+              <p className="text-teal-100 text-sm mt-1">{jobPosting.position || jobPosting.title}</p>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
               {jobPosting.status === 'open' && (
@@ -419,7 +419,7 @@ export default function JobDetailPage() {
             <div className="space-y-1">
               <p className="text-[10px] font-semibold text-thb-text-muted uppercase tracking-wider">Department</p>
               <div className="flex items-center gap-1.5">
-                <FiUsers className="w-3.5 h-3.5 text-violet-500" />
+                <FiUsers className="w-3.5 h-3.5 text-teal-500" />
                 <span className="text-sm font-medium text-thb-text-primary">{jobPosting.department?.name || '—'}</span>
               </div>
             </div>
@@ -432,28 +432,28 @@ export default function JobDetailPage() {
             <div className="space-y-1">
               <p className="text-[10px] font-semibold text-thb-text-muted uppercase tracking-wider">Location</p>
               <div className="flex items-center gap-1.5">
-                <FiMapPin className="w-3.5 h-3.5 text-violet-500" />
+                <FiMapPin className="w-3.5 h-3.5 text-teal-500" />
                 <span className="text-sm font-medium text-thb-text-primary">{jobPosting.location || '—'}</span>
               </div>
             </div>
             <div className="space-y-1">
               <p className="text-[10px] font-semibold text-thb-text-muted uppercase tracking-wider">Salary Range</p>
               <div className="flex items-center gap-1.5">
-                <FiDollarSign className="w-3.5 h-3.5 text-violet-500" />
+                <FiDollarSign className="w-3.5 h-3.5 text-teal-500" />
                 <span className="text-sm font-medium text-thb-text-primary">{jobPosting.salary || '—'}</span>
               </div>
             </div>
             <div className="space-y-1">
               <p className="text-[10px] font-semibold text-thb-text-muted uppercase tracking-wider">Vacancies</p>
               <div className="flex items-center gap-1.5">
-                <FiTarget className="w-3.5 h-3.5 text-violet-500" />
+                <FiTarget className="w-3.5 h-3.5 text-teal-500" />
                 <span className="text-sm font-medium text-thb-text-primary">{jobPosting.vacancies}</span>
               </div>
             </div>
             <div className="space-y-1">
               <p className="text-[10px] font-semibold text-thb-text-muted uppercase tracking-wider">Posted</p>
               <div className="flex items-center gap-1.5">
-                <FiCalendar className="w-3.5 h-3.5 text-violet-500" />
+                <FiCalendar className="w-3.5 h-3.5 text-teal-500" />
                 <span className="text-sm font-medium text-thb-text-primary">{formatDate(jobPosting.postedDate)}</span>
               </div>
             </div>
@@ -472,7 +472,7 @@ export default function JobDetailPage() {
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         {[
           { label: 'Applied', value: funnelCounts.applied, color: 'text-sky-600', bg: 'bg-sky-50', border: 'border-sky-200' },
-          { label: 'Screening', value: funnelCounts.screening, color: 'text-purple-600', bg: 'bg-purple-50', border: 'border-purple-200' },
+          { label: 'Screening', value: funnelCounts.screening, color: 'text-teal-600', bg: 'bg-teal-50', border: 'border-teal-200' },
           { label: 'Interview', value: funnelCounts.interview, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200' },
           { label: 'Offered', value: funnelCounts.offered, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200' },
           { label: 'Hired', value: funnelCounts.hired, color: 'text-teal-600', bg: 'bg-teal-50', border: 'border-teal-200' },
@@ -497,7 +497,7 @@ export default function JobDetailPage() {
               onClick={() => setActiveTab(tab.key)}
               className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
                 activeTab === tab.key
-                  ? 'bg-violet-600 text-white shadow-sm shadow-violet-500/25'
+                  ? 'bg-teal-600 text-white shadow-sm shadow-teal-500/25'
                   : 'text-thb-text-secondary hover:bg-slate-100 hover:text-thb-text-primary'
               }`}
             >
@@ -549,7 +549,7 @@ export default function JobDetailPage() {
                     const initials = getInitials(app.candidateName);
                     const avatarColor = getAvatarColor(app.candidateName);
                     return (
-                      <tr key={app.id} className={`border-b border-thb-border/50 transition-colors ${isEditing ? 'bg-violet-50/50' : 'hover:bg-slate-50/50'}`}>
+                      <tr key={app.id} className={`border-b border-thb-border/50 transition-colors ${isEditing ? 'bg-teal-50/50' : 'hover:bg-slate-50/50'}`}>
                         <td className="px-5 py-3">
                           <div className="flex items-center gap-3">
                             <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${avatarColor}`}>
@@ -574,7 +574,7 @@ export default function JobDetailPage() {
                             <select
                               value={editAppStatus}
                               onChange={e => setEditAppStatus(e.target.value)}
-                              className="px-2 py-1 rounded border border-thb-border text-xs focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                              className="px-2 py-1 rounded border border-thb-border text-xs focus:outline-none focus:ring-2 focus:ring-teal-500/20"
                             >
                               <option value="applied">Applied</option>
                               <option value="screening">Screening</option>
@@ -600,7 +600,7 @@ export default function JobDetailPage() {
                         <td className="px-5 py-3">
                           {isEditing ? (
                             <div className="flex items-center justify-end gap-1">
-                              <button onClick={() => handleSaveAppStatus(app.id)} className="px-2.5 py-1 bg-violet-600 text-white text-xs font-medium rounded hover:bg-violet-700 transition-colors">
+                              <button onClick={() => handleSaveAppStatus(app.id)} className="px-2.5 py-1 bg-teal-600 text-white text-xs font-medium rounded hover:bg-teal-700 transition-colors">
                                 Save
                               </button>
                               <button onClick={handleCancelAppEdit} className="px-2.5 py-1 border border-thb-border text-xs font-medium rounded hover:bg-slate-50 transition-colors">
@@ -632,7 +632,7 @@ export default function JobDetailPage() {
                                       toast.error(e instanceof Error ? e.message : 'Failed');
                                     }
                                   }}
-                                  className="p-2 rounded-lg text-thb-text-muted hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+                                  className="p-2 rounded-lg text-thb-text-muted hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
                                   title="Move to Talent Pool (REQ-STAT-01)"
                                 >
                                   <FiUsers className="w-4 h-4" />
@@ -728,7 +728,7 @@ export default function JobDetailPage() {
             <div className="space-y-2">
               {[
                 { key: 'applied', label: 'Applied', color: 'bg-sky-500' },
-                { key: 'screening', label: 'Screening', color: 'bg-purple-500' },
+                { key: 'screening', label: 'Screening', color: 'bg-teal-500' },
                 { key: 'interview', label: 'Interview', color: 'bg-amber-500' },
                 { key: 'offered', label: 'Offered', color: 'bg-emerald-500' },
                 { key: 'hired', label: 'Hired', color: 'bg-teal-500' },
@@ -820,7 +820,7 @@ export default function JobDetailPage() {
                           alreadyPosted
                             ? 'border-slate-200 bg-slate-50 opacity-60 cursor-not-allowed'
                             : checked
-                            ? 'border-violet-300 bg-violet-50'
+                            ? 'border-teal-300 bg-teal-50'
                             : 'border-thb-border hover:bg-slate-50'
                         }`}
                       >
@@ -829,7 +829,7 @@ export default function JobDetailPage() {
                           disabled={alreadyPosted}
                           checked={checked}
                           onChange={(e) => setBoardSelection((prev) => ({ ...prev, [b.id]: e.target.checked }))}
-                          className="w-4 h-4 rounded border-thb-border text-violet-500 focus:ring-violet-500"
+                          className="w-4 h-4 rounded border-thb-border text-teal-500 focus:ring-teal-500"
                         />
                         <span className="w-2.5 h-2.5 rounded-full" style={{ background: b.color }} />
                         <span className="text-sm font-medium text-thb-text-primary">{b.label}</span>
@@ -844,7 +844,7 @@ export default function JobDetailPage() {
                   <button
                     onClick={handleMultiPost}
                     disabled={posting || Object.values(boardSelection).every((v) => !v)}
-                    className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-violet-600 text-white rounded-lg text-sm font-medium hover:bg-violet-700 disabled:opacity-50 transition-colors"
+                    className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-teal-600 text-white rounded-lg text-sm font-medium hover:bg-teal-700 disabled:opacity-50 transition-colors"
                   >
                     {posting ? <><FiRefreshCw className="w-4 h-4 animate-spin" /> Posting...</> : <><FiSend className="w-4 h-4" /> Post to Selected Boards</>}
                   </button>
@@ -877,7 +877,7 @@ export default function JobDetailPage() {
           {/* Description */}
           <div className="thb-card p-6">
             <h2 className="text-base font-semibold text-thb-text-primary mb-4 flex items-center gap-2">
-              <FiBriefcase className="w-4 h-4 text-violet-500" />
+              <FiBriefcase className="w-4 h-4 text-teal-500" />
               Job Description
             </h2>
             <div className="prose prose-sm max-w-none">
@@ -889,7 +889,7 @@ export default function JobDetailPage() {
           {jobPosting.requirements && (
             <div className="thb-card p-6">
               <h2 className="text-base font-semibold text-thb-text-primary mb-4 flex items-center gap-2">
-                <FiTarget className="w-4 h-4 text-violet-500" />
+                <FiTarget className="w-4 h-4 text-teal-500" />
                 Requirements
               </h2>
               <p className="text-sm text-thb-text-secondary whitespace-pre-wrap leading-relaxed">{jobPosting.requirements}</p>
@@ -932,8 +932,8 @@ export default function JobDetailPage() {
             {jobPosting.department && (
               <div className="thb-card p-5">
                 <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-violet-50 border border-violet-200">
-                    <FiUsers className="w-4 h-4 text-violet-600" />
+                  <div className="p-2.5 rounded-xl bg-teal-50 border border-teal-200">
+                    <FiUsers className="w-4 h-4 text-teal-600" />
                   </div>
                   <div>
                     <p className="text-[10px] font-semibold text-thb-text-muted uppercase tracking-wider">Department</p>
@@ -959,8 +959,8 @@ export default function JobDetailPage() {
             {/* Job Type */}
             <div className="thb-card p-5">
               <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-purple-50 border border-purple-200">
-                  <FiClock className="w-4 h-4 text-purple-600" />
+                <div className="p-2.5 rounded-xl bg-teal-50 border border-teal-200">
+                  <FiClock className="w-4 h-4 text-teal-600" />
                 </div>
                 <div>
                   <p className="text-[10px] font-semibold text-thb-text-muted uppercase tracking-wider">Job Type</p>

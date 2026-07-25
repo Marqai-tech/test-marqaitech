@@ -16,8 +16,8 @@ const TEMPLATES = [
     id: 'modern',
     name: 'Modern Professional',
     description: 'Clean, contemporary design with accent colors',
-    accent: 'from-blue-500 to-indigo-600',
-    preview: 'bg-gradient-to-r from-blue-50 to-indigo-50',
+    accent: 'from-green-500 to-emerald-600',
+    preview: 'bg-gradient-to-r from-green-50 to-emerald-50',
   },
   {
     id: 'executive',
@@ -30,8 +30,8 @@ const TEMPLATES = [
     id: 'creative',
     name: 'Creative Edge',
     description: 'Bold, eye-catching for design roles',
-    accent: 'from-violet-500 to-pink-500',
-    preview: 'bg-gradient-to-r from-violet-50 to-pink-50',
+    accent: 'from-teal-500 to-pink-500',
+    preview: 'bg-gradient-to-r from-teal-50 to-pink-50',
   },
   {
     id: 'minimal',
@@ -209,7 +209,7 @@ export default function ResumeBuilderPage() {
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="text-center">
           <p className="text-slate-600 mb-4">Please login to access the resume builder.</p>
-          <Link href="/candidate-portal/login" className="text-violet-600 hover:underline">
+          <Link href="/candidate-portal/login" className="text-teal-600 hover:underline">
             Go to login
           </Link>
         </div>
@@ -223,10 +223,10 @@ export default function ResumeBuilderPage() {
       <header className="bg-white border-b border-slate-200 sticky top-0 z-30">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Link href="/candidate-portal/dashboard" className="text-slate-500 hover:text-violet-600">
+            <Link href="/candidate-portal/dashboard" className="text-slate-500 hover:text-teal-600">
               <FiArrowLeft className="w-5 h-5" />
             </Link>
-            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-violet-500 to-indigo-500 text-white flex items-center justify-center">
+            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-teal-500 to-emerald-500 text-white flex items-center justify-center">
               <FiFileText className="w-5 h-5" />
             </div>
             <div>
@@ -239,12 +239,12 @@ export default function ResumeBuilderPage() {
             {['upload', 'template', 'preview', 'optimize'].map((s, i) => (
               <div key={s} className="flex items-center">
                 <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                  step === s ? 'bg-violet-600 text-white' :
-                  ['upload', 'template', 'preview', 'optimize'].indexOf(step) > i ? 'bg-violet-200 text-violet-700' : 'bg-slate-200 text-slate-500'
+                  step === s ? 'bg-teal-600 text-white' :
+                  ['upload', 'template', 'preview', 'optimize'].indexOf(step) > i ? 'bg-teal-200 text-teal-700' : 'bg-slate-200 text-slate-500'
                 }`}>
                   {i + 1}
                 </div>
-                {i < 3 && <div className={`w-6 h-0.5 ${['upload', 'template', 'preview', 'optimize'].indexOf(step) > i ? 'bg-violet-400' : 'bg-slate-200'}`} />}
+                {i < 3 && <div className={`w-6 h-0.5 ${['upload', 'template', 'preview', 'optimize'].indexOf(step) > i ? 'bg-teal-400' : 'bg-slate-200'}`} />}
               </div>
             ))}
           </div>
@@ -256,7 +256,7 @@ export default function ResumeBuilderPage() {
         {step === 'upload' && (
           <div className="max-w-2xl mx-auto">
             <div className="text-center mb-8">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-teal-500 to-emerald-600 flex items-center justify-center">
                 <FiUpload className="w-8 h-8 text-white" />
               </div>
               <h2 className="text-2xl font-bold text-slate-800 mb-2">Upload Your Resume</h2>
@@ -265,7 +265,7 @@ export default function ResumeBuilderPage() {
 
             <div
               onClick={() => fileInputRef.current?.click()}
-              className="border-2 border-dashed border-slate-300 rounded-2xl p-12 text-center cursor-pointer hover:border-violet-400 hover:bg-violet-50/50 transition-all"
+              className="border-2 border-dashed border-slate-300 rounded-2xl p-12 text-center cursor-pointer hover:border-teal-400 hover:bg-teal-50/50 transition-all"
             >
               <input
                 ref={fileInputRef}
@@ -276,7 +276,7 @@ export default function ResumeBuilderPage() {
               />
               {isProcessing ? (
                 <div className="space-y-3">
-                  <div className="w-12 h-12 border-4 border-violet-200 border-t-violet-600 rounded-full animate-spin mx-auto" />
+                  <div className="w-12 h-12 border-4 border-teal-200 border-t-teal-600 rounded-full animate-spin mx-auto" />
                   <p className="text-sm text-slate-600">Parsing your resume...</p>
                 </div>
               ) : (
@@ -296,7 +296,7 @@ export default function ResumeBuilderPage() {
                 { icon: FiZap, title: 'ATS Optimized', desc: 'Pass automated screening' },
               ].map((f, i) => (
                 <div key={i} className="text-center p-4 rounded-xl bg-white border border-slate-200">
-                  <f.icon className="w-6 h-6 text-violet-500 mx-auto mb-2" />
+                  <f.icon className="w-6 h-6 text-teal-500 mx-auto mb-2" />
                   <p className="text-xs font-semibold text-slate-700">{f.title}</p>
                   <p className="text-[10px] text-slate-500 mt-0.5">{f.desc}</p>
                 </div>
@@ -320,12 +320,12 @@ export default function ResumeBuilderPage() {
                   onClick={() => setSelectedTemplate(template.id)}
                   className={`relative p-6 rounded-2xl border-2 transition-all text-left ${
                     selectedTemplate === template.id
-                      ? 'border-violet-500 ring-4 ring-violet-100 shadow-lg'
-                      : 'border-slate-200 hover:border-violet-300 hover:shadow-md'
+                      ? 'border-teal-500 ring-4 ring-teal-100 shadow-lg'
+                      : 'border-slate-200 hover:border-teal-300 hover:shadow-md'
                   }`}
                 >
                   {selectedTemplate === template.id && (
-                    <div className="absolute top-3 right-3 w-6 h-6 bg-violet-600 rounded-full flex items-center justify-center">
+                    <div className="absolute top-3 right-3 w-6 h-6 bg-teal-600 rounded-full flex items-center justify-center">
                       <FiCheck className="w-4 h-4 text-white" />
                     </div>
                   )}
@@ -347,7 +347,7 @@ export default function ResumeBuilderPage() {
               </button>
               <button
                 onClick={() => setStep('preview')}
-                className="px-6 py-2.5 rounded-lg text-sm font-semibold text-white bg-gradient-to-r from-violet-500 to-indigo-600 hover:from-violet-600 hover:to-indigo-700 shadow-lg shadow-violet-500/25"
+                className="px-6 py-2.5 rounded-lg text-sm font-semibold text-white bg-gradient-to-r from-teal-500 to-emerald-600 hover:from-teal-600 hover:to-emerald-700 shadow-lg shadow-teal-500/25"
               >
                 Preview Resume <FiArrowRight className="inline w-4 h-4 ml-1" />
               </button>
@@ -370,7 +370,7 @@ export default function ResumeBuilderPage() {
                 <button
                   onClick={handleRebuildResume}
                   disabled={isProcessing}
-                  className="px-4 py-2 rounded-lg text-sm font-semibold text-white bg-gradient-to-r from-violet-500 to-indigo-600 hover:from-violet-600 disabled:opacity-60 shadow-lg shadow-violet-500/25 flex items-center gap-2"
+                  className="px-4 py-2 rounded-lg text-sm font-semibold text-white bg-gradient-to-r from-teal-500 to-emerald-600 hover:from-teal-600 disabled:opacity-60 shadow-lg shadow-teal-500/25 flex items-center gap-2"
                 >
                   {isProcessing ? (
                     <>
@@ -401,7 +401,7 @@ export default function ResumeBuilderPage() {
               <button
                 onClick={handleRebuildResume}
                 disabled={isProcessing}
-                className="px-6 py-2.5 rounded-lg text-sm font-semibold text-white bg-gradient-to-r from-violet-500 to-indigo-600 hover:from-violet-600 disabled:opacity-60 shadow-lg shadow-violet-500/25"
+                className="px-6 py-2.5 rounded-lg text-sm font-semibold text-white bg-gradient-to-r from-teal-500 to-emerald-600 hover:from-teal-600 disabled:opacity-60 shadow-lg shadow-teal-500/25"
               >
                 {isProcessing ? 'Rebuilding...' : <>Rebuild with AI <FiArrowRight className="inline w-4 h-4 ml-1" /></>}
               </button>
@@ -450,7 +450,7 @@ export default function ResumeBuilderPage() {
                 <div key={i} className="bg-white rounded-xl border border-slate-200 p-5">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
-                      <span className="text-violet-500">{aspect.icon}</span>
+                      <span className="text-teal-500">{aspect.icon}</span>
                       <h4 className="font-semibold text-slate-800 text-sm">{aspect.category}</h4>
                     </div>
                     <span className={`text-sm font-bold ${
@@ -465,7 +465,7 @@ export default function ResumeBuilderPage() {
                     <ul className="space-y-1">
                       {aspect.suggestions.map((s, j) => (
                         <li key={j} className="text-xs text-slate-500 flex items-start gap-1.5">
-                          <span className="text-violet-500 mt-0.5">•</span>
+                          <span className="text-teal-500 mt-0.5">•</span>
                           {s}
                         </li>
                       ))}

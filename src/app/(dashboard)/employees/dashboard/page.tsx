@@ -77,9 +77,9 @@ interface HeadcountTrend {
 
 /* ── Color palette for departments ── */
 const DEPT_COLORS = [
-  'bg-blue-500', 'bg-emerald-500', 'bg-violet-500', 'bg-orange-500',
+  'bg-green-500', 'bg-emerald-500', 'bg-teal-500', 'bg-orange-500',
   'bg-pink-500', 'bg-cyan-500', 'bg-red-500', 'bg-lime-500',
-  'bg-fuchsia-500', 'bg-yellow-500', 'bg-indigo-500', 'bg-teal-500',
+  'bg-fuchsia-500', 'bg-yellow-500', 'bg-emerald-500', 'bg-teal-500',
 ];
 
 /* ── Component ── */
@@ -250,9 +250,9 @@ export default function EmployeeDashboardPage() {
 
   function getSampleDepartments(): DepartmentDist[] {
     return [
-      { name: 'Engineering', count: 0, color: 'bg-blue-500' },
+      { name: 'Engineering', count: 0, color: 'bg-green-500' },
       { name: 'Sales', count: 0, color: 'bg-emerald-500' },
-      { name: 'HR', count: 0, color: 'bg-violet-500' },
+      { name: 'HR', count: 0, color: 'bg-teal-500' },
       { name: 'Finance', count: 0, color: 'bg-orange-500' },
     ];
   }
@@ -278,7 +278,7 @@ export default function EmployeeDashboardPage() {
   const lifecycleMetrics: LifecycleMetric[] = useMemo(() => {
     const base: LifecycleMetric[] = [
       { label: 'On Probation', count: 0, icon: FiClock, color: 'text-amber-600', bgColor: 'bg-amber-50', route: '/employees/probation' },
-      { label: 'Transfers', count: 0, icon: FiRefreshCw, color: 'text-blue-600', bgColor: 'bg-blue-50', route: '/employees/transfer' },
+      { label: 'Transfers', count: 0, icon: FiRefreshCw, color: 'text-green-600', bgColor: 'bg-green-50', route: '/employees/transfer' },
       { label: 'Resignations', count: 0, icon: FiFileText, color: 'text-red-600', bgColor: 'bg-red-50', route: '/employees/resignation' },
       { label: 'Terminations', count: 0, icon: FiUserX, color: 'text-orange-600', bgColor: 'bg-orange-50', route: '/employees/termination' },
     ];
@@ -292,8 +292,8 @@ export default function EmployeeDashboardPage() {
   const updateTypeConfig: Record<string, { icon: React.ComponentType<{ className?: string }>; color: string; bgColor: string }> = {
     join: { icon: FiUserPlus, color: 'text-emerald-600', bgColor: 'bg-emerald-50' },
     exit: { icon: FiUserX, color: 'text-red-600', bgColor: 'bg-red-50' },
-    transfer: { icon: FiRefreshCw, color: 'text-blue-600', bgColor: 'bg-blue-50' },
-    promotion: { icon: FiAward, color: 'text-violet-600', bgColor: 'bg-violet-50' },
+    transfer: { icon: FiRefreshCw, color: 'text-green-600', bgColor: 'bg-green-50' },
+    promotion: { icon: FiAward, color: 'text-teal-600', bgColor: 'bg-teal-50' },
     probation_end: { icon: FiCheckCircle, color: 'text-amber-600', bgColor: 'bg-amber-50' },
     status_change: { icon: FiActivity, color: 'text-slate-600', bgColor: 'bg-slate-50' },
   };
@@ -322,7 +322,7 @@ export default function EmployeeDashboardPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
-            <FiUsers className="w-6 h-6 text-blue-500" />
+            <FiUsers className="w-6 h-6 text-green-500" />
             Employee Dashboard
           </h1>
           <p className="text-sm text-thb-text-secondary mt-1">
@@ -342,7 +342,7 @@ export default function EmployeeDashboardPage() {
           {isAdmin && (
             <button
               onClick={() => router.push('/employees/add')}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-sm font-semibold hover:from-blue-600 hover:to-indigo-700 transition-all shadow-sm shadow-blue-500/20"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-gradient-to-r from-green-500 to-emerald-600 text-white text-sm font-semibold hover:from-green-600 hover:to-emerald-700 transition-all shadow-sm shadow-green-500/20"
             >
               <FiUserPlus className="w-4 h-4" />
               Add Employee
@@ -365,7 +365,7 @@ export default function EmployeeDashboardPage() {
               onClick={() => setActiveTab(tab.key)}
               className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                 activeTab === tab.key
-                  ? 'bg-white text-blue-600 shadow-sm'
+                  ? 'bg-white text-green-600 shadow-sm'
                   : 'text-thb-text-secondary hover:text-thb-text-primary'
               }`}
             >
@@ -388,7 +388,7 @@ export default function EmployeeDashboardPage() {
               label="Total Employees"
               value={stats?.totalEmployees ?? 0}
               trend={{ value: stats?.newHiresThisMonth ?? 0, label: 'new this month', up: true }}
-              gradient="from-blue-500 to-indigo-600"
+              gradient="from-green-500 to-emerald-600"
             />
             <StatCard
               icon={<FiUserCheck className="w-5 h-5" />}
@@ -418,15 +418,15 @@ export default function EmployeeDashboardPage() {
             {/* Quick Actions */}
             <div className="thb-card p-5">
               <h3 className="text-sm font-semibold text-thb-text-primary mb-4 flex items-center gap-2">
-                <FiTarget className="w-4 h-4 text-blue-500" />
+                <FiTarget className="w-4 h-4 text-green-500" />
                 Quick Actions
               </h3>
               <div className="space-y-2">
                 {isAdmin && (
-                  <QuickAction label="Add New Employee" icon={FiUserPlus} route="/employees/add" color="text-blue-600" bgColor="bg-blue-50" />
+                  <QuickAction label="Add New Employee" icon={FiUserPlus} route="/employees/add" color="text-green-600" bgColor="bg-green-50" />
                 )}
-                <QuickAction label="View Employee List" icon={FiUsers} route="/employees" color="text-indigo-600" bgColor="bg-indigo-50" />
-                <QuickAction label="Org Chart" icon={FiLayers} route="/org-chart" color="text-violet-600" bgColor="bg-violet-50" />
+                <QuickAction label="View Employee List" icon={FiUsers} route="/employees" color="text-emerald-600" bgColor="bg-emerald-50" />
+                <QuickAction label="Org Chart" icon={FiLayers} route="/org-chart" color="text-teal-600" bgColor="bg-teal-50" />
                 {isAdmin && (
                   <>
                     <QuickAction label="Probation Tracking" icon={FiClock} route="/employees/probation" color="text-amber-600" bgColor="bg-amber-50" />
@@ -488,7 +488,7 @@ export default function EmployeeDashboardPage() {
           {isManager && (
             <div>
               <h3 className="text-sm font-semibold text-thb-text-primary mb-3 flex items-center gap-2">
-                <FiActivity className="w-4 h-4 text-violet-500" />
+                <FiActivity className="w-4 h-4 text-teal-500" />
                 Employee Lifecycle
               </h3>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
@@ -504,7 +504,7 @@ export default function EmployeeDashboardPage() {
                         <Icon className={`w-4.5 h-4.5 ${metric.color}`} />
                       </div>
                       <p className="text-lg font-bold text-thb-text-primary">{metric.count}</p>
-                      <p className="text-xs text-thb-text-secondary group-hover:text-blue-600 transition-colors">{metric.label}</p>
+                      <p className="text-xs text-thb-text-secondary group-hover:text-green-600 transition-colors">{metric.label}</p>
                     </button>
                   );
                 })}
@@ -521,7 +521,7 @@ export default function EmployeeDashboardPage() {
               </h3>
               <button
                 onClick={() => setActiveTab('updates')}
-                className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium transition-colors"
+                className="flex items-center gap-1 text-xs text-green-600 hover:text-green-700 font-medium transition-colors"
               >
                 View All <FiArrowRight className="w-3 h-3" />
               </button>
@@ -564,7 +564,7 @@ export default function EmployeeDashboardPage() {
           {/* Headcount Trend */}
           <div className="thb-card p-5">
             <h3 className="text-sm font-semibold text-thb-text-primary mb-4 flex items-center gap-2">
-              <FiTrendingUp className="w-4 h-4 text-blue-500" />
+              <FiTrendingUp className="w-4 h-4 text-green-500" />
               Headcount Trend
             </h3>
             {headcountTrend.length > 0 ? (
@@ -578,7 +578,7 @@ export default function EmployeeDashboardPage() {
                       <div className="flex-1 flex items-center gap-2">
                         <div className="flex-1 bg-slate-100 rounded-full h-3 overflow-hidden">
                           <div
-                            className="h-full rounded-full bg-gradient-to-r from-blue-400 to-indigo-500 transition-all duration-500"
+                            className="h-full rounded-full bg-gradient-to-r from-green-400 to-emerald-500 transition-all duration-500"
                             style={{ width: `${barWidth}%` }}
                           />
                         </div>
@@ -610,9 +610,9 @@ export default function EmployeeDashboardPage() {
               {stats && (stats.genderRatio.male + stats.genderRatio.female + stats.genderRatio.other) > 0 ? (
                 <div className="space-y-4">
                   {[
-                    { label: 'Male', value: stats.genderRatio.male, color: 'bg-blue-500', textColor: 'text-blue-700' },
+                    { label: 'Male', value: stats.genderRatio.male, color: 'bg-green-500', textColor: 'text-green-700' },
                     { label: 'Female', value: stats.genderRatio.female, color: 'bg-pink-500', textColor: 'text-pink-700' },
-                    { label: 'Other', value: stats.genderRatio.other, color: 'bg-violet-500', textColor: 'text-violet-700' },
+                    { label: 'Other', value: stats.genderRatio.other, color: 'bg-teal-500', textColor: 'text-teal-700' },
                   ].map(g => {
                     const total = stats.genderRatio.male + stats.genderRatio.female + stats.genderRatio.other;
                     const pct = total > 0 ? Math.round((g.value / total) * 100) : 0;
@@ -639,7 +639,7 @@ export default function EmployeeDashboardPage() {
             {/* Key Metrics */}
             <div className="thb-card p-5">
               <h3 className="text-sm font-semibold text-thb-text-primary mb-4 flex items-center gap-2">
-                <FiBarChart2 className="w-4 h-4 text-indigo-500" />
+                <FiBarChart2 className="w-4 h-4 text-emerald-500" />
                 Key Metrics
               </h3>
               <div className="grid grid-cols-2 gap-4">
@@ -647,8 +647,8 @@ export default function EmployeeDashboardPage() {
                   label="Avg Tenure"
                   value={stats?.avgTenureMonths ? `${Math.floor(stats.avgTenureMonths / 12)}y ${stats.avgTenureMonths % 12}m` : '0m'}
                   icon={FiClock}
-                  color="text-blue-600"
-                  bgColor="bg-blue-50"
+                  color="text-green-600"
+                  bgColor="bg-green-50"
                 />
                 <MetricBox
                   label="New Hires"
@@ -672,8 +672,8 @@ export default function EmployeeDashboardPage() {
                   label="Departments"
                   value={departments.length}
                   icon={FiBriefcase}
-                  color="text-violet-600"
-                  bgColor="bg-violet-50"
+                  color="text-teal-600"
+                  bgColor="bg-teal-50"
                 />
               </div>
             </div>
@@ -687,10 +687,10 @@ export default function EmployeeDashboardPage() {
             </h3>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               {[
-                { label: '0-6 months', color: 'bg-blue-100 text-blue-700 border-blue-200' },
+                { label: '0-6 months', color: 'bg-green-100 text-green-700 border-green-200' },
                 { label: '6-12 months', color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
                 { label: '1-3 years', color: 'bg-amber-100 text-amber-700 border-amber-200' },
-                { label: '3+ years', color: 'bg-violet-100 text-violet-700 border-violet-200' },
+                { label: '3+ years', color: 'bg-teal-100 text-teal-700 border-teal-200' },
               ].map(t => (
                 <div key={t.label} className={`rounded-lg border p-4 text-center ${t.color}`}>
                   <p className="text-2xl font-bold">—</p>
@@ -719,7 +719,7 @@ export default function EmployeeDashboardPage() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search updates by name or department..."
-                className="w-full pl-9 pr-3 py-2 text-sm border border-thb-border rounded-lg bg-white text-thb-text-primary placeholder:text-thb-text-secondary focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
+                className="w-full pl-9 pr-3 py-2 text-sm border border-thb-border rounded-lg bg-white text-thb-text-primary placeholder:text-thb-text-secondary focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 transition-all"
               />
             </div>
           </div>
@@ -842,8 +842,8 @@ function QuickAction({ label, icon, route, color, bgColor }: {
       <div className={`w-8 h-8 rounded-lg ${bgColor} flex items-center justify-center flex-shrink-0`}>
         <Icon className={`w-4 h-4 ${color}`} />
       </div>
-      <span className="text-sm text-thb-text-primary group-hover:text-blue-600 transition-colors flex-1">{label}</span>
-      <FiArrowRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-blue-500 transition-colors flex-shrink-0" />
+      <span className="text-sm text-thb-text-primary group-hover:text-green-600 transition-colors flex-1">{label}</span>
+      <FiArrowRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-green-500 transition-colors flex-shrink-0" />
     </button>
   );
 }

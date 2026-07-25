@@ -52,7 +52,7 @@ const actionColor: Record<string, string> = {
   'DELETE': 'bg-red-500/10 text-red-400 border-red-500/20',
   'APPROVE': 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
   'REJECT': 'bg-red-500/10 text-red-400 border-red-500/20',
-  'NOTIFICATION_CREATED': 'bg-purple-500/10 text-purple-400 border-purple-500/20',
+  'NOTIFICATION_CREATED': 'bg-teal-500/10 text-teal-400 border-teal-500/20',
 }
 
 const entityIcon: Record<string, any> = {
@@ -112,7 +112,7 @@ export default function WorkflowEngineModule() {
     { label: 'Pending Approvals', value: totalPending, icon: AlertCircle, color: 'from-amber-500 to-amber-600' },
     { label: 'Pending Leaves', value: pendingApprovals.leaves, icon: Clock, color: 'from-cyan-500 to-cyan-600' },
     { label: 'Pending Requisitions', value: pendingApprovals.requisitions, icon: Briefcase, color: 'from-teal-500 to-teal-600' },
-    { label: 'Audit Actions', value: (workflowData?.recentActions || []).length, icon: Play, color: 'from-purple-500 to-purple-600' },
+    { label: 'Audit Actions', value: (workflowData?.recentActions || []).length, icon: Play, color: 'from-teal-500 to-teal-600' },
   ]
 
   // Approve a leave
@@ -305,9 +305,9 @@ export default function WorkflowEngineModule() {
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-white text-lg flex items-center gap-2">
-                      <Clock className="w-4 h-4 text-purple-400" /> Pending Timesheets
+                      <Clock className="w-4 h-4 text-teal-400" /> Pending Timesheets
                     </CardTitle>
-                    <Badge className="bg-purple-500/10 text-purple-400 border-purple-500/20">{pendingApprovals.timesheets}</Badge>
+                    <Badge className="bg-teal-500/10 text-teal-400 border-teal-500/20">{pendingApprovals.timesheets}</Badge>
                   </div>
                 </CardHeader>
                 <CardContent>

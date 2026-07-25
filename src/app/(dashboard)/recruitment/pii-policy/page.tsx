@@ -300,7 +300,7 @@ export default function PiiPolicyAdminPage() {
         <p className="text-thb-text-secondary text-sm max-w-md">
           Only tenant admins, HR admins, and super admins can configure candidate PII masking policies.
         </p>
-        <Link href="/recruitment" className="text-blue-600 hover:underline text-sm font-medium">
+        <Link href="/recruitment" className="text-green-600 hover:underline text-sm font-medium">
           Back to Recruitment
         </Link>
       </div>
@@ -532,7 +532,7 @@ export default function PiiPolicyAdminPage() {
                           <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold ${
                             p.maskingStrategy === 'full' ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200' :
                             p.maskingStrategy === 'partial' ? 'bg-amber-50 text-amber-700 ring-1 ring-amber-200' :
-                            p.maskingStrategy === 'hash' ? 'bg-violet-50 text-violet-700 ring-1 ring-violet-200' :
+                            p.maskingStrategy === 'hash' ? 'bg-teal-50 text-teal-700 ring-1 ring-teal-200' :
                             'bg-rose-50 text-rose-700 ring-1 ring-rose-200'
                           }`}>
                             {strategyMeta?.icon} {strategyMeta?.label}
@@ -565,7 +565,7 @@ export default function PiiPolicyAdminPage() {
                         ) : (
                           <div className="flex flex-wrap gap-1.5">
                             {visibleRoles.map(r => (
-                              <span key={r} className="inline-flex items-center px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 text-[11px] font-semibold ring-1 ring-blue-100">
+                              <span key={r} className="inline-flex items-center px-2 py-0.5 rounded-md bg-green-50 text-green-700 text-[11px] font-semibold ring-1 ring-green-100">
                                 {ROLE_OPTIONS.find(o => o.value === r)?.label || r}
                               </span>
                             ))}
@@ -615,7 +615,7 @@ export default function PiiPolicyAdminPage() {
       {/* Footer help */}
       <div className="thb-card p-5 bg-slate-50/40">
         <div className="flex items-start gap-3">
-          <FiInfo className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
+          <FiInfo className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
           <div className="text-sm text-thb-text-secondary leading-relaxed">
             <p className="font-medium text-thb-text-primary mb-1">How masking is applied</p>
             <ul className="list-disc list-inside space-y-1 text-xs">

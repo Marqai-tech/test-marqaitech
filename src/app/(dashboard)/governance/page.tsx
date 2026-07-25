@@ -7,7 +7,7 @@ import { useAuthStore } from '@/store/authStore';
 
 /* ── KPI Data ── */
 const kpis = [
-  { label: 'Active Workflows', value: '12', icon: FiGitBranch, color: 'bg-blue-50 text-blue-600', accent: 'bg-blue-500' },
+  { label: 'Active Workflows', value: '12', icon: FiGitBranch, color: 'bg-green-50 text-green-600', accent: 'bg-green-500' },
   { label: 'Policy Documents', value: '28', icon: FiShield, color: 'bg-emerald-50 text-emerald-600', accent: 'bg-emerald-500' },
   { label: 'Pending Approvals', value: '5', icon: FiClock, color: 'bg-amber-50 text-amber-600', accent: 'bg-amber-500' },
   { label: 'Compliance Score', value: '94%', icon: FiBarChart2, color: 'bg-teal-50 text-teal-600', accent: 'bg-teal-500' },
@@ -24,7 +24,7 @@ const workflowActivity = [
 function getWorkflowBadge(status: string) {
   switch (status) {
     case 'Completed': return 'bg-emerald-50 text-emerald-700';
-    case 'In Progress': return 'bg-blue-50 text-blue-700';
+    case 'In Progress': return 'bg-green-50 text-green-700';
     case 'Pending': return 'bg-amber-50 text-amber-700';
     default: return 'bg-slate-100 text-slate-600';
   }
@@ -33,7 +33,7 @@ function getWorkflowBadge(status: string) {
 function getWorkflowIcon(status: string) {
   switch (status) {
     case 'Completed': return <FiCheckCircle className="w-4 h-4 text-emerald-500" />;
-    case 'In Progress': return <FiArrowRight className="w-4 h-4 text-blue-500" />;
+    case 'In Progress': return <FiArrowRight className="w-4 h-4 text-green-500" />;
     case 'Pending': return <FiClock className="w-4 h-4 text-amber-500" />;
     default: return <FiAlertCircle className="w-4 h-4 text-slate-400" />;
   }
@@ -41,7 +41,7 @@ function getWorkflowIcon(status: string) {
 
 /* ── Compliance Data ── */
 const complianceItems = [
-  { label: 'GDPR', percent: 98, color: 'bg-blue-500' },
+  { label: 'GDPR', percent: 98, color: 'bg-green-500' },
   { label: 'SOC2', percent: 85, color: 'bg-emerald-500' },
   { label: 'Data Privacy', percent: 100, color: 'bg-teal-500' },
   { label: 'Audit Readiness', percent: 72, color: 'bg-amber-500' },
@@ -54,8 +54,8 @@ export default function GovernancePage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <div className="p-2.5 rounded-xl bg-blue-50">
-          <FiGrid className="w-5 h-5 text-blue-600" />
+        <div className="p-2.5 rounded-xl bg-green-50">
+          <FiGrid className="w-5 h-5 text-green-600" />
         </div>
         <div>
           <h1 className="text-xl font-bold text-thb-text-primary">Governance Dashboard</h1>

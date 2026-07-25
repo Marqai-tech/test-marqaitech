@@ -31,11 +31,11 @@ function getPopupIcon(type: string) {
       return <FiAlertCircle className="w-5 h-5 text-red-500" />;
     case 'login':
     case 'logout':
-      return <HiShieldCheck className="w-5 h-5 text-violet-500" />;
+      return <HiShieldCheck className="w-5 h-5 text-teal-500" />;
     case 'workflow':
       return <FiInfo className="w-5 h-5 text-orange-500" />;
     default:
-      return <FiInfo className="w-5 h-5 text-blue-500" />;
+      return <FiInfo className="w-5 h-5 text-green-500" />;
   }
 }
 
@@ -49,11 +49,11 @@ function getPopupBorderColor(type: string) {
       return 'border-l-red-500';
     case 'login':
     case 'logout':
-      return 'border-l-violet-500';
+      return 'border-l-teal-500';
     case 'workflow':
       return 'border-l-orange-500';
     default:
-      return 'border-l-blue-500';
+      return 'border-l-green-500';
   }
 }
 
@@ -67,11 +67,11 @@ function getPopupBgColor(type: string) {
       return 'bg-red-50';
     case 'login':
     case 'logout':
-      return 'bg-violet-50';
+      return 'bg-teal-50';
     case 'workflow':
       return 'bg-orange-50';
     default:
-      return 'bg-blue-50';
+      return 'bg-green-50';
   }
 }
 

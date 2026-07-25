@@ -333,15 +333,15 @@ export default function ESSDashboardPage() {
   /* ----- quick actions ----- */
   const quickActions = [
     { icon: <FiCalendar className="w-5 h-5" />, label: 'Apply Leave', href: '/leave', bg: 'from-amber-400 to-orange-500', shadow: 'shadow-orange-500/25' },
-    { icon: <FiClock className="w-5 h-5" />, label: 'My Attendance', href: '/attendance', bg: 'from-cyan-400 to-blue-500', shadow: 'shadow-blue-500/25' },
+    { icon: <FiClock className="w-5 h-5" />, label: 'My Attendance', href: '/attendance', bg: 'from-cyan-400 to-green-500', shadow: 'shadow-green-500/25' },
     { icon: <FiFileText className="w-5 h-5" />, label: 'My Payslips', href: '/payroll', bg: 'from-emerald-400 to-green-500', shadow: 'shadow-green-500/25' },
-    { icon: <FiHeadphones className="w-5 h-5" />, label: 'Raise Ticket', href: '/helpdesk', bg: 'from-violet-400 to-purple-500', shadow: 'shadow-purple-500/25' },
+    { icon: <FiHeadphones className="w-5 h-5" />, label: 'Raise Ticket', href: '/helpdesk', bg: 'from-teal-400 to-teal-500', shadow: 'shadow-teal-500/25' },
     { icon: <FiUser className="w-5 h-5" />, label: 'My Profile', href: '/my-profile', bg: 'from-pink-400 to-rose-500', shadow: 'shadow-rose-500/25' },
     { icon: <FiDollarSign className="w-5 h-5" />, label: 'Expenses', href: '/expenses', bg: 'from-teal-400 to-emerald-500', shadow: 'shadow-emerald-500/25' },
-    { icon: <FiBookOpen className="w-5 h-5" />, label: 'Training', href: '/training', bg: 'from-indigo-400 to-blue-500', shadow: 'shadow-blue-500/25' },
+    { icon: <FiBookOpen className="w-5 h-5" />, label: 'Training', href: '/training', bg: 'from-emerald-400 to-green-500', shadow: 'shadow-green-500/25' },
     { icon: <FiTrendingUp className="w-5 h-5" />, label: 'Performance', href: '/performance', bg: 'from-rose-400 to-pink-500', shadow: 'shadow-pink-500/25' },
-    { icon: <FiSend className="w-5 h-5" />, label: 'Timesheet', href: '/timesheets', bg: 'from-sky-400 to-indigo-500', shadow: 'shadow-indigo-500/25' },
-    { icon: <FiFolder className="w-5 h-5" />, label: 'Documents', href: '/documents', bg: 'from-fuchsia-400 to-purple-500', shadow: 'shadow-purple-500/25' },
+    { icon: <FiSend className="w-5 h-5" />, label: 'Timesheet', href: '/timesheets', bg: 'from-sky-400 to-emerald-500', shadow: 'shadow-emerald-500/25' },
+    { icon: <FiFolder className="w-5 h-5" />, label: 'Documents', href: '/documents', bg: 'from-fuchsia-400 to-teal-500', shadow: 'shadow-teal-500/25' },
     { icon: <FiBriefcase className="w-5 h-5" />, label: 'Assets', href: '/assets', bg: 'from-yellow-400 to-amber-500', shadow: 'shadow-amber-500/25' },
     { icon: <FiHeart className="w-5 h-5" />, label: 'Grievance', href: '/grievances', bg: 'from-red-400 to-rose-500', shadow: 'shadow-rose-500/25' },
   ];
@@ -362,7 +362,7 @@ export default function ESSDashboardPage() {
     const map: Record<string, string> = {
       pending: 'bg-amber-50 text-amber-700 ring-amber-200',
       draft: 'bg-slate-100 text-slate-700 ring-slate-200',
-      submitted: 'bg-blue-50 text-blue-700 ring-blue-200',
+      submitted: 'bg-green-50 text-green-700 ring-green-200',
       approved: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
       paid: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
       processed: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
@@ -370,11 +370,11 @@ export default function ESSDashboardPage() {
       closed: 'bg-slate-100 text-slate-700 ring-slate-200',
       rejected: 'bg-rose-50 text-rose-700 ring-rose-200',
       open: 'bg-amber-50 text-amber-700 ring-amber-200',
-      in_progress: 'bg-blue-50 text-blue-700 ring-blue-200',
+      in_progress: 'bg-green-50 text-green-700 ring-green-200',
       completed: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
-      ongoing: 'bg-blue-50 text-blue-700 ring-blue-200',
-      upcoming: 'bg-violet-50 text-violet-700 ring-violet-200',
-      enrolled: 'bg-blue-50 text-blue-700 ring-blue-200',
+      ongoing: 'bg-green-50 text-green-700 ring-green-200',
+      upcoming: 'bg-teal-50 text-teal-700 ring-teal-200',
+      enrolled: 'bg-green-50 text-green-700 ring-green-200',
     };
     const cls = map[s] || 'bg-slate-100 text-slate-700 ring-slate-200';
     const label = s.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
@@ -386,22 +386,22 @@ export default function ESSDashboardPage() {
   return (
     <div className="space-y-6">
       {/* HERO */}
-      <div className="relative rounded-2xl overflow-hidden border-0 shadow-xl shadow-indigo-500/10">
+      <div className="relative rounded-2xl overflow-hidden border-0 shadow-xl shadow-emerald-500/10">
         <div className="absolute inset-0 bg-gradient-to-br from-[#0F172A] via-[#1E3A5F] to-[#312E81]" />
-        <div className="absolute top-0 right-0 w-72 h-72 bg-blue-500/20 rounded-full blur-[100px]" />
-        <div className="absolute bottom-0 left-0 w-56 h-56 bg-violet-500/20 rounded-full blur-[80px]" />
+        <div className="absolute top-0 right-0 w-72 h-72 bg-green-500/20 rounded-full blur-[100px]" />
+        <div className="absolute bottom-0 left-0 w-56 h-56 bg-teal-500/20 rounded-full blur-[80px]" />
         <div className="relative z-10 px-6 sm:px-8 py-6">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div className="flex items-center gap-4">
-              <div className="flex-shrink-0 w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-lg ring-2 ring-white/20 text-white text-xl font-bold">
+              <div className="flex-shrink-0 w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 via-teal-500 to-pink-500 flex items-center justify-center shadow-lg ring-2 ring-white/20 text-white text-xl font-bold">
                 {firstName[0]?.toUpperCase()}
               </div>
               <div>
-                <p className="text-blue-300/60 text-xs font-medium tracking-widest uppercase">Employee Self-Service · {companyName}</p>
+                <p className="text-green-300/60 text-xs font-medium tracking-widest uppercase">Employee Self-Service · {companyName}</p>
                 <h1 className="text-2xl font-bold text-white">
-                  {greeting}, <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-violet-300">{firstName}</span>!
+                  {greeting}, <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-300 to-teal-300">{firstName}</span>!
                 </h1>
-                <p className="text-blue-100/60 text-sm font-medium mt-0.5">{today}</p>
+                <p className="text-green-100/60 text-sm font-medium mt-0.5">{today}</p>
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -413,7 +413,7 @@ export default function ESSDashboardPage() {
               </button>
               <button
                 onClick={() => router.push('/helpdesk')}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 text-white text-sm font-semibold shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 transition-all"
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-sm font-semibold shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 transition-all"
               >
                 <FiHeadphones className="w-4 h-4" /> Raise Ticket
               </button>
@@ -430,8 +430,8 @@ export default function ESSDashboardPage() {
           [
             { label: 'Leave Balance', value: `${leaveSummary.remaining}`, sub: `${leaveSummary.used} of ${leaveSummary.total} days used`, icon: <FiCalendar className="w-5 h-5" />, bg: 'bg-amber-50 text-amber-600', ring: 'ring-amber-100' },
             { label: 'Attendance Rate', value: `${attendanceRate}%`, sub: `${monthName}`, icon: <FiActivity className="w-5 h-5" />, bg: 'bg-emerald-50 text-emerald-600', ring: 'ring-emerald-100' },
-            { label: 'Pending Approvals', value: pendingLeaves, sub: 'Awaiting manager response', icon: <FiClock className="w-5 h-5" />, bg: 'bg-blue-50 text-blue-600', ring: 'ring-blue-100' },
-            { label: 'Open Tickets', value: tickets.filter((t) => ['open', 'in_progress'].includes(t.status)).length, sub: 'Helpdesk requests', icon: <FiHeadphones className="w-5 h-5" />, bg: 'bg-violet-50 text-violet-600', ring: 'ring-violet-100' },
+            { label: 'Pending Approvals', value: pendingLeaves, sub: 'Awaiting manager response', icon: <FiClock className="w-5 h-5" />, bg: 'bg-green-50 text-green-600', ring: 'ring-green-100' },
+            { label: 'Open Tickets', value: tickets.filter((t) => ['open', 'in_progress'].includes(t.status)).length, sub: 'Helpdesk requests', icon: <FiHeadphones className="w-5 h-5" />, bg: 'bg-teal-50 text-teal-600', ring: 'ring-teal-100' },
           ].map((s) => (
             <div key={s.label} className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
               <div className="flex items-start justify-between">
@@ -454,11 +454,11 @@ export default function ESSDashboardPage() {
           <div className="flex items-center justify-between mb-4">
             <div>
               <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <FiCalendar className="w-4 h-4 text-indigo-500" /> My Leave Balance
+                <FiCalendar className="w-4 h-4 text-emerald-500" /> My Leave Balance
               </h2>
               <p className="text-xs text-slate-500 mt-0.5">{new Date().getFullYear()} entitlements</p>
             </div>
-            <button onClick={() => router.push('/leave')} className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 inline-flex items-center">
+            <button onClick={() => router.push('/leave')} className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 inline-flex items-center">
               View all <FiChevronRight className="w-3 h-3" />
             </button>
           </div>
@@ -523,7 +523,7 @@ export default function ESSDashboardPage() {
               </h2>
               <p className="text-xs text-slate-500 mt-0.5">Last 7 records · {monthName}</p>
             </div>
-            <button onClick={() => router.push('/attendance')} className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 inline-flex items-center">
+            <button onClick={() => router.push('/attendance')} className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 inline-flex items-center">
               View all <FiChevronRight className="w-3 h-3" />
             </button>
           </div>
@@ -578,7 +578,7 @@ export default function ESSDashboardPage() {
             <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
               <FiFileText className="w-4 h-4 text-emerald-500" /> My Payslips
             </h2>
-            <button onClick={() => router.push('/payroll')} className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 inline-flex items-center">
+            <button onClick={() => router.push('/payroll')} className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 inline-flex items-center">
               View all <FiChevronRight className="w-3 h-3" />
             </button>
           </div>
@@ -601,7 +601,7 @@ export default function ESSDashboardPage() {
                     {statusBadge(p.status)}
                     <button
                       onClick={() => router.push(`/payroll`)}
-                      className="text-slate-400 hover:text-indigo-600 transition-colors"
+                      className="text-slate-400 hover:text-emerald-600 transition-colors"
                       title="View payslip"
                     >
                       <FiDownload className="w-4 h-4" />
@@ -619,7 +619,7 @@ export default function ESSDashboardPage() {
             <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
               <FiTrendingUp className="w-4 h-4 text-rose-500" /> My Performance
             </h2>
-            <button onClick={() => router.push('/performance')} className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 inline-flex items-center">
+            <button onClick={() => router.push('/performance')} className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 inline-flex items-center">
               View all <FiChevronRight className="w-3 h-3" />
             </button>
           </div>
@@ -688,9 +688,9 @@ export default function ESSDashboardPage() {
         <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <FiBookOpen className="w-4 h-4 text-indigo-500" /> My Training
+              <FiBookOpen className="w-4 h-4 text-emerald-500" /> My Training
             </h2>
-            <button onClick={() => router.push('/training')} className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 inline-flex items-center">
+            <button onClick={() => router.push('/training')} className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 inline-flex items-center">
               View all <FiChevronRight className="w-3 h-3" />
             </button>
           </div>
@@ -705,7 +705,7 @@ export default function ESSDashboardPage() {
             <div className="space-y-3">
               {training.map((t) => (
                 <div key={t.id} className="flex items-start gap-3 p-3 rounded-xl bg-slate-50/60 border border-slate-100">
-                  <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-indigo-400 to-blue-500 text-white flex items-center justify-center flex-shrink-0">
+                  <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-emerald-400 to-green-500 text-white flex items-center justify-center flex-shrink-0">
                     <FiBookOpen className="w-4 h-4" />
                   </div>
                   <div className="min-w-0 flex-1">
@@ -728,7 +728,7 @@ export default function ESSDashboardPage() {
             <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
               <FiClock className="w-4 h-4 text-sky-500" /> My Timesheets
             </h2>
-            <button onClick={() => router.push('/timesheets')} className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 inline-flex items-center">
+            <button onClick={() => router.push('/timesheets')} className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 inline-flex items-center">
               View all <FiChevronRight className="w-3 h-3" />
             </button>
           </div>
@@ -763,9 +763,9 @@ export default function ESSDashboardPage() {
         <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <FiHeadphones className="w-4 h-4 text-violet-500" /> My Helpdesk Tickets
+              <FiHeadphones className="w-4 h-4 text-teal-500" /> My Helpdesk Tickets
             </h2>
-            <button onClick={() => router.push('/helpdesk')} className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 inline-flex items-center">
+            <button onClick={() => router.push('/helpdesk')} className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 inline-flex items-center">
               View all <FiChevronRight className="w-3 h-3" />
             </button>
           </div>
@@ -800,7 +800,7 @@ export default function ESSDashboardPage() {
             <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
               <FiFolder className="w-4 h-4 text-fuchsia-500" /> My Documents
             </h2>
-            <button onClick={() => router.push('/documents')} className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 inline-flex items-center">
+            <button onClick={() => router.push('/documents')} className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 inline-flex items-center">
               View all <FiChevronRight className="w-3 h-3" />
             </button>
           </div>
@@ -860,7 +860,7 @@ export default function ESSDashboardPage() {
       <div className="flex items-center justify-center pt-2 pb-4">
         <button
           onClick={() => router.push('/home')}
-          className="inline-flex items-center gap-2 text-xs font-medium text-slate-500 hover:text-indigo-600 transition-colors"
+          className="inline-flex items-center gap-2 text-xs font-medium text-slate-500 hover:text-emerald-600 transition-colors"
         >
           <FiArrowRight className="w-3 h-3 rotate-180" /> Back to role-based home
         </button>

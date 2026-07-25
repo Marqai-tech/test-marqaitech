@@ -112,7 +112,7 @@ export default function SprintsPage() {
     switch (status) {
       case 'planning': return <FiClock className="w-4 h-4 text-slate-500" />;
       case 'active': return <FiPlay className="w-4 h-4 text-emerald-500" />;
-      case 'completed': return <FiCheckCircle className="w-4 h-4 text-blue-500" />;
+      case 'completed': return <FiCheckCircle className="w-4 h-4 text-green-500" />;
       default: return null;
     }
   }
@@ -136,7 +136,7 @@ export default function SprintsPage() {
         {[
           { label: 'Total Sprints', value: stats.total, icon: FiZap, color: 'text-thb-primary bg-thb-primary/10' },
           { label: 'Active', value: stats.active, icon: FiPlay, color: 'text-emerald-600 bg-emerald-50' },
-          { label: 'Completed', value: stats.completed, icon: FiCheckCircle, color: 'text-blue-600 bg-blue-50' },
+          { label: 'Completed', value: stats.completed, icon: FiCheckCircle, color: 'text-green-600 bg-green-50' },
           { label: 'Total Tasks', value: stats.totalTasks, icon: FiTarget, color: 'text-amber-600 bg-amber-50' },
         ].map(stat => (
           <div key={stat.label} className="thb-card p-4">

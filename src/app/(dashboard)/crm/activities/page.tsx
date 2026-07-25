@@ -40,9 +40,9 @@ const DEMO_ACTIVITIES: Activity[] = [
 ];
 
 const ACTIVITY_TYPES = [
-  { key: 'call', label: 'Call', icon: FiPhone, color: 'text-blue-500', bg: 'bg-blue-50', border: 'border-blue-200' },
+  { key: 'call', label: 'Call', icon: FiPhone, color: 'text-green-500', bg: 'bg-green-50', border: 'border-green-200' },
   { key: 'email', label: 'Email', icon: FiMail, color: 'text-emerald-500', bg: 'bg-emerald-50', border: 'border-emerald-200' },
-  { key: 'meeting', label: 'Meeting', icon: FiUsers, color: 'text-purple-500', bg: 'bg-purple-50', border: 'border-purple-200' },
+  { key: 'meeting', label: 'Meeting', icon: FiUsers, color: 'text-teal-500', bg: 'bg-teal-50', border: 'border-teal-200' },
   { key: 'task', label: 'Task', icon: FiCheckSquare, color: 'text-amber-500', bg: 'bg-amber-50', border: 'border-amber-200' },
   { key: 'note', label: 'Note', icon: FiFileText, color: 'text-slate-500', bg: 'bg-slate-50', border: 'border-slate-200' },
 ];
@@ -153,9 +153,9 @@ export default function CRMActivitiesPage() {
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         {[
-          { label: 'Calls', value: callCount, icon: FiPhone, color: 'text-blue-500' },
+          { label: 'Calls', value: callCount, icon: FiPhone, color: 'text-green-500' },
           { label: 'Emails', value: emailCount, icon: FiMail, color: 'text-emerald-500' },
-          { label: 'Meetings', value: meetingCount, icon: FiUsers, color: 'text-purple-500' },
+          { label: 'Meetings', value: meetingCount, icon: FiUsers, color: 'text-teal-500' },
           { label: 'Tasks', value: taskCount, icon: FiCheckSquare, color: 'text-amber-500' },
           { label: 'Completed', value: completedCount, icon: FiCheck, color: 'text-green-500' },
         ].map((s, i) => (
@@ -175,7 +175,7 @@ export default function CRMActivitiesPage() {
           <div className="flex flex-1 gap-2 w-full md:w-auto">
             <div className="relative flex-1">
               <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-thb-text-muted w-4 h-4" />
-              <input type="text" placeholder="Search activities..." value={search} onChange={e => setSearch(e.target.value)} className="w-full pl-9 pr-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" />
+              <input type="text" placeholder="Search activities..." value={search} onChange={e => setSearch(e.target.value)} className="w-full pl-9 pr-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white" />
             </div>
             <button onClick={() => setShowFilters(!showFilters)} className="flex items-center gap-1 px-3 py-2 text-sm border border-thb-border rounded-lg hover:bg-gray-50">
               <FiFilter className="w-4 h-4" /> <FiChevronDown className="w-3 h-3" />
@@ -211,13 +211,13 @@ export default function CRMActivitiesPage() {
             <select value={form.type} onChange={e => setForm({ ...form, type: e.target.value })} className="px-3 py-2 text-sm border border-thb-border rounded-lg bg-white">
               {ACTIVITY_TYPES.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}
             </select>
-            <input type="text" placeholder="Subject *" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} className="px-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 md:col-span-2" />
-            <textarea placeholder="Description" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="px-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 md:col-span-3" rows={2} />
-            <input type="text" placeholder="Contact" value={form.contact} onChange={e => setForm({ ...form, contact: e.target.value })} className="px-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            <input type="text" placeholder="Deal" value={form.deal} onChange={e => setForm({ ...form, deal: e.target.value })} className="px-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            <input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} className="px-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            <input type="text" placeholder="Time (e.g. 10:30 AM)" value={form.time} onChange={e => setForm({ ...form, time: e.target.value })} className="px-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            <input type="text" placeholder="Duration (e.g. 30 min)" value={form.duration} onChange={e => setForm({ ...form, duration: e.target.value })} className="px-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <input type="text" placeholder="Subject *" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} className="px-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 md:col-span-2" />
+            <textarea placeholder="Description" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="px-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 md:col-span-3" rows={2} />
+            <input type="text" placeholder="Contact" value={form.contact} onChange={e => setForm({ ...form, contact: e.target.value })} className="px-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" />
+            <input type="text" placeholder="Deal" value={form.deal} onChange={e => setForm({ ...form, deal: e.target.value })} className="px-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" />
+            <input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} className="px-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" />
+            <input type="text" placeholder="Time (e.g. 10:30 AM)" value={form.time} onChange={e => setForm({ ...form, time: e.target.value })} className="px-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" />
+            <input type="text" placeholder="Duration (e.g. 30 min)" value={form.duration} onChange={e => setForm({ ...form, duration: e.target.value })} className="px-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" />
           </div>
           <div className="flex gap-2 mt-4">
             <button onClick={handleSave} className="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 text-sm font-medium">Save</button>

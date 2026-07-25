@@ -88,7 +88,7 @@ export default function PolicyConfigPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-            <FiSettings className="w-6 h-6 text-indigo-500" />
+            <FiSettings className="w-6 h-6 text-emerald-500" />
             Attendance Policy Configuration
           </h1>
           <p className="text-sm text-slate-500 mt-1">Global policy: rounding rules, grace periods, OT, auto-approval, WFH monitoring</p>

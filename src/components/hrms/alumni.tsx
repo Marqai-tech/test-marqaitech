@@ -146,7 +146,7 @@ export function Alumni() {
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
-            <RefreshCw className="h-5 w-5 mx-auto text-blue-600 mb-1" />
+            <RefreshCw className="h-5 w-5 mx-auto text-green-600 mb-1" />
             {isLoading ? (
               <Skeleton className="h-8 w-12 mx-auto mb-1" />
             ) : (
@@ -164,7 +164,7 @@ export function Alumni() {
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
-            <Star className="h-5 w-5 mx-auto text-purple-600 mb-1" />
+            <Star className="h-5 w-5 mx-auto text-teal-600 mb-1" />
             <p className="text-2xl font-bold">4.2</p>
             <p className="text-xs text-muted-foreground">Avg Rating</p>
           </CardContent>
@@ -347,7 +347,7 @@ export function Alumni() {
                           ? 'bg-emerald-100 text-emerald-800'
                           : ref.status === 'interviewing'
                           ? 'bg-amber-100 text-amber-800'
-                          : 'bg-blue-100 text-blue-800'
+                          : 'bg-green-100 text-green-800'
                       }`}
                     >
                       {ref.status}
@@ -384,7 +384,7 @@ export function Alumni() {
                   <button className="flex items-center gap-1 hover:text-red-500 transition-colors">
                     <Heart className="h-3.5 w-3.5" /> {post.likes}
                   </button>
-                  <button className="flex items-center gap-1 hover:text-blue-500 transition-colors">
+                  <button className="flex items-center gap-1 hover:text-green-500 transition-colors">
                     <MessageSquare className="h-3.5 w-3.5" /> {post.comments}
                   </button>
                 </div>

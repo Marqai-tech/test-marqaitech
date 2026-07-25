@@ -181,7 +181,7 @@ export default function GeofencePage() {
               </label>
             </div>
           </div>
-          <div className="mt-4 p-3 bg-blue-50 border border-blue-100 rounded-lg text-xs text-blue-700">
+          <div className="mt-4 p-3 bg-green-50 border border-green-100 rounded-lg text-xs text-green-700">
             <FiMap className="w-3.5 h-3.5 inline mr-1" />
             Tip: Pick the center point of your office on Google Maps, right-click, and copy the lat/lng coordinates into the fields above.
           </div>

@@ -74,9 +74,9 @@ function getInitials(name: string) {
 
 function getAvatarColor(id: string) {
   const colors = [
-    'from-blue-500 to-indigo-600', 'from-violet-500 to-purple-600',
+    'from-green-500 to-emerald-600', 'from-teal-500 to-teal-600',
     'from-emerald-500 to-teal-600', 'from-amber-500 to-orange-600',
-    'from-rose-500 to-pink-600', 'from-cyan-500 to-blue-600',
+    'from-rose-500 to-pink-600', 'from-cyan-500 to-green-600',
   ];
   const idx = Math.abs(id.charCodeAt(0) + (id.charCodeAt(1) || 0)) % colors.length;
   return colors[idx];
@@ -115,7 +115,7 @@ export default function SmartCallsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg shadow-violet-500/20">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-500 to-teal-600 flex items-center justify-center shadow-lg shadow-teal-500/20">
             <FiVideo className="w-5 h-5 text-white" />
           </div>
           <div>
@@ -133,7 +133,7 @@ export default function SmartCallsPage() {
           </button>
           <button
             onClick={() => setShowStartCallModal(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-lg text-sm font-medium hover:bg-violet-700 transition-colors shadow-sm"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg text-sm font-medium hover:bg-teal-700 transition-colors shadow-sm"
           >
             <FiPlus className="w-4 h-4" />
             Start Call
@@ -154,21 +154,21 @@ export default function SmartCallsPage() {
         </div>
         <div className="thb-card p-3">
           <div className="flex items-center gap-2 mb-1">
-            <div className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center">
-              <FiPhone className="w-3.5 h-3.5 text-blue-600" />
+            <div className="w-7 h-7 rounded-lg bg-green-50 flex items-center justify-center">
+              <FiPhone className="w-3.5 h-3.5 text-green-600" />
             </div>
             <span className="text-xs text-thb-text-muted">Audio</span>
           </div>
-          <p className="text-xl font-bold text-blue-600">{audioCalls}</p>
+          <p className="text-xl font-bold text-green-600">{audioCalls}</p>
         </div>
         <div className="thb-card p-3">
           <div className="flex items-center gap-2 mb-1">
-            <div className="w-7 h-7 rounded-lg bg-violet-50 flex items-center justify-center">
-              <FiVideo className="w-3.5 h-3.5 text-violet-600" />
+            <div className="w-7 h-7 rounded-lg bg-teal-50 flex items-center justify-center">
+              <FiVideo className="w-3.5 h-3.5 text-teal-600" />
             </div>
             <span className="text-xs text-thb-text-muted">Video</span>
           </div>
-          <p className="text-xl font-bold text-violet-600">{videoCalls}</p>
+          <p className="text-xl font-bold text-teal-600">{videoCalls}</p>
         </div>
         <div className="thb-card p-3">
           <div className="flex items-center gap-2 mb-1">
@@ -206,10 +206,10 @@ export default function SmartCallsPage() {
               </div>
               <p className="text-[10px] font-medium text-thb-text-primary text-center truncate w-full">{contact.name.split(' ')[0]}</p>
               <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button className="p-1 text-blue-600 hover:bg-blue-50 rounded" title="Audio call">
+                <button className="p-1 text-green-600 hover:bg-green-50 rounded" title="Audio call">
                   <FiPhone className="w-3 h-3" />
                 </button>
-                <button className="p-1 text-violet-600 hover:bg-violet-50 rounded" title="Video call">
+                <button className="p-1 text-teal-600 hover:bg-teal-50 rounded" title="Video call">
                   <FiVideo className="w-3 h-3" />
                 </button>
               </div>
@@ -230,7 +230,7 @@ export default function SmartCallsPage() {
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 placeholder="Search calls..."
-                className="pl-8 pr-3 py-1.5 rounded-lg border border-thb-border text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20 w-48"
+                className="pl-8 pr-3 py-1.5 rounded-lg border border-thb-border text-xs focus:outline-none focus:ring-2 focus:ring-green-500/20 w-48"
               />
             </div>
           </div>
@@ -242,7 +242,7 @@ export default function SmartCallsPage() {
                 onClick={() => setActiveTab(tab)}
                 className={`px-3 py-1.5 text-xs font-medium rounded-lg capitalize transition-colors ${
                   activeTab === tab
-                    ? 'bg-blue-600 text-white'
+                    ? 'bg-green-600 text-white'
                     : 'text-thb-text-secondary hover:bg-slate-100'
                 }`}
               >
@@ -272,16 +272,16 @@ export default function SmartCallsPage() {
                 <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${
                   call.status === 'missed' ? 'bg-red-50' :
                   call.status === 'declined' ? 'bg-amber-50' :
-                  call.callType === 'video' ? 'bg-violet-50' : 'bg-blue-50'
+                  call.callType === 'video' ? 'bg-teal-50' : 'bg-green-50'
                 }`}>
                   {call.status === 'missed' ? (
                     <FiPhoneOff className={`w-4 h-4 ${call.direction === 'incoming' ? 'text-red-500' : 'text-red-400'}`} />
                   ) : call.status === 'declined' ? (
                     <FiPhoneOff className="w-4 h-4 text-amber-500" />
                   ) : call.callType === 'video' ? (
-                    <FiVideo className="w-4 h-4 text-violet-500" />
+                    <FiVideo className="w-4 h-4 text-teal-500" />
                   ) : (
-                    <FiPhone className="w-4 h-4 text-blue-500" />
+                    <FiPhone className="w-4 h-4 text-green-500" />
                   )}
                 </div>
 
@@ -291,7 +291,7 @@ export default function SmartCallsPage() {
                     {call.direction === 'incoming' ? (
                       <FiArrowDownLeft className={`w-3 h-3 ${call.status === 'missed' ? 'text-red-500' : 'text-emerald-500'}`} />
                     ) : (
-                      <FiArrowUpRight className={`w-3 h-3 ${call.status === 'missed' ? 'text-red-500' : 'text-blue-500'}`} />
+                      <FiArrowUpRight className={`w-3 h-3 ${call.status === 'missed' ? 'text-red-500' : 'text-green-500'}`} />
                     )}
                     <span className={`text-sm font-medium truncate ${
                       call.status === 'missed' ? 'text-red-600' : 'text-thb-text-primary'
@@ -333,7 +333,7 @@ export default function SmartCallsPage() {
 
                 {/* Actions */}
                 <div className="flex items-center gap-1 flex-shrink-0">
-                  <button className="p-1.5 text-thb-text-muted hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Call back">
+                  <button className="p-1.5 text-thb-text-muted hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors" title="Call back">
                     {call.callType === 'video' ? <FiVideo className="w-3.5 h-3.5" /> : <FiPhone className="w-3.5 h-3.5" />}
                   </button>
                   <button className="p-1.5 text-thb-text-muted hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete">
@@ -365,20 +365,20 @@ export default function SmartCallsPage() {
                   <button
                     onClick={() => setCallType('audio')}
                     className={`p-3 rounded-xl border-2 text-center transition-colors ${
-                      callType === 'audio' ? 'border-blue-400 bg-blue-50' : 'border-thb-border hover:border-slate-300'
+                      callType === 'audio' ? 'border-green-400 bg-green-50' : 'border-thb-border hover:border-slate-300'
                     }`}
                   >
-                    <FiPhone className={`w-6 h-6 mx-auto mb-1 ${callType === 'audio' ? 'text-blue-600' : 'text-thb-text-muted'}`} />
-                    <p className={`text-sm font-medium ${callType === 'audio' ? 'text-blue-600' : 'text-thb-text-secondary'}`}>Audio</p>
+                    <FiPhone className={`w-6 h-6 mx-auto mb-1 ${callType === 'audio' ? 'text-green-600' : 'text-thb-text-muted'}`} />
+                    <p className={`text-sm font-medium ${callType === 'audio' ? 'text-green-600' : 'text-thb-text-secondary'}`}>Audio</p>
                   </button>
                   <button
                     onClick={() => setCallType('video')}
                     className={`p-3 rounded-xl border-2 text-center transition-colors ${
-                      callType === 'video' ? 'border-violet-400 bg-violet-50' : 'border-thb-border hover:border-slate-300'
+                      callType === 'video' ? 'border-teal-400 bg-teal-50' : 'border-thb-border hover:border-slate-300'
                     }`}
                   >
-                    <FiVideo className={`w-6 h-6 mx-auto mb-1 ${callType === 'video' ? 'text-violet-600' : 'text-thb-text-muted'}`} />
-                    <p className={`text-sm font-medium ${callType === 'video' ? 'text-violet-600' : 'text-thb-text-secondary'}`}>Video</p>
+                    <FiVideo className={`w-6 h-6 mx-auto mb-1 ${callType === 'video' ? 'text-teal-600' : 'text-thb-text-muted'}`} />
+                    <p className={`text-sm font-medium ${callType === 'video' ? 'text-teal-600' : 'text-thb-text-secondary'}`}>Video</p>
                   </button>
                 </div>
               </div>
@@ -389,7 +389,7 @@ export default function SmartCallsPage() {
                 <div className="mt-1 max-h-48 overflow-y-auto border border-thb-border rounded-xl divide-y divide-thb-border">
                   {FREQUENT_CONTACTS.map(c => (
                     <label key={c.id} className="flex items-center gap-2.5 p-2.5 hover:bg-slate-50 cursor-pointer">
-                      <input type="radio" name="participant" className="text-blue-600" />
+                      <input type="radio" name="participant" className="text-green-600" />
                       <div className="relative">
                         <div className={`w-8 h-8 rounded-full bg-gradient-to-br ${getAvatarColor(c.id)} flex items-center justify-center`}>
                           <span className="text-[10px] font-bold text-white">{getInitials(c.name)}</span>
@@ -425,7 +425,7 @@ export default function SmartCallsPage() {
               <button
                 onClick={() => setShowStartCallModal(false)}
                 className={`px-4 py-2 text-sm text-white rounded-lg transition-colors shadow-sm ${
-                  callType === 'video' ? 'bg-violet-600 hover:bg-violet-700' : 'bg-blue-600 hover:bg-blue-700'
+                  callType === 'video' ? 'bg-teal-600 hover:bg-teal-700' : 'bg-green-600 hover:bg-green-700'
                 }`}
               >
                 Start {callType === 'video' ? 'Video' : 'Audio'} Call
@@ -449,21 +449,21 @@ export default function SmartCallsPage() {
             <div className="space-y-3">
               <div>
                 <label className="text-xs font-medium text-thb-text-secondary">Call Title</label>
-                <input type="text" placeholder="e.g. Sprint Review" className="w-full mt-1 px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                <input type="text" placeholder="e.g. Sprint Review" className="w-full mt-1 px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20" />
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="text-xs font-medium text-thb-text-secondary">Date</label>
-                  <input type="date" className="w-full mt-1 px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                  <input type="date" className="w-full mt-1 px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20" />
                 </div>
                 <div>
                   <label className="text-xs font-medium text-thb-text-secondary">Time</label>
-                  <input type="time" className="w-full mt-1 px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                  <input type="time" className="w-full mt-1 px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20" />
                 </div>
               </div>
               <div>
                 <label className="text-xs font-medium text-thb-text-secondary">Call Type</label>
-                <select className="w-full mt-1 px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+                <select className="w-full mt-1 px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20">
                   <option>Audio Call (Native WebRTC)</option>
                   <option>Video Call (Native WebRTC)</option>
                   <option>Zoom Meeting</option>
@@ -472,7 +472,7 @@ export default function SmartCallsPage() {
               </div>
               <div>
                 <label className="text-xs font-medium text-thb-text-secondary">Agenda (optional)</label>
-                <textarea rows={2} placeholder="Meeting agenda..." className="w-full mt-1 px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                <textarea rows={2} placeholder="Meeting agenda..." className="w-full mt-1 px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20" />
               </div>
               <label className="flex items-center gap-2 text-sm text-thb-text-secondary">
                 <input type="checkbox" className="rounded" />
@@ -484,7 +484,7 @@ export default function SmartCallsPage() {
               <button onClick={() => setShowScheduleModal(false)} className="px-4 py-2 text-sm text-thb-text-secondary hover:bg-slate-100 rounded-lg transition-colors">
                 Cancel
               </button>
-              <button onClick={() => setShowScheduleModal(false)} className="px-4 py-2 text-sm bg-violet-600 text-white rounded-lg hover:bg-violet-700 transition-colors shadow-sm">
+              <button onClick={() => setShowScheduleModal(false)} className="px-4 py-2 text-sm bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors shadow-sm">
                 Schedule Call
               </button>
             </div>

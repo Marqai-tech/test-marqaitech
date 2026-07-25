@@ -139,7 +139,7 @@ function getStatusDotColor(status: string) {
     terminated: 'bg-red-500',
     resigned: 'bg-slate-400',
   };
-  return map[status] || 'bg-blue-500';
+  return map[status] || 'bg-green-500';
 }
 
 function formatDate(d: string | null | undefined) {
@@ -149,12 +149,12 @@ function formatDate(d: string | null | undefined) {
 
 function getAvatarColor(name: string) {
   const colors = [
-    'from-blue-500 to-cyan-500',
-    'from-violet-500 to-purple-500',
+    'from-green-500 to-cyan-500',
+    'from-teal-500 to-teal-500',
     'from-emerald-500 to-teal-500',
     'from-orange-500 to-amber-500',
     'from-pink-500 to-rose-500',
-    'from-indigo-500 to-blue-500',
+    'from-emerald-500 to-green-500',
     'from-teal-500 to-green-500',
     'from-red-500 to-pink-500',
   ];
@@ -837,7 +837,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
           <div>
             <h2 className="text-xl font-bold text-slate-900 mb-1">Employees List</h2>
             <nav className="flex items-center gap-1.5 text-sm text-slate-500">
-              <button onClick={() => router.push('/')} className="hover:text-blue-600 transition-colors">Home</button>
+              <button onClick={() => router.push('/')} className="hover:text-green-600 transition-colors">Home</button>
               <span>/</span>
               <span className="text-slate-700 font-medium">Employees</span>
             </nav>
@@ -847,21 +847,21 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
             <div className="flex items-center border border-slate-200 rounded-lg p-0.5">
               <button
                 onClick={() => setViewMode('list')}
-                className={`p-2 rounded-md transition-colors ${viewMode === 'list' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:bg-slate-50'}`}
+                className={`p-2 rounded-md transition-colors ${viewMode === 'list' ? 'bg-green-600 text-white' : 'text-slate-500 hover:bg-slate-50'}`}
                 title="List View"
               >
                 <FiList className="w-4 h-4" />
               </button>
               <button
                 onClick={() => setViewMode('grid')}
-                className={`p-2 rounded-md transition-colors ${viewMode === 'grid' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:bg-slate-50'}`}
+                className={`p-2 rounded-md transition-colors ${viewMode === 'grid' ? 'bg-green-600 text-white' : 'text-slate-500 hover:bg-slate-50'}`}
                 title="Grid View"
               >
                 <FiGrid className="w-4 h-4" />
               </button>
             </div>
             {isAdmin && (
-              <button onClick={handleOpenAddForm} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm shadow-sm transition-colors">
+              <button onClick={handleOpenAddForm} className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium text-sm shadow-sm transition-colors">
                 <FiPlus className="w-4 h-4" />
                 Add Employee
               </button>
@@ -888,7 +888,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-sm">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-green-500 to-cyan-500 flex items-center justify-center shadow-sm">
                 <FiUserPlus className="w-5 h-5 text-white" />
               </div>
               Add Employee
@@ -916,7 +916,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
               <h4 className="text-2xl font-bold text-slate-900">{stats.total}</h4>
             </div>
           </div>
-          <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-50 text-purple-700">
+          <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-teal-50 text-teal-700">
             <FiUserPlus className="w-3 h-3" /> +{stats.newJoiners > 0 ? stats.newJoiners : 0}
           </span>
         </div>
@@ -932,7 +932,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
               <h4 className="text-2xl font-bold text-emerald-600">{stats.active}</h4>
             </div>
           </div>
-          <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-50 text-blue-700">
+          <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-50 text-green-700">
             {stats.total > 0 ? Math.round((stats.active / stats.total) * 100) : 0}%
           </span>
         </div>
@@ -956,15 +956,15 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
         {/* New Joiners */}
         <div className="bg-white rounded-xl border border-slate-200 p-4 flex items-center justify-between">
           <div className="flex items-center overflow-hidden">
-            <div className="w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center text-white flex-shrink-0">
+            <div className="w-12 h-12 rounded-full bg-green-500 flex items-center justify-center text-white flex-shrink-0">
               <FiUserPlus className="w-5 h-5" />
             </div>
             <div className="ml-3 overflow-hidden">
               <p className="text-xs font-medium text-slate-500 truncate">New Joiners</p>
-              <h4 className="text-2xl font-bold text-blue-600">{stats.newJoiners}</h4>
+              <h4 className="text-2xl font-bold text-green-600">{stats.newJoiners}</h4>
             </div>
           </div>
-          <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-violet-50 text-violet-700">
+          <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-teal-50 text-teal-700">
             This month
           </span>
         </div>
@@ -1012,7 +1012,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Search employees..."
-                  className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                 />
               </div>
 
@@ -1020,7 +1020,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
               <select
                 value={filterDept}
                 onChange={(e) => setFilterDept(e.target.value)}
-                className="px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                className="px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
               >
                 <option value="">All Departments</option>
                 {(() => {
@@ -1038,7 +1038,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
               <select
                 value={filterDesignation}
                 onChange={(e) => setFilterDesignation(e.target.value)}
-                className="px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 hidden sm:block"
+                className="px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 hidden sm:block"
               >
                 <option value="">Designation</option>
                 {(() => {
@@ -1056,7 +1056,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
               <select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value)}
-                className="px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                className="px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
               >
                 <option value="">Select Status</option>
                 <option value="active">Active</option>
@@ -1077,15 +1077,15 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
           {(search || filterDept || filterDesignation || filterStatus) && (
             <div className="flex items-center gap-2 mt-3 flex-wrap">
               {search && (
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-medium">
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-green-50 text-green-700 text-xs font-medium">
                   Search: &ldquo;{search}&rdquo;
-                  <button onClick={() => setSearch('')} className="hover:text-blue-900"><FiX className="w-3 h-3" /></button>
+                  <button onClick={() => setSearch('')} className="hover:text-green-900"><FiX className="w-3 h-3" /></button>
                 </span>
               )}
               {filterDept && (
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-violet-50 text-violet-700 text-xs font-medium">
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-teal-50 text-teal-700 text-xs font-medium">
                   Dept: {departments.find(d => d.id === filterDept)?.name}
-                  <button onClick={() => setFilterDept('')} className="hover:text-violet-900"><FiX className="w-3 h-3" /></button>
+                  <button onClick={() => setFilterDept('')} className="hover:text-teal-900"><FiX className="w-3 h-3" /></button>
                 </span>
               )}
               {filterDesignation && (
@@ -1118,7 +1118,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
       {(formOnly || activeMainTab === 'list') && (<>
       {/* ── Add/Edit Employee Form ── */}
       {showForm && (
-        <div id="crud-form" className="thb-card border-l-4 border-l-blue-500 transition-all duration-300 ease-in-out">
+        <div id="crud-form" className="thb-card border-l-4 border-l-green-500 transition-all duration-300 ease-in-out">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-semibold text-thb-text-primary">
@@ -1138,7 +1138,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                   onClick={() => setFormTab(tab.key)}
                   className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 transition-colors shrink-0 ${
                     formTab === tab.key
-                      ? 'border-blue-500 text-blue-600 bg-blue-50'
+                      ? 'border-green-500 text-green-600 bg-green-50'
                       : 'border-transparent text-thb-text-muted hover:text-thb-text-primary hover:border-slate-300'
                   }`}
                 >
@@ -1154,7 +1154,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                 <div
                   key={tab.key}
                   className={`h-1 flex-1 rounded-full transition-colors ${
-                    formTabs.findIndex(t => t.key === formTab) >= idx ? 'bg-blue-500' : 'bg-slate-200'
+                    formTabs.findIndex(t => t.key === formTab) >= idx ? 'bg-green-500' : 'bg-slate-200'
                   }`}
                 />
               ))}
@@ -1176,7 +1176,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                           <FiUsers className="w-8 h-8 text-gray-400" />
                         )}
                       </div>
-                      <label className="absolute -bottom-1 -right-1 w-7 h-7 bg-blue-500 hover:bg-blue-600 text-white rounded-full flex items-center justify-center cursor-pointer shadow-sm transition-colors">
+                      <label className="absolute -bottom-1 -right-1 w-7 h-7 bg-green-500 hover:bg-green-600 text-white rounded-full flex items-center justify-center cursor-pointer shadow-sm transition-colors">
                         <FiPlus className="w-3.5 h-3.5" />
                         <input type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
                       </label>
@@ -1194,17 +1194,17 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">First Name *</label>
-                      <input type="text" value={form.firstName} onChange={e => updateForm('firstName', e.target.value)} required className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                      <input type="text" value={form.firstName} onChange={e => updateForm('firstName', e.target.value)} required className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Last Name *</label>
-                      <input type="text" value={form.lastName} onChange={e => updateForm('lastName', e.target.value)} required className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                      <input type="text" value={form.lastName} onChange={e => updateForm('lastName', e.target.value)} required className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">
                         Employee ID *
                         {getEmployeeCodeSettings().autoGeneration && !editingId && (
-                          <span className="ml-1.5 text-[10px] font-normal text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded">Auto-generated</span>
+                          <span className="ml-1.5 text-[10px] font-normal text-green-500 bg-green-50 px-1.5 py-0.5 rounded">Auto-generated</span>
                         )}
                         {!getEmployeeCodeSettings().autoGeneration && !editingId && (
                           <span className="ml-1.5 text-[10px] font-normal text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">Manual</span>
@@ -1217,24 +1217,24 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                         required
                         disabled={!!editingId || (getEmployeeCodeSettings().autoGeneration && !editingId)}
                         placeholder={getEmployeeCodeSettings().autoGeneration ? 'Auto-generated on save' : 'Enter employee ID'}
-                        className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 disabled:bg-slate-50"
+                        className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 disabled:bg-slate-50"
                       />
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Email *</label>
-                      <input type="email" value={form.email} onChange={e => updateForm('email', e.target.value)} required className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                      <input type="email" value={form.email} onChange={e => updateForm('email', e.target.value)} required className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Phone</label>
-                      <input type="tel" value={form.phone} onChange={e => updateForm('phone', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                      <input type="tel" value={form.phone} onChange={e => updateForm('phone', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Date of Birth</label>
-                      <input type="date" value={form.dateOfBirth} onChange={e => updateForm('dateOfBirth', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                      <input type="date" value={form.dateOfBirth} onChange={e => updateForm('dateOfBirth', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Gender</label>
-                      <select value={form.gender} onChange={e => updateForm('gender', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                      <select value={form.gender} onChange={e => updateForm('gender', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                         <option value="">Select</option>
                         <option value="male">Male</option>
                         <option value="female">Female</option>
@@ -1243,7 +1243,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Marital Status</label>
-                      <select value={form.maritalStatus} onChange={e => updateForm('maritalStatus', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                      <select value={form.maritalStatus} onChange={e => updateForm('maritalStatus', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                         <option value="">Select</option>
                         <option value="single">Single</option>
                         <option value="married">Married</option>
@@ -1253,11 +1253,11 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Nationality</label>
-                      <input type="text" value={form.nationality} onChange={e => updateForm('nationality', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                      <input type="text" value={form.nationality} onChange={e => updateForm('nationality', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                     </div>
                   </div>
                   <div className="flex justify-end pt-2">
-                    <button type="button" onClick={() => setFormTab('address')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 shadow-sm transition-colors">
+                    <button type="button" onClick={() => setFormTab('address')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 shadow-sm transition-colors">
                       Next: Address <FiChevronRight className="w-4 h-4" />
                     </button>
                   </div>
@@ -1270,30 +1270,30 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div className="sm:col-span-2 lg:col-span-3">
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Address</label>
-                      <input type="text" value={form.address} onChange={e => updateForm('address', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                      <input type="text" value={form.address} onChange={e => updateForm('address', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">City</label>
-                      <input type="text" value={form.city} onChange={e => updateForm('city', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                      <input type="text" value={form.city} onChange={e => updateForm('city', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">State</label>
-                      <input type="text" value={form.state} onChange={e => updateForm('state', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                      <input type="text" value={form.state} onChange={e => updateForm('state', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">ZIP Code</label>
-                      <input type="text" value={form.zipCode} onChange={e => updateForm('zipCode', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                      <input type="text" value={form.zipCode} onChange={e => updateForm('zipCode', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Country</label>
-                      <input type="text" value={form.country} onChange={e => updateForm('country', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                      <input type="text" value={form.country} onChange={e => updateForm('country', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                     </div>
                   </div>
                   <div className="flex items-center justify-between pt-2">
                     <button type="button" onClick={() => setFormTab('personal')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">
                       <FiChevronLeft className="w-4 h-4" /> Back
                     </button>
-                    <button type="button" onClick={() => setFormTab('employment')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 shadow-sm transition-colors">
+                    <button type="button" onClick={() => setFormTab('employment')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 shadow-sm transition-colors">
                       Next: Employment <FiChevronRight className="w-4 h-4" />
                     </button>
                   </div>
@@ -1319,7 +1319,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                           updateForm('designationId', '');
                           updateForm('branchId', '');
                         }}
-                        className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                        className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                       >
                         <option value="">Select Company</option>
                         {availableCompanies.map(c => <option key={c.id} value={c.id}>{c.name}{c.code ? ` (${c.code})` : ''}</option>)}
@@ -1330,21 +1330,21 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Department *</label>
-                      <select value={form.departmentId} onChange={e => updateForm('departmentId', e.target.value)} required className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                      <select value={form.departmentId} onChange={e => updateForm('departmentId', e.target.value)} required className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                         <option value="">Select Department</option>
                         {departments.map(d => <option key={d.id} value={d.id}>{d.name}{d.company ? ` (${d.company.name})` : ''}</option>)}
                       </select>
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Designation *</label>
-                      <select value={form.designationId} onChange={e => updateForm('designationId', e.target.value)} required className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                      <select value={form.designationId} onChange={e => updateForm('designationId', e.target.value)} required className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                         <option value="">Select Designation</option>
                         {designations.map(d => <option key={d.id} value={d.id}>{d.title}{d.department ? ` — ${d.department.name}` : ''}</option>)}
                       </select>
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Branch</label>
-                      <select value={form.branchId} onChange={e => updateForm('branchId', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                      <select value={form.branchId} onChange={e => updateForm('branchId', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                         <option value="">Select Branch</option>
                         {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                       </select>
@@ -1354,7 +1354,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                         Role *
                         <span className="ml-1 text-[10px] font-normal text-thb-text-muted">(Determines module access & permissions)</span>
                       </label>
-                      <select value={form.role} onChange={e => updateForm('role', e.target.value)} required className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                      <select value={form.role} onChange={e => updateForm('role', e.target.value)} required className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                         <option value="">Select Role</option>
                         <option value="hr_admin">HR Manager / HR Admin</option>
                         <option value="finance_admin">Finance Manager / Finance Admin</option>
@@ -1368,7 +1368,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                       {form.role && (
                         <div className={`mt-2 p-2.5 rounded-lg border text-xs leading-relaxed ${
                           ['hr_admin', 'finance_admin'].includes(form.role)
-                            ? 'bg-blue-50 border-blue-200 text-blue-800'
+                            ? 'bg-green-50 border-green-200 text-green-800'
                             : ['manager', 'travel_admin', 'crm_admin'].includes(form.role)
                             ? 'bg-amber-50 border-amber-200 text-amber-800'
                             : 'bg-emerald-50 border-emerald-200 text-emerald-800'
@@ -1376,7 +1376,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                           <div className="flex items-start gap-1.5">
                             <FiShield className={`w-3.5 h-3.5 mt-0.5 shrink-0 ${
                               ['hr_admin', 'finance_admin'].includes(form.role)
-                                ? 'text-blue-500'
+                                ? 'text-green-500'
                                 : ['manager', 'travel_admin', 'crm_admin'].includes(form.role)
                                 ? 'text-amber-500'
                                 : 'text-emerald-500'
@@ -1405,14 +1405,14 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Date of Joining *</label>
-                      <input type="date" value={form.dateOfJoining} onChange={e => updateForm('dateOfJoining', e.target.value)} required className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                      <input type="date" value={form.dateOfJoining} onChange={e => updateForm('dateOfJoining', e.target.value)} required className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                     </div>
                   </div>
                   <div className="flex items-center justify-between pt-2">
                     <button type="button" onClick={() => setFormTab('address')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">
                       <FiChevronLeft className="w-4 h-4" /> Back
                     </button>
-                    <button type="button" onClick={() => setFormTab('bank')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 shadow-sm transition-colors">
+                    <button type="button" onClick={() => setFormTab('bank')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 shadow-sm transition-colors">
                       Next: Bank & Finance <FiChevronRight className="w-4 h-4" />
                     </button>
                   </div>
@@ -1425,30 +1425,30 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Bank Name</label>
-                      <input type="text" value={form.bankName} onChange={e => updateForm('bankName', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                      <input type="text" value={form.bankName} onChange={e => updateForm('bankName', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Bank Account No</label>
-                      <input type="text" value={form.bankAccountNo} onChange={e => updateForm('bankAccountNo', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                      <input type="text" value={form.bankAccountNo} onChange={e => updateForm('bankAccountNo', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">IFSC Code</label>
-                      <input type="text" value={form.bankIfscCode} onChange={e => updateForm('bankIfscCode', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                      <input type="text" value={form.bankIfscCode} onChange={e => updateForm('bankIfscCode', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">PAN Number</label>
-                      <input type="text" value={form.panNumber} onChange={e => updateForm('panNumber', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                      <input type="text" value={form.panNumber} onChange={e => updateForm('panNumber', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Aadhaar Number</label>
-                      <input type="text" value={form.aadhaarNumber} onChange={e => updateForm('aadhaarNumber', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                      <input type="text" value={form.aadhaarNumber} onChange={e => updateForm('aadhaarNumber', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                     </div>
                   </div>
                   <div className="flex items-center justify-between pt-2">
                     <button type="button" onClick={() => setFormTab('employment')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">
                       <FiChevronLeft className="w-4 h-4" /> Back
                     </button>
-                    <button type="button" onClick={() => setFormTab('statutory')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 shadow-sm transition-colors">
+                    <button type="button" onClick={() => setFormTab('statutory')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 shadow-sm transition-colors">
                       Next: Statutory <FiChevronRight className="w-4 h-4" />
                     </button>
                   </div>
@@ -1464,11 +1464,11 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                       <div>
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">PF Number</label>
-                        <input type="text" value={form.pfNumber} onChange={e => updateForm('pfNumber', e.target.value)} placeholder="e.g., PF/MH/12345/678" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                        <input type="text" value={form.pfNumber} onChange={e => updateForm('pfNumber', e.target.value)} placeholder="e.g., PF/MH/12345/678" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">UAN Number</label>
-                        <input type="text" value={form.pfUAN} onChange={e => updateForm('pfUAN', e.target.value)} placeholder="12-digit UAN" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                        <input type="text" value={form.pfUAN} onChange={e => updateForm('pfUAN', e.target.value)} placeholder="12-digit UAN" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                       </div>
                     </div>
                   </div>
@@ -1478,11 +1478,11 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                       <div>
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">Nominee Name</label>
-                        <input type="text" value={form.pfNomineeName} onChange={e => updateForm('pfNomineeName', e.target.value)} placeholder="Full name of nominee" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                        <input type="text" value={form.pfNomineeName} onChange={e => updateForm('pfNomineeName', e.target.value)} placeholder="Full name of nominee" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">Nominee Relationship</label>
-                        <select value={form.pfNomineeRelation} onChange={e => updateForm('pfNomineeRelation', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                        <select value={form.pfNomineeRelation} onChange={e => updateForm('pfNomineeRelation', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                           <option value="">Select</option>
                           <option value="spouse">Spouse</option>
                           <option value="father">Father</option>
@@ -1496,7 +1496,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">Nomination Percentage</label>
-                        <input type="number" min="0" max="100" value={form.pfNomineePercentage} onChange={e => updateForm('pfNomineePercentage', e.target.value)} placeholder="e.g., 100" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                        <input type="number" min="0" max="100" value={form.pfNomineePercentage} onChange={e => updateForm('pfNomineePercentage', e.target.value)} placeholder="e.g., 100" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                       </div>
                     </div>
                   </div>
@@ -1506,11 +1506,11 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                       <div>
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">ESI Number</label>
-                        <input type="text" value={form.esiNumber} onChange={e => updateForm('esiNumber', e.target.value)} placeholder="e.g., 31-00-123456-000-0001" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                        <input type="text" value={form.esiNumber} onChange={e => updateForm('esiNumber', e.target.value)} placeholder="e.g., 31-00-123456-000-0001" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">ESI Dispensary</label>
-                        <input type="text" value={form.esiDispensary} onChange={e => updateForm('esiDispensary', e.target.value)} placeholder="Assigned dispensary name" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                        <input type="text" value={form.esiDispensary} onChange={e => updateForm('esiDispensary', e.target.value)} placeholder="Assigned dispensary name" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                       </div>
                     </div>
                   </div>
@@ -1520,11 +1520,11 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                       <div>
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">Nominee Name</label>
-                        <input type="text" value={form.esiNomineeName} onChange={e => updateForm('esiNomineeName', e.target.value)} placeholder="Full name of nominee" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                        <input type="text" value={form.esiNomineeName} onChange={e => updateForm('esiNomineeName', e.target.value)} placeholder="Full name of nominee" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">Nominee Relationship</label>
-                        <select value={form.esiNomineeRelation} onChange={e => updateForm('esiNomineeRelation', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                        <select value={form.esiNomineeRelation} onChange={e => updateForm('esiNomineeRelation', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                           <option value="">Select</option>
                           <option value="spouse">Spouse</option>
                           <option value="father">Father</option>
@@ -1544,11 +1544,11 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                       <div>
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">Professional Tax Number</label>
-                        <input type="text" value={form.professionalTaxNumber} onChange={e => updateForm('professionalTaxNumber', e.target.value)} placeholder="PT registration number" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                        <input type="text" value={form.professionalTaxNumber} onChange={e => updateForm('professionalTaxNumber', e.target.value)} placeholder="PT registration number" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">LWF Number</label>
-                        <input type="text" value={form.lwfNumber} onChange={e => updateForm('lwfNumber', e.target.value)} placeholder="Labour Welfare Fund number" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                        <input type="text" value={form.lwfNumber} onChange={e => updateForm('lwfNumber', e.target.value)} placeholder="Labour Welfare Fund number" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                       </div>
                     </div>
                   </div>
@@ -1556,7 +1556,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                     <button type="button" onClick={() => setFormTab('bank')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">
                       <FiChevronLeft className="w-4 h-4" /> Back
                     </button>
-                    <button type="button" onClick={() => setFormTab('emergency')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 shadow-sm transition-colors">
+                    <button type="button" onClick={() => setFormTab('emergency')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 shadow-sm transition-colors">
                       Next: Emergency <FiChevronRight className="w-4 h-4" />
                     </button>
                   </div>
@@ -1569,18 +1569,18 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Emergency Contact Name</label>
-                      <input type="text" value={form.emergencyContactName} onChange={e => updateForm('emergencyContactName', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                      <input type="text" value={form.emergencyContactName} onChange={e => updateForm('emergencyContactName', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Emergency Contact Phone</label>
-                      <input type="tel" value={form.emergencyContactPhone} onChange={e => updateForm('emergencyContactPhone', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                      <input type="tel" value={form.emergencyContactPhone} onChange={e => updateForm('emergencyContactPhone', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                     </div>
                   </div>
                   <div className="flex items-center justify-between pt-2">
                     <button type="button" onClick={() => setFormTab('statutory')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">
                       <FiChevronLeft className="w-4 h-4" /> Back
                     </button>
-                    <button type="button" onClick={() => setFormTab('health')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 shadow-sm transition-colors">
+                    <button type="button" onClick={() => setFormTab('health')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 shadow-sm transition-colors">
                       Next: Health <FiChevronRight className="w-4 h-4" />
                     </button>
                   </div>
@@ -1594,7 +1594,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Blood Group</label>
-                      <select value={form.bloodGroup} onChange={e => updateForm('bloodGroup', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                      <select value={form.bloodGroup} onChange={e => updateForm('bloodGroup', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                         <option value="">Select</option>
                         <option value="A+">A+</option><option value="A-">A-</option>
                         <option value="B+">B+</option><option value="B-">B-</option>
@@ -1604,7 +1604,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Has Chronic Illness?</label>
-                      <select value={form.hasChronicIllness} onChange={e => updateForm('hasChronicIllness', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                      <select value={form.hasChronicIllness} onChange={e => updateForm('hasChronicIllness', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                         <option value="">Select</option>
                         <option value="no">No</option>
                         <option value="yes">Yes</option>
@@ -1613,12 +1613,12 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                     {form.hasChronicIllness === 'yes' && (
                       <div>
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">Chronic Illness Details</label>
-                        <input type="text" value={form.chronicIllnessDetails} onChange={e => updateForm('chronicIllnessDetails', e.target.value)} placeholder="Describe the condition" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                        <input type="text" value={form.chronicIllnessDetails} onChange={e => updateForm('chronicIllnessDetails', e.target.value)} placeholder="Describe the condition" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                       </div>
                     )}
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Has Allergies?</label>
-                      <select value={form.hasAllergies} onChange={e => updateForm('hasAllergies', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                      <select value={form.hasAllergies} onChange={e => updateForm('hasAllergies', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                         <option value="">Select</option>
                         <option value="no">No</option>
                         <option value="yes">Yes</option>
@@ -1627,12 +1627,12 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                     {form.hasAllergies === 'yes' && (
                       <div>
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">Allergy Details</label>
-                        <input type="text" value={form.allergyDetails} onChange={e => updateForm('allergyDetails', e.target.value)} placeholder="List allergies" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                        <input type="text" value={form.allergyDetails} onChange={e => updateForm('allergyDetails', e.target.value)} placeholder="List allergies" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                       </div>
                     )}
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Has Disability?</label>
-                      <select value={form.hasDisability} onChange={e => updateForm('hasDisability', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                      <select value={form.hasDisability} onChange={e => updateForm('hasDisability', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                         <option value="">Select</option>
                         <option value="no">No</option>
                         <option value="yes">Yes</option>
@@ -1641,12 +1641,12 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                     {form.hasDisability === 'yes' && (
                       <div>
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">Disability Details</label>
-                        <input type="text" value={form.disabilityDetails} onChange={e => updateForm('disabilityDetails', e.target.value)} placeholder="Nature of disability" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                        <input type="text" value={form.disabilityDetails} onChange={e => updateForm('disabilityDetails', e.target.value)} placeholder="Nature of disability" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                       </div>
                     )}
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">On Medication?</label>
-                      <select value={form.isOnMedication} onChange={e => updateForm('isOnMedication', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                      <select value={form.isOnMedication} onChange={e => updateForm('isOnMedication', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                         <option value="">Select</option>
                         <option value="no">No</option>
                         <option value="yes">Yes</option>
@@ -1655,12 +1655,12 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                     {form.isOnMedication === 'yes' && (
                       <div>
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">Medication Details</label>
-                        <input type="text" value={form.medicationDetails} onChange={e => updateForm('medicationDetails', e.target.value)} placeholder="Current medications" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                        <input type="text" value={form.medicationDetails} onChange={e => updateForm('medicationDetails', e.target.value)} placeholder="Current medications" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                       </div>
                     )}
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Has Had Surgery?</label>
-                      <select value={form.hasHadSurgery} onChange={e => updateForm('hasHadSurgery', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                      <select value={form.hasHadSurgery} onChange={e => updateForm('hasHadSurgery', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                         <option value="">Select</option>
                         <option value="no">No</option>
                         <option value="yes">Yes</option>
@@ -1669,7 +1669,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                     {form.hasHadSurgery === 'yes' && (
                       <div>
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">Surgery Details</label>
-                        <input type="text" value={form.surgeryDetails} onChange={e => updateForm('surgeryDetails', e.target.value)} placeholder="Surgery details" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                        <input type="text" value={form.surgeryDetails} onChange={e => updateForm('surgeryDetails', e.target.value)} placeholder="Surgery details" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                       </div>
                     )}
                   </div>
@@ -1678,23 +1678,23 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                       <div>
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">Emergency Medical Condition</label>
-                        <input type="text" value={form.emergencyMedicalCondition} onChange={e => updateForm('emergencyMedicalCondition', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                        <input type="text" value={form.emergencyMedicalCondition} onChange={e => updateForm('emergencyMedicalCondition', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">Primary Physician Name</label>
-                        <input type="text" value={form.primaryPhysicianName} onChange={e => updateForm('primaryPhysicianName', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                        <input type="text" value={form.primaryPhysicianName} onChange={e => updateForm('primaryPhysicianName', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">Primary Physician Phone</label>
-                        <input type="tel" value={form.primaryPhysicianPhone} onChange={e => updateForm('primaryPhysicianPhone', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                        <input type="tel" value={form.primaryPhysicianPhone} onChange={e => updateForm('primaryPhysicianPhone', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">Health Insurance Provider</label>
-                        <input type="text" value={form.healthInsuranceProvider} onChange={e => updateForm('healthInsuranceProvider', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                        <input type="text" value={form.healthInsuranceProvider} onChange={e => updateForm('healthInsuranceProvider', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">Health Insurance Policy No</label>
-                        <input type="text" value={form.healthInsurancePolicyNo} onChange={e => updateForm('healthInsurancePolicyNo', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                        <input type="text" value={form.healthInsurancePolicyNo} onChange={e => updateForm('healthInsurancePolicyNo', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                       </div>
                     </div>
                   </div>
@@ -1702,7 +1702,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                     <button type="button" onClick={() => setFormTab('emergency')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">
                       <FiChevronLeft className="w-4 h-4" /> Back
                     </button>
-                    <button type="button" onClick={() => setFormTab('overseas')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 shadow-sm transition-colors">
+                    <button type="button" onClick={() => setFormTab('overseas')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 shadow-sm transition-colors">
                       Next: Overseas <FiChevronRight className="w-4 h-4" />
                     </button>
                   </div>
@@ -1716,7 +1716,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Foreign Citizenship?</label>
-                      <select value={form.hasForeignCitizenship} onChange={e => updateForm('hasForeignCitizenship', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                      <select value={form.hasForeignCitizenship} onChange={e => updateForm('hasForeignCitizenship', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                         <option value="">Select</option>
                         <option value="no">No</option>
                         <option value="yes">Yes</option>
@@ -1725,20 +1725,20 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                     {form.hasForeignCitizenship === 'yes' && (
                       <div>
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">Citizenship Country</label>
-                        <input type="text" value={form.foreignCitizenshipCountry} onChange={e => updateForm('foreignCitizenshipCountry', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                        <input type="text" value={form.foreignCitizenshipCountry} onChange={e => updateForm('foreignCitizenshipCountry', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                       </div>
                     )}
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Foreign Passport Number</label>
-                      <input type="text" value={form.foreignPassportNumber} onChange={e => updateForm('foreignPassportNumber', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                      <input type="text" value={form.foreignPassportNumber} onChange={e => updateForm('foreignPassportNumber', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Foreign Passport Expiry</label>
-                      <input type="date" value={form.foreignPassportExpiry} onChange={e => updateForm('foreignPassportExpiry', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                      <input type="date" value={form.foreignPassportExpiry} onChange={e => updateForm('foreignPassportExpiry', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Foreign Sojourn?</label>
-                      <select value={form.hasForeignSojourn} onChange={e => updateForm('hasForeignSojourn', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                      <select value={form.hasForeignSojourn} onChange={e => updateForm('hasForeignSojourn', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                         <option value="">Select</option>
                         <option value="no">No</option>
                         <option value="yes">Yes</option>
@@ -1748,21 +1748,21 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                       <>
                         <div>
                           <label className="block text-xs font-medium text-thb-text-secondary mb-1">Sojourn Country</label>
-                          <input type="text" value={form.foreignSojournCountry} onChange={e => updateForm('foreignSojournCountry', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                          <input type="text" value={form.foreignSojournCountry} onChange={e => updateForm('foreignSojournCountry', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                         </div>
                         <div>
                           <label className="block text-xs font-medium text-thb-text-secondary mb-1">Sojourn Purpose</label>
-                          <input type="text" value={form.foreignSojournPurpose} onChange={e => updateForm('foreignSojournPurpose', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                          <input type="text" value={form.foreignSojournPurpose} onChange={e => updateForm('foreignSojournPurpose', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                         </div>
                         <div>
                           <label className="block text-xs font-medium text-thb-text-secondary mb-1">Sojourn Duration</label>
-                          <input type="text" value={form.foreignSojournDuration} onChange={e => updateForm('foreignSojournDuration', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                          <input type="text" value={form.foreignSojournDuration} onChange={e => updateForm('foreignSojournDuration', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                         </div>
                       </>
                     )}
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Has Visa?</label>
-                      <select value={form.hasVisa} onChange={e => updateForm('hasVisa', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                      <select value={form.hasVisa} onChange={e => updateForm('hasVisa', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                         <option value="">Select</option>
                         <option value="no">No</option>
                         <option value="yes">Yes</option>
@@ -1772,21 +1772,21 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                       <>
                         <div>
                           <label className="block text-xs font-medium text-thb-text-secondary mb-1">Visa Type</label>
-                          <input type="text" value={form.visaType} onChange={e => updateForm('visaType', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                          <input type="text" value={form.visaType} onChange={e => updateForm('visaType', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                         </div>
                         <div>
                           <label className="block text-xs font-medium text-thb-text-secondary mb-1">Visa Country</label>
-                          <input type="text" value={form.visaCountry} onChange={e => updateForm('visaCountry', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                          <input type="text" value={form.visaCountry} onChange={e => updateForm('visaCountry', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                         </div>
                         <div>
                           <label className="block text-xs font-medium text-thb-text-secondary mb-1">Visa Expiry</label>
-                          <input type="date" value={form.visaExpiry} onChange={e => updateForm('visaExpiry', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                          <input type="date" value={form.visaExpiry} onChange={e => updateForm('visaExpiry', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                         </div>
                       </>
                     )}
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Intl Driving License?</label>
-                      <select value={form.hasIntlDrivingLicense} onChange={e => updateForm('hasIntlDrivingLicense', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                      <select value={form.hasIntlDrivingLicense} onChange={e => updateForm('hasIntlDrivingLicense', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                         <option value="">Select</option>
                         <option value="no">No</option>
                         <option value="yes">Yes</option>
@@ -1796,11 +1796,11 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                       <>
                         <div>
                           <label className="block text-xs font-medium text-thb-text-secondary mb-1">License Country</label>
-                          <input type="text" value={form.intlDrivingLicenseCountry} onChange={e => updateForm('intlDrivingLicenseCountry', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                          <input type="text" value={form.intlDrivingLicenseCountry} onChange={e => updateForm('intlDrivingLicenseCountry', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                         </div>
                         <div>
                           <label className="block text-xs font-medium text-thb-text-secondary mb-1">License Expiry</label>
-                          <input type="date" value={form.intlDrivingLicenseExpiry} onChange={e => updateForm('intlDrivingLicenseExpiry', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                          <input type="date" value={form.intlDrivingLicenseExpiry} onChange={e => updateForm('intlDrivingLicenseExpiry', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                         </div>
                       </>
                     )}
@@ -1809,7 +1809,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                     <button type="button" onClick={() => setFormTab('health')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">
                       <FiChevronLeft className="w-4 h-4" /> Back
                     </button>
-                    <button type="button" onClick={() => setFormTab('experience')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 shadow-sm transition-colors">
+                    <button type="button" onClick={() => setFormTab('experience')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 shadow-sm transition-colors">
                       Next: Experience <FiChevronRight className="w-4 h-4" />
                     </button>
                   </div>
@@ -1824,19 +1824,19 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                       <div>
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">Previous Employer</label>
-                        <input type="text" value={form.previousEmployer1} onChange={e => updateForm('previousEmployer1', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                        <input type="text" value={form.previousEmployer1} onChange={e => updateForm('previousEmployer1', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">Designation</label>
-                        <input type="text" value={form.previousDesignation1} onChange={e => updateForm('previousDesignation1', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                        <input type="text" value={form.previousDesignation1} onChange={e => updateForm('previousDesignation1', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">Duration</label>
-                        <input type="text" value={form.previousDuration1} onChange={e => updateForm('previousDuration1', e.target.value)} placeholder="e.g., 2 years" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                        <input type="text" value={form.previousDuration1} onChange={e => updateForm('previousDuration1', e.target.value)} placeholder="e.g., 2 years" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                       </div>
                       <div className="sm:col-span-2 lg:col-span-3">
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">Reason for Leaving</label>
-                        <input type="text" value={form.previousReason1} onChange={e => updateForm('previousReason1', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                        <input type="text" value={form.previousReason1} onChange={e => updateForm('previousReason1', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                       </div>
                     </div>
                   </div>
@@ -1845,19 +1845,19 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                       <div>
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">Previous Employer</label>
-                        <input type="text" value={form.previousEmployer2} onChange={e => updateForm('previousEmployer2', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                        <input type="text" value={form.previousEmployer2} onChange={e => updateForm('previousEmployer2', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">Designation</label>
-                        <input type="text" value={form.previousDesignation2} onChange={e => updateForm('previousDesignation2', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                        <input type="text" value={form.previousDesignation2} onChange={e => updateForm('previousDesignation2', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">Duration</label>
-                        <input type="text" value={form.previousDuration2} onChange={e => updateForm('previousDuration2', e.target.value)} placeholder="e.g., 2 years" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                        <input type="text" value={form.previousDuration2} onChange={e => updateForm('previousDuration2', e.target.value)} placeholder="e.g., 2 years" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                       </div>
                       <div className="sm:col-span-2 lg:col-span-3">
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">Reason for Leaving</label>
-                        <input type="text" value={form.previousReason2} onChange={e => updateForm('previousReason2', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                        <input type="text" value={form.previousReason2} onChange={e => updateForm('previousReason2', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                       </div>
                     </div>
                   </div>
@@ -1866,19 +1866,19 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                       <div>
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">Previous Employer</label>
-                        <input type="text" value={form.previousEmployer3} onChange={e => updateForm('previousEmployer3', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                        <input type="text" value={form.previousEmployer3} onChange={e => updateForm('previousEmployer3', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">Designation</label>
-                        <input type="text" value={form.previousDesignation3} onChange={e => updateForm('previousDesignation3', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                        <input type="text" value={form.previousDesignation3} onChange={e => updateForm('previousDesignation3', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">Duration</label>
-                        <input type="text" value={form.previousDuration3} onChange={e => updateForm('previousDuration3', e.target.value)} placeholder="e.g., 2 years" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                        <input type="text" value={form.previousDuration3} onChange={e => updateForm('previousDuration3', e.target.value)} placeholder="e.g., 2 years" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                       </div>
                       <div className="sm:col-span-2 lg:col-span-3">
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">Reason for Leaving</label>
-                        <input type="text" value={form.previousReason3} onChange={e => updateForm('previousReason3', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                        <input type="text" value={form.previousReason3} onChange={e => updateForm('previousReason3', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                       </div>
                     </div>
                   </div>
@@ -1886,7 +1886,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                       <div>
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">Total Experience</label>
-                        <input type="text" value={form.totalExperience} onChange={e => updateForm('totalExperience', e.target.value)} placeholder="e.g., 5 years" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                        <input type="text" value={form.totalExperience} onChange={e => updateForm('totalExperience', e.target.value)} placeholder="e.g., 5 years" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                       </div>
                     </div>
                   </div>
@@ -1894,7 +1894,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                     <button type="button" onClick={() => setFormTab('overseas')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">
                       <FiChevronLeft className="w-4 h-4" /> Back
                     </button>
-                    <button type="button" onClick={() => setFormTab('policies')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 shadow-sm transition-colors">
+                    <button type="button" onClick={() => setFormTab('policies')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 shadow-sm transition-colors">
                       Next: Policies <FiChevronRight className="w-4 h-4" />
                     </button>
                   </div>
@@ -1908,28 +1908,28 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Leave Policy</label>
-                      <select value={form.leavePolicyId} onChange={e => updateForm('leavePolicyId', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                      <select value={form.leavePolicyId} onChange={e => updateForm('leavePolicyId', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                         <option value="">Select Leave Policy</option>
                         {leavePolicies.map(p => <option key={p.id} value={p.id}>{p.title} {p.version ? `(v${p.version})` : ''}</option>)}
                       </select>
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Attendance Policy</label>
-                      <select value={form.attendancePolicyId} onChange={e => updateForm('attendancePolicyId', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                      <select value={form.attendancePolicyId} onChange={e => updateForm('attendancePolicyId', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                         <option value="">Select Attendance Policy</option>
                         {attendancePolicies.map(p => <option key={p.id} value={p.id}>{p.title} {p.version ? `(v${p.version})` : ''}</option>)}
                       </select>
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Travel Policy</label>
-                      <select value={form.travelPolicyId} onChange={e => updateForm('travelPolicyId', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                      <select value={form.travelPolicyId} onChange={e => updateForm('travelPolicyId', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                         <option value="">Select Travel Policy</option>
                         {travelPolicies.map(p => <option key={p.id} value={p.id}>{p.title} {p.version ? `(v${p.version})` : ''}</option>)}
                       </select>
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Salary Structure</label>
-                      <select value={form.salaryStructureId} onChange={e => updateForm('salaryStructureId', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                      <select value={form.salaryStructureId} onChange={e => updateForm('salaryStructureId', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                         <option value="">Select Salary Structure</option>
                         {salaryStructures.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                       </select>
@@ -1945,7 +1945,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                       <button type="button" onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">
                         Cancel
                       </button>
-                      <button type="submit" disabled={submitting} className="px-6 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50 shadow-sm shadow-blue-500/25 transition-colors">
+                      <button type="submit" disabled={submitting} className="px-6 py-2.5 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 disabled:opacity-50 shadow-sm shadow-green-500/25 transition-colors">
                         {submitting ? 'Saving...' : editingId ? 'Update Employee' : 'Add Employee'}
                       </button>
                     </div>
@@ -1963,9 +1963,9 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           {selectedIds.size > 0 && (
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-50 border border-blue-200">
-              <span className="text-sm font-medium text-blue-700">{selectedIds.size} selected</span>
-              <button onClick={() => setSelectedIds(new Set())} className="text-blue-500 hover:text-blue-700">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-green-50 border border-green-200">
+              <span className="text-sm font-medium text-green-700">{selectedIds.size} selected</span>
+              <button onClick={() => setSelectedIds(new Set())} className="text-green-500 hover:text-green-700">
                 <FiX className="w-4 h-4" />
               </button>
             </div>
@@ -1990,7 +1990,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                     type="checkbox"
                     checked={employees.length > 0 && selectedIds.size === employees.length}
                     onChange={toggleSelectAll}
-                    className="w-4 h-4 rounded border-slate-300 text-blue-500 focus:ring-blue-500/20 cursor-pointer"
+                    className="w-4 h-4 rounded border-slate-300 text-green-500 focus:ring-green-500/20 cursor-pointer"
                   />
                 </th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-muted uppercase tracking-wider">Emp ID</th>
@@ -2039,7 +2039,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                   const isDeleting = deleteConfirmId === emp.id;
                   const isSelected = selectedIds.has(emp.id);
                   return (
-                    <tr key={emp.id} className={`border-b border-thb-border/50 transition-colors ${isDeleting ? 'bg-red-50/80' : isSelected ? 'bg-blue-50/50' : 'hover:bg-slate-50/50'}`}>
+                    <tr key={emp.id} className={`border-b border-thb-border/50 transition-colors ${isDeleting ? 'bg-red-50/80' : isSelected ? 'bg-green-50/50' : 'hover:bg-slate-50/50'}`}>
                       {isDeleting ? (
                         <td colSpan={9} className="px-4 py-3">
                           <div className="flex items-center justify-between">
@@ -2066,7 +2066,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                               type="checkbox"
                               checked={isSelected}
                               onChange={() => toggleSelect(emp.id)}
-                              className="w-4 h-4 rounded border-slate-300 text-blue-500 focus:ring-blue-500/20 cursor-pointer"
+                              className="w-4 h-4 rounded border-slate-300 text-green-500 focus:ring-green-500/20 cursor-pointer"
                             />
                           </td>
                           <td className="px-4 py-3">
@@ -2129,7 +2129,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                                 <div className="absolute right-0 top-full mt-1 w-44 bg-white rounded-xl border border-thb-border shadow-lg py-1.5 z-50 animate-fade-in">
                                   <button
                                     onClick={() => { router.push(`/employees/${emp.id}`); setActionMenuOpen(null); }}
-                                    className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-thb-text-secondary hover:bg-slate-50 hover:text-blue-600 transition-colors"
+                                    className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-thb-text-secondary hover:bg-slate-50 hover:text-green-600 transition-colors"
                                   >
                                     <FiEye className="w-4 h-4" /> View Details
                                   </button>
@@ -2177,7 +2177,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
               {Array.from({ length: Math.min(pagination.totalPages, 5) }, (_, i) => {
                 const p = i + 1;
                 return (
-                  <button key={p} onClick={() => fetchEmployees(p)} className={`min-w-[36px] h-9 rounded-lg text-sm font-medium transition-colors ${p === pagination.page ? 'bg-blue-500 text-white shadow-sm' : 'text-thb-text-secondary hover:bg-white border border-thb-border'}`}>
+                  <button key={p} onClick={() => fetchEmployees(p)} className={`min-w-[36px] h-9 rounded-lg text-sm font-medium transition-colors ${p === pagination.page ? 'bg-green-500 text-white shadow-sm' : 'text-thb-text-secondary hover:bg-white border border-thb-border'}`}>
                     {p}
                   </button>
                 );
@@ -2258,7 +2258,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                             <div className="absolute right-0 top-full mt-1 w-40 bg-white rounded-xl border border-thb-border shadow-lg py-1.5 z-50 animate-fade-in">
                               <button
                                 onClick={() => { router.push(`/employees/${emp.id}`); setActionMenuOpen(null); }}
-                                className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-thb-text-secondary hover:bg-slate-50 hover:text-blue-600 transition-colors"
+                                className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-thb-text-secondary hover:bg-slate-50 hover:text-green-600 transition-colors"
                               >
                                 <FiEye className="w-4 h-4" /> View
                               </button>
@@ -2338,7 +2338,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
               {Array.from({ length: Math.min(pagination.totalPages, 5) }, (_, i) => {
                 const p = i + 1;
                 return (
-                  <button key={p} onClick={() => fetchEmployees(p)} className={`min-w-[36px] h-9 rounded-lg text-sm font-medium transition-colors ${p === pagination.page ? 'bg-blue-500 text-white shadow-sm' : 'text-thb-text-secondary hover:bg-slate-50 border border-thb-border'}`}>
+                  <button key={p} onClick={() => fetchEmployees(p)} className={`min-w-[36px] h-9 rounded-lg text-sm font-medium transition-colors ${p === pagination.page ? 'bg-green-500 text-white shadow-sm' : 'text-thb-text-secondary hover:bg-slate-50 border border-thb-border'}`}>
                     {p}
                   </button>
                 );
@@ -2361,7 +2361,7 @@ export default function EmployeesPage() {
     <Suspense fallback={
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4" />
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500 mx-auto mb-4" />
           <p className="text-sm text-thb-text-secondary">Loading Employees...</p>
         </div>
       </div>

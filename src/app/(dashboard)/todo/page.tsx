@@ -106,13 +106,13 @@ const PRIORITY_CONFIG: Record<Priority, { bg: string; text: string; icon: typeof
 
 const STATUS_CONFIG: Record<Status, { bg: string; text: string; dot: string }> = {
   Pending: { bg: 'bg-slate-50', text: 'text-slate-600', dot: 'bg-slate-400' },
-  'In Progress': { bg: 'bg-blue-50', text: 'text-blue-700', dot: 'bg-blue-500' },
+  'In Progress': { bg: 'bg-green-50', text: 'text-green-700', dot: 'bg-green-500' },
   Completed: { bg: 'bg-emerald-50', text: 'text-emerald-700', dot: 'bg-emerald-500' },
   Overdue: { bg: 'bg-red-50', text: 'text-red-700', dot: 'bg-red-500' },
 };
 
 const CATEGORY_COLORS: Record<string, { bg: string; text: string }> = {
-  HR: { bg: 'bg-violet-50', text: 'text-violet-700' },
+  HR: { bg: 'bg-teal-50', text: 'text-teal-700' },
   Payroll: { bg: 'bg-sky-50', text: 'text-sky-700' },
   Recruitment: { bg: 'bg-orange-50', text: 'text-orange-700' },
   Admin: { bg: 'bg-slate-100', text: 'text-slate-700' },
@@ -123,13 +123,13 @@ const CATEGORY_COLORS: Record<string, { bg: string; text: string }> = {
 };
 
 const AVATAR_GRADIENTS = [
-  'from-violet-500 to-purple-600',
+  'from-teal-500 to-teal-600',
   'from-sky-500 to-cyan-600',
   'from-amber-500 to-orange-600',
   'from-emerald-500 to-teal-600',
   'from-rose-500 to-pink-600',
-  'from-indigo-500 to-blue-600',
-  'from-fuchsia-500 to-purple-600',
+  'from-emerald-500 to-green-600',
+  'from-fuchsia-500 to-teal-600',
   'from-lime-500 to-green-600',
 ];
 
@@ -476,7 +476,7 @@ export default function TodoPage() {
       {/* ──── Stats Row ──── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <StatCard icon={FiList} label="Total Tasks" value={stats.total} color="text-slate-600" iconBg="bg-slate-100" />
-        <StatCard icon={FiClock} label="In Progress" value={stats.inProgress} color="text-blue-600" iconBg="bg-blue-50" />
+        <StatCard icon={FiClock} label="In Progress" value={stats.inProgress} color="text-green-600" iconBg="bg-green-50" />
         <StatCard icon={FiCheck} label="Completed" value={stats.completed} color="text-emerald-600" iconBg="bg-emerald-50" />
         <StatCard icon={FiAlertTriangle} label="Overdue" value={stats.overdue} color="text-red-600" iconBg="bg-red-50" />
       </div>
@@ -585,7 +585,7 @@ export default function TodoPage() {
               onClick={() => { setShowCategoryDropdown(!showCategoryDropdown); setShowPriorityDropdown(false); }}
               className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all duration-200 ${
                 categoryFilter !== 'All'
-                  ? 'border-violet-300 bg-violet-50 text-violet-700'
+                  ? 'border-teal-300 bg-teal-50 text-teal-700'
                   : 'border-thb-border text-thb-text-secondary hover:bg-slate-50'
               }`}
             >

@@ -167,7 +167,7 @@ export default function SuperAdmin() {
     { label: 'Total Tenants', value: String(companies.length), icon: Building2, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
     { label: 'Active Tenants', value: String(activeCompanies), icon: CheckCircle2, color: 'text-teal-400', bg: 'bg-teal-500/10' },
     { label: 'Total Employees', value: totalEmployees.toLocaleString(), icon: Users, color: 'text-amber-400', bg: 'bg-amber-500/10' },
-    { label: 'AI Credits Used', value: '12,450', icon: Zap, color: 'text-purple-400', bg: 'bg-purple-500/10' },
+    { label: 'AI Credits Used', value: '12,450', icon: Zap, color: 'text-teal-400', bg: 'bg-teal-500/10' },
     { label: 'Active Trials', value: String(trialStats?.activeTrials ?? 0), icon: Zap, color: 'text-cyan-400', bg: 'bg-cyan-500/10' },
     { label: 'Evaluating', value: String(trialStats?.evaluatingCompanies ?? 0), icon: Timer, color: 'text-yellow-400', bg: 'bg-yellow-500/10' },
     { label: 'Onboarded', value: String(trialStats?.onboardedCompanies ?? 0), icon: CheckCircle2, color: 'text-green-400', bg: 'bg-green-500/10' },
@@ -216,7 +216,7 @@ export default function SuperAdmin() {
     { label: 'Total Users', value: String(totalEmployees), change: '+12%', icon: Users, color: 'text-emerald-400' },
     { label: 'Active Sessions', value: '89', change: '+5%', icon: Activity, color: 'text-teal-400' },
     { label: 'API Calls (Today)', value: '24,567', change: '+18%', icon: Server, color: 'text-amber-400' },
-    { label: 'AI Credits (Month)', value: '12,450 / 21,000', change: '59%', icon: Cpu, color: 'text-purple-400' },
+    { label: 'AI Credits (Month)', value: '12,450 / 21,000', change: '59%', icon: Cpu, color: 'text-teal-400' },
   ]
 
   return (
@@ -875,7 +875,7 @@ export default function SuperAdmin() {
             </Card>
 
             <Card className="bg-slate-900 border-slate-800">
-              <CardHeader><CardTitle className="text-white text-lg flex items-center gap-2"><Cpu className="w-5 h-5 text-purple-400" /> Company Distribution</CardTitle></CardHeader>
+              <CardHeader><CardTitle className="text-white text-lg flex items-center gap-2"><Cpu className="w-5 h-5 text-teal-400" /> Company Distribution</CardTitle></CardHeader>
               <CardContent className="space-y-3">
                 {companies.map(c => {
                   const empCount = c._count?.employees || 0
@@ -885,10 +885,10 @@ export default function SuperAdmin() {
                     <div key={c.id} className="space-y-1">
                       <div className="flex justify-between text-sm">
                         <span className="text-slate-300">{c.name}</span>
-                        <span className="text-purple-400">{empCount} employees</span>
+                        <span className="text-teal-400">{empCount} employees</span>
                       </div>
                       <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
-                        <div className={`h-full rounded-full ${usagePct > 80 ? 'bg-red-500' : usagePct > 50 ? 'bg-amber-500' : 'bg-purple-500'}`} style={{ width: `${usagePct}%` }} />
+                        <div className={`h-full rounded-full ${usagePct > 80 ? 'bg-red-500' : usagePct > 50 ? 'bg-amber-500' : 'bg-teal-500'}`} style={{ width: `${usagePct}%` }} />
                       </div>
                     </div>
                   )

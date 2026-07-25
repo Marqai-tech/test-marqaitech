@@ -85,7 +85,7 @@ function getStatusBadge(status: string) {
     submitted: 'thb-badge thb-badge-warning',
     approved: 'thb-badge thb-badge-success',
     rejected: 'thb-badge thb-badge-error',
-    locked: 'bg-purple-100 text-purple-700 thb-badge',
+    locked: 'bg-teal-100 text-teal-700 thb-badge',
   };
   return map[status] || 'thb-badge thb-badge-info';
 }
@@ -376,7 +376,7 @@ export default function TimesheetsPage() {
           </h1>
           <p className="text-thb-text-secondary mt-1">Track and manage employee work hours</p>
         </div>
-        <button onClick={handleShowForm} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium text-sm shadow-sm shadow-blue-500/25 transition-colors">
+        <button onClick={handleShowForm} className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-500 text-white rounded-lg hover:bg-green-600 font-medium text-sm shadow-sm shadow-green-500/25 transition-colors">
           <FiPlus className="w-4 h-4" />
           Log Time
         </button>
@@ -400,8 +400,8 @@ export default function TimesheetsPage() {
         </div>
         <div className="thb-card p-4">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-lg bg-blue-50 border border-blue-100">
-              <FiFileText className="w-5 h-5 text-blue-600" />
+            <div className="p-2.5 rounded-lg bg-green-50 border border-green-100">
+              <FiFileText className="w-5 h-5 text-green-600" />
             </div>
             <div>
               <p className="text-xs font-medium text-thb-text-muted">This Week</p>
@@ -435,7 +435,7 @@ export default function TimesheetsPage() {
 
       {/* Embedded Form */}
       {showForm && (
-        <div id="crud-form" className="thb-card border-l-4 border-l-blue-500">
+        <div id="crud-form" className="thb-card border-l-4 border-l-green-500">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-semibold text-thb-text-primary">
@@ -449,7 +449,7 @@ export default function TimesheetsPage() {
               {isAdmin && (
                 <div>
                   <label className="block text-xs font-medium text-thb-text-secondary mb-1">Employee</label>
-                  <select value={form.employeeId} onChange={e => setForm(p => ({ ...p, employeeId: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                  <select value={form.employeeId} onChange={e => setForm(p => ({ ...p, employeeId: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                     <option value="">Select Employee</option>
                     {employees.map(emp => (
                       <option key={emp.id} value={emp.id}>{emp.firstName} {emp.lastName} ({emp.employeeId})</option>
@@ -459,11 +459,11 @@ export default function TimesheetsPage() {
               )}
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Date *</label>
-                <input type="date" value={form.date} onChange={e => setForm(p => ({ ...p, date: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                <input type="date" value={form.date} onChange={e => setForm(p => ({ ...p, date: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Project *</label>
-                <select value={form.projectId} onChange={e => setForm(p => ({ ...p, projectId: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                <select value={form.projectId} onChange={e => setForm(p => ({ ...p, projectId: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                   <option value="">Select Project</option>
                   {projects.map(p => (
                     <option key={p.id} value={p.id}>{p.name}{p.code ? ` (${p.code})` : ''}</option>
@@ -475,15 +475,15 @@ export default function TimesheetsPage() {
               </div>
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Task *</label>
-                <input type="text" value={form.task} onChange={e => setForm(p => ({ ...p, task: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="Task description" />
+                <input type="text" value={form.task} onChange={e => setForm(p => ({ ...p, task: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="Task description" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Hours *</label>
-                <input type="number" step="0.5" min="0" max="24" value={form.hours} onChange={e => setForm(p => ({ ...p, hours: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="0.0" />
+                <input type="number" step="0.5" min="0" max="24" value={form.hours} onChange={e => setForm(p => ({ ...p, hours: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="0.0" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Status</label>
-                <select value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                <select value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                   <option value="draft">Draft</option>
                   <option value="submitted">Submitted</option>
                   {isAdmin && <option value="approved">Approved</option>}
@@ -492,12 +492,12 @@ export default function TimesheetsPage() {
               </div>
               <div className="sm:col-span-2 lg:col-span-3">
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Description</label>
-                <textarea rows={2} value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 resize-none" placeholder="Additional notes..." />
+                <textarea rows={2} value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 resize-none" placeholder="Additional notes..." />
               </div>
             </div>
             <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-thb-border">
               <button onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50">Cancel</button>
-              <button onClick={handleSubmit} disabled={submitting} className="px-6 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50 shadow-sm shadow-blue-500/25">
+              <button onClick={handleSubmit} disabled={submitting} className="px-6 py-2.5 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 disabled:opacity-50 shadow-sm shadow-green-500/25">
                 {submitting ? 'Saving...' : editingId ? 'Update' : 'Save'}
               </button>
             </div>
@@ -514,14 +514,14 @@ export default function TimesheetsPage() {
               type="text"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+              className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
               placeholder="Search timesheets..."
             />
           </div>
           <div className="flex gap-2">
             <div className="relative">
               <FiFilter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
-              <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="pl-9 pr-8 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 appearance-none bg-white">
+              <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="pl-9 pr-8 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 appearance-none bg-white">
                 <option value="">All Status</option>
                 <option value="draft">Draft</option>
                 <option value="submitted">Submitted</option>
@@ -529,7 +529,7 @@ export default function TimesheetsPage() {
                 <option value="rejected">Rejected</option>
               </select>
             </div>
-            <select value={filterProject} onChange={e => setFilterProject(e.target.value)} className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 appearance-none bg-white">
+            <select value={filterProject} onChange={e => setFilterProject(e.target.value)} className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 appearance-none bg-white">
               <option value="">All Projects</option>
               {uniqueProjects.map(p => (
                 <option key={p} value={p}>{p}</option>
@@ -599,7 +599,7 @@ export default function TimesheetsPage() {
                         <td className="px-4 py-3 text-sm font-medium text-thb-text-primary">
                           {ts.project?.name || ts.projectText || '—'}
                           {ts.locked && (
-                            <span className="ml-1 inline-flex items-center gap-0.5 text-[10px] text-purple-700 bg-purple-100 px-1.5 py-0.5 rounded-full" title={`Locked${ts.lockReason ? ': ' + ts.lockReason : ''}`}>
+                            <span className="ml-1 inline-flex items-center gap-0.5 text-[10px] text-teal-700 bg-teal-100 px-1.5 py-0.5 rounded-full" title={`Locked${ts.lockReason ? ': ' + ts.lockReason : ''}`}>
                               <FiLock className="w-2.5 h-2.5" /> Locked
                             </span>
                           )}
@@ -625,13 +625,13 @@ export default function TimesheetsPage() {
                               </>
                             )}
                             {isAdmin && !ts.invoiced && (
-                              <button onClick={() => handleLockToggle(ts)} className={`p-2 rounded-lg transition-colors ${ts.locked ? 'text-purple-600 hover:bg-purple-50' : 'text-thb-text-muted hover:text-purple-500 hover:bg-purple-50'}`} title={ts.locked ? 'Unlock (super_admin only)' : 'Lock'}>
+                              <button onClick={() => handleLockToggle(ts)} className={`p-2 rounded-lg transition-colors ${ts.locked ? 'text-teal-600 hover:bg-teal-50' : 'text-thb-text-muted hover:text-teal-500 hover:bg-teal-50'}`} title={ts.locked ? 'Unlock (super_admin only)' : 'Lock'}>
                                 {ts.locked ? <FiUnlock className="w-4 h-4" /> : <FiLock className="w-4 h-4" />}
                               </button>
                             )}
                             {!ts.locked && !ts.invoiced && (
                               <>
-                                <button onClick={() => handleEdit(ts)} className="p-2 rounded-lg text-thb-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="Edit">
+                                <button onClick={() => handleEdit(ts)} className="p-2 rounded-lg text-thb-text-muted hover:text-green-500 hover:bg-green-50 transition-colors" title="Edit">
                                   <FiEdit2 className="w-4 h-4" />
                                 </button>
                                 <button onClick={() => setDeleteConfirmId(ts.id)} className="p-2 rounded-lg text-thb-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete">

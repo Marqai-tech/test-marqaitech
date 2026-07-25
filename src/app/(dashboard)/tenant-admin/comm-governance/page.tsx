@@ -204,7 +204,7 @@ export default function CommGovernancePage() {
           {edit && (
             <button
               onClick={() => handleSave(policy.policyKey)}
-              className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-violet-600 text-white rounded hover:bg-violet-700"
+              className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-teal-600 text-white rounded hover:bg-teal-700"
             >
               <FiSave className="w-3 h-3" />
               Save
@@ -221,7 +221,7 @@ export default function CommGovernancePage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
-            <FiMessageSquare className="w-6 h-6 text-blue-500" />
+            <FiMessageSquare className="w-6 h-6 text-green-500" />
             Communication Governance
           </h1>
           <p className="text-sm text-thb-text-secondary mt-1">
@@ -245,9 +245,9 @@ export default function CommGovernancePage() {
         </div>
       )}
 
-      <div className="p-4 rounded-lg bg-blue-50 border border-blue-100 flex items-start gap-2">
-        <FiZap className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
-        <div className="text-xs text-blue-800">
+      <div className="p-4 rounded-lg bg-green-50 border border-green-100 flex items-start gap-2">
+        <FiZap className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
+        <div className="text-xs text-green-800">
           <strong>Tenant Admin capability.</strong> These policies apply to all chat rooms and files in your tenant.
           Announcement channels can only be created by the roles listed above. Message retention auto-deletes
           messages older than the specified number of days (use null/blank for no auto-delete).

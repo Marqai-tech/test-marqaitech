@@ -26,15 +26,15 @@ export default function AccountsReportsPage() {
           <h1 className="text-xl font-bold text-thb-text-primary">Financial Reports</h1>
           <p className="text-sm text-thb-text-secondary mt-1">Generate and export financial statements</p>
         </div>
-        <button onClick={() => toast.success('Report exported')} className="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium">
+        <button onClick={() => toast.success('Report exported')} className="flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium">
           <FiDownload className="w-4 h-4" /> Export Report
         </button>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         {reports.map(r => (
-          <button key={r.key} onClick={() => setActiveReport(r.key)} className={`thb-card p-4 text-left hover:shadow-md transition-all ${activeReport === r.key ? 'ring-2 ring-blue-500 shadow-md' : ''}`}>
-            <div className={`p-2 rounded-lg inline-flex ${activeReport === r.key ? 'bg-blue-500 text-white' : 'bg-slate-100 text-slate-600'} mb-2`}>{r.icon}</div>
+          <button key={r.key} onClick={() => setActiveReport(r.key)} className={`thb-card p-4 text-left hover:shadow-md transition-all ${activeReport === r.key ? 'ring-2 ring-green-500 shadow-md' : ''}`}>
+            <div className={`p-2 rounded-lg inline-flex ${activeReport === r.key ? 'bg-green-500 text-white' : 'bg-slate-100 text-slate-600'} mb-2`}>{r.icon}</div>
             <p className="text-sm font-semibold text-thb-text-primary">{r.label}</p>
             <p className="text-xs text-thb-text-muted mt-0.5">{r.desc}</p>
           </button>
@@ -81,7 +81,7 @@ export default function AccountsReportsPage() {
             <h4 className="text-sm font-bold text-red-600 mb-2 border-b border-red-100 pb-1 mt-4">Expenses</h4>
             {[{ name: 'Salaries', amount: 450000 }, { name: 'Rent', amount: 85000 }, { name: 'Utilities', amount: 58000 }, { name: 'Marketing', amount: 132000 }, { name: 'Other', amount: 60000 }].map(i => <div key={i.name} className="flex justify-between py-1.5 text-sm pl-4"><span className="text-thb-text-secondary">{i.name}</span><span className="font-medium">₹{i.amount.toLocaleString()}</span></div>)}
             <div className="flex justify-between py-2 text-sm font-bold border-t border-red-200 mt-1 text-red-700"><span>Total Expenses</span><span>₹7,85,000</span></div>
-            <div className="flex justify-between py-3 text-base font-bold border-t-2 border-blue-300 mt-4 bg-blue-50 -mx-2 px-3 rounded-lg"><span className="text-blue-700">Net Income</span><span className="text-blue-700">₹3,85,000</span></div>
+            <div className="flex justify-between py-3 text-base font-bold border-t-2 border-green-300 mt-4 bg-green-50 -mx-2 px-3 rounded-lg"><span className="text-green-700">Net Income</span><span className="text-green-700">₹3,85,000</span></div>
           </div>
         </div>
       )}
@@ -95,7 +95,7 @@ export default function AccountsReportsPage() {
               {[{ name: 'Cash', d: 245000, c: 0 }, { name: 'Bank', d: 890000, c: 0 }, { name: 'Accounts Receivable', d: 345000, c: 0 }, { name: 'Accounts Payable', d: 0, c: 280000 }, { name: 'Tax Payable', d: 0, c: 75000 }, { name: 'Owner Equity', d: 0, c: 500000 }, { name: 'Service Revenue', d: 0, c: 850000 }, { name: 'Salaries Expense', d: 450000, c: 0 }, { name: 'Rent Expense', d: 85000, c: 0 }].map(a => (
                 <tr key={a.name} className="border-b border-slate-50"><td className="py-2.5 px-4">{a.name}</td><td className="py-2.5 px-4 text-right font-medium">{a.d > 0 ? `₹${a.d.toLocaleString()}` : '—'}</td><td className="py-2.5 px-4 text-right font-medium">{a.c > 0 ? `₹${a.c.toLocaleString()}` : '—'}</td></tr>
               ))}
-              <tr className="bg-blue-50 font-bold"><td className="py-3 px-4 text-blue-700">Total</td><td className="py-3 px-4 text-right text-blue-700">₹20,15,000</td><td className="py-3 px-4 text-right text-blue-700">₹20,15,000</td></tr>
+              <tr className="bg-green-50 font-bold"><td className="py-3 px-4 text-green-700">Total</td><td className="py-3 px-4 text-right text-green-700">₹20,15,000</td><td className="py-3 px-4 text-right text-green-700">₹20,15,000</td></tr>
             </tbody>
           </table>
         </div>
@@ -111,9 +111,9 @@ export default function AccountsReportsPage() {
               <div className="flex justify-between py-2 text-sm font-bold border-t border-emerald-200 mt-1 text-emerald-700"><span>Net Operating Cash</span><span>+₹3,87,000</span></div>
             </div>
             <div>
-              <h4 className="text-sm font-bold text-blue-600 mb-2">Investing Activities</h4>
+              <h4 className="text-sm font-bold text-green-600 mb-2">Investing Activities</h4>
               {[{ name: 'Equipment Purchase', amount: -180000 }, { name: 'Asset Sale', amount: 25000 }].map(i => <div key={i.name} className="flex justify-between py-1 text-sm pl-4"><span className="text-thb-text-secondary">{i.name}</span><span className={`font-medium ${i.amount >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{i.amount >= 0 ? '+' : ''}₹{Math.abs(i.amount).toLocaleString()}</span></div>)}
-              <div className="flex justify-between py-2 text-sm font-bold border-t border-blue-200 mt-1 text-blue-700"><span>Net Investing Cash</span><span>-₹1,55,000</span></div>
+              <div className="flex justify-between py-2 text-sm font-bold border-t border-green-200 mt-1 text-green-700"><span>Net Investing Cash</span><span>-₹1,55,000</span></div>
             </div>
           </div>
         </div>

@@ -37,7 +37,7 @@ export default function DepartmentsPage() {
   const [deleting, setDeleting] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
-  const inputClass = 'w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400'
+  const inputClass = 'w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400'
   const q = search.toLowerCase()
   const fDepartments = departments.filter(d =>
     d.name.toLowerCase().includes(q) || (d.code || '').toLowerCase().includes(q)
@@ -99,7 +99,7 @@ export default function DepartmentsPage() {
           </div>
         </div>
         {isAdmin && (
-          <button onClick={openAdd} className="inline-flex items-center gap-2 px-4 py-2.5 bg-violet-500 text-white rounded-lg hover:bg-violet-600 font-medium text-sm shadow-sm shadow-violet-500/25 transition-colors">
+          <button onClick={openAdd} className="inline-flex items-center gap-2 px-4 py-2.5 bg-teal-500 text-white rounded-lg hover:bg-teal-600 font-medium text-sm shadow-sm shadow-teal-500/25 transition-colors">
             <FiPlus className="w-4 h-4" /> Add Department
           </button>
         )}
@@ -124,15 +124,15 @@ export default function DepartmentsPage() {
       {/* Search */}
       <div className="relative">
         <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
-        <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name, code..." className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-thb-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400" />
+        <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name, code..." className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-thb-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400" />
       </div>
 
       {/* View Detail */}
       {viewingRecord && (
-        <div className="thb-card border-l-4 border-l-violet-500">
+        <div className="thb-card border-l-4 border-l-teal-500">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold text-thb-text-primary flex items-center gap-2"><FiEye className="w-5 h-5 text-violet-500" /> Department Details</h2>
+              <h2 className="text-lg font-semibold text-thb-text-primary flex items-center gap-2"><FiEye className="w-5 h-5 text-teal-500" /> Department Details</h2>
               <button onClick={() => setViewingRecord(null)} className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors"><FiX className="w-5 h-5" /></button>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -153,7 +153,7 @@ export default function DepartmentsPage() {
 
       {/* Inline Form */}
       {showForm && (
-        <div className="thb-card border-l-4 border-l-violet-500">
+        <div className="thb-card border-l-4 border-l-teal-500">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-semibold text-thb-text-primary">{editingId ? 'Edit' : 'Add'} Department</h2>
@@ -168,7 +168,7 @@ export default function DepartmentsPage() {
               </div>
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-thb-border">
                 <button type="button" onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
-                <button type="submit" disabled={submitting} className="px-6 py-2.5 rounded-lg bg-violet-500 text-white text-sm font-medium hover:bg-violet-600 disabled:opacity-50 shadow-sm shadow-violet-500/25 transition-colors">
+                <button type="submit" disabled={submitting} className="px-6 py-2.5 rounded-lg bg-teal-500 text-white text-sm font-medium hover:bg-teal-600 disabled:opacity-50 shadow-sm shadow-teal-500/25 transition-colors">
                   {submitting ? 'Saving...' : editingId ? 'Update' : 'Create'}
                 </button>
               </div>
@@ -179,9 +179,9 @@ export default function DepartmentsPage() {
 
       {/* Table */}
       {loading.departments ? (
-        <div className="flex items-center justify-center py-12"><FiSettings className="w-8 h-8 animate-spin text-violet-400" /></div>
+        <div className="flex items-center justify-center py-12"><FiSettings className="w-8 h-8 animate-spin text-teal-400" /></div>
       ) : (
-        <TableWrapper title="Departments" icon={<FiBriefcase className="w-4 h-4 text-violet-500" />} count={departments.length}>
+        <TableWrapper title="Departments" icon={<FiBriefcase className="w-4 h-4 text-teal-500" />} count={departments.length}>
           <thead><tr><TH>Department</TH><TH>Company</TH><TH>Employees</TH><TH>Designations</TH><TH>Status</TH><TH className="text-right">Actions</TH></tr></thead>
           <tbody>
             {fDepartments.length === 0 ? (
@@ -209,9 +209,9 @@ export default function DepartmentsPage() {
                       <TD><span className={badge.className}>{badge.label}</span></TD>
                       <TD className="text-right">
                         <div className="flex items-center justify-end gap-1">
-                          <button onClick={() => openView(d)} className="p-1.5 rounded-lg text-thb-text-muted hover:text-violet-500 hover:bg-violet-50 transition-colors" title="View"><FiEye className="w-3.5 h-3.5" /></button>
+                          <button onClick={() => openView(d)} className="p-1.5 rounded-lg text-thb-text-muted hover:text-teal-500 hover:bg-teal-50 transition-colors" title="View"><FiEye className="w-3.5 h-3.5" /></button>
                           {isAdmin && <>
-                            <button onClick={() => openEdit(d)} className="p-1.5 rounded-lg text-thb-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors" title="Edit"><FiEdit2 className="w-3.5 h-3.5" /></button>
+                            <button onClick={() => openEdit(d)} className="p-1.5 rounded-lg text-thb-text-muted hover:text-green-500 hover:bg-green-50 transition-colors" title="Edit"><FiEdit2 className="w-3.5 h-3.5" /></button>
                             <button onClick={() => { setDeleteConfirmId(d.id); setDeleteName(d.name) }} className="p-1.5 rounded-lg text-thb-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete"><FiTrash2 className="w-3.5 h-3.5" /></button>
                           </>}
                         </div>

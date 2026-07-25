@@ -120,7 +120,7 @@ export default function OvertimeRequestPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-            <FiClock className="w-6 h-6 text-violet-500" />
+            <FiClock className="w-6 h-6 text-teal-500" />
             Overtime Requests
           </h1>
           <p className="text-sm text-slate-500 mt-1">Pre-OT approval workflow · Convert OT to Comp-Off or payout</p>
@@ -135,7 +135,7 @@ export default function OvertimeRequestPage() {
       </ModuleTips>
 
       {showForm && (
-        <div className="thb-card p-6 border-l-4 border-l-violet-500">
+        <div className="thb-card p-6 border-l-4 border-l-teal-500">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-slate-800">New Overtime Request</h2>
             <button onClick={() => setShowForm(false)} className="text-slate-400 hover:text-slate-700">✕</button>
@@ -161,14 +161,14 @@ export default function OvertimeRequestPage() {
           <div className="mt-4">
             <label className="block text-xs font-medium text-slate-600 mb-1">Payout Preference *</label>
             <div className="grid grid-cols-2 gap-3">
-              <label className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer ${form.payoutPreference === 'payout' ? 'border-violet-500 bg-violet-50' : 'border-slate-200'}`}>
+              <label className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer ${form.payoutPreference === 'payout' ? 'border-teal-500 bg-teal-50' : 'border-slate-200'}`}>
                 <input type="radio" checked={form.payoutPreference === 'payout'} onChange={() => setForm({ ...form, payoutPreference: 'payout' })} />
                 <div>
                   <p className="text-sm font-medium text-slate-700">Payout</p>
                   <p className="text-xs text-slate-500">Paid in next payroll run</p>
                 </div>
               </label>
-              <label className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer ${form.payoutPreference === 'comp_off' ? 'border-violet-500 bg-violet-50' : 'border-slate-200'}`}>
+              <label className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer ${form.payoutPreference === 'comp_off' ? 'border-teal-500 bg-teal-50' : 'border-slate-200'}`}>
                 <input type="radio" checked={form.payoutPreference === 'comp_off'} onChange={() => setForm({ ...form, payoutPreference: 'comp_off' })} />
                 <div>
                   <p className="text-sm font-medium text-slate-700 flex items-center gap-1"><FiGift className="w-3.5 h-3.5" /> Comp-Off</p>
@@ -178,8 +178,8 @@ export default function OvertimeRequestPage() {
             </div>
           </div>
           {computedHours > 0 && (
-            <div className="mt-4 p-3 bg-blue-50 border border-blue-100 rounded-lg">
-              <p className="text-sm text-blue-700 font-medium">Estimated: {computedHours} hours</p>
+            <div className="mt-4 p-3 bg-green-50 border border-green-100 rounded-lg">
+              <p className="text-sm text-green-700 font-medium">Estimated: {computedHours} hours</p>
             </div>
           )}
           <div className="flex justify-end gap-2 mt-4">

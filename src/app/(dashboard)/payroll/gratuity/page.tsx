@@ -175,9 +175,9 @@ export default function GratuityPage() {
                   <p className="text-2xl font-bold text-teal-600 mt-1">{fmt(result.calculation.cappedGratuity)}</p>
                   {result.calculation.isCapped && <p className="text-[10px] text-amber-600 mt-0.5">Capped at max ₹20L</p>}
                 </div>
-                <div className="thb-card p-5 border-t-4 border-t-blue-500">
+                <div className="thb-card p-5 border-t-4 border-t-green-500">
                   <p className="text-xs font-medium text-thb-text-secondary">Monthly Provision</p>
-                  <p className="text-2xl font-bold text-blue-600 mt-1">{fmt(result.monthlyProvision.monthlyAmount)}</p>
+                  <p className="text-2xl font-bold text-green-600 mt-1">{fmt(result.monthlyProvision.monthlyAmount)}</p>
                   <p className="text-[10px] text-thb-text-muted mt-0.5">{result.monthlyProvision.rate} of Basic (CTC)</p>
                 </div>
                 <div className="thb-card p-5 border-t-4 border-t-emerald-500">

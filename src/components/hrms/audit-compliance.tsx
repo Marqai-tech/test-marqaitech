@@ -164,7 +164,7 @@ export default function AuditComplianceModule() {
     { label: 'Audit Events Today', value: auditStats.todayLogs, icon: ScrollText, color: 'from-emerald-500 to-emerald-600' },
     { label: 'Compliance Score', value: `${complianceScore}%`, icon: ShieldCheck, color: 'from-teal-500 to-teal-600' },
     { label: 'Critical Alerts', value: criticalCount, icon: AlertCircle, color: 'from-red-500 to-red-600' },
-    { label: 'Active Policies', value: 12, icon: Lock, color: 'from-purple-500 to-purple-600' },
+    { label: 'Active Policies', value: 12, icon: Lock, color: 'from-teal-500 to-teal-600' },
   ]
 
   const handleExport = () => {
@@ -398,8 +398,8 @@ export default function AuditComplianceModule() {
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center">
-                        <FileBarChart className="w-4 h-4 text-purple-400" />
+                      <div className="w-9 h-9 rounded-lg bg-teal-500/10 border border-teal-500/20 flex items-center justify-center">
+                        <FileBarChart className="w-4 h-4 text-teal-400" />
                       </div>
                       <div>
                         <h3 className="text-white font-medium text-sm">{report.name}</h3>

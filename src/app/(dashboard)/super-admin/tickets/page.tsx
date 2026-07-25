@@ -50,9 +50,9 @@ const statusBadge: Record<string, string> = {
 
 const categoryIcons: Record<string, string> = {
   Bug: 'bg-red-50 text-red-500',
-  'Feature Request': 'bg-blue-50 text-blue-500',
+  'Feature Request': 'bg-green-50 text-green-500',
   Infrastructure: 'bg-amber-50 text-amber-500',
-  Security: 'bg-violet-50 text-violet-500',
+  Security: 'bg-teal-50 text-teal-500',
 };
 
 export default function TicketsPage() {
@@ -98,7 +98,7 @@ export default function TicketsPage() {
     setShowForm(true);
   };
 
-  const inputCls = 'w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400';
+  const inputCls = 'w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400';
 
   return (
     <div className="space-y-6">
@@ -189,7 +189,7 @@ export default function TicketsPage() {
                   <td className="px-4 py-3"><span className={statusBadge[ticket.status]}>{ticket.status.replace('_', ' ')}</span></td>
                   <td className="px-4 py-3 text-thb-text-secondary">{ticket.reporter}</td>
                   <td className="px-4 py-3 text-thb-text-muted">{ticket.createdDate}</td>
-                  <td className="px-4 py-3"><button onClick={() => handleEdit(ticket)} className="inline-flex items-center gap-1 text-blue-500 hover:text-blue-700 text-xs font-medium"><FiEdit2 className="w-3.5 h-3.5" />Edit</button></td>
+                  <td className="px-4 py-3"><button onClick={() => handleEdit(ticket)} className="inline-flex items-center gap-1 text-green-500 hover:text-green-700 text-xs font-medium"><FiEdit2 className="w-3.5 h-3.5" />Edit</button></td>
                 </tr>
               ))}
             </tbody>

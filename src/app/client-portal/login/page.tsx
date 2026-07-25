@@ -23,7 +23,7 @@ export default function ClientPortalLogin() {
     else setError((await r.json()).error);
   }
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-700 to-indigo-900 flex items-center justify-center p-6">
+    <div className="min-h-screen bg-gradient-to-br from-green-900 via-green-700 to-emerald-900 flex items-center justify-center p-6">
       <div className="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full">
         <div className="text-center mb-6">
           <div className="text-4xl mb-2">🏢</div>
@@ -33,7 +33,7 @@ export default function ClientPortalLogin() {
         {step === 'request' ? (
           <form onSubmit={requestOtp} className="space-y-3">
             <input type="email" placeholder="Your work email" required value={email} onChange={e => setEmail(e.target.value)} className="w-full border rounded px-3 py-2" />
-            <button disabled={loading} type="submit" className="w-full bg-blue-600 text-white py-2 rounded">{loading ? 'Sending...' : 'Send OTP'}</button>
+            <button disabled={loading} type="submit" className="w-full bg-green-600 text-white py-2 rounded">{loading ? 'Sending...' : 'Send OTP'}</button>
           </form>
         ) : (
           <form onSubmit={verify} className="space-y-3">

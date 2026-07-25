@@ -29,7 +29,7 @@ const employeeSteps: OnboardingStep[] = [
     title: 'Welcome to 3Boxes HRMS!',
     description: 'Your all-in-one platform for managing everything HR — from leaves and attendance to payroll and documents. Let us show you around!',
     icon: FiStar,
-    iconBg: 'bg-gradient-to-br from-indigo-500 to-violet-600',
+    iconBg: 'bg-gradient-to-br from-emerald-500 to-teal-600',
     iconColor: 'text-white',
     features: [
       'Apply for leaves & track balances',
@@ -43,7 +43,7 @@ const employeeSteps: OnboardingStep[] = [
     title: 'Your Dashboard',
     description: 'Your home base! See quick stats, pending actions, upcoming events, and important announcements at a glance.',
     icon: FiHome,
-    iconBg: 'bg-gradient-to-br from-blue-500 to-cyan-500',
+    iconBg: 'bg-gradient-to-br from-green-500 to-cyan-500',
     iconColor: 'text-white',
     link: '/home',
     linkLabel: 'Go to Dashboard',
@@ -107,7 +107,7 @@ const employeeSteps: OnboardingStep[] = [
     title: 'Payslips',
     description: 'View your monthly payslips, salary breakdown, deductions, and download payslip PDFs.',
     icon: FiDollarSign,
-    iconBg: 'bg-gradient-to-br from-violet-500 to-purple-600',
+    iconBg: 'bg-gradient-to-br from-teal-500 to-teal-600',
     iconColor: 'text-white',
     link: '/payroll',
     linkLabel: 'Go to Payroll',
@@ -123,7 +123,7 @@ const employeeSteps: OnboardingStep[] = [
     title: 'Documents',
     description: 'Upload, manage, and access all your important documents — from ID proofs to certificates.',
     icon: FiFileText,
-    iconBg: 'bg-gradient-to-br from-sky-500 to-blue-600',
+    iconBg: 'bg-gradient-to-br from-sky-500 to-green-600',
     iconColor: 'text-white',
     link: '/documents',
     linkLabel: 'Go to Documents',
@@ -156,7 +156,7 @@ const adminSteps: OnboardingStep[] = [
     title: 'Welcome, Admin!',
     description: 'You have full control over your organization\'s HR management. Set up your company, manage employees, configure policies, and much more!',
     icon: FiShield,
-    iconBg: 'bg-gradient-to-br from-indigo-500 to-violet-600',
+    iconBg: 'bg-gradient-to-br from-emerald-500 to-teal-600',
     iconColor: 'text-white',
     features: [
       'Complete company setup wizard',
@@ -186,7 +186,7 @@ const adminSteps: OnboardingStep[] = [
     title: 'Employee Management',
     description: 'Add employees one by one or bulk import via Excel. Manage profiles, documents, and employment details.',
     icon: FiUsers,
-    iconBg: 'bg-gradient-to-br from-blue-500 to-cyan-500',
+    iconBg: 'bg-gradient-to-br from-green-500 to-cyan-500',
     iconColor: 'text-white',
     link: '/employees',
     linkLabel: 'Go to Employees',
@@ -234,7 +234,7 @@ const adminSteps: OnboardingStep[] = [
     title: 'Payroll Configuration',
     description: 'Set up salary structures, configure tax deductions, define allowances, and process payroll runs.',
     icon: FiDollarSign,
-    iconBg: 'bg-gradient-to-br from-violet-500 to-purple-600',
+    iconBg: 'bg-gradient-to-br from-teal-500 to-teal-600',
     iconColor: 'text-white',
     link: '/settings?tab=payroll',
     linkLabel: 'Go to Payroll Settings',
@@ -266,7 +266,7 @@ const adminSteps: OnboardingStep[] = [
     title: 'Reports & Analytics',
     description: 'Gain insights with comprehensive reports on employees, attendance, leave, payroll, and more.',
     icon: FiBarChart2,
-    iconBg: 'bg-gradient-to-br from-sky-500 to-blue-600',
+    iconBg: 'bg-gradient-to-br from-sky-500 to-green-600',
     iconColor: 'text-white',
     link: '/reports',
     linkLabel: 'Go to Reports',
@@ -435,7 +435,7 @@ export default function OnboardingWalkthrough() {
               {step.link && (
                 <button
                   onClick={() => handleLinkClick(step.link!)}
-                  className="inline-flex items-center gap-2 text-sm font-semibold text-indigo-600 hover:text-indigo-800 transition-colors mb-6 group"
+                  className="inline-flex items-center gap-2 text-sm font-semibold text-emerald-600 hover:text-emerald-800 transition-colors mb-6 group"
                 >
                   {step.linkLabel}
                   <FiArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
@@ -450,7 +450,7 @@ export default function OnboardingWalkthrough() {
                     onClick={() => handleDotClick(idx)}
                     className={`transition-all duration-300 rounded-full ${
                       idx === currentStep
-                        ? 'w-6 h-2 bg-indigo-500'
+                        ? 'w-6 h-2 bg-emerald-500'
                         : 'w-2 h-2 bg-slate-200 hover:bg-slate-300'
                     }`}
                   />
@@ -483,7 +483,7 @@ export default function OnboardingWalkthrough() {
                   {isLastStep ? (
                     <button
                       onClick={handleGetStarted}
-                      className="inline-flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-indigo-500 to-violet-600 text-white font-bold rounded-xl shadow-lg shadow-indigo-500/25 hover:shadow-xl hover:shadow-indigo-500/35 hover:scale-105 transition-all duration-200"
+                      className="inline-flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold rounded-xl shadow-lg shadow-emerald-500/25 hover:shadow-xl hover:shadow-emerald-500/35 hover:scale-105 transition-all duration-200"
                     >
                       <FiCheckCircle className="w-4 h-4" />
                       Get Started!
@@ -491,7 +491,7 @@ export default function OnboardingWalkthrough() {
                   ) : (
                     <button
                       onClick={handleNext}
-                      className="inline-flex items-center gap-1.5 px-6 py-2.5 bg-gradient-to-r from-indigo-500 to-violet-600 text-white font-bold rounded-xl shadow-lg shadow-indigo-500/25 hover:shadow-xl hover:shadow-indigo-500/35 hover:scale-105 transition-all duration-200"
+                      className="inline-flex items-center gap-1.5 px-6 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold rounded-xl shadow-lg shadow-emerald-500/25 hover:shadow-xl hover:shadow-emerald-500/35 hover:scale-105 transition-all duration-200"
                     >
                       Next
                       <FiChevronRight className="w-4 h-4" />

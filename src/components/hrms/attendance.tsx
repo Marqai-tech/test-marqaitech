@@ -19,7 +19,7 @@ const ATTENDANCE_STATUS: Record<string, { label: string; color: string; icon: Re
   present: { label: 'Present', color: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-400', icon: <CheckCircle2 className="h-4 w-4" /> },
   absent: { label: 'Absent', color: 'bg-red-100 text-red-800 dark:bg-red-950/30 dark:text-red-400', icon: <XCircle className="h-4 w-4" /> },
   late: { label: 'Late', color: 'bg-amber-100 text-amber-800 dark:bg-amber-950/30 dark:text-amber-400', icon: <Clock className="h-4 w-4" /> },
-  half_day: { label: 'Half Day', color: 'bg-blue-100 text-blue-800 dark:bg-blue-950/30 dark:text-blue-400', icon: <AlertCircle className="h-4 w-4" /> },
+  half_day: { label: 'Half Day', color: 'bg-green-100 text-green-800 dark:bg-green-950/30 dark:text-green-400', icon: <AlertCircle className="h-4 w-4" /> },
 };
 
 const SOURCE_ICONS: Record<string, React.ReactNode> = {
@@ -78,7 +78,7 @@ export function Attendance() {
     { label: 'Present Today', value: records.length > 0 ? `${Math.round(presentCount / records.length * 100)}%` : '0%', icon: <CheckCircle2 className="h-5 w-5" />, color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-950/30' },
     { label: 'Absent', value: records.length > 0 ? `${Math.round(absentCount / records.length * 100)}%` : '0%', icon: <XCircle className="h-5 w-5" />, color: 'text-red-600', bg: 'bg-red-50 dark:bg-red-950/30' },
     { label: 'Late Arrivals', value: records.length > 0 ? `${Math.round(lateCount / records.length * 100)}%` : '0%', icon: <Clock className="h-5 w-5" />, color: 'text-amber-600', bg: 'bg-amber-50 dark:bg-amber-950/30' },
-    { label: 'On Leave', value: records.length > 0 ? `${Math.round(onLeaveCount / records.length * 100)}%` : '0%', icon: <AlertCircle className="h-5 w-5" />, color: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-950/30' },
+    { label: 'On Leave', value: records.length > 0 ? `${Math.round(onLeaveCount / records.length * 100)}%` : '0%', icon: <AlertCircle className="h-5 w-5" />, color: 'text-green-600', bg: 'bg-green-50 dark:bg-green-950/30' },
   ];
 
   const handleCheckIn = async () => {

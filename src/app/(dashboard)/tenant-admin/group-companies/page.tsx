@@ -98,7 +98,7 @@ export default function TenantGroupCompaniesPage() {
   if (user && user.role === 'super_admin') {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 px-4 text-center">
-        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 text-white flex items-center justify-center shadow-lg shadow-violet-500/20">
+        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-teal-500 to-teal-600 text-white flex items-center justify-center shadow-lg shadow-teal-500/20">
           <FiLayers className="w-8 h-8" />
         </div>
         <h2 className="text-xl font-semibold text-thb-text-primary">Super admins use the Super Admin page</h2>
@@ -111,7 +111,7 @@ export default function TenantGroupCompaniesPage() {
         </p>
         <Link
           href="/super-admin"
-          className="inline-flex items-center gap-2 px-5 py-2.5 bg-violet-500 text-white rounded-lg hover:bg-violet-600 font-medium text-sm shadow-sm transition-colors mt-2"
+          className="inline-flex items-center gap-2 px-5 py-2.5 bg-teal-500 text-white rounded-lg hover:bg-teal-600 font-medium text-sm shadow-sm transition-colors mt-2"
         >
           <FiLayers className="w-4 h-4" /> Go to Super Admin → Group Companies
         </Link>
@@ -127,13 +127,13 @@ export default function TenantGroupCompaniesPage() {
   return (
     <div className="space-y-6">
       {/* HERO */}
-      <div className="relative rounded-2xl overflow-hidden border-0 shadow-xl shadow-violet-500/10">
+      <div className="relative rounded-2xl overflow-hidden border-0 shadow-xl shadow-teal-500/10">
         <div className="absolute inset-0 bg-gradient-to-br from-[#0F172A] via-[#312E81] to-[#5B21B6]" />
-        <div className="absolute top-0 right-0 w-72 h-72 bg-violet-500/30 rounded-full blur-[100px]" />
+        <div className="absolute top-0 right-0 w-72 h-72 bg-teal-500/30 rounded-full blur-[100px]" />
         <div className="relative z-10 px-6 sm:px-8 py-6">
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div>
-              <p className="text-violet-300/60 text-xs font-medium tracking-widest uppercase flex items-center gap-1.5">
+              <p className="text-teal-300/60 text-xs font-medium tracking-widest uppercase flex items-center gap-1.5">
                 <FiLock className="w-3 h-3" /> Tenant Administration · Read-Only
               </p>
               <h1 className="text-2xl font-bold text-white mt-1 flex items-center gap-2">
@@ -142,7 +142,7 @@ export default function TenantGroupCompaniesPage() {
                   <FiLock className="w-2.5 h-2.5" /> Super-admin managed
                 </span>
               </h1>
-              <p className="text-violet-100/60 text-sm font-medium mt-1 flex items-center gap-1.5 flex-wrap">
+              <p className="text-teal-100/60 text-sm font-medium mt-1 flex items-center gap-1.5 flex-wrap">
                 <FiHome className="w-3.5 h-3.5" />
                 <span>Inducted under tenant:</span>
                 <span className="font-bold text-white">{tenantName}</span>
@@ -163,7 +163,7 @@ export default function TenantGroupCompaniesPage() {
               </button>
               <Link
                 href="/tenant-admin/companies"
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 text-white text-sm font-semibold shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 transition-all"
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-sm font-semibold shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 transition-all"
               >
                 <FiBriefcase className="w-4 h-4" /> Create a Company
               </Link>
@@ -190,23 +190,23 @@ export default function TenantGroupCompaniesPage() {
       </div>
 
       {/* INFO BANNER */}
-      <div className="rounded-xl p-4 border border-indigo-200 bg-gradient-to-r from-indigo-50 to-violet-50/60 flex items-start gap-3">
-        <FiLayers className="w-5 h-5 text-indigo-600 flex-shrink-0 mt-0.5" />
-        <div className="text-xs text-indigo-900 flex-1">
+      <div className="rounded-xl p-4 border border-emerald-200 bg-gradient-to-r from-emerald-50 to-teal-50/60 flex items-start gap-3">
+        <FiLayers className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+        <div className="text-xs text-emerald-900 flex-1">
           <p className="font-bold mb-2 text-sm">Multi-tenancy Hierarchy</p>
           <div className="flex items-center gap-2 flex-wrap mb-2">
-            <span className="inline-flex items-center gap-1 px-2 py-1 bg-white rounded-md border border-indigo-200 font-semibold">
+            <span className="inline-flex items-center gap-1 px-2 py-1 bg-white rounded-md border border-emerald-200 font-semibold">
               <FiHome className="w-3 h-3" /> Tenant
             </span>
-            <span className="text-indigo-400">=</span>
-            <span className="inline-flex items-center gap-1 px-2 py-1 bg-white rounded-md border border-violet-200 font-semibold">
+            <span className="text-emerald-400">=</span>
+            <span className="inline-flex items-center gap-1 px-2 py-1 bg-white rounded-md border border-teal-200 font-semibold">
               <FiLayers className="w-3 h-3" /> Group Company (parent)
             </span>
-            <span className="text-indigo-400">→</span>
-            <span className="inline-flex items-center gap-1 px-2 py-1 bg-white rounded-md border border-blue-200 font-semibold">
+            <span className="text-emerald-400">→</span>
+            <span className="inline-flex items-center gap-1 px-2 py-1 bg-white rounded-md border border-green-200 font-semibold">
               <FiBriefcase className="w-3 h-3" /> Company
             </span>
-            <span className="text-indigo-400">→</span>
+            <span className="text-emerald-400">→</span>
             <span className="inline-flex items-center gap-1 px-2 py-1 bg-white rounded-md border border-amber-200 font-semibold">
               <FiUsers className="w-3 h-3" /> Employees
             </span>
@@ -215,7 +215,7 @@ export default function TenantGroupCompaniesPage() {
             <b>The group company name and parent tenant are the same.</b>
             {' '}Your tenant <b>{tenantName}</b> is the parent. The super admin has created the group
             companies listed below — pick one when inducting a new Company via the{' '}
-            <Link href="/tenant-admin/companies" className="font-bold text-indigo-700 underline">Companies page</Link>.
+            <Link href="/tenant-admin/companies" className="font-bold text-emerald-700 underline">Companies page</Link>.
             {' '}Each group can have an employee-strength barrier (per-company or group-total).
           </p>
         </div>
@@ -223,8 +223,8 @@ export default function TenantGroupCompaniesPage() {
 
       {/* STATS */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <StatCard label="Group Companies" value={totalGroups} icon={<FiLayers className="w-5 h-5" />} bg="bg-violet-50 text-violet-600" ring="ring-violet-100" />
-        <StatCard label="Companies Inducted" value={totalCompanies} icon={<FiBriefcase className="w-5 h-5" />} bg="bg-indigo-50 text-indigo-600" ring="ring-indigo-100" />
+        <StatCard label="Group Companies" value={totalGroups} icon={<FiLayers className="w-5 h-5" />} bg="bg-teal-50 text-teal-600" ring="ring-teal-100" />
+        <StatCard label="Companies Inducted" value={totalCompanies} icon={<FiBriefcase className="w-5 h-5" />} bg="bg-emerald-50 text-emerald-600" ring="ring-emerald-100" />
         <StatCard label="Total Employees" value={totalEmployees} icon={<FiUsers className="w-5 h-5" />} bg="bg-amber-50 text-amber-600" ring="ring-amber-100" />
       </div>
 
@@ -247,7 +247,7 @@ export default function TenantGroupCompaniesPage() {
           <div className="mt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
             <Link
               href="/tenant-admin/companies"
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 text-white text-sm font-semibold shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 transition-all"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-sm font-semibold shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 transition-all"
             >
               <FiBriefcase className="w-4 h-4" /> Go to Companies page
             </Link>
@@ -270,7 +270,7 @@ export default function TenantGroupCompaniesPage() {
               <div key={g.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                   <div className="flex items-start gap-4">
-                    <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white flex-shrink-0">
+                    <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-teal-500 to-teal-600 flex items-center justify-center text-white flex-shrink-0">
                       <FiLayers className="w-5 h-5" />
                     </div>
                     <div className="min-w-0">
@@ -300,7 +300,7 @@ export default function TenantGroupCompaniesPage() {
                       </span>
                     )}
                     {hasCoCap && (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-blue-50 text-blue-700 ring-1 ring-blue-200 text-[11px] font-semibold">
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-green-50 text-green-700 ring-1 ring-green-200 text-[11px] font-semibold">
                         <FiLayers className="w-3 h-3" /> co cap: {coCount}/{g.maxCompanies}
                       </span>
                     )}
@@ -319,7 +319,7 @@ export default function TenantGroupCompaniesPage() {
                         <div key={c.id} className="flex items-center gap-3 text-xs text-slate-600 bg-slate-50 rounded-lg p-2.5">
                           <FiBriefcase className="w-3.5 h-3.5 text-slate-400" />
                           <span className="font-medium text-slate-900">{c.name}</span>
-                          {c.code && <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 text-[10px] font-semibold">{c.code}</span>}
+                          {c.code && <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 text-[10px] font-semibold">{c.code}</span>}
                           <span className="ml-auto flex items-center gap-1.5">
                             <span className={atCap ? 'text-red-600 font-semibold' : ''}>{cEmp} emp</span>
                             {cPlan !== null && cPlan !== undefined && (cPlan as number) > 0 && (
@@ -340,7 +340,7 @@ export default function TenantGroupCompaniesPage() {
                       <span>No companies inducted under this group yet.</span>
                       <Link
                         href="/tenant-admin/companies"
-                        className="ml-auto inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-700 font-semibold"
+                        className="ml-auto inline-flex items-center gap-1 text-emerald-600 hover:text-emerald-700 font-semibold"
                       >
                         <FiBriefcase className="w-3 h-3" /> Induct one →
                       </Link>

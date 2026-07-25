@@ -30,8 +30,8 @@ const LEAVE_BALANCE = [
   { type: 'Casual Leave', total: 12, used: 5, remaining: 7, icon: <Sun className="h-4 w-4" />, color: 'bg-amber-50 text-amber-600 dark:bg-amber-950/30' },
   { type: 'Sick Leave', total: 10, used: 2, remaining: 8, icon: <Heart className="h-4 w-4" />, color: 'bg-red-50 text-red-600 dark:bg-red-950/30' },
   { type: 'Paid Leave', total: 15, used: 3, remaining: 12, icon: <CalendarDays className="h-4 w-4" />, color: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30' },
-  { type: 'Maternity/Paternity', total: 180, used: 0, remaining: 180, icon: <Baby className="h-4 w-4" />, color: 'bg-purple-50 text-purple-600 dark:bg-purple-950/30' },
-  { type: 'Comp Off', total: 5, used: 1, remaining: 4, icon: <Gift className="h-4 w-4" />, color: 'bg-blue-50 text-blue-600 dark:bg-blue-950/30' },
+  { type: 'Maternity/Paternity', total: 180, used: 0, remaining: 180, icon: <Baby className="h-4 w-4" />, color: 'bg-teal-50 text-teal-600 dark:bg-green-950/30' },
+  { type: 'Comp Off', total: 5, used: 1, remaining: 4, icon: <Gift className="h-4 w-4" />, color: 'bg-green-50 text-green-600 dark:bg-green-950/30' },
 ];
 
 const leaveTrendData = [
@@ -292,7 +292,7 @@ export function Leave() {
                   <p className="text-sm font-medium">Sick Leave Spike</p>
                   <p className="text-xs text-muted-foreground mt-1">Historical data shows increased sick leaves in February. Consider flu vaccination drive.</p>
                 </div>
-                <div className="p-3 rounded-lg border border-border bg-blue-50/50 dark:bg-blue-950/20">
+                <div className="p-3 rounded-lg border border-border bg-green-50/50 dark:bg-green-950/20">
                   <p className="text-sm font-medium">Recommendation</p>
                   <p className="text-xs text-muted-foreground mt-1">3 employees in Operations are likely to request long leave in Q2. Plan cross-training now.</p>
                 </div>

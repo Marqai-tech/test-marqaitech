@@ -70,7 +70,7 @@ function getStatusBadge(status: string) {
     rejected: { bg: 'bg-red-50 border-red-200', text: 'text-red-700', label: 'Rejected' },
     cancelled: { bg: 'bg-slate-50 border-slate-200', text: 'text-slate-600', label: 'Cancelled' },
   };
-  return map[status] || { bg: 'bg-blue-50 border-blue-200', text: 'text-blue-700', label: status };
+  return map[status] || { bg: 'bg-green-50 border-green-200', text: 'text-green-700', label: status };
 }
 
 function getDaysBetween(start: string, end: string) {
@@ -81,9 +81,9 @@ function getDaysBetween(start: string, end: string) {
 
 function getAvatarGradient(name: string) {
   const colors = [
-    'from-blue-500 to-cyan-500', 'from-violet-500 to-purple-500',
+    'from-green-500 to-cyan-500', 'from-teal-500 to-teal-500',
     'from-emerald-500 to-teal-500', 'from-orange-500 to-amber-500',
-    'from-pink-500 to-rose-500', 'from-indigo-500 to-blue-500',
+    'from-pink-500 to-rose-500', 'from-emerald-500 to-green-500',
   ];
   let hash = 0;
   for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
@@ -358,9 +358,9 @@ function LeavePageContent() {
         <div>
           <h2 className="text-xl font-bold text-slate-900 mb-1">Leaves</h2>
           <nav className="flex items-center gap-1.5 text-sm text-slate-500">
-            <button onClick={() => router.push('/')} className="hover:text-blue-600 transition-colors">Home</button>
+            <button onClick={() => router.push('/')} className="hover:text-green-600 transition-colors">Home</button>
             <span>/</span>
-            <button onClick={() => router.push('/leave')} className="hover:text-blue-600 transition-colors">Leave</button>
+            <button onClick={() => router.push('/leave')} className="hover:text-green-600 transition-colors">Leave</button>
             <span>/</span>
             <span className="text-slate-700 font-medium">Leaves Admin</span>
           </nav>
@@ -369,7 +369,7 @@ function LeavePageContent() {
           <button className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors">
             <FiDownload className="w-3.5 h-3.5" /> Export
           </button>
-          <button onClick={handleOpenApplyForm} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm shadow-sm transition-colors">
+          <button onClick={handleOpenApplyForm} className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium text-sm shadow-sm transition-colors">
             <FiPlus className="w-4 h-4" />
             Add Leave
           </button>
@@ -427,17 +427,17 @@ function LeavePageContent() {
         </div>
 
         {/* Pending Requests */}
-        <div className="bg-white rounded-xl border border-slate-200 p-4 flex items-center justify-between bg-gradient-to-r from-blue-50 to-blue-50/30">
+        <div className="bg-white rounded-xl border border-slate-200 p-4 flex items-center justify-between bg-gradient-to-r from-green-50 to-green-50/30">
           <div className="flex items-center overflow-hidden">
-            <div className="w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center text-white flex-shrink-0">
+            <div className="w-12 h-12 rounded-full bg-green-500 flex items-center justify-center text-white flex-shrink-0">
               <FiClock className="w-5 h-5" />
             </div>
             <div className="ml-3 overflow-hidden">
               <p className="text-xs font-medium text-slate-500 truncate">Pending Requests</p>
-              <h4 className="text-2xl font-bold text-blue-600">{pendingCount}</h4>
+              <h4 className="text-2xl font-bold text-green-600">{pendingCount}</h4>
             </div>
           </div>
-          <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-50 text-blue-700">
+          <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-50 text-green-700">
             <FiClock className="w-3 h-3" /> Pending
           </span>
         </div>
@@ -491,7 +491,7 @@ function LeavePageContent() {
             <div className="p-5 space-y-4">
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">Leave Type *</label>
-                <select value={form.leaveTypeId} onChange={e => setForm(p => ({ ...p, leaveTypeId: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+                <select value={form.leaveTypeId} onChange={e => setForm(p => ({ ...p, leaveTypeId: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                   <option value="">Select Leave Type</option>
                   {leaveTypes.map(lt => <option key={lt.id} value={lt.id}>{lt.name} ({lt.defaultDays} days)</option>)}
                 </select>
@@ -499,22 +499,22 @@ function LeavePageContent() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-slate-600 mb-1">From *</label>
-                  <input type="date" value={form.startDate} onChange={e => setForm(p => ({ ...p, startDate: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                  <input type="date" value={form.startDate} onChange={e => setForm(p => ({ ...p, startDate: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-slate-600 mb-1">To *</label>
-                  <input type="date" value={form.endDate} onChange={e => setForm(p => ({ ...p, endDate: e.target.value }))} min={form.startDate} className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                  <input type="date" value={form.endDate} onChange={e => setForm(p => ({ ...p, endDate: e.target.value }))} min={form.startDate} className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                 </div>
               </div>
               {form.startDate && form.endDate && (
-                <div className="flex items-center justify-between p-3 rounded-lg bg-blue-50 border border-blue-100">
-                  <span className="text-sm text-blue-700 font-medium">
+                <div className="flex items-center justify-between p-3 rounded-lg bg-green-50 border border-green-100">
+                  <span className="text-sm text-green-700 font-medium">
                     <FiClock className="w-4 h-4 inline mr-1" />
                     Duration: {getDaysBetween(form.startDate, form.endDate)} day(s){form.halfDay ? ' (0.5 for half day)' : ''}
                   </span>
                   {/* Remaining days from balance */}
                   {form.leaveTypeId && leaveBalances.length > 0 && (
-                    <span className="text-xs text-blue-600 font-semibold">
+                    <span className="text-xs text-green-600 font-semibold">
                       Remaining: {leaveBalances.find(lb => lb.leaveType.id === form.leaveTypeId)?.remaining || '—'} days
                     </span>
                   )}
@@ -522,11 +522,11 @@ function LeavePageContent() {
               )}
               {/* Holiday Calendar Overlay */}
               {holidaysInRange.length > 0 && (
-                <div className="p-3 rounded-lg bg-violet-50 border border-violet-200">
-                  <p className="text-xs font-semibold text-violet-800 mb-1.5">
+                <div className="p-3 rounded-lg bg-teal-50 border border-teal-200">
+                  <p className="text-xs font-semibold text-teal-800 mb-1.5">
                     <FiCalendar className="w-3.5 h-3.5 inline mr-1" />Public Holidays in range:
                   </p>
-                  <ul className="text-xs text-violet-700 space-y-0.5">
+                  <ul className="text-xs text-teal-700 space-y-0.5">
                     {holidaysInRange.map(h => (
                       <li key={h.id}>• {h.name} — {formatDate(h.date)} ({h.type})</li>
                     ))}
@@ -547,19 +547,19 @@ function LeavePageContent() {
               )}
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">Reason</label>
-                <textarea rows={3} value={form.reason} onChange={e => setForm(p => ({ ...p, reason: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 resize-none" placeholder="Provide a reason for your leave..." />
+                <textarea rows={3} value={form.reason} onChange={e => setForm(p => ({ ...p, reason: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 resize-none" placeholder="Provide a reason for your leave..." />
               </div>
               <label className="flex items-center gap-3 cursor-pointer">
-                <input type="checkbox" checked={form.halfDay} onChange={e => setForm(p => ({ ...p, halfDay: e.target.checked }))} className="w-4 h-4 rounded border-slate-300 text-blue-500 focus:ring-blue-500/20" />
+                <input type="checkbox" checked={form.halfDay} onChange={e => setForm(p => ({ ...p, halfDay: e.target.checked }))} className="w-4 h-4 rounded border-slate-300 text-green-500 focus:ring-green-500/20" />
                 <span className="text-sm text-slate-700">Half Day Leave</span>
               </label>
               {form.halfDay && (
                 <div className="ml-7 flex gap-2">
-                  <label className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer text-sm ${form.halfDaySlot === 'first_half' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-slate-200 text-slate-600'}`}>
+                  <label className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer text-sm ${form.halfDaySlot === 'first_half' ? 'border-green-500 bg-green-50 text-green-700' : 'border-slate-200 text-slate-600'}`}>
                     <input type="radio" checked={form.halfDaySlot === 'first_half'} onChange={() => setForm(p => ({ ...p, halfDaySlot: 'first_half' }))} className="hidden" />
                     First Half
                   </label>
-                  <label className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer text-sm ${form.halfDaySlot === 'second_half' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-slate-200 text-slate-600'}`}>
+                  <label className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer text-sm ${form.halfDaySlot === 'second_half' ? 'border-green-500 bg-green-50 text-green-700' : 'border-slate-200 text-slate-600'}`}>
                     <input type="radio" checked={form.halfDaySlot === 'second_half'} onChange={() => setForm(p => ({ ...p, halfDaySlot: 'second_half' }))} className="hidden" />
                     Second Half
                   </label>
@@ -568,7 +568,7 @@ function LeavePageContent() {
             </div>
             <div className="flex items-center justify-end gap-3 p-5 border-t border-slate-200">
               <button onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors">Cancel</button>
-              <button onClick={handleApply} disabled={submitting} className="px-6 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50 shadow-sm transition-colors">
+              <button onClick={handleApply} disabled={submitting} className="px-6 py-2.5 rounded-lg bg-green-600 text-white text-sm font-medium hover:bg-green-700 disabled:opacity-50 shadow-sm transition-colors">
                 {submitting ? 'Submitting...' : 'Add Leave'}
               </button>
             </div>
@@ -592,13 +592,13 @@ function LeavePageContent() {
               </div>
 
               {/* Leave Type Filter */}
-              <select value={filterLeaveType} onChange={e => setFilterLeaveType(e.target.value)} className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs text-slate-600 focus:outline-none focus:ring-1 focus:ring-blue-500/20">
+              <select value={filterLeaveType} onChange={e => setFilterLeaveType(e.target.value)} className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs text-slate-600 focus:outline-none focus:ring-1 focus:ring-green-500/20">
                 <option value="">Leave Type</option>
                 {leaveTypes.map(lt => <option key={lt.id} value={lt.id}>{lt.name}</option>)}
               </select>
 
               {/* Status Filter */}
-              <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs text-slate-600 focus:outline-none focus:ring-1 focus:ring-blue-500/20">
+              <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs text-slate-600 focus:outline-none focus:ring-1 focus:ring-green-500/20">
                 <option value="">All Status</option>
                 <option value="pending">Pending</option>
                 <option value="approved">Approved</option>
@@ -609,7 +609,7 @@ function LeavePageContent() {
               {/* Search */}
               <div className="relative">
                 <FiSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-                <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search employee..." className="pl-8 pr-3 py-1.5 rounded-lg border border-slate-200 text-xs w-40 focus:outline-none focus:ring-1 focus:ring-blue-500/20" />
+                <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search employee..." className="pl-8 pr-3 py-1.5 rounded-lg border border-slate-200 text-xs w-40 focus:outline-none focus:ring-1 focus:ring-green-500/20" />
               </div>
             </div>
           </div>
@@ -683,7 +683,7 @@ function LeavePageContent() {
                           {lr.halfDay && <span className="text-[10px] text-slate-400">(Half)</span>}
                           {lr.reason && (
                             <span className="relative group">
-                              <FiAlertCircle className="w-3.5 h-3.5 text-blue-400 cursor-help" />
+                              <FiAlertCircle className="w-3.5 h-3.5 text-green-400 cursor-help" />
                               <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1.5 bg-slate-800 text-white text-xs rounded-lg whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10 max-w-[200px] truncate">
                                 {lr.reason}
                               </span>
@@ -711,7 +711,7 @@ function LeavePageContent() {
                                 <p className="text-[10px] text-slate-500 mt-0.5">{lr.leaveType?.name} · {formatDate(lr.startDate)} – {formatDate(lr.endDate)}</p>
                               </div>
                             </div>
-                            <textarea rows={2} value={actionComment} onChange={e => setActionComment(e.target.value)} className="w-full px-2 py-1.5 rounded border border-slate-200 text-xs mb-2 resize-none focus:outline-none focus:ring-1 focus:ring-blue-500/20" placeholder="Add comment (optional)..." />
+                            <textarea rows={2} value={actionComment} onChange={e => setActionComment(e.target.value)} className="w-full px-2 py-1.5 rounded border border-slate-200 text-xs mb-2 resize-none focus:outline-none focus:ring-1 focus:ring-green-500/20" placeholder="Add comment (optional)..." />
                             <div className="flex items-center gap-1.5">
                               <button onClick={handleAction} disabled={actioning} className={`px-2.5 py-1 text-white text-[10px] font-medium rounded disabled:opacity-50 ${actionType === 'approved' ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-red-500 hover:bg-red-600'}`}>
                                 {actioning ? 'Processing...' : 'Confirm'}
@@ -753,7 +753,7 @@ function LeavePageContent() {
             <span>Showing {filteredLeaves.length} of {leaveRequests.length} entries</span>
             <div className="flex items-center gap-1">
               <button className="px-2.5 py-1 rounded border border-slate-200 hover:bg-slate-50 transition-colors">Previous</button>
-              <button className="px-2.5 py-1 rounded bg-blue-600 text-white">1</button>
+              <button className="px-2.5 py-1 rounded bg-green-600 text-white">1</button>
               <button className="px-2.5 py-1 rounded border border-slate-200 hover:bg-slate-50 transition-colors">Next</button>
             </div>
           </div>

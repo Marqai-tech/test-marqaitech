@@ -92,7 +92,7 @@ export default function StorageQuotasPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
-            <FiHardDrive className="w-6 h-6 text-violet-500" />
+            <FiHardDrive className="w-6 h-6 text-teal-500" />
             Storage Quotas
           </h1>
           <p className="text-sm text-thb-text-secondary mt-1">
@@ -196,7 +196,7 @@ export default function StorageQuotasPage() {
                       <button
                         onClick={() => handleSave(q.tenantId)}
                         disabled={!edits[q.tenantId]}
-                        className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-violet-600 text-white rounded hover:bg-violet-700 disabled:opacity-50"
+                        className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-teal-600 text-white rounded hover:bg-teal-700 disabled:opacity-50"
                       >
                         <FiSave className="w-3 h-3" />
                         Save

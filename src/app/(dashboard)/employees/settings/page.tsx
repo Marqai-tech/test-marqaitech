@@ -68,8 +68,8 @@ const employeeSettingSections: SettingSection[] = [
     title: 'Employee Code',
     description: 'Configure employee code generation rules',
     icon: <FiUserCheck className="w-5 h-5" />,
-    iconBg: 'bg-indigo-50',
-    iconColor: 'text-indigo-500',
+    iconBg: 'bg-emerald-50',
+    iconColor: 'text-emerald-500',
     fields: [
       { key: 'employee_code_prefix', label: 'Employee Code Prefix', type: 'text', defaultValue: 'EMP', description: 'Prefix for auto-generated employee codes' },
       { key: 'employee_code_sequence', label: 'Code Sequence Start', type: 'number', defaultValue: 1001, description: 'Starting number for auto-generated employee codes', min: 1, max: 99999 },
@@ -860,7 +860,7 @@ export default function EmployeeSettingsPage() {
         {field.type === 'toggle' ? (
           <button
             onClick={() => onChange(!value)}
-            className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${value ? 'bg-violet-500 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+            className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${value ? 'bg-teal-500 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
           >
             {value ? <FiToggleRight className="w-4 h-4" /> : <FiToggleLeft className="w-4 h-4" />}
             {value ? 'Enabled' : 'Disabled'}
@@ -869,7 +869,7 @@ export default function EmployeeSettingsPage() {
           <select
             value={String(value)}
             onChange={e => onChange(e.target.value)}
-            className="w-full max-w-xs px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+            className="w-full max-w-xs px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20"
           >
             {field.options?.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
           </select>
@@ -881,14 +881,14 @@ export default function EmployeeSettingsPage() {
             min={field.min}
             max={field.max}
             step={field.step || 1}
-            className="w-full max-w-xs px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+            className="w-full max-w-xs px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20"
           />
         ) : (
           <input
             type="text"
             value={String(value)}
             onChange={e => onChange(e.target.value)}
-            className="w-full max-w-xs px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+            className="w-full max-w-xs px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20"
           />
         )}
       </div>
@@ -901,7 +901,7 @@ export default function EmployeeSettingsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-600 flex items-center justify-center shadow-md">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500 to-cyan-600 flex items-center justify-center shadow-md">
             <FiSettings className="w-5 h-5 text-white" />
           </div>
           <div>
@@ -917,7 +917,7 @@ export default function EmployeeSettingsPage() {
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         <div className="thb-card p-4 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600"><FiUsers className="w-5 h-5" /></div>
+          <div className="w-9 h-9 rounded-lg bg-green-50 flex items-center justify-center text-green-600"><FiUsers className="w-5 h-5" /></div>
           <div><p className="text-xs text-thb-text-secondary">Total</p><p className="text-lg font-bold text-thb-text-primary">{totalEmployees}</p></div>
         </div>
         <div className="thb-card p-4 flex items-center gap-3">
@@ -929,8 +929,8 @@ export default function EmployeeSettingsPage() {
           <div><p className="text-xs text-thb-text-secondary">No Account</p><p className="text-lg font-bold text-amber-600">{withoutAccount}</p></div>
         </div>
         <div className="thb-card p-4 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-violet-50 flex items-center justify-center text-violet-600"><FiShield className="w-5 h-5" /></div>
-          <div><p className="text-xs text-thb-text-secondary">Active</p><p className="text-lg font-bold text-violet-600">{activeAccounts}</p></div>
+          <div className="w-9 h-9 rounded-lg bg-teal-50 flex items-center justify-center text-teal-600"><FiShield className="w-5 h-5" /></div>
+          <div><p className="text-xs text-thb-text-secondary">Active</p><p className="text-lg font-bold text-teal-600">{activeAccounts}</p></div>
         </div>
         <div className="thb-card p-4 flex items-center gap-3">
           <div className="w-9 h-9 rounded-lg bg-red-50 flex items-center justify-center text-red-600"><FiSettings className="w-5 h-5" /></div>
@@ -953,7 +953,7 @@ export default function EmployeeSettingsPage() {
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
               className={`flex-1 min-w-[100px] inline-flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                activeTab === tab.key ? 'bg-violet-500 text-white shadow-sm' : 'text-thb-text-secondary hover:bg-slate-50 hover:text-thb-text-primary'
+                activeTab === tab.key ? 'bg-teal-500 text-white shadow-sm' : 'text-thb-text-secondary hover:bg-slate-50 hover:text-thb-text-primary'
               }`}
             >
               <tab.icon className="w-4 h-4" /> <span className="hidden sm:inline">{tab.label}</span>
@@ -972,14 +972,14 @@ export default function EmployeeSettingsPage() {
               <input
                 type="text" value={search} onChange={e => setSearch(e.target.value)}
                 placeholder="Search by name, email, ID..."
-                className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400"
+                className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400"
               />
             </div>
-            <select value={filterDept} onChange={e => setFilterDept(e.target.value)} className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20">
+            <select value={filterDept} onChange={e => setFilterDept(e.target.value)} className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20">
               <option value="">All Departments</option>
               {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
             </select>
-            <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20">
+            <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20">
               <option value="">All Status</option>
               <option value="has_account">Has Account</option>
               <option value="no_account">No Account</option>
@@ -990,17 +990,17 @@ export default function EmployeeSettingsPage() {
 
           {/* Bulk Actions Bar */}
           {selectedIds.size > 0 && (
-            <div className="thb-card border-violet-200 bg-violet-50/40 p-3 flex items-center gap-3">
-              <span className="text-sm font-medium text-violet-700">{selectedIds.size} selected</span>
+            <div className="thb-card border-teal-200 bg-teal-50/40 p-3 flex items-center gap-3">
+              <span className="text-sm font-medium text-teal-700">{selectedIds.size} selected</span>
               <button
                 onClick={() => { setPasswordModalMode('selected'); setShowPasswordModal(true); setUseAutoPassword(true); setManualPassword(''); setPasswordResults(null) }}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-violet-500 hover:bg-violet-600 text-white rounded-lg text-xs font-medium transition-colors"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-teal-500 hover:bg-teal-600 text-white rounded-lg text-xs font-medium transition-colors"
               >
                 <FiKey className="w-3.5 h-3.5" /> Generate Passwords
               </button>
               <button
                 onClick={() => handleInvite('selected')}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-xs font-medium transition-colors"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white rounded-lg text-xs font-medium transition-colors"
                 disabled={inviteProcessing}
               >
                 <FiSend className="w-3.5 h-3.5" /> Invite Selected
@@ -1025,7 +1025,7 @@ export default function EmployeeSettingsPage() {
                         type="checkbox"
                         checked={selectAll && filteredEmployees.length > 0}
                         onChange={toggleSelectAll}
-                        className="rounded border-slate-300 text-violet-500 focus:ring-violet-500"
+                        className="rounded border-slate-300 text-teal-500 focus:ring-teal-500"
                       />
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-thb-text-muted uppercase tracking-wider">Employee</th>
@@ -1038,17 +1038,17 @@ export default function EmployeeSettingsPage() {
                 </thead>
                 <tbody className="divide-y divide-thb-border">
                   {loading ? (
-                    <tr><td colSpan={7} className="px-4 py-12 text-center"><div className="animate-spin w-6 h-6 border-2 border-violet-500 border-t-transparent rounded-full mx-auto" /></td></tr>
+                    <tr><td colSpan={7} className="px-4 py-12 text-center"><div className="animate-spin w-6 h-6 border-2 border-teal-500 border-t-transparent rounded-full mx-auto" /></td></tr>
                   ) : filteredEmployees.length === 0 ? (
                     <tr><td colSpan={7} className="px-4 py-12 text-center text-thb-text-muted">No employees found</td></tr>
                   ) : filteredEmployees.map(emp => (
-                    <tr key={emp.id} className={`hover:bg-slate-50/50 transition-colors ${selectedIds.has(emp.id) ? 'bg-violet-50/40' : ''}`}>
+                    <tr key={emp.id} className={`hover:bg-slate-50/50 transition-colors ${selectedIds.has(emp.id) ? 'bg-teal-50/40' : ''}`}>
                       <td className="px-4 py-3">
                         <input
                           type="checkbox"
                           checked={selectedIds.has(emp.id)}
                           onChange={() => toggleSelect(emp.id)}
-                          className="rounded border-slate-300 text-violet-500 focus:ring-violet-500"
+                          className="rounded border-slate-300 text-teal-500 focus:ring-teal-500"
                         />
                       </td>
                       <td className="px-4 py-3">
@@ -1084,7 +1084,7 @@ export default function EmployeeSettingsPage() {
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1">
                           {emp.hasLoginAccount && (
-                            <button onClick={() => handleToggleStatus(emp)} className="p-1.5 rounded-lg text-thb-text-muted hover:text-violet-500 hover:bg-violet-50 transition-colors" title={emp.loginStatus === 'active' ? 'Disable Account' : 'Enable Account'}>
+                            <button onClick={() => handleToggleStatus(emp)} className="p-1.5 rounded-lg text-thb-text-muted hover:text-teal-500 hover:bg-teal-50 transition-colors" title={emp.loginStatus === 'active' ? 'Disable Account' : 'Enable Account'}>
                               {emp.loginStatus === 'active' ? <FiToggleRight className="w-4 h-4" /> : <FiToggleLeft className="w-4 h-4" />}
                             </button>
                           )}
@@ -1095,7 +1095,7 @@ export default function EmployeeSettingsPage() {
                               setEditEmail(emp.email)
                               setPasswordResults(null)
                             }}
-                            className="p-1.5 rounded-lg text-thb-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors"
+                            className="p-1.5 rounded-lg text-thb-text-muted hover:text-green-500 hover:bg-green-50 transition-colors"
                             title="Manage Credentials"
                           >
                             <FiKey className="w-4 h-4" />
@@ -1115,9 +1115,9 @@ export default function EmployeeSettingsPage() {
       {activeTab === 'invite' && (
         <div className="space-y-6">
           {/* Info Banner */}
-          <div className="thb-card border-l-4 border-l-violet-500 bg-gradient-to-r from-violet-50/60 to-indigo-50/40">
+          <div className="thb-card border-l-4 border-l-teal-500 bg-gradient-to-r from-teal-50/60 to-emerald-50/40">
             <div className="p-4 flex items-start gap-3">
-              <FiSend className="w-5 h-5 text-violet-500 flex-shrink-0 mt-0.5" />
+              <FiSend className="w-5 h-5 text-teal-500 flex-shrink-0 mt-0.5" />
               <div>
                 <p className="font-semibold text-slate-900 mb-1">Invite Employees to HRMS</p>
                 <p className="text-xs text-slate-600 leading-relaxed">
@@ -1136,7 +1136,7 @@ export default function EmployeeSettingsPage() {
               className="thb-card p-5 text-left hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed group"
             >
               <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 rounded-lg bg-violet-50 flex items-center justify-center text-violet-500 group-hover:bg-violet-500 group-hover:text-white transition-colors">
+                <div className="w-10 h-10 rounded-lg bg-teal-50 flex items-center justify-center text-teal-500 group-hover:bg-teal-500 group-hover:text-white transition-colors">
                   <FiUsers className="w-5 h-5" />
                 </div>
                 <div>
@@ -1159,7 +1159,7 @@ export default function EmployeeSettingsPage() {
               className="thb-card p-5 text-left hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed group"
             >
               <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center text-blue-500 group-hover:bg-blue-500 group-hover:text-white transition-colors">
+                <div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center text-green-500 group-hover:bg-green-500 group-hover:text-white transition-colors">
                   <FiUserCheck className="w-5 h-5" />
                 </div>
                 <div>
@@ -1176,19 +1176,19 @@ export default function EmployeeSettingsPage() {
             <div className="px-5 py-4 border-b border-thb-border flex items-center justify-between">
               <h3 className="font-semibold text-thb-text-primary">Select Employees to Invite</h3>
               <div className="flex items-center gap-2">
-                <button onClick={() => { setSelectedIds(new Set(filteredEmployees.map(e => e.id))); setSelectAll(true) }} className="text-xs text-violet-500 hover:text-violet-700 font-medium">Select All</button>
+                <button onClick={() => { setSelectedIds(new Set(filteredEmployees.map(e => e.id))); setSelectAll(true) }} className="text-xs text-teal-500 hover:text-teal-700 font-medium">Select All</button>
                 <span className="text-thb-text-muted">|</span>
                 <button onClick={() => { setSelectedIds(new Set()); setSelectAll(false) }} className="text-xs text-thb-text-muted hover:text-thb-text-primary font-medium">Clear</button>
               </div>
             </div>
             <div className="max-h-80 overflow-y-auto divide-y divide-thb-border">
               {employees.map(emp => (
-                <label key={emp.id} className={`flex items-center gap-3 px-5 py-3 hover:bg-slate-50/50 cursor-pointer transition-colors ${selectedIds.has(emp.id) ? 'bg-violet-50/30' : ''}`}>
+                <label key={emp.id} className={`flex items-center gap-3 px-5 py-3 hover:bg-slate-50/50 cursor-pointer transition-colors ${selectedIds.has(emp.id) ? 'bg-teal-50/30' : ''}`}>
                   <input
                     type="checkbox"
                     checked={selectedIds.has(emp.id)}
                     onChange={() => toggleSelect(emp.id)}
-                    className="rounded border-slate-300 text-violet-500 focus:ring-violet-500"
+                    className="rounded border-slate-300 text-teal-500 focus:ring-teal-500"
                   />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-thb-text-primary">{emp.firstName} {emp.lastName} <span className="text-thb-text-muted font-normal">({emp.employeeId})</span></p>
@@ -1300,7 +1300,7 @@ export default function EmployeeSettingsPage() {
               className="thb-card p-5 text-left hover:shadow-md transition-all group"
             >
               <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center text-blue-500 group-hover:bg-blue-500 group-hover:text-white transition-colors">
+                <div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center text-green-500 group-hover:bg-green-500 group-hover:text-white transition-colors">
                   <FiKey className="w-5 h-5" />
                 </div>
                 <div>
@@ -1370,7 +1370,7 @@ export default function EmployeeSettingsPage() {
                         </button>
                       </div>
                     )}
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${r.action === 'account_created' ? 'bg-blue-50 text-blue-700' : r.action === 'password_reset' ? 'bg-emerald-50 text-emerald-700' : r.action === 'linked_and_reset' ? 'bg-violet-50 text-violet-700' : 'bg-red-50 text-red-700'}`}>
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${r.action === 'account_created' ? 'bg-green-50 text-green-700' : r.action === 'password_reset' ? 'bg-emerald-50 text-emerald-700' : r.action === 'linked_and_reset' ? 'bg-teal-50 text-teal-700' : 'bg-red-50 text-red-700'}`}>
                       {r.action.replace(/_/g, ' ')}
                     </span>
                     {r.error && <span className="text-xs text-red-500">{r.error}</span>}
@@ -1386,9 +1386,9 @@ export default function EmployeeSettingsPage() {
       {activeTab === 'map-company' && (
         <div className="space-y-6">
           {/* Info Banner */}
-          <div className="thb-card border-l-4 border-l-indigo-500 bg-gradient-to-r from-indigo-50/60 to-violet-50/40">
+          <div className="thb-card border-l-4 border-l-emerald-500 bg-gradient-to-r from-emerald-50/60 to-teal-50/40">
             <div className="p-4 flex items-start gap-3">
-              <FiBriefcase className="w-5 h-5 text-indigo-500 flex-shrink-0 mt-0.5" />
+              <FiBriefcase className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" />
               <div>
                 <p className="font-semibold text-slate-900 mb-1">Map Employee to Multiple Companies</p>
                 <p className="text-xs text-slate-600 leading-relaxed">
@@ -1410,7 +1410,7 @@ export default function EmployeeSettingsPage() {
                 placeholder="Search employee by name or ID..."
                 value={mapCompanySearch}
                 onChange={e => setMapCompanySearch(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400"
+                className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400"
               />
             </div>
             {mapCompanySearch && (
@@ -1426,7 +1426,7 @@ export default function EmployeeSettingsPage() {
                         setMapCompanySearch(`${emp.firstName} ${emp.lastName} (${emp.employeeId})`)
                         fetchCompanyMappings(emp.id)
                       }}
-                      className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-50 transition-colors ${selectedMapEmployee?.id === emp.id ? 'bg-indigo-50' : ''}`}
+                      className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-50 transition-colors ${selectedMapEmployee?.id === emp.id ? 'bg-emerald-50' : ''}`}
                     >
                       <FiUser className="w-4 h-4 text-thb-text-muted" />
                       <div>
@@ -1448,12 +1448,12 @@ export default function EmployeeSettingsPage() {
                   <h3 className="font-semibold text-thb-text-primary">Company Mappings for {selectedMapEmployee.firstName} {selectedMapEmployee.lastName}</h3>
                   <div className="flex items-center gap-3 mt-1">
                     <span className="text-xs text-thb-text-muted">Employee can switch between mapped companies from the header dropdown</span>
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-700">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">
                       {companyMappings.length} {companyMappings.length === 1 ? 'Company' : 'Companies'}
                     </span>
                     {companyMappings.length > 0 && (
                       <>
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-700">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-100 text-green-700">
                           {companyMappings.filter(m => m.isPrimary).length} Primary
                         </span>
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600">
@@ -1465,7 +1465,7 @@ export default function EmployeeSettingsPage() {
                 </div>
                 <button
                   onClick={() => setShowAddMapping(true)}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg text-xs font-medium transition-colors"
+                  className="inline-flex items-center gap-1.5 px-3 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-xs font-medium transition-colors"
                 >
                   <FiPlus className="w-3.5 h-3.5" /> Add Company Mapping
                 </button>
@@ -1479,21 +1479,21 @@ export default function EmployeeSettingsPage() {
               ) : (
                 <div className="divide-y divide-thb-border">
                   {companyMappings.map(mapping => (
-                    <div key={mapping.id} className={`flex items-center gap-4 px-5 py-4 ${mapping.isPrimary ? 'bg-indigo-50/30' : ''}`}>
-                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${mapping.isPrimary ? 'bg-gradient-to-br from-indigo-500 to-violet-600 text-white' : 'bg-slate-100 text-slate-600'}`}>
+                    <div key={mapping.id} className={`flex items-center gap-4 px-5 py-4 ${mapping.isPrimary ? 'bg-emerald-50/30' : ''}`}>
+                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${mapping.isPrimary ? 'bg-gradient-to-br from-emerald-500 to-teal-600 text-white' : 'bg-slate-100 text-slate-600'}`}>
                         <FiBriefcase className="w-5 h-5" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <p className="text-sm font-semibold text-thb-text-primary">{mapping.company?.name || 'Unknown'}</p>
                           {mapping.isPrimary ? (
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-700 border border-indigo-200">PRIMARY</span>
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">PRIMARY</span>
                           ) : (
                             <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">SECONDARY</span>
                           )}
                         </div>
                         <div className="flex items-center gap-3 mt-1 flex-wrap">
-                          <span className="text-xs text-thb-text-secondary font-medium">Employee ID: <span className="text-indigo-600 font-bold">{mapping.employeeCode}</span></span>
+                          <span className="text-xs text-thb-text-secondary font-medium">Employee ID: <span className="text-emerald-600 font-bold">{mapping.employeeCode}</span></span>
                           {mapping.department && <span className="text-xs text-thb-text-muted">Dept: {mapping.department.name}</span>}
                           {mapping.designation && <span className="text-xs text-thb-text-muted">Designation: {mapping.designation.title}</span>}
                           {mapping.branch && <span className="text-xs text-thb-text-muted">Branch: {mapping.branch.name}</span>}
@@ -1503,7 +1503,7 @@ export default function EmployeeSettingsPage() {
                         {!mapping.isPrimary && (
                           <button
                             onClick={() => setPrimaryMapping(mapping.id)}
-                            className="inline-flex items-center gap-1 px-2 py-1 text-xs text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 font-medium rounded-md transition-colors"
+                            className="inline-flex items-center gap-1 px-2 py-1 text-xs text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50 font-medium rounded-md transition-colors"
                           >
                             <FiToggleLeft className="w-3.5 h-3.5" /> Set Primary
                           </button>
@@ -1528,7 +1528,7 @@ export default function EmployeeSettingsPage() {
                   <div className="flex items-center gap-4 text-xs text-thb-text-muted">
                     <span className="font-medium">Summary:</span>
                     <span>{companyMappings.length} compan{companyMappings.length === 1 ? 'y' : 'ies'} mapped</span>
-                    <span className="text-indigo-600 font-semibold">{companyMappings.filter(m => m.isPrimary).length} primary</span>
+                    <span className="text-emerald-600 font-semibold">{companyMappings.filter(m => m.isPrimary).length} primary</span>
                     <span className="text-slate-500">{companyMappings.filter(m => !m.isPrimary).length} secondary</span>
                     <span className="ml-auto">Employee IDs: {companyMappings.map(m => m.employeeCode).join(', ')}</span>
                   </div>
@@ -1564,14 +1564,14 @@ export default function EmployeeSettingsPage() {
                         setModalDesignations([])
                         setModalBranches([])
                       }
-                    }} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20">
+                    }} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20">
                       <option value="">Select Company</option>
                       {availableCompanies.filter(c => !companyMappings.some(m => m.companyId === c.id)).map(c => <option key={c.id} value={c.id}>{c.name}{c.code ? ` (${c.code})` : ''}</option>)}
                     </select>
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-thb-text-secondary mb-1">Employee ID for this Company *</label>
-                    <input type="text" value={newMappingEmpCode} onChange={e => setNewMappingEmpCode(e.target.value)} placeholder="e.g. EMP-002" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20" />
+                    <input type="text" value={newMappingEmpCode} onChange={e => setNewMappingEmpCode(e.target.value)} placeholder="e.g. EMP-002" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20" />
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-thb-text-secondary mb-1">Department</label>
@@ -1607,12 +1607,12 @@ export default function EmployeeSettingsPage() {
                     </select>
                   </div>
                   <label className="flex items-center gap-2">
-                    <input type="checkbox" checked={newMappingIsPrimary} onChange={e => setNewMappingIsPrimary(e.target.checked)} className="rounded border-slate-300 text-indigo-500 focus:ring-indigo-500" />
+                    <input type="checkbox" checked={newMappingIsPrimary} onChange={e => setNewMappingIsPrimary(e.target.checked)} className="rounded border-slate-300 text-emerald-500 focus:ring-emerald-500" />
                     <span className="text-sm text-thb-text-secondary">Set as primary company</span>
                   </label>
                   <div className="flex gap-3 pt-2">
                     <button onClick={() => setShowAddMapping(false)} className="flex-1 px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50">Cancel</button>
-                    <button onClick={addCompanyMapping} disabled={mapCompanyProcessing} className="flex-1 px-4 py-2.5 rounded-lg bg-indigo-500 text-white text-sm font-medium hover:bg-indigo-600 disabled:opacity-50">
+                    <button onClick={addCompanyMapping} disabled={mapCompanyProcessing} className="flex-1 px-4 py-2.5 rounded-lg bg-emerald-500 text-white text-sm font-medium hover:bg-emerald-600 disabled:opacity-50">
                       {mapCompanyProcessing ? 'Adding...' : 'Add Mapping'}
                     </button>
                   </div>
@@ -1626,9 +1626,9 @@ export default function EmployeeSettingsPage() {
       {/* ═══ EMPLOYEE CONFIGURATION TAB ═══ */}
       {activeTab === 'employee-config' && (
         <div className="space-y-4">
-          <div className="thb-card border-l-4 border-l-blue-500 bg-gradient-to-r from-blue-50/60 to-indigo-50/40">
+          <div className="thb-card border-l-4 border-l-green-500 bg-gradient-to-r from-green-50/60 to-emerald-50/40">
             <div className="p-4 flex items-start gap-3">
-              <FiSettings className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
+              <FiSettings className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
               <div>
                 <p className="font-semibold text-slate-900 mb-1">Employee Configuration</p>
                 <p className="text-xs text-slate-600 leading-relaxed">
@@ -1712,7 +1712,7 @@ export default function EmployeeSettingsPage() {
             </div>
             <button
               onClick={() => setShowAddFieldModal(true)}
-              className="inline-flex items-center gap-1.5 px-4 py-2 bg-violet-500 hover:bg-violet-600 text-white rounded-lg text-sm font-medium transition-colors"
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-teal-500 hover:bg-teal-600 text-white rounded-lg text-sm font-medium transition-colors"
             >
               <FiPlus className="w-4 h-4" /> Add Field
             </button>
@@ -1735,7 +1735,7 @@ export default function EmployeeSettingsPage() {
                   {sectionFields.map(field => (
                     <div key={field.id} className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50/50 transition-colors">
                       <button onClick={() => handleToggleFieldActive(field.id)} className="flex-shrink-0" title={field.isActive ? 'Disable field' : 'Enable field'}>
-                        {field.isActive ? <FiToggleRight className="w-5 h-5 text-violet-500" /> : <FiToggleLeft className="w-5 h-5 text-slate-300" />}
+                        {field.isActive ? <FiToggleRight className="w-5 h-5 text-teal-500" /> : <FiToggleLeft className="w-5 h-5 text-slate-300" />}
                       </button>
                       <div className="flex-1 min-w-0">
                         <p className={`text-sm font-medium ${field.isActive ? 'text-thb-text-primary' : 'text-thb-text-muted line-through'}`}>{field.label}</p>
@@ -1769,16 +1769,16 @@ export default function EmployeeSettingsPage() {
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-thb-text-primary mb-1">Field Label</label>
-                    <input type="text" value={newField.label || ''} onChange={e => setNewField(prev => ({ ...prev, label: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20" placeholder="e.g. Driving License Number" />
+                    <input type="text" value={newField.label || ''} onChange={e => setNewField(prev => ({ ...prev, label: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20" placeholder="e.g. Driving License Number" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-thb-text-primary mb-1">Field Name (key)</label>
-                    <input type="text" value={newField.name || ''} onChange={e => setNewField(prev => ({ ...prev, name: e.target.value.replace(/[^a-z0-9_]/g, '_') }))} className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm font-mono focus:outline-none focus:ring-2 focus:ring-violet-500/20" placeholder="e.g. driving_license_number" />
+                    <input type="text" value={newField.name || ''} onChange={e => setNewField(prev => ({ ...prev, name: e.target.value.replace(/[^a-z0-9_]/g, '_') }))} className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm font-mono focus:outline-none focus:ring-2 focus:ring-teal-500/20" placeholder="e.g. driving_license_number" />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-sm font-medium text-thb-text-primary mb-1">Type</label>
-                      <select value={newField.type || 'text'} onChange={e => setNewField(prev => ({ ...prev, type: e.target.value as CustomField['type'] }))} className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20">
+                      <select value={newField.type || 'text'} onChange={e => setNewField(prev => ({ ...prev, type: e.target.value as CustomField['type'] }))} className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20">
                         <option value="text">Text</option>
                         <option value="number">Number</option>
                         <option value="date">Date</option>
@@ -1789,7 +1789,7 @@ export default function EmployeeSettingsPage() {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-thb-text-primary mb-1">Section</label>
-                      <select value={newField.section || 'custom'} onChange={e => setNewField(prev => ({ ...prev, section: e.target.value as CustomField['section'] }))} className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20">
+                      <select value={newField.section || 'custom'} onChange={e => setNewField(prev => ({ ...prev, section: e.target.value as CustomField['section'] }))} className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20">
                         <option value="personal">Personal</option>
                         <option value="employment">Employment</option>
                         <option value="compensation">Compensation</option>
@@ -1800,15 +1800,15 @@ export default function EmployeeSettingsPage() {
                   {newField.type === 'select' && (
                     <div>
                       <label className="block text-sm font-medium text-thb-text-primary mb-1">Options (comma-separated)</label>
-                      <input type="text" onChange={e => setNewField(prev => ({ ...prev, options: e.target.value.split(',').map(s => s.trim()).filter(Boolean) }))} className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20" placeholder="Option 1, Option 2, Option 3" />
+                      <input type="text" onChange={e => setNewField(prev => ({ ...prev, options: e.target.value.split(',').map(s => s.trim()).filter(Boolean) }))} className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20" placeholder="Option 1, Option 2, Option 3" />
                     </div>
                   )}
                   <label className="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" checked={newField.required || false} onChange={e => setNewField(prev => ({ ...prev, required: e.target.checked }))} className="rounded border-slate-300 text-violet-500 focus:ring-violet-500" />
+                    <input type="checkbox" checked={newField.required || false} onChange={e => setNewField(prev => ({ ...prev, required: e.target.checked }))} className="rounded border-slate-300 text-teal-500 focus:ring-teal-500" />
                     <span className="text-sm text-thb-text-primary">Required field</span>
                   </label>
                   <div className="flex items-center gap-2 pt-2">
-                    <button onClick={handleAddField} className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-violet-500 hover:bg-violet-600 text-white rounded-lg text-sm font-medium transition-colors">
+                    <button onClick={handleAddField} className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-teal-500 hover:bg-teal-600 text-white rounded-lg text-sm font-medium transition-colors">
                       <FiPlus className="w-4 h-4" /> Add Field
                     </button>
                     <button onClick={() => setShowAddFieldModal(false)} className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 border border-thb-border text-thb-text-secondary rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors">
@@ -1841,14 +1841,14 @@ export default function EmployeeSettingsPage() {
                 <div className="flex gap-3">
                   <button
                     onClick={() => setUseAutoPassword(true)}
-                    className={`flex-1 p-3 rounded-lg border-2 text-left transition-colors ${useAutoPassword ? 'border-violet-500 bg-violet-50' : 'border-slate-200 hover:border-slate-300'}`}
+                    className={`flex-1 p-3 rounded-lg border-2 text-left transition-colors ${useAutoPassword ? 'border-teal-500 bg-teal-50' : 'border-slate-200 hover:border-slate-300'}`}
                   >
                     <p className="text-sm font-medium text-thb-text-primary">Auto-Generate</p>
                     <p className="text-xs text-thb-text-muted mt-0.5">Random 12-character password</p>
                   </button>
                   <button
                     onClick={() => setUseAutoPassword(false)}
-                    className={`flex-1 p-3 rounded-lg border-2 text-left transition-colors ${!useAutoPassword ? 'border-violet-500 bg-violet-50' : 'border-slate-200 hover:border-slate-300'}`}
+                    className={`flex-1 p-3 rounded-lg border-2 text-left transition-colors ${!useAutoPassword ? 'border-teal-500 bg-teal-50' : 'border-slate-200 hover:border-slate-300'}`}
                   >
                     <p className="text-sm font-medium text-thb-text-primary">Manual</p>
                     <p className="text-xs text-thb-text-muted mt-0.5">Set your own password</p>
@@ -1864,7 +1864,7 @@ export default function EmployeeSettingsPage() {
                     value={manualPassword}
                     onChange={e => setManualPassword(e.target.value)}
                     placeholder="Enter password"
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20"
                   />
                   <p className="text-xs text-thb-text-muted mt-1">This password will be set for all selected employees</p>
                 </div>
@@ -1884,7 +1884,7 @@ export default function EmployeeSettingsPage() {
                 <button
                   onClick={handlePasswordAction}
                   disabled={processing}
-                  className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-violet-500 hover:bg-violet-600 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                  className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-teal-500 hover:bg-teal-600 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
                 >
                   {processing ? <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" /> : <FiKey className="w-4 h-4" />}
                   {processing ? 'Processing...' : 'Generate Passwords'}
@@ -1933,7 +1933,7 @@ export default function EmployeeSettingsPage() {
 
             <div className="space-y-4">
               <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg">
-                <div className="w-10 h-10 rounded-full bg-violet-100 flex items-center justify-center text-violet-600 font-bold text-sm">
+                <div className="w-10 h-10 rounded-full bg-teal-100 flex items-center justify-center text-teal-600 font-bold text-sm">
                   {detailEmployee.firstName[0]}{detailEmployee.lastName[0]}
                 </div>
                 <div>
@@ -1948,7 +1948,7 @@ export default function EmployeeSettingsPage() {
                   type="email"
                   value={editEmail}
                   onChange={e => setEditEmail(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                  className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20"
                 />
               </div>
 
@@ -1960,14 +1960,14 @@ export default function EmployeeSettingsPage() {
                     value={editPassword}
                     onChange={e => setEditPassword(e.target.value)}
                     placeholder="Auto-generate if empty"
-                    className="w-full px-3 py-2 pr-10 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                    className="w-full px-3 py-2 pr-10 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20"
                   />
                   <button onClick={() => toggleShowPassword('detail_edit')} className="absolute right-2 top-1/2 -translate-y-1/2 text-thb-text-muted hover:text-thb-text-primary">
                     {showPasswords['detail_edit'] ? <FiEyeOff className="w-4 h-4" /> : <FiEye className="w-4 h-4" />}
                   </button>
                 </div>
                 <div className="flex items-center gap-2 mt-1">
-                  <button onClick={() => { const p = generatePassword(); setEditPassword(p); setShowPasswords(prev => ({ ...prev, detail_edit: true })) }} className="text-xs text-violet-500 hover:text-violet-700 font-medium">
+                  <button onClick={() => { const p = generatePassword(); setEditPassword(p); setShowPasswords(prev => ({ ...prev, detail_edit: true })) }} className="text-xs text-teal-500 hover:text-teal-700 font-medium">
                     Generate Random
                   </button>
                 </div>
@@ -2015,7 +2015,7 @@ export default function EmployeeSettingsPage() {
                 <button
                   onClick={handleResetSinglePassword}
                   disabled={processing}
-                  className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-violet-500 hover:bg-violet-600 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                  className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-teal-500 hover:bg-teal-600 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
                 >
                   {processing ? <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" /> : <FiKey className="w-4 h-4" />}
                   {detailEmployee.hasLoginAccount ? 'Reset Password' : 'Create Account'}

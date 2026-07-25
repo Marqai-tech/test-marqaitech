@@ -123,7 +123,7 @@ export default function TrainingModule() {
       'Compliance': 'bg-emerald-600/20 text-emerald-400',
       'Technical': 'bg-red-600/20 text-red-400',
       'Soft Skills': 'bg-amber-600/20 text-amber-400',
-      'Management': 'bg-purple-600/20 text-purple-400',
+      'Management': 'bg-teal-600/20 text-teal-400',
     }
     return map[category] || 'bg-slate-600/20 text-slate-400'
   }
@@ -132,11 +132,11 @@ export default function TrainingModule() {
     const map: Record<string, string> = {
       'active': 'bg-emerald-600/20 text-emerald-400',
       'Active': 'bg-emerald-600/20 text-emerald-400',
-      'upcoming': 'bg-blue-600/20 text-blue-400',
-      'Upcoming': 'bg-blue-600/20 text-blue-400',
-      'enrolled': 'bg-blue-600/20 text-blue-400',
-      'in_progress': 'bg-blue-600/20 text-blue-400',
-      'In Progress': 'bg-blue-600/20 text-blue-400',
+      'upcoming': 'bg-green-600/20 text-green-400',
+      'Upcoming': 'bg-green-600/20 text-green-400',
+      'enrolled': 'bg-green-600/20 text-green-400',
+      'in_progress': 'bg-green-600/20 text-green-400',
+      'In Progress': 'bg-green-600/20 text-green-400',
       'completed': 'bg-emerald-600/20 text-emerald-400',
       'Completed': 'bg-emerald-600/20 text-emerald-400',
       'dropped': 'bg-red-600/20 text-red-400',
@@ -291,8 +291,8 @@ export default function TrainingModule() {
         <Card className="bg-slate-900 border-slate-800">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-purple-600/20"><Award className="w-5 h-5 text-purple-400" /></div>
-              <div><p className="text-sm text-slate-400">Completed</p><p className="text-2xl font-bold text-purple-400">{completedCerts}</p></div>
+              <div className="p-2 rounded-lg bg-teal-600/20"><Award className="w-5 h-5 text-teal-400" /></div>
+              <div><p className="text-sm text-slate-400">Completed</p><p className="text-2xl font-bold text-teal-400">{completedCerts}</p></div>
             </div>
           </CardContent>
         </Card>
@@ -332,7 +332,7 @@ export default function TrainingModule() {
                     <CardContent className="p-6">
                       <div className="flex items-start justify-between mb-3">
                         <Badge className={levelBadge(c.category)}>{c.category || 'General'}</Badge>
-                        <Badge className={c.status === 'active' ? 'bg-emerald-600/20 text-emerald-400' : 'bg-blue-600/20 text-blue-400'}>{formatStatus(c.status)}</Badge>
+                        <Badge className={c.status === 'active' ? 'bg-emerald-600/20 text-emerald-400' : 'bg-green-600/20 text-green-400'}>{formatStatus(c.status)}</Badge>
                       </div>
                       <h3 className="text-white font-semibold text-lg mb-1">{c.title}</h3>
                       <p className="text-slate-400 text-sm mb-3">{c.type === 'online' ? 'Online' : 'Classroom'}</p>
@@ -479,7 +479,7 @@ export default function TrainingModule() {
                     {courses.map((c) => (
                       <TableRow key={c.id} className="border-slate-800">
                         <TableCell className="text-white font-medium">{c.title}</TableCell>
-                        <TableCell><Badge className={c.type === 'online' ? 'bg-blue-600/20 text-blue-400' : 'bg-purple-600/20 text-purple-400'}>{c.type === 'online' ? 'Online' : 'Classroom'}</Badge></TableCell>
+                        <TableCell><Badge className={c.type === 'online' ? 'bg-green-600/20 text-green-400' : 'bg-teal-600/20 text-teal-400'}>{c.type === 'online' ? 'Online' : 'Classroom'}</Badge></TableCell>
                         <TableCell><Badge className="bg-slate-700 text-slate-300">{c.category || 'General'}</Badge></TableCell>
                         <TableCell className="text-slate-300 text-sm">{c.duration} min</TableCell>
                         <TableCell className="text-slate-300 text-sm">{c.trainer || '-'}</TableCell>

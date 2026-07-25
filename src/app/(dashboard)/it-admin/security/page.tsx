@@ -163,8 +163,8 @@ export default function SecurityCenterPage() {
   const EVENT_ICON: Record<string, React.ReactNode> = {
     alert: <FiAlertTriangle className="w-4 h-4 text-red-500" />,
     fix: <FiCheckCircle className="w-4 h-4 text-emerald-500" />,
-    update: <FiTrendingUp className="w-4 h-4 text-blue-500" />,
-    scan: <FiShield className="w-4 h-4 text-violet-500" />,
+    update: <FiTrendingUp className="w-4 h-4 text-green-500" />,
+    scan: <FiShield className="w-4 h-4 text-teal-500" />,
   };
 
   return (

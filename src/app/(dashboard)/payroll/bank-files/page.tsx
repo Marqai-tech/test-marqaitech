@@ -50,7 +50,7 @@ interface Company {
 // --- Badge Helpers ---
 function getStatusBadge(status: string) {
   const map: Record<string, string> = {
-    generated: 'bg-blue-100 text-blue-700 border border-blue-200',
+    generated: 'bg-green-100 text-green-700 border border-green-200',
     submitted: 'bg-amber-100 text-amber-700 border border-amber-200',
     acknowledged: 'bg-emerald-100 text-emerald-700 border border-emerald-200',
     rejected: 'bg-red-100 text-red-700 border border-red-200',
@@ -60,7 +60,7 @@ function getStatusBadge(status: string) {
 
 function getFormatBadge(format: string) {
   const map: Record<string, string> = {
-    NACH: 'bg-purple-100 text-purple-700',
+    NACH: 'bg-teal-100 text-teal-700',
     NEFT: 'bg-sky-100 text-sky-700',
     RTGS: 'bg-orange-100 text-orange-700',
     CUSTOM: 'bg-slate-100 text-slate-700',
@@ -292,7 +292,7 @@ export default function BankFilesPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
-            <FiFile className="w-6 h-6 text-blue-500" />
+            <FiFile className="w-6 h-6 text-green-500" />
             Bank File Generation
           </h1>
           <p className="text-thb-text-secondary mt-1">Generate and manage bank payment files for salary disbursement</p>
@@ -307,7 +307,7 @@ export default function BankFilesPage() {
           </button>
           <button
             onClick={() => setShowGenerateForm(!showGenerateForm)}
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium text-sm shadow-sm shadow-blue-500/25 transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-500 text-white rounded-lg hover:bg-green-600 font-medium text-sm shadow-sm shadow-green-500/25 transition-colors"
           >
             <FiPlus className="w-4 h-4" /> Generate Bank File
           </button>
@@ -318,8 +318,8 @@ export default function BankFilesPage() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="thb-card thb-card-hover p-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
-              <FiFile className="w-5 h-5 text-blue-500" />
+            <div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center">
+              <FiFile className="w-5 h-5 text-green-500" />
             </div>
             <div>
               <p className="text-xs font-medium text-thb-text-secondary">Total Files</p>
@@ -364,7 +364,7 @@ export default function BankFilesPage() {
 
       {/* Generate Form */}
       {showGenerateForm && (
-        <div className="thb-card p-6 border-l-4 border-l-blue-500">
+        <div className="thb-card p-6 border-l-4 border-l-green-500">
           <h3 className="text-sm font-semibold text-thb-text-primary mb-4">Generate New Bank File</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
             <div>
@@ -372,7 +372,7 @@ export default function BankFilesPage() {
               <select
                 value={formPayrollRunId}
                 onChange={(e) => setFormPayrollRunId(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
               >
                 <option value="">Select Payroll Run</option>
                 {availableRuns.map(r => (
@@ -392,7 +392,7 @@ export default function BankFilesPage() {
               <select
                 value={formFileFormat}
                 onChange={(e) => setFormFileFormat(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
               >
                 <option value="NACH">NACH</option>
                 <option value="NEFT">NEFT</option>
@@ -405,7 +405,7 @@ export default function BankFilesPage() {
               <input
                 value={formBankCode}
                 onChange={(e) => setFormBankCode(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                 placeholder="e.g. HDFC, SBI"
               />
             </div>
@@ -414,7 +414,7 @@ export default function BankFilesPage() {
               <select
                 value={formCompanyId}
                 onChange={(e) => setFormCompanyId(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
               >
                 <option value="">Select Company</option>
                 {companies.map(c => (
@@ -427,7 +427,7 @@ export default function BankFilesPage() {
             <button
               onClick={handleGenerate}
               disabled={generating || !formPayrollRunId}
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 font-medium text-sm shadow-sm shadow-blue-500/25 transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 font-medium text-sm shadow-sm shadow-green-500/25 transition-colors"
             >
               {generating ? <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" /> : <FiFile className="w-4 h-4" />}
               {generating ? 'Generating...' : 'Generate'}
@@ -452,13 +452,13 @@ export default function BankFilesPage() {
               placeholder="Search by filename, format, status..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+              className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
             />
           </div>
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[140px]"
+            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 min-w-[140px]"
           >
             <option value="">All Statuses</option>
             <option value="generated">Generated</option>
@@ -469,7 +469,7 @@ export default function BankFilesPage() {
           <select
             value={formatFilter}
             onChange={(e) => setFormatFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[120px]"
+            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 min-w-[120px]"
           >
             <option value="">All Formats</option>
             <option value="NACH">NACH</option>
@@ -482,13 +482,13 @@ export default function BankFilesPage() {
 
       {/* Bank File Detail */}
       {selectedFile && (
-        <div className="thb-card p-6 border-l-4 border-l-blue-500">
+        <div className="thb-card p-6 border-l-4 border-l-green-500">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-thb-text-primary">{selectedFile.fileName}</h3>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => handleDownload(selectedFile)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-500 text-white text-xs font-medium rounded-lg hover:bg-blue-600 shadow-sm transition-colors"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-500 text-white text-xs font-medium rounded-lg hover:bg-green-600 shadow-sm transition-colors"
               >
                 <FiDownload className="w-3.5 h-3.5" /> Download
               </button>
@@ -562,7 +562,7 @@ export default function BankFilesPage() {
       {/* Bank Files List */}
       {loading ? (
         <div className="thb-card p-12 text-center">
-          <div className="animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-3" />
+          <div className="animate-spin h-8 w-8 border-4 border-green-500 border-t-transparent rounded-full mx-auto mb-3" />
           <p className="text-thb-text-secondary">Loading bank files...</p>
         </div>
       ) : filteredFiles.length === 0 ? (
@@ -578,13 +578,13 @@ export default function BankFilesPage() {
               key={file.id}
               onClick={() => handleViewDetail(file)}
               className={`w-full thb-card p-4 text-left transition-colors hover:shadow-md ${
-                selectedFile?.id === file.id ? 'ring-2 ring-blue-500/30 border-blue-200' : ''
+                selectedFile?.id === file.id ? 'ring-2 ring-green-500/30 border-green-200' : ''
               }`}
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
-                    <FiFile className="w-5 h-5 text-blue-500" />
+                  <div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center">
+                    <FiFile className="w-5 h-5 text-green-500" />
                   </div>
                   <div>
                     <p className="text-sm font-semibold text-thb-text-primary">{file.fileName}</p>

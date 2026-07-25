@@ -23,7 +23,7 @@ const STATUS_COLORS: Record<string, string> = {
   approved: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-400',
   rejected: 'bg-red-100 text-red-800 dark:bg-red-950/30 dark:text-red-400',
   active: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-400',
-  completed: 'bg-blue-100 text-blue-800 dark:bg-blue-950/30 dark:text-blue-400',
+  completed: 'bg-green-100 text-green-800 dark:bg-green-950/30 dark:text-green-400',
 };
 
 interface WorkflowDef {
@@ -288,7 +288,7 @@ export function Workflow() {
                   <div className="mt-3 flex items-center gap-2 flex-wrap">
                     {def.steps.map((step, i) => (
                       <React.Fragment key={step.id}>
-                        <div className="px-3 py-1.5 bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400 rounded text-xs font-medium border border-blue-200 dark:border-blue-800">
+                        <div className="px-3 py-1.5 bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-400 rounded text-xs font-medium border border-green-200 dark:border-green-800">
                           {step.name}
                           {step.approverRole && <span className="ml-1 opacity-60">({step.approverRole})</span>}
                         </div>
@@ -318,7 +318,7 @@ export function Workflow() {
                     Trigger
                   </div>
                   <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                  <div className="px-4 py-2 bg-blue-100 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400 rounded-lg text-sm font-medium border border-blue-200 dark:border-blue-800">
+                  <div className="px-4 py-2 bg-green-100 dark:bg-green-950/30 text-green-700 dark:text-green-400 rounded-lg text-sm font-medium border border-green-200 dark:border-green-800">
                     Condition
                   </div>
                   <ArrowRight className="h-4 w-4 text-muted-foreground" />
@@ -326,7 +326,7 @@ export function Workflow() {
                     Approval
                   </div>
                   <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                  <div className="px-4 py-2 bg-purple-100 dark:bg-purple-950/30 text-purple-700 dark:text-purple-400 rounded-lg text-sm font-medium border border-purple-200 dark:border-purple-800">
+                  <div className="px-4 py-2 bg-teal-100 dark:bg-green-950/30 text-teal-700 dark:text-teal-400 rounded-lg text-sm font-medium border border-teal-200 dark:border-teal-800">
                     Notify
                   </div>
                   <ArrowRight className="h-4 w-4 text-muted-foreground" />

@@ -164,10 +164,10 @@ export default function SoftwareLicensePage() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="thb-card p-4"><div className="flex items-center gap-3"><div className="p-2 rounded-lg bg-blue-50 text-thb-primary"><FiPackage /></div><div><p className="text-2xl font-bold text-thb-text-primary">{software.length}</p><p className="text-xs text-thb-text-muted">Total Software</p></div></div></div>
+        <div className="thb-card p-4"><div className="flex items-center gap-3"><div className="p-2 rounded-lg bg-green-50 text-thb-primary"><FiPackage /></div><div><p className="text-2xl font-bold text-thb-text-primary">{software.length}</p><p className="text-xs text-thb-text-muted">Total Software</p></div></div></div>
         <div className="thb-card p-4"><div className="flex items-center gap-3"><div className="p-2 rounded-lg bg-emerald-50 text-emerald-600"><FiBriefcase /></div><div><p className="text-2xl font-bold text-emerald-600">{activeCount}</p><p className="text-xs text-thb-text-muted">Active</p></div></div></div>
         <div className="thb-card p-4"><div className="flex items-center gap-3"><div className="p-2 rounded-lg bg-red-50 text-red-600"><FiAlertTriangle /></div><div><p className="text-2xl font-bold text-red-600">{expiredCount}</p><p className="text-xs text-thb-text-muted">Expired</p></div></div></div>
-        <div className="thb-card p-4"><div className="flex items-center gap-3"><div className="p-2 rounded-lg bg-violet-50 text-violet-600"><FiPackage /></div><div><p className="text-2xl font-bold text-thb-text-primary">{totalSeats > 0 ? Math.round((totalUsed / totalSeats) * 100) : 0}%</p><p className="text-xs text-thb-text-muted">Seat Utilization</p></div></div></div>
+        <div className="thb-card p-4"><div className="flex items-center gap-3"><div className="p-2 rounded-lg bg-teal-50 text-teal-600"><FiPackage /></div><div><p className="text-2xl font-bold text-thb-text-primary">{totalSeats > 0 ? Math.round((totalUsed / totalSeats) * 100) : 0}%</p><p className="text-xs text-thb-text-muted">Seat Utilization</p></div></div></div>
       </div>
 
       {/* Expiry Alerts */}

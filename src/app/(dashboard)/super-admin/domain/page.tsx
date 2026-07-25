@@ -96,7 +96,7 @@ export default function DomainPage() {
     toast.success('Copied to clipboard');
   };
 
-  const inputCls = 'w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400';
+  const inputCls = 'w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400';
 
   return (
     <div className="space-y-6">
@@ -124,7 +124,7 @@ export default function DomainPage() {
           { label: 'Total Domains', value: domains.length, icon: <FiGlobe className="w-5 h-5" />, bg: 'bg-teal-50 text-teal-500' },
           { label: 'Active', value: activeCount, icon: <FiCheck className="w-5 h-5" />, bg: 'bg-emerald-50 text-emerald-500' },
           { label: 'Pending', value: pendingCount, icon: <FiAlertCircle className="w-5 h-5" />, bg: 'bg-amber-50 text-amber-500' },
-          { label: 'SSL Active', value: sslActiveCount, icon: <FiShield className="w-5 h-5" />, bg: 'bg-violet-50 text-violet-500' },
+          { label: 'SSL Active', value: sslActiveCount, icon: <FiShield className="w-5 h-5" />, bg: 'bg-teal-50 text-teal-500' },
         ].map((card) => (
           <div key={card.label} className="thb-card p-5">
             <div className="flex items-start justify-between">
@@ -149,17 +149,17 @@ export default function DomainPage() {
             <div className="space-y-4">
               <h4 className="font-medium text-thb-text-primary">Option 1: CNAME Record (Recommended)</h4>
               <div className="bg-slate-50 rounded-lg p-4 space-y-2 text-sm">
-                <div className="flex items-center justify-between"><span className="text-thb-text-secondary">Type:</span><div className="flex items-center gap-2"><code className="font-mono font-bold text-thb-text-primary">CNAME</code><button onClick={() => copyToClipboard('CNAME')} className="text-blue-500 hover:text-blue-700"><FiCopy className="w-3.5 h-3.5" /></button></div></div>
-                <div className="flex items-center justify-between"><span className="text-thb-text-secondary">Name:</span><div className="flex items-center gap-2"><code className="font-mono font-bold text-thb-text-primary">hr</code><button onClick={() => copyToClipboard('hr')} className="text-blue-500 hover:text-blue-700"><FiCopy className="w-3.5 h-3.5" /></button></div></div>
-                <div className="flex items-center justify-between"><span className="text-thb-text-secondary">Value:</span><div className="flex items-center gap-2"><code className="font-mono font-bold text-thb-text-primary">cname.3boxes.app</code><button onClick={() => copyToClipboard('cname.3boxes.app')} className="text-blue-500 hover:text-blue-700"><FiCopy className="w-3.5 h-3.5" /></button></div></div>
+                <div className="flex items-center justify-between"><span className="text-thb-text-secondary">Type:</span><div className="flex items-center gap-2"><code className="font-mono font-bold text-thb-text-primary">CNAME</code><button onClick={() => copyToClipboard('CNAME')} className="text-green-500 hover:text-green-700"><FiCopy className="w-3.5 h-3.5" /></button></div></div>
+                <div className="flex items-center justify-between"><span className="text-thb-text-secondary">Name:</span><div className="flex items-center gap-2"><code className="font-mono font-bold text-thb-text-primary">hr</code><button onClick={() => copyToClipboard('hr')} className="text-green-500 hover:text-green-700"><FiCopy className="w-3.5 h-3.5" /></button></div></div>
+                <div className="flex items-center justify-between"><span className="text-thb-text-secondary">Value:</span><div className="flex items-center gap-2"><code className="font-mono font-bold text-thb-text-primary">cname.3boxes.app</code><button onClick={() => copyToClipboard('cname.3boxes.app')} className="text-green-500 hover:text-green-700"><FiCopy className="w-3.5 h-3.5" /></button></div></div>
               </div>
             </div>
             <div className="space-y-4">
               <h4 className="font-medium text-thb-text-primary">Option 2: A Record</h4>
               <div className="bg-slate-50 rounded-lg p-4 space-y-2 text-sm">
-                <div className="flex items-center justify-between"><span className="text-thb-text-secondary">Type:</span><div className="flex items-center gap-2"><code className="font-mono font-bold text-thb-text-primary">A</code><button onClick={() => copyToClipboard('A')} className="text-blue-500 hover:text-blue-700"><FiCopy className="w-3.5 h-3.5" /></button></div></div>
-                <div className="flex items-center justify-between"><span className="text-thb-text-secondary">Name:</span><div className="flex items-center gap-2"><code className="font-mono font-bold text-thb-text-primary">hr</code><button onClick={() => copyToClipboard('hr')} className="text-blue-500 hover:text-blue-700"><FiCopy className="w-3.5 h-3.5" /></button></div></div>
-                <div className="flex items-center justify-between"><span className="text-thb-text-secondary">Value:</span><div className="flex items-center gap-2"><code className="font-mono font-bold text-thb-text-primary">34.120.45.89</code><button onClick={() => copyToClipboard('34.120.45.89')} className="text-blue-500 hover:text-blue-700"><FiCopy className="w-3.5 h-3.5" /></button></div></div>
+                <div className="flex items-center justify-between"><span className="text-thb-text-secondary">Type:</span><div className="flex items-center gap-2"><code className="font-mono font-bold text-thb-text-primary">A</code><button onClick={() => copyToClipboard('A')} className="text-green-500 hover:text-green-700"><FiCopy className="w-3.5 h-3.5" /></button></div></div>
+                <div className="flex items-center justify-between"><span className="text-thb-text-secondary">Name:</span><div className="flex items-center gap-2"><code className="font-mono font-bold text-thb-text-primary">hr</code><button onClick={() => copyToClipboard('hr')} className="text-green-500 hover:text-green-700"><FiCopy className="w-3.5 h-3.5" /></button></div></div>
+                <div className="flex items-center justify-between"><span className="text-thb-text-secondary">Value:</span><div className="flex items-center gap-2"><code className="font-mono font-bold text-thb-text-primary">34.120.45.89</code><button onClick={() => copyToClipboard('34.120.45.89')} className="text-green-500 hover:text-green-700"><FiCopy className="w-3.5 h-3.5" /></button></div></div>
               </div>
             </div>
           </div>
@@ -183,7 +183,7 @@ export default function DomainPage() {
             <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">DNS Type</label><select className={inputCls} value={form.dnsType} onChange={(e) => setForm((p) => ({ ...p, dnsType: e.target.value }))}><option>CNAME</option><option>A</option></select></div>
             <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">DNS Value</label><input className={inputCls} value={form.dnsValue} onChange={(e) => setForm((p) => ({ ...p, dnsValue: e.target.value }))} /></div>
             <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Status</label><select className={inputCls} value={form.status} onChange={(e) => setForm((p) => ({ ...p, status: e.target.value as Domain['status'] }))}><option value="pending">Pending</option><option value="active">Active</option><option value="failed">Failed</option></select></div>
-            <div className="flex items-end"><button type="submit" className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg font-medium text-sm hover:bg-blue-600 transition-colors"><FiCheck className="w-4 h-4" />{editingId ? 'Update' : 'Add Domain'}</button></div>
+            <div className="flex items-end"><button type="submit" className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-500 text-white rounded-lg font-medium text-sm hover:bg-green-600 transition-colors"><FiCheck className="w-4 h-4" />{editingId ? 'Update' : 'Add Domain'}</button></div>
           </form>
         </div>
       )}
@@ -210,7 +210,7 @@ export default function DomainPage() {
                   <td className="px-4 py-3"><span className="flex items-center gap-1.5"><FiShield className={`w-3.5 h-3.5 ${sslIconColor[domain.sslStatus]}`} /><span className={sslBadge[domain.sslStatus]}>{domain.sslStatus}</span></span></td>
                   <td className="px-4 py-3 text-thb-text-secondary font-mono text-xs">{domain.dnsType}</td>
                   <td className="px-4 py-3 text-thb-text-secondary">{domain.verifiedDate || '—'}</td>
-                  <td className="px-4 py-3"><button onClick={() => handleEdit(domain)} className="inline-flex items-center gap-1 text-blue-500 hover:text-blue-700 text-xs font-medium"><FiEdit2 className="w-3.5 h-3.5" /> Edit</button></td>
+                  <td className="px-4 py-3"><button onClick={() => handleEdit(domain)} className="inline-flex items-center gap-1 text-green-500 hover:text-green-700 text-xs font-medium"><FiEdit2 className="w-3.5 h-3.5" /> Edit</button></td>
                 </tr>
               ))}
             </tbody>

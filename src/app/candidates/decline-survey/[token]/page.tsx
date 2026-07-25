@@ -123,7 +123,7 @@ export default function DeclineSurveyPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50 p-6">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-green-50 p-6">
         <div className="text-thb-text-muted text-sm">Loading survey...</div>
       </div>
     );
@@ -131,7 +131,7 @@ export default function DeclineSurveyPage() {
 
   if (!ctx?.survey) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50 p-6">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-green-50 p-6">
         <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center">
           <FiAlertCircle className="w-12 h-12 text-red-400 mx-auto mb-4" />
           <h1 className="text-xl font-bold text-slate-900">Survey Not Found</h1>
@@ -148,13 +148,13 @@ export default function DeclineSurveyPage() {
   const offer = ctx.offer;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 sm:p-6 lg:p-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-green-50 p-4 sm:p-6 lg:p-8">
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="bg-white rounded-2xl shadow-xl p-6 sm:p-8 mb-6">
           <div className="flex items-start gap-4">
-            <div className="p-3 rounded-xl bg-blue-50 flex-shrink-0">
-              <FiMail className="w-6 h-6 text-blue-500" />
+            <div className="p-3 rounded-xl bg-green-50 flex-shrink-0">
+              <FiMail className="w-6 h-6 text-green-500" />
             </div>
             <div className="flex-1">
               <h1 className="text-xl sm:text-2xl font-bold text-slate-900">
@@ -220,7 +220,7 @@ export default function DeclineSurveyPage() {
                   {REASON_OPTIONS.map((r) => (
                     <label
                       key={r.value}
-                      className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${primaryReason === r.value ? 'border-blue-400 bg-blue-50' : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'}`}
+                      className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${primaryReason === r.value ? 'border-green-400 bg-green-50' : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'}`}
                     >
                       <input
                         type="radio"
@@ -228,7 +228,7 @@ export default function DeclineSurveyPage() {
                         value={r.value}
                         checked={primaryReason === r.value}
                         onChange={(e) => setPrimaryReason(e.target.value)}
-                        className="text-blue-500 focus:ring-blue-400"
+                        className="text-green-500 focus:ring-green-400"
                       />
                       <span className="text-sm text-slate-700">{r.label}</span>
                     </label>
@@ -244,7 +244,7 @@ export default function DeclineSurveyPage() {
                   rows={4}
                   value={comments}
                   onChange={(e) => setComments(e.target.value)}
-                  className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                   placeholder="Anything else you'd like to share? Salary expectations, role concerns, interview feedback..."
                 />
               </div>
@@ -275,7 +275,7 @@ export default function DeclineSurveyPage() {
                 <button
                   onClick={handleSubmit}
                   disabled={submitting || !primaryReason}
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-blue-500 text-white text-sm font-semibold hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm shadow-blue-500/25 transition-colors"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-green-500 text-white text-sm font-semibold hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm shadow-green-500/25 transition-colors"
                 >
                   <FiSend className="w-4 h-4" />
                   {submitting ? 'Submitting...' : 'Submit Feedback'}

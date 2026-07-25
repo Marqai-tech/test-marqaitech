@@ -98,7 +98,7 @@ export default function SSOProvidersPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
-            <FiLock className="w-6 h-6 text-blue-500" />
+            <FiLock className="w-6 h-6 text-green-500" />
             SSO Providers
           </h1>
           <p className="text-sm text-thb-text-secondary mt-1">
@@ -107,7 +107,7 @@ export default function SSOProvidersPage() {
         </div>
         <button
           onClick={() => setShowNewModal(true)}
-          className="inline-flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
+          className="inline-flex items-center gap-2 px-3 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700"
         >
           <FiPlus className="w-4 h-4" />
           Add Provider
@@ -129,7 +129,7 @@ export default function SSOProvidersPage() {
                   <h3 className="text-sm font-semibold text-thb-text-primary flex items-center gap-2">
                     {p.name}
                     {p.isDefault && (
-                      <span className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-blue-50 text-blue-700 border border-blue-200">Default</span>
+                      <span className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-green-50 text-green-700 border border-green-200">Default</span>
                     )}
                   </h3>
                   <p className="text-xs text-thb-text-muted capitalize">{p.providerType}</p>
@@ -144,7 +144,7 @@ export default function SSOProvidersPage() {
                 {p.redirectUri && <p><strong>Redirect URI:</strong> {p.redirectUri}</p>}
               </div>
               {p.jitProvisioningEnabled && (
-                <div className="mt-2 p-2 rounded bg-violet-50 border border-violet-100 text-[10px] text-violet-700 flex items-center gap-1">
+                <div className="mt-2 p-2 rounded bg-teal-50 border border-teal-100 text-[10px] text-teal-700 flex items-center gap-1">
                   <FiZap className="w-3 h-3" />
                   JIT Provisioning: new users auto-created as &quot;{p.jitDefaultStatus}&quot; with role &quot;{p.jitDefaultRole}&quot;
                 </div>
@@ -286,7 +286,7 @@ export default function SSOProvidersPage() {
               </button>
               <button
                 onClick={handleCreate}
-                className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                className="px-3 py-1.5 text-sm bg-green-600 text-white rounded-md hover:bg-green-700"
               >
                 Add Provider
               </button>

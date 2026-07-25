@@ -119,9 +119,9 @@ function getReferralStatusBadge(status: string): { className: string; label: str
   };
   const colors: Record<string, string> = {
     pending: 'text-amber-600',
-    applied: 'text-blue-600',
+    applied: 'text-green-600',
     interviewed: 'text-orange-600',
-    offered: 'text-purple-600',
+    offered: 'text-teal-600',
     hired: 'text-emerald-600',
     rejected: 'text-red-600',
     bonus_paid: 'text-emerald-700',
@@ -459,7 +459,7 @@ export default function ReferralsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
-            <FiShare2 className="w-6 h-6 text-violet-500" />
+            <FiShare2 className="w-6 h-6 text-teal-500" />
             Employee Referral Portal
           </h1>
           <p className="text-thb-text-secondary mt-1">
@@ -468,7 +468,7 @@ export default function ReferralsPage() {
         </div>
         <button
           onClick={() => handleOpenForm()}
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-violet-500 text-white rounded-lg hover:bg-violet-600 font-medium text-sm shadow-sm shadow-violet-500/25 transition-colors"
+          className="inline-flex items-center gap-2 px-4 py-2.5 bg-teal-500 text-white rounded-lg hover:bg-teal-600 font-medium text-sm shadow-sm shadow-teal-500/25 transition-colors"
         >
           <FiPlus className="w-4 h-4" /> Refer Someone
         </button>
@@ -486,14 +486,14 @@ export default function ReferralsPage() {
           icon={<FiUsers className="w-5 h-5" />}
           label="Referrals Made"
           value={String(stats.total)}
-          accent="from-violet-500 to-purple-600"
+          accent="from-teal-500 to-teal-600"
           sub={`${stats.pending} pending`}
         />
         <StatCard
           icon={<FiLink2 className="w-5 h-5" />}
           label="Link Clicks"
           value={String(stats.totalClicks)}
-          accent="from-blue-500 to-indigo-600"
+          accent="from-green-500 to-emerald-600"
           sub="across all links"
         />
         <StatCard
@@ -508,13 +508,13 @@ export default function ReferralsPage() {
       {/* Bonus currency selector (defaults new referrals to this currency) */}
       <div className="thb-card p-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
         <div className="flex items-center gap-2 text-sm text-thb-text-secondary">
-          <FiInfo className="w-4 h-4 text-violet-500" />
+          <FiInfo className="w-4 h-4 text-teal-500" />
           <span>Default bonus currency for new referrals you create:</span>
         </div>
         <select
           value={defaultCurrency}
           onChange={(e) => setDefaultCurrency(e.target.value)}
-          className="px-3 py-1.5 rounded-lg border border-slate-200 text-sm font-medium bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-400/40"
+          className="px-3 py-1.5 rounded-lg border border-slate-200 text-sm font-medium bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-400/40"
         >
           {CURRENCIES.map((c) => (
             <option key={c} value={c}>{c} ({currencySymbol(c)})</option>
@@ -530,7 +530,7 @@ export default function ReferralsPage() {
         <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className="text-lg font-semibold text-thb-text-primary flex items-center gap-2">
-              <FiBriefcase className="w-5 h-5 text-violet-500" /> Open Positions
+              <FiBriefcase className="w-5 h-5 text-teal-500" /> Open Positions
             </h2>
             <p className="text-xs text-thb-text-secondary mt-0.5">
               Generate a trackable link for any open role, then share it across your network.
@@ -579,7 +579,7 @@ export default function ReferralsPage() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
           <div>
             <h2 className="text-lg font-semibold text-thb-text-primary flex items-center gap-2">
-              <FiUsers className="w-5 h-5 text-violet-500" /> My Referrals
+              <FiUsers className="w-5 h-5 text-teal-500" /> My Referrals
             </h2>
             <p className="text-xs text-thb-text-secondary mt-0.5">
               Showing {filteredReferrals.length} of {referrals.length} referrals
@@ -765,7 +765,7 @@ export default function ReferralsPage() {
 
       {/* Manual referral form */}
       {showForm && (
-        <div className="thb-card border-l-4 border-l-violet-500 p-5">
+        <div className="thb-card border-l-4 border-l-teal-500 p-5">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-thb-text-primary">Refer a Candidate</h2>
             <button onClick={handleCancelForm} className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors">
@@ -778,7 +778,7 @@ export default function ReferralsPage() {
               <select
                 value={formJobId}
                 onChange={(e) => setFormJobId(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400/40"
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400/40"
               >
                 <option value="">Select a job…</option>
                 {jobs.map((j) => (
@@ -791,7 +791,7 @@ export default function ReferralsPage() {
               <input
                 value={form.candidateName}
                 onChange={(e) => setForm({ ...form, candidateName: e.target.value })}
-                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400/40"
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400/40"
                 placeholder="Jane Doe"
               />
             </div>
@@ -801,7 +801,7 @@ export default function ReferralsPage() {
                 type="email"
                 value={form.candidateEmail}
                 onChange={(e) => setForm({ ...form, candidateEmail: e.target.value })}
-                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400/40"
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400/40"
                 placeholder="jane@example.com"
               />
             </div>
@@ -810,7 +810,7 @@ export default function ReferralsPage() {
               <input
                 value={form.candidatePhone}
                 onChange={(e) => setForm({ ...form, candidatePhone: e.target.value })}
-                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400/40"
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400/40"
                 placeholder="+91 98765 43210"
               />
             </div>
@@ -820,7 +820,7 @@ export default function ReferralsPage() {
                 value={form.notes}
                 onChange={(e) => setForm({ ...form, notes: e.target.value })}
                 rows={3}
-                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400/40 resize-none"
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400/40 resize-none"
                 placeholder="Why is this person a great fit? Anything the hiring team should know?"
               />
             </div>
@@ -835,7 +835,7 @@ export default function ReferralsPage() {
             <button
               onClick={handleSubmitReferral}
               disabled={submitting}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold text-white bg-violet-500 hover:bg-violet-600 disabled:opacity-60 transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold text-white bg-teal-500 hover:bg-teal-600 disabled:opacity-60 transition-colors"
             >
               {submitting ? 'Submitting…' : <>Submit Referral <FiCheckCircle className="w-4 h-4" /></>}
             </button>
@@ -847,7 +847,7 @@ export default function ReferralsPage() {
 
       {/* Hidden SEO helper: link to careers page for employees who want to see what candidates see */}
       <div className="text-center text-xs text-thb-text-muted pt-2">
-        <Link href="/careers" className="inline-flex items-center gap-1 hover:text-violet-600 transition-colors">
+        <Link href="/careers" className="inline-flex items-center gap-1 hover:text-teal-600 transition-colors">
           <FiExternalLink className="w-3 h-3" /> View public careers page
         </Link>
       </div>
@@ -900,7 +900,7 @@ function JobShareCard({
   const isCopied = link && copiedToken === link.trackToken;
 
   return (
-    <div className="border border-slate-200 rounded-xl p-4 flex flex-col hover:border-violet-300 hover:shadow-md transition-all">
+    <div className="border border-slate-200 rounded-xl p-4 flex flex-col hover:border-teal-300 hover:shadow-md transition-all">
       <div className="flex items-start justify-between mb-2">
         <div className="min-w-0">
           <p className="font-bold text-thb-text-primary truncate">{job.title}</p>
@@ -923,7 +923,7 @@ function JobShareCard({
         <button
           onClick={onGenerate}
           disabled={generating}
-          className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold text-white bg-gradient-to-r from-violet-500 to-purple-600 hover:shadow-md disabled:opacity-60 transition-all"
+          className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold text-white bg-gradient-to-r from-teal-500 to-teal-600 hover:shadow-md disabled:opacity-60 transition-all"
         >
           {generating ? (
             <>Generating…</>
@@ -946,7 +946,7 @@ function JobShareCard({
               className={`flex-shrink-0 px-2 py-1 rounded text-xs font-semibold transition-colors ${
                 isCopied
                   ? 'bg-emerald-100 text-emerald-700'
-                  : 'bg-violet-100 text-violet-700 hover:bg-violet-200'
+                  : 'bg-teal-100 text-teal-700 hover:bg-teal-200'
               }`}
             >
               {isCopied ? (
@@ -983,7 +983,7 @@ function JobShareCard({
             </span>
             <button
               onClick={onManualRefer}
-              className="inline-flex items-center gap-1 text-violet-600 hover:text-violet-800 font-medium"
+              className="inline-flex items-center gap-1 text-teal-600 hover:text-teal-800 font-medium"
             >
               <FiPlus className="w-3 h-3" /> Refer specific person
             </button>

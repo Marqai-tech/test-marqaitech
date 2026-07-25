@@ -62,7 +62,7 @@ export default function SeedEcosystemButton({ module = 'all', label, compact = f
         } ${
           loading
             ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-            : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm'
+            : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm'
         }`}
         title="Idempotent — safe to click multiple times"
       >

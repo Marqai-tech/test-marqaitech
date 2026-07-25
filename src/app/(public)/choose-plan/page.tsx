@@ -64,11 +64,11 @@ export default function ChoosePlanPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-emerald-50 flex items-center justify-center p-4">
       <div className="max-w-6xl w-full">
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl mb-6">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl mb-6">
             <Zap className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-3">Your trial is almost ready!</h1>
@@ -114,8 +114,8 @@ export default function ChoosePlanPage() {
               )}
 
               <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 ${
-                plan.color === 'blue' ? 'bg-blue-100 text-blue-600' :
-                plan.color === 'purple' ? 'bg-purple-100 text-purple-600' :
+                plan.color === 'blue' ? 'bg-green-100 text-green-600' :
+                plan.color === 'purple' ? 'bg-teal-100 text-teal-600' :
                 'bg-emerald-100 text-emerald-600'
               }`}>
                 <plan.icon className="w-6 h-6" />

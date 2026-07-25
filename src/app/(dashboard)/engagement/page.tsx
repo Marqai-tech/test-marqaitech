@@ -65,8 +65,8 @@ function getAuthHeaders() {
 
 function getCategoryBadge(category: string) {
   const map: Record<string, string> = {
-    Teamwork: 'bg-blue-50 text-blue-700 thb-badge',
-    Innovation: 'bg-violet-50 text-violet-700 thb-badge',
+    Teamwork: 'bg-green-50 text-green-700 thb-badge',
+    Innovation: 'bg-teal-50 text-teal-700 thb-badge',
     Leadership: 'bg-amber-50 text-amber-700 thb-badge',
     Excellence: 'bg-emerald-50 text-emerald-700 thb-badge',
   };
@@ -75,7 +75,7 @@ function getCategoryBadge(category: string) {
 
 function getWellnessTypeBadge(type: string) {
   const map: Record<string, string> = {
-    Yoga: 'bg-purple-50 text-purple-700 thb-badge',
+    Yoga: 'bg-teal-50 text-teal-700 thb-badge',
     'Mental Health': 'bg-teal-50 text-teal-700 thb-badge',
     Fitness: 'bg-orange-50 text-orange-700 thb-badge',
     Nutrition: 'bg-green-50 text-green-700 thb-badge',
@@ -273,7 +273,7 @@ export default function EngagementPage() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="thb-card p-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-blue-50"><FiActivity className="w-4 h-4 text-blue-600" /></div>
+            <div className="p-2 rounded-lg bg-green-50"><FiActivity className="w-4 h-4 text-green-600" /></div>
             <div>
               <p className="text-xs font-medium text-thb-text-secondary">Survey Response Rate</p>
               <p className="text-xl font-bold text-thb-text-primary">{avgResponseRate}%</p>

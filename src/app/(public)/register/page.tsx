@@ -157,7 +157,7 @@ export default function TrialRegisterPage() {
 
   if (submitted) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-emerald-50 flex items-center justify-center p-4">
         <div className="max-w-2xl w-full bg-white rounded-2xl shadow-xl">
           {/* Success Header */}
           <div className="bg-gradient-to-r from-emerald-500 to-teal-600 rounded-t-2xl p-8 text-center text-white">
@@ -178,13 +178,13 @@ export default function TrialRegisterPage() {
 
           <div className="p-8 space-y-6">
             {/* Company Info */}
-            <div className="bg-blue-50 rounded-xl p-5">
-              <h3 className="font-semibold text-blue-900 mb-3">Your Trial Details</h3>
+            <div className="bg-green-50 rounded-xl p-5">
+              <h3 className="font-semibold text-green-900 mb-3">Your Trial Details</h3>
               <div className="grid grid-cols-2 gap-3 text-sm">
-                <div><span className="text-blue-600">Company:</span> <span className="font-medium">{form.companyName}</span></div>
-                <div><span className="text-blue-600">Company Code:</span> <span className="font-mono bg-white px-2 py-0.5 rounded">{registrationCode}</span></div>
-                <div><span className="text-blue-600">Subdomain:</span> <span className="font-mono text-sm">{registrationCode}.3boxeshrms.com</span></div>
-                <div><span className="text-blue-600">Trial Period:</span> <span className="font-medium">15 days</span></div>
+                <div><span className="text-green-600">Company:</span> <span className="font-medium">{form.companyName}</span></div>
+                <div><span className="text-green-600">Company Code:</span> <span className="font-mono bg-white px-2 py-0.5 rounded">{registrationCode}</span></div>
+                <div><span className="text-green-600">Subdomain:</span> <span className="font-mono text-sm">{registrationCode}.3boxeshrms.com</span></div>
+                <div><span className="text-green-600">Trial Period:</span> <span className="font-medium">15 days</span></div>
               </div>
             </div>
 
@@ -220,13 +220,13 @@ export default function TrialRegisterPage() {
 
             {/* Module selection summary */}
             {form.selectedModules.length > 0 && (
-              <div className="bg-indigo-50 rounded-xl p-5">
-                <h3 className="font-semibold text-indigo-900 mb-3">Selected Modules for Trial</h3>
+              <div className="bg-emerald-50 rounded-xl p-5">
+                <h3 className="font-semibold text-emerald-900 mb-3">Selected Modules for Trial</h3>
                 <div className="flex flex-wrap gap-2">
                   {form.selectedModules.map(key => {
                     const mod = availableModules.find(m => m.key === key);
                     return (
-                      <span key={key} className="px-3 py-1.5 bg-white rounded-lg text-sm font-medium text-indigo-700 border border-indigo-200">
+                      <span key={key} className="px-3 py-1.5 bg-white rounded-lg text-sm font-medium text-emerald-700 border border-emerald-200">
                         {mod?.label || key}
                       </span>
                     );
@@ -240,21 +240,21 @@ export default function TrialRegisterPage() {
               <h3 className="font-semibold text-gray-900 mb-3">What happens next?</h3>
               <div className="space-y-3 text-sm">
                 <div className="flex items-start gap-3">
-                  <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-bold shrink-0">1</div>
+                  <div className="w-6 h-6 rounded-full bg-green-100 text-green-700 flex items-center justify-center text-xs font-bold shrink-0">1</div>
                   <div>
                     <p className="font-medium text-gray-800">Explore the platform</p>
                     <p className="text-gray-500">Login and try all the modules you selected. Upload sample employee data to test imports.</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
-                  <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-bold shrink-0">2</div>
+                  <div className="w-6 h-6 rounded-full bg-green-100 text-green-700 flex items-center justify-center text-xs font-bold shrink-0">2</div>
                   <div>
                     <p className="font-medium text-gray-800">Before trial ends</p>
                     <p className="text-gray-500">Choose a subscription plan to continue using 3Boxes HRMS without interruption.</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
-                  <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-bold shrink-0">3</div>
+                  <div className="w-6 h-6 rounded-full bg-green-100 text-green-700 flex items-center justify-center text-xs font-bold shrink-0">3</div>
                   <div>
                     <p className="font-medium text-gray-800">Full access after subscription</p>
                     <p className="text-gray-500">All your trial data, settings and configurations are preserved when you upgrade.</p>
@@ -267,7 +267,7 @@ export default function TrialRegisterPage() {
             <div className="flex gap-3">
               <button
                 onClick={() => router.push(`https://${registrationCode}.3boxeshrms.com/login`)}
-                className="flex-1 py-3 px-6 bg-gradient-to-r from-blue-600 to-indigo-700 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-indigo-800 transition-all shadow-lg shadow-blue-500/25"
+                className="flex-1 py-3 px-6 bg-gradient-to-r from-green-600 to-emerald-700 text-white font-semibold rounded-xl hover:from-green-700 hover:to-emerald-800 transition-all shadow-lg shadow-green-500/25"
               >
                 Go to My Trial Login →
               </button>
@@ -285,9 +285,9 @@ export default function TrialRegisterPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+    <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-emerald-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white py-12 px-4">
+      <div className="bg-gradient-to-r from-green-600 to-emerald-700 text-white py-12 px-4">
         <div className="max-w-4xl mx-auto text-center">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-white/20 rounded-2xl mb-6 backdrop-blur-sm">
             <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -295,7 +295,7 @@ export default function TrialRegisterPage() {
             </svg>
           </div>
           <h1 className="text-3xl font-bold mb-3">Start Your Free Trial</h1>
-          <p className="text-lg text-blue-100 max-w-2xl mx-auto">
+          <p className="text-lg text-green-100 max-w-2xl mx-auto">
             Experience the full power of 3Boxes HRMS — HR, Payroll, Attendance, Recruitment, and more — free for 15 days. No credit card required.
           </p>
         </div>
@@ -313,7 +313,7 @@ export default function TrialRegisterPage() {
           {/* Step 1: Company Information */}
           <div className="mb-8">
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <span className="w-7 h-7 bg-blue-100 text-blue-700 rounded-lg flex items-center justify-center text-sm font-bold">1</span>
+              <span className="w-7 h-7 bg-green-100 text-green-700 rounded-lg flex items-center justify-center text-sm font-bold">1</span>
               Company Information
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -324,7 +324,7 @@ export default function TrialRegisterPage() {
                   required
                   value={form.companyName}
                   onChange={(e) => setForm({ ...form, companyName: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500"
                   placeholder="e.g., Acme Technologies Pvt Ltd"
                 />
               </div>
@@ -343,7 +343,7 @@ export default function TrialRegisterPage() {
                       setCodeAvailable(null);
                     }}
                     onBlur={handleCodeCheck}
-                    className="flex-1 px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="flex-1 px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500"
                     placeholder="e.g., acme-tech"
                   />
                   <button
@@ -369,28 +369,28 @@ export default function TrialRegisterPage() {
                   required
                   value={form.companyEmail}
                   onChange={(e) => setForm({ ...form, companyEmail: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500"
                   placeholder="info@company.com"
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-                <input type="tel" value={form.companyPhone} onChange={(e) => setForm({ ...form, companyPhone: e.target.value })} className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="+91 98765 43210" />
+                <input type="tel" value={form.companyPhone} onChange={(e) => setForm({ ...form, companyPhone: e.target.value })} className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500" placeholder="+91 98765 43210" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Website</label>
-                <input type="url" value={form.companyWebsite} onChange={(e) => setForm({ ...form, companyWebsite: e.target.value })} className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="https://www.company.com" />
+                <input type="url" value={form.companyWebsite} onChange={(e) => setForm({ ...form, companyWebsite: e.target.value })} className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500" placeholder="https://www.company.com" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Industry</label>
-                <select value={form.industry} onChange={(e) => setForm({ ...form, industry: e.target.value })} className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                <select value={form.industry} onChange={(e) => setForm({ ...form, industry: e.target.value })} className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500">
                   <option value="">Select industry</option>
                   {industries.map((ind) => (<option key={ind} value={ind}>{ind}</option>))}
                 </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
-                <select value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })} className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                <select value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })} className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500">
                   <option value="IN">India</option>
                   <option value="US">United States</option>
                   <option value="GB">United Kingdom</option>
@@ -401,7 +401,7 @@ export default function TrialRegisterPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Expected Employees</label>
-                <input type="number" min={1} max={10000} value={form.employeeCount} onChange={(e) => setForm({ ...form, employeeCount: parseInt(e.target.value) || 10 })} className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                <input type="number" min={1} max={10000} value={form.employeeCount} onChange={(e) => setForm({ ...form, employeeCount: parseInt(e.target.value) || 10 })} className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500" />
               </div>
             </div>
           </div>
@@ -409,25 +409,25 @@ export default function TrialRegisterPage() {
           {/* Step 2: Contact Person */}
           <div className="mb-8">
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <span className="w-7 h-7 bg-blue-100 text-blue-700 rounded-lg flex items-center justify-center text-sm font-bold">2</span>
+              <span className="w-7 h-7 bg-green-100 text-green-700 rounded-lg flex items-center justify-center text-sm font-bold">2</span>
               Contact Person <span className="text-xs text-gray-400 font-normal">(will become the admin)</span>
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
-                <input type="text" required value={form.contactName} onChange={(e) => setForm({ ...form, contactName: e.target.value })} className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="John Doe" />
+                <input type="text" required value={form.contactName} onChange={(e) => setForm({ ...form, contactName: e.target.value })} className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500" placeholder="John Doe" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
-                <input type="email" required value={form.contactEmail} onChange={(e) => setForm({ ...form, contactEmail: e.target.value })} className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="john@company.com" />
+                <input type="email" required value={form.contactEmail} onChange={(e) => setForm({ ...form, contactEmail: e.target.value })} className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500" placeholder="john@company.com" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-                <input type="tel" value={form.contactPhone} onChange={(e) => setForm({ ...form, contactPhone: e.target.value })} className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="+91 98765 43210" />
+                <input type="tel" value={form.contactPhone} onChange={(e) => setForm({ ...form, contactPhone: e.target.value })} className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500" placeholder="+91 98765 43210" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Designation</label>
-                <input type="text" value={form.designation} onChange={(e) => setForm({ ...form, designation: e.target.value })} className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="HR Manager / CEO / Director" />
+                <input type="text" value={form.designation} onChange={(e) => setForm({ ...form, designation: e.target.value })} className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500" placeholder="HR Manager / CEO / Director" />
               </div>
             </div>
           </div>
@@ -435,25 +435,25 @@ export default function TrialRegisterPage() {
           {/* Step 3: Company Address */}
           <div className="mb-8">
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <span className="w-7 h-7 bg-blue-100 text-blue-700 rounded-lg flex items-center justify-center text-sm font-bold">3</span>
+              <span className="w-7 h-7 bg-green-100 text-green-700 rounded-lg flex items-center justify-center text-sm font-bold">3</span>
               Company Address
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
-                <input type="text" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="123 Business Park, Sector 5" />
+                <input type="text" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500" placeholder="123 Business Park, Sector 5" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
-                <input type="text" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Mumbai" />
+                <input type="text" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500" placeholder="Mumbai" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">State</label>
-                <input type="text" value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })} className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Maharashtra" />
+                <input type="text" value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })} className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500" placeholder="Maharashtra" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">ZIP Code</label>
-                <input type="text" value={form.zipCode} onChange={(e) => setForm({ ...form, zipCode: e.target.value })} className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="400001" />
+                <input type="text" value={form.zipCode} onChange={(e) => setForm({ ...form, zipCode: e.target.value })} className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500" placeholder="400001" />
               </div>
             </div>
           </div>
@@ -461,7 +461,7 @@ export default function TrialRegisterPage() {
           {/* Step 4: Logo Upload */}
           <div className="mb-8">
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <span className="w-7 h-7 bg-purple-100 text-purple-700 rounded-lg flex items-center justify-center text-sm font-bold">4</span>
+              <span className="w-7 h-7 bg-teal-100 text-teal-700 rounded-lg flex items-center justify-center text-sm font-bold">4</span>
               Company Logo
             </h3>
             <div className="flex items-center gap-6">
@@ -501,17 +501,17 @@ export default function TrialRegisterPage() {
               Upload a sample of up to 5 employees to test the platform. Download our{' '}
               <a
                 href="/api/trial/excel-template"
-                className="text-blue-600 underline hover:text-blue-800 font-medium"
+                className="text-green-600 underline hover:text-green-800 font-medium"
               >
                 Excel template here
               </a>
               . You can always add more employees after your trial is activated.
             </p>
-            <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:border-blue-400 transition-colors">
+            <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:border-green-400 transition-colors">
               <svg className="w-10 h-10 mx-auto text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
-              <label className="px-4 py-2 bg-blue-50 text-blue-700 rounded-xl hover:bg-blue-100 cursor-pointer transition-colors text-sm font-medium">
+              <label className="px-4 py-2 bg-green-50 text-green-700 rounded-xl hover:bg-green-100 cursor-pointer transition-colors text-sm font-medium">
                 Choose File (CSV or Excel)
                 <input
                   type="file"
@@ -581,7 +581,7 @@ export default function TrialRegisterPage() {
             <button
               type="submit"
               disabled={loading || codeAvailable === false}
-              className="w-full py-3 px-6 bg-gradient-to-r from-blue-600 to-indigo-700 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-indigo-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-blue-500/25"
+              className="w-full py-3 px-6 bg-gradient-to-r from-green-600 to-emerald-700 text-white font-semibold rounded-xl hover:from-green-700 hover:to-emerald-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-green-500/25"
             >
               {loading ? (
                 <span className="flex items-center justify-center gap-2">

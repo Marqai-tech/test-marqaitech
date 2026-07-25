@@ -15,7 +15,7 @@ interface ModuleDashboardShellProps {
   moduleKey: string;            // e.g., 'company', 'employee' — matches navSections key
   moduleLabel: string;          // e.g., 'Company', 'Employee'
   moduleIcon: React.ReactNode;  // icon for the header
-  gradientColor: string;        // e.g., 'from-indigo-500 to-blue-600'
+  gradientColor: string;        // e.g., 'from-emerald-500 to-green-600'
   tabs: DashboardTabConfig[];
   children: Record<string, ReactNode>;  // keyed by tab key
   overviewContent?: ReactNode;  // default/overview tab content
@@ -82,7 +82,7 @@ export default function ModuleDashboardShell({
           {moduleLabel} {tabLabel} — view and manage {tabKey === 'reports' ? 'analytics and reports' : tabKey === 'settings' ? 'configuration and preferences' : 'details'}.
         </p>
         {navLink && (
-          <a href={navLink} className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors">
+          <a href={navLink} className="inline-flex items-center gap-2 px-5 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors">
             Go to {tabLabel}
           </a>
         )}
@@ -118,7 +118,7 @@ export default function ModuleDashboardShell({
                     : 'text-thb-text-secondary hover:text-thb-text-primary hover:bg-white/50'
                 }`}
               >
-                <span className={isActive ? 'text-blue-500' : 'text-thb-text-secondary'}>{tab.icon}</span>
+                <span className={isActive ? 'text-green-500' : 'text-thb-text-secondary'}>{tab.icon}</span>
                 {tab.label}
                 {tab.isNew && (
                   <span className="text-[7px] font-bold uppercase tracking-wider px-1 py-0.5 rounded bg-emerald-100 text-emerald-600 border border-emerald-200">

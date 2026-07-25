@@ -141,15 +141,15 @@ export default function PayrollApprovalsPage() {
       )}
 
       {/* SoD Notice */}
-      <div className="thb-card p-4 border-l-4 border-violet-500 bg-violet-50/30">
+      <div className="thb-card p-4 border-l-4 border-teal-500 bg-teal-50/30">
         <div className="flex items-start gap-3">
-          <FiShield className="w-5 h-5 text-violet-500 mt-0.5 flex-shrink-0" />
+          <FiShield className="w-5 h-5 text-teal-500 mt-0.5 flex-shrink-0" />
           <div>
             <p className="text-sm font-semibold text-thb-text-primary">Segregation of Duties (SoD) — REQ-SEC-PAY-02</p>
             <p className="text-xs text-thb-text-secondary mt-1">
               The user who initiates a payroll run cannot approve its disbursement. The system enforces this at approval time and refuses to record an approval if <code className="px-1 bg-slate-100 rounded">requestedBy</code> matches the approver, or if the approver's role doesn't match <code className="px-1 bg-slate-100 rounded">approverRole</code>.
               {user && (
-                <> Your current role: <strong className="text-violet-700">{(user as { role?: string }).role || 'unknown'}</strong></>
+                <> Your current role: <strong className="text-teal-700">{(user as { role?: string }).role || 'unknown'}</strong></>
               )}
             </p>
           </div>
@@ -171,7 +171,7 @@ export default function PayrollApprovalsPage() {
               <div className="flex items-start justify-between gap-4 mb-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1 flex-wrap">
-                    <span className="px-2 py-0.5 text-xs font-semibold rounded bg-blue-100 text-blue-700">{stageLabel(a.approvalStage)}</span>
+                    <span className="px-2 py-0.5 text-xs font-semibold rounded bg-green-100 text-green-700">{stageLabel(a.approvalStage)}</span>
                     <span className={`px-2 py-0.5 text-xs font-semibold rounded ${a.status === 'PENDING' ? 'bg-amber-100 text-amber-700' : a.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>{a.status}</span>
                     <span className="px-2 py-0.5 text-xs font-semibold rounded bg-slate-100 text-slate-700">Approver: {a.approverRole}</span>
                     {a.sodConflictFlag && <span className="px-2 py-0.5 text-xs font-semibold rounded bg-red-100 text-red-700 inline-flex items-center gap-1"><FiAlertTriangle className="w-3 h-3" /> SoD Conflict</span>}
@@ -241,7 +241,7 @@ function SummaryCard({ label, value, color }: { label: string; value: number; co
     amber: 'bg-amber-50 text-amber-700',
     emerald: 'bg-emerald-50 text-emerald-700',
     red: 'bg-red-50 text-red-700',
-    violet: 'bg-violet-50 text-violet-700',
+    violet: 'bg-teal-50 text-teal-700',
   };
   return (
     <div className={`thb-card p-3 ${colorMap[color] || colorMap.slate}`}>

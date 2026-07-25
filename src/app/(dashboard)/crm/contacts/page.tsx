@@ -156,10 +156,10 @@ export default function CRMContactsPage() {
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: 'Total Contacts', value: contacts.length, icon: FiUsers, color: 'text-blue-500' },
+          { label: 'Total Contacts', value: contacts.length, icon: FiUsers, color: 'text-green-500' },
           { label: 'Active', value: activeCount, icon: FiCheck, color: 'text-emerald-500' },
           { label: 'Inactive', value: inactiveCount, icon: FiX, color: 'text-red-500' },
-          { label: 'Pipeline Value', value: `₹${(totalDealValue / 100000).toFixed(1)}L`, icon: FiBriefcase, color: 'text-purple-500' },
+          { label: 'Pipeline Value', value: `₹${(totalDealValue / 100000).toFixed(1)}L`, icon: FiBriefcase, color: 'text-teal-500' },
         ].map((s, i) => (
           <div key={i} className="thb-card p-4 flex items-center gap-3">
             <s.icon className={`w-8 h-8 ${s.color}`} />
@@ -179,14 +179,14 @@ export default function CRMContactsPage() {
               <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-thb-text-muted w-4 h-4" />
               <input
                 type="text" placeholder="Search contacts..." value={search} onChange={e => setSearch(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                className="w-full pl-9 pr-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
               />
             </div>
             <button onClick={() => setShowFilters(!showFilters)} className="flex items-center gap-1 px-3 py-2 text-sm border border-thb-border rounded-lg hover:bg-gray-50">
               <FiFilter className="w-4 h-4" /> <FiChevronDown className="w-3 h-3" />
             </button>
           </div>
-          <button onClick={() => { setForm(emptyForm); setEditingId(null); setShowForm(true); }} className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm font-medium">
+          <button onClick={() => { setForm(emptyForm); setEditingId(null); setShowForm(true); }} className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 text-sm font-medium">
             <FiPlus className="w-4 h-4" /> Add Contact
           </button>
         </div>
@@ -210,18 +210,18 @@ export default function CRMContactsPage() {
 
       {/* Add/Edit Form */}
       {showForm && (
-        <div className="thb-card p-4 border-l-4 border-l-blue-500">
+        <div className="thb-card p-4 border-l-4 border-l-green-500">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold text-thb-text-primary">{editingId ? 'Edit Contact' : 'Add New Contact'}</h3>
             <button onClick={() => { setShowForm(false); setEditingId(null); }} className="text-thb-text-muted hover:text-thb-text-primary"><FiX className="w-5 h-5" /></button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <input type="text" placeholder="First Name *" value={form.firstName} onChange={e => setForm({ ...form, firstName: e.target.value })} className="px-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            <input type="text" placeholder="Last Name *" value={form.lastName} onChange={e => setForm({ ...form, lastName: e.target.value })} className="px-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            <input type="email" placeholder="Email *" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className="px-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            <input type="text" placeholder="Phone" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} className="px-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            <input type="text" placeholder="Company" value={form.company} onChange={e => setForm({ ...form, company: e.target.value })} className="px-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            <input type="text" placeholder="Title" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} className="px-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <input type="text" placeholder="First Name *" value={form.firstName} onChange={e => setForm({ ...form, firstName: e.target.value })} className="px-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" />
+            <input type="text" placeholder="Last Name *" value={form.lastName} onChange={e => setForm({ ...form, lastName: e.target.value })} className="px-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" />
+            <input type="email" placeholder="Email *" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className="px-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" />
+            <input type="text" placeholder="Phone" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} className="px-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" />
+            <input type="text" placeholder="Company" value={form.company} onChange={e => setForm({ ...form, company: e.target.value })} className="px-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" />
+            <input type="text" placeholder="Title" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} className="px-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" />
             <select value={form.type} onChange={e => setForm({ ...form, type: e.target.value })} className="px-3 py-2 text-sm border border-thb-border rounded-lg bg-white">
               <option value="Lead">Lead</option><option value="Customer">Customer</option><option value="Partner">Partner</option><option value="Vendor">Vendor</option>
             </select>
@@ -233,7 +233,7 @@ export default function CRMContactsPage() {
             </select>
           </div>
           <div className="flex gap-2 mt-4">
-            <button onClick={handleSave} className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm font-medium">Save</button>
+            <button onClick={handleSave} className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 text-sm font-medium">Save</button>
             <button onClick={() => { setShowForm(false); setEditingId(null); }} className="px-4 py-2 border border-thb-border rounded-lg hover:bg-gray-50 text-sm">Cancel</button>
           </div>
         </div>
@@ -254,7 +254,7 @@ export default function CRMContactsPage() {
           {filtered.map(c => (
             <div key={c.id} className="thb-card thb-card-hover p-4 cursor-pointer" onClick={() => setViewContact(c)}>
               <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold text-sm shrink-0">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-500 to-teal-500 flex items-center justify-center text-white font-bold text-sm shrink-0">
                   {initials(c)}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -273,7 +273,7 @@ export default function CRMContactsPage() {
                 </div>
               </div>
               <div className="flex gap-1 mt-3 pt-3 border-t border-thb-border" onClick={e => e.stopPropagation()}>
-                <button onClick={() => startEdit(c)} className="p-1.5 rounded hover:bg-blue-50 text-blue-500" title="Edit"><FiEdit2 className="w-3.5 h-3.5" /></button>
+                <button onClick={() => startEdit(c)} className="p-1.5 rounded hover:bg-green-50 text-green-500" title="Edit"><FiEdit2 className="w-3.5 h-3.5" /></button>
                 <button onClick={() => handleDelete(c.id)} className="p-1.5 rounded hover:bg-red-50 text-red-500" title="Delete"><FiTrash2 className="w-3.5 h-3.5" /></button>
                 <button onClick={() => setViewContact(c)} className="p-1.5 rounded hover:bg-gray-50 text-gray-500" title="View"><FiEye className="w-3.5 h-3.5" /></button>
               </div>
@@ -291,7 +291,7 @@ export default function CRMContactsPage() {
               <button onClick={() => setViewContact(null)} className="text-thb-text-muted hover:text-thb-text-primary"><FiX className="w-5 h-5" /></button>
             </div>
             <div className="flex items-center gap-4 mb-4">
-              <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold text-lg">
+              <div className="w-14 h-14 rounded-full bg-gradient-to-br from-green-500 to-teal-500 flex items-center justify-center text-white font-bold text-lg">
                 {initials(viewContact)}
               </div>
               <div>
@@ -312,7 +312,7 @@ export default function CRMContactsPage() {
               <div><p className="text-xs text-thb-text-muted">Pipeline Value</p><p className="text-sm font-medium text-thb-text-primary">₹{((viewContact.totalDealValue || 0) / 100000).toFixed(1)}L</p></div>
             </div>
             <div className="flex gap-2 mt-4">
-              <button onClick={() => { startEdit(viewContact); setViewContact(null); }} className="flex items-center gap-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm"><FiEdit2 className="w-3.5 h-3.5" /> Edit</button>
+              <button onClick={() => { startEdit(viewContact); setViewContact(null); }} className="flex items-center gap-1 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 text-sm"><FiEdit2 className="w-3.5 h-3.5" /> Edit</button>
               <button onClick={() => setViewContact(null)} className="px-4 py-2 border border-thb-border rounded-lg hover:bg-gray-50 text-sm">Close</button>
             </div>
           </div>

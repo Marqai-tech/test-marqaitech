@@ -233,7 +233,7 @@ export default function TransferPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-medium text-thb-text-secondary mb-1">Employee *</label>
-            <select value={form.employeeId} onChange={e => handleEmployeeSelect(e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+            <select value={form.employeeId} onChange={e => handleEmployeeSelect(e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
               <option value="">Select Employee</option>
               <option value="emp-001">EMP-001 — Amit Sharma</option>
               <option value="emp-002">EMP-002 — Priya Patel</option>
@@ -260,38 +260,38 @@ export default function TransferPage() {
       {/* Transfer Details */}
       <div className="thb-card p-6 rounded-xl">
         <h2 className="text-lg font-semibold text-thb-text-primary flex items-center gap-2 mb-4">
-          <FiBriefcase className="w-5 h-5 text-violet-500" />
+          <FiBriefcase className="w-5 h-5 text-teal-500" />
           Transfer Details
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <div>
             <label className="block text-xs font-medium text-thb-text-secondary mb-1">New Department *</label>
-            <select value={form.newDepartment} onChange={e => updateField('newDepartment', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+            <select value={form.newDepartment} onChange={e => updateField('newDepartment', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
               <option value="">Select Department</option>
               {DEPARTMENTS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
             </select>
           </div>
           <div>
             <label className="block text-xs font-medium text-thb-text-secondary mb-1">New Designation *</label>
-            <select value={form.newDesignation} onChange={e => updateField('newDesignation', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+            <select value={form.newDesignation} onChange={e => updateField('newDesignation', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
               <option value="">Select Designation</option>
               {DESIGNATIONS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
             </select>
           </div>
           <div>
             <label className="block text-xs font-medium text-thb-text-secondary mb-1 flex items-center gap-1"><FiMapPin className="w-3 h-3" /> New Location *</label>
-            <select value={form.newLocation} onChange={e => updateField('newLocation', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+            <select value={form.newLocation} onChange={e => updateField('newLocation', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
               <option value="">Select Location</option>
               {LOCATIONS.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
             </select>
           </div>
           <div>
             <label className="block text-xs font-medium text-thb-text-secondary mb-1 flex items-center gap-1"><FiCalendar className="w-3 h-3" /> Transfer Date *</label>
-            <input type="date" value={form.transferDate} onChange={e => updateField('transferDate', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+            <input type="date" value={form.transferDate} onChange={e => updateField('transferDate', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
           </div>
           <div>
             <label className="block text-xs font-medium text-thb-text-secondary mb-1">Transfer Type</label>
-            <select value={form.transferType} onChange={e => updateField('transferType', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+            <select value={form.transferType} onChange={e => updateField('transferType', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
               {TRANSFER_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
             </select>
           </div>
@@ -299,7 +299,7 @@ export default function TransferPage() {
 
         <div className="mt-4">
           <label className="block text-xs font-medium text-thb-text-secondary mb-1">Reason for Transfer * <span className="font-normal text-slate-400">(min 20 chars)</span></label>
-          <textarea value={form.reason} onChange={e => updateField('reason', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" rows={3} placeholder="Provide a detailed reason for the transfer..." />
+          <textarea value={form.reason} onChange={e => updateField('reason', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" rows={3} placeholder="Provide a detailed reason for the transfer..." />
           <p className="text-[10px] text-slate-400 mt-0.5">{form.reason.length}/20 min characters</p>
         </div>
       </div>
@@ -313,7 +313,7 @@ export default function TransferPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-medium text-thb-text-secondary mb-1">Reporting Manager</label>
-            <select value={form.reportingManager} onChange={e => updateField('reportingManager', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400">
+            <select value={form.reportingManager} onChange={e => updateField('reportingManager', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
               <option value="">Select Manager</option>
               <option value="mgr-001">Rajesh Kumar</option>
               <option value="mgr-002">Anita Desai</option>
@@ -322,7 +322,7 @@ export default function TransferPage() {
           </div>
           <div>
             <label className="block text-xs font-medium text-thb-text-secondary mb-1 flex items-center gap-1"><FiFileText className="w-3 h-3" /> Comments for Approver</label>
-            <textarea value={form.comments} onChange={e => updateField('comments', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" rows={2} placeholder="Any additional comments..." />
+            <textarea value={form.comments} onChange={e => updateField('comments', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" rows={2} placeholder="Any additional comments..." />
           </div>
         </div>
       </div>

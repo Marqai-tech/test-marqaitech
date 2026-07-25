@@ -39,11 +39,11 @@ const ACTION_LABELS: Record<string, string> = {
 };
 
 function actionBadgeClass(action: string): string {
-  if (action === 'CONTEXT_SWAP') return 'bg-indigo-50 text-indigo-700 border-indigo-200';
+  if (action === 'CONTEXT_SWAP') return 'bg-emerald-50 text-emerald-700 border-emerald-200';
   if (action === 'CREATE_TENANT') return 'bg-emerald-50 text-emerald-700 border-emerald-200';
   if (action === 'DELETE_TENANT') return 'bg-rose-50 text-rose-700 border-rose-200';
   if (action === 'UPDATE_TENANT') return 'bg-amber-50 text-amber-700 border-amber-200';
-  if (action === 'FEATURE_FLAG_UPDATE') return 'bg-violet-50 text-violet-700 border-violet-200';
+  if (action === 'FEATURE_FLAG_UPDATE') return 'bg-teal-50 text-teal-700 border-teal-200';
   if (action === 'LOGIN' || action === 'LOGOUT') return 'bg-slate-50 text-slate-700 border-slate-200';
   return 'bg-slate-50 text-slate-700 border-slate-200';
 }
@@ -91,7 +91,7 @@ export default function AuditLogsPage() {
           <FiLock className="w-10 h-10 text-rose-500 mx-auto mb-3" />
           <h2 className="text-lg font-bold text-slate-800">Super Admins Only</h2>
           <p className="text-sm text-slate-500 mt-1">Audit logs are visible only to the platform owner.</p>
-          <Link href="/home" className="mt-4 inline-block text-sm font-semibold text-blue-600 hover:text-blue-700">
+          <Link href="/home" className="mt-4 inline-block text-sm font-semibold text-green-600 hover:text-green-700">
             ← Back to Home
           </Link>
         </div>

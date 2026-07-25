@@ -259,14 +259,14 @@ const employeeTabs: DashboardTabConfig[] = [
 function EmployeeReportsPlaceholder() {
   return (
     <div className="flex flex-col items-center py-8">
-      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg mb-4">
+      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-lg mb-4">
         <FiFileText className="w-7 h-7 text-white" />
       </div>
       <h3 className="text-lg font-bold text-thb-text-primary mb-1">Reports & Analytics</h3>
       <p className="text-sm text-thb-text-secondary text-center max-w-md mb-4">
         Reports and analytics for employee data
       </p>
-      <a href="/employees/dashboard" className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors">
+      <a href="/employees/dashboard" className="inline-flex items-center gap-2 px-5 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors">
         <FiBarChart2 className="w-4 h-4" /> Go to Reports
       </a>
     </div>
@@ -283,7 +283,7 @@ function EmployeeSettingsPlaceholder() {
       <p className="text-sm text-thb-text-secondary text-center max-w-md mb-4">
         Configure employee module settings and preferences
       </p>
-      <a href="/settings" className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors">
+      <a href="/settings" className="inline-flex items-center gap-2 px-5 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors">
         <FiSettings className="w-4 h-4" /> Go to Settings
       </a>
     </div>
@@ -296,7 +296,7 @@ function EmployeePageContent() {
       moduleKey="employee"
       moduleLabel="Employee"
       moduleIcon={<FiUsers className="w-5 h-5 text-white" />}
-      gradientColor="from-blue-500 to-indigo-600"
+      gradientColor="from-green-500 to-emerald-600"
       tabs={employeeTabs}
       overviewContent={<EmployeeContent />}
       children={{
@@ -309,7 +309,7 @@ function EmployeePageContent() {
 
 export default function EmployeeDashboardPage() {
   return (
-    <Suspense fallback={<div className="flex items-center justify-center py-20"><div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full" /></div>}>
+    <Suspense fallback={<div className="flex items-center justify-center py-20"><div className="animate-spin w-8 h-8 border-2 border-green-500 border-t-transparent rounded-full" /></div>}>
       <EmployeePageContent />
     </Suspense>
   );
@@ -423,12 +423,12 @@ function EmployeeContent() {
   /* ── quick links config ── */
 
   const quickLinks: QuickLink[] = useMemo(() => [
-    { label: 'Apply Leave', icon: <FiCalendar className="w-5 h-5" />, color: COLORS.indigo, bg: 'bg-indigo-50', href: '/leave' },
+    { label: 'Apply Leave', icon: <FiCalendar className="w-5 h-5" />, color: COLORS.indigo, bg: 'bg-emerald-50', href: '/leave' },
     { label: 'Submit Expense', icon: <FiDollarSign className="w-5 h-5" />, color: COLORS.emerald, bg: 'bg-emerald-50', href: '/expenses' },
     { label: 'View Payslip', icon: <FiFileText className="w-5 h-5" />, color: COLORS.amber, bg: 'bg-amber-50', href: '/payroll/payslips' },
     { label: 'Update Profile', icon: <FiEdit3 className="w-5 h-5" />, color: COLORS.pink, bg: 'bg-pink-50', href: '/my-profile' },
     { label: 'Time Entry', icon: <FiTimeEntry className="w-5 h-5" />, color: COLORS.cyan, bg: 'bg-cyan-50', href: '/timesheets' },
-    { label: 'Helpdesk', icon: <FiHeadphones className="w-5 h-5" />, color: COLORS.violet, bg: 'bg-violet-50', href: '/helpdesk' },
+    { label: 'Helpdesk', icon: <FiHeadphones className="w-5 h-5" />, color: COLORS.violet, bg: 'bg-teal-50', href: '/helpdesk' },
   ], []);
 
   /* ── schedule icon helper ── */
@@ -444,7 +444,7 @@ function EmployeeContent() {
 
   function scheduleColor(type: string) {
     switch (type) {
-      case 'meeting': return 'bg-indigo-100 text-indigo-600';
+      case 'meeting': return 'bg-emerald-100 text-emerald-600';
       case 'event': return 'bg-pink-100 text-pink-600';
       case 'deadline': return 'bg-amber-100 text-amber-600';
       default: return 'bg-slate-100 text-slate-600';
@@ -657,7 +657,7 @@ function EmployeeContent() {
                   <h3 className="text-sm font-semibold text-slate-800">Recent Payslips</h3>
                   <button
                     onClick={() => router.push('/payroll/payslips')}
-                    className="text-[11px] font-medium text-indigo-600 hover:text-indigo-700 flex items-center gap-1 transition-colors"
+                    className="text-[11px] font-medium text-emerald-600 hover:text-emerald-700 flex items-center gap-1 transition-colors"
                   >
                     View All <FiArrowRight className="w-3 h-3" />
                   </button>
@@ -717,7 +717,7 @@ function EmployeeContent() {
         <div className="thb-card bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <FiBell className="w-4 h-4 text-indigo-500" />
+              <FiBell className="w-4 h-4 text-emerald-500" />
               <h3 className="text-sm font-semibold text-slate-800">Announcements</h3>
             </div>
             <span className="text-[11px] text-slate-400">{announcements.length} new</span>
@@ -760,7 +760,7 @@ function EmployeeContent() {
         {/* ── Footer branding ── */}
         <div className="text-center pt-2 pb-4">
           <p className="text-[11px] text-slate-400">
-            Powered by <span className="font-semibold text-indigo-500">3Boxes HRMS</span> — Your all-in-one HR companion
+            Powered by <span className="font-semibold text-emerald-500">3Boxes HRMS</span> — Your all-in-one HR companion
           </p>
         </div>
       </div>

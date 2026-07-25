@@ -897,7 +897,7 @@ function PermissionCategoryRow({
   accentColor?: 'blue' | 'teal';
 }) {
   const actions = ['view', 'create', 'edit', 'delete', 'export', 'approve'];
-  const onColor = accentColor === 'teal' ? 'bg-teal-500' : 'bg-blue-500';
+  const onColor = accentColor === 'teal' ? 'bg-teal-500' : 'bg-green-500';
 
   return (
     <>

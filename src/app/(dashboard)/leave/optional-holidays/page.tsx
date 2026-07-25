@@ -90,7 +90,7 @@ export default function OptionalHolidaysPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-            <FiCalendar className="w-6 h-6 text-violet-500" />
+            <FiCalendar className="w-6 h-6 text-teal-500" />
             Optional / Festival Holidays
           </h1>
           <p className="text-sm text-slate-500 mt-1">Choose which optional holidays you want to take this year (within your quota)</p>
@@ -111,7 +111,7 @@ export default function OptionalHolidaysPage() {
           <div className="grid grid-cols-3 gap-4">
             <div className="bg-white rounded-xl p-4 border border-slate-200">
               <p className="text-xs uppercase tracking-wider text-slate-500">Your Quota</p>
-              <p className="text-2xl font-bold text-violet-700 mt-1">{data.quota}</p>
+              <p className="text-2xl font-bold text-teal-700 mt-1">{data.quota}</p>
             </div>
             <div className="bg-white rounded-xl p-4 border border-slate-200">
               <p className="text-xs uppercase tracking-wider text-slate-500">Used</p>
@@ -135,14 +135,14 @@ export default function OptionalHolidaysPage() {
                 const elected = data.elections.find(e => e.holidayId === h.id);
                 const canElect = !elected && data.remaining > 0;
                 return (
-                  <div key={h.id} className={`thb-card p-5 ${elected ? 'border-violet-300 bg-violet-50/30' : ''}`}>
+                  <div key={h.id} className={`thb-card p-5 ${elected ? 'border-teal-300 bg-teal-50/30' : ''}`}>
                     <div className="flex items-start justify-between">
                       <div>
                         <h3 className="text-sm font-semibold text-slate-800">{h.name}</h3>
                         <p className="text-xs text-slate-500 mt-0.5">{fmtDate(h.date)}</p>
                         {h.country && <p className="text-[10px] text-slate-400 mt-1">📍 {h.country}</p>}
                       </div>
-                      {elected && <span className="text-[10px] font-medium text-violet-700 bg-violet-100 px-2 py-0.5 rounded-full">Elected</span>}
+                      {elected && <span className="text-[10px] font-medium text-teal-700 bg-teal-100 px-2 py-0.5 rounded-full">Elected</span>}
                     </div>
                     {h.description && <p className="text-xs text-slate-600 mt-3 leading-relaxed">{h.description}</p>}
                     <div className="mt-4">
@@ -151,7 +151,7 @@ export default function OptionalHolidaysPage() {
                           <FiX className="w-3 h-3" /> Withdraw
                         </button>
                       ) : canElect ? (
-                        <button onClick={() => handleElect(h.id)} className="text-xs text-violet-600 hover:text-violet-700 flex items-center gap-1">
+                        <button onClick={() => handleElect(h.id)} className="text-xs text-teal-600 hover:text-teal-700 flex items-center gap-1">
                           <FiCheck className="w-3 h-3" /> Elect this holiday
                         </button>
                       ) : (

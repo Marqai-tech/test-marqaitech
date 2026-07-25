@@ -157,8 +157,8 @@ export default function PermissionPage() {
             <input type="text" value={form.reason} onChange={e => setForm({ ...form, reason: e.target.value })} className="3boxes-input w-full" placeholder="e.g. Bank visit, personal errand" />
           </div>
           {computedHours > 0 && (
-            <div className="mt-4 p-3 bg-blue-50 border border-blue-100 rounded-lg">
-              <p className="text-sm text-blue-700 font-medium">
+            <div className="mt-4 p-3 bg-green-50 border border-green-100 rounded-lg">
+              <p className="text-sm text-green-700 font-medium">
                 <FiInfo className="w-4 h-4 inline mr-1" />
                 Duration: <strong>{computedHours} hour(s)</strong> — your required check-out time today will be extended by {computedHours}h.
               </p>

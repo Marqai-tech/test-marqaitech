@@ -216,11 +216,11 @@ function CustomTooltip({ active, payload, label }: { active?: boolean; payload?:
 
 function SourceBadge({ source }: { source: string }) {
   const map: Record<string, { bg: string; text: string; dot: string }> = {
-    LinkedIn: { bg: 'bg-blue-50', text: 'text-blue-700', dot: 'bg-blue-500' },
-    Naukri:   { bg: 'bg-indigo-50', text: 'text-indigo-700', dot: 'bg-indigo-500' },
+    LinkedIn: { bg: 'bg-green-50', text: 'text-green-700', dot: 'bg-green-500' },
+    Naukri:   { bg: 'bg-emerald-50', text: 'text-emerald-700', dot: 'bg-emerald-500' },
     Referral: { bg: 'bg-emerald-50', text: 'text-emerald-700', dot: 'bg-emerald-500' },
     Direct:   { bg: 'bg-amber-50', text: 'text-amber-700', dot: 'bg-amber-500' },
-    Campus:   { bg: 'bg-violet-50', text: 'text-violet-700', dot: 'bg-violet-500' },
+    Campus:   { bg: 'bg-teal-50', text: 'text-teal-700', dot: 'bg-teal-500' },
   };
   const cls = map[source] || { bg: 'bg-slate-50', text: 'text-slate-600', dot: 'bg-slate-400' };
   return (
@@ -236,7 +236,7 @@ function SourceBadge({ source }: { source: string }) {
 function AppStatusBadge({ status }: { status: string }) {
   const map: Record<string, { bg: string; text: string }> = {
     New:         { bg: 'bg-slate-50', text: 'text-slate-600' },
-    Screening:   { bg: 'bg-blue-50', text: 'text-blue-700' },
+    Screening:   { bg: 'bg-green-50', text: 'text-green-700' },
     Shortlisted: { bg: 'bg-cyan-50', text: 'text-cyan-700' },
     Interview:   { bg: 'bg-amber-50', text: 'text-amber-700' },
     'Offer Sent':{ bg: 'bg-emerald-50', text: 'text-emerald-700' },
@@ -255,11 +255,11 @@ function AppStatusBadge({ status }: { status: string }) {
 
 function InterviewTypeBadge({ type }: { type: string }) {
   const map: Record<string, { bg: string; text: string; icon: React.ComponentType<{ className?: string }> }> = {
-    Technical:  { bg: 'bg-indigo-50', text: 'text-indigo-700', icon: FiLayers },
+    Technical:  { bg: 'bg-emerald-50', text: 'text-emerald-700', icon: FiLayers },
     Behavioral: { bg: 'bg-pink-50', text: 'text-pink-700', icon: FiStar },
     Video:      { bg: 'bg-cyan-50', text: 'text-cyan-700', icon: FiVideo },
     Phone:      { bg: 'bg-amber-50', text: 'text-amber-700', icon: FiPhone },
-    Panel:      { bg: 'bg-violet-50', text: 'text-violet-700', icon: FiUsers },
+    Panel:      { bg: 'bg-teal-50', text: 'text-teal-700', icon: FiUsers },
   };
   const cfg = map[type] || { bg: 'bg-slate-50', text: 'text-slate-600', icon: FiMapPin };
   const Icon = cfg.icon;
@@ -282,14 +282,14 @@ const recruitmentTabs: DashboardTabConfig[] = [
 function RecruitmentReportsPlaceholder() {
   return (
     <div className="flex flex-col items-center py-8">
-      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg mb-4">
+      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-lg mb-4">
         <FiFileText className="w-7 h-7 text-white" />
       </div>
       <h3 className="text-lg font-bold text-thb-text-primary mb-1">Reports & Analytics</h3>
       <p className="text-sm text-thb-text-secondary text-center max-w-md mb-4">
         Hiring analytics, pipeline reports, and recruitment metrics
       </p>
-      <a href="/recruitment/reports" className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors">
+      <a href="/recruitment/reports" className="inline-flex items-center gap-2 px-5 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors">
         <FiBarChart2 className="w-4 h-4" /> Go to Reports
       </a>
     </div>
@@ -306,7 +306,7 @@ function RecruitmentSettingsPlaceholder() {
       <p className="text-sm text-thb-text-secondary text-center max-w-md mb-4">
         Configure hiring workflows, approval chains, and recruitment preferences
       </p>
-      <a href="/recruitment/settings" className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors">
+      <a href="/recruitment/settings" className="inline-flex items-center gap-2 px-5 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors">
         <FiSettings className="w-4 h-4" /> Go to Settings
       </a>
     </div>
@@ -319,7 +319,7 @@ function RecruitmentPageContent() {
       moduleKey="recruitment"
       moduleLabel="Recruitment"
       moduleIcon={<FiUserPlus className="w-5 h-5 text-white" />}
-      gradientColor="from-purple-500 to-violet-600"
+      gradientColor="from-teal-500 to-teal-600"
       tabs={recruitmentTabs}
       overviewContent={<RecruitmentContent />}
       children={{
@@ -332,7 +332,7 @@ function RecruitmentPageContent() {
 
 export default function RecruitmentDashboardPage() {
   return (
-    <Suspense fallback={<div className="flex items-center justify-center py-20"><div className="animate-spin w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full" /></div>}>
+    <Suspense fallback={<div className="flex items-center justify-center py-20"><div className="animate-spin w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full" /></div>}>
       <RecruitmentPageContent />
     </Suspense>
   );
@@ -692,7 +692,7 @@ function RecruitmentContent() {
             <div className="thb-card p-5 h-full">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-sm font-bold text-thb-text-primary">Upcoming Interviews</h3>
-                <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 text-[10px] font-bold">
+                <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-100 text-emerald-600 text-[10px] font-bold">
                   {upcomingInterviews.length}
                 </span>
               </div>
@@ -707,11 +707,11 @@ function RecruitmentContent() {
                     >
                       <div className="flex items-start gap-3">
                         {/* Date indicator */}
-                        <div className="flex flex-col items-center justify-center w-11 h-11 rounded-lg bg-indigo-50 flex-shrink-0">
-                          <span className="text-[10px] font-bold text-indigo-600 leading-none">
+                        <div className="flex flex-col items-center justify-center w-11 h-11 rounded-lg bg-emerald-50 flex-shrink-0">
+                          <span className="text-[10px] font-bold text-emerald-600 leading-none">
                             {dateObj.toLocaleDateString('en-US', { weekday: 'short' })}
                           </span>
-                          <span className="text-sm font-extrabold text-indigo-700 leading-tight">
+                          <span className="text-sm font-extrabold text-emerald-700 leading-tight">
                             {dateObj.getDate()}
                           </span>
                         </div>

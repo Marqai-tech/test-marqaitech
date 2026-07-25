@@ -507,7 +507,7 @@ export default function PayrollInputsPage() {
           {isAdmin && (
             <button
               onClick={handleAddNew}
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium text-sm shadow-sm shadow-blue-500/25 transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-500 text-white rounded-lg hover:bg-green-600 font-medium text-sm shadow-sm shadow-green-500/25 transition-colors"
             >
               <FiPlus className="w-4 h-4" /> Add Input
             </button>
@@ -573,13 +573,13 @@ export default function PayrollInputsPage() {
               placeholder="Search by employee, component code, type, source..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+              className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
             />
           </div>
           <select
             value={inputTypeFilter}
             onChange={(e) => setInputTypeFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[150px]"
+            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 min-w-[150px]"
           >
             <option value="">All Input Types</option>
             {INPUT_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -587,7 +587,7 @@ export default function PayrollInputsPage() {
           <select
             value={approvalStatusFilter}
             onChange={(e) => setApprovalStatusFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[150px]"
+            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 min-w-[150px]"
           >
             <option value="">All Statuses</option>
             {APPROVAL_STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -595,7 +595,7 @@ export default function PayrollInputsPage() {
           <select
             value={employeeFilter}
             onChange={(e) => setEmployeeFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[160px]"
+            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 min-w-[160px]"
           >
             <option value="">All Employees</option>
             {employees.map(e => (
@@ -609,7 +609,7 @@ export default function PayrollInputsPage() {
 
       {/* Embedded Inline Form */}
       {showForm && (
-        <div id="crud-form" className="thb-card border-l-4 border-l-blue-500">
+        <div id="crud-form" className="thb-card border-l-4 border-l-green-500">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-semibold text-thb-text-primary">
@@ -633,7 +633,7 @@ export default function PayrollInputsPage() {
                     <select
                       value={form.employeeId}
                       onChange={(e) => setForm({ ...form, employeeId: e.target.value })}
-                      className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                      className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                     >
                       <option value="">Select Employee...</option>
                       {employees.map(e => (
@@ -647,7 +647,7 @@ export default function PayrollInputsPage() {
                       required
                       value={form.employeeId}
                       onChange={(e) => setForm({ ...form, employeeId: e.target.value })}
-                      className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                      className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                       placeholder="Enter Employee ID"
                     />
                   )}
@@ -657,7 +657,7 @@ export default function PayrollInputsPage() {
                   <select
                     value={form.inputType}
                     onChange={(e) => setForm({ ...form, inputType: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                   >
                     {INPUT_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
@@ -668,7 +668,7 @@ export default function PayrollInputsPage() {
                     required
                     value={form.componentCode}
                     onChange={(e) => setForm({ ...form, componentCode: e.target.value.toUpperCase().replace(/\s+/g, '_') })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                     placeholder="e.g. BASIC, HRA, OT_PAY"
                   />
                 </div>
@@ -686,7 +686,7 @@ export default function PayrollInputsPage() {
                     step="0.01"
                     value={form.inputValueNumeric}
                     onChange={(e) => setForm({ ...form, inputValueNumeric: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                     placeholder="e.g. 5000, 8.5"
                   />
                 </div>
@@ -695,7 +695,7 @@ export default function PayrollInputsPage() {
                   <select
                     value={form.unitType}
                     onChange={(e) => setForm({ ...form, unitType: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                   >
                     {UNIT_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
@@ -705,7 +705,7 @@ export default function PayrollInputsPage() {
                   <select
                     value={form.currencyCode}
                     onChange={(e) => setForm({ ...form, currencyCode: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                   >
                     {CURRENCY_CODE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
@@ -718,7 +718,7 @@ export default function PayrollInputsPage() {
                     min="0"
                     value={form.exchangeRate}
                     onChange={(e) => setForm({ ...form, exchangeRate: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                     placeholder="e.g. 1.0, 83.12"
                   />
                 </div>
@@ -735,7 +735,7 @@ export default function PayrollInputsPage() {
                     type="date"
                     value={form.inputDateFrom}
                     onChange={(e) => setForm({ ...form, inputDateFrom: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                   />
                 </div>
                 <div>
@@ -744,7 +744,7 @@ export default function PayrollInputsPage() {
                     type="date"
                     value={form.inputDateTo}
                     onChange={(e) => setForm({ ...form, inputDateTo: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                   />
                 </div>
                 <div>
@@ -752,7 +752,7 @@ export default function PayrollInputsPage() {
                   <select
                     value={form.source}
                     onChange={(e) => setForm({ ...form, source: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                   >
                     {SOURCE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
@@ -769,7 +769,7 @@ export default function PayrollInputsPage() {
                   <input
                     value={form.referenceDocument}
                     onChange={(e) => setForm({ ...form, referenceDocument: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                     placeholder="e.g. INV-2024-001, POL-OT-01"
                   />
                 </div>
@@ -779,7 +779,7 @@ export default function PayrollInputsPage() {
                     value={form.remarks}
                     onChange={(e) => setForm({ ...form, remarks: e.target.value })}
                     rows={2}
-                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 resize-none"
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 resize-none"
                     placeholder="Additional notes..."
                   />
                 </div>
@@ -797,7 +797,7 @@ export default function PayrollInputsPage() {
               <button
                 onClick={handleSubmit}
                 disabled={submitting}
-                className="px-6 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50 shadow-sm shadow-blue-500/25 transition-colors"
+                className="px-6 py-2.5 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 disabled:opacity-50 shadow-sm shadow-green-500/25 transition-colors"
               >
                 {submitting ? 'Saving...' : editingId ? 'Update Input' : 'Create Input'}
               </button>
@@ -871,7 +871,7 @@ export default function PayrollInputsPage() {
                       </td>
                     </tr>
                   ) : (
-                    <tr key={item.id} className={`hover:bg-slate-50/50 transition-colors ${selectedIds.has(item.id) ? 'bg-blue-50/50' : ''}`}>
+                    <tr key={item.id} className={`hover:bg-slate-50/50 transition-colors ${selectedIds.has(item.id) ? 'bg-green-50/50' : ''}`}>
                       {isAdmin && (
                         <td className="px-4 py-3">
                           <input
@@ -956,7 +956,7 @@ export default function PayrollInputsPage() {
                           {isAdmin && (
                             <button
                               onClick={() => handleEdit(item)}
-                              className="p-1.5 rounded-lg text-blue-500 hover:bg-blue-50 transition-colors"
+                              className="p-1.5 rounded-lg text-green-500 hover:bg-green-50 transition-colors"
                               title="Edit"
                             >
                               <FiEdit2 className="w-4 h-4" />
@@ -982,13 +982,13 @@ export default function PayrollInputsPage() {
 
           {/* Table Footer - Selection Info */}
           {isAdmin && selectedPendingIds.size > 0 && (
-            <div className="px-4 py-3 bg-blue-50/50 border-t border-blue-100 flex items-center justify-between">
-              <span className="text-sm text-blue-700 font-medium">
+            <div className="px-4 py-3 bg-green-50/50 border-t border-green-100 flex items-center justify-between">
+              <span className="text-sm text-green-700 font-medium">
                 {selectedPendingIds.size} pending item(s) selected
               </span>
               <button
                 onClick={() => { setSelectedIds(new Set()); setSelectAll(false); }}
-                className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                className="text-xs text-green-600 hover:text-green-800 font-medium"
               >
                 Clear Selection
               </button>

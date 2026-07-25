@@ -83,9 +83,9 @@ const transactions: TransactionTile[] = [
     icon: FiFile,
     route: '/payroll/bank-files',
     description: 'Generate NACH/NEFT/RTGS bank payment files',
-    gradientBg: 'bg-blue-500/10',
-    iconColor: 'text-blue-500',
-    ringColor: 'ring-blue-500/20',
+    gradientBg: 'bg-green-500/10',
+    iconColor: 'text-green-500',
+    ringColor: 'ring-green-500/20',
   },
   {
     title: 'Payslips',
@@ -121,9 +121,9 @@ const transactions: TransactionTile[] = [
     icon: FiCpu,
     route: '/payroll/ai-insights',
     description: 'Anomaly detection, compliance alerts, ghost employee detection',
-    gradientBg: 'bg-violet-500/10',
-    iconColor: 'text-violet-500',
-    ringColor: 'ring-violet-500/20',
+    gradientBg: 'bg-teal-500/10',
+    iconColor: 'text-teal-500',
+    ringColor: 'ring-teal-500/20',
     isNew: true,
   },
   {
@@ -143,7 +143,7 @@ export default function PayrollTransactionsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-          <FiEdit3 className="w-6 h-6 text-blue-500" />
+          <FiEdit3 className="w-6 h-6 text-green-500" />
           Payroll Transactions
         </h1>
         <p className="text-sm text-slate-500 mt-1">Process payroll runs, manage inputs, approvals, and employee payments</p>
@@ -164,12 +164,12 @@ export default function PayrollTransactionsPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <h3 className="text-sm font-semibold text-slate-800 group-hover:text-blue-600 transition-colors">{t.title}</h3>
-                    {t.isNew && <span className="text-[9px] font-bold uppercase px-1 py-0.5 rounded bg-violet-100 text-violet-700">New</span>}
+                    <h3 className="text-sm font-semibold text-slate-800 group-hover:text-green-600 transition-colors">{t.title}</h3>
+                    {t.isNew && <span className="text-[9px] font-bold uppercase px-1 py-0.5 rounded bg-teal-100 text-teal-700">New</span>}
                   </div>
                   <p className="text-xs text-slate-500 mt-1 line-clamp-2">{t.description}</p>
                 </div>
-                <FiArrowRight className="w-4 h-4 text-slate-300 group-hover:text-blue-500 transition-colors flex-shrink-0 mt-1" />
+                <FiArrowRight className="w-4 h-4 text-slate-300 group-hover:text-green-500 transition-colors flex-shrink-0 mt-1" />
               </div>
             </Link>
           );

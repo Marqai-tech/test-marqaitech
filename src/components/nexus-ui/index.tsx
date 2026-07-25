@@ -2419,7 +2419,7 @@ export const StatCard = MetricCard;
 export const Badge = ({ children, variant = 'default', className: cls }: { children: ReactNode; variant?: 'default' | 'info' | 'success' | 'warning' | 'error'; className?: string }) => {
   const variantStyles: Record<string, string> = {
     default: 'bg-[var(--nexus-bg-secondary)] text-[var(--nexus-text-primary)]',
-    info: 'bg-blue-100 text-blue-800',
+    info: 'bg-green-100 text-green-800',
     success: 'bg-green-100 text-green-800',
     warning: 'bg-amber-100 text-amber-800',
     error: 'bg-red-100 text-red-800',

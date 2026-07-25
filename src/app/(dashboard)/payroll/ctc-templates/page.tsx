@@ -358,7 +358,7 @@ export default function CTCTemplatesPage() {
         {isAdmin && (
           <button
             onClick={handleAddNew}
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium text-sm shadow-sm shadow-blue-500/25 transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-500 text-white rounded-lg hover:bg-green-600 font-medium text-sm shadow-sm shadow-green-500/25 transition-colors"
           >
             <FiPlus className="w-4 h-4" /> Add Template
           </button>
@@ -369,8 +369,8 @@ export default function CTCTemplatesPage() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="thb-card p-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
-              <FiFileText className="w-5 h-5 text-blue-500" />
+            <div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center">
+              <FiFileText className="w-5 h-5 text-green-500" />
             </div>
             <div>
               <p className="text-xs font-medium text-thb-text-secondary">Total Templates</p>
@@ -402,8 +402,8 @@ export default function CTCTemplatesPage() {
         </div>
         <div className="thb-card p-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-purple-50 flex items-center justify-center">
-              <FiStar className="w-5 h-5 text-purple-500" />
+            <div className="w-10 h-10 rounded-lg bg-teal-50 flex items-center justify-center">
+              <FiStar className="w-5 h-5 text-teal-500" />
             </div>
             <div>
               <p className="text-xs font-medium text-thb-text-secondary">Default</p>
@@ -423,13 +423,13 @@ export default function CTCTemplatesPage() {
               placeholder="Search templates..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+              className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
             />
           </div>
           <select
             value={countryFilter}
             onChange={(e) => setCountryFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[160px]"
+            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 min-w-[160px]"
           >
             <option value="">All Countries</option>
             {COUNTRY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -437,7 +437,7 @@ export default function CTCTemplatesPage() {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-w-[140px]"
+            className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 min-w-[140px]"
           >
             <option value="">All Statuses</option>
             <option value="DRAFT">Draft</option>
@@ -453,7 +453,7 @@ export default function CTCTemplatesPage() {
           <div className="p-6">
             {viewLoading ? (
               <div className="flex items-center justify-center py-8">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500" />
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-500" />
               </div>
             ) : (
               <>
@@ -468,7 +468,7 @@ export default function CTCTemplatesPage() {
                     {isAdmin && (
                       <button
                         onClick={() => handleEdit(viewingTemplate)}
-                        className="px-3 py-1.5 rounded-lg bg-blue-500 text-white text-xs font-medium hover:bg-blue-600 transition-colors flex items-center gap-1"
+                        className="px-3 py-1.5 rounded-lg bg-green-500 text-white text-xs font-medium hover:bg-green-600 transition-colors flex items-center gap-1"
                       >
                         <FiEdit2 className="w-3.5 h-3.5" /> Edit
                       </button>
@@ -574,7 +574,7 @@ export default function CTCTemplatesPage() {
 
       {/* Embedded Inline Form */}
       {showForm && (
-        <div id="crud-form" className="thb-card border-l-4 border-l-blue-500">
+        <div id="crud-form" className="thb-card border-l-4 border-l-green-500">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-semibold text-thb-text-primary">
@@ -596,7 +596,7 @@ export default function CTCTemplatesPage() {
                   required
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                   placeholder="e.g. India Standard CTC"
                 />
               </div>
@@ -605,7 +605,7 @@ export default function CTCTemplatesPage() {
                 <select
                   value={form.countryCode}
                   onChange={(e) => handleCountryChange(e.target.value)}
-                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                 >
                   {COUNTRY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
@@ -615,7 +615,7 @@ export default function CTCTemplatesPage() {
                 <select
                   value={form.currencyCode}
                   onChange={(e) => setForm({ ...form, currencyCode: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                 >
                   {CURRENCY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
@@ -625,7 +625,7 @@ export default function CTCTemplatesPage() {
                 <select
                   value={form.ctcType}
                   onChange={(e) => setForm({ ...form, ctcType: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                 >
                   <option value="ANNUAL">Annual</option>
                   <option value="MONTHLY">Monthly</option>
@@ -640,7 +640,7 @@ export default function CTCTemplatesPage() {
                   step={0.5}
                   value={form.basePayPct}
                   onChange={(e) => setForm({ ...form, basePayPct: parseFloat(e.target.value) || 0 })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                   placeholder="e.g. 40"
                 />
               </div>
@@ -649,7 +649,7 @@ export default function CTCTemplatesPage() {
                 <select
                   value={form.status}
                   onChange={(e) => setForm({ ...form, status: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                 >
                   <option value="DRAFT">Draft</option>
                   <option value="ACTIVE">Active</option>
@@ -662,7 +662,7 @@ export default function CTCTemplatesPage() {
                   type="date"
                   value={form.effectiveFrom}
                   onChange={(e) => setForm({ ...form, effectiveFrom: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                 />
               </div>
               <div>
@@ -671,7 +671,7 @@ export default function CTCTemplatesPage() {
                   type="date"
                   value={form.effectiveTo}
                   onChange={(e) => setForm({ ...form, effectiveTo: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                 />
               </div>
               <div className="flex items-end pb-1">
@@ -694,7 +694,7 @@ export default function CTCTemplatesPage() {
                 <button
                   type="button"
                   onClick={addMapping}
-                  className="text-xs font-medium text-blue-500 hover:text-blue-600 flex items-center gap-1"
+                  className="text-xs font-medium text-green-500 hover:text-green-600 flex items-center gap-1"
                 >
                   <FiPlus className="w-3.5 h-3.5" /> Add Component
                 </button>
@@ -709,7 +709,7 @@ export default function CTCTemplatesPage() {
                           value={comp.componentName}
                           onChange={(e) => updateMapping(idx, 'componentName', e.target.value)}
                           placeholder="Component name"
-                          className="flex-1 px-2 py-1.5 border border-thb-border rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500/20 bg-white"
+                          className="flex-1 px-2 py-1.5 border border-thb-border rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500/20 bg-white"
                         />
                       </div>
                       <button
@@ -797,7 +797,7 @@ export default function CTCTemplatesPage() {
               <button
                 onClick={handleSubmit}
                 disabled={submitting}
-                className="px-6 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50 shadow-sm shadow-blue-500/25 transition-colors"
+                className="px-6 py-2.5 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 disabled:opacity-50 shadow-sm shadow-green-500/25 transition-colors"
               >
                 {submitting ? 'Saving...' : editingId ? 'Update Template' : 'Create Template'}
               </button>
@@ -896,7 +896,7 @@ export default function CTCTemplatesPage() {
                             <>
                               <button
                                 onClick={() => handleEdit(t)}
-                                className="p-1.5 rounded-lg text-thb-text-muted hover:text-blue-500 hover:bg-blue-50 transition-colors"
+                                className="p-1.5 rounded-lg text-thb-text-muted hover:text-green-500 hover:bg-green-50 transition-colors"
                                 title="Edit"
                               >
                                 <FiEdit2 className="w-3.5 h-3.5" />
