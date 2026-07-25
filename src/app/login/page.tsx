@@ -292,9 +292,9 @@ export default function LoginPage() {
 
     return (
       <svg viewBox={`0 0 ${totalW} ${totalH}`} className={dims[size]} fill="none">
-        <rect x="0" y="0" width={s} height={s} rx={r} fill="#3B82F6" />
+        <rect x="0" y="0" width={s} height={s} rx={r} fill="#059669" />
         <rect x={s + g} y="0" width={s} height={s} rx={r} fill="#10B981" />
-        <rect x={(s + g) * 2} y="0" width={s} height={s} rx={r} fill="#8B5CF6" />
+        <rect x={(s + g) * 2} y="0" width={s} height={s} rx={r} fill="#22C55E" />
       </svg>
     );
   };
@@ -304,7 +304,7 @@ export default function LoginPage() {
       {/* ===== LEFT PANEL — Branding & Features ===== */}
       <div className="hidden lg:flex lg:w-[55%] xl:w-[58%] relative flex-col justify-between">
         {/* Deep gradient background */}
-        <div className="absolute inset-0 bg-gradient-to-br from-[#0B1120] via-[#0F1D3A] to-[#1A0F2E]" />
+        <div className="absolute inset-0 bg-gradient-to-br from-[#0B1120] via-[#0F2D1A] to-[#0F2E1A]" />
 
         {/* Animated mesh pattern */}
         <div className="absolute inset-0 opacity-[0.04]" style={{
@@ -312,8 +312,8 @@ export default function LoginPage() {
         }} />
 
         {/* Glowing orbs */}
-        <div className="absolute top-[-10%] right-[-5%] w-[500px] h-[500px] bg-blue-500/15 rounded-full blur-[120px]" />
-        <div className="absolute bottom-[-15%] left-[-5%] w-[400px] h-[400px] bg-violet-500/15 rounded-full blur-[100px]" />
+        <div className="absolute top-[-10%] right-[-5%] w-[500px] h-[500px] bg-green-500/15 rounded-full blur-[120px]" />
+        <div className="absolute bottom-[-15%] left-[-5%] w-[400px] h-[400px] bg-emerald-500/15 rounded-full blur-[100px]" />
         <div className="absolute top-[40%] left-[30%] w-[300px] h-[300px] bg-emerald-500/10 rounded-full blur-[80px]" />
 
         {/* Content */}
@@ -330,7 +330,7 @@ export default function LoginPage() {
                       {tenantInfo.name}
                     </h1>
                     <p className="text-[11px] text-slate-400 tracking-[0.2em] uppercase font-medium">
-                      Powered by 3Boxes <span className="text-blue-400">HRMS</span>
+                      Powered by 3Boxes <span className="text-green-400">HRMS</span>
                     </p>
                   </div>
                 </>
@@ -339,7 +339,7 @@ export default function LoginPage() {
                   <ThreeBoxesLogo size="lg" />
                   <div>
                     <h1 className="text-2xl font-extrabold text-white tracking-tight">
-                      3Boxes <span className="text-blue-400">HRMS</span>
+                      3Boxes <span className="text-green-400">HRMS</span>
                     </h1>
                     <p className="text-[11px] text-slate-400 tracking-[0.2em] uppercase font-medium">
                       People &middot; Process &middot; Technology
@@ -360,7 +360,7 @@ export default function LoginPage() {
             <h2 className="text-4xl xl:text-5xl font-extrabold text-white leading-[1.1] mb-6">
               Transform Your
               <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-emerald-400 to-violet-400">
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-400 via-emerald-400 to-teal-400">
                 HR Operations
               </span>
             </h2>
@@ -372,8 +372,8 @@ export default function LoginPage() {
             {/* Three Pillars */}
             <div className="grid grid-cols-3 gap-4 mb-10">
               <div className="p-4 rounded-xl bg-white/[0.04] border border-white/[0.06] backdrop-blur-sm">
-                <div className="w-10 h-10 rounded-lg bg-blue-500/15 flex items-center justify-center mb-3">
-                  <FiUsers className="w-5 h-5 text-blue-400" />
+                <div className="w-10 h-10 rounded-lg bg-green-500/15 flex items-center justify-center mb-3">
+                  <FiUsers className="w-5 h-5 text-green-400" />
                 </div>
                 <h3 className="text-sm font-bold text-white mb-1">People</h3>
                 <p className="text-[11px] text-slate-400 leading-relaxed">Employee lifecycle, engagement & growth management</p>
@@ -386,8 +386,8 @@ export default function LoginPage() {
                 <p className="text-[11px] text-slate-400 leading-relaxed">Automated workflows, compliance & approvals</p>
               </div>
               <div className="p-4 rounded-xl bg-white/[0.04] border border-white/[0.06] backdrop-blur-sm">
-                <div className="w-10 h-10 rounded-lg bg-violet-500/15 flex items-center justify-center mb-3">
-                  <FiCpu className="w-5 h-5 text-violet-400" />
+                <div className="w-10 h-10 rounded-lg bg-emerald-500/15 flex items-center justify-center mb-3">
+                  <FiCpu className="w-5 h-5 text-emerald-400" />
                 </div>
                 <h3 className="text-sm font-bold text-white mb-1">Technology</h3>
                 <p className="text-[11px] text-slate-400 leading-relaxed">AI interviews, analytics & smart automation</p>
@@ -400,7 +400,7 @@ export default function LoginPage() {
             <div className="flex items-center gap-6 mb-6">
               <div className="flex items-center gap-2">
                 <div className="flex -space-x-2">
-                  {['bg-blue-500', 'bg-emerald-500', 'bg-blue-500', 'bg-amber-500'].map((c, i) => (
+                  {['bg-green-500', 'bg-emerald-500', 'bg-green-500', 'bg-amber-500'].map((c, i) => (
                     <div key={i} className={`w-8 h-8 rounded-full ${c} border-2 border-[#0F1D3A] flex items-center justify-center text-[10px] font-bold text-white`}>
                       {['SK', 'AP', 'MJ', 'RK'][i]}
                     </div>
@@ -442,7 +442,7 @@ export default function LoginPage() {
       <div className="w-full lg:w-[45%] xl:w-[42%] flex items-center justify-center bg-white relative">
         {/* Subtle pattern for right panel */}
         <div className="absolute inset-0 opacity-[0.015]" style={{
-          backgroundImage: `radial-gradient(circle at 1px 1px, #3B82F6 1px, transparent 0)`,
+          backgroundImage: `radial-gradient(circle at 1px 1px, #10B981 1px, transparent 0)`,
           backgroundSize: '24px 24px',
         }} />
 
@@ -463,7 +463,7 @@ export default function LoginPage() {
                   <ThreeBoxesLogo size="md" />
                   <h1 className="text-2xl font-extrabold tracking-tight">
                     <span className="gradient-text">3Boxes</span>
-                    <span className="text-blue-500 ml-1 text-lg font-extrabold">HRMS</span>
+                    <span className="text-green-500 ml-1 text-lg font-extrabold">HRMS</span>
                   </h1>
                 </>
               )}
@@ -478,7 +478,7 @@ export default function LoginPage() {
             <button
               onClick={() => setLoginMode('user')}
               className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all ${
-                loginMode === 'user' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                loginMode === 'user' ? 'bg-white text-green-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
               }`}
             >
               <span className="flex items-center justify-center gap-1.5">
@@ -488,7 +488,7 @@ export default function LoginPage() {
             <button
               onClick={() => setLoginMode('candidate')}
               className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all ${
-                loginMode === 'candidate' ? 'bg-white text-violet-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                loginMode === 'candidate' ? 'bg-white text-green-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
               }`}
             >
               <span className="flex items-center justify-center gap-1.5">
@@ -500,12 +500,12 @@ export default function LoginPage() {
           {/* Form header */}
           <div className="mb-8">
             {tenantInfo && (
-              <div className="mb-4 p-3 rounded-xl bg-gradient-to-r from-blue-50 to-violet-50 border border-blue-100">
+              <div className="mb-4 p-3 rounded-xl bg-gradient-to-r from-green-50 to-emerald-50 border border-green-100">
                 <div className="flex items-center gap-2.5">
                   {tenantInfo.logo ? (
                     <img src={tenantInfo.logo} alt={tenantInfo.name} className="w-8 h-8 rounded-lg object-contain bg-white/50 p-0.5" />
                   ) : (
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-white font-bold text-sm">
+                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center text-white font-bold text-sm">
                       {tenantInfo.name.charAt(0).toUpperCase()}
                     </div>
                   )}
@@ -561,7 +561,7 @@ export default function LoginPage() {
                       if (candidateError) setCandidateError('');
                     }}
                     placeholder="you@example.com"
-                    className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400 focus:bg-white transition-all text-sm"
+                    className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 focus:bg-white transition-all text-sm"
                     autoComplete="email"
                     disabled={isSubmitting}
                   />
@@ -574,7 +574,7 @@ export default function LoginPage() {
                 <button
                   onClick={() => setCandidateTab('password')}
                   className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                    candidateTab === 'password' ? 'bg-white text-violet-700 shadow-sm' : 'text-slate-500'
+                    candidateTab === 'password' ? 'bg-white text-green-700 shadow-sm' : 'text-slate-500'
                   }`}
                 >
                   Password
@@ -582,7 +582,7 @@ export default function LoginPage() {
                 <button
                   onClick={() => setCandidateTab('otp')}
                   className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                    candidateTab === 'otp' ? 'bg-white text-violet-700 shadow-sm' : 'text-slate-500'
+                    candidateTab === 'otp' ? 'bg-white text-green-700 shadow-sm' : 'text-slate-500'
                   }`}
                 >
                   OTP
@@ -609,7 +609,7 @@ export default function LoginPage() {
                           if (candidateError) setCandidateError('');
                         }}
                         placeholder="Enter your password"
-                        className="w-full pl-11 pr-12 py-3 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400 focus:bg-white transition-all text-sm"
+                        className="w-full pl-11 pr-12 py-3 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 focus:bg-white transition-all text-sm"
                         autoComplete="current-password"
                         disabled={isSubmitting}
                         onKeyDown={(e) => e.key === 'Enter' && handleCandidateLoginPassword()}
@@ -627,7 +627,7 @@ export default function LoginPage() {
                     type="button"
                     onClick={handleCandidateLoginPassword}
                     disabled={isSubmitting || !candidateEmail || !candidatePassword}
-                    className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl bg-gradient-to-r from-violet-500 via-indigo-500 to-sky-500 text-white font-semibold text-sm shadow-lg shadow-violet-500/25 hover:shadow-xl hover:from-violet-600 hover:to-sky-600 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl bg-gradient-to-r from-green-500 via-emerald-500 to-teal-500 text-white font-semibold text-sm shadow-lg shadow-green-500/25 hover:shadow-xl hover:from-green-600 hover:to-teal-600 focus:outline-none focus:ring-2 focus:ring-green-500/50 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     {isSubmitting ? (
                       <>
@@ -642,7 +642,7 @@ export default function LoginPage() {
                     )}
                   </button>
                   <div className="text-center">
-                    <Link href="/candidate-portal/forgot-password" className="text-xs text-violet-500 hover:text-violet-700 hover:underline">
+                    <Link href="/candidate-portal/forgot-password" className="text-xs text-emerald-500 hover:text-green-700 hover:underline">
                       Forgot password?
                     </Link>
                   </div>
@@ -654,7 +654,7 @@ export default function LoginPage() {
                       type="button"
                       onClick={handleCandidateRequestOtp}
                       disabled={isSubmitting || !candidateEmail}
-                      className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl bg-gradient-to-r from-violet-500 via-indigo-500 to-sky-500 text-white font-semibold text-sm shadow-lg shadow-violet-500/25 hover:shadow-xl disabled:opacity-60 disabled:cursor-not-allowed transition-all"
+                      className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl bg-gradient-to-r from-green-500 via-emerald-500 to-teal-500 text-white font-semibold text-sm shadow-lg shadow-green-500/25 hover:shadow-xl disabled:opacity-60 disabled:cursor-not-allowed transition-all"
                     >
                       {isSubmitting ? (
                         <>
@@ -686,7 +686,7 @@ export default function LoginPage() {
                             value={candidateOtp}
                             onChange={(e) => setCandidateOtp(e.target.value.replace(/\D/g, ''))}
                             placeholder="123456"
-                            className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400 tracking-[0.5em] font-mono text-sm"
+                            className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 tracking-[0.5em] font-mono text-sm"
                             onKeyDown={(e) => e.key === 'Enter' && handleCandidateVerifyOtp()}
                             disabled={isSubmitting}
                           />
@@ -711,7 +711,7 @@ export default function LoginPage() {
                         type="button"
                         onClick={handleCandidateVerifyOtp}
                         disabled={isSubmitting || candidateOtp.length !== 6}
-                        className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl bg-gradient-to-r from-violet-500 via-indigo-500 to-sky-500 text-white font-semibold text-sm shadow-lg disabled:opacity-60 disabled:cursor-not-allowed transition-all"
+                        className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl bg-gradient-to-r from-green-500 via-emerald-500 to-teal-500 text-white font-semibold text-sm shadow-lg disabled:opacity-60 disabled:cursor-not-allowed transition-all"
                       >
                         {isSubmitting ? 'Verifying...' : <>Verify & Continue <FiArrowRight className="h-4 w-4" /></>}
                       </button>
@@ -738,7 +738,7 @@ export default function LoginPage() {
                     { icon: FiGlobe, text: 'External Job Search' },
                   ].map((f, i) => (
                     <div key={i} className="flex items-center gap-1.5 text-[11px] text-slate-600">
-                      <f.icon className="w-3.5 h-3.5 text-violet-500" />
+                      <f.icon className="w-3.5 h-3.5 text-emerald-500" />
                       {f.text}
                     </div>
                   ))}
@@ -768,7 +768,7 @@ export default function LoginPage() {
                     if (error) setError('');
                   }}
                   placeholder="you@company.com"
-                  className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 focus:bg-white transition-all text-sm"
+                  className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 focus:bg-white transition-all text-sm"
                   autoComplete="email"
                   disabled={isSubmitting}
                 />
@@ -781,7 +781,7 @@ export default function LoginPage() {
                 <label htmlFor="password" className="block text-sm font-semibold text-slate-700">
                   Password
                 </label>
-                <button type="button" className="text-xs font-medium text-blue-500 hover:text-blue-700 transition-colors">
+                <button type="button" className="text-xs font-medium text-green-500 hover:text-green-700 transition-colors">
                   Forgot password?
                 </button>
               </div>
@@ -798,7 +798,7 @@ export default function LoginPage() {
                     if (error) setError('');
                   }}
                   placeholder="Enter your password"
-                  className="w-full pl-11 pr-12 py-3 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 focus:bg-white transition-all text-sm"
+                  className="w-full pl-11 pr-12 py-3 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 focus:bg-white transition-all text-sm"
                   autoComplete="current-password"
                   disabled={isSubmitting}
                 />
@@ -821,7 +821,7 @@ export default function LoginPage() {
               <input
                 id="remember"
                 type="checkbox"
-                className="w-4 h-4 rounded border-slate-300 text-blue-500 focus:ring-blue-500/20"
+                className="w-4 h-4 rounded border-slate-300 text-green-500 focus:ring-green-500/20"
               />
               <label htmlFor="remember" className="text-sm text-slate-500">
                 Keep me signed in for 30 days
@@ -832,7 +832,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-600 text-white font-semibold text-sm shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 hover:from-blue-600 hover:via-indigo-600 hover:to-violet-700 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:ring-offset-2 transition-all disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:shadow-lg"
+              className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl bg-gradient-to-r from-green-500 via-emerald-500 to-teal-600 text-white font-semibold text-sm shadow-lg shadow-green-500/25 hover:shadow-xl hover:shadow-green-500/30 hover:from-green-600 hover:via-emerald-600 hover:to-teal-700 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:ring-offset-2 transition-all disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:shadow-lg"
             >
               {isSubmitting ? (
                 <>
@@ -927,7 +927,7 @@ export default function LoginPage() {
                             <p className="text-[11px] font-semibold text-slate-700 group-hover:text-amber-700 transition-colors">{u.tenant}</p>
                             <p className="text-[9px] text-slate-400 truncate">{u.email}</p>
                           </div>
-                          <span className="text-[8px] font-medium bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded">
+                          <span className="text-[8px] font-medium bg-green-100 text-green-600 px-1.5 py-0.5 rounded">
                             Tenant Admin
                           </span>
                         </button>
@@ -968,7 +968,7 @@ export default function LoginPage() {
                           <p className="text-[11px] font-semibold text-slate-700 group-hover:text-amber-700">Tenant Admin</p>
                           <p className="text-[9px] text-slate-400 truncate">admin@marqaitechgroup.com</p>
                         </div>
-                        <span className="text-[8px] font-medium bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded">Tenant Admin</span>
+                        <span className="text-[8px] font-medium bg-green-100 text-green-600 px-1.5 py-0.5 rounded">Tenant Admin</span>
                       </button>
                     </div>
                   )}
@@ -980,21 +980,21 @@ export default function LoginPage() {
             {/* Job Portal / Career Link */}
             <Link
               href="/careers"
-              className="group block w-full mt-4 px-4 py-3 rounded-xl border border-indigo-100 bg-gradient-to-r from-indigo-50/60 to-violet-50/60 hover:from-indigo-50 hover:to-violet-50 hover:border-indigo-200 transition-all"
+              className="group block w-full mt-4 px-4 py-3 rounded-xl border border-green-100 bg-gradient-to-r from-green-50/60 to-emerald-50/60 hover:from-green-50 hover:to-emerald-50 hover:border-green-200 transition-all"
             >
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white flex-shrink-0">
+                <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center text-white flex-shrink-0">
                   <FiBriefcase className="w-4 h-4" />
                 </div>
                 <div className="flex-1 text-left min-w-0">
-                  <p className="text-sm font-bold text-slate-900 group-hover:text-indigo-700 transition-colors">
+                  <p className="text-sm font-bold text-slate-900 group-hover:text-green-700 transition-colors">
                     Looking for a job? Browse Openings
                   </p>
                   <p className="text-[11px] text-slate-500 mt-0.5 truncate">
                     Candidates (registered or not) can view roles &amp; apply with resume — no account needed
                   </p>
                 </div>
-                <FiArrowRight className="w-4 h-4 text-indigo-500 flex-shrink-0 group-hover:translate-x-0.5 transition-transform" />
+                <FiArrowRight className="w-4 h-4 text-green-500 flex-shrink-0 group-hover:translate-x-0.5 transition-transform" />
               </div>
             </Link>
 
@@ -1031,8 +1031,8 @@ export default function LoginPage() {
               className="w-full flex items-center justify-between p-3.5 rounded-xl border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-all group"
             >
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-50 to-violet-50 flex items-center justify-center">
-                  <FiSmartphone className="w-4.5 h-4.5 text-blue-500" />
+                <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-green-50 to-emerald-50 flex items-center justify-center">
+                  <FiSmartphone className="w-4.5 h-4.5 text-green-500" />
                 </div>
                 <div className="text-left">
                   <p className="text-sm font-semibold text-slate-800">Get Mobile App</p>
@@ -1052,7 +1052,7 @@ export default function LoginPage() {
                 {deferredPrompt && !isStandalone && (
                   <button
                     onClick={handlePWAInstall}
-                    className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-gradient-to-r from-blue-500 to-violet-600 text-white font-semibold text-sm shadow-lg shadow-blue-500/20 hover:from-blue-600 hover:to-violet-700 transition-all"
+                    className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-gradient-to-r from-green-500 to-emerald-600 text-white font-semibold text-sm shadow-lg shadow-green-500/20 hover:from-green-600 hover:to-emerald-700 transition-all"
                   >
                     <FiDownload className="w-4 h-4" />
                     Install 3Boxes HRMS App
@@ -1099,17 +1099,17 @@ export default function LoginPage() {
                   </div>
 
                   {/* Desktop */}
-                  <div className={`p-3 rounded-xl border border-slate-200 bg-slate-50/50 ${!isIOS && !isAndroid ? 'ring-1 ring-blue-200' : ''}`}>
+                  <div className={`p-3 rounded-xl border border-slate-200 bg-slate-50/50 ${!isIOS && !isAndroid ? 'ring-1 ring-green-200' : ''}`}>
                     <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-lg bg-blue-100 flex items-center justify-center">
-                        <FiMonitor className="w-4 h-4 text-blue-500" />
+                      <div className="w-7 h-7 rounded-lg bg-green-100 flex items-center justify-center">
+                        <FiMonitor className="w-4 h-4 text-green-500" />
                       </div>
                       <div className="flex-1">
                         <h4 className="text-xs font-bold text-slate-800">Desktop</h4>
                         <p className="text-[10px] text-slate-400">Chrome/Edge → Address bar install icon</p>
                       </div>
                       {!isIOS && !isAndroid && (
-                        <span className="px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 text-[9px] font-bold">YOUR DEVICE</span>
+                        <span className="px-1.5 py-0.5 rounded-full bg-green-100 text-green-700 text-[9px] font-bold">YOUR DEVICE</span>
                       )}
                     </div>
                   </div>
@@ -1118,8 +1118,8 @@ export default function LoginPage() {
                 {/* Feature highlights */}
                 <div className="grid grid-cols-3 gap-2 pt-2">
                   <div className="text-center p-2">
-                    <div className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center mx-auto mb-1">
-                      <FiRefreshCw className="w-3.5 h-3.5 text-blue-500" />
+                    <div className="w-7 h-7 rounded-lg bg-green-50 flex items-center justify-center mx-auto mb-1">
+                      <FiRefreshCw className="w-3.5 h-3.5 text-green-500" />
                     </div>
                     <p className="text-[10px] font-semibold text-slate-700">Auto Updates</p>
                   </div>
@@ -1130,8 +1130,8 @@ export default function LoginPage() {
                     <p className="text-[10px] font-semibold text-slate-700">Offline Mode</p>
                   </div>
                   <div className="text-center p-2">
-                    <div className="w-7 h-7 rounded-lg bg-violet-50 flex items-center justify-center mx-auto mb-1">
-                      <FiShield className="w-3.5 h-3.5 text-violet-500" />
+                    <div className="w-7 h-7 rounded-lg bg-green-50 flex items-center justify-center mx-auto mb-1">
+                      <FiShield className="w-3.5 h-3.5 text-emerald-500" />
                     </div>
                     <p className="text-[10px] font-semibold text-slate-700">Encrypted</p>
                   </div>
@@ -1150,25 +1150,25 @@ export default function LoginPage() {
               </div>
               <p className="text-xs text-slate-400 mb-3">Browse jobs across top portals</p>
               <div className="grid grid-cols-2 gap-2">
-                <a href="https://www.linkedin.com/jobs" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-200 bg-white hover:bg-blue-50 hover:border-blue-200 transition-all group">
+                <a href="https://www.linkedin.com/jobs" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-200 bg-white hover:bg-green-50 hover:border-green-200 transition-all group">
                   <div className="w-8 h-8 rounded-lg bg-[#0A66C2] flex items-center justify-center text-white text-[10px] font-bold shrink-0">in</div>
                   <div className="min-w-0"><p className="text-xs font-semibold text-slate-700 truncate">LinkedIn</p><p className="text-[10px] text-slate-400">Professional network</p></div>
-                  <FiExternalLink className="w-3 h-3 text-slate-300 group-hover:text-blue-500 ml-auto shrink-0" />
+                  <FiExternalLink className="w-3 h-3 text-slate-300 group-hover:text-green-500 ml-auto shrink-0" />
                 </a>
-                <a href="https://www.naukri.com" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-200 bg-white hover:bg-blue-50 hover:border-blue-200 transition-all group">
+                <a href="https://www.naukri.com" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-200 bg-white hover:bg-green-50 hover:border-green-200 transition-all group">
                   <div className="w-8 h-8 rounded-lg bg-[#4A90D9] flex items-center justify-center text-white text-[10px] font-bold shrink-0">N</div>
                   <div className="min-w-0"><p className="text-xs font-semibold text-slate-700 truncate">Naukri</p><p className="text-[10px] text-slate-400">India&apos;s #1 job site</p></div>
-                  <FiExternalLink className="w-3 h-3 text-slate-300 group-hover:text-blue-500 ml-auto shrink-0" />
+                  <FiExternalLink className="w-3 h-3 text-slate-300 group-hover:text-green-500 ml-auto shrink-0" />
                 </a>
-                <a href="https://www.indeed.com" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-200 bg-white hover:bg-blue-50 hover:border-blue-200 transition-all group">
+                <a href="https://www.indeed.com" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-200 bg-white hover:bg-green-50 hover:border-green-200 transition-all group">
                   <div className="w-8 h-8 rounded-lg bg-[#2557A7] flex items-center justify-center text-white text-[10px] font-bold shrink-0">IN</div>
                   <div className="min-w-0"><p className="text-xs font-semibold text-slate-700 truncate">Indeed</p><p className="text-[10px] text-slate-400">Global job search</p></div>
-                  <FiExternalLink className="w-3 h-3 text-slate-300 group-hover:text-blue-500 ml-auto shrink-0" />
+                  <FiExternalLink className="w-3 h-3 text-slate-300 group-hover:text-green-500 ml-auto shrink-0" />
                 </a>
-                <a href="https://www.glassdoor.com" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-200 bg-white hover:bg-blue-50 hover:border-blue-200 transition-all group">
+                <a href="https://www.glassdoor.com" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-200 bg-white hover:bg-green-50 hover:border-green-200 transition-all group">
                   <div className="w-8 h-8 rounded-lg bg-[#0CAA41] flex items-center justify-center text-white text-[10px] font-bold shrink-0">G</div>
                   <div className="min-w-0"><p className="text-xs font-semibold text-slate-700 truncate">Glassdoor</p><p className="text-[10px] text-slate-400">Reviews &amp; jobs</p></div>
-                  <FiExternalLink className="w-3 h-3 text-slate-300 group-hover:text-blue-500 ml-auto shrink-0" />
+                  <FiExternalLink className="w-3 h-3 text-slate-300 group-hover:text-green-500 ml-auto shrink-0" />
                 </a>
               </div>
               <div className="grid grid-cols-2 gap-1.5 mt-2">
