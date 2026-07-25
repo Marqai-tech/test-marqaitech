@@ -42,18 +42,18 @@ export default function LandingLayout({
         }`}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16 sm:h-20">
+          <div className="flex items-center justify-between h-20 sm:h-24">
             {/* Logo */}
-            <Link href="/landing" className="flex items-center gap-2.5">
+            <Link href="/landing" className="flex items-center gap-3">
               <Image
                 src="/images/logo-3boxes-hrms.png"
                 alt="3Boxes HRMS Logo"
-                width={36}
-                height={36}
+                width={48}
+                height={48}
                 className="rounded-lg"
                 priority
               />
-              <span className="text-lg sm:text-xl font-bold text-slate-900">
+              <span className="text-xl sm:text-2xl font-bold text-slate-900">
                 3Boxes <span className="gradient-text">HRMS</span>
               </span>
             </Link>
@@ -118,7 +118,7 @@ export default function LandingLayout({
       </header>
 
       {/* ─── Main Content ─── */}
-      <main className="flex-1 pt-16 sm:pt-20">{children}</main>
+      <main className="flex-1 pt-20 sm:pt-24">{children}</main>
 
       {/* ─── Shared Footer ─── */}
       <footer className="bg-slate-900 text-slate-400 mt-auto">
@@ -126,15 +126,15 @@ export default function LandingLayout({
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12">
             {/* Brand */}
             <div className="sm:col-span-2 lg:col-span-1">
-              <Link href="/landing" className="flex items-center gap-2.5">
+              <Link href="/landing" className="flex items-center gap-3">
                 <Image
                   src="/images/logo-3boxes-hrms.png"
                   alt="3Boxes HRMS Logo"
-                  width={32}
-                  height={32}
+                  width={40}
+                  height={40}
                   className="rounded-lg"
                 />
-                <span className="text-lg font-bold text-white">
+                <span className="text-xl font-bold text-white">
                   3Boxes <span className="text-green-400">HRMS</span>
                 </span>
               </Link>

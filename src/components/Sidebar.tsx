@@ -96,10 +96,10 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false, cur
         <div className={`flex items-center h-14 px-4 border-b border-white/[0.06] ${collapsed ? 'justify-center' : 'gap-3'}`}>
           {user?.tenant?.logo ? (
             /* eslint-disable-next-line @next/next/no-img-element */
-            <img src={user.tenant.logo} alt={user.tenant.name || 'Tenant'} className="flex-shrink-0 w-8 h-8 rounded-xl object-contain bg-white/10 p-1.5 shadow-lg ring-1 ring-white/10" />
+            <img src={user.tenant.logo} alt={user.tenant.name || 'Tenant'} className="flex-shrink-0 w-10 h-10 rounded-xl object-contain bg-white/10 p-2 shadow-lg ring-1 ring-white/10" />
           ) : (
-            <div className="flex-shrink-0 w-8 h-8 rounded-xl bg-gradient-to-br from-green-500 via-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-green-500/20 ring-1 ring-white/10">
-              <svg viewBox="0 0 35 11" className="w-4 h-3" fill="none">
+            <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-green-500 via-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-green-500/20 ring-1 ring-white/10">
+              <svg viewBox="0 0 35 11" className="w-5 h-4" fill="none">
                 <rect x="0" y="0" width="9" height="9" rx="2" fill="white" opacity="0.9"/>
                 <rect x="13" y="0" width="9" height="9" rx="2" fill="white" opacity="0.9"/>
                 <rect x="26" y="0" width="9" height="9" rx="2" fill="white" opacity="0.9"/>
@@ -308,8 +308,8 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false, cur
           <div className="px-3 pb-2 pt-1 text-center">
             <div className="flex items-center justify-center gap-1.5 opacity-40 hover:opacity-70 transition-opacity">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/images/logo-3boxes-hrms.png" alt="3Boxes HRMS" className="w-3.5 h-3.5 rounded object-contain" />
-              <span className="text-[8px] text-thb-sidebar-text whitespace-nowrap">Powered by 3Boxes HRMS</span>
+              <img src="/images/logo-3boxes-hrms.png" alt="3Boxes HRMS" className="w-4 h-4 rounded object-contain" />
+              <span className="text-[9px] text-thb-sidebar-text whitespace-nowrap">Powered by 3Boxes HRMS</span>
             </div>
           </div>
         )}
