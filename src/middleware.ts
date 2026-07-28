@@ -127,6 +127,17 @@ export function middleware(request: NextRequest) {
   const tenantSlug = extractTenantSlug(request);
   const host = request.headers.get('host') || '';
 
+  // 2b. Tenant subdomain redirect: if a tenant slug is resolved and the
+  //     user visits the root path ("/") or any landing page path ("/landing/*"),
+  //     redirect to /login — tenant users should see a branded login, not the
+  //     public marketing landing page. The main domain (3boxeshrms.com) still
+  //     shows the landing page as usual.
+  if (tenantSlug && (pathname === '/' || pathname.startsWith('/landing'))) {
+    const loginUrl = request.nextUrl.clone();
+    loginUrl.pathname = '/login';
+    return NextResponse.redirect(loginUrl);
+  }
+
   // 3. Build augmented request headers
   const requestHeaders = new Headers(request.headers);
 
