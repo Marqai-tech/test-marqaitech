@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders, hashPassword } from '@/lib/auth';
 import { getDataScope } from '@/lib/roleAccess';
+import { checkTenantStatusOrBlock } from '@/lib/tenant-guard';
 
 function generateRandomPassword(length = 12): string {
   const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -208,6 +209,10 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const db = await getDb(request);
   try {
+    // ─── Tenant status guard: block writes for suspended/inactive tenants ───
+    const tenantBlock = await checkTenantStatusOrBlock(request, corsHeaders);
+    if (tenantBlock) return tenantBlock;
+
     // Try auth but allow demo mode
     let isAuthed = false;
     let decodedUserId: string | undefined;

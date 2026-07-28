@@ -58,6 +58,7 @@ export async function GET(request: Request) {
           currency: true,
           timezone: true,
           logo: true,
+          status: true,
         },
       },
     };
@@ -117,6 +118,7 @@ export async function GET(request: Request) {
                   currency: true,
                   timezone: true,
                   logo: true,
+                  status: true,
                 },
               });
               user.tenant = tenant;
@@ -147,6 +149,7 @@ export async function GET(request: Request) {
             currency: true,
             timezone: true,
             logo: true,
+            status: true,
           },
         });
       } catch (e) {
@@ -240,6 +243,7 @@ export async function GET(request: Request) {
           currency: user.tenant.currency,
           timezone: user.tenant.timezone,
           logo: user.tenant.logo,
+          status: user.tenant.status,
         } : null,
         employee: employeeData,
         lastLogin: user.lastLogin,

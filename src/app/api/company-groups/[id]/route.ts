@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
+import { checkTenantStatusOrBlock } from '@/lib/tenant-guard';
 
 function corsHeaders() {
   return {
@@ -35,6 +36,10 @@ export async function PATCH(
 ) {
   const db = await getDb(request);
   try {
+    // ─── Tenant status guard: block writes for suspended/inactive tenants ───
+    const tenantBlock = await checkTenantStatusOrBlock(request, corsHeaders);
+    if (tenantBlock) return tenantBlock;
+
     const token = getTokenFromHeaders(request);
     if (!token) {
       return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });

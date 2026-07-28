@@ -10,6 +10,7 @@ interface TenantInfo {
   currency: string;
   timezone: string;
   logo?: string | null;
+  status?: string;
 }
 
 interface CompanyInfo {
@@ -182,6 +183,34 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
 
       const user = await res.json();
+
+      // ─── Tenant status guard ───
+      // If the user's tenant is suspended, inactive, or pending_approval,
+      // force logout and show an error. Super admins are exempt (they
+      // control tenant status, not subject to it).
+      if (user.role !== 'super_admin' && user.tenant?.status) {
+        const blockedStatuses = ['suspended', 'inactive', 'pending_approval'];
+        if (blockedStatuses.includes(user.tenant.status)) {
+          // Force logout — clear token and auth state
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('tb_token');
+            localStorage.removeItem('tb_company_ctx');
+          }
+          set({
+            user: null,
+            token: null,
+            isAuthenticated: false,
+            isLoading: false,
+          });
+          // Show a user-friendly message
+          const statusMessages: Record<string, string> = {
+            suspended: 'Your tenant has been suspended by the super admin. Please contact support to reactivate your account.',
+            inactive: 'Your tenant account is inactive. Please contact the super admin.',
+            pending_approval: 'Your tenant is pending approval. You cannot access the platform until the super admin approves your account.',
+          };
+          throw new Error(statusMessages[user.tenant.status] || `Your tenant status is "${user.tenant.status}". Access denied.`);
+        }
+      }
 
       set({
         user,

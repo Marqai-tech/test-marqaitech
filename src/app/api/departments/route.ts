@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getCompanyFilter, getAuthInfo } from '@/lib/companyScope';
+import { checkTenantStatusOrBlock } from '@/lib/tenant-guard';
 
 function corsHeaders() {
   return {
@@ -67,6 +68,10 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const db = await getDb(req);
   try {
+    // ─── Tenant status guard: block writes for suspended/inactive tenants ───
+    const tenantBlock = await checkTenantStatusOrBlock(req, corsHeaders);
+    if (tenantBlock) return tenantBlock;
+
     const auth = await getAuthInfo(req);
     if (!auth) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
