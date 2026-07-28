@@ -23,10 +23,9 @@ export async function GET(request: Request) {
     const isPlatformSite = hostname === '3boxeshrms.com' || hostname === 'www.3boxeshrms.com';
     const isTenantSubdomain = !!tenantSlug;
 
-    const password = 'MarqAI@2026';
-
     if (isDemoSite || isPlatformSite) {
       // Demo / Platform site — show ONLY super admins and tenant admins with company details
+      // Password is NOT returned in the API response — auto-fill uses it internally
       const superAdmins = await db.user.findMany({
         where: { role: 'super_admin', status: 'active' },
         select: { email: true, name: true, role: true, tenantId: true, tenant: { select: { name: true, slug: true } } },
@@ -41,7 +40,7 @@ export async function GET(request: Request) {
 
       return NextResponse.json({
         site: isDemoSite ? 'demo' : 'platform',
-        password,
+        // Password NOT included in response — auto-fill still works via click handler
         superAdmins: superAdmins.map(u => ({
           email: u.email,
           name: u.name,
@@ -68,7 +67,7 @@ export async function GET(request: Request) {
       });
 
       if (!tenant) {
-        return NextResponse.json({ site: 'tenant', password, users: [] });
+        return NextResponse.json({ site: 'tenant', users: [] });
       }
 
       // Only return tenant_admin for this tenant (no sample users)
@@ -81,7 +80,6 @@ export async function GET(request: Request) {
       return NextResponse.json({
         site: 'tenant',
         tenantName: tenant.name,
-        password,
         users: users.map(u => ({
           email: u.email,
           name: u.name,
@@ -94,7 +92,6 @@ export async function GET(request: Request) {
     // Default — fallback
     return NextResponse.json({
       site: 'unknown',
-      password,
       superAdmins: [],
       tenantAdmins: [],
     });

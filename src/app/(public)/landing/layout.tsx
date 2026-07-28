@@ -7,7 +7,6 @@ import {
   FiMenu,
   FiX,
   FiArrowRight,
-  FiShield,
 } from 'react-icons/fi';
 
 const navLinks = [
@@ -75,13 +74,6 @@ export default function LandingLayout({
             {/* CTA + Mobile Toggle */}
             <div className="flex items-center gap-3">
               <Link
-                href="/login"
-                className="hidden sm:inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800 transition-all"
-              >
-                <FiShield className="w-4 h-4" />
-                Super Admin
-              </Link>
-              <Link
                 href="/landing/trial"
                 className="hidden sm:inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-green-600 to-emerald-600 text-white text-sm font-semibold shadow-lg shadow-green-500/25 hover:shadow-green-500/40 hover:scale-105 transition-all"
               >
@@ -113,14 +105,6 @@ export default function LandingLayout({
                   {link.label}
                 </Link>
               ))}
-              <Link
-                href="/login"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center gap-2 px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 rounded-lg transition-colors"
-              >
-                <FiShield className="w-4 h-4" />
-                Super Admin Login
-              </Link>
               <Link
                 href="/landing/trial"
                 onClick={() => setMobileMenuOpen(false)}

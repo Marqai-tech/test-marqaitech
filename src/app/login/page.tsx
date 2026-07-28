@@ -349,7 +349,7 @@ export default function LoginPage() {
                       3Boxes <span className="text-green-400">HRMS</span>
                     </h1>
                     <p className="text-[11px] text-slate-400 tracking-[0.2em] uppercase font-medium">
-                      People &middot; Process &middot; Technology
+                      {isPlatformSite ? 'Super Admin &middot; Platform Control' : 'People \u00b7 Process \u00b7 Technology'}
                     </p>
                   </div>
                 </>
@@ -361,44 +361,89 @@ export default function LoginPage() {
           <div className="max-w-lg">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.06] border border-white/[0.08] mb-6">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse-subtle" />
-              <span className="text-[11px] text-emerald-300 font-semibold tracking-wide">AI-POWERED PLATFORM</span>
+              <span className="text-[11px] text-emerald-300 font-semibold tracking-wide">
+                {isPlatformSite ? 'PLATFORM CONTROL CENTER' : 'AI-POWERED PLATFORM'}
+              </span>
             </div>
 
             <h2 className="text-4xl xl:text-5xl font-extrabold text-white leading-[1.1] mb-6">
-              Transform Your
-              <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-400 via-emerald-400 to-teal-400">
-                HR Operations
-              </span>
+              {isPlatformSite ? (
+                <>
+                  Manage All
+                  <br />
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-400 via-emerald-400 to-teal-400">
+                    Tenants & Operations
+                  </span>
+                </>
+              ) : (
+                <>
+                  Transform Your
+                  <br />
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-400 via-emerald-400 to-teal-400">
+                    HR Operations
+                  </span>
+                </>
+              )}
             </h2>
 
             <p className="text-slate-300/80 text-base leading-relaxed mb-10 max-w-md">
-              The next-generation SaaS HRMS platform — empowering businesses to manage people, streamline processes, and leverage technology seamlessly. A Proud Product of Marq AI Tech Group.
+              {isPlatformSite
+                ? 'The central platform control center for managing all tenants, approving trial registrations, controlling subscriptions, and overseeing the entire 3Boxes HRMS ecosystem.'
+                : 'The next-generation SaaS HRMS platform — empowering businesses to manage people, streamline processes, and leverage technology seamlessly. A Proud Product of Marq AI Tech Group.'
+              }
             </p>
 
-            {/* Three Pillars */}
+            {/* Three Pillars — Different for Super Admin */}
             <div className="grid grid-cols-3 gap-4 mb-10">
-              <div className="p-4 rounded-xl bg-white/[0.04] border border-white/[0.06] backdrop-blur-sm">
-                <div className="w-10 h-10 rounded-lg bg-green-500/15 flex items-center justify-center mb-3">
-                  <FiUsers className="w-5 h-5 text-green-400" />
-                </div>
-                <h3 className="text-sm font-bold text-white mb-1">People</h3>
-                <p className="text-[11px] text-slate-400 leading-relaxed">Employee lifecycle, engagement & growth management</p>
-              </div>
-              <div className="p-4 rounded-xl bg-white/[0.04] border border-white/[0.06] backdrop-blur-sm">
-                <div className="w-10 h-10 rounded-lg bg-emerald-500/15 flex items-center justify-center mb-3">
-                  <FiSettings className="w-5 h-5 text-emerald-400" />
-                </div>
-                <h3 className="text-sm font-bold text-white mb-1">Process</h3>
-                <p className="text-[11px] text-slate-400 leading-relaxed">Automated workflows, compliance & approvals</p>
-              </div>
-              <div className="p-4 rounded-xl bg-white/[0.04] border border-white/[0.06] backdrop-blur-sm">
-                <div className="w-10 h-10 rounded-lg bg-emerald-500/15 flex items-center justify-center mb-3">
-                  <FiCpu className="w-5 h-5 text-emerald-400" />
-                </div>
-                <h3 className="text-sm font-bold text-white mb-1">Technology</h3>
-                <p className="text-[11px] text-slate-400 leading-relaxed">AI interviews, analytics & smart automation</p>
-              </div>
+              {isPlatformSite ? (
+                <>
+                  <div className="p-4 rounded-xl bg-white/[0.04] border border-white/[0.06] backdrop-blur-sm">
+                    <div className="w-10 h-10 rounded-lg bg-green-500/15 flex items-center justify-center mb-3">
+                      <FiUsers className="w-5 h-5 text-green-400" />
+                    </div>
+                    <h3 className="text-sm font-bold text-white mb-1">Tenants</h3>
+                    <p className="text-[11px] text-slate-400 leading-relaxed">View, configure, and manage all tenant organizations</p>
+                  </div>
+                  <div className="p-4 rounded-xl bg-white/[0.04] border border-white/[0.06] backdrop-blur-sm">
+                    <div className="w-10 h-10 rounded-lg bg-emerald-500/15 flex items-center justify-center mb-3">
+                      <FiUserCheck className="w-5 h-5 text-emerald-400" />
+                    </div>
+                    <h3 className="text-sm font-bold text-white mb-1">Approvals</h3>
+                    <p className="text-[11px] text-slate-400 leading-relaxed">Trial registration, domain, and subscription approvals</p>
+                  </div>
+                  <div className="p-4 rounded-xl bg-white/[0.04] border border-white/[0.06] backdrop-blur-sm">
+                    <div className="w-10 h-10 rounded-lg bg-emerald-500/15 flex items-center justify-center mb-3">
+                      <FiCreditCard className="w-5 h-5 text-emerald-400" />
+                    </div>
+                    <h3 className="text-sm font-bold text-white mb-1">Subscriptions</h3>
+                    <p className="text-[11px] text-slate-400 leading-relaxed">Plan management, billing, and renewal cycle control</p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="p-4 rounded-xl bg-white/[0.04] border border-white/[0.06] backdrop-blur-sm">
+                    <div className="w-10 h-10 rounded-lg bg-green-500/15 flex items-center justify-center mb-3">
+                      <FiUsers className="w-5 h-5 text-green-400" />
+                    </div>
+                    <h3 className="text-sm font-bold text-white mb-1">People</h3>
+                    <p className="text-[11px] text-slate-400 leading-relaxed">Employee lifecycle, engagement & growth management</p>
+                  </div>
+                  <div className="p-4 rounded-xl bg-white/[0.04] border border-white/[0.06] backdrop-blur-sm">
+                    <div className="w-10 h-10 rounded-lg bg-emerald-500/15 flex items-center justify-center mb-3">
+                      <FiSettings className="w-5 h-5 text-emerald-400" />
+                    </div>
+                    <h3 className="text-sm font-bold text-white mb-1">Process</h3>
+                    <p className="text-[11px] text-slate-400 leading-relaxed">Automated workflows, compliance & approvals</p>
+                  </div>
+                  <div className="p-4 rounded-xl bg-white/[0.04] border border-white/[0.06] backdrop-blur-sm">
+                    <div className="w-10 h-10 rounded-lg bg-emerald-500/15 flex items-center justify-center mb-3">
+                      <FiCpu className="w-5 h-5 text-emerald-400" />
+                    </div>
+                    <h3 className="text-sm font-bold text-white mb-1">Technology</h3>
+                    <p className="text-[11px] text-slate-400 leading-relaxed">AI interviews, analytics & smart automation</p>
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
@@ -481,7 +526,8 @@ export default function LoginPage() {
             </p>
           </div>
 
-          {/* Mode Toggle: HR/Admin vs Candidate */}
+          {/* Mode Toggle: HR/Admin vs Candidate — HIDDEN on platform site (super admin only) */}
+          {!isPlatformSite && (
           <div className="flex rounded-xl bg-slate-100 p-1 mb-6">
             <button
               onClick={() => setLoginMode('user')}
@@ -504,10 +550,24 @@ export default function LoginPage() {
               </span>
             </button>
           </div>
+          )}
 
           {/* Form header */}
           <div className="mb-8">
-            {tenantInfo && (
+            {isPlatformSite && !tenantInfo && (
+              <div className="mb-4 p-3 rounded-xl bg-gradient-to-r from-slate-50 to-slate-100 border border-slate-200">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center text-white">
+                    <FiShield className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-slate-800">3Boxes HRMS Super Admin</p>
+                    <p className="text-[10px] text-slate-400">Platform Control Center</p>
+                  </div>
+                </div>
+              </div>
+            )}
+            {tenantInfo && !isPlatformSite && (
               <div className="mb-4 p-3 rounded-xl bg-gradient-to-r from-green-50 to-emerald-50 border border-green-100">
                 <div className="flex items-center gap-2.5">
                   {tenantInfo.logo ? (
@@ -525,14 +585,16 @@ export default function LoginPage() {
               </div>
             )}
             <h2 className="text-2xl font-bold text-slate-900 mb-2">
-              {loginMode === 'user' ? 'Welcome back' : 'Candidate Portal'}
+              {isPlatformSite ? 'Super Admin Login' : loginMode === 'user' ? 'Welcome back' : 'Candidate Portal'}
             </h2>
             <p className="text-sm text-slate-500">
-              {loginMode === 'user'
-                ? tenantInfo
-                  ? `Sign in to ${tenantInfo.name} to continue`
-                  : 'Sign in to your account to continue'
-                : 'Track your applications, optimize your resume, and find matching jobs'}
+              {isPlatformSite
+                ? 'Manage all tenants, approve trials, and control subscriptions'
+                : loginMode === 'user'
+                  ? tenantInfo
+                    ? `Sign in to ${tenantInfo.name} to continue`
+                    : 'Sign in to your account to continue'
+                  : 'Track your applications, optimize your resume, and find matching jobs'}
             </p>
           </div>
 
@@ -549,7 +611,7 @@ export default function LoginPage() {
           )}
 
           {/* ─── CANDIDATE LOGIN FORM ─── */}
-          {loginMode === 'candidate' && (
+          {loginMode === 'candidate' && !isPlatformSite && (
             <div className="space-y-5">
               {/* Candidate Email */}
               <div>
@@ -756,7 +818,7 @@ export default function LoginPage() {
           )}
 
           {/* ─── HR/ADMIN LOGIN FORM ─── */}
-          {loginMode === 'user' && (
+          {(loginMode === 'user' || isPlatformSite) && (
           <form onSubmit={handleSubmit} className="space-y-5">
             {/* Email Field */}
             <div>
@@ -884,7 +946,7 @@ export default function LoginPage() {
               </button>
               {showDemoLogins && (
                 <div className="px-4 pb-3 space-y-2">
-                  <p className="text-[10px] text-slate-500 mb-2">Click any role to auto-fill credentials. Password: <code className="bg-white/60 px-1 py-0.5 rounded text-[10px] font-mono">{demoCredentials?.password || 'MarqAI@2026'}</code></p>
+                  <p className="text-[10px] text-slate-500 mb-2">Click any role to auto-fill credentials.</p>
                   
                   {demoLoading && (
                     <div className="flex items-center gap-2 py-2">
@@ -903,7 +965,7 @@ export default function LoginPage() {
                           type="button"
                           onClick={() => {
                             setEmail(u.email);
-                            setPassword(demoCredentials.password || 'MarqAI@2026');
+                            setPassword('MarqAI@2026');
                             setLoginMode('user');
                             toast.success(`Filled: ${u.functionalRole}`, { duration: 2000 });
                           }}
@@ -925,7 +987,7 @@ export default function LoginPage() {
                           type="button"
                           onClick={() => {
                             setEmail(u.email);
-                            setPassword(demoCredentials.password || 'MarqAI@2026');
+                            setPassword('MarqAI@2026');
                             setLoginMode('user');
                             toast.success(`Filled: ${u.tenant} Admin`, { duration: 2000 });
                           }}
@@ -985,56 +1047,28 @@ export default function LoginPage() {
             </div>
             )}
 
-            {/* Super Admin Login — shown ONLY on platform site (3boxeshrms.com), NOT on demo or tenant subdomains */}
+            {/* Super Admin capabilities — shown ONLY on platform site (3boxeshrms.com), NO credentials displayed */}
             {isPlatformSite && !tenantInfo && (
             <div className="mt-4 w-full rounded-xl border border-slate-200/60 bg-gradient-to-r from-slate-50/80 to-slate-100/50 overflow-hidden">
-              <div className="px-4 py-4 space-y-3">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center text-white flex-shrink-0">
-                    <FiShield className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <span className="text-sm font-bold text-slate-800">3Boxes HRMS Super Admin</span>
-                    <p className="text-[10px] text-slate-500">Platform control center — manage all tenants, approve trials, control subscriptions</p>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEmail('superadmin@3boxeshrms.com');
-                      setPassword('MarqAI@2026');
-                      setLoginMode('user');
-                      toast.success('Filled: Super Admin credentials', { duration: 2000 });
-                    }}
-                    className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-white hover:bg-slate-50 border border-slate-200 hover:border-green-300 transition-all text-left group"
-                  >
-                    <FiShield className="w-4 h-4 text-slate-700 group-hover:text-green-600" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-slate-700 group-hover:text-green-700">Super Admin Login</p>
-                      <p className="text-[10px] text-slate-400">superadmin@3boxeshrms.com</p>
-                    </div>
-                    <span className="text-[8px] font-medium bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded">Super Admin</span>
-                  </button>
-                  <p className="text-[10px] text-slate-500">Password: <code className="bg-white/60 px-1 py-0.5 rounded text-[10px] font-mono">MarqAI@2026</code></p>
-                  <div className="flex flex-wrap gap-1.5 mt-2">
-                    {[
-                      { icon: <FiUsers className="w-3 h-3" />, label: 'Tenant Management' },
-                      { icon: <FiUserCheck className="w-3 h-3" />, label: 'Trial Approvals' },
-                      { icon: <FiCreditCard className="w-3 h-3" />, label: 'Subscriptions' },
-                      { icon: <FiSettings className="w-3 h-3" />, label: 'Platform Config' },
-                    ].map((item) => (
-                      <span key={item.label} className="inline-flex items-center gap-1 text-[9px] text-slate-500 bg-slate-100/80 px-1.5 py-0.5 rounded">
-                        {item.icon}{item.label}
-                      </span>
-                    ))}
-                  </div>
+              <div className="px-4 py-3">
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    { icon: <FiUsers className="w-3 h-3" />, label: 'Tenant Management' },
+                    { icon: <FiUserCheck className="w-3 h-3" />, label: 'Trial Approvals' },
+                    { icon: <FiCreditCard className="w-3 h-3" />, label: 'Subscriptions' },
+                    { icon: <FiSettings className="w-3 h-3" />, label: 'Platform Config' },
+                  ].map((item) => (
+                    <span key={item.label} className="inline-flex items-center gap-1 text-[9px] text-slate-500 bg-slate-100/80 px-1.5 py-0.5 rounded">
+                      {item.icon}{item.label}
+                    </span>
+                  ))}
                 </div>
               </div>
             </div>
             )}
 
-            {/* Job Portal / Career Link */}
+            {/* Job Portal / Career Link — hidden on platform site (super admin) */}
+            {!isPlatformSite && (
             <Link
               href="/careers"
               className="group block w-full mt-4 px-4 py-3 rounded-xl border border-green-100 bg-gradient-to-r from-green-50/60 to-emerald-50/60 hover:from-green-50 hover:to-emerald-50 hover:border-green-200 transition-all"
@@ -1054,9 +1088,10 @@ export default function LoginPage() {
                 <FiArrowRight className="w-4 h-4 text-green-500 flex-shrink-0 group-hover:translate-x-0.5 transition-transform" />
               </div>
             </Link>
+            )}
 
-            {/* Free Trial Registration Link — shown ONLY on main platform / demo site, NOT on tenant subdomains */}
-            {!tenantInfo && (
+            {/* Free Trial Registration Link — shown ONLY on demo site, NOT on platform or tenant subdomains */}
+            {!tenantInfo && !isPlatformSite && (
             <Link
               href="/register"
               className="group block w-full mt-3 px-4 py-3 rounded-xl border border-green-100 bg-gradient-to-r from-green-50/60 to-emerald-50/60 hover:from-green-50 hover:to-emerald-50 hover:border-green-200 transition-all"
@@ -1080,7 +1115,8 @@ export default function LoginPage() {
           </form>
           )}
 
-          {/* Mobile App Download */}
+          {/* Mobile App Download — hidden on platform site (super admin) */}
+          {!isPlatformSite && (
           <div className="mt-8 pt-6 border-t border-slate-100">
             <button
               type="button"
@@ -1196,6 +1232,7 @@ export default function LoginPage() {
               </div>
             )}
           </div>
+          )}
 
 
           {/* Third-Party Job Portals */}

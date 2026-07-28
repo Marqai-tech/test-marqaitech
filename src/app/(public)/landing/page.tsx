@@ -16,12 +16,6 @@ import {
   FiCpu,
   FiLayers,
   FiGlobe,
-  FiShield,
-  FiServer,
-  FiSettings,
-  FiCreditCard,
-  FiUserCheck,
-  FiActivity,
 } from 'react-icons/fi';
 
 /* ─── Animated Counter ─── */
@@ -97,21 +91,6 @@ export default function LandingHomePage() {
                 <FiPlay className="w-5 h-5 text-green-600" />
                 See How It Works
               </Link>
-            </div>
-
-            {/* Super Admin Login CTA */}
-            <div className="mt-8 pt-6 border-t border-slate-200/60">
-              <Link
-                href="/login"
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800 hover:scale-105 transition-all shadow-lg shadow-slate-900/20"
-              >
-                <FiShield className="w-4 h-4" />
-                Super Admin Login
-                <FiArrowRight className="w-4 h-4" />
-              </Link>
-              <p className="mt-2 text-xs text-slate-500">
-                Platform administrators — manage all tenants, approve trials, and control subscriptions
-              </p>
             </div>
 
             {/* Trust Badges */}
@@ -371,60 +350,6 @@ export default function LandingHomePage() {
               <div className="absolute -top-4 -right-4 w-24 h-24 bg-green-400/10 rounded-full blur-2xl" />
               <div className="absolute -bottom-4 -left-4 w-32 h-32 bg-emerald-400/10 rounded-full blur-2xl" />
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ─── Super Admin Section ─── */}
-      <section className="py-16 sm:py-24 bg-slate-950 relative overflow-hidden">
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-green-500/5 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 right-1/4 w-72 h-72 bg-emerald-500/5 rounded-full blur-3xl" />
-
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-3xl mx-auto mb-12">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-green-500/10 border border-green-500/20 mb-6">
-              <FiShield className="w-4 h-4 text-green-400" />
-              <span className="text-sm font-medium text-green-400">Platform Control Center</span>
-            </div>
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-white leading-tight">
-              Super Admin Dashboard
-            </h2>
-            <p className="mt-4 text-lg text-slate-400 max-w-2xl mx-auto leading-relaxed">
-              Manage all tenants, approve trial registrations, control subscriptions, and oversee the entire platform from a single login.
-            </p>
-          </div>
-
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[
-              { icon: FiUsers, title: 'Tenant Management', desc: 'View and manage all tenants — configure settings, update plans, monitor usage, and control access across the entire platform.' },
-              { icon: FiUserCheck, title: 'Trial Approvals', desc: 'Review and approve new trial registrations. Every trial request flows through the super admin for approval before activation.' },
-              { icon: FiCreditCard, title: 'Subscription Control', desc: 'Manage domain registrations, subscription plans, billing, and renewal cycles. Upgrade or downgrade tenant plans instantly.' },
-              { icon: FiServer, title: 'Database Isolation', desc: 'Each tenant operates in its own isolated database. Super admin can provision, monitor, and manage all tenant databases.' },
-              { icon: FiSettings, title: 'Configuration Hub', desc: 'Centralized control for feature flags, RBAC, SSO providers, and global platform settings that affect all tenants.' },
-              { icon: FiActivity, title: 'Audit & Analytics', desc: 'Complete visibility into platform activity — audit logs, storage analytics, usage metrics, and cross-tenant insights.' },
-            ].map((item, idx) => (
-              <div key={idx} className="bg-slate-900/50 border border-slate-800 rounded-2xl p-6 hover:border-green-500/30 transition-all group">
-                <div className="w-10 h-10 rounded-xl bg-green-500/10 flex items-center justify-center mb-4 group-hover:bg-green-500/20 transition-colors">
-                  <item.icon className="w-5 h-5 text-green-400" />
-                </div>
-                <h3 className="text-lg font-bold text-white mb-2">{item.title}</h3>
-                <p className="text-sm text-slate-400 leading-relaxed">{item.desc}</p>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-12 text-center">
-            <Link
-              href="/login"
-              className="inline-flex items-center gap-2 px-8 py-4 rounded-2xl bg-gradient-to-r from-green-600 to-emerald-600 text-white text-base font-semibold shadow-xl shadow-green-500/25 hover:shadow-green-500/40 hover:scale-105 transition-all"
-            >
-              <FiShield className="w-5 h-5" />
-              Login as Super Admin
-              <FiArrowRight className="w-5 h-5" />
-            </Link>
-            <p className="mt-3 text-sm text-slate-500">
-              Credentials: superadmin@3boxeshrms.com / MarqAI@2026
-            </p>
           </div>
         </div>
       </section>
