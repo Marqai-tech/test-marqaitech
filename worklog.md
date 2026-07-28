@@ -197,3 +197,26 @@ Stage Summary:
 - Tenant DB (tenant_marqaitechgroup) has all operational data (companies, users, employees, etc.)
 - Database isolation is now properly set up for MarqAI tenant
 - All code pushed to GitHub, Vercel will rebuild on next push
+
+---
+Task ID: 6
+Agent: Main Agent
+Task: Remove dummy employees from tenant_marqaitechgroup DB (keep only 1 admin) + redirect tenant subdomains to login page
+
+Work Log:
+- Inspected tenant_marqaitechgroup database - found 3 employees (HR Admin, Rajesh Kumar, Priya Sharma)
+- Kept only HR Admin (hr@marqaitech.com) as the 1 admin employee login
+- Removed Rajesh Kumar (rajesh.kumar@marqaitech.com) and Priya Sharma (priya.sharma@marqaisolutions.com) employees and their User records
+- Kept essential users: super_admin, HR Admin, and tenant_admin (admin@marqaitechgroup.com)
+- Cleaned all module dummy data (attendance, leave, payroll, etc.) - all were already 0
+- Modified middleware.ts to redirect tenant subdomains' root "/" and "/landing/*" paths to "/login"
+- Main domain (3boxeshrms.com) still shows landing page as usual
+- Build verified passing
+- Pushed to GitHub (commit fce34903)
+
+Stage Summary:
+- tenant_marqaitechgroup DB now has only 1 employee: HR Admin
+- 3 users remain: super_admin, HR Admin, tenant_admin
+- All modules clean (no dummy data)
+- Tenant subdomains (marqaitechgroup.3boxeshrms.com) now redirect to /login page
+- Code pushed to GitHub, Vercel auto-deploy triggered
