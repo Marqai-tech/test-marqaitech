@@ -26,10 +26,11 @@ interface Tenant {
   id: string; name: string; slug: string; domain: string | null; plan: string; status: string;
   country: string | null; currency: string; timezone: string; createdAt: string; logo?: string | null;
   maxCompaniesAllowed?: number;
-  _count?: { users: number; companyGroups: number; subscriptions: number };
+  _count?: { users: number; companyGroups: number; subscriptions: number; employees?: number };
   subscriptions?: { id: string; plan: { name: string }; status: string; startDate: string; endDate: string; amount: number }[];
   companyGroups?: { id: string; name: string; companies: { id: string; name: string; code: string | null; _count: { departments: number; branches: number; employees: number } }[] }[];
   users?: { id: string; name: string; email: string; role: string; status: string; lastLogin: string | null }[];
+  employees?: { id: string; firstName: string; lastName: string; email: string; employeeId: string | null; status: string; department: string | null; designation: string | null; phone: string | null; createdAt: string; company?: { id: string; name: string } | null }[];
 }
 
 interface CompanyGroupRow {
@@ -1104,6 +1105,34 @@ export default function SuperAdminPage() {
                             <td className="py-2 pr-4"><span className="thb-badge thb-badge-info text-[10px]">{u.role}</span></td>
                             <td className="py-2 pr-4"><span className={statusBadgeCls[u.status] || 'thb-badge thb-badge-info'}>{u.status}</span></td>
                             <td className="py-2 text-thb-text-muted">{u.lastLogin ? new Date(u.lastLogin).toLocaleDateString() : '—'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Employees */}
+              {viewingTenant.employees && viewingTenant.employees.length > 0 && (
+                <div className="mb-6">
+                  <h4 className="text-sm font-semibold text-thb-text-primary mb-3 flex items-center gap-2"><FiBriefcase className="w-4 h-4" /> Employees ({viewingTenant.employees.length})</h4>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead><tr className="text-left text-xs text-thb-text-muted border-b border-thb-border">
+                        <th className="pb-2 pr-4">Emp ID</th><th className="pb-2 pr-4">Name</th><th className="pb-2 pr-4">Email</th><th className="pb-2 pr-4">Designation</th><th className="pb-2 pr-4">Department</th><th className="pb-2 pr-4">Company</th><th className="pb-2 pr-4">Status</th><th className="pb-2">Phone</th>
+                      </tr></thead>
+                      <tbody>
+                        {viewingTenant.employees.map((emp) => (
+                          <tr key={emp.id} className="border-b border-slate-50">
+                            <td className="py-2 pr-4 text-thb-text-secondary font-mono text-xs">{emp.employeeId || '—'}</td>
+                            <td className="py-2 pr-4 text-thb-text-primary font-medium">{emp.firstName} {emp.lastName}</td>
+                            <td className="py-2 pr-4 text-thb-text-secondary">{emp.email || '—'}</td>
+                            <td className="py-2 pr-4 text-thb-text-secondary">{emp.designation || '—'}</td>
+                            <td className="py-2 pr-4 text-thb-text-secondary">{emp.department || '—'}</td>
+                            <td className="py-2 pr-4 text-thb-text-secondary">{emp.company?.name || '—'}</td>
+                            <td className="py-2 pr-4"><span className={statusBadgeCls[emp.status] || 'thb-badge thb-badge-info'}>{emp.status}</span></td>
+                            <td className="py-2 text-thb-text-muted">{emp.phone || '—'}</td>
                           </tr>
                         ))}
                       </tbody>

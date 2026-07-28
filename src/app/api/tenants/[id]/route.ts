@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getDb, getPlatformDb } from '@/lib/tenant-db';
+import { getDb, getPlatformDb, getDbForTenant } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { createNotification } from '@/lib/notifications';
 import { ensureSchemaSynced } from '@/lib/schema-sync';
@@ -36,49 +36,6 @@ async function safe<T>(
   }
 }
 
-/**
- * Ensure the tenant has at least one group company. Per the user's clarified
- * hierarchy ("the group company name and parent tenant are same"), every
- * tenant should have a default group whose name matches the tenant name.
- *
- * Older tenants created before the auto-group-create feature was added in
- * commit c319fe3 have NO group companies — which is why the super admin's
- * "view tenant" panel and the tenant admin's Overview/Group Companies tabs
- * showed empty data. This function auto-creates the missing default group
- * on every GET /api/tenants/[id] call so the UI always has at least one
- * group to display.
- *
- * Idempotent: if a group with the tenant's name already exists, does nothing.
- */
-async function ensureDefaultGroup(tenantId: string, tenantName: string): Promise<void> {
-  await safe('ensureDefaultGroup', async () => {
-    const existing = await db.companyGroup.findFirst({
-      where: { tenantId, name: { equals: tenantName, mode: 'insensitive' } },
-      select: { id: true },
-    });
-    if (existing) return;
-    // Also check if the tenant has ANY group at all — if so, don't auto-create
-    // (the super admin may have intentionally deleted the default and created
-    // custom-named ones).
-    const anyGroup = await db.companyGroup.findFirst({
-      where: { tenantId },
-      select: { id: true },
-    });
-    if (anyGroup) return;
-    await db.companyGroup.create({
-      data: {
-        name: tenantName,
-        tenantId,
-        employeeLimitMode: 'group_total',
-        maxEmployees: null,
-        maxCompanies: null,
-        notes: `Default group company auto-created for tenant "${tenantName}". Shares the tenant name per the parent/child identity rule.`,
-      },
-    });
-    console.log(`[tenants/[id]] Auto-created default group "${tenantName}" for tenant ${tenantId}`);
-  }, undefined as unknown as void);
-}
-
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -96,146 +53,169 @@ export async function GET(
     }
 
     const { id } = await params;
+    const platformDb = getPlatformDb();
 
-    // ─── Auto-heal: ensure the tenant has at least one default group company.
-    // This fixes the "shows empty" issue for tenants created before the
-    // auto-group-create feature was added. We do this BEFORE the rich fetch
-    // so the returned data includes the freshly-created default group.
-    const tenantBasic = await safe(
-      'tenant.findUnique(basic)',
-      () => getPlatformDb().tenant.findUnique({
-        where: { id },
-        select: { id: true, name: true },
-      }),
-      null,
-    );
-    if (tenantBasic) {
-      await ensureDefaultGroup(tenantBasic.id, tenantBasic.name);
-    }
+    // ─── Step 1: Get tenant basic info from platform DB ───
+    const tenantBasic = await platformDb.tenant.findUnique({
+      where: { id },
+      select: {
+        id: true, name: true, slug: true, domain: true, plan: true,
+        status: true, country: true, currency: true, timezone: true,
+        maxCompaniesAllowed: true, logo: true, createdAt: true,
+      },
+    });
 
-    // Build the tenant view defensively — any one of these includes can fail
-    // (e.g. a deleted plan referenced by a subscription, or a permission
-    // mismatch on the notifications relation). If the "rich" include set
-    // throws, we fall back to a simpler version so the super admin can still
-    // see *something* instead of an "Internal server error" toast.
-    //
-    // IMPORTANT: The frontend super-admin/page.tsx reads `cg.companies` (an
-    // array) on each group, so even the fallback MUST include a `companies`
-    // array — otherwise `cg.companies.length` throws "Cannot read properties
-    // of undefined (reading 'length')".
-    let tenant: unknown = null;
-    tenant = await safe(
-      'tenant.findUnique(rich)',
-      () => getPlatformDb().tenant.findUnique({
-        where: { id },
-        include: {
-          companyGroups: {
-            include: {
-              companies: {
-                select: {
-                  id: true, name: true, code: true, status: true,
-                  maxEmployees: true, plannedEmployeeCount: true,
-                  // Company has no `employees` Prisma relation — count branches+departments only
-                  _count: { select: { departments: true, branches: true } },
-                },
-                orderBy: { name: 'asc' },
-              },
-              _count: { select: { companies: true } },
-            },
-            orderBy: { name: 'asc' },
-          },
-          users: {
-            select: { id: true, email: true, name: true, role: true, status: true, lastLogin: true, createdAt: true },
-            orderBy: { createdAt: 'asc' },
-          },
-          subscriptions: {
-            include: { plan: true },
-            orderBy: { createdAt: 'desc' },
-          },
-          _count: { select: { users: true, companyGroups: true } },
-        },
-      }),
-      null,
-    );
-
-    if (!tenant) {
-      // Fallback: simpler include set, but STILL include companies array on
-      // each group (the frontend assumes it is).
-      tenant = await safe(
-        'tenant.findUnique(fallback)',
-        () => getPlatformDb().tenant.findUnique({
-          where: { id },
-          include: {
-            companyGroups: {
-              include: {
-                companies: {
-                  select: {
-                    id: true, name: true, code: true, status: true,
-                    // Company has no `employees` Prisma relation — count branches only
-                    _count: { select: { branches: true, departments: true } },
-                  },
-                  orderBy: { name: 'asc' },
-                },
-                _count: { select: { companies: true } },
-              },
-            },
-            users: { select: { id: true, email: true, name: true, role: true, status: true, lastLogin: true } },
-            _count: { select: { users: true, companyGroups: true } },
-          },
-        }),
-        null,
-      );
-    }
-
-    if (!tenant) {
+    if (!tenantBasic) {
       return NextResponse.json({ error: 'Tenant not found' }, { status: 404, headers: corsHeaders() });
     }
 
-    // Normalise: ensure `companyGroups[].companies` is always an array (the
-    // frontend assumes it is). Defensive — if for any reason a future schema
-    // change drops the include, we still want the page to render.
-    const normalised = tenant as {
-      id: string;
-      name: string;
-      slug: string;
-      domain?: string | null;
-      plan?: string;
-      status?: string;
-      country?: string | null;
-      currency?: string;
-      timezone?: string;
-      maxCompaniesAllowed?: number;
-      createdAt?: string | Date;
-      companyGroups?: Array<{
+    // ─── Step 2: Get tenant's dedicated database ───
+    // Per golden rules, tenant data (CompanyGroup, Company, Employee, etc.)
+    // lives in the tenant's own database, NOT in the platform DB.
+    let tenantDb = platformDb; // fallback
+    let hasTenantDb = false;
+    if (tenantBasic.slug) {
+      try {
+        const tenantDbRecord = await platformDb.tenantDatabase.findFirst({
+          where: {
+            tenant: { slug: tenantBasic.slug },
+            isActive: true,
+          },
+          select: { id: true },
+        });
+        if (tenantDbRecord) {
+          tenantDb = await getDbForTenant(tenantBasic.slug);
+          hasTenantDb = true;
+        }
+      } catch (e) {
+        console.error(`[tenants/[id]] Failed to get tenant DB for "${tenantBasic.slug}":`, e);
+      }
+    }
+
+    // ─── Step 3: Fetch company groups, companies, and employees from TENANT DB ───
+    // This is the key fix — the super admin should see the SAME data that the
+    // tenant admin sees. Since the tenant admin's CRUD operations go to the
+    // tenant's own database, we must read from that database too.
+
+    // 3a. Company Groups with Companies
+    const companyGroups = await safe(
+      'tenantDb.companyGroup.findMany',
+      () => tenantDb.companyGroup.findMany({
+        where: { tenantId: id },
+        include: {
+          companies: {
+            select: {
+              id: true, name: true, code: true, status: true,
+              maxEmployees: true, plannedEmployeeCount: true,
+              _count: { select: { departments: true, branches: true } },
+            },
+            orderBy: { name: 'asc' },
+          },
+          _count: { select: { companies: true } },
+        },
+        orderBy: { name: 'asc' },
+      }),
+      [] as Array<{
         id: string;
         name: string;
-        companies?: Array<{
-          id: string;
-          name: string;
-          code?: string | null;
-          status?: string;
-          _count?: { departments?: number; branches?: number; employees?: number };
+        companies: Array<{
+          id: string; name: string; code: string | null; status: string;
+          maxEmployees: number | null; plannedEmployeeCount: number | null;
+          _count: { departments: number; branches: number };
         }>;
-        _count?: { companies?: number };
-      }>;
-      users?: Array<{ id: string; name: string; email: string; role: string; status: string; lastLogin?: string | null }>;
-      subscriptions?: Array<{ id: string; status: string; startDate: string | Date; endDate: string | Date; amount: number; plan?: { name: string } }>;
-      _count?: { users?: number; companyGroups?: number };
-    };
-    if (normalised.companyGroups) {
-      normalised.companyGroups = normalised.companyGroups.map((g) => ({
-        ...g,
-        companies: Array.isArray(g.companies) ? g.companies : [],
-      }));
-    } else {
-      // Ensure companyGroups is at least an empty array, not undefined
-      normalised.companyGroups = [];
-    }
-    if (!normalised.users) normalised.users = [];
-    if (!normalised.subscriptions) normalised.subscriptions = [];
-    if (!normalised._count) normalised._count = { users: 0, companyGroups: 0 };
+        _count: { companies: number };
+      }>,
+    );
 
-    return NextResponse.json({ tenant: normalised }, { headers: corsHeaders() });
+    // Ensure companies is always an array on each group
+    const normalisedCompanyGroups = companyGroups.map((g) => ({
+      ...g,
+      companies: Array.isArray(g.companies) ? g.companies : [],
+    }));
+
+    // 3b. Employees from tenant DB
+    // Note: Employee has `department` and `designation` as Prisma relations,
+    // but `companyId` is just a String? field (no `company` relation).
+    // We include department/designation names via relations, and look up
+    // company name separately below.
+    const employees = await safe(
+      'tenantDb.employee.findMany',
+      () => tenantDb.employee.findMany({
+        where: { tenantId: id, status: 'active' },
+        select: {
+          id: true, firstName: true, lastName: true, email: true,
+          employeeId: true, status: true, phone: true, createdAt: true,
+          companyId: true,
+          department: { select: { name: true } },
+          designation: { select: { name: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 200, // limit for performance
+      }),
+      [],
+    );
+
+    // 3b-2. Resolve company names for employees
+    // Since Employee.companyId is a String? (no Prisma relation), we need
+    // to look up the company name from the Company table.
+    const companyIds = [...new Set(employees.map((e: any) => e.companyId).filter(Boolean))] as string[];
+    const companyMap = new Map<string, string>();
+    if (companyIds.length > 0) {
+      await safe('tenantDb.company.findMany(forEmployeeLookup)', async () => {
+        const companies = await tenantDb.company.findMany({
+          where: { id: { in: companyIds } },
+          select: { id: true, name: true },
+        });
+        for (const c of companies) companyMap.set(c.id, c.name);
+        return companies;
+      }, []);
+    }
+    // Attach company name to each employee
+    const employeesWithCompany = employees.map((e: any) => ({
+      ...e,
+      department: e.department?.name || null,
+      designation: e.designation?.name || null,
+      company: e.companyId ? { id: e.companyId, name: companyMap.get(e.companyId) || null } : null,
+    }));
+
+    // 3c. Users from tenant DB (tenant admins, etc.)
+    const users = await safe(
+      'tenantDb.user.findMany',
+      () => tenantDb.user.findMany({
+        where: { tenantId: id },
+        select: { id: true, email: true, name: true, role: true, status: true, lastLogin: true, createdAt: true },
+        orderBy: { createdAt: 'asc' },
+      }),
+      [],
+    );
+
+    // ─── Step 4: Get subscriptions from platform DB ───
+    // Subscriptions are cross-tenant data, stored in platform DB
+    const subscriptions = await safe(
+      'platformDb.subscription.findMany',
+      () => platformDb.subscription.findMany({
+        where: { tenantId: id },
+        include: { plan: true },
+        orderBy: { createdAt: 'desc' },
+      }),
+      [],
+    );
+
+    // ─── Step 5: Build response ───
+    const tenant = {
+      ...tenantBasic,
+      companyGroups: normalisedCompanyGroups,
+      employees: employeesWithCompany,
+      users,
+      subscriptions,
+      _count: {
+        users: users.length,
+        companyGroups: normalisedCompanyGroups.length,
+        employees: employees.length,
+      },
+    };
+
+    return NextResponse.json({ tenant }, { headers: corsHeaders() });
   } catch (error) {
     console.error('Get tenant error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() });
