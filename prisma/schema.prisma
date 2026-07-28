@@ -356,8 +356,11 @@ model User {
   name     String
   avatar   String?
 
-  tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  // tenantId is optional for super_admin users who operate at the platform level
+  // and are not tied to any specific tenant. All other users (tenant_admin, admin, etc.)
+  // must belong to a tenant.
+  tenantId String?
+  tenant   Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   role       String @default("admin") // super_admin, tenant_admin, admin
   status     String @default("active")

@@ -173,7 +173,15 @@ export default function LoginPage() {
       const success = await login(email, password);
       if (success) {
         toast.success('Welcome back! Redirecting...');
-        router.push('/home');
+        // Redirect based on role:
+        // Super admin → /super-admin (platform control center)
+        // All other roles → /home (tenant dashboard)
+        const { user } = useAuthStore.getState();
+        if (user?.role === 'super_admin') {
+          router.push('/super-admin');
+        } else {
+          router.push('/home');
+        }
       }
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Login failed. Please try again.';

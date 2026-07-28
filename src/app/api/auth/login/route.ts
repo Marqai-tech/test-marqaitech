@@ -165,11 +165,28 @@ export async function POST(request: Request) {
       }
     }
 
-    // ─── Enforce subdomain-tenant matching ───
-    // If the login request came from a tenant subdomain, non-super-admin
-    // users must belong to that tenant. This prevents employees of one
-    // tenant from logging in through another tenant's subdomain.
+    // ─── Enforce golden rules for login domains ───
+    // Rule 1: Super admin can ONLY log in on the main domain (3boxeshrms.com/login)
+    //         OR on the demo domain (nexus-hrms-mu.vercel.app/login).
+    //         Tenant subdomains must REJECT super_admin login — each tenant
+    //         has only a tenant_admin, and the single platform super admin
+    //         controls all tenants from 3boxeshrms.com.
+    // Rule 2: On tenant subdomains (e.g., marqaitechgroup.3boxeshrms.com),
+    //         only users belonging to that specific tenant can log in.
+    // Rule 3: Demo domain (nexus-hrms-mu.vercel.app) is fully independent —
+    //         allows ALL roles including super_admin, tenant_admin, hr_admin, etc.
+    //         with complete dummy/sample data for every module.
+    const isDemoDomain = tenantSlug === '3boxes-hrms-demo';
+    if (user.role === 'super_admin' && tenantSlug && !isDemoDomain) {
+      // Super admin tried to log in on a tenant subdomain — reject
+      return NextResponse.json(
+        { error: 'Super admin login is only available at 3boxeshrms.com/login. Please use the platform login page.' },
+        { status: 403, headers: corsHeaders() }
+      );
+    }
+
     if (subdomainTenantId && user.role !== 'super_admin' && user.tenantId !== subdomainTenantId) {
+      // Non-super-admin user tried to log in on a different tenant's subdomain — reject
       return NextResponse.json(
         { error: 'You do not have access to this organization. Please use your organization\'s login page.' },
         { status: 403, headers: corsHeaders() }
@@ -357,7 +374,8 @@ export async function POST(request: Request) {
       }
     }
 
-    // Safety: ensure user.tenant exists before constructing response
+    // Safety: ensure user.tenant exists for non-super_admin users
+    // Super admin may have null tenantId (platform-level, not tied to any tenant)
     if (!user.tenant && user.tenantId) {
       try {
         user.tenant = await getPlatformDb().tenant.findUnique({
@@ -372,8 +390,9 @@ export async function POST(request: Request) {
       }
     }
 
-    // If tenant is still null, return an error instead of crashing
-    if (!user.tenant) {
+    // If tenant is still null for a non-super_admin user, return an error
+    // Super admin is allowed to have null tenant
+    if (!user.tenant && user.role !== 'super_admin') {
       return NextResponse.json(
         { error: 'Unable to resolve tenant information. Please contact support.' },
         { status: 500, headers: corsHeaders() }
@@ -390,7 +409,7 @@ export async function POST(request: Request) {
           role: user.role,
           tenantId: user.tenantId,
           avatar: user.avatar,
-          tenant: {
+          tenant: user.tenant ? {
             id: user.tenant.id,
             name: user.tenant.name,
             slug: user.tenant.slug,
@@ -398,7 +417,7 @@ export async function POST(request: Request) {
             currency: user.tenant.currency,
             timezone: user.tenant.timezone,
             logo: user.tenant.logo,
-          },
+          } : null,
           company: companyData,
         },
       },
