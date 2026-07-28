@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getDb, getPlatformDb } from '@/lib/tenant-db';
+import { getDb, getPlatformDb, getDbForTenant } from '@/lib/tenant-db';
 import { verifyPassword, createToken } from '@/lib/auth';
 import { createNotification } from '@/lib/notifications';
 
@@ -16,11 +16,11 @@ export async function OPTIONS() {
 }
 
 export async function POST(request: Request) {
-  // ⚠️ IMPORTANT: Authentication ALWAYS uses the platform DB.
-  // User records for login live in the platform (shared) database.
-  // Only AFTER authentication do we route to the tenant-specific DB.
-  // This ensures login works even when the tenant DB is empty (e.g., fresh demo DB).
-  const db = getPlatformDb();
+  // ⚠️ IMPORTANT: Authentication uses the platform DB first, then falls
+  // back to the tenant-specific DB if the user is not found in the platform DB.
+  // This ensures login works for both platform users (super_admin) AND
+  // tenant-specific users (like demo users in tenant_demo DB).
+  const platformDb = getPlatformDb();
   try {
     const body = await request.json();
     const { email, password } = body;
@@ -50,39 +50,84 @@ export async function POST(request: Request) {
       }
     }
 
+    // ─── Two-phase user lookup ───
+    // Phase 1: Search the platform DB (neondb) for the user.
+    // This handles super_admin and other platform-level users.
+    // Phase 2: If not found, search the tenant-specific DB.
+    // This handles tenant users who live in their dedicated database
+    // (e.g., demo users in tenant_demo, MarqAI users in tenant_marqaitechgroup).
+    // This two-phase approach makes the demo site truly independent — its
+    // users don't need to exist in the platform DB.
+
     // ⚠️ Use explicit `select` (not `include: { tenant: true }`) so we only
-    // request columns we know exist on the User and Tenant tables. An
-    // `include: { tenant: true }` would SELECT every Tenant column, which
-    // breaks login entirely whenever schema.prisma gains new Tenant fields
-    // that haven't been migrated to the production DB yet (this exact bug
-    // caused a global login outage on 2026-06-19 after the SRS rework
-    // added language/baseCurrency/dataRegion/subscriptionSeats/
-    // subscriptionStorage columns). With `select`, missing columns on the
-    // DB side are simply not queried and login stays resilient.
-    const user = await db.user.findUnique({
-      where: { email },
+    // request columns we know exist on the User and Tenant tables.
+    const userSelect = {
+      id: true,
+      name: true,
+      email: true,
+      password: true,
+      role: true,
+      status: true,
+      avatar: true,
+      tenantId: true,
+    };
+
+    const tenantSelect = {
       select: {
         id: true,
         name: true,
-        email: true,
-        password: true,
-        role: true,
-        status: true,
-        avatar: true,
-        tenantId: true,
-        tenant: {
-          select: {
-            id: true,
-            name: true,
-            slug: true,
-            plan: true,
-            currency: true,
-            timezone: true,
-            logo: true,
-          },
-        },
+        slug: true,
+        plan: true,
+        currency: true,
+        timezone: true,
+        logo: true,
       },
+    };
+
+    let user: any = null;
+    let db: any = platformDb; // The DB that authenticated the user
+    let userTenant: any = null; // Tenant info resolved separately
+
+    // Phase 1: Platform DB lookup
+    const platformUser = await platformDb.user.findUnique({
+      where: { email },
+      select: { ...userSelect, tenant: tenantSelect },
     });
+
+    if (platformUser) {
+      user = platformUser;
+      db = platformDb;
+    } else if (tenantSlug) {
+      // Phase 2: Tenant-specific DB lookup
+      // Only attempt if we have a tenant slug (from middleware subdomain detection).
+      // This allows demo users (in tenant_demo) and tenant users (in tenant DBs)
+      // to authenticate even if they're not in the platform DB.
+      try {
+        const tenantDb = await getDbForTenant(tenantSlug);
+        const tenantUser = await tenantDb.user.findUnique({
+          where: { email },
+          select: userSelect,
+        });
+        if (tenantUser) {
+          user = tenantUser;
+          db = tenantDb;
+          // Resolve tenant info from platform DB (Tenant model is platform-level)
+          const tenant = await platformDb.tenant.findUnique({
+            where: { id: tenantUser.tenantId },
+            select: tenantSelect.select,
+          });
+          userTenant = tenant;
+        }
+      } catch (tenantLookupErr) {
+        console.error('[Login] Tenant DB lookup failed:', tenantLookupErr);
+        // Don't block login if tenant DB is unreachable — just use platform DB result (null)
+      }
+    }
+
+    // If user was found in tenant DB, attach tenant info
+    if (user && !user.tenant && userTenant) {
+      user.tenant = userTenant;
+    }
 
     if (!user) {
       return NextResponse.json(
@@ -106,6 +151,21 @@ export async function POST(request: Request) {
       );
     }
 
+    // Ensure user.tenant is populated (for tenant DB users, we resolved it separately)
+    if (!user.tenant && user.tenantId) {
+      try {
+        user.tenant = await getPlatformDb().tenant.findUnique({
+          where: { id: user.tenantId },
+          select: {
+            id: true, name: true, slug: true, plan: true,
+            currency: true, timezone: true, logo: true,
+          },
+        });
+      } catch (e) {
+        console.error('[Login] Failed to resolve tenant info:', e);
+      }
+    }
+
     // ─── Enforce subdomain-tenant matching ───
     // If the login request came from a tenant subdomain, non-super-admin
     // users must belong to that tenant. This prevents employees of one
@@ -115,6 +175,20 @@ export async function POST(request: Request) {
         { error: 'You do not have access to this organization. Please use your organization\'s login page.' },
         { status: 403, headers: corsHeaders() }
       );
+    }
+
+    // ─── Determine the data DB for post-login operations ───
+    // Use the tenant-specific DB for employee/company lookups and other
+    // tenant-scoped data. This ensures demo users' data comes from tenant_demo,
+    // MarqAI users' data from tenant_marqaitechgroup, etc.
+    let dataDb: any;
+    if (user.role === 'super_admin') {
+      // Super admin may be on any domain — route to the domain's tenant DB
+      // or platform DB if no tenant context
+      dataDb = tenantSlug ? await getDbForTenant(tenantSlug) : platformDb;
+    } else {
+      // Non-super_admin: route to their own tenant's DB
+      dataDb = await getDbForTenantById(user.tenantId);
     }
 
     // ─── Enforce trial expiry ───
@@ -178,6 +252,7 @@ export async function POST(request: Request) {
     });
 
     // Non-critical operations - don't block login if these fail
+    // These should go to the DB that contains the user (platform or tenant)
     try {
       await db.user.update({
         where: { id: user.id },
@@ -204,7 +279,7 @@ export async function POST(request: Request) {
       // ─── Clean up ALL previous unread notifications on login ───
       // Mark every previous unread notification as read so the user only sees
       // a single fresh "Welcome" notification — not a wall of stale alerts.
-      await db.notification.updateMany({
+      await dataDb.notification.updateMany({
         where: {
           userId: user.id,
           isRead: false,
@@ -226,7 +301,7 @@ export async function POST(request: Request) {
     }
 
     try {
-      await db.auditLog.create({
+      await dataDb.auditLog.create({
         data: {
           userId: user.id,
           action: 'LOGIN',
@@ -246,15 +321,17 @@ export async function POST(request: Request) {
     // "TechStart Solutions", "GlobalHR Services", "Marq AI Tech Pvt Ltd", etc.).
     
     // Fetch company info with logo for non-super_admin users
+    // Use the tenant-specific data DB (dataDb) for employee/company lookups,
+    // NOT the auth DB (db). Employee and Company records live in tenant DBs.
     let companyData = null;
     if (user.role !== 'super_admin') {
       try {
-        const employee = await db.employee.findUnique({
+        const employee = await dataDb.employee.findUnique({
           where: { userId: user.id },
           select: { companyId: true },
         });
         if (employee?.companyId) {
-          const company = await db.company.findUnique({
+          const company = await dataDb.company.findUnique({
             where: { id: employee.companyId },
             select: { id: true, name: true, code: true, logo: true, city: true, state: true, country: true },
           });
