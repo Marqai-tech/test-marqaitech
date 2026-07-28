@@ -11,7 +11,7 @@ import {
   FiRefreshCw, FiShield, FiZap, FiGlobe,
   FiUsers, FiSettings, FiCpu, FiStar,
   FiPlay, FiArrowLeft, FiBriefcase, FiExternalLink,
-  FiTarget, FiTrendingUp, FiGrid,
+  FiTarget, FiTrendingUp, FiGrid, FiUserCheck, FiCreditCard,
 } from 'react-icons/fi';
 import { HiShieldCheck } from 'react-icons/hi';
 import toast from 'react-hot-toast';
@@ -52,6 +52,7 @@ export default function LoginPage() {
   const [isStandalone, setIsStandalone] = useState(false);
   const [showDemoLogins, setShowDemoLogins] = useState(false);
   const [isDemoSite, setIsDemoSite] = useState(false);
+  const [isPlatformSite, setIsPlatformSite] = useState(false);
   const [demoCredentials, setDemoCredentials] = useState<any>(null);
   const [demoLoading, setDemoLoading] = useState(false);
 
@@ -80,15 +81,19 @@ export default function LoginPage() {
     detectTenant();
   }, []);
 
-  // Detect site type and load demo credentials
-  // Three site types:
+  // Detect site type and load appropriate credentials
+  // Four site types:
   // 1. Demo site (nexus-hrms-mu.vercel.app) — has sample data with demo credentials
-  // 2. Trial/main site (3boxeshrms.com) — landing page + trial registration
-  // 3. Tenant/client sites (*.3boxeshrms.com) — actual client data
+  // 2. Platform/main site (3boxeshrms.com) — super admin login for tenant management
+  // 3. Tenant/client sites (*.3boxeshrms.com) — actual client data, branded login
+  // 4. Unknown — generic login form
   useEffect(() => {
     const hostname = window.location.hostname;
     setIsDemoSite(
       hostname === 'nexus-hrms-mu.vercel.app' ||
+      hostname === '3boxes-hrms-mu.vercel.app'
+    );
+    setIsPlatformSite(
       hostname === '3boxeshrms.com' ||
       hostname === 'www.3boxeshrms.com'
     );
@@ -977,6 +982,55 @@ export default function LoginPage() {
                   )}
                 </div>
               )}
+            </div>
+            )}
+
+            {/* Super Admin Login — shown ONLY on platform site (3boxeshrms.com), NOT on demo or tenant subdomains */}
+            {isPlatformSite && !tenantInfo && (
+            <div className="mt-4 w-full rounded-xl border border-slate-200/60 bg-gradient-to-r from-slate-50/80 to-slate-100/50 overflow-hidden">
+              <div className="px-4 py-4 space-y-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center text-white flex-shrink-0">
+                    <FiShield className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="text-sm font-bold text-slate-800">3Boxes HRMS Super Admin</span>
+                    <p className="text-[10px] text-slate-500">Platform control center — manage all tenants, approve trials, control subscriptions</p>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEmail('superadmin@3boxeshrms.com');
+                      setPassword('MarqAI@2026');
+                      setLoginMode('user');
+                      toast.success('Filled: Super Admin credentials', { duration: 2000 });
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-white hover:bg-slate-50 border border-slate-200 hover:border-green-300 transition-all text-left group"
+                  >
+                    <FiShield className="w-4 h-4 text-slate-700 group-hover:text-green-600" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-slate-700 group-hover:text-green-700">Super Admin Login</p>
+                      <p className="text-[10px] text-slate-400">superadmin@3boxeshrms.com</p>
+                    </div>
+                    <span className="text-[8px] font-medium bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded">Super Admin</span>
+                  </button>
+                  <p className="text-[10px] text-slate-500">Password: <code className="bg-white/60 px-1 py-0.5 rounded text-[10px] font-mono">MarqAI@2026</code></p>
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {[
+                      { icon: <FiUsers className="w-3 h-3" />, label: 'Tenant Management' },
+                      { icon: <FiUserCheck className="w-3 h-3" />, label: 'Trial Approvals' },
+                      { icon: <FiCreditCard className="w-3 h-3" />, label: 'Subscriptions' },
+                      { icon: <FiSettings className="w-3 h-3" />, label: 'Platform Config' },
+                    ].map((item) => (
+                      <span key={item.label} className="inline-flex items-center gap-1 text-[9px] text-slate-500 bg-slate-100/80 px-1.5 py-0.5 rounded">
+                        {item.icon}{item.label}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
             </div>
             )}
 
