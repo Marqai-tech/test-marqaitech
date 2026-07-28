@@ -246,3 +246,38 @@ Stage Summary:
 - Both sites redirect root URL to /login page
 - Platform DB (neondb) only stores essential auth users (super_admin, tenant_admin, HR admin)
 - Data isolation is complete - no cross-dependencies between demo and tenant
+
+---
+Task ID: 8
+Agent: Main Agent
+Task: Add super admin login on 3boxeshrms.com landing page, separate from demo link
+
+Work Log:
+- Added "Super Admin" button in landing page header (dark bg, FiShield icon)
+- Added Super Admin Login CTA in landing page hero section (below trial buttons)
+- Added dedicated "Super Admin Dashboard" section on landing page with 6 feature cards:
+  Tenant Management, Trial Approvals, Subscription Control, Database Isolation,
+  Configuration Hub, Audit & Analytics
+- Modified login page to distinguish platform site vs demo site:
+  - isPlatformSite: 3boxeshrms.com/www.3boxeshrms.com → shows super admin login section
+  - isDemoSite: nexus-hrms-mu.vercel.app → shows demo credentials (unchanged)
+  - Tenant subdomains: show branded tenant login (unchanged)
+- Super admin login section on 3boxeshrms.com shows:
+  superadmin@3boxeshrms.com / MarqAI@2026 with feature badges
+  (Tenant Management, Trial Approvals, Subscriptions, Platform Config)
+- Super admin dashboard already exists at /super-admin with full tenant management
+- Platform DB (neondb) serves as the super admin database - stores all Tenant, User,
+  TenantDatabase, TrialRegistration, Subscription records across all tenants
+- Build verified passing
+- Pushed to GitHub (commit d612afec)
+
+Stage Summary:
+- 3boxeshrms.com is now the super admin control center
+- Landing page has Super Admin Login button + dedicated section
+- Login page shows different content per domain type:
+  Platform site → super admin section only
+  Demo site → demo credentials only
+  Tenant site → branded tenant login
+- Super admin can manage all tenants, approve trials, control subscriptions
+- Platform DB is the centralized database for all cross-tenant operations
+
