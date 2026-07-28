@@ -42,9 +42,32 @@ export async function POST(request: Request) {
     if (tenantSlug) {
       const subdomainTenant = await getPlatformDb().tenant.findUnique({
         where: { slug: tenantSlug },
-        select: { id: true, status: true },
+        select: { id: true, status: true, name: true },
       });
-      if (subdomainTenant && subdomainTenant.status === 'active') {
+      if (subdomainTenant) {
+        // ─── Tenant status check: block login for non-active tenants ───
+        // Super admins can still log in from any domain (they control tenant status).
+        // For all other roles, a suspended/inactive/pending_approval tenant
+        // means the user cannot log in.
+        if (subdomainTenant.status !== 'active') {
+          const statusMessages: Record<string, string> = {
+            suspended: `Your tenant "${subdomainTenant.name}" has been suspended. Please contact the super admin to reactivate your account.`,
+            inactive: `Your tenant "${subdomainTenant.name}" is inactive. Please contact the super admin.`,
+            pending_approval: `Your tenant "${subdomainTenant.name}" is pending approval. You cannot log in until the super admin approves your account.`,
+          };
+          // Note: We don't know the user's role yet at this point, but we
+          // check the tenant status first. Super admins log in via the
+          // platform domain (3boxeshrms.com) which has no tenant slug,
+          // so this check won't affect them.
+          return NextResponse.json(
+            { 
+              error: statusMessages[subdomainTenant.status] || `Your tenant "${subdomainTenant.name}" is ${subdomainTenant.status}. Access denied.`,
+              code: 'TENANT_BLOCKED',
+              tenantStatus: subdomainTenant.status,
+            },
+            { status: 403, headers: corsHeaders() }
+          );
+        }
         subdomainTenantId = subdomainTenant.id;
       }
     }
