@@ -220,3 +220,29 @@ Stage Summary:
 - All modules clean (no dummy data)
 - Tenant subdomains (marqaitechgroup.3boxeshrms.com) now redirect to /login page
 - Code pushed to GitHub, Vercel auto-deploy triggered
+
+---
+Task ID: 7
+Agent: Main Agent
+Task: Make demo link (nexus-hrms-mu.vercel.app) independent and redirect to login page
+
+Work Log:
+- Discovered demo users ONLY exist in tenant_demo DB, NOT in neondb (platform DB)
+- Login API previously only searched neondb (platform DB) for authentication - demo login was broken for non-super_admin users
+- Fixed login API with two-phase user lookup: Phase 1 = platform DB (neondb), Phase 2 = tenant DB (tenant_demo/tenant_marqaitechgroup)
+- Fixed employee/company data lookups to use tenant-specific DB (dataDb) instead of platform DB
+- Fixed notifications and audit logs to go to tenant DB instead of platform DB
+- Super admin data routing now respects the domain's tenant context
+- Middleware redirect already handles demo domain: nexus-hrms-mu.vercel.app/ → /login
+- Cleaned up stale MarqAI dummy users from neondb platform DB (removed 9 users, kept 3 essential ones)
+- Verified all passwords use "MarqAI@2026" for both platform and tenant DB users
+- Build verified passing
+- Pushed to GitHub (commit 3e43fdf4)
+
+Stage Summary:
+- Demo site (nexus-hrms-mu.vercel.app) is now fully independent from tenant databases
+- Demo users authenticate from tenant_demo DB independently
+- Tenant link (marqaitechgroup.3boxeshrms.com) authenticates from tenant_marqaitechgroup DB
+- Both sites redirect root URL to /login page
+- Platform DB (neondb) only stores essential auth users (super_admin, tenant_admin, HR admin)
+- Data isolation is complete - no cross-dependencies between demo and tenant
