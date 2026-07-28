@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
-import { getDb, getPlatformDb, getDbForTenant } from '@/lib/tenant-db';
+import { getPlatformDb, getDbForTenant, getDbForTenantById } from '@/lib/tenant-db';
 import { verifyPassword, createToken } from '@/lib/auth';
-import { createNotification } from '@/lib/notifications';
 
 function corsHeaders() {
   return {
@@ -288,13 +287,19 @@ export async function POST(request: Request) {
       });
 
       // Now create a single consolidated welcome notification
-      await createNotification({
-        tenantId: user.tenantId,
-        userId: user.id,
-        title: 'Welcome to 3Boxes HRMS',
-        message: `Hello ${user.name}! You have successfully logged in. Check your dashboard for updates.`,
-        type: 'login',
-        category: 'auth',
+      // Use the tenant-specific DB (dataDb) instead of the platform DB
+      // so notifications live in the same database as the user's data.
+      await dataDb.notification.create({
+        data: {
+          tenantId: user.tenantId,
+          userId: user.id,
+          title: 'Welcome to 3Boxes HRMS',
+          message: `Hello ${user.name}! You have successfully logged in. Check your dashboard for updates.`,
+          type: 'login',
+          category: 'auth',
+          isRead: false,
+          isEmailSent: false,
+        },
       });
     } catch (e) {
       console.error('Failed to create notification:', e);
@@ -350,6 +355,29 @@ export async function POST(request: Request) {
       } catch (e) {
         console.error('Failed to fetch company for login response:', e);
       }
+    }
+
+    // Safety: ensure user.tenant exists before constructing response
+    if (!user.tenant && user.tenantId) {
+      try {
+        user.tenant = await getPlatformDb().tenant.findUnique({
+          where: { id: user.tenantId },
+          select: {
+            id: true, name: true, slug: true, plan: true,
+            currency: true, timezone: true, logo: true,
+          },
+        });
+      } catch (e) {
+        console.error('[Login] Final tenant resolution failed:', e);
+      }
+    }
+
+    // If tenant is still null, return an error instead of crashing
+    if (!user.tenant) {
+      return NextResponse.json(
+        { error: 'Unable to resolve tenant information. Please contact support.' },
+        { status: 500, headers: corsHeaders() }
+      );
     }
 
     return NextResponse.json(

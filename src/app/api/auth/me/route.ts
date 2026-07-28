@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getDb, getPlatformDb } from '@/lib/tenant-db';
+import { getDb, getPlatformDb, getDbForTenant, getDbForTenantById } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -15,7 +15,6 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
-  const db = getPlatformDb();
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -33,23 +32,113 @@ export async function GET(request: Request) {
       );
     }
 
-    // Step 1: Fetch user with explicit `select` (not `include: { tenant: true }`).
-    // Same defensive pattern as /api/auth/login: only request columns we know
-    // exist, so a schema drift (new columns in schema.prisma not yet pushed to
-    // the production DB) cannot break authentication.
-    const user = await db.user.findUnique({
-      where: { id: decoded.userId as string },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        avatar: true,
-        status: true,
-        lastLogin: true,
-        createdAt: true,
-        tenantId: true,
-        tenant: {
+    const userId = decoded.userId as string;
+    const tenantId = decoded.tenantId as string | undefined;
+    const tenantSlug = request.headers.get('x-tenant-slug') || '';
+
+    // ─── Two-phase user lookup (same pattern as /api/auth/login) ───
+    // Phase 1: Search the platform DB (neondb) for the user.
+    // Phase 2: If not found, search the tenant-specific DB.
+    const userSelect = {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      avatar: true,
+      status: true,
+      lastLogin: true,
+      createdAt: true,
+      tenantId: true,
+      tenant: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          plan: true,
+          currency: true,
+          timezone: true,
+          logo: true,
+        },
+      },
+    };
+
+    let user: any = null;
+    let db: any = null;
+
+    // Phase 1: Platform DB lookup
+    const platformDb = getPlatformDb();
+    const platformUser = await platformDb.user.findUnique({
+      where: { id: userId },
+      select: userSelect,
+    });
+
+    if (platformUser) {
+      user = platformUser;
+      db = platformDb;
+    } else {
+      // Phase 2: Tenant-specific DB lookup
+      // Try to find the user in their tenant's dedicated database
+      try {
+        let tenantDb: any = null;
+        if (tenantSlug) {
+          tenantDb = await getDbForTenant(tenantSlug);
+        } else if (tenantId) {
+          tenantDb = await getDbForTenantById(tenantId);
+        }
+
+        if (tenantDb) {
+          const tenantUser = await tenantDb.user.findUnique({
+            where: { id: userId },
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              role: true,
+              avatar: true,
+              status: true,
+              lastLogin: true,
+              createdAt: true,
+              tenantId: true,
+            },
+          });
+
+          if (tenantUser) {
+            user = tenantUser;
+            db = tenantDb;
+            // Resolve tenant info from platform DB
+            if (tenantUser.tenantId) {
+              const tenant = await platformDb.tenant.findUnique({
+                where: { id: tenantUser.tenantId },
+                select: {
+                  id: true,
+                  name: true,
+                  slug: true,
+                  plan: true,
+                  currency: true,
+                  timezone: true,
+                  logo: true,
+                },
+              });
+              user.tenant = tenant;
+            }
+          }
+        }
+      } catch (tenantLookupErr) {
+        console.error('[Auth/Me] Tenant DB lookup failed:', tenantLookupErr);
+      }
+    }
+
+    if (!user) {
+      return NextResponse.json(
+        { error: 'User not found' },
+        { status: 404, headers: corsHeaders() }
+      );
+    }
+
+    if (!user.tenant && user.tenantId) {
+      try {
+        user.tenant = await platformDb.tenant.findUnique({
+          where: { id: user.tenantId },
           select: {
             id: true,
             name: true,
@@ -59,21 +148,27 @@ export async function GET(request: Request) {
             timezone: true,
             logo: true,
           },
-        },
-      },
-    });
-
-    if (!user) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404, headers: corsHeaders() }
-      );
+        });
+      } catch (e) {
+        console.error('[Auth/Me] Failed to resolve tenant info:', e);
+      }
     }
 
     // Step 2: Try to fetch employee data separately (graceful fallback)
+    // Use the tenant-specific DB for employee/company lookups
+    let dataDb = db;
+    if (user.role !== 'super_admin' && user.tenantId) {
+      try {
+        dataDb = await getDbForTenantById(user.tenantId);
+      } catch (e) {
+        console.error('[Auth/Me] Failed to get tenant DB for employee lookup:', e);
+        dataDb = platformDb;
+      }
+    }
+
     let employeeData = null;
     try {
-      const employee = await db.employee.findUnique({
+      const employee = await dataDb.employee.findUnique({
         where: { userId: user.id },
         include: {
           department: { select: { name: true } },
@@ -87,7 +182,7 @@ export async function GET(request: Request) {
         let companyData = null;
         try {
           if (employee.companyId) {
-            const company = await db.company.findUnique({
+            const company = await dataDb.company.findUnique({
               where: { id: employee.companyId },
               select: { id: true, name: true, code: true, logo: true, city: true, state: true, country: true },
             });
@@ -128,11 +223,6 @@ export async function GET(request: Request) {
       // Continue without employee data — user can still be authenticated
     }
 
-    // Multi-tenant mode: return the actual tenant name from the database.
-    // The previous branding-lockdown (forcing every tenant to "Marq AI Tech Pvt Ltd")
-    // has been removed so each tenant keeps its own name (e.g. "Acme Global",
-    // "TechStart Solutions", "GlobalHR Services", "Marq AI Tech Pvt Ltd", etc.).
-
     return NextResponse.json(
       {
         id: user.id,
@@ -142,7 +232,7 @@ export async function GET(request: Request) {
         avatar: user.avatar,
         status: user.status,
         tenantId: user.tenantId,
-        tenant: {
+        tenant: user.tenant ? {
           id: user.tenant.id,
           name: user.tenant.name,
           slug: user.tenant.slug,
@@ -150,7 +240,7 @@ export async function GET(request: Request) {
           currency: user.tenant.currency,
           timezone: user.tenant.timezone,
           logo: user.tenant.logo,
-        },
+        } : null,
         employee: employeeData,
         lastLogin: user.lastLogin,
         createdAt: user.createdAt,

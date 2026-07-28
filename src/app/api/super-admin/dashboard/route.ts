@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getDb, getPlatformDb } from '@/lib/tenant-db';
+import { getPlatformDb, getDbForTenant } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -15,7 +15,6 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
-  const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -32,36 +31,79 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Only super admins can view platform dashboard' }, { status: 403, headers: corsHeaders() });
     }
 
-    // Tenant counts by status
+    const platformDb = getPlatformDb();
+
+    // Tenant counts by status (from platform DB)
     const [totalTenants, activeTenants, suspendedTenants, inactiveTenants] = await Promise.all([
-      getPlatformDb().tenant.count(),
-      getPlatformDb().tenant.count({ where: { status: 'active' } }),
-      getPlatformDb().tenant.count({ where: { status: 'suspended' } }),
-      getPlatformDb().tenant.count({ where: { status: 'inactive' } }),
+      platformDb.tenant.count(),
+      platformDb.tenant.count({ where: { status: 'active' } }),
+      platformDb.tenant.count({ where: { status: 'suspended' } }),
+      platformDb.tenant.count({ where: { status: 'inactive' } }),
     ]);
 
-    // Total group companies (a.k.a. parent groups under tenants)
-    const totalGroupCompanies = await db.companyGroup.count();
+    // ─── Aggregate counts across ALL tenant databases ───
+    // The platform DB (neondb) stores Tenant, User, TenantDatabase, Subscription,
+    // and other cross-tenant records. But Company, CompanyGroup, Employee data
+    // lives in each tenant's dedicated database (tenant_marqaitechgroup, tenant_demo, etc.)
+    // So to get accurate totals, we need to query each tenant's DB and sum the results.
 
-    // Total companies (actual inducted companies — sits under group companies).
-    // BUG FIX: previously this stat called db.companyGroup.count() which
-    // returned the GROUP count, not the COMPANY count — so the dashboard
-    // showed a misleading "Total Companies" number that was actually the
-    // number of group companies.
-    const totalCompanies = await db.company.count();
+    const tenants = await platformDb.tenant.findMany({
+      select: { id: true, slug: true, status: true },
+    });
 
-    // Total employees across all tenants
-    const totalEmployees = await db.employee.count({ where: { status: 'active' } });
+    let totalGroupCompanies = 0;
+    let totalCompanies = 0;
+    let totalEmployees = 0;
 
-    // Total revenue from active subscriptions
-    const activeSubscriptions = await getPlatformDb().subscription.findMany({
+    // Also count from platform DB (for tenants without a dedicated DB)
+    try {
+      totalGroupCompanies += await platformDb.companyGroup.count();
+      totalCompanies += await platformDb.company.count();
+      totalEmployees += await platformDb.employee.count({ where: { status: 'active' } });
+    } catch (e) {
+      console.error('[SuperAdmin Dashboard] Platform DB count failed:', e);
+    }
+
+    // Then add counts from each tenant's dedicated DB
+    for (const tenant of tenants) {
+      if (!tenant.slug) continue;
+      try {
+        const tenantDb = await getDbForTenant(tenant.slug);
+        // If getDbForTenant returns the platform DB (no dedicated DB exists),
+        // we've already counted those records above, so skip to avoid double-counting
+        const tenantDbRecord = await platformDb.tenantDatabase.findFirst({
+          where: {
+            tenant: { slug: tenant.slug },
+            isActive: true,
+          },
+          select: { id: true },
+        });
+        if (!tenantDbRecord) continue; // No dedicated DB — already counted above
+
+        const [groupCount, companyCount, employeeCount] = await Promise.all([
+          tenantDb.companyGroup.count(),
+          tenantDb.company.count(),
+          tenantDb.employee.count({ where: { status: 'active' } }),
+        ]);
+
+        totalGroupCompanies += groupCount;
+        totalCompanies += companyCount;
+        totalEmployees += employeeCount;
+      } catch (e) {
+        console.error(`[SuperAdmin Dashboard] Failed to count data for tenant "${tenant.slug}":`, e);
+        // Continue with other tenants — don't let one failure block the dashboard
+      }
+    }
+
+    // Total revenue from active subscriptions (platform DB)
+    const activeSubscriptions = await platformDb.subscription.findMany({
       where: { status: 'active' },
       select: { amount: true },
     });
     const totalRevenue = activeSubscriptions.reduce((sum, sub) => sum + (sub.amount || 0), 0);
 
-    // Recent activity (last 5 audit logs)
-    const recentActivity = await db.auditLog.findMany({
+    // Recent activity from platform DB audit logs (super admin's own actions)
+    const recentActivity = await platformDb.auditLog.findMany({
       take: 5,
       orderBy: { createdAt: 'desc' },
       include: {
