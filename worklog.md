@@ -29,3 +29,33 @@ Stage Summary:
   - Finance Admin: finance@3boxeshrms.com / MarqAI@2026
   - Manager: manager1@3boxeshrms.com / MarqAI@2026
   - Employee: john.doe@3boxeshrms.com / MarqAI@2026 (and others)
+
+---
+Task ID: 2
+Agent: Main Agent
+Task: Fix multiple errors on demo link - tenant configuration, employee Not Found, report exports, employee photos/settings
+
+Work Log:
+- Investigated "Employee Not Found" error: found critical bug where findEmployee() and fetchOptionalRelations() used module-level `db` (undefined) instead of tenant-scoped `db` from getDb(request)
+- Fixed employee [id] route by passing `db` as parameter to both helper functions
+- Fixed RBAC modules route (/api/rbac/modules) which used bare `db` reference instead of getDb(request)
+- Created report export API (/api/reports/export) with actual PDF (jspdf), Excel (xlsx), and CSV generation
+- Updated employee reports page to call real export API with file download instead of fake toast
+- Updated company reports page to call real export API with file download instead of simulated delays
+- Installed jspdf and jspdf-autotable packages for PDF generation
+- Seeded 15 EmployeeCustomField records into tenant_demo DB
+- Seeded 46 EmployeeCompanyMapping records for employee settings
+- Fixed duplicate TenantConfiguration with wrong tenantId (deleted the wrong record)
+- Added SVG-based avatar data URLs to all 140 employees in the Employee table
+- Added avatar data URLs to all 12 User records in the User table
+- Pushed all fixes to GitHub for Vercel auto-deployment
+
+Stage Summary:
+- Employee "Not Found" error fixed - now queries tenant DB correctly
+- Tenant configuration error fixed - wrong TenantConfiguration record removed
+- RBAC modules route fixed - now uses tenant DB correctly
+- Report exports now generate real PDF, Excel, CSV files for download
+- All 140 employees have avatar photos (SVG-based initials with colored backgrounds)
+- All 12 users have avatar photos
+- 15 custom fields seeded for employee settings
+- 46 employee company mappings seeded
