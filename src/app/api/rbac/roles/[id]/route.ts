@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
-import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
+import { resolveAuthenticatedUser } from '@/lib/auth-resolve';
 
 function corsHeaders() {
   return {
@@ -21,26 +21,7 @@ export async function GET(
 ) {
   const db = await getDb(request);
   try {
-    const token = getTokenFromHeaders(request);
-    if (!token) {
-      return NextResponse.json(
-        { error: 'No token provided' },
-        { status: 401, headers: corsHeaders() }
-      );
-    }
-
-    const decoded = await verifyToken(token);
-    if (!decoded) {
-      return NextResponse.json(
-        { error: 'Invalid or expired token' },
-        { status: 401, headers: corsHeaders() }
-      );
-    }
-
-    const user = await db.user.findUnique({
-      where: { id: decoded.userId as string },
-    });
-
+    const { user } = await resolveAuthenticatedUser(request);
     if (!user) {
       return NextResponse.json(
         { error: 'User not found' },
@@ -149,26 +130,7 @@ export async function PUT(
 ) {
   const db = await getDb(request);
   try {
-    const token = getTokenFromHeaders(request);
-    if (!token) {
-      return NextResponse.json(
-        { error: 'No token provided' },
-        { status: 401, headers: corsHeaders() }
-      );
-    }
-
-    const decoded = await verifyToken(token);
-    if (!decoded) {
-      return NextResponse.json(
-        { error: 'Invalid or expired token' },
-        { status: 401, headers: corsHeaders() }
-      );
-    }
-
-    const user = await db.user.findUnique({
-      where: { id: decoded.userId as string },
-    });
-
+    const { user } = await resolveAuthenticatedUser(request);
     if (!user) {
       return NextResponse.json(
         { error: 'User not found' },
@@ -264,26 +226,7 @@ export async function PATCH(
 ) {
   const db = await getDb(request);
   try {
-    const token = getTokenFromHeaders(request);
-    if (!token) {
-      return NextResponse.json(
-        { error: 'No token provided' },
-        { status: 401, headers: corsHeaders() }
-      );
-    }
-
-    const decoded = await verifyToken(token);
-    if (!decoded) {
-      return NextResponse.json(
-        { error: 'Invalid or expired token' },
-        { status: 401, headers: corsHeaders() }
-      );
-    }
-
-    const user = await db.user.findUnique({
-      where: { id: decoded.userId as string },
-    });
-
+    const { user } = await resolveAuthenticatedUser(request);
     if (!user) {
       return NextResponse.json(
         { error: 'User not found' },
@@ -379,26 +322,7 @@ export async function DELETE(
 ) {
   const db = await getDb(request);
   try {
-    const token = getTokenFromHeaders(request);
-    if (!token) {
-      return NextResponse.json(
-        { error: 'No token provided' },
-        { status: 401, headers: corsHeaders() }
-      );
-    }
-
-    const decoded = await verifyToken(token);
-    if (!decoded) {
-      return NextResponse.json(
-        { error: 'Invalid or expired token' },
-        { status: 401, headers: corsHeaders() }
-      );
-    }
-
-    const user = await db.user.findUnique({
-      where: { id: decoded.userId as string },
-    });
-
+    const { user } = await resolveAuthenticatedUser(request);
     if (!user) {
       return NextResponse.json(
         { error: 'User not found' },

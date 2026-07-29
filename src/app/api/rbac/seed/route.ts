@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
-import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
+import { resolveAuthenticatedUser } from '@/lib/auth-resolve';
 
 function corsHeaders() {
   return {
@@ -439,11 +439,7 @@ export async function GET() {
 export async function POST(request: Request) {
   const db = await getDb(request);
   try {
-    const token = getTokenFromHeaders(request);
-    if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
-    const decoded = await verifyToken(token);
-    if (!decoded) return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
-    const user = await db.user.findUnique({ where: { id: decoded.userId as string } });
+    const { user } = await resolveAuthenticatedUser(request);
     if (!user || (user.role !== 'super_admin' && user.role !== 'tenant_admin')) return NextResponse.json({ error: 'Only administrators can seed RBAC data' }, { status: 403, headers: corsHeaders() });
     
     const result = await seedRBACData(user.id);
