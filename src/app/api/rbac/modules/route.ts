@@ -14,8 +14,9 @@ export async function OPTIONS() {
 }
 
 // GET /api/rbac/modules — List all modules with permissions
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const db = await getDb(request);
     const modules = await db.module.findMany({
       include: {
         permissions: { orderBy: { action: 'asc' } },

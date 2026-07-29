@@ -63,8 +63,44 @@ export default function EmployeeReportsPage() {
 
   const activeReportData = reports.find(r => r.key === activeReport);
 
-  const handleExport = (format: 'csv' | 'pdf' | 'excel') => {
-    toast.success(`Report exported as ${format.toUpperCase()} successfully`);
+  const [exporting, setExporting] = useState<string | null>(null);
+
+  const handleExport = async (format: 'csv' | 'pdf' | 'excel') => {
+    if (exporting) return;
+    setExporting(format);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/reports/export', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ reportType: activeReport, format }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({ error: 'Export failed' }));
+        throw new Error(errData.error || 'Export failed');
+      }
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const contentDisposition = res.headers.get('Content-Disposition');
+      const fileName = contentDisposition?.match(/filename="(.+)"/)?.[1] || `${activeReport}-report.${format === 'excel' ? 'xlsx' : format}`;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success(`Report exported as ${format.toUpperCase()} successfully`);
+    } catch (err: any) {
+      toast.error(err.message || `Failed to export ${format.toUpperCase()}`);
+    } finally {
+      setExporting(null);
+    }
   };
 
   return (

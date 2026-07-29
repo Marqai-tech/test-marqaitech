@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
+import type { PrismaClient } from '@prisma/client';
 
 function corsHeaders() {
   return {
@@ -31,7 +32,7 @@ const coreInclude = {
  * Safely fetch optional relations for an employee.
  * Each relation is fetched independently so one failure doesn't break the rest.
  */
-async function fetchOptionalRelations(employeeId: string, companyId?: string | null) {
+async function fetchOptionalRelations(db: PrismaClient, employeeId: string, companyId?: string | null) {
   const result: Record<string, unknown> = {};
 
   // Resolve company info from companyId (Employee.companyId is a bare String, not a relation)
@@ -57,7 +58,11 @@ async function fetchOptionalRelations(employeeId: string, companyId?: string | n
     ['dependents', () => db.dependent.findMany({ where: { employeeId } })],
     ['qualifications', () => db.qualification.findMany({ where: { employeeId } })],
     ['experiences', () => db.experience.findMany({ where: { employeeId } })],
-    ['skills', () => (prisma as any).employeeSkill?.findMany?.({ where: { employeeId } }) ?? Promise.resolve([])],
+    ['skills', () => {
+      try {
+        return (db as any).employeeSkill?.findMany?.({ where: { employeeId } }) ?? [];
+      } catch { return []; }
+    }],
     ['documents', () => db.document.findMany({ where: { employeeId } })],
     ['assetAssignments', () => db.assetAssignment.findMany({
       where: { employeeId },
@@ -93,7 +98,7 @@ async function fetchOptionalRelations(employeeId: string, companyId?: string | n
  * Resolve an employee ID to the actual database record.
  * Tries: 1) by CUID id → 2) by employeeId (e.g. "EMP001") → 3) by email
  */
-async function findEmployee(id: string) {
+async function findEmployee(db: PrismaClient, id: string) {
   // Strategy 1: by database id (CUID)
   try {
     const emp = await db.employee.findUnique({
@@ -143,7 +148,7 @@ export async function GET(
 
     try {
       // Step 1: Find the core employee record
-      let employee = await findEmployee(id);
+      let employee = await findEmployee(db, id);
 
       if (!employee) {
         console.log(`[Employee GET] Employee not found after all strategies for: ${id}`);
@@ -154,7 +159,7 @@ export async function GET(
       }
 
       // Step 2: Fetch optional relations independently (non-fatal if they fail)
-      const optionalData = await fetchOptionalRelations(employee.id, employee.companyId);
+      const optionalData = await fetchOptionalRelations(db, employee.id, employee.companyId);
       employee = { ...employee, ...optionalData };
 
       console.log(`[Employee GET] Found employee: ${employee.employeeId} (${employee.firstName} ${employee.lastName})`);

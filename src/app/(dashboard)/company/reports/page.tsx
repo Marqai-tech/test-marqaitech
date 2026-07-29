@@ -97,29 +97,55 @@ export default function ReportsPage() {
     },
   ]
 
-  const handleGenerate = async (reportId: string) => {
-    setGenerating(reportId)
+  const handleExport = async (reportId: string, format: string) => {
+    if (downloading) return;
+    setDownloading(reportId);
     try {
-      // Simulate report generation
-      await new Promise(resolve => setTimeout(resolve, 2000))
-      toast.success('Report generated successfully')
-    } catch {
-      toast.error('Failed to generate report')
+      const exportFormat = format === 'Excel' ? 'excel' : format === 'PDF' ? 'pdf' : 'csv';
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/reports/export', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ reportType: reportId, format: exportFormat }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({ error: 'Export failed' }));
+        throw new Error(errData.error || 'Export failed');
+      }
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const contentDisposition = res.headers.get('Content-Disposition');
+      const fileName = contentDisposition?.match(/filename="(.+)"/)?.[1] || `${reportId}-report.${exportFormat === 'excel' ? 'xlsx' : exportFormat}`;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success(`${format} report downloaded successfully`);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to download report');
     } finally {
-      setGenerating(null)
+      setDownloading(null);
     }
   }
 
-  const handleDownload = async (reportId: string, format: string) => {
-    setDownloading(reportId)
+  const handleGenerate = async (reportId: string) => {
+    const report = reports.find(r => r.id === reportId);
+    if (!report) return;
+    setGenerating(reportId);
     try {
-      // Simulate download
-      await new Promise(resolve => setTimeout(resolve, 1500))
-      toast.success(`${format} report downloaded`)
+      await handleExport(reportId, report.format);
     } catch {
-      toast.error('Failed to download report')
+      toast.error('Failed to generate report');
     } finally {
-      setDownloading(null)
+      setGenerating(null);
     }
   }
 
@@ -183,17 +209,17 @@ export default function ReportsPage() {
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => handleGenerate(report.id)}
-                      disabled={generating === report.id}
+                      disabled={generating === report.id || downloading === report.id}
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-teal-500 text-white text-xs font-medium rounded-lg hover:bg-teal-600 disabled:opacity-50 shadow-sm shadow-teal-500/25 transition-colors"
                     >
-                      {generating === report.id ? (
+                      {generating === report.id || downloading === report.id ? (
                         <><FiCheckCircle className="w-3 h-3 animate-spin" /> Generating...</>
                       ) : (
-                        <><FiBarChart2 className="w-3 h-3" /> Generate</>
+                        <><FiBarChart2 className="w-3 h-3" /> Generate & Download</>
                       )}
                     </button>
                     <button
-                      onClick={() => handleDownload(report.id, report.format)}
+                      onClick={() => handleExport(report.id, report.format === 'Excel' ? 'excel' : 'pdf')}
                       disabled={downloading === report.id}
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-thb-border text-thb-text-secondary text-xs font-medium rounded-lg hover:bg-slate-50 disabled:opacity-50 transition-colors"
                     >
