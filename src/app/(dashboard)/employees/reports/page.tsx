@@ -69,7 +69,7 @@ export default function EmployeeReportsPage() {
     if (exporting) return;
     setExporting(format);
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('tb_token');
       const res = await fetch('/api/reports/export', {
         method: 'POST',
         headers: {

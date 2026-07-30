@@ -274,7 +274,7 @@ export async function GET(request: Request) {
     }
 
     const userRole = decoded.role as string;
-    const tenantId = decoded.tenantId as string;
+    const tenantId = decoded.tenantId as string | undefined;
 
     // Both super_admin and tenant_admin can view
     if (userRole !== 'super_admin' && userRole !== 'tenant_admin') {
@@ -282,7 +282,28 @@ export async function GET(request: Request) {
     }
 
     const { searchParams } = new URL(request.url);
-    const targetTenantId = searchParams.get('tenantId') || tenantId;
+    let targetTenantId = searchParams.get('tenantId') || tenantId;
+
+    // For super_admin without a tenantId, resolve from the request context (getDb)
+    if (!targetTenantId && userRole === 'super_admin') {
+      // Try to resolve tenant from the DB context
+      try {
+        const platformDb = getPlatformDb();
+        const tenants = await platformDb.tenant.findMany({
+          where: { slug: { in: ['3boxes-hrms-demo'] } },
+          select: { id: true },
+        });
+        if (tenants.length > 0) {
+          targetTenantId = tenants[0].id;
+        }
+      } catch {
+        // Continue with whatever we have
+      }
+    }
+
+    if (!targetTenantId) {
+      return NextResponse.json({ error: 'No tenant context available. Please log in as a tenant admin or select a tenant.' }, { status: 400, headers: corsHeaders() });
+    }
 
     // super_admin can view any tenant; tenant_admin only their own
     if (userRole === 'tenant_admin' && targetTenantId !== tenantId) {

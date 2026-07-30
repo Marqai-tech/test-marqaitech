@@ -102,7 +102,7 @@ export default function ReportsPage() {
     setDownloading(reportId);
     try {
       const exportFormat = format === 'Excel' ? 'excel' : format === 'PDF' ? 'pdf' : 'csv';
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('tb_token');
       const res = await fetch('/api/reports/export', {
         method: 'POST',
         headers: {

@@ -229,6 +229,44 @@ function LeavePageContent() {
     setAiWarning(null);
   };
 
+  /* Export CSV */
+  const handleExportCSV = () => {
+    const rows = filteredLeaves.map(l => ({
+      'Employee ID': l.employee?.employeeId || '',
+      'Employee Name': l.employee ? `${l.employee.firstName} ${l.employee.lastName}` : '',
+      'Department': l.employee?.department?.name || '',
+      'Leave Type': l.leaveType?.name || '',
+      'Start Date': l.startDate ? new Date(l.startDate).toLocaleDateString() : '',
+      'End Date': l.endDate ? new Date(l.endDate).toLocaleDateString() : '',
+      'Duration (Days)': getDaysBetween(l.startDate, l.endDate),
+      'Half Day': l.halfDay ? 'Yes' : 'No',
+      'Status': l.status,
+      'Reason': l.reason || '',
+    }));
+    if (rows.length === 0) {
+      toast.error('No data to export');
+      return;
+    }
+    const headers = Object.keys(rows[0]);
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => headers.map(h => {
+        const val = row[h as keyof typeof row];
+        return `"${String(val ?? '').replace(/"/g, '""')}"`;
+      }).join(',')),
+    ].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `leave-report-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    toast.success('CSV exported successfully');
+  };
+
   const holidaysInRange = (() => {
     if (!form.startDate || !form.endDate) return [];
     const s = new Date(form.startDate);
@@ -366,8 +404,8 @@ function LeavePageContent() {
           </nav>
         </div>
         <div className="flex items-center gap-2">
-          <button className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors">
-            <FiDownload className="w-3.5 h-3.5" /> Export
+          <button onClick={handleExportCSV} className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors">
+            <FiDownload className="w-3.5 h-3.5" /> Export CSV
           </button>
           <button onClick={handleOpenApplyForm} className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium text-sm shadow-sm transition-colors">
             <FiPlus className="w-4 h-4" />
@@ -478,17 +516,18 @@ function LeavePageContent() {
         </div>
       )}
 
-      {/* ── Apply Leave Form Modal (SmartHR Style) ── */}
+      {/* ── Apply Leave Form (Inline) ── */}
       {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={handleCancelForm}>
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between p-5 border-b border-slate-200">
-              <h3 className="text-lg font-bold text-slate-900">Apply Leave</h3>
-              <button onClick={handleCancelForm} className="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors">
-                <FiX className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="p-5 space-y-4">
+        <div className="bg-white rounded-xl border border-green-200 shadow-sm overflow-hidden">
+          <div className="flex items-center justify-between p-4 border-b border-green-100 bg-green-50/50">
+            <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+              <FiPlus className="w-4 h-4 text-green-600" /> Apply Leave
+            </h3>
+            <button onClick={handleCancelForm} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors">
+              <FiX className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="p-5 space-y-4">
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">Leave Type *</label>
                 <select value={form.leaveTypeId} onChange={e => setForm(p => ({ ...p, leaveTypeId: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
@@ -565,18 +604,15 @@ function LeavePageContent() {
                   </label>
                 </div>
               )}
-            </div>
-            <div className="flex items-center justify-end gap-3 p-5 border-t border-slate-200">
-              <button onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors">Cancel</button>
-              <button onClick={handleApply} disabled={submitting} className="px-6 py-2.5 rounded-lg bg-green-600 text-white text-sm font-medium hover:bg-green-700 disabled:opacity-50 shadow-sm transition-colors">
-                {submitting ? 'Submitting...' : 'Add Leave'}
-              </button>
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors">Cancel</button>
+                <button onClick={handleApply} disabled={submitting} className="px-6 py-2.5 rounded-lg bg-green-600 text-white text-sm font-medium hover:bg-green-700 disabled:opacity-50 shadow-sm transition-colors">
+                  {submitting ? 'Submitting...' : 'Add Leave'}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
       )}
-
-      {/* ── Leave List Table (SmartHR Style) ── */}
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
         {/* Card Header with Filters */}
         <div className="p-4 border-b border-slate-200">

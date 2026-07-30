@@ -2403,7 +2403,7 @@ export function firstInitial(name: string): string {
 
 export function getAuthHeaders(): Record<string, string> {
   if (typeof window === 'undefined') return {};
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem('tb_token');
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 

@@ -348,6 +348,44 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  /* Export CSV */
+  const handleExportCSV = () => {
+    const rows = allEmployees.map(emp => ({
+      'Employee ID': emp.employeeId || '',
+      'First Name': emp.firstName || '',
+      'Last Name': emp.lastName || '',
+      'Email': emp.email || '',
+      'Phone': emp.phone || '',
+      'Department': emp.department?.name || '',
+      'Designation': emp.designation?.title || '',
+      'Branch': emp.branch?.name || '',
+      'Status': emp.status || '',
+      'Joining Date': emp.dateOfJoining ? new Date(emp.dateOfJoining).toLocaleDateString() : '',
+    }));
+    if (rows.length === 0) {
+      toast.error('No data to export');
+      return;
+    }
+    const headers = Object.keys(rows[0]);
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => headers.map(h => {
+        const val = row[h as keyof typeof row];
+        return `"${String(val ?? '').replace(/"/g, '""')}"`;
+      }).join(',')),
+    ].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `employees-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    toast.success('CSV exported successfully');
+  };
+
   /* Fetch employees */
   const fetchEmployees = useCallback(async (page = 1) => {
     try {
@@ -1067,7 +1105,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
 
             <div className="flex items-center gap-2">
               {/* Export */}
-              <button className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors">
+              <button onClick={handleExportCSV} className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors">
                 <FiDownload className="w-3.5 h-3.5" /> Export
               </button>
             </div>
