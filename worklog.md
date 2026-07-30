@@ -59,3 +59,25 @@ Stage Summary:
 - All 12 users have avatar photos
 - 15 custom fields seeded for employee settings
 - 46 employee company mappings seeded
+
+---
+Task ID: 3
+Agent: Main Agent
+Task: Fix tenant configuration, report auth, leave inline form, export CSV
+
+Work Log:
+- Fixed tenant configuration API: handle undefined tenantId for super_admin by looking up demo tenant from platform DB as fallback
+- Fixed super_admin tenantId in platform DB (was null, now set to demo tenant ID)
+- Fixed report export auth: wrong localStorage key 'token' -> 'tb_token' in company/reports and employees/reports pages
+- Fixed nexus-ui getAuthHeaders() using wrong localStorage key
+- Converted leave form from modal popup to inline collapsible section
+- Added working CSV export to leave module (was dead button with no handler)
+- Added working CSV export to employee list page (was dead button)
+- All export buttons now generate and download real CSV files
+
+Stage Summary:
+- Tenant configuration should now work for super_admin (fallback to demo tenant)
+- Report exports (PDF/Excel/CSV) now authenticate correctly
+- Leave form is now inline instead of modal
+- Leave and employee list CSV exports now work
+- All localStorage key inconsistencies fixed
