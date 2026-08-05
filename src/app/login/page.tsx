@@ -1123,21 +1123,21 @@ export default function LoginPage() {
           </form>
           )}
 
-          {/* Mobile App Download — hidden on platform site (super admin) */}
+          {/* Mobile App Download — Native Flutter App + PWA */}
           {!isPlatformSite && (
           <div className="mt-8 pt-6 border-t border-slate-100">
             <button
               type="button"
               onClick={() => setShowMobileApp(!showMobileApp)}
-              className="w-full flex items-center justify-between p-3.5 rounded-xl border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-all group"
+              className="w-full flex items-center justify-between p-3.5 rounded-xl border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/30 transition-all group"
             >
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-green-50 to-emerald-50 flex items-center justify-center">
-                  <FiSmartphone className="w-4.5 h-4.5 text-green-500" />
+                <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center shadow-md shadow-indigo-500/20">
+                  <FiSmartphone className="w-4.5 h-4.5 text-white" />
                 </div>
                 <div className="text-left">
-                  <p className="text-sm font-semibold text-slate-800">Get Mobile App</p>
-                  <p className="text-[11px] text-slate-400">Auto-updates with web changes</p>
+                  <p className="text-sm font-semibold text-slate-800">Download Mobile App</p>
+                  <p className="text-[11px] text-slate-400">Native Android & iOS app</p>
                 </div>
               </div>
               {showMobileApp ? (
@@ -1149,93 +1149,96 @@ export default function LoginPage() {
 
             {showMobileApp && (
               <div className="mt-4 space-y-3 animate-slide-in-down">
-                {/* Direct Install */}
-                {deferredPrompt && !isStandalone && (
-                  <button
-                    onClick={handlePWAInstall}
-                    className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-gradient-to-r from-green-500 to-emerald-600 text-white font-semibold text-sm shadow-lg shadow-green-500/20 hover:from-green-600 hover:to-emerald-700 transition-all"
+                {/* Native App Download Buttons */}
+                <div className="space-y-2.5">
+                  {/* Android APK Download */}
+                  <a
+                    href="/downloads/3boxes-hrms.apk"
+                    download
+                    className="w-full flex items-center gap-3 p-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-green-600 text-white shadow-lg shadow-emerald-500/20 hover:from-emerald-600 hover:to-green-700 transition-all"
                   >
-                    <FiDownload className="w-4 h-4" />
-                    Install 3Boxes HRMS App
-                  </button>
+                    <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+                      <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none">
+                        <path d="M17.523 15.341a.641.641 0 01-.64.641.641.641 0 01-.64-.64c0-.354.287-.641.64-.641.354 0 .64.287.64.64zm-10.246 0a.641.641 0 01-.64.641.641.641 0 01-.64-.64c0-.354.287-.641.64-.641.354 0 .64.287.64.64z" fill="white"/>
+                        <path d="M7.414 14.166l-2.548 1.506a.64.64 0 01-.876-.228.64.64 0 01.228-.876l2.548-1.506a.64.64 0 01.876.228.64.64 0 01-.228.876zm9.172 0a.64.64 0 01.228-.876l2.548-1.506a.64.64 0 01.876.228.64.64 0 01-.228.876l-2.548 1.506a.64.64 0 01-.876-.228z" fill="white"/>
+                        <path d="M7.988 10.348l-2.66-4.56a.64.64 0 01.228-.876.64.64 0 01.876.228l2.66 4.56a.64.64 0 01-.228.876.64.64 0 01-.876-.228zm8.024 0a.64.64 0 01-.876.228.64.64 0 01-.228-.876l2.66-4.56a.64.64 0 01.876-.228.64.64 0 01-.228.876z" fill="white"/>
+                        <path d="M12 2.5c-.354 0-.64.287-.64.64v5.12c0 .354.287.64.64.64s.64-.287.64-.64V3.14c0-.354-.287-.64-.64-.64z" fill="white"/>
+                        <rect x="6.64" y="9.38" width="10.72" height="6.82" rx="1.5" fill="white" opacity="0.3"/>
+                      </svg>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold">Download for Android</p>
+                      <p className="text-[11px] text-white/80">APK file · Direct install · v1.0.0</p>
+                    </div>
+                    <FiDownload className="w-5 h-5 shrink-0" />
+                  </a>
+
+                  {/* iOS - Coming Soon */}
+                  <div className="w-full flex items-center gap-3 p-3.5 rounded-xl bg-gradient-to-r from-slate-600 to-slate-700 text-white opacity-90">
+                    <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center shrink-0">
+                      <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none">
+                        <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83" fill="white"/>
+                        <path d="M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z" fill="white"/>
+                      </svg>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold">iOS App</p>
+                      <p className="text-[11px] text-white/70">Coming soon on App Store</p>
+                    </div>
+                    <span className="px-2 py-0.5 rounded-full bg-white/20 text-[10px] font-bold">SOON</span>
+                  </div>
+                </div>
+
+                {/* PWA Install option */}
+                {deferredPrompt && !isStandalone && (
+                  <div className="pt-1">
+                    <p className="text-[11px] text-slate-400 mb-2 flex items-center gap-1">
+                      <span className="w-full h-px bg-slate-200 flex-1" />
+                      <span className="px-2">or install as web app</span>
+                      <span className="w-full h-px bg-slate-200 flex-1" />
+                    </p>
+                    <button
+                      onClick={handlePWAInstall}
+                      className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border border-slate-200 text-slate-700 font-medium text-sm hover:bg-slate-50 transition-all"
+                    >
+                      <FiDownload className="w-4 h-4" />
+                      Install PWA (Web App)
+                    </button>
+                  </div>
                 )}
 
-                {/* Platform instructions */}
-                <div className="space-y-2">
-                  {/* Android */}
-                  <div className={`p-3 rounded-xl border ${isAndroid ? 'border-emerald-200 bg-emerald-50/50' : 'border-slate-200 bg-slate-50/50'}`}>
-                    <div className="flex items-center gap-2.5 mb-2">
-                      <div className="w-7 h-7 rounded-lg bg-emerald-100 flex items-center justify-center">
-                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none">
-                          <path d="M17.523 15.341a.641.641 0 01-.64.641.641.641 0 01-.64-.64c0-.354.287-.641.64-.641.354 0 .64.287.64.64zm-10.246 0a.641.641 0 01-.64.641.641.641 0 01-.64-.64c0-.354.287-.641.64-.641.354 0 .64.287.64.64z" fill="#3DDC84"/>
-                        </svg>
-                      </div>
-                      <div className="flex-1">
-                        <h4 className="text-xs font-bold text-slate-800">Android</h4>
-                        <p className="text-[10px] text-slate-400">Chrome → Menu → Install app</p>
-                      </div>
-                      {isAndroid && (
-                        <span className="px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[9px] font-bold">YOUR DEVICE</span>
-                      )}
+                {/* App Features */}
+                <div className="pt-2">
+                  <p className="text-[11px] font-semibold text-slate-600 mb-2">App Features</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="flex items-center gap-2 p-2 rounded-lg bg-indigo-50/50">
+                      <FiZap className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                      <p className="text-[10px] font-medium text-slate-700">Native Performance</p>
                     </div>
-                  </div>
-
-                  {/* iOS */}
-                  <div className={`p-3 rounded-xl border ${isIOS ? 'border-slate-300 bg-slate-50' : 'border-slate-200 bg-slate-50/50'}`}>
-                    <div className="flex items-center gap-2.5 mb-2">
-                      <div className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center">
-                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none">
-                          <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83" fill="#333"/>
-                          <path d="M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z" fill="#333"/>
-                        </svg>
-                      </div>
-                      <div className="flex-1">
-                        <h4 className="text-xs font-bold text-slate-800">iPhone / iPad</h4>
-                        <p className="text-[10px] text-slate-400">Safari → Share → Add to Home Screen</p>
-                      </div>
-                      {isIOS && (
-                        <span className="px-1.5 py-0.5 rounded-full bg-slate-200 text-slate-700 text-[9px] font-bold">YOUR DEVICE</span>
-                      )}
+                    <div className="flex items-center gap-2 p-2 rounded-lg bg-emerald-50/50">
+                      <FiWifi className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                      <p className="text-[10px] font-medium text-slate-700">Offline Mode</p>
                     </div>
-                  </div>
-
-                  {/* Desktop */}
-                  <div className={`p-3 rounded-xl border border-slate-200 bg-slate-50/50 ${!isIOS && !isAndroid ? 'ring-1 ring-green-200' : ''}`}>
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-lg bg-green-100 flex items-center justify-center">
-                        <FiMonitor className="w-4 h-4 text-green-500" />
-                      </div>
-                      <div className="flex-1">
-                        <h4 className="text-xs font-bold text-slate-800">Desktop</h4>
-                        <p className="text-[10px] text-slate-400">Chrome/Edge → Address bar install icon</p>
-                      </div>
-                      {!isIOS && !isAndroid && (
-                        <span className="px-1.5 py-0.5 rounded-full bg-green-100 text-green-700 text-[9px] font-bold">YOUR DEVICE</span>
-                      )}
+                    <div className="flex items-center gap-2 p-2 rounded-lg bg-violet-50/50">
+                      <FiRefreshCw className="w-3.5 h-3.5 text-violet-500 shrink-0" />
+                      <p className="text-[10px] font-medium text-slate-700">Auto Updates</p>
+                    </div>
+                    <div className="flex items-center gap-2 p-2 rounded-lg bg-amber-50/50">
+                      <FiShield className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                      <p className="text-[10px] font-medium text-slate-700">Secure & Encrypted</p>
                     </div>
                   </div>
                 </div>
 
-                {/* Feature highlights */}
-                <div className="grid grid-cols-3 gap-2 pt-2">
-                  <div className="text-center p-2">
-                    <div className="w-7 h-7 rounded-lg bg-green-50 flex items-center justify-center mx-auto mb-1">
-                      <FiRefreshCw className="w-3.5 h-3.5 text-green-500" />
-                    </div>
-                    <p className="text-[10px] font-semibold text-slate-700">Auto Updates</p>
-                  </div>
-                  <div className="text-center p-2">
-                    <div className="w-7 h-7 rounded-lg bg-emerald-50 flex items-center justify-center mx-auto mb-1">
-                      <FiWifi className="w-3.5 h-3.5 text-emerald-500" />
-                    </div>
-                    <p className="text-[10px] font-semibold text-slate-700">Offline Mode</p>
-                  </div>
-                  <div className="text-center p-2">
-                    <div className="w-7 h-7 rounded-lg bg-green-50 flex items-center justify-center mx-auto mb-1">
-                      <FiShield className="w-3.5 h-3.5 text-emerald-500" />
-                    </div>
-                    <p className="text-[10px] font-semibold text-slate-700">Encrypted</p>
-                  </div>
+                {/* Install instructions */}
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                  <p className="text-[11px] font-semibold text-slate-600 mb-1.5">How to install (Android)</p>
+                  <ol className="text-[10px] text-slate-500 space-y-1 list-decimal list-inside">
+                    <li>Tap <strong>&quot;Download for Android&quot;</strong> above</li>
+                    <li>Open the downloaded APK file</li>
+                    <li>Allow installation from unknown sources if prompted</li>
+                    <li>Tap <strong>&quot;Install&quot;</strong> and open the app</li>
+                  </ol>
                 </div>
               </div>
             )}

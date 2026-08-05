@@ -1,0 +1,50 @@
+name: Build Flutter APK
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'hrms_app/**'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.32.6'
+          channel: 'stable'
+
+      - name: Install dependencies
+        working-directory: hrms_app
+        run: flutter pub get
+
+      - name: Build APK
+        working-directory: hrms_app
+        run: flutter build apk --release
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: hrms-app-release
+          path: hrms_app/build/app/outputs/flutter-apk/app-release.apk
+
+      - name: Copy APK to public directory
+        run: |
+          mkdir -p public/downloads
+          cp hrms_app/build/app/outputs/flutter-apk/app-release.apk public/downloads/3boxes-hrms.apk
+
+      - name: Deploy APK to Vercel
+        run: |
+          # The APK will be available at /downloads/3boxes-hrms.apk after deployment
+          echo "APK will be available at https://nexus-hrms-mu.vercel.app/downloads/3boxes-hrms.apk"
