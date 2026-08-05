@@ -13,6 +13,7 @@ class CustomTextField extends StatelessWidget {
   final int maxLines;
   final bool enabled;
   final VoidCallback? onTap;
+  final ValueChanged<String>? onChanged;
 
   const CustomTextField({
     super.key,
@@ -27,6 +28,7 @@ class CustomTextField extends StatelessWidget {
     this.maxLines = 1,
     this.enabled = true,
     this.onTap,
+    this.onChanged,
   });
 
   @override
@@ -46,6 +48,7 @@ class CustomTextField extends StatelessWidget {
           maxLines: maxLines,
           enabled: enabled,
           onTap: onTap,
+          onChanged: onChanged,
           decoration: InputDecoration(
             hintText: hint ?? 'Enter $label',
             prefixIcon: prefixIcon != null ? Icon(prefixIcon, color: AppColors.textTertiary, size: 20) : null,

@@ -436,8 +436,13 @@ export async function POST(request: Request) {
   try {
     const db = await getDb(request);
 
-    // Try to authenticate
-    const token = getTokenFromHeaders(request);
+    // Try to authenticate — check Authorization header first, then URL query param fallback
+    let token = getTokenFromHeaders(request);
+    if (!token) {
+      // Fallback: check query param (handles cases where Authorization header is stripped by proxy/CDN)
+      const { searchParams } = new URL(request.url);
+      token = searchParams.get('token');
+    }
     if (!token) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401, headers: corsHeaders() });
     }
@@ -447,7 +452,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { reportType, format, tenantId } = body;
+    const { reportType, format, tenantId, data: inlineData } = body;
 
     if (!reportType || !format) {
       return NextResponse.json({ error: 'reportType and format are required' }, { status: 400, headers: corsHeaders() });
@@ -459,8 +464,18 @@ export async function POST(request: Request) {
 
     const targetTenantId = tenantId || decoded.tenantId;
 
-    // Collect data from the tenant database
-    const reportData = await collectReportData(db, reportType, targetTenantId);
+    // Collect data: use inline data from client if provided, otherwise query from DB
+    let reportData: any;
+    if (inlineData && Array.isArray(inlineData) && inlineData.length > 0) {
+      // Client-side data (e.g., leave module sends its own filtered data)
+      reportData = {
+        title: `${reportType.charAt(0).toUpperCase() + reportType.slice(1)} Report`,
+        summary: { totalRecords: inlineData.length },
+        rows: inlineData,
+      };
+    } else {
+      reportData = await collectReportData(db, reportType, targetTenantId);
+    }
 
     // Generate file based on format
     let fileBuffer: Buffer;

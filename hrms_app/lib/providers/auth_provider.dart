@@ -3,6 +3,7 @@ import '../config/api_config.dart';
 import '../models/user.dart';
 import '../services/api_service.dart';
 import '../services/storage_service.dart';
+import '../services/tenant_logo_service.dart';
 
 class AuthProvider extends ChangeNotifier {
   UserModel? _user;
@@ -57,6 +58,7 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> logout() async {
     await ApiService.logout();
+    await TenantLogoService.clearCache();
     _user = null;
     _isLoggedIn = false;
     _error = null;

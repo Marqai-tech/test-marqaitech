@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../config/colors.dart';
 import '../../config/constants.dart';
+import '../../services/tenant_logo_service.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -13,6 +15,9 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
+
+  // Logo state
+  TenantLogoInfo? _logoInfo;
 
   @override
   void initState() {
@@ -28,12 +33,66 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       CurvedAnimation(parent: _controller, curve: Curves.elasticOut),
     );
     _controller.forward();
+    _loadTenantLogo();
+  }
+
+  Future<void> _loadTenantLogo() async {
+    final info = await TenantLogoService.getCurrentLogo();
+    if (mounted) {
+      setState(() => _logoInfo = info);
+    }
   }
 
   @override
   void dispose() {
     _controller.dispose();
     super.dispose();
+  }
+
+  /// Build the logo widget.
+  Widget _buildLogo() {
+    const logoSize = 100.0;
+    final info = _logoInfo;
+
+    if (info != null) {
+      if (info.isAsset) {
+        return Image.asset(
+          info.logoPath,
+          width: logoSize,
+          height: logoSize,
+          fit: BoxFit.contain,
+          errorBuilder: (_, __, ___) => _buildFallbackIcon(),
+        );
+      } else {
+        return CachedNetworkImage(
+          imageUrl: info.logoPath,
+          width: logoSize,
+          height: logoSize,
+          fit: BoxFit.contain,
+          placeholder: (_, __) => _buildFallbackIcon(),
+          errorWidget: (_, __, ___) => Image.asset(
+            TenantLogoService.companyDefaultLogo,
+            width: logoSize,
+            height: logoSize,
+            fit: BoxFit.contain,
+            errorBuilder: (_, __, ___) => _buildFallbackIcon(),
+          ),
+        );
+      }
+    }
+
+    // Default: 3Boxes logo
+    return Image.asset(
+      TenantLogoService.threeBoxesLogo,
+      width: logoSize,
+      height: logoSize,
+      fit: BoxFit.contain,
+      errorBuilder: (_, __, ___) => _buildFallbackIcon(),
+    );
+  }
+
+  Widget _buildFallbackIcon() {
+    return const Icon(Icons.business_center, color: Colors.white, size: 64);
   }
 
   @override
@@ -55,12 +114,15 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                       color: Colors.white.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(24),
                     ),
-                    child: const Icon(Icons.business_center, color: Colors.white, size: 64),
+                    child: _buildLogo(),
                   ),
                   const SizedBox(height: 24),
-                  Text(AppConstants.appName, style: const TextStyle(
-                    color: Colors.white, fontSize: 32, fontWeight: FontWeight.w700, letterSpacing: 1,
-                  )),
+                  Text(
+                    _logoInfo?.tenantName ?? AppConstants.appName,
+                    style: const TextStyle(
+                      color: Colors.white, fontSize: 32, fontWeight: FontWeight.w700, letterSpacing: 1,
+                    ),
+                  ),
                   const SizedBox(height: 8),
                   Text(AppConstants.companyTagline, style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.8), fontSize: 16, fontWeight: FontWeight.w400,

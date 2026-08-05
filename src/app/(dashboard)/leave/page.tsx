@@ -229,24 +229,23 @@ function LeavePageContent() {
     setAiWarning(null);
   };
 
-  /* Export CSV */
+  /* Export Leave Data */
+  const getExportRows = () => filteredLeaves.map(l => ({
+    'Employee ID': l.employee?.employeeId || '',
+    'Employee Name': l.employee ? `${l.employee.firstName} ${l.employee.lastName}` : '',
+    'Department': l.employee?.department?.name || '',
+    'Leave Type': l.leaveType?.name || '',
+    'Start Date': l.startDate ? new Date(l.startDate).toLocaleDateString() : '',
+    'End Date': l.endDate ? new Date(l.endDate).toLocaleDateString() : '',
+    'Duration (Days)': getDaysBetween(l.startDate, l.endDate),
+    'Half Day': l.halfDay ? 'Yes' : 'No',
+    'Status': l.status,
+    'Reason': l.reason || '',
+  }));
+
   const handleExportCSV = () => {
-    const rows = filteredLeaves.map(l => ({
-      'Employee ID': l.employee?.employeeId || '',
-      'Employee Name': l.employee ? `${l.employee.firstName} ${l.employee.lastName}` : '',
-      'Department': l.employee?.department?.name || '',
-      'Leave Type': l.leaveType?.name || '',
-      'Start Date': l.startDate ? new Date(l.startDate).toLocaleDateString() : '',
-      'End Date': l.endDate ? new Date(l.endDate).toLocaleDateString() : '',
-      'Duration (Days)': getDaysBetween(l.startDate, l.endDate),
-      'Half Day': l.halfDay ? 'Yes' : 'No',
-      'Status': l.status,
-      'Reason': l.reason || '',
-    }));
-    if (rows.length === 0) {
-      toast.error('No data to export');
-      return;
-    }
+    const rows = getExportRows();
+    if (rows.length === 0) { toast.error('No data to export'); return; }
     const headers = Object.keys(rows[0]);
     const csvContent = [
       headers.join(','),
@@ -257,14 +256,50 @@ function LeavePageContent() {
     ].join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
+    const a = document.createElement('a'); a.href = url;
     a.download = `leave-report-${new Date().toISOString().slice(0, 10)}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
+    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
     toast.success('CSV exported successfully');
+  };
+
+  const handleExportExcel = async () => {
+    const rows = getExportRows();
+    if (rows.length === 0) { toast.error('No data to export'); return; }
+    try {
+      const token = localStorage.getItem('tb_token');
+      const res = await fetch(`/api/reports/export?token=${encodeURIComponent(token || '')}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ reportType: 'leave', format: 'excel', data: rows }),
+      });
+      if (!res.ok) throw new Error('Export failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url;
+      a.download = `leave-report-${new Date().toISOString().slice(0, 10)}.xlsx`;
+      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+      toast.success('Excel exported successfully');
+    } catch { toast.error('Excel export failed'); }
+  };
+
+  const handleExportPDF = async () => {
+    const rows = getExportRows();
+    if (rows.length === 0) { toast.error('No data to export'); return; }
+    try {
+      const token = localStorage.getItem('tb_token');
+      const res = await fetch(`/api/reports/export?token=${encodeURIComponent(token || '')}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ reportType: 'leave', format: 'pdf', data: rows }),
+      });
+      if (!res.ok) throw new Error('Export failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url;
+      a.download = `leave-report-${new Date().toISOString().slice(0, 10)}.pdf`;
+      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+      toast.success('PDF exported successfully');
+    } catch { toast.error('PDF export failed'); }
   };
 
   const holidaysInRange = (() => {
@@ -404,9 +439,17 @@ function LeavePageContent() {
           </nav>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={handleExportCSV} className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors">
-            <FiDownload className="w-3.5 h-3.5" /> Export CSV
-          </button>
+          <div className="flex items-center gap-1">
+            <button onClick={handleExportCSV} className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors">
+              <FiDownload className="w-3.5 h-3.5" /> CSV
+            </button>
+            <button onClick={handleExportExcel} className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors">
+              <FiDownload className="w-3.5 h-3.5" /> Excel
+            </button>
+            <button onClick={handleExportPDF} className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors">
+              <FiDownload className="w-3.5 h-3.5" /> PDF
+            </button>
+          </div>
           <button onClick={handleOpenApplyForm} className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium text-sm shadow-sm transition-colors">
             <FiPlus className="w-4 h-4" />
             Add Leave

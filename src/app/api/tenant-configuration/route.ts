@@ -276,8 +276,9 @@ export async function GET(request: Request) {
     const userRole = decoded.role as string;
     const tenantId = decoded.tenantId as string | undefined;
 
-    // Both super_admin and tenant_admin can view
-    if (userRole !== 'super_admin' && userRole !== 'tenant_admin') {
+    // super_admin, tenant_admin, and admin can view tenant configuration
+    if (userRole !== 'super_admin' && userRole !== 'tenant_admin' && userRole !== 'admin') {
+      console.warn('[tenant-config] Access denied for role:', userRole);
       return NextResponse.json({ error: 'Access denied' }, { status: 403, headers: corsHeaders() });
     }
 
@@ -295,18 +296,36 @@ export async function GET(request: Request) {
         });
         if (tenants.length > 0) {
           targetTenantId = tenants[0].id;
+          console.log('[tenant-config] Resolved tenantId from platform DB for super_admin:', targetTenantId);
         }
-      } catch {
-        // Continue with whatever we have
+      } catch (resolveErr) {
+        console.error('[tenant-config] Failed to resolve tenant from platform DB:', resolveErr);
+      }
+    }
+
+    // Fallback: if still no targetTenantId, try to find it from the user's record in the DB
+    if (!targetTenantId && decoded.userId) {
+      try {
+        const userRecord = await db.user.findUnique({
+          where: { id: decoded.userId as string },
+          select: { tenantId: true },
+        });
+        if (userRecord?.tenantId) {
+          targetTenantId = userRecord.tenantId;
+          console.log('[tenant-config] Resolved tenantId from user record:', targetTenantId);
+        }
+      } catch (userResolveErr) {
+        console.error('[tenant-config] Failed to resolve tenantId from user record:', userResolveErr);
       }
     }
 
     if (!targetTenantId) {
+      console.error('[tenant-config] No tenant context available. userRole:', userRole, 'tenantId from JWT:', tenantId);
       return NextResponse.json({ error: 'No tenant context available. Please log in as a tenant admin or select a tenant.' }, { status: 400, headers: corsHeaders() });
     }
 
-    // super_admin can view any tenant; tenant_admin only their own
-    if (userRole === 'tenant_admin' && targetTenantId !== tenantId) {
+    // super_admin can view any tenant; tenant_admin and admin only their own
+    if ((userRole === 'tenant_admin' || userRole === 'admin') && targetTenantId !== tenantId) {
       return NextResponse.json({ error: 'Access denied — you can only view your own tenant configuration' }, { status: 403, headers: corsHeaders() });
     }
 
@@ -364,6 +383,7 @@ export async function GET(request: Request) {
       }
 
       // ─── Auto-seed sample data for demo ───
+      // Each create is wrapped in try/catch so one failure doesn't break the whole seed
       const SAMPLE_COUNTRY_CODES = ['IN', 'US', 'GB', 'AE', 'SG', 'AU', 'CA', 'DE'];
       const SAMPLE_CURRENCY_CODES = ['INR', 'USD', 'EUR', 'GBP', 'AED', 'SGD', 'AUD', 'CAD'];
       const SAMPLE_LANGUAGE_CODES = ['en', 'hi', 'ar', 'de', 'fr'];
@@ -372,83 +392,100 @@ export async function GET(request: Request) {
         const master = COUNTRY_MASTER.find(c => c.code === code);
         if (!master) continue;
 
-        await db.tenantCountryAccess.create({
-          data: {
-            tenantConfigId: config.id,
-            countryCode: code,
-            countryName: master.name,
-            payrollFrequencyDefault: master.payrollFrequency,
-            payrollCurrencyDefault: master.currency,
-            taxRegimeDefault: master.taxRegime,
-            workingHoursPerWeek: master.workingHours,
-            workingDaysPerWeek: master.workingDays,
-            overtimeMultiplier: master.overtimeMultiplier,
-            pfEnabled: master.pf,
-            esiEnabled: master.esi,
-            gratuityEnabled: master.gratuity,
-            socialSecurityEnabled: master.socialSecurity,
-            pensionEnabled: master.pension,
-            medicaidEnabled: master.medicaid,
-            labourLawCode: master.labourLaw,
-            terminationNoticePeriod: master.terminationNotice,
-            probationPeriod: master.probation,
-            annualLeaveEntitlement: master.annualLeave,
-            dataResidencyRequired: master.dataResidency,
-            dataResidencyRegion: master.dataRegion,
-          },
-        });
-
-        // Auto-provision payroll policies for each country
-        const defaultPolicies = getDefaultPoliciesForCountry(code);
-        for (const p of defaultPolicies) {
-          await db.tenantPayrollPolicy.create({
+        try {
+          await db.tenantCountryAccess.create({
             data: {
               tenantConfigId: config.id,
               countryCode: code,
               countryName: master.name,
-              policyName: p.policyName,
-              policyType: p.policyType,
-              category: p.category,
-              policyContent: p.policyContent,
-              source: 'system_default',
-              status: 'active',
-              isEditable: true, // full tier allows editing
+              payrollFrequencyDefault: master.payrollFrequency,
+              payrollCurrencyDefault: master.currency,
+              taxRegimeDefault: master.taxRegime,
+              workingHoursPerWeek: master.workingHours,
+              workingDaysPerWeek: master.workingDays,
+              overtimeMultiplier: master.overtimeMultiplier,
+              pfEnabled: master.pf,
+              esiEnabled: master.esi,
+              gratuityEnabled: master.gratuity,
+              socialSecurityEnabled: master.socialSecurity,
+              pensionEnabled: master.pension,
+              medicaidEnabled: master.medicaid,
+              labourLawCode: master.labourLaw,
+              terminationNoticePeriod: master.terminationNotice,
+              probationPeriod: master.probation,
+              annualLeaveEntitlement: master.annualLeave,
+              dataResidencyRequired: master.dataResidency,
+              dataResidencyRegion: master.dataRegion,
             },
           });
+        } catch (countryErr) {
+          console.error(`[tenant-config] Failed to seed country ${code}:`, countryErr);
+          continue; // Skip policies/currency/language for this country if the country itself failed
+        }
+
+        // Auto-provision payroll policies for each country
+        const defaultPolicies = getDefaultPoliciesForCountry(code);
+        for (const p of defaultPolicies) {
+          try {
+            await db.tenantPayrollPolicy.create({
+              data: {
+                tenantConfigId: config.id,
+                countryCode: code,
+                countryName: master.name,
+                policyName: p.policyName,
+                policyType: p.policyType,
+                category: p.category,
+                policyContent: p.policyContent,
+                source: 'system_default',
+                status: 'active',
+                isEditable: true, // full tier allows editing
+              },
+            });
+          } catch (policyErr) {
+            console.error(`[tenant-config] Failed to seed policy ${p.policyType} for country ${code}:`, policyErr);
+          }
         }
 
         // Auto-add the country's default currency
         const currencyMaster = CURRENCY_MASTER.find(c => c.code === master.currency);
         if (currencyMaster) {
-          await db.tenantCurrencyAccess.upsert({
-            where: { tenantConfigId_currencyCode: { tenantConfigId: config.id, currencyCode: currencyMaster.code } },
-            update: { isActive: true },
-            create: {
-              tenantConfigId: config.id,
-              currencyCode: currencyMaster.code,
-              currencyName: currencyMaster.name,
-              currencySymbol: currencyMaster.symbol,
-            },
-          });
+          try {
+            await db.tenantCurrencyAccess.upsert({
+              where: { tenantConfigId_currencyCode: { tenantConfigId: config.id, currencyCode: currencyMaster.code } },
+              update: { isActive: true },
+              create: {
+                tenantConfigId: config.id,
+                currencyCode: currencyMaster.code,
+                currencyName: currencyMaster.name,
+                currencySymbol: currencyMaster.symbol,
+              },
+            });
+          } catch (currErr) {
+            console.error(`[tenant-config] Failed to seed currency ${currencyMaster.code} for country ${code}:`, currErr);
+          }
         }
 
         // Auto-add the country's default language
         const langMaster = LANGUAGE_MASTER.find(l => l.code === master.language);
         if (langMaster) {
-          await db.tenantLanguageAccess.upsert({
-            where: { tenantConfigId_languageCode: { tenantConfigId: config.id, languageCode: langMaster.code } },
-            update: { isActive: true },
-            create: {
-              tenantConfigId: config.id,
-              languageCode: langMaster.code,
-              languageName: langMaster.name,
-              isRTL: langMaster.rtl,
-              uiTranslated: langMaster.ui,
-              documentTemplates: langMaster.docs,
-              emailTemplates: langMaster.email,
-              helpArticles: langMaster.help,
-            },
-          });
+          try {
+            await db.tenantLanguageAccess.upsert({
+              where: { tenantConfigId_languageCode: { tenantConfigId: config.id, languageCode: langMaster.code } },
+              update: { isActive: true },
+              create: {
+                tenantConfigId: config.id,
+                languageCode: langMaster.code,
+                languageName: langMaster.name,
+                isRTL: langMaster.rtl,
+                uiTranslated: langMaster.ui,
+                documentTemplates: langMaster.docs,
+                emailTemplates: langMaster.email,
+                helpArticles: langMaster.help,
+              },
+            });
+          } catch (langErr) {
+            console.error(`[tenant-config] Failed to seed language ${langMaster.code} for country ${code}:`, langErr);
+          }
         }
       }
 
@@ -458,14 +495,18 @@ export async function GET(request: Request) {
         if (seededCurrencyCodes.has(code)) continue;
         const master = CURRENCY_MASTER.find(c => c.code === code);
         if (!master) continue;
-        await db.tenantCurrencyAccess.create({
-          data: {
-            tenantConfigId: config.id,
-            currencyCode: code,
-            currencyName: master.name,
-            currencySymbol: master.symbol,
-          },
-        });
+        try {
+          await db.tenantCurrencyAccess.create({
+            data: {
+              tenantConfigId: config.id,
+              currencyCode: code,
+              currencyName: master.name,
+              currencySymbol: master.symbol,
+            },
+          });
+        } catch (extraCurrErr) {
+          console.error(`[tenant-config] Failed to seed extra currency ${code}:`, extraCurrErr);
+        }
       }
 
       // Seed extra languages not auto-added by countries
@@ -474,22 +515,30 @@ export async function GET(request: Request) {
         if (seededLanguageCodes.has(code)) continue;
         const master = LANGUAGE_MASTER.find(l => l.code === code);
         if (!master) continue;
-        await db.tenantLanguageAccess.create({
-          data: {
-            tenantConfigId: config.id,
-            languageCode: code,
-            languageName: master.name,
-            isRTL: master.rtl,
-            uiTranslated: master.ui,
-            documentTemplates: master.docs,
-            emailTemplates: master.email,
-            helpArticles: master.help,
-          },
-        });
+        try {
+          await db.tenantLanguageAccess.create({
+            data: {
+              tenantConfigId: config.id,
+              languageCode: code,
+              languageName: master.name,
+              isRTL: master.rtl,
+              uiTranslated: master.ui,
+              documentTemplates: master.docs,
+              emailTemplates: master.email,
+              helpArticles: master.help,
+            },
+          });
+        } catch (extraLangErr) {
+          console.error(`[tenant-config] Failed to seed extra language ${code}:`, extraLangErr);
+        }
       }
 
-      // Update counts and costing
-      await updateConfigCounts(config.id);
+      // Update counts and costing (non-fatal if this fails)
+      try {
+        await updateConfigCounts(config.id);
+      } catch (countErr) {
+        console.error('[tenant-config] Failed to update config counts (non-fatal):', countErr);
+      }
 
       // Re-fetch with all seeded data
       config = await db.tenantConfiguration.findUnique({
@@ -513,11 +562,16 @@ export async function GET(request: Request) {
       },
     }, { headers: corsHeaders() });
   } catch (error) {
-    console.error('Tenant configuration GET error:', error);
+    console.error('[tenant-config] GET handler error:', error);
     const msg = error instanceof Error ? error.message : String(error);
+    console.error('[tenant-config] Error details:', { message: msg, stack: error instanceof Error ? error.stack : undefined });
     // Self-heal: if table doesn't exist yet, try schema sync
     if (/does not exist|column .* does not exist/i.test(msg)) {
-      await ensureSchemaSynced();
+      try {
+        await ensureSchemaSynced();
+      } catch (syncErr) {
+        console.error('[tenant-config] Schema sync also failed:', syncErr);
+      }
       return NextResponse.json({ error: 'Schema was out of sync — auto-synced. Please retry.' }, { status: 503, headers: corsHeaders() });
     }
     return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() });
@@ -541,7 +595,7 @@ export async function POST(request: Request) {
     const userRole = decoded.role as string;
     const tenantId = decoded.tenantId as string;
 
-    if (userRole !== 'super_admin' && userRole !== 'tenant_admin') {
+    if (userRole !== 'super_admin' && userRole !== 'tenant_admin' && userRole !== 'admin') {
       return NextResponse.json({ error: 'Access denied' }, { status: 403, headers: corsHeaders() });
     }
 
@@ -550,8 +604,8 @@ export async function POST(request: Request) {
 
     const targetTenantId = bodyTenantId || tenantId;
 
-    // super_admin can configure any tenant; tenant_admin only their own
-    if (userRole === 'tenant_admin' && targetTenantId !== tenantId) {
+    // super_admin can configure any tenant; tenant_admin and admin only their own
+    if ((userRole === 'tenant_admin' || userRole === 'admin') && targetTenantId !== tenantId) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403, headers: corsHeaders() });
     }
 
@@ -772,8 +826,8 @@ export async function POST(request: Request) {
 
     // ─── ACTION: create_policy ───
     if (action === 'create_policy') {
-      // tenant_admin can create policies if customisationTier is 'custom' or 'full'
-      if (userRole === 'tenant_admin' && config.customisationTier === 'standard') {
+      // tenant_admin and admin can create policies if customisationTier is 'custom' or 'full'
+      if ((userRole === 'tenant_admin' || userRole === 'admin') && config.customisationTier === 'standard') {
         return NextResponse.json({ error: 'Your customisation tier does not allow creating custom policies. Contact super admin to upgrade.' }, { status: 403, headers: corsHeaders() });
       }
 
@@ -799,7 +853,7 @@ export async function POST(request: Request) {
           policyType,
           category: category || 'custom',
           policyContent: typeof policyContent === 'string' ? policyContent : JSON.stringify(policyContent),
-          source: userRole === 'tenant_admin' ? 'tenant_override' : 'system_default',
+          source: (userRole === 'tenant_admin' || userRole === 'admin') ? 'tenant_override' : 'system_default',
           status: 'active',
           isEditable: true,
           notes,
@@ -895,7 +949,7 @@ export async function PATCH(request: Request) {
     const userRole = decoded.role as string;
     const tenantId = decoded.tenantId as string;
 
-    if (userRole !== 'super_admin' && userRole !== 'tenant_admin') {
+    if (userRole !== 'super_admin' && userRole !== 'tenant_admin' && userRole !== 'admin') {
       return NextResponse.json({ error: 'Access denied' }, { status: 403, headers: corsHeaders() });
     }
 
@@ -911,12 +965,12 @@ export async function PATCH(request: Request) {
 
       // Verify tenant access
       const config = await db.tenantConfiguration.findUnique({ where: { id: countryAccess.tenantConfigId } });
-      if (!config || (userRole === 'tenant_admin' && config.tenantId !== tenantId)) {
+      if (!config || ((userRole === 'tenant_admin' || userRole === 'admin') && config.tenantId !== tenantId)) {
         return NextResponse.json({ error: 'Access denied' }, { status: 403, headers: corsHeaders() });
       }
 
-      // tenant_admin can only override if customisation tier allows
-      if (userRole === 'tenant_admin' && config.customisationTier === 'standard') {
+      // tenant_admin/admin can only override if customisation tier allows
+      if ((userRole === 'tenant_admin' || userRole === 'admin') && config.customisationTier === 'standard') {
         return NextResponse.json({ error: 'Your tier does not allow editing country settings' }, { status: 403, headers: corsHeaders() });
       }
 
@@ -936,7 +990,7 @@ export async function PATCH(request: Request) {
       }
 
       if (Object.keys(updateData).length > 0) {
-        updateData.isOverridden = userRole === 'tenant_admin';
+        updateData.isOverridden = userRole === 'tenant_admin' || userRole === 'admin';
         await db.tenantCountryAccess.update({ where: { id: itemId }, data: updateData });
         await updateConfigCounts(config.id);
       }
@@ -961,7 +1015,7 @@ export async function PATCH(request: Request) {
       }
 
       const config = await db.tenantConfiguration.findUnique({ where: { id: currencyAccess.tenantConfigId } });
-      if (!config || (userRole === 'tenant_admin' && config.tenantId !== tenantId)) {
+      if (!config || ((userRole === 'tenant_admin' || userRole === 'admin') && config.tenantId !== tenantId)) {
         return NextResponse.json({ error: 'Access denied' }, { status: 403, headers: corsHeaders() });
       }
 
@@ -972,7 +1026,7 @@ export async function PATCH(request: Request) {
       }
 
       if (Object.keys(updateData).length > 0) {
-        updateData.isOverridden = userRole === 'tenant_admin';
+        updateData.isOverridden = userRole === 'tenant_admin' || userRole === 'admin';
         await db.tenantCurrencyAccess.update({ where: { id: itemId }, data: updateData });
         await updateConfigCounts(config.id);
       }
@@ -988,7 +1042,7 @@ export async function PATCH(request: Request) {
       }
 
       const config = await db.tenantConfiguration.findUnique({ where: { id: langAccess.tenantConfigId } });
-      if (!config || (userRole === 'tenant_admin' && config.tenantId !== tenantId)) {
+      if (!config || ((userRole === 'tenant_admin' || userRole === 'admin') && config.tenantId !== tenantId)) {
         return NextResponse.json({ error: 'Access denied' }, { status: 403, headers: corsHeaders() });
       }
 
@@ -999,7 +1053,7 @@ export async function PATCH(request: Request) {
       }
 
       if (Object.keys(updateData).length > 0) {
-        updateData.isOverridden = userRole === 'tenant_admin';
+        updateData.isOverridden = userRole === 'tenant_admin' || userRole === 'admin';
         await db.tenantLanguageAccess.update({ where: { id: itemId }, data: updateData });
         await updateConfigCounts(config.id);
       }
@@ -1015,12 +1069,12 @@ export async function PATCH(request: Request) {
       }
 
       const config = await db.tenantConfiguration.findUnique({ where: { id: policy.tenantConfigId } });
-      if (!config || (userRole === 'tenant_admin' && config.tenantId !== tenantId)) {
+      if (!config || ((userRole === 'tenant_admin' || userRole === 'admin') && config.tenantId !== tenantId)) {
         return NextResponse.json({ error: 'Access denied' }, { status: 403, headers: corsHeaders() });
       }
 
-      // tenant_admin cannot edit if isEditable is false
-      if (userRole === 'tenant_admin' && !policy.isEditable) {
+      // tenant_admin/admin cannot edit if isEditable is false
+      if ((userRole === 'tenant_admin' || userRole === 'admin') && !policy.isEditable) {
         return NextResponse.json({ error: 'This policy is not editable at your customisation tier' }, { status: 403, headers: corsHeaders() });
       }
 
@@ -1139,7 +1193,7 @@ export async function DELETE(request: Request) {
     const userRole = decoded.role as string;
     const tenantId = decoded.tenantId as string;
 
-    if (userRole !== 'super_admin' && userRole !== 'tenant_admin') {
+    if (userRole !== 'super_admin' && userRole !== 'tenant_admin' && userRole !== 'admin') {
       return NextResponse.json({ error: 'Access denied' }, { status: 403, headers: corsHeaders() });
     }
 
@@ -1156,7 +1210,7 @@ export async function DELETE(request: Request) {
     }
 
     const config = await db.tenantConfiguration.findUnique({ where: { id: policy.tenantConfigId } });
-    if (!config || (userRole === 'tenant_admin' && config.tenantId !== tenantId)) {
+    if (!config || ((userRole === 'tenant_admin' || userRole === 'admin') && config.tenantId !== tenantId)) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403, headers: corsHeaders() });
     }
 

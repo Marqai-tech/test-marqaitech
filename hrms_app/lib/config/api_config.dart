@@ -4,6 +4,15 @@ class ApiConfig {
   static const Duration timeout = Duration(seconds: 30);
   static const String tenantSlug = '3boxes-hrms-demo';
 
+  // Demo credentials
+  static const String demoEmail = 'admin@3boxes.com';
+  static const String demoPassword = 'MarqAI@2026';
+
+  // Current active tenant slug (can be changed at runtime)
+  static String _activeTenantSlug = tenantSlug;
+  static String get activeTenantSlug => _activeTenantSlug;
+  static void setActiveTenantSlug(String slug) => _activeTenantSlug = slug;
+
   static String get apiUrl => '$baseUrl$apiPrefix';
 
   // Auth
@@ -33,9 +42,15 @@ class ApiConfig {
   // Tenant Config
   static String get tenantConfiguration => '$apiUrl/tenant-configuration';
 
+  // Tenant Info (public endpoint)
+  static String tenantInfo(String slug) => '$apiUrl/public/tenant-info?slug=$slug';
+
   // Notifications
   static String get notifications => '$apiUrl/notifications';
 
   // RBAC
   static String get rbacModules => '$apiUrl/rbac/modules';
+
+  // Check if current login is demo
+  static bool get isDemoTenant => _activeTenantSlug == tenantSlug;
 }

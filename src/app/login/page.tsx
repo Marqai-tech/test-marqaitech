@@ -1129,21 +1129,21 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={() => setShowMobileApp(!showMobileApp)}
-              className="w-full flex items-center justify-between p-3.5 rounded-xl border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/30 transition-all group"
+              className="w-full flex items-center justify-between p-4 rounded-xl border-2 border-emerald-200 hover:border-emerald-400 bg-emerald-50/40 hover:bg-emerald-50/70 transition-all group"
             >
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center shadow-md shadow-indigo-500/20">
-                  <FiSmartphone className="w-4.5 h-4.5 text-white" />
+                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center shadow-md shadow-emerald-500/20">
+                  <FiSmartphone className="w-5 h-5 text-white" />
                 </div>
                 <div className="text-left">
-                  <p className="text-sm font-semibold text-slate-800">Download Mobile App</p>
-                  <p className="text-[11px] text-slate-400">Native Android & iOS app</p>
+                  <p className="text-sm font-bold text-slate-800">Get the 3Boxes HRMS App</p>
+                  <p className="text-[11px] text-emerald-600 font-medium">Native Android & iOS · Free download</p>
                 </div>
               </div>
               {showMobileApp ? (
-                <FiChevronUp className="w-4 h-4 text-slate-400 group-hover:text-slate-600" />
+                <FiChevronUp className="w-5 h-5 text-emerald-500 group-hover:text-emerald-600" />
               ) : (
-                <FiChevronDown className="w-4 h-4 text-slate-400 group-hover:text-slate-600" />
+                <FiChevronDown className="w-5 h-5 text-emerald-500 group-hover:text-emerald-600" />
               )}
             </button>
 
@@ -1153,7 +1153,7 @@ export default function LoginPage() {
                 <div className="space-y-2.5">
                   {/* Android APK Download */}
                   <a
-                    href="/downloads/3boxes-hrms.apk"
+                    href="/downloads/"
                     download
                     className="w-full flex items-center gap-3 p-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-green-600 text-white shadow-lg shadow-emerald-500/20 hover:from-emerald-600 hover:to-green-700 transition-all"
                   >

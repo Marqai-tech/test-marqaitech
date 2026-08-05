@@ -36,13 +36,17 @@ export function getTokenFromHeaders(request: Request): string | null {
     return authHeader.substring(7);
   }
 
-  // Also check cookie
+  // Also check cookies — support both 'token' and 'tb_token' cookie names
   const cookieHeader = request.headers.get('cookie');
   if (cookieHeader) {
     const cookies = cookieHeader.split(';').map(c => c.trim());
+    const tbTokenCookie = cookies.find(c => c.startsWith('tb_token='));
+    if (tbTokenCookie) {
+      return tbTokenCookie.substring('tb_token='.length);
+    }
     const tokenCookie = cookies.find(c => c.startsWith('token='));
     if (tokenCookie) {
-      return tokenCookie.substring(6);
+      return tokenCookie.substring('token='.length);
     }
   }
 

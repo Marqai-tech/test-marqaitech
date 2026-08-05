@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../config/colors.dart';
 import '../config/constants.dart';
 import '../providers/auth_provider.dart';
 import '../screens/profile/profile_screen.dart';
 import '../screens/settings/settings_screen.dart';
 import '../screens/notifications/notifications_screen.dart';
+import '../services/tenant_logo_service.dart';
 
 class AppDrawer extends StatelessWidget {
   final int currentIndex;
@@ -32,18 +34,63 @@ class AppDrawer extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      Container(
-                        width: 56, height: 56,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white.withValues(alpha: 0.2),
-                          border: Border.all(color: Colors.white, width: 2),
-                        ),
-                        child: Center(
-                          child: Text(user?.initials ?? 'U', style: const TextStyle(
-                            color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold,
-                          )),
-                        ),
+                      // Tenant logo
+                      FutureBuilder<TenantLogoInfo>(
+                        future: TenantLogoService.getCurrentLogo(),
+                        builder: (context, snapshot) {
+                          final info = snapshot.data;
+                          if (info != null) {
+                            if (info.isAsset) {
+                              return Container(
+                                width: 56, height: 56,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: Colors.white.withValues(alpha: 0.2),
+                                  border: Border.all(color: Colors.white, width: 2),
+                                ),
+                                child: ClipOval(
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(4),
+                                    child: Image.asset(
+                                      info.logoPath,
+                                      fit: BoxFit.contain,
+                                      errorBuilder: (_, __, ___) => _buildUserInitials(user),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            } else {
+                              return Container(
+                                width: 56, height: 56,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: Colors.white.withValues(alpha: 0.2),
+                                  border: Border.all(color: Colors.white, width: 2),
+                                ),
+                                child: ClipOval(
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(4),
+                                    child: CachedNetworkImage(
+                                      imageUrl: info.logoPath,
+                                      fit: BoxFit.contain,
+                                      placeholder: (_, __) => _buildUserInitials(user),
+                                      errorWidget: (_, __, ___) => _buildUserInitials(user),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }
+                          }
+                          return Container(
+                            width: 56, height: 56,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.white.withValues(alpha: 0.2),
+                              border: Border.all(color: Colors.white, width: 2),
+                            ),
+                            child: _buildUserInitials(user),
+                          );
+                        },
                       ),
                       const SizedBox(width: 16),
                       Expanded(
@@ -100,6 +147,14 @@ class AppDrawer extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildUserInitials(user) {
+    return Center(
+      child: Text(user?.initials ?? 'U', style: const TextStyle(
+        color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold,
+      )),
     );
   }
 

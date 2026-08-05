@@ -103,7 +103,10 @@ export default function ReportsPage() {
     try {
       const exportFormat = format === 'Excel' ? 'excel' : format === 'PDF' ? 'pdf' : 'csv';
       const token = localStorage.getItem('tb_token');
-      const res = await fetch('/api/reports/export', {
+      // Send token both as Authorization header AND as query param fallback.
+      // Some proxy/CDN configurations strip Authorization headers; the query param
+      // ensures the API can always authenticate the request.
+      const res = await fetch(`/api/reports/export${token ? `?token=${encodeURIComponent(token)}` : ''}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
