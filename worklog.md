@@ -1,83 +1,32 @@
 ---
 Task ID: 1
-Agent: Main Agent
-Task: Populate demo link (tenant_demo DB) with complete sample/dummy data across all modules
+Agent: Main
+Task: Build Customized HRMS Flutter Mobile App for Android & iOS
 
 Work Log:
-- Read Prisma schema to understand all 50+ models
-- Queried tenant_demo DB to check existing data counts (49 tables already populated, 4 empty)
-- Found 4 empty tables: ProjectTask (0), ProjectMilestone (0), ProjectAllocation (0), FeatureFlag (0)
-- Also found orphaned data: 4 CompanyGroups and 3 Users referencing non-existent tenant IDs
-- Created seed-demo-gap.ts script to fill all gaps
-- Script fixed orphaned tenant references (4 groups + 3 users → demo tenant)
-- Created 22 ProjectMilestones across 6 projects
-- Created 47 ProjectTasks with realistic statuses (done/in_progress/todo/review)
-- Created 28 ProjectAllocations with billing details
-- Created 15 FeatureFlags (AI modules, portals, SSO, EWA, etc.)
-- Pushed code to GitHub for Vercel deployment
+- Installed Flutter SDK 3.32.6 (stable) at /home/z/flutter/
+- Installed Android SDK with cmdline-tools, platform-34, build-tools-34.0.0, NDK 26.3.11579264
+- Created complete Flutter HRMS app project at /home/z/my-project/hrms_app/
+- Built 10+ screens: Splash, Login, Dashboard, Employees (list + detail), Leaves (list + inline request form), Attendance, Reports, Profile, Settings, Notifications
+- Implemented Material Design 3 theme with custom colors, gradients, and typography
+- Full API integration with backend at https://nexus-hrms-mu.vercel.app
+- Provider state management for Auth, Employee, Leave, Dashboard, Attendance, Notification
+- Leave request form is inline (NOT popup/modal) as requested
+- Custom widgets: StatCard, EmployeeCard, LeaveCard, CustomButton, CustomTextField, LoadingWidget, EmptyStateWidget, GradientContainer
+- Android config: minSdk 24, targetSdk 34, proper permissions
+- Updated Next.js login page with native app download section:
+  - Android APK download button with gradient styling
+  - iOS "Coming Soon" indicator
+  - PWA install option as fallback
+  - App features showcase (Native Performance, Offline, Auto Updates, Secure)
+  - Step-by-step Android installation instructions
+- Created GitHub Actions workflow for automated APK build (requires PAT with workflow scope)
+- Pushed all changes to GitHub (commit 8cc86328)
+- APK build could not complete in this environment due to disk space constraints (9.9GB total, build requires ~3GB for Gradle caches + compilation)
+- GitHub Actions CI/CD will build the APK automatically on a proper runner
 
 Stage Summary:
-- Demo DB now has ALL tables populated (53/53 tables have data)
-- 140 employees, 12 companies, 5 company groups, 6 projects with full task/allocation/milestone data
-- 15 feature flags covering AI modules, portals, and enterprise features
-- All orphaned references fixed - all data now belongs to demo tenant
-- Key login credentials for demo:
-  - Super Admin: superadmin@3boxeshrms.com / MarqAI@2026
-  - Tenant Admin: admin@3boxeshrms.com / MarqAI@2026
-  - HR Admin: hr@3boxeshrms.com / MarqAI@2026
-  - HR Manager: hrmanager@3boxeshrms.com / MarqAI@2026
-  - Finance Admin: finance@3boxeshrms.com / MarqAI@2026
-  - Manager: manager1@3boxeshrms.com / MarqAI@2026
-  - Employee: john.doe@3boxeshrms.com / MarqAI@2026 (and others)
-
----
-Task ID: 2
-Agent: Main Agent
-Task: Fix multiple errors on demo link - tenant configuration, employee Not Found, report exports, employee photos/settings
-
-Work Log:
-- Investigated "Employee Not Found" error: found critical bug where findEmployee() and fetchOptionalRelations() used module-level `db` (undefined) instead of tenant-scoped `db` from getDb(request)
-- Fixed employee [id] route by passing `db` as parameter to both helper functions
-- Fixed RBAC modules route (/api/rbac/modules) which used bare `db` reference instead of getDb(request)
-- Created report export API (/api/reports/export) with actual PDF (jspdf), Excel (xlsx), and CSV generation
-- Updated employee reports page to call real export API with file download instead of fake toast
-- Updated company reports page to call real export API with file download instead of simulated delays
-- Installed jspdf and jspdf-autotable packages for PDF generation
-- Seeded 15 EmployeeCustomField records into tenant_demo DB
-- Seeded 46 EmployeeCompanyMapping records for employee settings
-- Fixed duplicate TenantConfiguration with wrong tenantId (deleted the wrong record)
-- Added SVG-based avatar data URLs to all 140 employees in the Employee table
-- Added avatar data URLs to all 12 User records in the User table
-- Pushed all fixes to GitHub for Vercel auto-deployment
-
-Stage Summary:
-- Employee "Not Found" error fixed - now queries tenant DB correctly
-- Tenant configuration error fixed - wrong TenantConfiguration record removed
-- RBAC modules route fixed - now uses tenant DB correctly
-- Report exports now generate real PDF, Excel, CSV files for download
-- All 140 employees have avatar photos (SVG-based initials with colored backgrounds)
-- All 12 users have avatar photos
-- 15 custom fields seeded for employee settings
-- 46 employee company mappings seeded
-
----
-Task ID: 3
-Agent: Main Agent
-Task: Fix tenant configuration, report auth, leave inline form, export CSV
-
-Work Log:
-- Fixed tenant configuration API: handle undefined tenantId for super_admin by looking up demo tenant from platform DB as fallback
-- Fixed super_admin tenantId in platform DB (was null, now set to demo tenant ID)
-- Fixed report export auth: wrong localStorage key 'token' -> 'tb_token' in company/reports and employees/reports pages
-- Fixed nexus-ui getAuthHeaders() using wrong localStorage key
-- Converted leave form from modal popup to inline collapsible section
-- Added working CSV export to leave module (was dead button with no handler)
-- Added working CSV export to employee list page (was dead button)
-- All export buttons now generate and download real CSV files
-
-Stage Summary:
-- Tenant configuration should now work for super_admin (fallback to demo tenant)
-- Report exports (PDF/Excel/CSV) now authenticate correctly
-- Leave form is now inline instead of modal
-- Leave and employee list CSV exports now work
-- All localStorage key inconsistencies fixed
+- Flutter app source code committed and pushed to GitHub
+- Login page updated with download buttons on Vercel
+- APK will be available at /downloads/3boxes-hrms.apk after GitHub Actions build
+- User needs to add GitHub PAT with 'workflow' scope to enable the CI/CD pipeline
