@@ -28,7 +28,7 @@ const demoTickets: PlatformTicket[] = [
   { id: 'PT-001', subject: 'Platform-wide email delivery delays', category: 'Infrastructure', priority: 'high', status: 'in_progress', reporter: 'System Monitor', createdDate: '2025-06-30' },
   { id: 'PT-002', subject: 'File upload size limit too restrictive', category: 'Feature Request', priority: 'medium', status: 'open', reporter: 'Acme Global Corp', createdDate: '2025-06-28' },
   { id: 'PT-003', subject: 'Dashboard charts not rendering on Safari', category: 'Bug', priority: 'high', status: 'open', reporter: 'TechStart Solutions', createdDate: '2025-06-29' },
-  { id: 'PT-004', subject: 'Request for bulk employee import via CSV', category: 'Feature Request', priority: 'medium', status: 'in_progress', reporter: 'Nexus Innovations', createdDate: '2025-06-25' },
+  { id: 'PT-004', subject: 'Request for bulk employee import via CSV', category: 'Feature Request', priority: 'medium', status: 'in_progress', reporter: '3Boxes Innovations', createdDate: '2025-06-25' },
   { id: 'PT-005', subject: 'Scheduled maintenance notification system', category: 'Infrastructure', priority: 'low', status: 'resolved', reporter: 'Platform Team', createdDate: '2025-06-20' },
   { id: 'PT-006', subject: 'Two-factor authentication bypass report', category: 'Security', priority: 'high', status: 'resolved', reporter: 'Security Audit', createdDate: '2025-06-22' },
   { id: 'PT-007', subject: 'Mobile app crash on Android 14', category: 'Bug', priority: 'medium', status: 'in_progress', reporter: 'BrightPath Inc', createdDate: '2025-06-27' },

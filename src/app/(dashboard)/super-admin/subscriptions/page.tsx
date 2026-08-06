@@ -30,7 +30,7 @@ const demoSubscriptions: Subscription[] = [
   { id: 'sub-001', companyName: 'Acme Global Corp', plan: 'Enterprise', status: 'active', startDate: '2025-01-15', endDate: '2026-01-15', amount: 12000, billingCycle: 'annual' },
   { id: 'sub-002', companyName: 'TechStart Solutions', plan: 'Professional', status: 'active', startDate: '2025-03-01', endDate: '2025-09-01', amount: 299, billingCycle: 'monthly' },
   { id: 'sub-003', companyName: 'GlobalHR Services', plan: 'Starter', status: 'trialing', startDate: '2025-06-10', endDate: '2025-07-10', amount: 0, billingCycle: 'monthly' },
-  { id: 'sub-004', companyName: 'Nexus Innovations', plan: 'Enterprise', status: 'active', startDate: '2025-02-01', endDate: '2026-02-01', amount: 12000, billingCycle: 'annual' },
+  { id: 'sub-004', companyName: '3Boxes Innovations', plan: 'Enterprise', status: 'active', startDate: '2025-02-01', endDate: '2026-02-01', amount: 12000, billingCycle: 'annual' },
   { id: 'sub-005', companyName: 'BrightPath Inc', plan: 'Professional', status: 'expired', startDate: '2024-06-01', endDate: '2025-06-01', amount: 3588, billingCycle: 'annual' },
   { id: 'sub-006', companyName: 'Vertex Dynamics', plan: 'Starter', status: 'active', startDate: '2025-04-20', endDate: '2025-10-20', amount: 49, billingCycle: 'monthly' },
   { id: 'sub-007', companyName: 'Orion Systems', plan: 'Professional', status: 'cancelled', startDate: '2024-11-01', endDate: '2025-05-01', amount: 299, billingCycle: 'monthly' },

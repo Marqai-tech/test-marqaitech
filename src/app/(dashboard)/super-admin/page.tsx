@@ -885,7 +885,7 @@ export default function SuperAdminPage() {
                     {[
                       { company: 'Acme Global Corp', amount: '$12,000', status: 'completed', date: 'Jun 30' },
                       { company: 'TechStart Solutions', amount: '$299', status: 'completed', date: 'Jun 28' },
-                      { company: 'Nexus Innovations', amount: '$12,000', status: 'pending', date: 'Jun 25' },
+                      { company: '3Boxes Innovations', amount: '$12,000', status: 'pending', date: 'Jun 25' },
                       { company: 'BrightPath Inc', amount: '$3,588', status: 'refunded', date: 'Jun 22' },
                       { company: 'PeakPerformance Ltd', amount: '$12,000', status: 'completed', date: 'Jun 20' },
                       { company: 'Vertex Dynamics', amount: '$49', status: 'completed', date: 'Jun 18' },

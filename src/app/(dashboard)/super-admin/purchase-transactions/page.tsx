@@ -28,7 +28,7 @@ interface Transaction {
 const demoTransactions: Transaction[] = [
   { id: 'TXN-1001', companyName: 'Acme Global Corp', plan: 'Enterprise', amount: 12000, status: 'completed', paymentMethod: 'Credit Card', date: '2025-01-15' },
   { id: 'TXN-1002', companyName: 'TechStart Solutions', plan: 'Professional', amount: 299, status: 'completed', paymentMethod: 'PayPal', date: '2025-03-01' },
-  { id: 'TXN-1003', companyName: 'Nexus Innovations', plan: 'Enterprise', amount: 12000, status: 'completed', paymentMethod: 'Wire Transfer', date: '2025-02-01' },
+  { id: 'TXN-1003', companyName: '3Boxes Innovations', plan: 'Enterprise', amount: 12000, status: 'completed', paymentMethod: 'Wire Transfer', date: '2025-02-01' },
   { id: 'TXN-1004', companyName: 'BrightPath Inc', plan: 'Professional', amount: 3588, status: 'refunded', paymentMethod: 'Credit Card', date: '2025-01-20' },
   { id: 'TXN-1005', companyName: 'Vertex Dynamics', plan: 'Starter', amount: 49, status: 'completed', paymentMethod: 'Credit Card', date: '2025-04-20' },
   { id: 'TXN-1006', companyName: 'Orion Systems', plan: 'Professional', amount: 299, status: 'failed', paymentMethod: 'PayPal', date: '2025-05-01' },
