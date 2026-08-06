@@ -178,6 +178,6 @@ export const config = {
   // Static assets, images, service worker, manifest are excluded.
   // ALL API routes now get tenant context headers for DB routing.
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|icon-|robots.txt|sw.js|manifest.json).*)',
+    '/((?!_next/static|_next/image|favicon.ico|icon.png|apple-icon.png|icon-|robots.txt|sw.js|manifest.json|icons/).*)',
   ],
 }
