@@ -105,7 +105,7 @@ function LeavePageContent() {
   const router = useRouter();
   const { user } = useAuthStore();
   const isAdmin = ['super_admin', 'tenant_admin', 'admin', 'hr_admin'].includes(user?.role || '');
-  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId());
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
 
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
   const [leaveBalances, setLeaveBalances] = useState<LeaveBalance[]>([]);

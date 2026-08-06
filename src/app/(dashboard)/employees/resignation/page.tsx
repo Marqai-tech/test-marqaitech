@@ -77,7 +77,7 @@ const initialForm = {
 export default function ResignationPage() {
   const router = useRouter();
   const { user } = useAuthStore();
-  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId());
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
 
   const [form, setForm] = useState({
     ...initialForm,

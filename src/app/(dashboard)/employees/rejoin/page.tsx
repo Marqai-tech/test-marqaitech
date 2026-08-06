@@ -77,7 +77,7 @@ export default function RejoinPage() {
   const { user } = useAuthStore();
   const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
   const { departments, designations, selectedCompanyId } = useCompanyData();
-  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId());
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
 
   // Derive dropdown options from API data (company-scoped)
   const DEPARTMENTS = departments.map(d => ({ value: d.id, label: d.name }));

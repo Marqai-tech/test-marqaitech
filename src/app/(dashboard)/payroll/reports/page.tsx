@@ -117,7 +117,7 @@ function MiniBarChart({ data, label, color = 'blue' }: { data: { label: string; 
 }
 
 export default function PayrollReportsPage() {
-  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId());
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
   const availableCompanies = useCompanyContextStore(s => s.availableCompanies);
   const [activeTab, setActiveTab] = useState<ReportTab>('register');
   const [companies, setCompanies] = useState<Company[]>([]);

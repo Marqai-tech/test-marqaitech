@@ -30,7 +30,7 @@ interface PolicyConfig {
 
 export default function PolicyConfigPage() {
   const { user } = useAuthStore();
-  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId());
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
   const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
 
   const [config, setConfig] = useState<PolicyConfig | null>(null);

@@ -160,7 +160,7 @@ function CategoryCard({
 }
 
 export default function PayrollValidationsPage() {
-  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId());
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
   const availableCompanies = useCompanyContextStore(s => s.availableCompanies);
   const [validations, setValidations] = useState<ValidationRecord[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);

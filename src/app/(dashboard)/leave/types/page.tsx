@@ -87,7 +87,7 @@ function AddLeaveTypeDialog({ open, onClose, onAdd }: { open: boolean; onClose: 
 
 export default function LeaveTypesPage() {
   const { user } = useAuthStore();
-  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId());
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
   const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'admin';
   const [leaveTypes, setLeaveTypes] = useState<LeaveTypeItem[]>([]);
   const [loading, setLoading] = useState(true);

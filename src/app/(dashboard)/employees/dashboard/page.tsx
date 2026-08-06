@@ -88,7 +88,7 @@ export default function EmployeeDashboardPage() {
   const router = useRouter();
   const { user, hasPermission, canAccessModule } = useAuthStore();
   const userRole = user?.role || 'employee';
-  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId());
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
 
   const [stats, setStats] = useState<EmployeeStats | null>(null);
   const [departments, setDepartments] = useState<DepartmentDist[]>([]);

@@ -29,7 +29,7 @@ interface PolicyConfig {
 
 export default function AttendanceSettingsPage() {
   const { user } = useAuthStore();
-  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId());
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
   const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
 
   // Attendance Tracking Settings (moved from Company Settings)

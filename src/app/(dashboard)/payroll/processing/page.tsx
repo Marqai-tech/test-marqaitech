@@ -169,7 +169,7 @@ function DetailItem({ label, value, badge }: { label: string; value: string | nu
 export default function PayrollProcessingPage() {
   const { user } = useAuthStore();
   const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'admin';
-  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId());
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
   const availableCompanies = useCompanyContextStore(s => s.availableCompanies);
 
   // --- State ---

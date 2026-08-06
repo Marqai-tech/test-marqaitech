@@ -117,7 +117,7 @@ const emptyForm = {
 export default function PayrollDefinitionsPage() {
   const { user } = useAuthStore();
   const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'admin';
-  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId());
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
   const availableCompanies = useCompanyContextStore(s => s.availableCompanies);
 
   const [definitions, setDefinitions] = useState<PayrollDefinition[]>([]);

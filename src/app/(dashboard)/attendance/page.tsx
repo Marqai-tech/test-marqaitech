@@ -176,7 +176,7 @@ function calculateBreakDuration(checkIn: string | null | undefined, checkOut: st
 export default function AttendancePage() {
   const { user } = useAuthStore();
   const isAdmin = user?.role === 'super_admin' || user?.role === 'admin' || user?.role === 'hr';
-  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId());
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
 
   /* ── Active tab ── */
   const [activeTab, setActiveTab] = useState<'admin' | 'self'>(isAdmin ? 'admin' : 'self');

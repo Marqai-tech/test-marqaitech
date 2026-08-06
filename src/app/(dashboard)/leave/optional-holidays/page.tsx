@@ -29,7 +29,7 @@ interface Election {
 
 export default function OptionalHolidaysPage() {
   const { user } = useAuthStore();
-  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId());
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
   const [data, setData] = useState<{
     optionalHolidays: OptionalHoliday[];
     elections: Election[];

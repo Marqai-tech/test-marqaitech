@@ -80,7 +80,7 @@ function calcWorkingDays(start: string, end: string): number {
 
 export default function WfhPage() {
   const { user } = useAuthStore();
-  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId());
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
   const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
 
   const [items, setItems] = useState<WfhRequest[]>([]);

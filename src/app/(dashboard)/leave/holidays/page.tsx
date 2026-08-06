@@ -28,7 +28,7 @@ function getDayName(d: string) {
 
 export default function HolidaysPage() {
   useAuthStore();
-  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId());
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
   const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [loading, setLoading] = useState(true);

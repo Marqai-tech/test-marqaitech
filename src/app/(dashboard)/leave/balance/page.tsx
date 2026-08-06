@@ -58,7 +58,7 @@ const BALANCE_COLORS = [
 
 export default function LeaveBalancePage() {
   useAuthStore();
-  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId());
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
 
   const [balances, setBalances] = useState<LeaveBalance[]>([]);
   const [history, setHistory] = useState<LeaveHistory[]>([]);
