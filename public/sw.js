@@ -1,9 +1,12 @@
 // 3Boxes HRMS Service Worker v1.0
 // Enables offline support and auto-updates for the PWA
 
-const CACHE_NAME = '3boxes-hrms-v1';
+const CACHE_NAME = '3boxes-hrms-v2';
 const STATIC_ASSETS = [
   '/login',
+  '/favicon.ico',
+  '/icons/favicon-32x32.png',
+  '/icons/favicon-16x16.png',
   '/icons/icon-192x192.png',
   '/icons/icon-512x512.png',
   '/icons/apple-touch-icon.png',
