@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && python3 scripts/gen-missing-tables.py && node scripts/schema-sync.js && next build",
+    "build": "prisma generate && (command -v python3 >/dev/null 2>&1 && python3 scripts/gen-missing-tables.py || echo '[build] Skipping gen-missing-tables.py') && node scripts/schema-sync.js && next build",
     "schema:sync": "python3 scripts/gen-missing-tables.py && node scripts/schema-sync.js",
     "postinstall": "prisma generate",
     "start": "next start",
