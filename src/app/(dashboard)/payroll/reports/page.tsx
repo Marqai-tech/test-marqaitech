@@ -8,6 +8,7 @@ import {
   FiPrinter, FiCreditCard, FiFile, FiTrendingUp as FiTrendUp,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import { useCompanyContextStore } from '@/store/companyContextStore';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -116,6 +117,8 @@ function MiniBarChart({ data, label, color = 'blue' }: { data: { label: string; 
 }
 
 export default function PayrollReportsPage() {
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId());
+  const availableCompanies = useCompanyContextStore(s => s.availableCompanies);
   const [activeTab, setActiveTab] = useState<ReportTab>('register');
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(false);
@@ -141,6 +144,16 @@ export default function PayrollReportsPage() {
 
   // Dashboard state
   const [dashboardCompanyId, setDashboardCompanyId] = useState('');
+
+  // Sync company selections with global company switcher on hydration
+  useEffect(() => {
+    if (effectiveCompanyId) {
+      setRegisterCompanyId(prev => prev || effectiveCompanyId);
+      setStatutoryCompanyId(prev => prev || effectiveCompanyId);
+      setDashboardCompanyId(prev => prev || effectiveCompanyId);
+    }
+  }, [effectiveCompanyId]);
+
   const [dashboardMetrics, setDashboardMetrics] = useState<DashboardMetrics | null>(null);
   const [monthlyTrend, setMonthlyTrend] = useState<MonthlyTrend[]>([]);
   const [deptBreakdown, setDeptBreakdown] = useState<DepartmentBreakdown[]>([]);
@@ -176,7 +189,8 @@ export default function PayrollReportsPage() {
         year: String(registerYear),
         mode: registerMode,
       });
-      if (registerCompanyId) params.set('companyId', registerCompanyId);
+      const rcid = registerCompanyId || effectiveCompanyId;
+      if (rcid) params.set('companyId', rcid);
       if (registerDepartmentId) params.set('departmentId', registerDepartmentId);
 
       const res = await fetch(`/api/payroll/reports/salary-register?${params}`, { headers: getAuthHeaders() });
@@ -204,7 +218,8 @@ export default function PayrollReportsPage() {
         month: String(statutoryMonth),
         year: String(statutoryYear),
       });
-      if (statutoryCompanyId) params.set('companyId', statutoryCompanyId);
+      const scid = statutoryCompanyId || effectiveCompanyId;
+      if (scid) params.set('companyId', scid);
 
       const res = await fetch(`/api/payroll/reports/statutory?${params}`, { headers: getAuthHeaders() });
       if (!res.ok) {
@@ -236,7 +251,8 @@ export default function PayrollReportsPage() {
     setLoading(true);
     try {
       const params = new URLSearchParams();
-      if (dashboardCompanyId) params.set('companyId', dashboardCompanyId);
+      const dcid = dashboardCompanyId || effectiveCompanyId;
+      if (dcid) params.set('companyId', dcid);
 
       const res = await fetch(`/api/payroll/dashboard?${params}`, { headers: getAuthHeaders() });
       if (!res.ok) {
@@ -356,7 +372,7 @@ export default function PayrollReportsPage() {
                   className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 min-w-[140px]"
                 >
                   <option value="">All Companies</option>
-                  {companies.map(c => (
+                  {(availableCompanies.length > 0 ? availableCompanies : companies).map(c => (
                     <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
                 </select>
@@ -523,7 +539,7 @@ export default function PayrollReportsPage() {
                   className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 min-w-[140px]"
                 >
                   <option value="">All Companies</option>
-                  {companies.map(c => (
+                  {(availableCompanies.length > 0 ? availableCompanies : companies).map(c => (
                     <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
                 </select>
@@ -660,7 +676,7 @@ export default function PayrollReportsPage() {
                   className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 min-w-[140px]"
                 >
                   <option value="">All Companies</option>
-                  {companies.map(c => (
+                  {(availableCompanies.length > 0 ? availableCompanies : companies).map(c => (
                     <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
                 </select>

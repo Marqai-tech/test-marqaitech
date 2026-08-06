@@ -1,6 +1,7 @@
 'use client';
 
 import { useAuthStore } from '@/store/authStore';
+import { useCompanyContextStore } from '@/store/companyContextStore';
 import { useCallback, useEffect, useState } from 'react';
 import { FiCalendar, FiPlus, FiEdit2, FiTrash2, FiEye, FiX, FiSearch, FiRefreshCw, FiCheck, FiCreditCard } from 'react-icons/fi';
 import toast from 'react-hot-toast';
@@ -116,6 +117,8 @@ const emptyForm = {
 export default function PayrollDefinitionsPage() {
   const { user } = useAuthStore();
   const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'admin';
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId());
+  const availableCompanies = useCompanyContextStore(s => s.availableCompanies);
 
   const [definitions, setDefinitions] = useState<PayrollDefinition[]>([]);
   const [loading, setLoading] = useState(true);
@@ -144,6 +147,7 @@ export default function PayrollDefinitionsPage() {
       if (statusFilter) params.set('status', statusFilter);
       if (countryFilter) params.set('countryCode', countryFilter);
       if (frequencyFilter) params.set('payFrequency', frequencyFilter);
+      if (effectiveCompanyId) params.set('companyId', effectiveCompanyId);
       const qs = params.toString();
       const url = `/api/payroll/definitions${qs ? `?${qs}` : ''}`;
       const res = await fetch(url, { headers: getAuthHeaders() });
@@ -156,7 +160,7 @@ export default function PayrollDefinitionsPage() {
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, countryFilter, frequencyFilter]);
+  }, [statusFilter, countryFilter, frequencyFilter, effectiveCompanyId]);
 
   useEffect(() => { queueMicrotask(() => fetchData()); }, [fetchData]);
 
@@ -177,7 +181,7 @@ export default function PayrollDefinitionsPage() {
 
   // --- Handlers ---
   const handleAddNew = () => {
-    setForm({ ...emptyForm });
+    setForm({ ...emptyForm, companyId: effectiveCompanyId || '' });
     setEditingId(null);
     setShowForm(true);
     setViewingDefinition(null);
@@ -235,12 +239,13 @@ export default function PayrollDefinitionsPage() {
 
   const handleSubmit = async () => {
     if (!form.name.trim()) { toast.error('Definition name is required'); return; }
-    if (!form.companyId.trim()) { toast.error('Company ID is required'); return; }
+    if (!form.companyId.trim() && !effectiveCompanyId) { toast.error('Company ID is required'); return; }
 
     setSubmitting(true);
     try {
       const payload = {
         ...form,
+        companyId: form.companyId || effectiveCompanyId || '',
         processingCutOff: Number(form.processingCutOff),
         paymentDay: Number(form.paymentDay),
         costingSegments: form.costingSegments || null,
@@ -500,14 +505,18 @@ export default function PayrollDefinitionsPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Company ID *</label>
-                  <input
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Company *</label>
+                  <select
                     required
                     value={form.companyId}
                     onChange={(e) => setForm({ ...form, companyId: e.target.value })}
                     className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
-                    placeholder="Company identifier"
-                  />
+                  >
+                    <option value="">Select Company</option>
+                    {availableCompanies.map(c => (
+                      <option key={c.id} value={c.id}>{c.name}{c.code ? ` (${c.code})` : ''}</option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-thb-text-secondary mb-1">Pay Frequency</label>

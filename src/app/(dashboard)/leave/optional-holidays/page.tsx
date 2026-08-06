@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { FiCalendar, FiCheck, FiX, FiRefreshCw } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import { useCompanyContextStore } from '@/store/companyContextStore';
 import ModuleTips from '@/components/ModuleTips';
 
 function getAuthHeaders() {
@@ -28,6 +29,7 @@ interface Election {
 
 export default function OptionalHolidaysPage() {
   const { user } = useAuthStore();
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId());
   const [data, setData] = useState<{
     optionalHolidays: OptionalHoliday[];
     elections: Election[];
@@ -40,7 +42,8 @@ export default function OptionalHolidaysPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const r = await fetch('/api/holiday-elections', { headers: getAuthHeaders() });
+      const cid = effectiveCompanyId();
+      const r = await fetch(`/api/holiday-elections${cid ? `?companyId=${cid}` : ''}`, { headers: getAuthHeaders() });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'Failed');
       // Defensive: ensure all expected fields exist (older API versions may omit them)

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { FiSettings, FiSave, FiRefreshCw } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import { useCompanyContextStore } from '@/store/companyContextStore';
 import ModuleTips from '@/components/ModuleTips';
 
 function getAuthHeaders() {
@@ -29,6 +30,7 @@ interface PolicyConfig {
 
 export default function PolicyConfigPage() {
   const { user } = useAuthStore();
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId());
   const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
 
   const [config, setConfig] = useState<PolicyConfig | null>(null);
@@ -38,7 +40,8 @@ export default function PolicyConfigPage() {
   const fetchConfig = async () => {
     setLoading(true);
     try {
-      const r = await fetch('/api/attendance-policy-config', { headers: getAuthHeaders() });
+      const cid = effectiveCompanyId();
+      const r = await fetch(`/api/attendance-policy-config${cid ? `?companyId=${cid}` : ''}`, { headers: getAuthHeaders() });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'Failed');
       setConfig(d.config);

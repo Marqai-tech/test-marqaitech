@@ -9,6 +9,7 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import { useCompanyContextStore } from '@/store/companyContextStore';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -168,6 +169,8 @@ function DetailItem({ label, value, badge }: { label: string; value: string | nu
 export default function PayrollProcessingPage() {
   const { user } = useAuthStore();
   const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'admin';
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId());
+  const availableCompanies = useCompanyContextStore(s => s.availableCompanies);
 
   // --- State ---
   const [runs, setRuns] = useState<PayrollRun[]>([]);
@@ -189,6 +192,11 @@ export default function PayrollProcessingPage() {
   const [payrollPeriodFilter, setPayrollPeriodFilter] = useState('');
   const [runStatusFilter, setRunStatusFilter] = useState('');
   const [companyFilter, setCompanyFilter] = useState('');
+
+  // Sync company filter with global company switcher on hydration
+  useEffect(() => {
+    if (effectiveCompanyId) setCompanyFilter(prev => prev || effectiveCompanyId);
+  }, [effectiveCompanyId]);
 
   // Form state
   const [form, setForm] = useState({ ...emptyForm });
@@ -217,7 +225,8 @@ export default function PayrollProcessingPage() {
       const params = new URLSearchParams();
       if (runStatusFilter) params.set('runStatus', runStatusFilter);
       if (payrollPeriodFilter) params.set('payrollPeriod', payrollPeriodFilter);
-      if (companyFilter) params.set('companyId', companyFilter);
+      const cid = companyFilter || effectiveCompanyId;
+      if (cid) params.set('companyId', cid);
       const qs = params.toString();
       const url = `/api/payroll/runs${qs ? `?${qs}` : ''}`;
       const res = await fetch(url, { headers: getAuthHeaders() });
@@ -234,7 +243,7 @@ export default function PayrollProcessingPage() {
     } finally {
       setLoading(false);
     }
-  }, [runStatusFilter, payrollPeriodFilter, companyFilter]);
+  }, [runStatusFilter, payrollPeriodFilter, companyFilter, effectiveCompanyId]);
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -281,7 +290,7 @@ export default function PayrollProcessingPage() {
 
   // --- Handlers ---
   const handleAddNew = () => {
-    setForm({ ...emptyForm });
+    setForm({ ...emptyForm, companyId: effectiveCompanyId || '' });
     setEditingId(null);
     setShowForm(true);
     setExpandedRunId(null);
@@ -314,7 +323,7 @@ export default function PayrollProcessingPage() {
         taxProjectionMethod: form.taxProjectionMethod,
         includeStatutory: form.includeStatutory,
         processingMode: form.processingMode,
-        companyId: form.companyId || null,
+        companyId: form.companyId || effectiveCompanyId || null,
       };
 
       if (editingId) {
@@ -944,26 +953,17 @@ export default function PayrollProcessingPage() {
                   </label>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Company ID</label>
-                  {companies.length > 0 ? (
-                    <select
-                      value={form.companyId}
-                      onChange={(e) => setForm({ ...form, companyId: e.target.value })}
-                      className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
-                    >
-                      <option value="">Select Company (optional)</option>
-                      {companies.map(c => (
-                        <option key={c.id} value={c.id}>{c.name}</option>
-                      ))}
-                    </select>
-                  ) : (
-                    <input
-                      value={form.companyId}
-                      onChange={(e) => setForm({ ...form, companyId: e.target.value })}
-                      className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
-                      placeholder="Company ID (optional)"
-                    />
-                  )}
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Company</label>
+                  <select
+                    value={form.companyId}
+                    onChange={(e) => setForm({ ...form, companyId: e.target.value })}
+                    className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
+                  >
+                    <option value="">Select Company (optional)</option>
+                    {(availableCompanies.length > 0 ? availableCompanies : companies).map(c => (
+                      <option key={c.id} value={c.id}>{c.name}{c.code ? ` (${c.code})` : ''}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
             </div>

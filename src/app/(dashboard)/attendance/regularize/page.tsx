@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { FiClock, FiPlus, FiRefreshCw, FiZap, FiCheckCircle, FiXCircle } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import { useCompanyContextStore } from '@/store/companyContextStore';
 import ModuleTips from '@/components/ModuleTips';
 
 function getAuthHeaders() {
@@ -28,6 +29,7 @@ interface Regularization {
 
 export default function RegularizePage() {
   const { user } = useAuthStore();
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId());
   const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
 
   const [items, setItems] = useState<Regularization[]>([]);
@@ -45,7 +47,8 @@ export default function RegularizePage() {
   const fetchItems = useCallback(async () => {
     setLoading(true);
     try {
-      const r = await fetch('/api/attendance/regularize?limit=100', { headers: getAuthHeaders() });
+      const cid = effectiveCompanyId();
+      const r = await fetch(`/api/attendance/regularize?limit=100${cid ? `&companyId=${cid}` : ''}`, { headers: getAuthHeaders() });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'Failed');
       setItems(d.regularizations || []);

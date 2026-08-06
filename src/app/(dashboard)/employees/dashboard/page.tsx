@@ -24,6 +24,7 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import { useCompanyContextStore } from '@/store/companyContextStore';
 
 /* ── Helpers ── */
 function getAuthHeaders() {
@@ -87,6 +88,7 @@ export default function EmployeeDashboardPage() {
   const router = useRouter();
   const { user, hasPermission, canAccessModule } = useAuthStore();
   const userRole = user?.role || 'employee';
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId());
 
   const [stats, setStats] = useState<EmployeeStats | null>(null);
   const [departments, setDepartments] = useState<DepartmentDist[]>([]);
@@ -109,7 +111,8 @@ export default function EmployeeDashboardPage() {
       const headers = getAuthHeaders();
 
       // Fetch employee stats
-      const statsRes = await fetch('/api/employees?limit=1&page=1', { headers });
+      const cid = effectiveCompanyId();
+      const statsRes = await fetch(`/api/employees?limit=1&page=1${cid ? `&companyId=${cid}` : ''}`, { headers });
       if (statsRes.ok) {
         const statsData = await statsRes.json();
         const employees = statsData.employees || [];
@@ -121,7 +124,7 @@ export default function EmployeeDashboardPage() {
         const inactive = employees.filter((e: any) => e.status === 'inactive' || e.status === 'terminated').length;
 
         // Fetch all employees for department distribution
-        const allRes = await fetch('/api/employees?limit=500&page=1', { headers });
+        const allRes = await fetch(`/api/employees?limit=500&page=1${cid ? `&companyId=${cid}` : ''}`, { headers });
         const allData = await allRes.ok ? await allRes.json() : { employees: [] };
         const allEmps = allData.employees || employees;
 

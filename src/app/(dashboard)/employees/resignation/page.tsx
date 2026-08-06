@@ -14,6 +14,7 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import { useCompanyContextStore } from '@/store/companyContextStore';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -76,6 +77,7 @@ const initialForm = {
 export default function ResignationPage() {
   const router = useRouter();
   const { user } = useAuthStore();
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId());
 
   const [form, setForm] = useState({
     ...initialForm,
@@ -105,7 +107,8 @@ export default function ResignationPage() {
   const fetchRecords = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/employees/resignation?limit=50', { headers: getAuthHeaders() });
+      const cid = effectiveCompanyId();
+      const res = await fetch(`/api/employees/resignation?limit=50${cid ? `&companyId=${cid}` : ''}`, { headers: getAuthHeaders() });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to load');
       setRecords(data.resignations || data.data || []);

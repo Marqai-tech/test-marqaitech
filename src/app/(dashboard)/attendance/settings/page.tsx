@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { FiSettings, FiSave, FiRefreshCw, FiMonitor, FiMapPin, FiCamera, FiClock } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import { useCompanyContextStore } from '@/store/companyContextStore';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -28,6 +29,7 @@ interface PolicyConfig {
 
 export default function AttendanceSettingsPage() {
   const { user } = useAuthStore();
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId());
   const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
 
   // Attendance Tracking Settings (moved from Company Settings)
@@ -46,7 +48,8 @@ export default function AttendanceSettingsPage() {
   const fetchConfig = async () => {
     setLoading(true);
     try {
-      const r = await fetch('/api/attendance-policy-config', { headers: getAuthHeaders() });
+      const cid = effectiveCompanyId();
+      const r = await fetch(`/api/attendance-policy-config${cid ? `?companyId=${cid}` : ''}`, { headers: getAuthHeaders() });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'Failed');
       setConfig(d.config);

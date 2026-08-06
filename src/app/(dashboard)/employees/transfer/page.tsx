@@ -16,6 +16,7 @@ import {
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyData } from '@/components/company/useCompanyData';
+import { useCompanyContextStore } from '@/store/companyContextStore';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -75,11 +76,22 @@ export default function TransferPage() {
   const { user } = useAuthStore();
   const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
   const { departments, designations, branches, selectedCompanyId } = useCompanyData();
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId());
 
   // Derive dropdown options from API data (company-scoped)
   const DEPARTMENTS = departments.map(d => ({ value: d.id, label: d.name }));
   const DESIGNATIONS = designations.map(d => ({ value: d.id, label: d.title }));
   const LOCATIONS = branches.map(b => ({ value: b.id, label: b.name + (b.city ? `, ${b.city}` : '') }));
+
+  // Fetch employees for dropdown
+  const [employeeList, setEmployeeList] = useState<Array<{ id: string; employeeId: string; firstName: string; lastName: string; department?: { id: string; name: string } | null; designation?: { id: string; title: string } | null; branch?: { id: string; name: string } | null }>>([]);
+  useEffect(() => {
+    const cid = effectiveCompanyId();
+    fetch(`/api/employees?limit=500${cid ? `&companyId=${cid}` : ''}`, { headers: getAuthHeaders() })
+      .then(r => r.ok ? r.json() : { employees: [] })
+      .then(d => setEmployeeList(d.employees || []))
+      .catch(() => setEmployeeList([]));
+  }, [selectedCompanyId]);
 
   const [form, setForm] = useState(initialForm);
   const [submitting, setSubmitting] = useState(false);
@@ -108,14 +120,16 @@ export default function TransferPage() {
 
   useEffect(() => { fetchRecords(); }, [fetchRecords]);
 
-  // Simulate auto-fill when employee is selected
+  // Auto-fill when employee is selected from API data
   const handleEmployeeSelect = (employeeId: string) => {
     updateField('employeeId', employeeId);
     if (employeeId) {
-      // Mock auto-fill — in production this would fetch from API
-      updateField('currentDepartment', 'engineering');
-      updateField('currentDesignation', 'engineer');
-      updateField('currentLocation', 'mumbai');
+      const emp = employeeList.find(e => e.id === employeeId);
+      if (emp) {
+        updateField('currentDepartment', emp.department?.id || '');
+        updateField('currentDesignation', emp.designation?.id || '');
+        updateField('currentLocation', emp.branch?.id || '');
+      }
     } else {
       updateField('currentDepartment', '');
       updateField('currentDesignation', '');
@@ -209,11 +223,7 @@ export default function TransferPage() {
             <label className="block text-xs font-medium text-thb-text-secondary mb-1">Employee *</label>
             <select value={form.employeeId} onChange={e => handleEmployeeSelect(e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
               <option value="">Select Employee</option>
-              <option value="emp-001">EMP-001 — Amit Sharma</option>
-              <option value="emp-002">EMP-002 — Priya Patel</option>
-              <option value="emp-003">EMP-003 — Rahul Verma</option>
-              <option value="emp-004">EMP-004 — Sneha Reddy</option>
-              <option value="emp-005">EMP-005 — Vikram Singh</option>
+              {employeeList.map(e => <option key={e.id} value={e.id}>{e.employeeId} — {e.firstName} {e.lastName}</option>)}
             </select>
           </div>
         </div>
@@ -289,9 +299,7 @@ export default function TransferPage() {
             <label className="block text-xs font-medium text-thb-text-secondary mb-1">Reporting Manager</label>
             <select value={form.reportingManager} onChange={e => updateField('reportingManager', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
               <option value="">Select Manager</option>
-              <option value="mgr-001">Rajesh Kumar</option>
-              <option value="mgr-002">Anita Desai</option>
-              <option value="mgr-003">Suresh Nair</option>
+              {employeeList.filter(e => e.designation?.title?.toLowerCase().includes('manager') || e.designation?.title?.toLowerCase().includes('lead') || e.designation?.title?.toLowerCase().includes('director')).map(e => <option key={e.id} value={e.id}>{e.employeeId} — {e.firstName} {e.lastName}</option>)}
             </select>
           </div>
           <div>

@@ -15,6 +15,7 @@ import {
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyData } from '@/components/company/useCompanyData';
+import { useCompanyContextStore } from '@/store/companyContextStore';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -76,10 +77,24 @@ export default function RejoinPage() {
   const { user } = useAuthStore();
   const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
   const { departments, designations, selectedCompanyId } = useCompanyData();
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId());
 
   // Derive dropdown options from API data (company-scoped)
   const DEPARTMENTS = departments.map(d => ({ value: d.id, label: d.name }));
   const DESIGNATIONS = designations.map(d => ({ value: d.id, label: d.title }));
+
+  // Fetch resigned/terminated employees for dropdown
+  const [resignedEmployees, setResignedEmployees] = useState<Array<{ id: string; employeeId: string; firstName: string; lastName: string; department?: { id: string; name: string } | null; designation?: { id: string; title: string } | null; status: string }>>([]);
+  useEffect(() => {
+    const cid = effectiveCompanyId();
+    fetch(`/api/employees?limit=500${cid ? `&companyId=${cid}` : ''}`, { headers: getAuthHeaders() })
+      .then(r => r.ok ? r.json() : { employees: [] })
+      .then(d => {
+        const allEmps = d.employees || [];
+        setResignedEmployees(allEmps.filter((e: { status: string }) => e.status === 'resigned' || e.status === 'terminated' || e.status === 'inactive'));
+      })
+      .catch(() => setResignedEmployees([]));
+  }, [selectedCompanyId]);
 
   const [form, setForm] = useState(initialForm);
   const [submitting, setSubmitting] = useState(false);
@@ -93,10 +108,12 @@ export default function RejoinPage() {
   const handlePreviousEmployeeSelect = (employeeId: string) => {
     updateField('previousEmployeeId', employeeId);
     if (employeeId) {
-      // Mock auto-fill
-      updateField('previousEmployeeCode', employeeId.toUpperCase());
-      updateField('previousDepartment', 'Engineering');
-      updateField('previousDesignation', 'Software Engineer');
+      const emp = resignedEmployees.find(e => e.id === employeeId);
+      if (emp) {
+        updateField('previousEmployeeCode', emp.employeeId);
+        updateField('previousDepartment', emp.department?.name || '');
+        updateField('previousDesignation', emp.designation?.title || '');
+      }
     } else {
       updateField('previousEmployeeCode', '');
       updateField('previousDepartment', '');
@@ -198,10 +215,7 @@ export default function RejoinPage() {
           <label className="block text-xs font-medium text-thb-text-secondary mb-1">Select Past Employee *</label>
           <select value={form.previousEmployeeId} onChange={e => handlePreviousEmployeeSelect(e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 max-w-md">
             <option value="">Select Previously Employed</option>
-            <option value="ex-001">EX-001 — Amit Sharma (Resigned)</option>
-            <option value="ex-002">EX-002 — Priya Patel (Resigned)</option>
-            <option value="ex-003">EX-003 — Rahul Verma (Terminated)</option>
-            <option value="ex-004">EX-004 — Kavitha Nair (Resigned)</option>
+            {resignedEmployees.map(e => <option key={e.id} value={e.id}>{e.employeeId} — {e.firstName} {e.lastName} ({e.status === 'resigned' ? 'Resigned' : 'Terminated'})</option>)}
           </select>
         </div>
         {form.previousEmployeeId && (

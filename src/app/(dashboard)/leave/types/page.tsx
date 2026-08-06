@@ -1,11 +1,17 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import {
-  FiLayers, FiPlus, FiEdit2, FiTrash2, FiX, FiCheck,
+  FiLayers, FiPlus, FiEdit2, FiTrash2, FiX, FiCheck, FiRefreshCw,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import { useCompanyContextStore } from '@/store/companyContextStore';
+
+function getAuthHeaders() {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
+  return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+}
 
 /* ── Data ── */
 interface LeaveTypeItem {
@@ -16,16 +22,6 @@ interface LeaveTypeItem {
   carryForward: boolean;
   isPaid: boolean;
 }
-
-const initialLeaveTypes: LeaveTypeItem[] = [
-  { id: '1', name: 'Casual Leave', code: 'CL', annualQuota: '12', carryForward: true, isPaid: true },
-  { id: '2', name: 'Sick Leave', code: 'SL', annualQuota: '10', carryForward: false, isPaid: true },
-  { id: '3', name: 'Earned Leave', code: 'EL', annualQuota: '15', carryForward: true, isPaid: true },
-  { id: '4', name: 'Maternity Leave', code: 'ML', annualQuota: '182', carryForward: false, isPaid: true },
-  { id: '5', name: 'Paternity Leave', code: 'PL', annualQuota: '15', carryForward: false, isPaid: true },
-  { id: '6', name: 'Comp Off', code: 'CO', annualQuota: 'Unlimited', carryForward: false, isPaid: true },
-  { id: '7', name: 'Loss of Pay', code: 'LOP', annualQuota: 'Unlimited', carryForward: false, isPaid: false },
-];
 
 /* ── Add Dialog ── */
 function AddLeaveTypeDialog({ open, onClose, onAdd }: { open: boolean; onClose: () => void; onAdd: (lt: LeaveTypeItem) => void }) {
@@ -91,9 +87,38 @@ function AddLeaveTypeDialog({ open, onClose, onAdd }: { open: boolean; onClose: 
 
 export default function LeaveTypesPage() {
   const { user } = useAuthStore();
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId());
   const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'admin';
-  const [leaveTypes, setLeaveTypes] = useState<LeaveTypeItem[]>(initialLeaveTypes);
+  const [leaveTypes, setLeaveTypes] = useState<LeaveTypeItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
+
+  const fetchLeaveTypes = useCallback(async () => {
+    setLoading(true);
+    try {
+      const cid = effectiveCompanyId();
+      const r = await fetch(`/api/leave-types${cid ? `?companyId=${cid}` : ''}`, { headers: getAuthHeaders() });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed to load leave types');
+      const list = Array.isArray(d) ? d : (d.leaveTypes || []);
+      // Map API fields to local interface
+      const mapped = list.map((lt: Record<string, unknown>) => ({
+        id: String(lt.id),
+        name: String(lt.name || ''),
+        code: String(lt.code || ''),
+        annualQuota: lt.annualQuota != null ? String(lt.annualQuota) : 'Unlimited',
+        carryForward: Boolean(lt.carryForward),
+        isPaid: lt.isPaid !== false,
+      }));
+      setLeaveTypes(mapped);
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Failed to load leave types');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchLeaveTypes(); }, [fetchLeaveTypes]);
 
   const handleAdd = (lt: LeaveTypeItem) => {
     setLeaveTypes(prev => [...prev, lt]);
@@ -118,15 +143,20 @@ export default function LeaveTypesPage() {
             <p className="text-sm text-thb-text-secondary">Manage leave categories and their configurations</p>
           </div>
         </div>
-        {isAdmin && (
-          <button
-            onClick={() => setShowAdd(true)}
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors"
-          >
-            <FiPlus className="w-4 h-4" />
-            Add Leave Type
+        <div className="flex items-center gap-2">
+          <button onClick={fetchLeaveTypes} className="inline-flex items-center gap-2 px-3 py-2.5 text-slate-600 hover:text-slate-800 rounded-lg text-sm transition-colors" title="Refresh">
+            <FiRefreshCw className="w-4 h-4" />
           </button>
-        )}
+          {isAdmin && (
+            <button
+              onClick={() => setShowAdd(true)}
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors"
+            >
+              <FiPlus className="w-4 h-4" />
+              Add Leave Type
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Table */}
@@ -144,7 +174,11 @@ export default function LeaveTypesPage() {
               </tr>
             </thead>
             <tbody>
-              {leaveTypes.map((lt) => (
+              {loading ? (
+                <tr><td colSpan={isAdmin ? 6 : 5} className="text-center py-8 text-slate-400">Loading...</td></tr>
+              ) : leaveTypes.length === 0 ? (
+                <tr><td colSpan={isAdmin ? 6 : 5} className="text-center py-12 text-slate-500">No leave types configured yet.</td></tr>
+              ) : leaveTypes.map((lt) => (
                 <tr key={lt.id} className="border-b border-thb-border last:border-b-0 hover:bg-slate-50 transition-colors">
                   <td className="px-5 py-3 text-sm text-thb-text-primary font-medium">{lt.name}</td>
                   <td className="px-5 py-3">

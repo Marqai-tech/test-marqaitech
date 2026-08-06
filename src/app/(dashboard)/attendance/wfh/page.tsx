@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { FiHome, FiPlus, FiRefreshCw, FiCheckCircle, FiXCircle, FiInfo, FiCalendar, FiMapPin, FiClock, FiPhone, FiFileText, FiUpload, FiAlertCircle } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import { useCompanyContextStore } from '@/store/companyContextStore';
 import ModuleTips from '@/components/ModuleTips';
 
 function getAuthHeaders() {
@@ -79,6 +80,7 @@ function calcWorkingDays(start: string, end: string): number {
 
 export default function WfhPage() {
   const { user } = useAuthStore();
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId());
   const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
 
   const [items, setItems] = useState<WfhRequest[]>([]);
@@ -105,7 +107,8 @@ export default function WfhPage() {
   const fetchItems = useCallback(async () => {
     setLoading(true);
     try {
-      const r = await fetch('/api/attendance/wfh?limit=100', { headers: getAuthHeaders() });
+      const cid = effectiveCompanyId();
+      const r = await fetch(`/api/attendance/wfh?limit=100${cid ? `&companyId=${cid}` : ''}`, { headers: getAuthHeaders() });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'Failed to load');
       setItems(d.requests || d.data || []);

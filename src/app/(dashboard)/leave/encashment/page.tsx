@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { FiDollarSign, FiPlus, FiRefreshCw, FiCheckCircle, FiXCircle, FiInfo } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import { useCompanyContextStore } from '@/store/companyContextStore';
 import ModuleTips from '@/components/ModuleTips';
 
 function getAuthHeaders() {
@@ -35,6 +36,7 @@ interface LeaveTypeWithEncashment {
 
 export default function LeaveEncashmentPage() {
   const { user } = useAuthStore();
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId());
   const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
 
   const [items, setItems] = useState<EncashmentRequest[]>([]);
@@ -48,7 +50,8 @@ export default function LeaveEncashmentPage() {
   const fetchItems = useCallback(async () => {
     setLoading(true);
     try {
-      const r = await fetch('/api/leave/encashment?limit=100', { headers: getAuthHeaders() });
+      const cid = effectiveCompanyId();
+      const r = await fetch(`/api/leave/encashment?limit=100${cid ? `&companyId=${cid}` : ''}`, { headers: getAuthHeaders() });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'Failed');
       setItems(d.encashmentRequests || []);
@@ -61,7 +64,8 @@ export default function LeaveEncashmentPage() {
 
   const fetchLeaveTypes = useCallback(async () => {
     try {
-      const r = await fetch('/api/leave-types', { headers: getAuthHeaders() });
+      const cid = effectiveCompanyId();
+      const r = await fetch(`/api/leave-types${cid ? `?companyId=${cid}` : ''}`, { headers: getAuthHeaders() });
       const d = await r.json();
       // d may be an array or { leaveTypes: [] }
       const list = Array.isArray(d) ? d : (d.leaveTypes || []);

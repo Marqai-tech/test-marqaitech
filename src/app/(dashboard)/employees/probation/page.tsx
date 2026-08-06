@@ -14,6 +14,7 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import { useCompanyContextStore } from '@/store/companyContextStore';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -88,6 +89,7 @@ export default function ProbationPage() {
   const router = useRouter();
   const { user } = useAuthStore();
   const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId());
 
   const [form, setForm] = useState(initialForm);
   const [submitting, setSubmitting] = useState(false);
@@ -98,13 +100,25 @@ export default function ProbationPage() {
     setForm(prev => ({ ...prev, [field]: value }));
   };
 
+  const [employeeList, setEmployeeList] = useState<Array<{ id: string; employeeId: string; firstName: string; lastName: string; department?: { id: string; name: string } | null; designation?: { id: string; title: string } | null }>>([]);
+  useEffect(() => {
+    const cid = effectiveCompanyId();
+    fetch(`/api/employees?limit=500${cid ? `&companyId=${cid}` : ''}`, { headers: getAuthHeaders() })
+      .then(r => r.ok ? r.json() : { employees: [] })
+      .then(d => setEmployeeList(d.employees || []))
+      .catch(() => setEmployeeList([]));
+  }, []);
+
   const handleEmployeeSelect = (employeeId: string) => {
     updateField('employeeId', employeeId);
     if (employeeId) {
-      updateField('employeeName', 'Selected Employee');
-      updateField('employeeCode', employeeId.toUpperCase());
-      updateField('department', 'Engineering');
-      updateField('designation', 'Software Engineer');
+      const emp = employeeList.find(e => e.id === employeeId);
+      if (emp) {
+        updateField('employeeName', `${emp.firstName} ${emp.lastName}`);
+        updateField('employeeCode', emp.employeeId);
+        updateField('department', emp.department?.name || '');
+        updateField('designation', emp.designation?.title || '');
+      }
     } else {
       updateField('employeeName', '');
       updateField('employeeCode', '');
@@ -137,7 +151,8 @@ export default function ProbationPage() {
   const fetchRecords = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/employees/probation?limit=50', { headers: getAuthHeaders() });
+      const cid = effectiveCompanyId();
+      const res = await fetch(`/api/employees/probation?limit=50${cid ? `&companyId=${cid}` : ''}`, { headers: getAuthHeaders() });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to load');
       setRecords(data.probations || data.data || []);
@@ -224,11 +239,7 @@ export default function ProbationPage() {
           <label className="block text-xs font-medium text-thb-text-secondary mb-1">Select Employee *</label>
           <select value={form.employeeId} onChange={e => handleEmployeeSelect(e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 max-w-md">
             <option value="">Select Employee</option>
-            <option value="emp-001">EMP-001 — Amit Sharma</option>
-            <option value="emp-002">EMP-002 — Priya Patel</option>
-            <option value="emp-003">EMP-003 — Rahul Verma</option>
-            <option value="emp-004">EMP-004 — Sneha Reddy</option>
-            <option value="emp-005">EMP-005 — Vikram Singh</option>
+            {employeeList.map(e => <option key={e.id} value={e.id}>{e.employeeId} — {e.firstName} {e.lastName}</option>)}
           </select>
         </div>
         {form.employeeId && (

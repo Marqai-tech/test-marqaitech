@@ -7,13 +7,7 @@ import {
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 
-const demoBills = [
-  { id: 'BILL-001', vendor: 'Cloud Hosting Co', amount: 85000, date: '2026-06-01', dueDate: '2026-07-01', status: 'Paid', category: 'IT Services' },
-  { id: 'BILL-002', vendor: 'Office Supplies Ltd', amount: 12000, date: '2026-06-05', dueDate: '2026-07-05', status: 'Pending', category: 'Supplies' },
-  { id: 'BILL-003', vendor: 'Insurance Corp', amount: 45000, date: '2026-06-10', dueDate: '2026-06-25', status: 'Overdue', category: 'Insurance' },
-  { id: 'BILL-004', vendor: 'Marketing Agency', amount: 132000, date: '2026-06-15', dueDate: '2026-07-15', status: 'Pending', category: 'Marketing' },
-  { id: 'BILL-005', vendor: 'IT Consulting', amount: 95000, date: '2026-06-22', dueDate: '2026-07-22', status: 'Draft', category: 'Consulting' },
-];
+const demoBills: Array<{ id: string; vendor: string; amount: number; date: string; dueDate: string; status: string; category: string }> = [];
 
 function getStatusBadge(status: string) {
   const map: Record<string, string> = { Draft: 'thb-badge thb-badge-info', Pending: 'thb-badge thb-badge-warning', Paid: 'thb-badge thb-badge-success', Overdue: 'thb-badge thb-badge-error' };

@@ -7,6 +7,7 @@ import {
   FiUserX, FiUserPlus, FiLogOut, FiPlay,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import { useCompanyContextStore } from '@/store/companyContextStore';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -159,11 +160,18 @@ function CategoryCard({
 }
 
 export default function PayrollValidationsPage() {
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId());
+  const availableCompanies = useCompanyContextStore(s => s.availableCompanies);
   const [validations, setValidations] = useState<ValidationRecord[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
   const [selectedCompanyId, setSelectedCompanyId] = useState('');
+
+  // Sync selected company with global company switcher on hydration
+  useEffect(() => {
+    if (effectiveCompanyId) setSelectedCompanyId(prev => prev || effectiveCompanyId);
+  }, [effectiveCompanyId]);
   const [selectedValidation, setSelectedValidation] = useState<ValidationRecord | null>(null);
   const [, setLoadingDetail] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -190,7 +198,11 @@ export default function PayrollValidationsPage() {
   const fetchValidations = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/payroll/validations', { headers: getAuthHeaders() });
+      const cid = selectedCompanyId || effectiveCompanyId;
+      const params = new URLSearchParams();
+      if (cid) params.set('companyId', cid);
+      const qs = params.toString();
+      const res = await fetch(`/api/payroll/validations${qs ? `?${qs}` : ''}`, { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
         setValidations(Array.isArray(data) ? data : data.data || []);
@@ -200,7 +212,7 @@ export default function PayrollValidationsPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selectedCompanyId, effectiveCompanyId]);
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -211,7 +223,7 @@ export default function PayrollValidationsPage() {
 
   // Run validation
   const handleRunValidation = async () => {
-    if (!selectedCompanyId) {
+    if (!selectedCompanyId && !effectiveCompanyId) {
       toast.error('Please select a company first');
       return;
     }
@@ -225,7 +237,7 @@ export default function PayrollValidationsPage() {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({
-          companyId: selectedCompanyId,
+          companyId: selectedCompanyId || effectiveCompanyId,
           periodStart,
           periodEnd,
         }),
@@ -325,7 +337,7 @@ export default function PayrollValidationsPage() {
             className="flex-1 px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
           >
             <option value="">Select Company</option>
-            {companies.map(c => (
+            {(availableCompanies.length > 0 ? availableCompanies : companies).map(c => (
               <option key={c.id} value={c.id}>{c.name}{c.code ? ` (${c.code})` : ''}</option>
             ))}
           </select>

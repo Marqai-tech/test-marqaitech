@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { FiLock, FiRefreshCw, FiEye } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import { useCompanyContextStore } from '@/store/companyContextStore';
 import ModuleTips from '@/components/ModuleTips';
 
 function getAuthHeaders() {
@@ -25,6 +26,7 @@ interface AuditLog {
 
 export default function AuditLogPage() {
   const { user } = useAuthStore();
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId());
   const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
 
   const [items, setItems] = useState<AuditLog[]>([]);
@@ -37,6 +39,8 @@ export default function AuditLogPage() {
     try {
       const params = new URLSearchParams({ limit: '200' });
       if (filterAction) params.set('action', filterAction);
+      const cid = effectiveCompanyId();
+      if (cid) params.set('companyId', cid);
       const r = await fetch(`/api/attendance/audit-log?${params.toString()}`, { headers: getAuthHeaders() });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'Failed');

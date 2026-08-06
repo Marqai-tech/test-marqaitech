@@ -13,14 +13,7 @@ function getAuthHeaders() {
   return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
 }
 
-const demoInvoices = [
-  { id: 'INV-001', client: 'TechCorp Solutions', amount: 450000, date: '2026-06-01', dueDate: '2026-07-01', status: 'Paid', items: 3 },
-  { id: 'INV-002', client: 'InnovateTech', amount: 280000, date: '2026-06-05', dueDate: '2026-07-05', status: 'Sent', items: 2 },
-  { id: 'INV-003', client: 'CloudNine Systems', amount: 620000, date: '2026-06-10', dueDate: '2026-06-25', status: 'Overdue', items: 4 },
-  { id: 'INV-004', client: 'DataFlow Inc', amount: 95000, date: '2026-06-15', dueDate: '2026-07-15', status: 'Draft', items: 1 },
-  { id: 'INV-005', client: 'Zenith Corp', amount: 350000, date: '2026-06-18', dueDate: '2026-07-18', status: 'Sent', items: 3 },
-  { id: 'INV-006', client: 'NexGen Labs', amount: 180000, date: '2026-06-22', dueDate: '2026-07-22', status: 'Paid', items: 2 },
-];
+const demoInvoices: Array<{ id: string; client: string; amount: number; date: string; dueDate: string; status: string; items: number }> = [];
 
 function getStatusBadge(status: string) {
   const map: Record<string, string> = {

@@ -93,27 +93,7 @@ function getSurveyStatusBadge(status: string) {
   return { className: map[status] || 'thb-badge thb-badge-info', label: labels[status] || status };
 }
 
-/* ── Demo Data ── */
-const demoSurveys: PulseSurvey[] = [
-  { id: '1', title: 'Q1 2026 Engagement Pulse', questions: [{ id: 'q1', text: 'How satisfied are you with your role?', avgRating: 4.2 }, { id: 'q2', text: 'Do you feel valued at work?', avgRating: 3.8 }, { id: 'q3', text: 'How is work-life balance?', avgRating: 3.5 }], responseRate: 78, avgScore: 3.8, totalResponses: 142, status: 'active', createdAt: '2026-02-15' },
-  { id: '2', title: 'Remote Work Satisfaction', questions: [{ id: 'q4', text: 'Is remote work productive for you?', avgRating: 4.5 }, { id: 'q5', text: 'Do you feel connected to the team?', avgRating: 3.2 }], responseRate: 85, avgScore: 3.9, totalResponses: 98, status: 'closed', createdAt: '2026-01-10' },
-  { id: '3', title: 'Manager Effectiveness Survey', questions: [{ id: 'q6', text: 'Does your manager support growth?', avgRating: 4.0 }, { id: 'q7', text: 'Is feedback timely and useful?', avgRating: 3.6 }], responseRate: 62, avgScore: 3.8, totalResponses: 55, status: 'draft', createdAt: '2026-03-01' },
-];
-
-const demoRecognitions: Recognition[] = [
-  { id: '1', fromEmployee: 'Aarav Sharma', toEmployee: 'Priya Patel', category: 'Teamwork', message: 'Outstanding collaboration on the product launch!', likes: 24, createdAt: '2026-03-01' },
-  { id: '2', fromEmployee: 'Rahul Verma', toEmployee: 'Sneha Reddy', category: 'Innovation', message: 'Brilliant automation solution that saved us 40 hours/month', likes: 31, createdAt: '2026-02-28' },
-  { id: '3', fromEmployee: 'Vikram Singh', toEmployee: 'Aarav Sharma', category: 'Leadership', message: 'Guided the team through a critical migration seamlessly', likes: 18, createdAt: '2026-02-25' },
-  { id: '4', fromEmployee: 'Meera Joshi', toEmployee: 'Vikram Singh', category: 'Excellence', message: 'Consistently delivering above and beyond expectations', likes: 22, createdAt: '2026-02-22' },
-  { id: '5', fromEmployee: 'Priya Patel', toEmployee: 'Rahul Verma', category: 'Teamwork', message: 'Always ready to help and mentor junior devs', likes: 15, createdAt: '2026-02-20' },
-];
-
-const demoWellness: WellnessProgram[] = [
-  { id: '1', name: 'Morning Yoga Sessions', type: 'Yoga', participants: 28, maxCapacity: 40, schedule: 'Mon/Wed/Fri 7:30 AM', status: 'active' },
-  { id: '2', name: 'Mindfulness Workshop', type: 'Mental Health', participants: 45, maxCapacity: 50, schedule: 'Every Tuesday 5:00 PM', status: 'active' },
-  { id: '3', name: 'Fitness Challenge 2026', type: 'Fitness', participants: 120, maxCapacity: 200, schedule: 'Ongoing - Monthly', status: 'active' },
-  { id: '4', name: 'Healthy Eating Seminar', type: 'Nutrition', participants: 0, maxCapacity: 60, schedule: 'Mar 15, 2026 2:00 PM', status: 'upcoming' },
-];
+/* ── Demo Data (removed — data comes from API only) ── */
 
 const initialSurveyForm = {
   title: '',
@@ -152,9 +132,9 @@ export default function EngagementPage() {
   const { user } = useAuthStore();
   const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
 
-  const [surveys, setSurveys] = useState(demoSurveys);
-  const [recognitions, setRecognitions] = useState(demoRecognitions);
-  const [wellness] = useState(demoWellness);
+  const [surveys, setSurveys] = useState<PulseSurvey[]>([]);
+  const [recognitions, setRecognitions] = useState<Recognition[]>([]);
+  const [wellness] = useState<WellnessProgram[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState<'surveys' | 'recognition' | 'wellness' | 'ai'>('surveys');

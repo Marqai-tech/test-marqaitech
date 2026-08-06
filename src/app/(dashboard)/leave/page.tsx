@@ -11,6 +11,7 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import { useCompanyContextStore } from '@/store/companyContextStore';
 
 /* ── Types ── */
 interface LeaveRequest {
@@ -104,6 +105,7 @@ function LeavePageContent() {
   const router = useRouter();
   const { user } = useAuthStore();
   const isAdmin = ['super_admin', 'tenant_admin', 'admin', 'hr_admin'].includes(user?.role || '');
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId());
 
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
   const [leaveBalances, setLeaveBalances] = useState<LeaveBalance[]>([]);
@@ -137,12 +139,13 @@ function LeavePageContent() {
     try {
       setLoading(true);
       const headers = getAuthHeaders();
-      const leaveRes = await fetch('/api/leave?limit=100', { headers });
+      const cid = effectiveCompanyId();
+      const leaveRes = await fetch(`/api/leave?limit=100${cid ? `&companyId=${cid}` : ''}`, { headers });
       if (leaveRes.ok) {
         const data = await leaveRes.json();
         setLeaveRequests(data.leaveRequests || []);
       }
-      const empRes = await fetch('/api/employees?limit=500', { headers });
+      const empRes = await fetch(`/api/employees?limit=500${cid ? `&companyId=${cid}` : ''}`, { headers });
       if (empRes.ok) {
         const empData = await empRes.json();
         const myEmp = empData.employees?.find((e: { email: string }) => e.email === user?.email);
@@ -184,7 +187,8 @@ function LeavePageContent() {
   /* Holiday overlay */
   useEffect(() => {
     if (showForm) {
-      fetch('/api/holidays', { headers: getAuthHeaders() })
+      const holidayCid = effectiveCompanyId();
+      fetch(`/api/holidays${holidayCid ? `?companyId=${holidayCid}` : ''}`, { headers: getAuthHeaders() })
         .then(r => r.json())
         .then(d => {
           const list = Array.isArray(d) ? d : (d.holidays || d.data || []);
@@ -202,7 +206,8 @@ function LeavePageContent() {
     }
     setAiWarningLoading(true);
     const ctrl = new AbortController();
-    fetch('/api/leave/collaborative-check', {
+    const collabCid = effectiveCompanyId();
+    fetch(`/api/leave/collaborative-check${collabCid ? `?companyId=${collabCid}` : ''}`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify({ employeeId: employee.id, startDate: form.startDate, endDate: form.endDate }),

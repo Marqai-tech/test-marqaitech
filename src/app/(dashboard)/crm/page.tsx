@@ -64,31 +64,10 @@ const leadStatusData = [
   { status: 'Lost', count: 15 },
 ];
 
-const demoContacts = [
-  { id: '1', name: 'Rajesh Kumar', company: 'TechCorp Solutions', email: 'rajesh@techcorp.com', phone: '+91 98765 43210', type: 'Customer', status: 'Active', lastContact: '2026-06-28', dealValue: 450000 },
-  { id: '2', name: 'Priya Sharma', company: 'InnovateTech', email: 'priya@innovatetech.in', phone: '+91 87654 32109', type: 'Lead', status: 'New', lastContact: '2026-06-27', dealValue: 280000 },
-  { id: '3', name: 'Amit Patel', company: 'CloudNine Systems', email: 'amit@cloudnine.io', phone: '+91 76543 21098', type: 'Customer', status: 'Active', lastContact: '2026-06-25', dealValue: 620000 },
-  { id: '4', name: 'Sneha Reddy', company: 'DataFlow Inc', email: 'sneha@dataflow.com', phone: '+91 65432 10987', type: 'Partner', status: 'Active', lastContact: '2026-06-20', dealValue: 350000 },
-  { id: '5', name: 'Vikram Singh', company: 'NexGen Labs', email: 'vikram@nexgen.com', phone: '+91 54321 09876', type: 'Lead', status: 'Contacted', lastContact: '2026-06-15', dealValue: 180000 },
-  { id: '6', name: 'Deepa Nair', company: 'Zenith Corp', email: 'deepa@zenith.com', phone: '+91 43210 98765', type: 'Customer', status: 'Active', lastContact: '2026-06-12', dealValue: 520000 },
-];
-
-const demoDeals = [
-  { id: '1', name: 'ERP Implementation', company: 'TechCorp Solutions', value: 450000, stage: 'Negotiation', probability: 75, closeDate: '2026-07-15', owner: 'Sales Team A' },
-  { id: '2', name: 'Cloud Migration', company: 'InnovateTech', value: 280000, stage: 'Proposal', probability: 50, closeDate: '2026-08-01', owner: 'Sales Team B' },
-  { id: '3', name: 'Data Analytics Platform', company: 'CloudNine Systems', value: 620000, stage: 'Qualification', probability: 30, closeDate: '2026-09-30', owner: 'Sales Team A' },
-  { id: '4', name: 'HRMS Customization', company: 'Zenith Corp', value: 180000, stage: 'Closed Won', probability: 100, closeDate: '2026-06-20', owner: 'Sales Team C' },
-  { id: '5', name: 'Security Audit', company: 'DataFlow Inc', value: 95000, stage: 'Proposal', probability: 60, closeDate: '2026-07-30', owner: 'Sales Team A' },
-  { id: '6', name: 'Managed Services', company: 'NexGen Labs', value: 350000, stage: 'Qualification', probability: 20, closeDate: '2026-10-15', owner: 'Sales Team B' },
-];
-
-const demoLeads = [
-  { id: '1', name: 'Rahul Mehta', company: 'StartUp X', email: 'rahul@startupx.io', phone: '+91 99887 76655', source: 'Website', score: 85, temperature: 'Hot', status: 'Qualified', assignedTo: 'Sales Rep A', createdAt: '2026-06-28' },
-  { id: '2', name: 'Anita Desai', company: 'Growth Co', email: 'anita@growthco.in', phone: '+91 88776 65544', source: 'Referral', score: 72, temperature: 'Hot', status: 'Contacted', assignedTo: 'Sales Rep B', createdAt: '2026-06-25' },
-  { id: '3', name: 'Karthik Iyer', company: 'ScaleUp Tech', email: 'karthik@scaleup.com', phone: '+91 77665 54433', source: 'LinkedIn', score: 58, temperature: 'Warm', status: 'New', assignedTo: 'Sales Rep A', createdAt: '2026-06-22' },
-  { id: '4', name: 'Meera Joshi', company: 'BizPro Solutions', email: 'meera@bizpro.com', phone: '+91 66554 43322', source: 'Events', score: 45, temperature: 'Warm', status: 'Contacted', assignedTo: 'Sales Rep C', createdAt: '2026-06-18' },
-  { id: '5', name: 'Arjun Rao', company: 'TechVentures', email: 'arjun@techventures.in', phone: '+91 55443 32211', source: 'Cold Call', score: 25, temperature: 'Cold', status: 'New', assignedTo: 'Sales Rep B', createdAt: '2026-06-15' },
-];
+// ── Demo Data removed — data comes from API only ──
+const demoContacts: Array<{ id: string; name: string; company: string; email: string; phone: string; type: string; status: string; lastContact: string; dealValue: number }> = [];
+const demoDeals: Array<{ id: string; name: string; company: string; value: number; stage: string; probability: number; closeDate: string; owner: string }> = [];
+const demoLeads: Array<{ id: string; name: string; company: string; email: string; phone: string; source: string; score: number; temperature: string; status: string; assignedTo: string; createdAt: string }> = [];
 
 type TabKey = 'dashboard' | 'contacts' | 'deals' | 'leads' | 'activities';
 

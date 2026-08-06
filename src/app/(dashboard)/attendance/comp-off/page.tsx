@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { FiGift, FiRefreshCw, FiAlertTriangle, FiClock } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import { useCompanyContextStore } from '@/store/companyContextStore';
 import ModuleTips from '@/components/ModuleTips';
 
 function getAuthHeaders() {
@@ -23,6 +24,7 @@ interface CompOff {
 
 export default function CompOffPage() {
   const { user } = useAuthStore();
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId());
   const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
 
   const [items, setItems] = useState<CompOff[]>([]);
@@ -31,7 +33,8 @@ export default function CompOffPage() {
   const fetchItems = useCallback(async () => {
     setLoading(true);
     try {
-      const r = await fetch('/api/attendance/comp-off?limit=100', { headers: getAuthHeaders() });
+      const cid = effectiveCompanyId();
+      const r = await fetch(`/api/attendance/comp-off?limit=100${cid ? `&companyId=${cid}` : ''}`, { headers: getAuthHeaders() });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'Failed');
       setItems(d.compOffs || []);

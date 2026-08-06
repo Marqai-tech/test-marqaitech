@@ -42,6 +42,7 @@ import { useAuthStore } from '@/store/authStore';
 import ModuleTips from '@/components/ModuleTips';
 import ModuleWorkflow from '@/components/ModuleWorkflow';
 import ModuleIntro from '@/components/ModuleIntro';
+import { useCompanyContextStore } from '@/store/companyContextStore';
 import {
   maskCandidateFields,
   buildPiiMaskTooltip,
@@ -260,25 +261,7 @@ function getAvatarGradient(name: string) {
   return gradients[Math.abs(hash) % gradients.length];
 }
 
-/* ── Sample / Demo Data (fallback when API returns empty) ── */
-const SAMPLE_JOBS: JobPosting[] = [
-  { id: 'demo-j1', title: 'Senior Developer', position: 'Senior Full-Stack Developer', location: 'Bangalore', type: 'full-time', experience: '5-8 years', salary: '₹15-25 LPA', description: 'We are looking for an experienced full-stack developer to join our engineering team and lead complex projects.', requirements: 'React, Node.js, TypeScript, PostgreSQL', status: 'open', postedDate: '2026-06-01', closingDate: '2026-07-15', vacancies: 3, department: { id: 'd1', name: 'Engineering' }, _count: { applications: 4 } },
-  { id: 'demo-j2', title: 'Product Manager', position: 'Senior Product Manager', location: 'Mumbai', type: 'full-time', experience: '7-10 years', salary: '₹20-30 LPA', description: 'Lead product strategy and roadmap for our flagship SaaS platform, working closely with engineering and design.', requirements: 'Product management, Agile, Data analysis', status: 'open', postedDate: '2026-05-20', closingDate: '2026-07-01', vacancies: 1, department: { id: 'd2', name: 'Product' }, _count: { applications: 2 } },
-  { id: 'demo-j3', title: 'UX Designer', position: 'Senior UX Designer', location: 'Remote', type: 'full-time', experience: '4-6 years', salary: '₹12-18 LPA', description: 'Design intuitive user experiences for our enterprise products, collaborating with cross-functional teams.', requirements: 'Figma, User Research, Design Systems', status: 'open', postedDate: '2026-06-10', closingDate: null, vacancies: 2, department: { id: 'd3', name: 'Design' }, _count: { applications: 2 } },
-  { id: 'demo-j4', title: 'Data Analyst', position: 'Business Data Analyst', location: 'Hyderabad', type: 'full-time', experience: '3-5 years', salary: '₹10-15 LPA', description: 'Analyze business data and create insights to drive strategic decisions across departments.', requirements: 'SQL, Python, Tableau, Statistics', status: 'on_hold', postedDate: '2026-05-15', closingDate: '2026-06-30', vacancies: 1, department: { id: 'd4', name: 'Analytics' }, _count: { applications: 1 } },
-  { id: 'demo-j5', title: 'HR Executive', position: 'HR Operations Executive', location: 'Chennai', type: 'full-time', experience: '2-4 years', salary: '₹6-10 LPA', description: 'Handle HR operations and employee relations, manage onboarding and compliance.', requirements: 'HR Management, Recruitment, Compliance', status: 'closed', postedDate: '2026-04-01', closingDate: '2026-05-01', vacancies: 0, department: { id: 'd5', name: 'Human Resources' }, _count: { applications: 8 } },
-];
-
-const SAMPLE_CANDIDATES: JobApplication[] = [
-  { id: 'demo-1', candidateName: 'Priya Sharma', candidateEmail: 'priya.sharma@gmail.com', candidatePhone: '+91 98765 43210', source: 'LinkedIn', status: 'applied', appliedDate: '2026-06-15', rating: 4, expectedSalary: '₹12 LPA', jobPostingId: 'demo-j1', jobPosting: { id: 'demo-j1', title: 'Senior Developer' } },
-  { id: 'demo-2', candidateName: 'Rahul Menon', candidateEmail: 'rahul.menon@outlook.com', candidatePhone: '+91 87654 32109', source: 'Naukri', status: 'screening', appliedDate: '2026-06-12', rating: 3, expectedSalary: '₹15 LPA', jobPostingId: 'demo-j1', jobPosting: { id: 'demo-j1', title: 'Senior Developer' } },
-  { id: 'demo-3', candidateName: 'Anita Desai', candidateEmail: 'anita.d@yahoo.com', candidatePhone: '+91 76543 21098', source: 'Referral', status: 'interview', appliedDate: '2026-06-08', rating: 5, expectedSalary: '₹18 LPA', jobPostingId: 'demo-j2', jobPosting: { id: 'demo-j2', title: 'Product Manager' } },
-  { id: 'demo-4', candidateName: 'Vikram Patel', candidateEmail: 'vikram.p@gmail.com', candidatePhone: '+91 65432 10987', source: 'Indeed', status: 'offered', appliedDate: '2026-05-28', rating: 4, expectedSalary: '₹20 LPA', jobPostingId: 'demo-j2', jobPosting: { id: 'demo-j2', title: 'Product Manager' } },
-  { id: 'demo-5', candidateName: 'Meera Joshi', candidateEmail: 'meera.j@rediff.com', candidatePhone: '+91 54321 09876', source: 'Company Website', status: 'hired', appliedDate: '2026-05-15', rating: 5, expectedSalary: '₹14 LPA', jobPostingId: 'demo-j3', jobPosting: { id: 'demo-j3', title: 'UX Designer' } },
-  { id: 'demo-6', candidateName: 'Arjun Reddy', candidateEmail: 'arjun.r@gmail.com', candidatePhone: '+91 43210 98765', source: 'LinkedIn', status: 'rejected', appliedDate: '2026-06-10', rating: 2, expectedSalary: '₹10 LPA', jobPostingId: 'demo-j1', jobPosting: { id: 'demo-j1', title: 'Senior Developer' } },
-  { id: 'demo-7', candidateName: 'Sneha Kulkarni', candidateEmail: 'sneha.k@hotmail.com', candidatePhone: '+91 32109 87654', source: 'Naukri', status: 'applied', appliedDate: '2026-06-18', rating: null, expectedSalary: '₹16 LPA', jobPostingId: 'demo-j3', jobPosting: { id: 'demo-j3', title: 'UX Designer' } },
-  { id: 'demo-8', candidateName: 'Karthik Iyer', candidateEmail: 'karthik.i@gmail.com', candidatePhone: '+91 21098 76543', source: 'Referral', status: 'interview', appliedDate: '2026-06-05', rating: 4, expectedSalary: '₹22 LPA', jobPostingId: 'demo-j4', jobPosting: { id: 'demo-j4', title: 'Data Analyst' } },
-];
+/* ── Sample / Demo Data removed — data comes from API only ── */
 
 const initialJobForm = {
   title: '',
@@ -307,6 +290,7 @@ const initialAppForm = {
 export default function RecruitmentPage() {
   const { user } = useAuthStore();
   const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId());
 
   const [activeTab, setActiveTab] = useState<'jobs' | 'candidates' | 'analytics'>('jobs');
   const [jobPostings, setJobPostings] = useState<JobPosting[]>([]);
@@ -411,7 +395,7 @@ export default function RecruitmentPage() {
   }, []);
 
   const maskedApplications = useMemo(() => {
-    const source = applications.length === 0 && !loading ? SAMPLE_CANDIDATES : applications;
+    const source = applications;
     if (!source || source.length === 0) return [];
     return source.map(a =>
       maskCandidateFields(
@@ -433,8 +417,9 @@ export default function RecruitmentPage() {
     try {
       setLoading(true);
       const headers = getAuthHeaders();
+      const recCid = effectiveCompanyId();
       const [jobsRes] = await Promise.allSettled([
-        fetch('/api/recruitment?limit=50', { headers }),
+        fetch(`/api/recruitment?limit=50${recCid ? `&companyId=${recCid}` : ''}`, { headers }),
       ]);
 
       if (jobsRes.status === 'fulfilled' && jobsRes.value.ok) {
@@ -485,7 +470,8 @@ export default function RecruitmentPage() {
   useEffect(() => {
     queueMicrotask(async () => {
       try {
-        const deptRes = await fetch('/api/employees?limit=500', { headers: getAuthHeaders() });
+        const deptCid = effectiveCompanyId();
+        const deptRes = await fetch(`/api/employees?limit=500${deptCid ? `&companyId=${deptCid}` : ''}`, { headers: getAuthHeaders() });
         if (deptRes.ok) {
           const data = await deptRes.json();
           const deptMap = new Map<string, Department>();
@@ -744,14 +730,12 @@ export default function RecruitmentPage() {
 
   /* ─── Computed Stats ─── */
   const displayJobs = useMemo(() => {
-    if (jobPostings.length === 0 && !loading) return SAMPLE_JOBS;
     return jobPostings;
-  }, [jobPostings, loading]);
+  }, [jobPostings]);
 
   const displayApplications = useMemo(() => {
-    if (applications.length === 0 && !loading) return SAMPLE_CANDIDATES;
     return applications;
-  }, [applications, loading]);
+  }, [applications]);
 
   const openPositions = displayJobs.filter(j => j.status === 'open').length;
   const totalApplications = displayApplications.length;
