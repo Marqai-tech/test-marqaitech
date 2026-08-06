@@ -46,10 +46,12 @@ export const metadata: Metadata = {
   applicationName: "3Boxes HRMS",
   icons: {
     icon: [
+      { url: "/icon.png", sizes: "32x32", type: "image/png" },
       { url: "/icons/favicon-32x32.png", sizes: "32x32", type: "image/png" },
       { url: "/icons/favicon-16x16.png", sizes: "16x16", type: "image/png" },
     ],
     apple: [
+      { url: "/apple-icon.png", sizes: "180x180", type: "image/png" },
       { url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
     ],
   },
@@ -83,7 +85,8 @@ export default async function RootLayout({
     <html lang={activeLocale} dir={dir} className={`${inter.variable} h-full antialiased`}>
       <head>
         <link rel="manifest" href="/manifest.json" />
-        <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+        <link rel="icon" type="image/png" sizes="32x32" href="/icon.png" />
+        <link rel="apple-touch-icon" href="/apple-icon.png" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="msapplication-TileColor" content="#3B82F6" />
         <meta name="msapplication-navbutton-color" content="#3B82F6" />
