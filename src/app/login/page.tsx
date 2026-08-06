@@ -338,7 +338,7 @@ export default function LoginPage() {
               {tenantInfo?.logo ? (
                 <>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={tenantInfo.logo} alt={tenantInfo.name} className="w-16 h-16 rounded-xl object-contain bg-white/10 p-2" />
+                  <img src={tenantInfo.logo} alt={tenantInfo.name} className="w-16 h-16 rounded-xl object-contain bg-white p-2" />
                   <div>
                     <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
                       {tenantInfo.name}
@@ -351,7 +351,7 @@ export default function LoginPage() {
               ) : (
                 <>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src="/images/logo-3boxes-hrms.png" alt="3Boxes HRMS" className="w-16 h-16 rounded-xl object-contain bg-white/10 p-2" />
+                  <img src="/images/logo-3boxes-hrms.png" alt="3Boxes HRMS" className="w-16 h-16 rounded-xl object-contain bg-white p-2" />
                   <div>
                     <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
                       3Boxes <span className="text-green-400">HRMS</span>
@@ -513,7 +513,7 @@ export default function LoginPage() {
               {tenantInfo?.logo ? (
                 <>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={tenantInfo.logo} alt={tenantInfo.name} className="w-12 h-12 rounded-lg object-contain bg-slate-100 p-1.5" />
+                  <img src={tenantInfo.logo} alt={tenantInfo.name} className="w-12 h-12 rounded-lg object-contain bg-white p-1.5" />
                   <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
                     <span className="gradient-text">{tenantInfo.name}</span>
                   </h1>
@@ -521,7 +521,7 @@ export default function LoginPage() {
               ) : (
                 <>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src="/images/logo-3boxes-hrms.png" alt="3Boxes HRMS" className="w-12 h-12 rounded-lg object-contain bg-slate-100 p-1.5" />
+                  <img src="/images/logo-3boxes-hrms.png" alt="3Boxes HRMS" className="w-12 h-12 rounded-lg object-contain bg-white p-1.5" />
                   <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
                     <span className="gradient-text">3Boxes</span>
                     <span className="text-green-500 ml-1 text-lg font-extrabold">HRMS</span>
@@ -579,7 +579,7 @@ export default function LoginPage() {
               <div className="mb-4 p-3 rounded-xl bg-gradient-to-r from-green-50 to-emerald-50 border border-green-100">
                 <div className="flex items-center gap-2.5">
                   {tenantInfo.logo ? (
-                    <img src={tenantInfo.logo} alt={tenantInfo.name} className="w-10 h-10 rounded-lg object-contain bg-white/50 p-1" />
+                    <img src={tenantInfo.logo} alt={tenantInfo.name} className="w-10 h-10 rounded-lg object-contain bg-white p-1" />
                   ) : (
                     <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center text-white font-bold text-sm">
                       {tenantInfo.name.charAt(0).toUpperCase()}
