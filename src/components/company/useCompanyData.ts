@@ -82,58 +82,70 @@ export function useCompanyData() {
   const fetchBranches = useCallback(async () => {
     setLoading(l => ({ ...l, branches: true }))
     try {
-      const res = await apiFetch<{ data: BranchRecord[] }>('/api/branches?limit=100')
+      const params = new URLSearchParams([['limit', '100']])
+      if (selectedCompanyId) params.set('companyId', selectedCompanyId)
+      const res = await apiFetch<{ data: BranchRecord[] }>(`/api/branches?${params}`)
       setBranches(res.data || [])
     } catch { toast.error('Failed to load branches') }
     finally { setLoading(l => ({ ...l, branches: false })) }
-  }, [])
+  }, [selectedCompanyId])
 
   const fetchDepartments = useCallback(async () => {
     setLoading(l => ({ ...l, departments: true }))
     try {
-      const res = await apiFetch<{ data: DepartmentRecord[] }>('/api/departments?limit=100')
+      const params = new URLSearchParams([['limit', '100']])
+      if (selectedCompanyId) params.set('companyId', selectedCompanyId)
+      const res = await apiFetch<{ data: DepartmentRecord[] }>(`/api/departments?${params}`)
       setDepartments(res.data || [])
     } catch { toast.error('Failed to load departments') }
     finally { setLoading(l => ({ ...l, departments: false })) }
-  }, [])
+  }, [selectedCompanyId])
 
   const fetchDesignations = useCallback(async () => {
     setLoading(l => ({ ...l, designations: true }))
     try {
-      const res = await apiFetch<{ data: DesignationRecord[] }>('/api/designations?limit=100')
+      const params = new URLSearchParams([['limit', '100']])
+      if (selectedCompanyId) params.set('companyId', selectedCompanyId)
+      const res = await apiFetch<{ data: DesignationRecord[] }>(`/api/designations?${params}`)
       setDesignations(res.data || [])
     } catch { toast.error('Failed to load designations') }
     finally { setLoading(l => ({ ...l, designations: false })) }
-  }, [])
+  }, [selectedCompanyId])
 
   const fetchShifts = useCallback(async () => {
     setLoading(l => ({ ...l, shifts: true }))
     try {
-      const res = await apiFetch<{ data: ShiftRecord[] }>('/api/shifts?limit=100')
+      const params = new URLSearchParams([['limit', '100']])
+      if (selectedCompanyId) params.set('companyId', selectedCompanyId)
+      const res = await apiFetch<{ data: ShiftRecord[] }>(`/api/shifts?${params}`)
       setShifts((res.data || []).map((s: Record<string, unknown>) => ({
         ...s, breakDuration: (s as Record<string, unknown>).breakDuration || (s as Record<string, unknown>).breakMinutes || 60, graceTime: (s as Record<string, unknown>).graceTime || 15,
       })) as ShiftRecord[])
     } catch { toast.error('Failed to load shifts') }
     finally { setLoading(l => ({ ...l, shifts: false })) }
-  }, [])
+  }, [selectedCompanyId])
 
   const fetchHolidays = useCallback(async () => {
     setLoading(l => ({ ...l, holidays: true }))
     try {
-      const res = await apiFetch<{ data: HolidayRecord[] }>('/api/holidays?limit=100')
+      const params = new URLSearchParams([['limit', '100']])
+      if (selectedCompanyId) params.set('companyId', selectedCompanyId)
+      const res = await apiFetch<{ data: HolidayRecord[] }>(`/api/holidays?${params}`)
       setHolidays(res.data || [])
     } catch { toast.error('Failed to load holidays') }
     finally { setLoading(l => ({ ...l, holidays: false })) }
-  }, [])
+  }, [selectedCompanyId])
 
   const fetchPolicies = useCallback(async () => {
     setLoading(l => ({ ...l, policies: true }))
     try {
-      const res = await apiFetch<{ data: PolicyRecord[] }>('/api/policies?limit=100')
+      const params = new URLSearchParams([['limit', '100']])
+      if (selectedCompanyId) params.set('companyId', selectedCompanyId)
+      const res = await apiFetch<{ data: PolicyRecord[] }>(`/api/policies?${params}`)
       setPolicies(res.data || [])
     } catch { toast.error('Failed to load policies') }
     finally { setLoading(l => ({ ...l, policies: false })) }
-  }, [])
+  }, [selectedCompanyId])
 
   useEffect(() => {
     if (!hydrated) hydrate()
@@ -144,13 +156,15 @@ export function useCompanyData() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Re-fetch ALL data when company selection changes (core of company-based filtering)
   useEffect(() => {
-    fetchCompanies()
+    fetchCompanies(); fetchBranches(); fetchDepartments(); fetchDesignations(); fetchShifts(); fetchHolidays(); fetchPolicies()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedTenantId, selectedGroupId, selectedCompanyId])
 
   return {
     user, isAdmin, isSuperAdmin, isTenantAdmin,
+    selectedCompanyId, selectedGroupId, selectedTenantId,
     companies, branches, departments, designations, shifts, holidays, policies,
     loading, availableCompanyGroups,
     fetchCompanies, fetchBranches, fetchDepartments, fetchDesignations, fetchShifts, fetchHolidays, fetchPolicies,

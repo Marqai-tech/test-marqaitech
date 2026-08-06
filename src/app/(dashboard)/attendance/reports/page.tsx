@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FiDownload, FiCalendar, FiUsers, FiClock, FiBarChart2 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import { useCompanyData } from '@/components/company/useCompanyData';
 
 type ReportType = 'daily-summary' | 'monthly-attendance' | 'late-arrivals' | 'absenteeism-trends';
 
@@ -13,18 +14,36 @@ const reports: { key: ReportType; label: string; icon: React.ReactNode; desc: st
   { key: 'absenteeism-trends', label: 'Absenteeism Trends', icon: <FiBarChart2 className="w-5 h-5" />, desc: 'Absenteeism rate analysis' },
 ];
 
-const dailyData = [
-  { date: '2026-07-01', present: 142, absent: 18, late: 12, wfh: 28 },
-  { date: '2026-07-02', present: 138, absent: 22, late: 15, wfh: 25 },
-  { date: '2026-07-03', present: 145, absent: 15, late: 8, wfh: 32 },
-  { date: '2026-07-04', present: 130, absent: 30, late: 10, wfh: 40 },
-  { date: '2026-07-07', present: 148, absent: 12, late: 6, wfh: 34 },
-  { date: '2026-07-08', present: 140, absent: 20, late: 14, wfh: 26 },
-  { date: '2026-07-09', present: 136, absent: 24, late: 18, wfh: 22 },
-];
+// Daily attendance data will be fetched from API (company-scoped)
 
 export default function AttendanceReportsPage() {
   const [activeReport, setActiveReport] = useState<ReportType>('daily-summary');
+  const { selectedCompanyId } = useCompanyData();
+  const [dailyData, setDailyData] = useState<{ date: string; present: number; absent: number; late: number; wfh: number }[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchAttendanceData() {
+      setLoading(true);
+      try {
+        const params = new URLSearchParams();
+        if (selectedCompanyId) params.set('companyId', selectedCompanyId);
+        const token = localStorage.getItem('tb_token');
+        const res = await fetch(`/api/attendance/summary?${params}`, {
+          headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setDailyData(data.daily || data.data || []);
+        }
+      } catch {
+        setDailyData([]);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchAttendanceData();
+  }, [selectedCompanyId]);
 
   return (
     <div className="space-y-6">

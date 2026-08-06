@@ -249,12 +249,7 @@ export default function EmployeeDashboardPage() {
   }
 
   function getSampleDepartments(): DepartmentDist[] {
-    return [
-      { name: 'Engineering', count: 0, color: 'bg-green-500' },
-      { name: 'Sales', count: 0, color: 'bg-emerald-500' },
-      { name: 'HR', count: 0, color: 'bg-teal-500' },
-      { name: 'Finance', count: 0, color: 'bg-orange-500' },
-    ];
+    return []; // No sample data - return empty; data comes from API
   }
 
   function generateSampleUpdates(): RecentUpdate[] {

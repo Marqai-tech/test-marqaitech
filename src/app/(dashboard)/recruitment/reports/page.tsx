@@ -5,6 +5,7 @@ import {
   FiUsers, FiClock, FiTarget, FiBarChart2,
 } from 'react-icons/fi';
 import { useAuthStore } from '@/store/authStore';
+import { useCompanyData } from '@/components/company/useCompanyData';
 
 /* ── Report Types ── */
 const reportTypes = [
@@ -14,18 +15,21 @@ const reportTypes = [
   { key: 'offer', label: 'Offer Acceptance', icon: FiBarChart2, color: 'bg-teal-50 text-teal-600' },
 ];
 
-/* ── Hiring Summary Data ── */
-const hiringData = [
-  { department: 'Engineering', open: 8, inProgress: 12, hired: 5 },
-  { department: 'Marketing', open: 3, inProgress: 4, hired: 2 },
-  { department: 'Sales', open: 5, inProgress: 7, hired: 3 },
-  { department: 'HR', open: 1, inProgress: 2, hired: 1 },
-  { department: 'Finance', open: 2, inProgress: 3, hired: 1 },
-];
+/* Hiring data will be fetched from API (company-scoped) */
 
 export default function RecruitmentReportsPage() {
   useAuthStore();
+  const { departments, selectedCompanyId } = useCompanyData();
   const [activeReport, setActiveReport] = useState('hiring');
+  const [hiringData, setHiringData] = useState<{ department: string; open: number; inProgress: number; hired: number }[]>([]);
+
+  // Derive hiring summary from departments (company-scoped)
+  const derivedHiringData = departments.map(d => ({
+    department: d.name,
+    open: 0,
+    inProgress: 0,
+    hired: 0,
+  }));
 
   return (
     <div className="space-y-6">

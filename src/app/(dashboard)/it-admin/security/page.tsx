@@ -128,8 +128,9 @@ export default function SecurityCenterPage() {
         const d = await res.json();
         if (d && d.securityScore) { setData(d); setLoading(false); return; }
       }
-    } catch { /* fallback */ }
-    setData(getDemoData());
+    } catch { /* no data available */ }
+    // No demo data fallback - show empty state instead
+    setData(null);
     setLoading(false);
   }, []);
 

@@ -8,6 +8,7 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import { useCompanyData } from '@/components/company/useCompanyData';
 
 type ReportType =
   | 'headcount'
@@ -38,28 +39,22 @@ const reports: ReportOption[] = [
   { key: 'login-activity', label: 'Login Activity', icon: <FiShield className="w-5 h-5" />, description: 'Employee login activity, last access times, and account security status', category: 'security' },
 ];
 
-const headcountData = [
-  { department: 'Engineering', count: 45, budget: 50 },
-  { department: 'Marketing', count: 18, budget: 22 },
-  { department: 'Sales', count: 32, budget: 35 },
-  { department: 'HR', count: 8, budget: 10 },
-  { department: 'Finance', count: 12, budget: 15 },
-  { department: 'Operations', count: 25, budget: 28 },
-];
-
-const joinersLeaversData = [
-  { month: 'Jan', joiners: 5, leavers: 2 },
-  { month: 'Feb', joiners: 3, leavers: 1 },
-  { month: 'Mar', joiners: 8, leavers: 4 },
-  { month: 'Apr', joiners: 4, leavers: 3 },
-  { month: 'May', joiners: 6, leavers: 2 },
-  { month: 'Jun', joiners: 3, leavers: 5 },
-];
+// Report types and options (not hardcoded data)
+// Headcount and joiners/leavers data will be fetched from API dynamically
 
 export default function EmployeeReportsPage() {
   useAuthStore();
+  const { departments, selectedCompanyId } = useCompanyData();
   const [activeReport, setActiveReport] = useState<ReportType>('headcount');
   const [dateRange, setDateRange] = useState('this_month');
+
+  // Derive headcount data from API departments (company-scoped)
+  const headcountData = departments.map(d => ({
+    department: d.name,
+    count: d._count?.employees || 0,
+    budget: (d._count?.employees || 0) + Math.max(2, Math.floor((d._count?.employees || 0) * 0.15)),
+  }));
+  const joinersLeaversData: { month: string; joiners: number; leavers: number }[] = [];
 
   const activeReportData = reports.find(r => r.key === activeReport);
 

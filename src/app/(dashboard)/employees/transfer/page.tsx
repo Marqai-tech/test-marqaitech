@@ -15,6 +15,7 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import { useCompanyData } from '@/components/company/useCompanyData';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -35,41 +36,6 @@ function fmtDate(d: string | null | undefined) {
   if (!d) return '—';
   return new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 }
-
-const DEPARTMENTS = [
-  { value: 'engineering', label: 'Engineering' },
-  { value: 'product', label: 'Product' },
-  { value: 'design', label: 'Design' },
-  { value: 'marketing', label: 'Marketing' },
-  { value: 'sales', label: 'Sales' },
-  { value: 'hr', label: 'Human Resources' },
-  { value: 'finance', label: 'Finance' },
-  { value: 'operations', label: 'Operations' },
-  { value: 'support', label: 'Customer Support' },
-  { value: 'legal', label: 'Legal' },
-];
-
-const DESIGNATIONS = [
-  { value: 'intern', label: 'Intern' },
-  { value: 'junior', label: 'Junior Engineer' },
-  { value: 'engineer', label: 'Software Engineer' },
-  { value: 'senior', label: 'Senior Engineer' },
-  { value: 'lead', label: 'Team Lead' },
-  { value: 'manager', label: 'Manager' },
-  { value: 'senior_manager', label: 'Senior Manager' },
-  { value: 'director', label: 'Director' },
-];
-
-const LOCATIONS = [
-  { value: 'mumbai', label: 'Mumbai' },
-  { value: 'bangalore', label: 'Bangalore' },
-  { value: 'delhi', label: 'Delhi' },
-  { value: 'hyderabad', label: 'Hyderabad' },
-  { value: 'pune', label: 'Pune' },
-  { value: 'chennai', label: 'Chennai' },
-  { value: 'kolkata', label: 'Kolkata' },
-  { value: 'remote', label: 'Remote' },
-];
 
 const TRANSFER_TYPES = [
   { value: 'permanent', label: 'Permanent' },
@@ -108,6 +74,12 @@ export default function TransferPage() {
   const router = useRouter();
   const { user } = useAuthStore();
   const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
+  const { departments, designations, branches, selectedCompanyId } = useCompanyData();
+
+  // Derive dropdown options from API data (company-scoped)
+  const DEPARTMENTS = departments.map(d => ({ value: d.id, label: d.name }));
+  const DESIGNATIONS = designations.map(d => ({ value: d.id, label: d.title }));
+  const LOCATIONS = branches.map(b => ({ value: b.id, label: b.name + (b.city ? `, ${b.city}` : '') }));
 
   const [form, setForm] = useState(initialForm);
   const [submitting, setSubmitting] = useState(false);
@@ -121,7 +93,9 @@ export default function TransferPage() {
   const fetchRecords = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/employees/transfer?limit=50', { headers: getAuthHeaders() });
+      const params = new URLSearchParams([['limit', '50']]);
+      if (selectedCompanyId) params.set('companyId', selectedCompanyId);
+      const res = await fetch(`/api/employees/transfer?${params}`, { headers: getAuthHeaders() });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to load');
       setRecords(data.transfers || data.data || []);
@@ -130,7 +104,7 @@ export default function TransferPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selectedCompanyId]);
 
   useEffect(() => { fetchRecords(); }, [fetchRecords]);
 

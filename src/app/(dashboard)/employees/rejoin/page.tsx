@@ -14,6 +14,7 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import { useCompanyData } from '@/components/company/useCompanyData';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -34,27 +35,6 @@ function fmtDate(d: string | null | undefined) {
   if (!d) return '—';
   return new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 }
-
-const DEPARTMENTS = [
-  { value: 'engineering', label: 'Engineering' },
-  { value: 'product', label: 'Product' },
-  { value: 'design', label: 'Design' },
-  { value: 'marketing', label: 'Marketing' },
-  { value: 'sales', label: 'Sales' },
-  { value: 'hr', label: 'Human Resources' },
-  { value: 'finance', label: 'Finance' },
-  { value: 'operations', label: 'Operations' },
-];
-
-const DESIGNATIONS = [
-  { value: 'intern', label: 'Intern' },
-  { value: 'junior', label: 'Junior Engineer' },
-  { value: 'engineer', label: 'Software Engineer' },
-  { value: 'senior', label: 'Senior Engineer' },
-  { value: 'lead', label: 'Team Lead' },
-  { value: 'manager', label: 'Manager' },
-  { value: 'director', label: 'Director' },
-];
 
 const EMPLOYMENT_TYPES = [
   { value: 'full_time', label: 'Full-time' },
@@ -95,6 +75,11 @@ export default function RejoinPage() {
   const router = useRouter();
   const { user } = useAuthStore();
   const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
+  const { departments, designations, selectedCompanyId } = useCompanyData();
+
+  // Derive dropdown options from API data (company-scoped)
+  const DEPARTMENTS = departments.map(d => ({ value: d.id, label: d.name }));
+  const DESIGNATIONS = designations.map(d => ({ value: d.id, label: d.title }));
 
   const [form, setForm] = useState(initialForm);
   const [submitting, setSubmitting] = useState(false);
@@ -122,7 +107,9 @@ export default function RejoinPage() {
   const fetchRecords = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/employees/rejoin?limit=50', { headers: getAuthHeaders() });
+      const params = new URLSearchParams([['limit', '50']]);
+      if (selectedCompanyId) params.set('companyId', selectedCompanyId);
+      const res = await fetch(`/api/employees/rejoin?${params}`, { headers: getAuthHeaders() });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to load');
       setRecords(data.rejoins || data.data || []);
@@ -131,7 +118,7 @@ export default function RejoinPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selectedCompanyId]);
 
   useEffect(() => { fetchRecords(); }, [fetchRecords]);
 

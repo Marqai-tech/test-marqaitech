@@ -23,17 +23,14 @@ export async function GET(req: NextRequest) {
     }
 
     const url = new URL(req.url);
-    const queryCompanyId = url.searchParams.get('companyId');
     const status = url.searchParams.get('status');
     const page = parseInt(url.searchParams.get('page') || '1');
     const limit = parseInt(url.searchParams.get('limit') || '20');
     const skip = (page - 1) * limit;
 
+    // getCompanyFilter() already reads ?companyId= from the URL for admins
+    // (via resolveCompanyScope), so no manual queryCompanyId handling needed.
     const where: Record<string, unknown> = { ...companyFilter };
-    // If admin explicitly passes companyId query param and has no auto-scope, apply it
-    if (queryCompanyId && Object.keys(companyFilter).length === 0) {
-      where.companyId = queryCompanyId;
-    }
     if (status) {
       where.status = status;
     }

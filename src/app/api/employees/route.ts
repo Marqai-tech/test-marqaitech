@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders, hashPassword } from '@/lib/auth';
 import { getDataScope } from '@/lib/roleAccess';
+import { getEmployeeCompanyFilter, getCompanyFilter, getAuthInfo, resolveCompanyScope } from '@/lib/companyScope';
 import { checkTenantStatusOrBlock } from '@/lib/tenant-guard';
 
 function generateRandomPassword(length = 12): string {
@@ -35,9 +36,6 @@ export async function OPTIONS() {
 
 export async function GET(request: Request) {
   const db = await getDb(request);
-  // Declare outside try so the global catch can access them
-  let isAuthed = false;
-  let scope = 'all';
 
   try {
     const { searchParams } = new URL(request.url);
@@ -46,42 +44,23 @@ export async function GET(request: Request) {
     const departmentId = searchParams.get('departmentId');
     const status = searchParams.get('status');
     const search = searchParams.get('search');
-    // Company scope — sent by the header CompanySwitcher for super_admin and
-    // tenant_admin. null/undefined means "all companies in scope".
-    const companyId = searchParams.get('companyId');
     // Tenant scope — only meaningful for super_admin (tenant_admin is already
     // scoped to their own tenantId in the JWT).
     const tenantId = searchParams.get('tenantId');
 
-    // Try to authenticate, but don't block if no auth (demo mode)
-    let userRole = 'employee';
-    let userId: string | undefined;
+    // ─── Resolve company scope via utility ───
+    // resolveCompanyScope() handles:
+    //  - JWT auth
+    //  - Reading ?companyId= from the URL (CompanySwitcher) for admins
+    //  - Enforcing own-company for non-admins
+    // Returns null if auth fails entirely.
+    const scopeResult = await resolveCompanyScope(request);
 
-    try {
-      const token = getTokenFromHeaders(request);
-      if (token) {
-        try {
-          const decoded = await verifyToken(token);
-          if (decoded) {
-            userRole = (decoded.role as string) || 'employee';
-            userId = decoded.userId as string;
-            isAuthed = true;
-          }
-        } catch {
-          // Token verification failed, continue in demo mode
-        }
-      }
-    } catch {
-      // Auth check failed entirely, continue in demo mode
-    }
-
-    try {
-      if (isAuthed) {
-        scope = getDataScope(userRole);
-      }
-    } catch {
-      scope = 'all';
-    }
+    // Allow unauthenticated (demo mode) access with 'all' scope
+    const isAuthed = scopeResult !== null;
+    const userRole = scopeResult?.role || 'employee';
+    const userId = scopeResult?.userId;
+    const scope = scopeResult?.scope || 'all';
 
     // Try database query
     try {
@@ -97,20 +76,21 @@ export async function GET(request: Request) {
         ];
       }
 
-      // ─── Company scope filter (from header CompanySwitcher) ───
-      // When a companyId is provided, filter employees by that exact company.
-      // This is the primary mechanism that makes the header dropdown actually
-      // do something — previously the param was sent by the home page but
-      // silently ignored here, so the dropdown appeared to be a no-op.
-      if (companyId) {
-        where.companyId = companyId;
+      // ─── Company scope filter ───
+      // resolveCompanyScope already reads ?companyId= from the URL for admins
+      // and enforces own-company for non-admins. scopeResult.companyId is:
+      //   - A specific ID when an admin selected a company in CompanySwitcher,
+      //     or when a non-admin is scoped to their own company.
+      //   - null when an admin has no company selected (sees all).
+      if (scopeResult?.companyId) {
+        where.companyId = scopeResult.companyId;
       }
 
       // ─── Tenant scope filter (super_admin only) ───
       // For super_admin with no companyId selected, allow narrowing to a
       // specific tenant's companies. Employee has no `company` relation —
       // only a bare companyId field, so we must resolve company IDs first.
-      if (!companyId && tenantId && userRole === 'super_admin') {
+      if (!scopeResult?.companyId && tenantId && userRole === 'super_admin') {
         const tenantGroups = await db.companyGroup.findMany({
           where: { tenantId },
           select: { id: true },
@@ -132,6 +112,7 @@ export async function GET(request: Request) {
         }
       }
 
+      // ─── Self / team / admin scope enforcement ───
       if (isAuthed) {
         if (scope === 'self' && userId) {
           where.userId = userId;

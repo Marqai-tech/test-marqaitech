@@ -24,19 +24,12 @@ export async function GET(req: NextRequest) {
     }
 
     const url = new URL(req.url);
-    const queryCompanyId = url.searchParams.get('companyId');
     const page = parseInt(url.searchParams.get('page') || '1');
     const limit = parseInt(url.searchParams.get('limit') || '100');
 
-    const where: Record<string, unknown> = { status: 'active' };
-    // If admin explicitly passes companyId query param, use it (overrides auto-scope)
-    // This is needed for company mapping where admin selects a different company
-    if (queryCompanyId) {
-      where.companyId = queryCompanyId;
-    } else if (companyFilter && Object.keys(companyFilter).length > 0) {
-      // Otherwise use the auto-scoped filter from CompanySwitcher
-      Object.assign(where, companyFilter);
-    }
+    // getCompanyFilter() already reads ?companyId= from the URL for admins
+    // (via resolveCompanyScope), so no manual queryCompanyId handling needed.
+    const where: Record<string, unknown> = { status: 'active', ...companyFilter };
 
     const departments = await db.department.findMany({
       where,

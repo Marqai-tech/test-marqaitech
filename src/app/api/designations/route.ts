@@ -25,23 +25,19 @@ export async function GET(req: NextRequest) {
 
     const url = new URL(req.url);
     const departmentId = url.searchParams.get('departmentId');
-    const queryCompanyId = url.searchParams.get('companyId');
     const page = parseInt(url.searchParams.get('page') || '1');
     const limit = parseInt(url.searchParams.get('limit') || '100');
 
-    // Designations are scoped via their Department's companyId
+    // getDesignationCompanyFilter() already reads ?companyId= from the URL for admins
+    // (via resolveCompanyScope), so no manual queryCompanyId handling needed.
     const where: Record<string, unknown> = { status: 'active' };
 
     if (departmentId) {
       where.departmentId = departmentId;
     }
 
-    // If companyId query param is explicitly provided, use it (overrides auto-scope)
-    // This is needed for company mapping where admin selects a different company
-    if (queryCompanyId) {
-      where.department = { companyId: queryCompanyId };
-    } else if (Object.keys(designationFilter).length > 0) {
-      // Non-admin or admin with specific company selected via CompanySwitcher
+    // Apply company scoping via Department relation
+    if (Object.keys(designationFilter).length > 0) {
       where.department = { ...designationFilter };
     }
 
