@@ -1,3 +1,4 @@
+// Build: 3boxes-hrms-favicon-fix-2026-08-06
 import type { NextConfig } from "next";
 import createNextIntlPlugin from 'next-intl/plugin';
 
