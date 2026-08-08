@@ -9,7 +9,8 @@ import {
   FiChevronRight,
 } from 'react-icons/fi';
 import { useAuthStore } from '@/store/authStore';
-import { canRoleAccessModule } from '@/lib/roleAccess';
+import { useCompanyContextStore } from '@/store/companyContextStore';
+import { canRoleAccessModule, isModuleEnabledForTenant } from '@/lib/roleAccess';
 import { navSections, PINNED_ITEMS, PICKER_ROUTES } from '@/lib/navData';
 import type { NavItem, NavSection } from '@/lib/navData';
 
@@ -25,10 +26,12 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false, cur
   const pathname = usePathname();
   const { user, logout } = useAuthStore();
   const userRole = user?.role || 'admin';
+  const tenantSlug = useCompanyContextStore(s => s.tenant?.slug) || '';
 
-  // Filter sections based on user role
+  // Filter sections based on user role AND tenant module whitelist
   const filteredSections = useMemo(() => {
     return navSections
+      .filter((section) => isModuleEnabledForTenant(tenantSlug, section.key))
       .map((section) => ({
         ...section,
         items: section.items.filter(
@@ -39,7 +42,7 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false, cur
         ),
       }))
       .filter((section) => section.items.length > 0);
-  }, [userRole]);
+  }, [userRole, tenantSlug]);
 
   // Filter pinned items based on role
   const visiblePinnedItems = useMemo(() => {

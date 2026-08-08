@@ -113,6 +113,58 @@ export const ROLE_ACCESS_DETAILS: Record<string, {
 };
 
 /**
+ * Tenant-specific module whitelist.
+ * Controls which modules are visible for specific tenants.
+ * Keys are tenant slugs (from subdomain), values are arrays of allowed nav section keys.
+ * Tenants NOT listed here see ALL modules (default behavior).
+ *
+ * This is used to gradually roll out modules — only enabled modules appear
+ * in the sidebar. Once a module is fully implemented and tested for a tenant,
+ * it can be added to their whitelist.
+ *
+ * To disable tenant filtering for a tenant, simply remove them from this map
+ * or add all module keys to their array.
+ */
+export const TENANT_MODULE_WHITELIST: Record<string, string[]> = {
+  'marqaitechgroup': [
+    // Tenant / platform management
+    'super-admin',
+    'tenant',
+    // Core HR
+    'company',
+    'employee',
+    // Time & Leave
+    'leave',
+    'attendance',
+    // Compensation
+    'payroll',
+    // Talent
+    'recruitment',
+    'onboarding',
+    'preboarding',
+    // Operations
+    'project',
+    // Support & Intelligence
+    'support',
+    'collaboration',
+    // Governance
+    'governance',
+  ],
+};
+
+/**
+ * Check if a nav section key is enabled for a specific tenant.
+ * Returns true if:
+ *   - The tenant has no whitelist entry (default: all modules visible)
+ *   - The module key is in the tenant's whitelist
+ */
+export function isModuleEnabledForTenant(tenantSlug: string, moduleKey: string): boolean {
+  const whitelist = TENANT_MODULE_WHITELIST[tenantSlug];
+  if (!whitelist) return true; // No whitelist = all modules visible
+  return whitelist.includes(moduleKey);
+}
+
+/**
  * Check if a role can access a module.
  * Super admin always returns true.
  */

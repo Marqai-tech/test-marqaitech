@@ -8,7 +8,8 @@ import {
   FiBarChart2, FiCpu,
 } from 'react-icons/fi';
 import { useAuthStore } from '@/store/authStore';
-import { canRoleAccessModule } from '@/lib/roleAccess';
+import { useCompanyContextStore } from '@/store/companyContextStore';
+import { canRoleAccessModule, isModuleEnabledForTenant } from '@/lib/roleAccess';
 import { navSections, MODULE_GROUPS } from '@/lib/navData';
 import type { NavSection, ModuleGroup, DashboardTab } from '@/lib/navData';
 
@@ -17,13 +18,15 @@ export default function ModulesPage() {
   const pathname = usePathname();
   const { user } = useAuthStore();
   const userRole = user?.role || 'admin';
+  const tenantSlug = useCompanyContextStore(s => s.tenant?.slug) || '';
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Filter sections based on role
+  // Filter sections based on role AND tenant module whitelist
   const filteredGroups = useMemo(() => {
     return MODULE_GROUPS.map(group => ({
       ...group,
       sections: group.sections
+        .filter(section => isModuleEnabledForTenant(tenantSlug, section.key))
         .map(section => ({
           ...section,
           items: section.items.filter(item => {
@@ -33,7 +36,7 @@ export default function ModulesPage() {
         }))
         .filter(section => section.items.length > 0),
     })).filter(group => group.sections.length > 0);
-  }, [userRole]);
+  }, [userRole, tenantSlug]);
 
   // Filter by search
   const searchFilteredGroups = useMemo(() => {
