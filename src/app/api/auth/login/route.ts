@@ -189,6 +189,10 @@ export async function POST(request: Request) {
     }
 
     // ─── Enforce golden rules for login domains ───
+    // Rule 0: On the main domain (3boxeshrms.com, no tenantSlug), ONLY super_admin
+    //         can log in. This is the platform control center — tenant_admins and
+    //         other roles must log in via their own tenant subdomain
+    //         (e.g., marqaitechgroup.3boxeshrms.com/login).
     // Rule 1: Super admin can ONLY log in on the main domain (3boxeshrms.com/login)
     //         OR on the demo domain (nexus-hrms-mu.vercel.app/login).
     //         Tenant subdomains must REJECT super_admin login — each tenant
@@ -200,16 +204,36 @@ export async function POST(request: Request) {
     //         allows ALL roles including super_admin, tenant_admin, hr_admin, etc.
     //         with complete dummy/sample data for every module.
     const isDemoDomain = tenantSlug === '3boxes-hrms-demo';
+    const isMainDomain = !tenantSlug; // No tenant slug = main platform domain
+
+    // Rule 0: Main domain is super_admin ONLY
+    if (isMainDomain && user.role !== 'super_admin') {
+      // Non-super-admin tried to log in on the main platform domain — reject
+      // They need to use their own tenant subdomain
+      const tenantSlugForUser = user.tenant?.slug || '';
+      const userDomain = tenantSlugForUser
+        ? `https://${tenantSlugForUser}.3boxeshrms.com/login`
+        : 'your organization\'s login page';
+      return NextResponse.json(
+        {
+          error: `This login page is for platform super admins only. Please log in at ${userDomain}.`,
+          code: 'MAIN_DOMAIN_SUPER_ADMIN_ONLY',
+          suggestedUrl: tenantSlugForUser ? `https://${tenantSlugForUser}.3boxeshrms.com/login` : null,
+        },
+        { status: 403, headers: corsHeaders() }
+      );
+    }
+
+    // Rule 1: Super admin on tenant subdomain (not demo) — reject
     if (user.role === 'super_admin' && tenantSlug && !isDemoDomain) {
-      // Super admin tried to log in on a tenant subdomain — reject
       return NextResponse.json(
         { error: 'Super admin login is only available at 3boxeshrms.com/login. Please use the platform login page.' },
         { status: 403, headers: corsHeaders() }
       );
     }
 
+    // Rule 2: Non-super-admin on wrong tenant subdomain — reject
     if (subdomainTenantId && user.role !== 'super_admin' && user.tenantId !== subdomainTenantId) {
-      // Non-super-admin user tried to log in on a different tenant's subdomain — reject
       return NextResponse.json(
         { error: 'You do not have access to this organization. Please use your organization\'s login page.' },
         { status: 403, headers: corsHeaders() }

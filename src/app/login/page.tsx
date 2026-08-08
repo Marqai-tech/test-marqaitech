@@ -845,7 +845,7 @@ export default function LoginPage() {
                     setEmail(e.target.value);
                     if (error) setError('');
                   }}
-                  placeholder="you@company.com"
+                  placeholder={isPlatformSite ? "superadmin@3boxeshrms.com" : "you@company.com"}
                   className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 focus:bg-white transition-all text-sm"
                   autoComplete="email"
                   disabled={isSubmitting}
@@ -859,9 +859,11 @@ export default function LoginPage() {
                 <label htmlFor="password" className="block text-sm font-semibold text-slate-700">
                   Password
                 </label>
-                <button type="button" className="text-xs font-medium text-green-500 hover:text-green-700 transition-colors">
-                  Forgot password?
-                </button>
+                {!isPlatformSite && (
+                  <button type="button" className="text-xs font-medium text-green-500 hover:text-green-700 transition-colors">
+                    Forgot password?
+                  </button>
+                )}
               </div>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
@@ -894,7 +896,8 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Remember me */}
+            {/* Remember me — hidden on platform site (super admin) */}
+            {!isPlatformSite && (
             <div className="flex items-center gap-2">
               <input
                 id="remember"
@@ -905,6 +908,7 @@ export default function LoginPage() {
                 Keep me signed in for 30 days
               </label>
             </div>
+            )}
 
             {/* Submit Button */}
             <button
@@ -922,7 +926,7 @@ export default function LoginPage() {
                 </>
               ) : (
                 <>
-                  Sign In
+                  {isPlatformSite ? 'Sign In as Super Admin' : 'Sign In'}
                   <FiArrowRight className="h-4 w-4" />
                 </>
               )}

@@ -16,6 +16,7 @@ import {
   FiCpu,
   FiLayers,
   FiGlobe,
+  FiShield,
 } from 'react-icons/fi';
 
 /* ─── Animated Counter ─── */
@@ -91,6 +92,16 @@ export default function LandingHomePage() {
                 <FiPlay className="w-5 h-5 text-green-600" />
                 See How It Works
               </Link>
+              {/* Super Admin Login — only shown on main domain (3boxeshrms.com) */}
+              {typeof window !== 'undefined' && (window.location.hostname === '3boxeshrms.com' || window.location.hostname === 'www.3boxeshrms.com') && (
+                <Link
+                  href="/login"
+                  className="inline-flex items-center gap-2 px-8 py-4 rounded-2xl bg-slate-900 text-white text-base font-semibold shadow-xl shadow-slate-500/25 hover:shadow-slate-500/40 hover:scale-105 transition-all"
+                >
+                  <FiShield className="w-5 h-5" />
+                  Super Admin Login
+                </Link>
+              )}
             </div>
 
             {/* Trust Badges */}
