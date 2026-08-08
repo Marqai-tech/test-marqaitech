@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import {
   FiGrid, FiSearch, FiArrowRight, FiChevronRight,
@@ -12,6 +12,7 @@ import { useCompanyContextStore } from '@/store/companyContextStore';
 import { canRoleAccessModule, isModuleEnabledForTenant } from '@/lib/roleAccess';
 import { navSections, MODULE_GROUPS } from '@/lib/navData';
 import type { NavSection, ModuleGroup, DashboardTab } from '@/lib/navData';
+import { useTenantModuleStore } from '@/store/tenantModuleStore';
 
 export default function ModulesPage() {
   const router = useRouter();
@@ -19,7 +20,16 @@ export default function ModulesPage() {
   const { user } = useAuthStore();
   const userRole = user?.role || 'admin';
   const tenantSlug = useCompanyContextStore(s => s.tenant?.slug) || '';
+  const tenantId = useCompanyContextStore(s => s.tenant?.id) || '';
+  const { fetchModules } = useTenantModuleStore();
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Fetch tenant module flags on mount
+  useEffect(() => {
+    if (tenantId && tenantSlug) {
+      fetchModules(tenantId, tenantSlug);
+    }
+  }, [tenantId, tenantSlug, fetchModules]);
 
   // Filter sections based on role AND tenant module whitelist
   const filteredGroups = useMemo(() => {

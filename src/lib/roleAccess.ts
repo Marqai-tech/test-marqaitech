@@ -153,12 +153,44 @@ export const TENANT_MODULE_WHITELIST: Record<string, string[]> = {
 };
 
 /**
+ * Dynamic module overrides from the database (set by super admin UI).
+ * This map is populated at runtime by the tenantModuleStore.
+ * When a tenant has DB-based module flags, this takes precedence
+ * over the hardcoded TENANT_MODULE_WHITELIST.
+ *
+ * Key = tenantSlug, Value = Set of enabled module keys.
+ * If a tenant is in this map, ONLY the modules in the Set are visible.
+ * If a tenant is NOT in this map, falls back to TENANT_MODULE_WHITELIST.
+ */
+let _dbModuleOverrides: Record<string, Set<string>> = {};
+
+/**
+ * Update the runtime DB module overrides (called from tenantModuleStore).
+ */
+export function setDbModuleOverrides(overrides: Record<string, Set<string>>) {
+  _dbModuleOverrides = overrides;
+}
+
+/**
+ * Get the current DB module overrides (for reading in hooks).
+ */
+export function getDbModuleOverrides(): Record<string, Set<string>> {
+  return _dbModuleOverrides;
+}
+
+/**
  * Check if a nav section key is enabled for a specific tenant.
- * Returns true if:
- *   - The tenant has no whitelist entry (default: all modules visible)
- *   - The module key is in the tenant's whitelist
+ * Resolution order:
+ *   1. DB-based overrides (set by super admin via Module Management UI)
+ *   2. Hardcoded TENANT_MODULE_WHITELIST (fallback for tenants not yet migrated)
+ *   3. No restrictions = all modules visible
  */
 export function isModuleEnabledForTenant(tenantSlug: string, moduleKey: string): boolean {
+  // 1. Check DB overrides first (dynamic, set by super admin UI)
+  const dbOverride = _dbModuleOverrides[tenantSlug];
+  if (dbOverride) return dbOverride.has(moduleKey);
+
+  // 2. Fallback to hardcoded whitelist
   const whitelist = TENANT_MODULE_WHITELIST[tenantSlug];
   if (!whitelist) return true; // No whitelist = all modules visible
   return whitelist.includes(moduleKey);

@@ -152,6 +152,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         permissions: {},
         permissionsLoaded: false,
       });
+      // Clear tenant module cache on logout
+      try {
+        const { useTenantModuleStore } = require('@/store/tenantModuleStore');
+        useTenantModuleStore.getState().clear();
+      } catch (_e) { /* non-critical */ }
     }
   },
 

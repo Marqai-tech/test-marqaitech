@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -13,6 +13,7 @@ import { useCompanyContextStore } from '@/store/companyContextStore';
 import { canRoleAccessModule, isModuleEnabledForTenant } from '@/lib/roleAccess';
 import { navSections, PINNED_ITEMS, PICKER_ROUTES } from '@/lib/navData';
 import type { NavItem, NavSection } from '@/lib/navData';
+import { useTenantModuleStore } from '@/store/tenantModuleStore';
 
 interface SidebarProps {
   collapsed: boolean;
@@ -27,6 +28,15 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false, cur
   const { user, logout } = useAuthStore();
   const userRole = user?.role || 'admin';
   const tenantSlug = useCompanyContextStore(s => s.tenant?.slug) || '';
+  const tenantId = useCompanyContextStore(s => s.tenant?.id) || '';
+  const { fetchModules } = useTenantModuleStore();
+
+  // Fetch tenant module flags on mount (populates roleAccess DB overrides)
+  useEffect(() => {
+    if (tenantId && tenantSlug) {
+      fetchModules(tenantId, tenantSlug);
+    }
+  }, [tenantId, tenantSlug, fetchModules]);
 
   // Filter sections based on user role AND tenant module whitelist
   const filteredSections = useMemo(() => {
