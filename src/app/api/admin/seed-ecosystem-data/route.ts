@@ -10,9 +10,13 @@
  *
  * All seeding logic lives in /src/lib/ecosystem/seeder.ts so it can be shared
  * with the public auto-seed endpoint (/api/auto-seed-demo).
+ *
+ * ⚠️ LIVE MODE GUARD: This endpoint is BLOCKED on the production platform.
+ * Only works on the demo domain (nexus-hrms-mu.vercel.app).
  */
 import { requireUser, isAdminRole, ok, fail, OPTIONS, parseBody } from '@/lib/attendance-leave-api';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
+import { isLiveMode } from '@/lib/site-mode';
 import {
   seedClients,
   seedVendors,
@@ -25,6 +29,12 @@ import {
 export { OPTIONS };
 
 export async function POST(request: Request) {
+  // ─── LIVE MODE GUARD ───
+  // Ecosystem sample data seeding is STRICTLY PROHIBITED on the live platform.
+  if (isLiveMode(request)) {
+    return fail('Ecosystem data seeding is disabled on the live platform. This feature is only available on the demo site (nexus-hrms-mu.vercel.app).', 403);
+  }
+
   const db = await getDb(request);
   const { user, response } = await requireUser(request);
   if (!user) return response;

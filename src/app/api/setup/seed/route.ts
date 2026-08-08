@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
+import { isLiveMode } from '@/lib/site-mode';
 
 // ==================== HELPER: Idempotent find-or-create ====================
 
@@ -299,7 +300,16 @@ function getShiftTemplates(companyId: string) {
 
 // ==================== MAIN SEED FUNCTION ====================
 
-export async function POST() {
+export async function POST(request: Request) {
+  // ─── LIVE MODE GUARD ───
+  // Setup seed is BLOCKED on the live production platform.
+  if (isLiveMode(request)) {
+    return NextResponse.json({
+      error: 'Setup seeding is disabled on the live platform. This feature is only available on the demo site.',
+      code: 'LIVE_MODE_BLOCKED',
+    }, { status: 403 });
+  }
+
   const log: string[] = [];
   const created: Record<string, number> = {};
 

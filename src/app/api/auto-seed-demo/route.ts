@@ -13,10 +13,16 @@
  *
  * Auth: requires a valid JWT (any role). This prevents anonymous abuse while
  * still allowing the demo experience to work for any logged-in user.
+ *
+ * ⚠️ LIVE MODE GUARD: This endpoint is BLOCKED on the production platform
+ * (3boxeshrms.com and tenant subdomains). Dummy/sample data must NEVER
+ * be auto-seeded into live tenant databases. This endpoint only works on
+ * the demo domain (nexus-hrms-mu.vercel.app).
  */
 import { NextResponse } from 'next/server';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
+import { isLiveMode } from '@/lib/site-mode';
 import {
   seedClients,
   seedVendors,
@@ -48,6 +54,17 @@ async function isEmpty(model: string, where: any = {}): Promise<boolean> {
 }
 
 export async function GET(request: Request) {
+  // ─── LIVE MODE GUARD ───
+  // Auto-seeding is STRICTLY PROHIBITED on the live production platform.
+  // Only the demo site (nexus-hrms-mu.vercel.app) may auto-seed data.
+  if (isLiveMode(request)) {
+    return NextResponse.json({
+      ok: false,
+      reason: 'live_mode_blocked',
+      message: 'Auto-seeding is disabled on the live platform. Dummy data is only available on the demo site (nexus-hrms-mu.vercel.app).',
+    }, { status: 403, headers: CORS });
+  }
+
   const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);

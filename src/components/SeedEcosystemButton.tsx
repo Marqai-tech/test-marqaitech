@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import { isClientLiveMode } from '@/lib/site-mode';
 
 interface Props {
   /** Which module to seed. 'all' seeds everything. */
@@ -14,8 +15,19 @@ interface Props {
  * Admin-only "Seed Demo Data" button.
  * Calls POST /api/admin/seed-ecosystem-data with the chosen module.
  * Idempotent — safe to click multiple times.
+ *
+ * ⚠️ LIVE MODE: This button is COMPLETELY HIDDEN on the production
+ * platform (3boxeshrms.com and tenant subdomains). Seeding is only
+ * available on the demo site (nexus-hrms-mu.vercel.app).
  */
 export default function SeedEcosystemButton({ module = 'all', label, compact = false }: Props) {
+  // ─── LIVE MODE GUARD ───
+  // Hide the seed button entirely on the live production platform.
+  // No dummy data should ever be seeded into production databases.
+  if (isClientLiveMode()) {
+    return null;
+  }
+
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
@@ -70,7 +82,7 @@ export default function SeedEcosystemButton({ module = 'all', label, compact = f
           <>
             <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4z" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4z" />
             </svg>
             Seeding…
           </>

@@ -14,6 +14,7 @@
  */
 import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
+import { isLiveMode } from '@/lib/site-mode';
 
 function corsHeaders() {
   return {
@@ -27,7 +28,12 @@ export async function OPTIONS() {
   return NextResponse.json({}, { headers: corsHeaders() });
 }
 
-export async function POST() {
+export async function POST(request: Request) {
+  // ─── LIVE MODE GUARD ───
+  if (isLiveMode(request)) {
+    return NextResponse.json({ error: 'Seeding is disabled on the live platform.', code: 'LIVE_MODE_BLOCKED' }, { status: 403, headers: corsHeaders() });
+  }
+
   try {
     console.log('[Full Payroll Seed] Starting enhanced payroll seeding...');
 
@@ -958,8 +964,12 @@ export async function POST() {
 }
 
 // Also support GET for convenience
-export async function GET() {
-  return POST();
+export async function GET(request: Request) {
+  // ─── LIVE MODE GUARD ───
+  if (isLiveMode(request)) {
+    return NextResponse.json({ error: 'Seeding is disabled on the live platform.', code: 'LIVE_MODE_BLOCKED' }, { status: 403, headers: corsHeaders() });
+  }
+  return POST(request);
 }
 
 // ─── Helper: Generate sample NACH file content ──────────────────

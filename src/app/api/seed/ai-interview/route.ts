@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { v4 as uuidv4 } from 'crypto';
+import { isLiveMode } from '@/lib/site-mode';
 
 // Simple UUID generator (doesn't need crypto import)
 function generateToken(): string {
@@ -8,6 +9,11 @@ function generateToken(): string {
 }
 
 export async function POST(request: Request) {
+  // ─── LIVE MODE GUARD ───
+  if (isLiveMode(request)) {
+    return NextResponse.json({ error: 'Seeding is disabled on the live platform.', code: 'LIVE_MODE_BLOCKED' }, { status: 403 });
+  }
+
   const db = await getDb(request);
   try {
     const body = await request.json();

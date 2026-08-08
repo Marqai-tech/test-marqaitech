@@ -8,10 +8,15 @@
  * Call multiple times with different modules, or use module="all" for full seed.
  *
  * Body: { confirm: true, module?: "all" | "core" | "employees" | "hr" | "projects" | "finance" | "support" }
+ *
+ * ⚠️ LIVE MODE GUARD: This endpoint is BLOCKED on the production platform.
+ * Demo/sample data must NEVER be seeded into live tenant databases.
+ * Only works on the demo domain (nexus-hrms-mu.vercel.app).
  */
 import { NextResponse } from 'next/server';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
+import { isLiveMode } from '@/lib/site-mode';
 import bcryptjs from 'bcryptjs';
 
 function corsHeaders() {
@@ -44,6 +49,15 @@ async function safeOp(fn: () => Promise<number>, label: string): Promise<number>
 }
 
 export async function POST(request: Request) {
+  // ─── LIVE MODE GUARD ───
+  // Demo data seeding is STRICTLY PROHIBITED on the live production platform.
+  if (isLiveMode(request)) {
+    return NextResponse.json({
+      error: 'Demo data seeding is disabled on the live platform. This feature is only available on the demo site (nexus-hrms-mu.vercel.app).',
+      code: 'LIVE_MODE_BLOCKED',
+    }, { status: 403, headers: corsHeaders() });
+  }
+
   const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);

@@ -6,13 +6,23 @@
  *
  * Idempotent — uses upserts / findFirst-then-create patterns so re-running
  * the same module won't create duplicate rows.
+ *
+ * ⚠️ LIVE MODE GUARD: This endpoint is BLOCKED on the production platform.
+ * Only works on the demo domain (nexus-hrms-mu.vercel.app).
  */
 import { requireUser, isAdminRole, ok, fail, OPTIONS } from '@/lib/attendance-leave-api';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
+import { isLiveMode } from '@/lib/site-mode';
 
 export { OPTIONS };
 
 export async function POST(request: Request) {
+  // ─── LIVE MODE GUARD ───
+  // Sample data seeding is STRICTLY PROHIBITED on the live platform.
+  if (isLiveMode(request)) {
+    return fail('Sample data seeding is disabled on the live platform. This feature is only available on the demo site (nexus-hrms-mu.vercel.app).', 403);
+  }
+
   const db = await getDb(request);
   const { user, response } = await requireUser(request);
   if (!user) return response;

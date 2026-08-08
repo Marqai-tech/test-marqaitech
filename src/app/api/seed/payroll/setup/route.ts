@@ -6,8 +6,12 @@
 import { NextResponse } from 'next/server';
 import { execSync } from 'child_process';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
+import { isLiveMode } from '@/lib/site-mode';
 
 export async function GET(request: Request) {
+  // ─── LIVE MODE GUARD ───
+  // Payroll schema push is allowed on live (it's structural, not data)
+  // but payroll data seeding is blocked.
   const db = await getDb(request);
   try {
     const url = new URL(request.url);

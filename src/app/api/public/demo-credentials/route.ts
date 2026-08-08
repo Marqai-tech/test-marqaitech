@@ -1,13 +1,27 @@
 import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
+import { isLiveMode } from '@/lib/site-mode';
 
 /**
  * GET /api/public/demo-credentials
  *
- * Public endpoint that returns demo login credentials for the current domain.
- * - On nexus-hrms-mu.vercel.app: returns super admins + tenant admins with company details (demo site)
- * - On 3boxeshrms.com: returns super admins + tenant admins with company details (platform site)
- * - On tenant subdomains (e.g., marqaitechgroup.3boxeshrms.com): returns only tenant admin for that tenant
+ * Returns login credentials based on the current domain:
+ *
+ * - On nexus-hrms-mu.vercel.app (DEMO site): Returns super admins +
+ *   tenant admins with company details for auto-fill convenience.
+ *   This is the showcase/demo site where users need quick access to
+ *   sample accounts with pre-filled credentials.
+ *
+ * - On 3boxeshrms.com (LIVE platform): Returns ONLY a list of super admins
+ *   and tenant admins for reference (email + name + role + tenant).
+ *   NO auto-fill passwords are provided — this is a live production
+ *   platform with real credentials. Users must know their own passwords.
+ *   The response marks `hasAutoFill: false` so the login page doesn't
+ *   show a "click to auto-fill" UI.
+ *
+ * - On tenant subdomains (e.g., marqaitechgroup.3boxeshrms.com):
+ *   Returns only the tenant admin for that specific tenant.
+ *   NO auto-fill passwords — live production data.
  *
  * Only super_admin and tenant_admin users are returned — no sample/employee users.
  */
@@ -23,9 +37,10 @@ export async function GET(request: Request) {
     const isPlatformSite = hostname === '3boxeshrms.com' || hostname === 'www.3boxeshrms.com';
     const isTenantSubdomain = !!tenantSlug;
 
-    if (isDemoSite || isPlatformSite) {
-      // Demo / Platform site — show ONLY super admins and tenant admins with company details
-      // Password is NOT returned in the API response — auto-fill uses it internally
+    if (isDemoSite) {
+      // ─── DEMO site: full credentials with auto-fill ───
+      // This is the demo/showcase site — users need quick access to
+      // sample accounts with pre-filled credentials for easy exploration.
       const superAdmins = await db.user.findMany({
         where: { role: 'super_admin', status: 'active' },
         select: { email: true, name: true, role: true, tenantId: true, tenant: { select: { name: true, slug: true } } },
@@ -39,8 +54,49 @@ export async function GET(request: Request) {
       });
 
       return NextResponse.json({
-        site: isDemoSite ? 'demo' : 'platform',
+        site: 'demo',
+        hasAutoFill: true,
         // Password NOT included in response — auto-fill still works via click handler
+        // which uses the known demo password 'MarqAI@2026'
+        superAdmins: superAdmins.map(u => ({
+          email: u.email,
+          name: u.name,
+          role: u.role,
+          functionalRole: 'Super Admin',
+          tenant: u.tenant.name,
+        })),
+        tenantAdmins: tenantAdmins.map(u => ({
+          email: u.email,
+          name: u.name,
+          role: u.role,
+          functionalRole: 'Tenant Admin',
+          tenant: u.tenant.name,
+          tenantSlug: u.tenant.slug,
+        })),
+      });
+    }
+
+    if (isPlatformSite) {
+      // ─── LIVE platform site: credentials for REFERENCE ONLY ───
+      // On the production platform (3boxeshrms.com), we return admin
+      // accounts for informational purposes (showing who exists), but
+      // NO auto-fill is available. Users must know their own passwords.
+      // This is the LIVE super admin login — real credentials only.
+      const superAdmins = await db.user.findMany({
+        where: { role: 'super_admin', status: 'active' },
+        select: { email: true, name: true, role: true, tenantId: true, tenant: { select: { name: true, slug: true } } },
+        orderBy: { name: 'asc' },
+      });
+
+      const tenantAdmins = await db.user.findMany({
+        where: { role: 'tenant_admin', status: 'active' },
+        select: { email: true, name: true, role: true, tenantId: true, tenant: { select: { name: true, slug: true } } },
+        orderBy: { tenant: { name: 'asc' } },
+      });
+
+      return NextResponse.json({
+        site: 'platform',
+        hasAutoFill: false, // LIVE mode — no auto-fill
         superAdmins: superAdmins.map(u => ({
           email: u.email,
           name: u.name,
@@ -60,14 +116,15 @@ export async function GET(request: Request) {
     }
 
     if (isTenantSubdomain) {
-      // Tenant subdomain — show only that tenant's admin
+      // ─── Tenant subdomain: show only that tenant's admin ───
+      // NO auto-fill — this is live production data.
       const tenant = await getPlatformDb().tenant.findUnique({
         where: { slug: tenantSlug },
         select: { id: true, name: true, slug: true },
       });
 
       if (!tenant) {
-        return NextResponse.json({ site: 'tenant', users: [] });
+        return NextResponse.json({ site: 'tenant', hasAutoFill: false, users: [] });
       }
 
       // Only return tenant_admin for this tenant (no sample users)
@@ -79,6 +136,7 @@ export async function GET(request: Request) {
 
       return NextResponse.json({
         site: 'tenant',
+        hasAutoFill: false, // LIVE mode — no auto-fill
         tenantName: tenant.name,
         users: users.map(u => ({
           email: u.email,
@@ -92,6 +150,7 @@ export async function GET(request: Request) {
     // Default — fallback
     return NextResponse.json({
       site: 'unknown',
+      hasAutoFill: false,
       superAdmins: [],
       tenantAdmins: [],
     });

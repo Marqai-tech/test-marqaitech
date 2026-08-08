@@ -16,6 +16,7 @@ import {
 import { HiShieldCheck } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import { isClientLiveMode } from '@/lib/site-mode';
 
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: string[];
@@ -368,10 +369,20 @@ export default function LoginPage() {
           {/* Center — Hero messaging */}
           <div className="max-w-lg">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.06] border border-white/[0.08] mb-6">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse-subtle" />
+              <span className={`w-1.5 h-1.5 rounded-full ${isPlatformSite ? 'bg-emerald-400 animate-pulse' : 'bg-emerald-400 animate-pulse-subtle'}`} />
               <span className="text-[11px] text-emerald-300 font-semibold tracking-wide">
                 {isPlatformSite ? 'PLATFORM CONTROL CENTER' : 'AI-POWERED PLATFORM'}
               </span>
+              {isPlatformSite && (
+                <span className="text-[9px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 px-1.5 py-0.5 rounded-full tracking-wider">
+                  LIVE
+                </span>
+              )}
+              {isDemoSite && (
+                <span className="text-[9px] font-bold bg-amber-500/20 text-amber-300 border border-amber-400/30 px-1.5 py-0.5 rounded-full tracking-wider">
+                  DEMO
+                </span>
+              )}
             </div>
 
             <h2 className="text-4xl xl:text-5xl font-extrabold text-white leading-[1.1] mb-6">
@@ -396,7 +407,7 @@ export default function LoginPage() {
 
             <p className="text-slate-300/80 text-base leading-relaxed mb-10 max-w-md">
               {isPlatformSite
-                ? 'The central platform control center for managing all tenants, approving trial registrations, controlling subscriptions, and overseeing the entire 3Boxes HRMS ecosystem.'
+                ? 'The central platform control center for managing all tenants, approving trial registrations, controlling subscriptions, and overseeing the entire 3Boxes HRMS ecosystem. Only live production data — no demo or dummy data.'
                 : 'The next-generation SaaS HRMS platform — empowering businesses to manage people, streamline processes, and leverage technology seamlessly. A Proud Product of Marq AI Tech Group.'
               }
             </p>
@@ -604,6 +615,14 @@ export default function LoginPage() {
                     : 'Sign in to your account to continue'
                   : 'Track your applications, optimize your resume, and find matching jobs'}
             </p>
+            {/* LIVE mode indicator under Super Admin Login header */}
+            {isPlatformSite && (
+              <div className="mt-2 inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-emerald-50 border border-emerald-200">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-[10px] font-semibold text-emerald-700">LIVE PRODUCTION</span>
+                <span className="text-[9px] text-emerald-600">— Real data only</span>
+              </div>
+            )}
           </div>
 
           {/* Error Message */}
@@ -1059,9 +1078,15 @@ export default function LoginPage() {
             </div>
             )}
 
-            {/* Super Admin capabilities — shown ONLY on platform site (3boxeshrms.com), NO credentials displayed */}
+            {/* Super Admin capabilities + LIVE MODE indicator — shown ONLY on platform site (3boxeshrms.com) */}
             {isPlatformSite && !tenantInfo && (
-            <div className="mt-4 w-full rounded-xl border border-slate-200/60 bg-gradient-to-r from-slate-50/80 to-slate-100/50 overflow-hidden">
+            <div className="mt-4 w-full rounded-xl border border-emerald-200/60 bg-gradient-to-r from-emerald-50/80 to-green-50/50 overflow-hidden">
+              {/* LIVE PRODUCTION badge */}
+              <div className="px-4 py-2 bg-emerald-600/10 border-b border-emerald-200/40 flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-[10px] font-bold text-emerald-700 tracking-wide uppercase">Live Production Environment</span>
+                <span className="text-[9px] text-emerald-600/70 ml-auto">Real data only — No demo/dummy data</span>
+              </div>
               <div className="px-4 py-3">
                 <div className="flex flex-wrap gap-1.5">
                   {[

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import bcryptjs from 'bcryptjs';
+import { isLiveMode } from '@/lib/site-mode';
 
 async function hashPassword(password: string): Promise<string> {
   const salt = await bcryptjs.genSalt(12);
@@ -7,6 +8,15 @@ async function hashPassword(password: string): Promise<string> {
 }
 
 export async function POST(request: Request) {
+  // ─── LIVE MODE GUARD ───
+  // Reseed is BLOCKED on the live production platform.
+  if (isLiveMode(request)) {
+    return NextResponse.json({
+      error: 'Reseeding is disabled on the live platform. This feature is only available on the demo site.',
+      code: 'LIVE_MODE_BLOCKED',
+    }, { status: 403 });
+  }
+
   try {
     const body = await request.json();
     const { secret } = body;

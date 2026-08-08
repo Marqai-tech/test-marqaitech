@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { hashPassword } from '@/lib/auth';
+import { isLiveMode } from '@/lib/site-mode';
 
 function corsHeaders() {
   return {
@@ -14,7 +15,16 @@ export async function OPTIONS() {
   return NextResponse.json({}, { headers: corsHeaders() });
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  // ─── LIVE MODE GUARD ───
+  // Base seed is BLOCKED on the live production platform.
+  if (isLiveMode(request)) {
+    return NextResponse.json({
+      error: 'Seeding is disabled on the live platform. Dummy data is only available on the demo site (nexus-hrms-mu.vercel.app).',
+      code: 'LIVE_MODE_BLOCKED',
+    }, { status: 403, headers: corsHeaders() });
+  }
+
   try {
     // Hash passwords for each demo account separately
     const pwHashes: Record<string, string> = {};

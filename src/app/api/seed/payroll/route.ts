@@ -1,11 +1,19 @@
 /**
  * Payroll Module Seed API Endpoint
  * Call GET /api/seed/payroll to seed payroll sample data
+ *
+ * ⚠️ LIVE MODE GUARD: Blocked on the live production platform.
  */
 import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
+import { isLiveMode } from '@/lib/site-mode';
 
-export async function GET() {
+export async function GET(request: Request) {
+  // ─── LIVE MODE GUARD ───
+  if (isLiveMode(request)) {
+    return NextResponse.json({ error: 'Seeding is disabled on the live platform.', code: 'LIVE_MODE_BLOCKED' }, { status: 403 });
+  }
+
   try {
     console.log('[Payroll Seed] Starting payroll module seeding...');
 

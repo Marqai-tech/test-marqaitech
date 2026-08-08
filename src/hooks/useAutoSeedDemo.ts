@@ -11,15 +11,19 @@
  *  - Silent: never throws, never shows errors to the user
  *  - Returns { seeded, error } so callers can optionally react
  *
- * INTENTIONAL EXCLUSION:
- *  Tenants with slug '3boxeshrms' or 'marqaitechgroup' are EXCLUDED from
- *  auto-seeding. These are production tenants that had their sample data
- *  cleaned up via /api/admin/cleanup-sample-data. Auto-seeding would
- *  re-introduce the exact data the admin removed. The demo tenant at
- *  nexus-hrms-mu.vercel.app is NOT excluded and continues to auto-seed.
+ * LIVE MODE GUARD:
+ *  On the production platform (3boxeshrms.com and tenant subdomains like
+ *  marqaitechgroup.3boxeshrms.com), auto-seeding is COMPLETELY DISABLED.
+ *  No dummy/sample data will ever be auto-seeded into live databases.
+ *  Only the demo site (nexus-hrms-mu.vercel.app) will auto-seed.
+ *
+ *  Additionally, tenants with slug '3boxeshrms' or 'marqaitechgroup' are
+ *  EXCLUDED from auto-seeding even if somehow called. These are production
+ *  tenants that had their sample data cleaned up.
  */
 import { useEffect, useState } from 'react';
 import { useAuthStore } from '@/store/authStore';
+import { isClientLiveMode } from '@/lib/site-mode';
 
 type Module = 'marketplace' | 'wellness' | 'collaboration' | 'clients' | 'vendors' | 'all';
 
@@ -39,6 +43,22 @@ export function useAutoSeedDemo(module: Module, onSeeded?: () => void) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // ─── LIVE MODE GUARD ───
+    // On the production platform (3boxeshrms.com, tenant subdomains),
+    // auto-seeding is COMPLETELY DISABLED. No dummy data should ever
+    // appear in production databases. Only the demo site auto-seeds.
+    if (isClientLiveMode()) {
+      // Mark as done in cache so we don't re-check on every render
+      const cacheKey = `auto-seed-${module}`;
+      sessionCache[cacheKey] = true;
+      try {
+        if (typeof window !== 'undefined') {
+          window.sessionStorage.setItem(cacheKey, 'done');
+        }
+      } catch {}
+      return;
+    }
+
     // ─── Intentional exclusion check ───
     // If the current tenant's slug matches a cleanup-excluded slug,
     // skip auto-seeding entirely. This prevents sample data from being

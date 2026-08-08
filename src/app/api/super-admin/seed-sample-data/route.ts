@@ -3,6 +3,7 @@ import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders, hashPassword } from '@/lib/auth';
 import { createNotification } from '@/lib/notifications';
 import { ensureSchemaSynced, withSchemaSync } from '@/lib/schema-sync';
+import { isLiveMode } from '@/lib/site-mode';
 
 function corsHeaders() {
   return {
@@ -57,6 +58,11 @@ export async function OPTIONS() {
  * All created records use upsert semantics keyed on a stable slug so that
  * re-running the endpoint won't fail on uniqueness constraints and won't
  * create duplicates.
+ *
+ * ⚠️ LIVE MODE GUARD: On the production platform (3boxeshrms.com), this
+ * endpoint requires an explicit `confirmLiveSeed: true` in the request body.
+ * This prevents accidental sample data creation in production. The demo
+ * site has no such restriction.
  */
 export async function POST(request: Request) {
   const db = await getDb(request);
@@ -72,6 +78,22 @@ export async function POST(request: Request) {
     const userRole = decoded.role as string;
     if (userRole !== 'super_admin') {
       return NextResponse.json({ error: 'Only super admins can seed sample data' }, { status: 403, headers: corsHeaders() });
+    }
+
+    // ─── LIVE MODE GUARD ───
+    // On the production platform, sample data seeding requires explicit
+    // confirmation to prevent accidental creation of sample/dummy tenants.
+    // The demo site has no such restriction.
+    if (isLiveMode(request)) {
+      let body: { confirmLiveSeed?: boolean } = {};
+      try { body = await request.json(); } catch {}
+      if (!body.confirmLiveSeed) {
+        return NextResponse.json({
+          error: 'You are on the LIVE production platform. Seeding sample data will create sample/dummy tenants alongside your real tenants. If you understand this and want to proceed, re-send the request with { confirmLiveSeed: true } in the body.',
+          code: 'LIVE_SEED_CONFIRMATION_REQUIRED',
+          hint: 'This safeguard only applies on the live platform. The demo site (nexus-hrms-mu.vercel.app) has no such restriction.',
+        }, { status: 403, headers: corsHeaders() });
+      }
     }
 
     // Proactively sync the DB schema before any upsert. The build-time
