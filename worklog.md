@@ -60,3 +60,25 @@ Stage Summary:
 - Flutter app: Dynamic logo support implemented
 - Login page: Prominent download section for mobile app
 - All changes deployed to https://nexus-hrms-mu.vercel.app/
+---
+Task ID: 1
+Agent: main
+Task: Implement LIVE vs DEMO site mode — block dummy data on production platform
+
+Work Log:
+- Created centralized site-mode utility (src/lib/site-mode.ts) with server-side and client-side detection
+- Blocked all seed/auto-seed API endpoints on LIVE mode (returns 403)
+- Updated auto-seed-demo, seed-demo-data, seed-ecosystem-data, seed-sample-data, all seed/* routes
+- Added confirmLiveSeed guard to super-admin/seed-sample-data
+- Updated useAutoSeedDemo hook to respect LIVE mode (early return on production)
+- Updated demo-credentials API: DEMO site has auto-fill, LIVE platform has reference-only (no passwords)
+- Updated login page with LIVE/DEMO badges, "Live Production Environment" banner, and "Real data only" messages
+- Hidden SeedEcosystemButton component on LIVE mode
+- RBAC seed left allowed (structural masters, per user exception)
+- Build passed, committed and pushed to Vercel
+
+Stage Summary:
+- LIVE mode (3boxeshrms.com + tenant subdomains): Only real/live data, all seeding blocked, no demo credentials auto-fill
+- DEMO mode (nexus-hrms-mu.vercel.app): Full dummy data, auto-seeding enabled, demo credentials with auto-fill
+- Hierarchy enforced: super admin → tenant admins → companies → roles
+- Demo link completely independent from production platform
