@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 import {
   FiMail, FiLock, FiArrowRight, FiArrowLeft, FiGrid, FiEye, FiEyeOff, FiCheck,
 } from 'react-icons/fi';
+import { validateEmail } from '@/lib/validators';
 
 type Tab = 'password' | 'otp';
 
@@ -37,7 +38,7 @@ export default function CandidateLoginPage() {
 
   // When email changes and looks valid, check account to decide default tab
   useEffect(() => {
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    if (!email || !validateEmail(email).valid) {
       setAccountChecked(false);
       setAccountHasPassword(false);
       return;
@@ -68,6 +69,15 @@ export default function CandidateLoginPage() {
   }, [email]);
 
   const loginWithPassword = async () => {
+    const emailResult = validateEmail(email);
+    if (!emailResult.valid) {
+      toast.error(emailResult.error!);
+      return;
+    }
+    if (!password.trim()) {
+      toast.error('Password is required');
+      return;
+    }
     setLoading(true);
     try {
       const r = await fetch('/api/candidate-portal/auth/login-password', {
@@ -99,6 +109,11 @@ export default function CandidateLoginPage() {
   };
 
   const requestOtp = async () => {
+    const emailResult = validateEmail(email);
+    if (!emailResult.valid) {
+      toast.error(emailResult.error!);
+      return;
+    }
     setLoading(true);
     try {
       const r = await fetch('/api/candidate-portal/auth/request-otp', {

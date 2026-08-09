@@ -20,6 +20,7 @@ import type { Notification } from '@/store/notificationStore';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { useNotificationStore } from '@/store/notificationStore';
+import { sanitizeSearch } from '@/lib/validators';
 import CompanySwitcher from '@/components/CompanySwitcher';
 import LocaleSwitcher from '@/components/LocaleSwitcher';
 
@@ -129,7 +130,7 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
         <input
           type="text"
           value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
+          onChange={(e) => setSearchQuery(sanitizeSearch(e.target.value))}
           placeholder="Search employees, modules, actions..."
           className="w-full pl-10 pr-4 py-2 rounded-lg border border-green-200 bg-green-50/30 text-sm text-thb-text-primary placeholder:text-green-400/60 focus:outline-none focus:ring-2 focus:ring-green-500/30 focus:border-green-400 focus:bg-white transition-all"
         />

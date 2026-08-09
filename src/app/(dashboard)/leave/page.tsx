@@ -10,6 +10,7 @@ import {
   FiUser, FiRefreshCw, FiFilter,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import { sanitizeSearch } from '@/lib/validators';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
 
@@ -693,7 +694,7 @@ function LeavePageContent() {
               {/* Search */}
               <div className="relative">
                 <FiSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-                <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search employee..." className="pl-8 pr-3 py-1.5 rounded-lg border border-slate-200 text-xs w-40 focus:outline-none focus:ring-1 focus:ring-green-500/20" />
+                <input type="text" value={searchQuery} onChange={e => setSearchQuery(sanitizeSearch(e.target.value))} placeholder="Search employee..." className="pl-8 pr-3 py-1.5 rounded-lg border border-slate-200 text-xs w-40 focus:outline-none focus:ring-1 focus:ring-green-500/20" />
               </div>
             </div>
           </div>

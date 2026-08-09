@@ -8,6 +8,7 @@ import {
   FiClock, FiZap, FiEye, FiActivity,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import { sanitizeSearch } from '@/lib/validators';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
 
@@ -772,7 +773,7 @@ export default function PayrollProcessingPage() {
               type="text"
               placeholder="Search by period, run type, status, entity..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => setSearchQuery(sanitizeSearch(e.target.value))}
               className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
             />
           </div>

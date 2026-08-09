@@ -23,6 +23,7 @@ import {
   FiShield, FiHeart,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import { sanitizeSearch } from '@/lib/validators';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
 
@@ -715,7 +716,7 @@ export default function EmployeeDashboardPage() {
               <input
                 type="text"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => setSearchQuery(sanitizeSearch(e.target.value))}
                 placeholder="Search updates by name or department..."
                 className="w-full pl-9 pr-3 py-2 text-sm border border-thb-border rounded-lg bg-white text-thb-text-primary placeholder:text-thb-text-secondary focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 transition-all"
               />

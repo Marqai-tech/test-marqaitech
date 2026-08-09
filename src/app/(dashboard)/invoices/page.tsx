@@ -8,6 +8,7 @@ import {
   FiArrowLeft, FiPrinter, FiMoreVertical, FiChevronRight,
 } from 'react-icons/fi';
 import { formatCurrency } from '@/lib/currency';
+import { sanitizeSearch } from '@/lib/validators';
 
 /* ── Helpers ── */
 function formatDate(d: string | null | undefined) {
@@ -585,7 +586,7 @@ export default function InvoicesPage() {
               type="text"
               placeholder="Search by invoice #, client, or project..."
               value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
+              onChange={e => setSearchQuery(sanitizeSearch(e.target.value))}
               className="w-full pl-9 pr-4 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-thb-primary/20 focus:border-thb-primary transition-colors bg-white"
             />
           </div>

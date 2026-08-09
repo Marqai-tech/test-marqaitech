@@ -13,6 +13,7 @@ import {
   FiTool, FiClipboard, FiMonitor,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import { sanitizeSearch } from '@/lib/validators';
 import { useAuthStore } from '@/store/authStore';
 import ModuleTips from '@/components/ModuleTips';
 import ModuleWorkflow from '@/components/ModuleWorkflow';
@@ -1209,7 +1210,7 @@ export default function ReportsPage() {
           <input
             type="text"
             value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
+            onChange={e => setSearchQuery(sanitizeSearch(e.target.value))}
             placeholder="Search reports by name, description, or module..."
             className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-thb-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
           />

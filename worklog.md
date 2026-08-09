@@ -82,3 +82,30 @@ Stage Summary:
 - DEMO mode (nexus-hrms-mu.vercel.app): Full dummy data, auto-seeding enabled, demo credentials with auto-fill
 - Hierarchy enforced: super admin → tenant admins → companies → roles
 - Demo link completely independent from production platform
+---
+Task ID: 1
+Agent: Super Z (main)
+Task: Bring all form validation up to standards by integrating the existing validators.ts utility
+
+Work Log:
+- Discovered validators.ts exists with 16+ comprehensive validators but had ZERO imports across the codebase
+- Integrated validateEmail + validatePasswordRequired into login page (replacing bare !email/!password checks)
+- Integrated validateEmail into candidate-portal login (replacing inline regex /^[^\s@]+@[^\s@]+\.[^\s@]+$/)
+- Integrated validatePasswordStrength into set-password page (replacing inline strength calculation)
+- Integrated validateEmail + validateName into careers contact form (removing isEmailValid function)
+- Integrated validateEmail + validatePhone + validateName into register page (adding format checks for company/contact email, phone, name)
+- Integrated validateEmail/Phone/Aadhaar/PAN/IFSC/BankAccount/UAN into employee form (40+ fields now validated)
+- Integrated validateEmail into forgot-password page and client-portal login
+- Integrated validatePasswordRequired into lock-screen page
+- Added sanitizeSearch() to SearchBar component in nexus-ui (affects all pages using it)
+- Added sanitizeSearch() to Header.tsx global search
+- Added sanitizeSearch() to 8 key dashboard pages: employees/dashboard, attendance, leave, payroll/processing, invoices, reports, modules, email
+- Installed zod@4.4.3 + @hookform/resolvers@5.7.1 for future react-hook-form schema integration
+- Verified: TypeScript compilation passes for all modified files, Next.js build succeeds with 0 errors
+
+Stage Summary:
+- The centralized validators.ts is now actively used across 14+ files (was 0 before)
+- All auth pages (login, candidate login, client portal login, lock screen, forgot password, set password) now use proper validation
+- Employee form (40+ fields) now validates email, phone, Aadhaar (with Luhn), PAN (with entity type), IFSC, bank account, UAN
+- Search input sanitization applied to SearchBar component + 9 direct search inputs across dashboard pages
+- zod + @hookform/resolvers installed as foundation for migrating forms to react-hook-form + zod schemas

@@ -18,6 +18,7 @@ import {
   FiX,
   FiMail,
 } from 'react-icons/fi';
+import { sanitizeSearch } from '@/lib/validators';
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -907,7 +908,7 @@ export default function EmailPage() {
               <input
                 type="text"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => setSearchQuery(sanitizeSearch(e.target.value))}
                 placeholder="Search emails..."
                 className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-thb-border bg-slate-50 text-thb-text-primary placeholder:text-thb-text-muted focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 transition-all"
               />

@@ -19,6 +19,7 @@
     "db:setup:demo": "prisma db push && npx tsx prisma/seed-demo.ts"
   },
   "dependencies": {
+    "@hookform/resolvers": "^5.7.1",
     "@neondatabase/serverless": "^1.1.0",
     "@prisma/adapter-neon": "^7.8.0",
     "@prisma/client": "^7.8.0",
@@ -58,6 +59,7 @@
     "unpdf": "^1.6.2",
     "xlsx": "^0.18.5",
     "z-ai-web-dev-sdk": "^0.0.18",
+    "zod": "^4.4.3",
     "zustand": "^5.0.14"
   },
   "devDependencies": {

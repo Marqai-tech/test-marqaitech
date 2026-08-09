@@ -37,6 +37,7 @@ import {
   FiSmile,
 } from 'react-icons/fi';
 import { cn } from '@/lib/utils';
+import { sanitizeSearch } from '@/lib/validators';
 
 // ────────────────────────────────────────────────────────────────
 // Shared Types & Color Maps
@@ -851,7 +852,7 @@ export function SearchBar({
       <input
         type="text"
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) => onChange(sanitizeSearch(e.target.value))}
         placeholder={placeholder}
         className="w-full pl-9 pr-12 py-2 rounded-[var(--nexus-radius-md)] bg-[var(--nexus-card-bg)] border border-[var(--nexus-border)] text-sm text-[var(--nexus-text-primary)] placeholder:text-[var(--nexus-text-muted)] focus:outline-none focus:border-[#4F6BF6] focus:ring-2 focus:ring-[#4F6BF6]/10 transition-all"
       />

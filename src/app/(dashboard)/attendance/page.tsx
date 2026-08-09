@@ -27,6 +27,7 @@ import {
 } from 'react-icons/fi';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
+import { sanitizeSearch } from '@/lib/validators';
 import { useAuthStore } from '@/store/authStore';
 import ModuleTips from '@/components/ModuleTips';
 import ModuleWorkflow from '@/components/ModuleWorkflow';
@@ -546,7 +547,7 @@ export default function AttendancePage() {
                   type="text"
                   placeholder="Search employee..."
                   value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
+                  onChange={e => setSearchQuery(sanitizeSearch(e.target.value))}
                   className="w-full pl-9 pr-3 py-2 text-sm border border-thb-border rounded-lg bg-white text-thb-text-primary placeholder:text-thb-text-muted focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all"
                 />
               </div>

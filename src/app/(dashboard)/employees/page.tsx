@@ -30,6 +30,15 @@ import {
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
+import {
+  validateEmail as validateEmailFormat,
+  validatePhone,
+  validateAadhaar,
+  validatePAN,
+  validateIFSC,
+  validateBankAccount,
+  validateUAN,
+} from '@/lib/validators';
 import ModuleTips from '@/components/ModuleTips';
 import ModuleWorkflow from '@/components/ModuleWorkflow';
 import BulkImportTab from '@/components/BulkImportTab';
@@ -770,6 +779,44 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
       const employmentFields = ['Department', 'Designation', 'Date of Joining'];
       if (personalFields.includes(missingFields[0])) setFormTab('personal');
       else if (employmentFields.includes(missingFields[0])) setFormTab('employment');
+      return;
+    }
+
+    // Format validation using centralized validators
+    const formatErrors: string[] = [];
+    const emailFmt = validateEmailFormat(form.email);
+    if (!emailFmt.valid) formatErrors.push(emailFmt.error!);
+
+    if (form.phone) {
+      const r = validatePhone(form.phone);
+      if (!r.valid) formatErrors.push(r.error!);
+    }
+    if (form.aadhaarNumber) {
+      const r = validateAadhaar(form.aadhaarNumber);
+      if (!r.valid) formatErrors.push(r.error!);
+    }
+    if (form.panNumber) {
+      const r = validatePAN(form.panNumber);
+      if (!r.valid) formatErrors.push(r.error!);
+    }
+    if (form.bankIfscCode) {
+      const r = validateIFSC(form.bankIfscCode);
+      if (!r.valid) formatErrors.push(r.error!);
+    }
+    if (form.bankAccountNo) {
+      const r = validateBankAccount(form.bankAccountNo);
+      if (!r.valid) formatErrors.push(r.error!);
+    }
+    if (form.pfUAN) {
+      const r = validateUAN(form.pfUAN);
+      if (!r.valid) formatErrors.push(r.error!);
+    }
+    if (form.emergencyContactPhone) {
+      const r = validatePhone(form.emergencyContactPhone);
+      if (!r.valid) formatErrors.push(`Emergency contact: ${r.error!}`);
+    }
+    if (formatErrors.length > 0) {
+      toast.error(`Validation errors: ${formatErrors.join('; ')}`, { duration: 6000 });
       return;
     }
     try {

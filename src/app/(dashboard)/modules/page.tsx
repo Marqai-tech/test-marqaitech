@@ -10,6 +10,7 @@ import {
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
 import { canRoleAccessModule, isModuleEnabledForTenant } from '@/lib/roleAccess';
+import { sanitizeSearch } from '@/lib/validators';
 import { navSections, MODULE_GROUPS } from '@/lib/navData';
 import type { NavSection, ModuleGroup, DashboardTab } from '@/lib/navData';
 import { useTenantModuleStore } from '@/store/tenantModuleStore';
@@ -110,7 +111,7 @@ export default function ModulesPage() {
           <input
             type="text"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => setSearchQuery(sanitizeSearch(e.target.value))}
             placeholder="Search modules..."
             className="w-full pl-10 pr-4 py-2 rounded-xl border border-green-200 bg-green-50/30 text-sm text-thb-text-primary placeholder:text-green-400/60 focus:outline-none focus:ring-2 focus:ring-green-500/30 focus:border-green-400 focus:bg-white transition-all"
           />

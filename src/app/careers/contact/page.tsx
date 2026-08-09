@@ -9,6 +9,7 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { Card } from '@/components/nexus-ui';
+import { validateEmail, validateName } from '@/lib/validators';
 
 const CONTACT_CARDS = [
   { icon: FiMail, title: 'Email Us', lines: ['careers@3boxes-hrms.com', 'support@3boxes-hrms.com'], href: 'mailto:careers@3boxes-hrms.com', accent: 'from-green-500 to-emerald-600' },
@@ -26,8 +27,6 @@ const FAQ_LINKS = [
 interface ContactForm { name: string; email: string; subject: string; message: string; }
 const EMPTY_FORM: ContactForm = { name: '', email: '', subject: '', message: '' };
 
-function isEmailValid(s: string) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.trim()); }
-
 export default function ContactPage() {
   const [form, setForm] = useState<ContactForm>(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
@@ -38,8 +37,10 @@ export default function ContactPage() {
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const { name, email, subject, message } = form;
-    if (!name.trim()) { toast.error('Please enter your name.'); return; }
-    if (!email.trim() || !isEmailValid(email)) { toast.error('Please enter a valid email address.'); return; }
+    const nameResult = validateName(name, 'Name');
+    if (!nameResult.valid) { toast.error(nameResult.error!); return; }
+    const emailResult = validateEmail(email);
+    if (!emailResult.valid) { toast.error(emailResult.error!); return; }
     if (!subject.trim()) { toast.error('Please add a subject.'); return; }
     if (!message.trim() || message.length < 10) { toast.error('Please write a message (at least 10 characters).'); return; }
     setSubmitting(true);

@@ -17,6 +17,7 @@ import { HiShieldCheck } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { isClientLiveMode } from '@/lib/site-mode';
+import { validateEmail, validatePasswordRequired } from '@/lib/validators';
 
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: string[];
@@ -156,15 +157,17 @@ export default function LoginPage() {
     e.preventDefault();
     setError('');
 
-    if (!email.trim()) {
-      setError('Please enter your email address');
-      toast.error('Please enter your email address');
+    const emailResult = validateEmail(email);
+    if (!emailResult.valid) {
+      setError(emailResult.error!);
+      toast.error(emailResult.error!);
       return;
     }
 
-    if (!password.trim()) {
-      setError('Please enter your password');
-      toast.error('Please enter your password');
+    const passwordResult = validatePasswordRequired(password);
+    if (!passwordResult.valid) {
+      setError(passwordResult.error!);
+      toast.error(passwordResult.error!);
       return;
     }
 
@@ -195,8 +198,13 @@ export default function LoginPage() {
 
   // ─── Candidate login handlers ───
   const handleCandidateLoginPassword = async () => {
-    if (!candidateEmail.trim() || !candidatePassword.trim()) {
-      setCandidateError('Email and password are required');
+    const emailResult = validateEmail(candidateEmail);
+    if (!emailResult.valid) {
+      setCandidateError(emailResult.error!);
+      return;
+    }
+    if (!candidatePassword.trim()) {
+      setCandidateError('Password is required');
       return;
     }
     setIsSubmitting(true);
@@ -233,8 +241,9 @@ export default function LoginPage() {
   };
 
   const handleCandidateRequestOtp = async () => {
-    if (!candidateEmail.trim()) {
-      setCandidateError('Please enter your email');
+    const emailResult = validateEmail(candidateEmail);
+    if (!emailResult.valid) {
+      setCandidateError(emailResult.error!);
       return;
     }
     setIsSubmitting(true);

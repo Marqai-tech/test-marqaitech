@@ -1,6 +1,8 @@
 'use client';
 import { useState } from 'react';
 import Link from 'next/link';
+import toast from 'react-hot-toast';
+import { validateEmail } from '@/lib/validators';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -11,7 +13,11 @@ export default function ForgotPasswordPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!email) return;
+    const emailResult = validateEmail(email);
+    if (!emailResult.valid) {
+      toast.error(emailResult.error!);
+      return;
+    }
     setLoading(true);
     setError(null);
     setMessage(null);

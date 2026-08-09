@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
 import { FiLock, FiEye, FiEyeOff } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import { validatePasswordRequired } from '@/lib/validators';
 
 export default function LockScreenPage() {
   const router = useRouter();
@@ -23,8 +24,9 @@ export default function LockScreenPage() {
 
   const handleUnlock = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!password) {
-      toast.error('Please enter your password');
+    const pwResult = validatePasswordRequired(password);
+    if (!pwResult.valid) {
+      toast.error(pwResult.error!);
       return;
     }
     setLoading(true);

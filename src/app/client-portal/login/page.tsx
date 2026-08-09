@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { validateEmail } from '@/lib/validators';
 
 export default function ClientPortalLogin() {
   const [step, setStep] = useState<'request' | 'verify'>('request');
@@ -10,7 +11,10 @@ export default function ClientPortalLogin() {
   const [loading, setLoading] = useState(false);
 
   async function requestOtp(e: any) {
-    e.preventDefault(); setError(''); setLoading(true);
+    e.preventDefault(); setError('');
+    const emailResult = validateEmail(email);
+    if (!emailResult.valid) { setError(emailResult.error!); return; }
+    setLoading(true);
     const r = await fetch('/api/client-portal/auth/request-otp', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) });
     setLoading(false);
     if (r.ok) setStep('verify'); else setError((await r.json()).error);

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { validateEmail, validatePhone, validateName } from '@/lib/validators';
 
 const industries = [
   'Technology / IT Services',
@@ -130,6 +131,37 @@ export default function TrialRegisterPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    // Client-side validation using centralized validators
+    const companyNameResult = validateName(form.companyName, 'Company name');
+    if (!companyNameResult.valid) { setError(companyNameResult.error!); return; }
+
+    if (!form.companyCode || form.companyCode.trim().length < 3) {
+      setError('Company code must be at least 3 characters'); return;
+    }
+    if (!/^[a-z0-9-]+$/i.test(form.companyCode.trim())) {
+      setError('Company code can only contain letters, numbers, and hyphens'); return;
+    }
+
+    const companyEmailResult = validateEmail(form.companyEmail);
+    if (!companyEmailResult.valid) { setError(companyEmailResult.error!); return; }
+
+    if (form.companyPhone) {
+      const phoneResult = validatePhone(form.companyPhone);
+      if (!phoneResult.valid) { setError(phoneResult.error!); return; }
+    }
+
+    const contactNameResult = validateName(form.contactName, 'Contact name');
+    if (!contactNameResult.valid) { setError(contactNameResult.error!); return; }
+
+    const contactEmailResult = validateEmail(form.contactEmail);
+    if (!contactEmailResult.valid) { setError(contactEmailResult.error!); return; }
+
+    if (form.contactPhone) {
+      const contactPhoneResult = validatePhone(form.contactPhone);
+      if (!contactPhoneResult.valid) { setError(contactPhoneResult.error!); return; }
+    }
+
     setLoading(true);
 
     try {

@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { FiLock, FiCheck, FiArrowRight, FiEye, FiEyeOff, FiArrowLeft } from 'react-icons/fi';
+import { validatePasswordStrength } from '@/lib/validators';
 
 /**
  * Set Password page — shown after a candidate's first OTP login if they
@@ -31,20 +32,14 @@ export default function SetPasswordPage() {
     }
   }, [token, router]);
 
-  const strength = (() => {
-    let s = 0;
-    if (password.length >= 8) s++;
-    if (/[A-Z]/.test(password)) s++;
-    if (/[0-9]/.test(password)) s++;
-    if (/[^A-Za-z0-9]/.test(password)) s++;
-    return s; // 0..4
-  })();
-  const strengthLabel = ['Too weak', 'Weak', 'Okay', 'Good', 'Strong'][strength];
+  const pwStrength = validatePasswordStrength(password);
+  const strength = pwStrength.score;
+  const strengthLabel = pwStrength.label;
   const strengthColor = ['bg-slate-200', 'bg-red-400', 'bg-amber-400', 'bg-sky-400', 'bg-emerald-500'][strength];
 
   const submit = async () => {
-    if (password.length < 8) {
-      toast.error('Password must be at least 8 characters');
+    if (!pwStrength.valid) {
+      toast.error(pwStrength.error!);
       return;
     }
     if (password !== confirm) {
@@ -170,7 +165,7 @@ export default function SetPasswordPage() {
 
               <button
                 onClick={submit}
-                disabled={loading || password.length < 8 || password !== confirm}
+                disabled={loading || !pwStrength.valid || password !== confirm}
                 className="w-full flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 disabled:bg-slate-300 text-white font-medium py-2.5 rounded-lg text-sm transition-colors"
               >
                 {loading ? 'Setting password…' : <>Set Password & Continue <FiArrowRight className="w-4 h-4" /></>}
