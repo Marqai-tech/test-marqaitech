@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -63,23 +63,67 @@ interface HeaderProps {
 }
 
 const MODULE_SEARCH_MAP: Record<string, string> = {
+  // ── Company Module ──
+  company: '/company',
+  'company-dashboard': '/company',
+  companies: '/company/companies',
+  branches: '/company/branches',
+  branch: '/company/branches',
+  departments: '/company/departments',
+  department: '/company/departments',
+  designations: '/company/designations',
+  designation: '/company/designations',
+  grades: '/company/grades',
+  grade: '/company/grades',
+  shifts: '/company/shifts',
+  shift: '/company/shifts',
+  holidays: '/company/holidays',
+  holiday: '/company/holidays',
+  policies: '/company/policies',
+  policy: '/company/policies',
+  'company-settings': '/company/settings',
+  'company-reports': '/company/reports',
+
+  // ── Employee Module ──
   employees: '/employees',
   employee: '/employees',
+  'employee-dashboard': '/employees/dashboard',
+  'add-employee': '/employees/add',
+  probation: '/employees/probation',
+  transfer: '/employees/transfer',
+  resignation: '/employees/resignation',
+  termination: '/employees/termination',
+
+  // ── Leave Module ──
   leave: '/leave',
+
+  // ── Payroll Module ──
   payroll: '/payroll',
+
+  // ── Attendance Module ──
   attendance: '/attendance',
+
+  // ── Recruitment Module ──
   recruitment: '/recruitment',
+
+  // ── Helpdesk Module ──
   helpdesk: '/helpdesk',
+
+  // ── Other Modules ──
   settings: '/settings',
   reports: '/reports',
   performance: '/performance',
+  'performance-appraisal': '/performance',
+  appraisal: '/performance',
   training: '/training',
   assets: '/assets',
   projects: '/projects',
   project: '/projects',
   expenses: '/expenses',
+  'travel-expense': '/expenses',
   travel: '/travel',
   onboarding: '/onboarding',
+  preboarding: '/onboarding',
   offboarding: '/separation',
   separation: '/separation',
   exit: '/separation',
@@ -106,10 +150,21 @@ const MODULE_SEARCH_MAP: Record<string, string> = {
   engagement: '/engagement',
   vendors: '/vendors',
   clients: '/clients',
+  accounts: '/accounts',
+  crm: '/crm',
   invoices: '/invoices',
   offers: '/offers',
   requisitions: '/requisitions',
   workflows: '/workflows',
+  subscriptions: '/super-admin/subscriptions',
+  packages: '/super-admin/packages',
+  'feature-flags': '/super-admin/feature-flags',
+  'sso-providers': '/super-admin/sso-providers',
+  rbac: '/super-admin/rbac',
+  support: '/helpdesk',
+  collaboration: '/collaboration',
+  knowledge: '/knowledge',
+  marketplace: '/marketplace',
 };
 
 export default function Header({ onSidebarToggle }: HeaderProps) {
@@ -119,8 +174,36 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showSearchDropdown, setShowSearchDropdown] = useState(false);
+  const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(-1);
   const notifRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLDivElement>(null);
+
+  // Compute search suggestions based on query
+  const searchSuggestions = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return [];
+    const matches: { key: string; route: string }[] = [];
+    const seenRoutes = new Set<string>();
+    for (const [key, route] of Object.entries(MODULE_SEARCH_MAP)) {
+      if (key === query || key.startsWith(query) || key.includes(query)) {
+        if (!seenRoutes.has(route)) {
+          seenRoutes.add(route);
+          matches.push({ key, route });
+        }
+      }
+      if (matches.length >= 8) break; // max 8 suggestions
+    }
+    return matches;
+  }, [searchQuery]);
+
+  const handleSearchSelect = useCallback((route: string) => {
+    router.push(route);
+    setSearchQuery('');
+    setShowSearchDropdown(false);
+    setActiveSuggestionIndex(-1);
+  }, [router]);
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -130,6 +213,9 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
       }
       if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
         setShowUserMenu(false);
+      }
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setShowSearchDropdown(false);
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
@@ -177,37 +263,81 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
       </div>
 
       {/* Search Bar */}
-      <div className="flex-1 max-w-xl relative">
-        <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-green-400" />
+      <div className="flex-1 max-w-xl relative" ref={searchRef}>
+        <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-green-400 z-10" />
         <input
           type="text"
           value={searchQuery}
-          onChange={(e) => setSearchQuery(sanitizeSearch(e.target.value))}
+          onChange={(e) => {
+            setSearchQuery(sanitizeSearch(e.target.value));
+            setShowSearchDropdown(true);
+            setActiveSuggestionIndex(-1);
+          }}
+          onFocus={() => {
+            if (searchQuery.trim()) setShowSearchDropdown(true);
+          }}
           onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              const query = searchQuery.trim().toLowerCase();
-              if (!query) return;
-              const route = MODULE_SEARCH_MAP[query];
-              if (route) {
-                router.push(route);
-                setSearchQuery('');
+            if (e.key === 'ArrowDown' && searchSuggestions.length > 0) {
+              e.preventDefault();
+              setActiveSuggestionIndex((prev) =>
+                prev < searchSuggestions.length - 1 ? prev + 1 : 0
+              );
+            } else if (e.key === 'ArrowUp' && searchSuggestions.length > 0) {
+              e.preventDefault();
+              setActiveSuggestionIndex((prev) =>
+                prev > 0 ? prev - 1 : searchSuggestions.length - 1
+              );
+            } else if (e.key === 'Enter') {
+              e.preventDefault();
+              if (activeSuggestionIndex >= 0 && searchSuggestions[activeSuggestionIndex]) {
+                handleSearchSelect(searchSuggestions[activeSuggestionIndex].route);
               } else {
-                // Try partial match: find a key that starts with or contains the query
-                const partialMatch = Object.keys(MODULE_SEARCH_MAP).find(
-                  (key) => key.startsWith(query) || key.includes(query)
-                );
-                if (partialMatch) {
-                  router.push(MODULE_SEARCH_MAP[partialMatch]);
-                  setSearchQuery('');
+                const query = searchQuery.trim().toLowerCase();
+                if (!query) return;
+                const route = MODULE_SEARCH_MAP[query];
+                if (route) {
+                  handleSearchSelect(route);
                 } else {
-                  toast.error(`No module found for '${searchQuery.trim()}'`);
+                  const partialMatch = Object.keys(MODULE_SEARCH_MAP).find(
+                    (key) => key.startsWith(query) || key.includes(query)
+                  );
+                  if (partialMatch) {
+                    handleSearchSelect(MODULE_SEARCH_MAP[partialMatch]);
+                  } else {
+                    toast.error(`No module found for '${searchQuery.trim()}'`);
+                  }
                 }
               }
+            } else if (e.key === 'Escape') {
+              setShowSearchDropdown(false);
+              setActiveSuggestionIndex(-1);
             }
           }}
-          placeholder="Search employees, modules, actions..."
+          placeholder="Search modules, company, employees..."
           className="w-full pl-10 pr-4 py-2 rounded-lg border border-green-200 bg-green-50/30 text-sm text-thb-text-primary placeholder:text-green-400/60 focus:outline-none focus:ring-2 focus:ring-green-500/30 focus:border-green-400 focus:bg-white transition-all"
         />
+
+        {/* Search Suggestions Dropdown */}
+        {showSearchDropdown && searchSuggestions.length > 0 && (
+          <div className="absolute top-full mt-1 left-0 right-0 bg-white border border-slate-200 rounded-lg shadow-lg overflow-hidden z-50">
+            {searchSuggestions.map((suggestion, index) => (
+              <button
+                key={suggestion.route + '-' + suggestion.key}
+                onClick={() => handleSearchSelect(suggestion.route)}
+                onMouseEnter={() => setActiveSuggestionIndex(index)}
+                className={`w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm transition-colors ${
+                  index === activeSuggestionIndex
+                    ? 'bg-green-50 text-green-700'
+                    : 'text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                <FiSearch className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+                <span className="capitalize truncate">{suggestion.key.replace(/-/g, ' ')}</span>
+                <span className="ml-auto text-[10px] text-slate-400 font-mono truncate max-w-[40%]">{suggestion.route}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Company Switcher */}
