@@ -60,9 +60,20 @@ export default function DepartmentsPage() {
 
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault()
+
+    // Duplicate name/code check within same company
+    const isEdit = !!editingId
+    if (form.companyId) {
+      const duplicateName = departments.find(d => d.name.toLowerCase() === form.name.toLowerCase() && d.companyId === form.companyId && d.id !== editingId)
+      if (duplicateName) { toast.error('A department with this name already exists for this company'); return }
+      if (form.code) {
+        const duplicateCode = departments.find(d => (d.code || '').toLowerCase() === form.code.toLowerCase() && d.companyId === form.companyId && d.id !== editingId)
+        if (duplicateCode) { toast.error('A department with this code already exists for this company'); return }
+      }
+    }
+
     setSubmitting(true)
     try {
-      const isEdit = !!editingId
       const body: Record<string, unknown> = { ...form }
       if (isEdit) body.id = editingId
       await apiFetch('/api/departments', { method: isEdit ? 'PUT' : 'POST', body: JSON.stringify(body) })

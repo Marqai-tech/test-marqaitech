@@ -5,6 +5,7 @@ import { FiMapPin, FiPlus, FiSearch, FiEye, FiEdit2, FiTrash2, FiX, FiInfo, FiAl
 import toast from 'react-hot-toast'
 import { useCompanyData, apiFetch, getStatusBadge } from '@/components/company/useCompanyData'
 import { BranchRecord } from '@/components/company/useCompanyData'
+import { validatePhone } from '@/lib/validators'
 
 function TableWrapper({ title, icon, count, children }: { title: string; icon: React.ReactNode; count: number; children: React.ReactNode }) {
   return (
@@ -60,9 +61,26 @@ export default function BranchesPage() {
 
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault()
+
+    // Phone validation
+    if (form.phone) {
+      const phoneResult = validatePhone(form.phone)
+      if (!phoneResult.valid) { toast.error(phoneResult.error || 'Invalid phone number'); return }
+    }
+
+    // Duplicate name/code check within same company
+    const isEdit = !!editingId
+    if (form.companyId) {
+      const duplicateName = branches.find(b => b.name.toLowerCase() === form.name.toLowerCase() && b.companyId === form.companyId && b.id !== editingId)
+      if (duplicateName) { toast.error('A branch with this name already exists for this company'); return }
+      if (form.code) {
+        const duplicateCode = branches.find(b => (b.code || '').toLowerCase() === form.code.toLowerCase() && b.companyId === form.companyId && b.id !== editingId)
+        if (duplicateCode) { toast.error('A branch with this code already exists for this company'); return }
+      }
+    }
+
     setSubmitting(true)
     try {
-      const isEdit = !!editingId
       const body: Record<string, unknown> = { ...form }
       if (isEdit) body.id = editingId
       await apiFetch('/api/branches', { method: isEdit ? 'PUT' : 'POST', body: JSON.stringify(body) })

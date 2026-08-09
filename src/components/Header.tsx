@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   FiMenu,
   FiSearch,
@@ -61,7 +62,58 @@ interface HeaderProps {
   onSidebarToggle: () => void;
 }
 
+const MODULE_SEARCH_MAP: Record<string, string> = {
+  employees: '/employees',
+  employee: '/employees',
+  leave: '/leave',
+  payroll: '/payroll',
+  attendance: '/attendance',
+  recruitment: '/recruitment',
+  helpdesk: '/helpdesk',
+  settings: '/settings',
+  reports: '/reports',
+  performance: '/performance',
+  training: '/training',
+  assets: '/assets',
+  projects: '/projects',
+  project: '/projects',
+  expenses: '/expenses',
+  travel: '/travel',
+  onboarding: '/onboarding',
+  offboarding: '/separation',
+  separation: '/separation',
+  exit: '/separation',
+  timesheets: '/timesheets',
+  timesheet: '/timesheets',
+  dashboard: '/dashboard',
+  home: '/home',
+  analytics: '/analytics',
+  compliance: '/governance',
+  governance: '/governance',
+  profile: '/my-profile',
+  'my-profile': '/my-profile',
+  myprofile: '/my-profile',
+  roles: '/settings',
+  'roles-access': '/settings',
+  modules: '/modules',
+  'audit-logs': '/super-admin/audit-logs',
+  audit: '/super-admin/audit-logs',
+  notifications: '/notifications',
+  calendar: '/calendar',
+  documents: '/documents',
+  docs: '/docs',
+  okrs: '/okrs',
+  engagement: '/engagement',
+  vendors: '/vendors',
+  clients: '/clients',
+  invoices: '/invoices',
+  offers: '/offers',
+  requisitions: '/requisitions',
+  workflows: '/workflows',
+};
+
 export default function Header({ onSidebarToggle }: HeaderProps) {
+  const router = useRouter();
   const { user, logout } = useAuthStore();
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotificationStore();
   const [showNotifications, setShowNotifications] = useState(false);
@@ -131,6 +183,28 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(sanitizeSearch(e.target.value))}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              const query = searchQuery.trim().toLowerCase();
+              if (!query) return;
+              const route = MODULE_SEARCH_MAP[query];
+              if (route) {
+                router.push(route);
+                setSearchQuery('');
+              } else {
+                // Try partial match: find a key that starts with or contains the query
+                const partialMatch = Object.keys(MODULE_SEARCH_MAP).find(
+                  (key) => key.startsWith(query) || key.includes(query)
+                );
+                if (partialMatch) {
+                  router.push(MODULE_SEARCH_MAP[partialMatch]);
+                  setSearchQuery('');
+                } else {
+                  toast.error(`No module found for '${searchQuery.trim()}'`);
+                }
+              }
+            }
+          }}
           placeholder="Search employees, modules, actions..."
           className="w-full pl-10 pr-4 py-2 rounded-lg border border-green-200 bg-green-50/30 text-sm text-thb-text-primary placeholder:text-green-400/60 focus:outline-none focus:ring-2 focus:ring-green-500/30 focus:border-green-400 focus:bg-white transition-all"
         />

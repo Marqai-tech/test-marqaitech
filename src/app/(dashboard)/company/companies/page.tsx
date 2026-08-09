@@ -5,6 +5,7 @@ import { FiHome, FiPlus, FiSearch, FiEye, FiEdit2, FiTrash2, FiX, FiLayers, FiIn
 import toast from 'react-hot-toast'
 import { useCompanyData, apiFetch, fmtSalary, fmtDate, fmtDay, fmtTime, gradeCode, gradeName, getStatusBadge } from '@/components/company/useCompanyData'
 import { CompanyRecord } from '@/components/company/useCompanyData'
+import { validatePhone } from '@/lib/validators'
 
 export default function CompaniesPage() {
   const { companies, branches, departments, loading, isAdmin, isSuperAdmin, isTenantAdmin, fetchCompanies } = useCompanyData()
@@ -62,9 +63,24 @@ export default function CompaniesPage() {
 
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault()
+
+    // Phone validation
+    if (form.phone) {
+      const phoneResult = validatePhone(form.phone)
+      if (!phoneResult.valid) { toast.error(phoneResult.error || 'Invalid phone number'); return }
+    }
+
+    // Duplicate name/code check
+    const isEdit = !!editingId
+    const duplicateName = companies.find(c => c.name.toLowerCase() === form.name.toLowerCase() && c.id !== editingId)
+    if (duplicateName) { toast.error('A company with this name already exists'); return }
+    if (form.code) {
+      const duplicateCode = companies.find(c => (c.code || '').toLowerCase() === form.code.toLowerCase() && c.id !== editingId)
+      if (duplicateCode) { toast.error('A company with this code already exists'); return }
+    }
+
     setSubmitting(true)
     try {
-      const isEdit = !!editingId
       const url = '/api/companies'
       const method = isEdit ? 'PUT' : 'POST'
       const body: Record<string, unknown> = { ...form }

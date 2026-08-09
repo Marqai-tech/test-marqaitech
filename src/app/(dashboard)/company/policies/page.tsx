@@ -5,6 +5,7 @@ import { FiFileText, FiPlus, FiSearch, FiEye, FiEdit2, FiTrash2, FiX, FiAlertTri
 import toast from 'react-hot-toast'
 import { useCompanyData, apiFetch, fmtDate, getStatusBadge } from '@/components/company/useCompanyData'
 import { PolicyRecord } from '@/components/company/useCompanyData'
+import { useCompanyContextStore } from '@/store/companyContextStore'
 
 function TableWrapper({ title, icon, count, children }: { title: string; icon: React.ReactNode; count: number; children: React.ReactNode }) {
   return (
@@ -26,6 +27,7 @@ const TD = ({ children, className = '' }: { children: React.ReactNode; className
 
 export default function PoliciesPage() {
   const { policies, loading, isAdmin, fetchPolicies } = useCompanyData()
+  const companyId = useCompanyContextStore(s => s.effectiveCompanyId())
 
   const [search, setSearch] = useState('')
   const [showForm, setShowForm] = useState(false)
@@ -63,8 +65,9 @@ export default function PoliciesPage() {
     setSubmitting(true)
     try {
       const isEdit = !!editingId
-      const body: Record<string, unknown> = { ...form }
+      const body: Record<string, unknown> = { ...form, companyId }
       if (isEdit) body.id = editingId
+      if (!companyId) { toast.error('Company ID is required'); setSubmitting(false); return }
       await apiFetch('/api/policies', { method: isEdit ? 'PUT' : 'POST', body: JSON.stringify(body) })
       toast.success(`Policy ${isEdit ? 'updated' : 'created'} successfully`)
       handleCancelForm()

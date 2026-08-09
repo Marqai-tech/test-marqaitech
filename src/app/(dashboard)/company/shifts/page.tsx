@@ -5,6 +5,7 @@ import { FiClock, FiPlus, FiSearch, FiEye, FiEdit2, FiTrash2, FiX, FiMoon, FiSun
 import toast from 'react-hot-toast'
 import { useCompanyData, apiFetch, fmtTime, getStatusBadge } from '@/components/company/useCompanyData'
 import { ShiftRecord } from '@/components/company/useCompanyData'
+import { useCompanyContextStore } from '@/store/companyContextStore'
 
 function TableWrapper({ title, icon, count, children }: { title: string; icon: React.ReactNode; count: number; children: React.ReactNode }) {
   return (
@@ -26,6 +27,7 @@ const TD = ({ children, className = '' }: { children: React.ReactNode; className
 
 export default function ShiftsPage() {
   const { shifts, loading, isAdmin, fetchShifts } = useCompanyData()
+  const companyId = useCompanyContextStore(s => s.effectiveCompanyId())
 
   const [search, setSearch] = useState('')
   const [showForm, setShowForm] = useState(false)
@@ -58,11 +60,32 @@ export default function ShiftsPage() {
 
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault()
+
+    // startTime and endTime are required
+    if (!form.startTime) { toast.error('Start time is required'); return }
+    if (!form.endTime) { toast.error('End time is required'); return }
+
+    // Validate breakDuration and graceTime: must be non-negative
+    const breakVal = Number(form.breakDuration)
+    const graceVal = Number(form.graceTime)
+    if (isNaN(breakVal) || breakVal < 0) { toast.error('Break duration cannot be negative'); return }
+    if (isNaN(graceVal) || graceVal < 0) { toast.error('Grace time cannot be negative'); return }
+
+    // Calculate shift duration in minutes (allow overnight shifts where endTime < startTime)
+    const [startH, startM] = form.startTime.split(':').map(Number)
+    const [endH, endM] = form.endTime.split(':').map(Number)
+    let shiftMinutes = (endH * 60 + endM) - (startH * 60 + startM)
+    if (shiftMinutes <= 0) shiftMinutes += 24 * 60 // overnight shift
+
+    // breakDuration cannot exceed total shift duration
+    if (breakVal > shiftMinutes) { toast.error('Break duration cannot exceed total shift duration'); return }
+
     setSubmitting(true)
     try {
       const isEdit = !!editingId
-      const body: Record<string, unknown> = { ...form }
+      const body: Record<string, unknown> = { ...form, companyId }
       if (isEdit) body.id = editingId
+      if (!companyId) { toast.error('Company ID is required'); setSubmitting(false); return }
       await apiFetch('/api/shifts', { method: isEdit ? 'PUT' : 'POST', body: JSON.stringify(body) })
       toast.success(`Shift ${isEdit ? 'updated' : 'created'} successfully`)
       handleCancelForm()

@@ -38,6 +38,7 @@ import {
   validateIFSC,
   validateBankAccount,
   validateUAN,
+  validateName,
 } from '@/lib/validators';
 import ModuleTips from '@/components/ModuleTips';
 import ModuleWorkflow from '@/components/ModuleWorkflow';
@@ -319,6 +320,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
 
   // Horizontal form tab state
   const [formTab, setFormTab] = useState('personal');
+  const [stepErrors, setStepErrors] = useState<Record<string, string>>({});
   const formTabs = [
     { key: 'personal', label: 'Personal', icon: '👤' },
     { key: 'address', label: 'Address', icon: '📍' },
@@ -331,6 +333,80 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
     { key: 'experience', label: 'Experience', icon: '📄' },
     { key: 'policies', label: 'Policies', icon: '🛡️' },
   ] as const;
+
+  // Per-step required field definitions for stepper validation
+  const stepRequiredFields: Record<string, { field: string; label: string }[]> = {
+    personal: [
+      { field: 'firstName', label: 'First Name' },
+      { field: 'lastName', label: 'Last Name' },
+      { field: 'email', label: 'Email' },
+      { field: 'employeeId', label: 'Employee ID' },
+    ],
+    address: [
+      { field: 'city', label: 'City' },
+    ],
+    employment: [
+      { field: 'departmentId', label: 'Department' },
+      { field: 'designationId', label: 'Designation' },
+      { field: 'dateOfJoining', label: 'Date of Joining' },
+    ],
+  };
+
+  // Per-step format validation (runs on Next, not just on final submit)
+  const stepFormatValidators: Record<string, { field: string; label: string; validate: (v: string) => { valid: boolean; error?: string } }[]> = {
+    personal: [
+      { field: 'firstName', label: 'First Name', validate: (v) => validateName(v, 'First name') },
+      { field: 'lastName', label: 'Last Name', validate: (v) => validateName(v, 'Last name') },
+      { field: 'email', label: 'Email', validate: validateEmailFormat },
+      { field: 'phone', label: 'Phone', validate: validatePhone },
+    ],
+    bank: [
+      { field: 'bankIfscCode', label: 'IFSC', validate: validateIFSC },
+      { field: 'bankAccountNo', label: 'Bank Account', validate: validateBankAccount },
+      { field: 'panNumber', label: 'PAN', validate: validatePAN },
+      { field: 'aadhaarNumber', label: 'Aadhaar', validate: validateAadhaar },
+    ],
+    statutory: [
+      { field: 'pfUAN', label: 'UAN', validate: validateUAN },
+    ],
+  };
+
+  /** Validate current step and advance to next if valid */
+  const handleNextStep = () => {
+    setStepErrors({});
+    const errors: Record<string, string> = {};
+
+    // 1. Required field check for this step
+    const required = stepRequiredFields[formTab] || [];
+    for (const { field, label } of required) {
+      const value = (form as any)[field];
+      if (!value || !String(value).trim()) {
+        errors[field] = `${label} is required`;
+      }
+    }
+
+    // 2. Format validation for this step (only if field has a value)
+    const validators = stepFormatValidators[formTab] || [];
+    for (const { field, label, validate } of validators) {
+      const value = (form as any)[field];
+      if (value && String(value).trim()) {
+        const result = validate(String(value));
+        if (!result.valid) {
+          errors[field] = result.error!;
+        }
+      }
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setStepErrors(errors);
+      toast.error(`Please fix: ${Object.values(errors).join(', ')}`, { duration: 4000 });
+      return; // BLOCK navigation
+    }
+
+    // Advance to next tab
+    const idx = formTabs.findIndex((t) => t.key === formTab);
+    if (idx < formTabs.length - 1) setFormTab(formTabs[idx + 1].key);
+  };
 
   // Stats calculations
   const stats = {
@@ -1342,7 +1418,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                     </div>
                   </div>
                   <div className="flex justify-end pt-2">
-                    <button type="button" onClick={() => setFormTab('address')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 shadow-sm transition-colors">
+                    <button type="button" onClick={handleNextStep} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 shadow-sm transition-colors">
                       Next: Address <FiChevronRight className="w-4 h-4" />
                     </button>
                   </div>
@@ -1378,7 +1454,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                     <button type="button" onClick={() => setFormTab('personal')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">
                       <FiChevronLeft className="w-4 h-4" /> Back
                     </button>
-                    <button type="button" onClick={() => setFormTab('employment')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 shadow-sm transition-colors">
+                    <button type="button" onClick={handleNextStep} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 shadow-sm transition-colors">
                       Next: Employment <FiChevronRight className="w-4 h-4" />
                     </button>
                   </div>
@@ -1497,7 +1573,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                     <button type="button" onClick={() => setFormTab('address')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">
                       <FiChevronLeft className="w-4 h-4" /> Back
                     </button>
-                    <button type="button" onClick={() => setFormTab('bank')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 shadow-sm transition-colors">
+                    <button type="button" onClick={handleNextStep} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 shadow-sm transition-colors">
                       Next: Bank & Finance <FiChevronRight className="w-4 h-4" />
                     </button>
                   </div>
@@ -1533,7 +1609,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                     <button type="button" onClick={() => setFormTab('employment')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">
                       <FiChevronLeft className="w-4 h-4" /> Back
                     </button>
-                    <button type="button" onClick={() => setFormTab('statutory')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 shadow-sm transition-colors">
+                    <button type="button" onClick={handleNextStep} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 shadow-sm transition-colors">
                       Next: Statutory <FiChevronRight className="w-4 h-4" />
                     </button>
                   </div>
@@ -1641,7 +1717,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                     <button type="button" onClick={() => setFormTab('bank')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">
                       <FiChevronLeft className="w-4 h-4" /> Back
                     </button>
-                    <button type="button" onClick={() => setFormTab('emergency')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 shadow-sm transition-colors">
+                    <button type="button" onClick={handleNextStep} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 shadow-sm transition-colors">
                       Next: Emergency <FiChevronRight className="w-4 h-4" />
                     </button>
                   </div>
@@ -1665,7 +1741,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                     <button type="button" onClick={() => setFormTab('statutory')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">
                       <FiChevronLeft className="w-4 h-4" /> Back
                     </button>
-                    <button type="button" onClick={() => setFormTab('health')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 shadow-sm transition-colors">
+                    <button type="button" onClick={handleNextStep} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 shadow-sm transition-colors">
                       Next: Health <FiChevronRight className="w-4 h-4" />
                     </button>
                   </div>
@@ -1787,7 +1863,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                     <button type="button" onClick={() => setFormTab('emergency')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">
                       <FiChevronLeft className="w-4 h-4" /> Back
                     </button>
-                    <button type="button" onClick={() => setFormTab('overseas')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 shadow-sm transition-colors">
+                    <button type="button" onClick={handleNextStep} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 shadow-sm transition-colors">
                       Next: Overseas <FiChevronRight className="w-4 h-4" />
                     </button>
                   </div>
@@ -1894,7 +1970,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                     <button type="button" onClick={() => setFormTab('health')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">
                       <FiChevronLeft className="w-4 h-4" /> Back
                     </button>
-                    <button type="button" onClick={() => setFormTab('experience')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 shadow-sm transition-colors">
+                    <button type="button" onClick={handleNextStep} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 shadow-sm transition-colors">
                       Next: Experience <FiChevronRight className="w-4 h-4" />
                     </button>
                   </div>
@@ -1979,7 +2055,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                     <button type="button" onClick={() => setFormTab('overseas')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">
                       <FiChevronLeft className="w-4 h-4" /> Back
                     </button>
-                    <button type="button" onClick={() => setFormTab('policies')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 shadow-sm transition-colors">
+                    <button type="button" onClick={handleNextStep} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 shadow-sm transition-colors">
                       Next: Policies <FiChevronRight className="w-4 h-4" />
                     </button>
                   </div>

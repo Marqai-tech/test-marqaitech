@@ -310,11 +310,11 @@ function SuperAdminHome({ firstName, greeting, today }: { firstName: string; gre
 
   const quickLinks = [
     { icon: <FiUsers className="w-5 h-5" />, label: 'Employees', href: '/employees', bg: 'from-emerald-400 to-green-500', shadow: 'shadow-green-500/25' },
-    { icon: <FiShield className="w-5 h-5" />, label: 'Roles & Access', href: '/super-admin/rbac', bg: 'from-teal-400 to-teal-500', shadow: 'shadow-teal-500/25' },
+    { icon: <FiShield className="w-5 h-5" />, label: 'Roles & Access', href: '/settings', bg: 'from-teal-400 to-teal-500', shadow: 'shadow-teal-500/25' },
     { icon: <FiSettings className="w-5 h-5" />, label: 'Tenant Setup', href: '/tenant-admin', bg: 'from-cyan-400 to-sky-500', shadow: 'shadow-sky-500/25' },
     { icon: <FiServer className="w-5 h-5" />, label: 'System Health', href: '/super-admin', bg: 'from-emerald-400 to-green-500', shadow: 'shadow-green-500/25' },
-    { icon: <FiGrid className="w-5 h-5" />, label: 'Modules', href: '/super-admin', bg: 'from-amber-400 to-orange-500', shadow: 'shadow-orange-500/25' },
-    { icon: <FiActivity className="w-5 h-5" />, label: 'Audit Logs', href: '/audit-logs', bg: 'from-rose-400 to-pink-500', shadow: 'shadow-pink-500/25' },
+    { icon: <FiGrid className="w-5 h-5" />, label: 'Modules', href: '/modules', bg: 'from-amber-400 to-orange-500', shadow: 'shadow-orange-500/25' },
+    { icon: <FiActivity className="w-5 h-5" />, label: 'Audit Logs', href: '/super-admin/audit-logs', bg: 'from-rose-400 to-pink-500', shadow: 'shadow-pink-500/25' },
     { icon: <FiBarChart2 className="w-5 h-5" />, label: 'Candidate Flow', href: '/analytics/candidate-flow', bg: 'from-fuchsia-400 to-pink-500', shadow: 'shadow-pink-500/25' },
   ];
 
@@ -357,7 +357,7 @@ function SuperAdminHome({ firstName, greeting, today }: { firstName: string; gre
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-          <Panel title="Recent Audit Activity" icon={<FiActivity className="w-4 h-4" />} href="/audit-logs" accent="text-rose-500">
+          <Panel title="Recent Audit Activity" icon={<FiActivity className="w-4 h-4" />} href="/super-admin/audit-logs" accent="text-rose-500">
             {loading ? (
               <div className="space-y-2">{Array.from({ length: 6 }).map((_, i) => <SkeletonBlock key={i} className="h-12 w-full" />)}</div>
             ) : recentLogs.length === 0 ? (
@@ -1059,7 +1059,7 @@ function ITAdminHome({ firstName, greeting, today }: { firstName: string; greeti
     { icon: <FiServer className="w-5 h-5" />, label: 'Asset Categories', href: '/assets', bg: 'from-amber-400 to-orange-500', shadow: 'shadow-orange-500/25' },
     { icon: <FiShield className="w-5 h-5" />, label: 'Access Mgmt', href: '/tenant-admin/rbac', bg: 'from-teal-400 to-teal-500', shadow: 'shadow-teal-500/25' },
     { icon: <FiSettings className="w-5 h-5" />, label: 'Config', href: '/tenant-admin', bg: 'from-rose-400 to-pink-500', shadow: 'shadow-pink-500/25' },
-    { icon: <FiActivity className="w-5 h-5" />, label: 'Audit Logs', href: '/audit-logs', bg: 'from-cyan-400 to-sky-500', shadow: 'shadow-sky-500/25' },
+    { icon: <FiActivity className="w-5 h-5" />, label: 'Audit Logs', href: '/super-admin/audit-logs', bg: 'from-cyan-400 to-sky-500', shadow: 'shadow-sky-500/25' },
   ];
 
   return (
@@ -1128,11 +1128,23 @@ function ITAdminHome({ firstName, greeting, today }: { firstName: string; greeti
 /* ============== EMPLOYEE (DEFAULT / FALLBACK) ============== */
 function EmployeeHome({ firstName, greeting, today }: { firstName: string; greeting: string; today: string }) {
   const router = useRouter();
+  const { selectedCompanyId, effectiveCompanyId, effectiveCompanyLabel, hydrated, hydrate } = useCompanyContextStore();
   const [loading, setLoading] = useState(true);
   const [leaveBalances, setLeaveBalances] = useState<{ leaveType: { name: string }; remaining: number; total: number; used: number }[]>([]);
   const [attendanceRate, setAttendanceRate] = useState(0);
   const [openTickets, setOpenTickets] = useState(0);
+  const [latestPayslips, setLatestPayslips] = useState<{ id: string; month: number; year: number; netSalary: number; status: string; employee?: { firstName: string; lastName: string } }[]>([]);
+  const [latestTimesheets, setLatestTimesheets] = useState<{ id: string; date: string; hours: number; project?: { name: string }; projectTask?: { name: string }; status: string }[]>([]);
   const [announcements, setAnnouncements] = useState<{ title: string; date: string; type: string }[]>([]);
+
+  // Build a company scope query string for API calls so the selected tenant/company is respected
+  const scopeQuery = useMemo(() => {
+    const cid = effectiveCompanyId();
+    if (!cid) return '';
+    return `&companyId=${encodeURIComponent(cid)}`;
+  }, [selectedCompanyId, effectiveCompanyId]);
+
+  const companyName = effectiveCompanyLabel();
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -1145,14 +1157,20 @@ function EmployeeHome({ firstName, greeting, today }: { firstName: string; greet
       } catch { return null; }
     };
 
-    const [leaveData, attData, ticketData] = await Promise.all([
-      safe('/api/leave/balance'),
-      safe('/api/attendance?limit=30'),
-      safe('/api/tickets?limit=10'),
+    const [leaveData, attData, ticketData, payslipData, timesheetData] = await Promise.all([
+      safe(`/api/leave/balance?limit=5${scopeQuery}`),
+      safe(`/api/attendance?limit=30${scopeQuery}`),
+      safe(`/api/tickets?limit=10${scopeQuery}`),
+      safe(`/api/payroll/payslips?limit=5${scopeQuery}`),
+      safe(`/api/timesheets?limit=5${scopeQuery}`),
     ]);
 
-    if (leaveData?.balances) {
-      setLeaveBalances(leaveData.balances.slice(0, 5));
+    // Leave balances — API returns { balances: [...] } or { data: { balances: [...] } }
+    const balances = leaveData?.balances || leaveData?.data?.balances || [];
+    if (balances.length > 0) {
+      setLeaveBalances(balances.slice(0, 5));
+    } else {
+      setLeaveBalances([]);
     }
 
     if (attData?.attendance || attData?.records) {
@@ -1168,6 +1186,14 @@ function EmployeeHome({ firstName, greeting, today }: { firstName: string; greet
       setOpenTickets(tickets.filter((t: { status: string }) => ['open', 'in_progress'].includes(t.status)).length);
     }
 
+    // Payslips — API returns { data: [...] }
+    const payslips = payslipData?.data || payslipData?.payrolls || [];
+    setLatestPayslips(payslips.slice(0, 5));
+
+    // Timesheets — API returns { timesheets: [...] }
+    const timesheets = timesheetData?.timesheets || timesheetData?.data || [];
+    setLatestTimesheets(timesheets.slice(0, 5));
+
     setAnnouncements([
       { title: 'Company Holiday - ' + new Date().toLocaleDateString('en-US', { month: 'long' }) + ' 26th', date: 'In 10 days', type: 'holiday' },
       { title: 'Team Town Hall Meeting', date: 'Tomorrow · 4:00 PM', type: 'event' },
@@ -1176,16 +1202,22 @@ function EmployeeHome({ firstName, greeting, today }: { firstName: string; greet
     ]);
 
     setLoading(false);
-  }, []);
+  }, [scopeQuery]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  // Re-fetch when company context changes
+  useEffect(() => {
+    if (hydrated) fetchData();
+  }, [fetchData, hydrated]);
+
+  // Hydrate company context on mount
+  useEffect(() => { hydrate(); }, [hydrate]);
 
   const totalRemaining = leaveBalances.reduce((s, b) => s + (b.remaining || 0), 0);
 
   const quickActions = [
     { icon: <FiCalendar className="w-5 h-5" />, label: 'Apply Leave', href: '/leave', bg: 'from-amber-400 to-orange-500', shadow: 'shadow-orange-500/25' },
     { icon: <FiClock className="w-5 h-5" />, label: 'Attendance', href: '/attendance', bg: 'from-cyan-400 to-green-500', shadow: 'shadow-green-500/25' },
-    { icon: <FiFileText className="w-5 h-5" />, label: 'My Payslip', href: '/payroll', bg: 'from-emerald-400 to-green-500', shadow: 'shadow-green-500/25' },
+    { icon: <FiFileText className="w-5 h-5" />, label: 'My Payslip', href: '/payroll/payslips', bg: 'from-emerald-400 to-green-500', shadow: 'shadow-green-500/25' },
     { icon: <FiHeadphones className="w-5 h-5" />, label: 'Helpdesk', href: '/helpdesk', bg: 'from-teal-400 to-teal-500', shadow: 'shadow-teal-500/25' },
     { icon: <FiUserPlus className="w-5 h-5" />, label: 'My Profile', href: '/my-profile', bg: 'from-pink-400 to-rose-500', shadow: 'shadow-rose-500/25' },
     { icon: <FiDollarSign className="w-5 h-5" />, label: 'Expenses', href: '/expenses', bg: 'from-teal-400 to-emerald-500', shadow: 'shadow-emerald-500/25' },
@@ -1202,6 +1234,15 @@ function EmployeeHome({ firstName, greeting, today }: { firstName: string; greet
         primaryCta={{ label: 'Open Self-Service', href: '/dashboard', icon: <FiGrid className="w-4 h-4" /> }}
         secondaryCta={{ label: 'Apply Leave', href: '/leave', icon: <FiCalendar className="w-4 h-4" /> }}
       />
+
+      {/* Company context indicator */}
+      {selectedCompanyId && (
+        <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-50 border border-emerald-100 text-sm text-emerald-700">
+          <FiBriefcase className="w-4 h-4" />
+          <span className="font-medium">{companyName}</span>
+          <span className="text-emerald-500/70">· Viewing data for selected company</span>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {loading ? (
@@ -1296,6 +1337,60 @@ function EmployeeHome({ firstName, greeting, today }: { firstName: string; greet
             </div>
           </Panel>
         </div>
+      </div>
+
+      {/* Payslip & Timesheet cards */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Latest Payslips */}
+        <Panel title="My Payslips" icon={<FiFileText className="w-4 h-4" />} href="/payroll/payslips" accent="text-emerald-500">
+          {loading ? (
+            <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <SkeletonBlock key={i} className="h-12 w-full" />)}</div>
+          ) : latestPayslips.length === 0 ? (
+            <EmptyState icon={<FiFileText className="w-8 h-8" />} message="No payslips available yet" />
+          ) : (
+            <div className="divide-y divide-slate-100">
+              {latestPayslips.map((p) => {
+                const monthLabel = new Date(p.year, p.month - 1, 1).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+                return (
+                  <div key={p.id} className="flex items-center justify-between py-3">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900">{monthLabel}</p>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        Net: {new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(p.netSalary || 0)}
+                      </p>
+                    </div>
+                    {statusBadge(p.status)}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </Panel>
+
+        {/* Latest Timesheets */}
+        <Panel title="My Timesheets" icon={<FiClock className="w-4 h-4" />} href="/timesheets" accent="text-cyan-500">
+          {loading ? (
+            <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <SkeletonBlock key={i} className="h-12 w-full" />)}</div>
+          ) : latestTimesheets.length === 0 ? (
+            <EmptyState icon={<FiClock className="w-8 h-8" />} message="No timesheet entries yet" />
+          ) : (
+            <div className="divide-y divide-slate-100">
+              {latestTimesheets.map((t) => (
+                <div key={t.id} className="flex items-center justify-between py-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-slate-900 truncate">
+                      {t.project?.name || t.projectTask?.name || 'General'}
+                    </p>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      {new Date(t.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · {t.hours}h
+                    </p>
+                  </div>
+                  {statusBadge(t.status)}
+                </div>
+              ))}
+            </div>
+          )}
+        </Panel>
       </div>
 
       <Panel title="Quick Actions" icon={<FiZap className="w-4 h-4" />} accent="text-amber-500">

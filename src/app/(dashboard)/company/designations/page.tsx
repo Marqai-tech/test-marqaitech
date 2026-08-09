@@ -58,9 +58,28 @@ export default function DesignationsPage() {
 
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault()
+
+    // Salary validation: reject negative values and special characters
+    if (form.minSalary) {
+      const minVal = Number(form.minSalary)
+      if (isNaN(minVal)) { toast.error('Min Salary must be a numeric value'); return }
+      if (minVal < 0) { toast.error('Min Salary cannot be negative'); return }
+    }
+    if (form.maxSalary) {
+      const maxVal = Number(form.maxSalary)
+      if (isNaN(maxVal)) { toast.error('Max Salary must be a numeric value'); return }
+      if (maxVal < 0) { toast.error('Max Salary cannot be negative'); return }
+    }
+
+    // Duplicate designation title check within same department
+    const isEdit = !!editingId
+    if (form.departmentId) {
+      const duplicateTitle = designations.find(d => d.title.toLowerCase() === form.title.toLowerCase() && d.departmentId === form.departmentId && d.id !== editingId)
+      if (duplicateTitle) { toast.error('A designation with this title already exists for this department'); return }
+    }
+
     setSubmitting(true)
     try {
-      const isEdit = !!editingId
       const body: Record<string, unknown> = { ...form }
       if (isEdit) body.id = editingId
       await apiFetch('/api/designations', { method: isEdit ? 'PUT' : 'POST', body: JSON.stringify(body) })
