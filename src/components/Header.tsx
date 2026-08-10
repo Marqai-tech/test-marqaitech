@@ -96,12 +96,23 @@ const MODULE_SEARCH_MAP: Record<string, string> = {
 
   // ── Leave Module ──
   leave: '/leave',
+  'apply-leave': '/leave/apply',
+  'apply-leave-by-hr': '/leave/apply-by-hr',
+  'leave-by-hr': '/leave/apply-by-hr',
 
   // ── Payroll Module ──
   payroll: '/payroll',
 
   // ── Attendance Module ──
   attendance: '/attendance',
+  'apply-attendance-by-hr': '/attendance/apply-by-hr',
+  'attendance-by-hr': '/attendance/apply-by-hr',
+  regularize: '/attendance/regularize',
+  'gatepass': '/attendance/gatepass',
+  overtime: '/attendance/overtime',
+  'comp-off': '/attendance/comp-off',
+  'wfh': '/attendance/wfh',
+  permission: '/attendance/permission',
 
   // ── Recruitment Module ──
   recruitment: '/recruitment',

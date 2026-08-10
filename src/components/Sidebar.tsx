@@ -122,9 +122,9 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false, cur
           {!collapsed && (
             <div className="overflow-hidden">
               <h1 className="text-base font-bold text-white tracking-tight whitespace-nowrap">
-                {user?.tenant?.name || '3Boxes'} <span className="text-[10px] font-semibold text-green-400 tracking-wider">HRMS</span>
+                {user?.role === 'super_admin' ? '3Boxes' : (user?.tenant?.name || '3Boxes')} <span className="text-[10px] font-semibold text-green-400 tracking-wider">{user?.role === 'super_admin' ? 'Platform' : 'HRMS'}</span>
               </h1>
-              <p className="text-[9px] text-thb-sidebar-text leading-none -mt-0.5">People &middot; Process &middot; Technology</p>
+              <p className="text-[9px] text-thb-sidebar-text leading-none -mt-0.5">{user?.role === 'super_admin' ? 'Super Admin · Platform Control' : 'People · Process · Technology'}</p>
             </div>
           )}
         </div>

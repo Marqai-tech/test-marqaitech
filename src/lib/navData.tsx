@@ -239,6 +239,7 @@ export const navSections: NavSection[] = [
     items: [
       { label: 'Leave Dashboard', href: '/leave', icon: <FiGrid className="w-4 h-4" />, moduleKey: 'leave', isNew: true },
       { label: 'Apply Leave', href: '/leave/apply', icon: <FiCalendar className="w-4 h-4" />, moduleKey: 'leave', isNew: true },
+      { label: 'Apply Leave by HR', href: '/leave/apply-by-hr', icon: <FiUserPlus className="w-4 h-4" />, moduleKey: 'leave', isNew: true },
       { label: 'Leave Encashment', href: '/leave/encashment', icon: <FiDollarSign className="w-4 h-4" />, moduleKey: 'leave' },
       { label: 'Restricted Holiday', href: '/leave/optional-holidays', icon: <FiStar className="w-4 h-4" />, moduleKey: 'leave' },
 
@@ -276,6 +277,7 @@ export const navSections: NavSection[] = [
 
       // ── Requests ──
       { label: 'Requests', href: '#requests-divider', icon: <FiClock className="w-3.5 h-3.5" />, moduleKey: 'attendance', isDivider: true },
+      { label: 'Apply Attendance by HR', href: '/attendance/apply-by-hr', icon: <FiUserPlus className="w-4 h-4" />, moduleKey: 'attendance', isNew: true },
       { label: 'Apply Regularization', href: '/attendance/regularize', icon: <FiRefreshCw className="w-4 h-4" />, moduleKey: 'attendance' },
       { label: 'Apply WFH', href: '/attendance/wfh', icon: <FiHome className="w-4 h-4" />, moduleKey: 'attendance', isNew: true },
       { label: 'Hourly Permission', href: '/attendance/permission', icon: <FiClock className="w-4 h-4" />, moduleKey: 'attendance' },
