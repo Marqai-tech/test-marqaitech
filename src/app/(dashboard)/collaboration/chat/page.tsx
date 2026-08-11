@@ -1,667 +1,507 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   FiMessageCircle, FiPlus, FiSend, FiUsers, FiLock, FiGlobe,
-  FiCornerUpLeft, FiSearch, FiPhone, FiVideo, FiMapPin, FiPaperclip,
-  FiSmile, FiMoreVertical, FiStar, FiTrash2, FiX, FiCheck, FiImage,
-  FiHash, FiCircle, FiChevronDown, FiFilter, FiArchive, FiEdit3,
+  FiCornerUpLeft, FiSearch, FiPhone, FiVideo, FiPaperclip,
+  FiMoreVertical, FiStar, FiTrash2, FiX, FiCheck, FiHash,
+  FiRefreshCw,
 } from 'react-icons/fi';
+import toast from 'react-hot-toast';
+import { useAuthStore } from '@/store/authStore';
+import { useCompanyContextStore } from '@/store/companyContextStore';
+
+function getAuthHeaders() {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
+  return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+}
 
 /* ── Types ── */
-interface Contact {
+interface Employee {
   id: string;
-  name: string;
-  role: string;
-  avatar: string | null;
-  online: boolean;
-  lastSeen?: string;
+  employeeId: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  avatar?: string | null;
+  department?: { name: string } | null;
+  designation?: { name: string } | null;
+  status?: string;
 }
 
 interface ChatRoom {
   id: string;
-  name: string;
-  type: 'direct' | 'group' | 'channel';
+  name: string | null;
+  roomType: string;
   isE2EE: boolean;
-  isPinned: boolean;
-  members: number;
+  isAnnouncement: boolean;
+  avatarUrl?: string | null;
+  members: Array<{ userId: string; role: string }>;
+  messages: Array<{ id: string; body: string; createdAt: string; senderId: string }>;
+  lastMessageAt: string | null;
   unreadCount: number;
-  lastMessage: string;
-  lastMessageTime: string;
-  lastMessageSender: string;
+  _count?: { messages: number };
 }
 
 interface ChatMessage {
   id: string;
   roomId: string;
   senderId: string;
-  senderName: string;
-  senderAvatar: string | null;
   body: string;
-  time: string;
-  date: string;
-  isOwn: boolean;
-  reactions: Array<{ emoji: string; count: number; reacted: boolean }>;
-  replyTo?: { senderName: string; body: string };
-  hasAttachment?: boolean;
-  attachmentName?: string;
+  createdAt: string;
+  isDeleted: boolean;
+  dlpStatus?: string;
+  detectedActions?: string | null;
+  sender: { id: string; firstName: string; lastName: string; avatar?: string | null; email: string };
 }
 
-/* ── Sample Data ── */
-const CONTACTS: Contact[] = [
-  { id: 'c1', name: 'Priya Sharma', role: 'HR Manager', avatar: null, online: true },
-  { id: 'c2', name: 'Rahul Verma', role: 'Engineering Lead', avatar: null, online: true },
-  { id: 'c3', name: 'Ananya Iyer', role: 'Recruiter', avatar: null, online: false, lastSeen: '2h ago' },
-  { id: 'c4', name: 'Karthik Nair', role: 'Finance Manager', avatar: null, online: true },
-  { id: 'c5', name: 'Deepa Patel', role: 'People Ops', avatar: null, online: false, lastSeen: '30m ago' },
-  { id: 'c6', name: 'Vikram Singh', role: 'CTO', avatar: null, online: true },
-  { id: 'c7', name: 'Meera Krishnan', role: 'Design Lead', avatar: null, online: false, lastSeen: '1d ago' },
-  { id: 'c8', name: 'Arjun Reddy', role: 'DevOps Engineer', avatar: null, online: true },
-  { id: 'c9', name: 'Sunita Joshi', role: 'Training Manager', avatar: null, online: false, lastSeen: '5h ago' },
-  { id: 'c10', name: 'Ravi Kumar', role: 'Product Manager', avatar: null, online: true },
-];
+export default function ChatPage() {
+  const { user } = useAuthStore();
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-const ROOMS: ChatRoom[] = [
-  { id: 'r1', name: 'Priya Sharma', type: 'direct', isE2EE: true, isPinned: true, members: 2, unreadCount: 3, lastMessage: 'Please review the leave policy updates', lastMessageTime: '2m ago', lastMessageSender: 'Priya' },
-  { id: 'r2', name: 'HR Team', type: 'group', isE2EE: false, isPinned: true, members: 8, unreadCount: 5, lastMessage: 'Team lunch scheduled for Friday!', lastMessageTime: '15m ago', lastMessageSender: 'Deepa' },
-  { id: 'r3', name: '#announcements', type: 'channel', isE2EE: false, isPinned: false, members: 45, unreadCount: 2, lastMessage: 'New health insurance plan details', lastMessageTime: '1h ago', lastMessageSender: 'HR Admin' },
-  { id: 'r4', name: 'Rahul Verma', type: 'direct', isE2EE: true, isPinned: false, members: 2, unreadCount: 0, lastMessage: 'Sprint demo at 3 PM today', lastMessageTime: '2h ago', lastMessageSender: 'Rahul' },
-  { id: 'r5', name: 'Recruitment Pipeline', type: 'group', isE2EE: false, isPinned: false, members: 5, unreadCount: 8, lastMessage: '3 new candidates for Senior Dev role', lastMessageTime: '30m ago', lastMessageSender: 'Ananya' },
-  { id: 'r6', name: '#general', type: 'channel', isE2EE: false, isPinned: false, members: 52, unreadCount: 0, lastMessage: 'Happy birthday Karthik!', lastMessageTime: '3h ago', lastMessageSender: 'Sunita' },
-  { id: 'r7', name: 'Karthik Nair', type: 'direct', isE2EE: true, isPinned: false, members: 2, unreadCount: 1, lastMessage: 'Invoice #1042 approved', lastMessageTime: '4h ago', lastMessageSender: 'Karthik' },
-  { id: 'r8', name: 'Product & Engineering', type: 'group', isE2EE: false, isPinned: false, members: 12, unreadCount: 0, lastMessage: 'Deploy v2.4 scheduled for tonight', lastMessageTime: '5h ago', lastMessageSender: 'Arjun' },
-  { id: 'r9', name: '#payroll-updates', type: 'channel', isE2EE: false, isPinned: false, members: 30, unreadCount: 4, lastMessage: 'June payroll processing starts Monday', lastMessageTime: '6h ago', lastMessageSender: 'Finance' },
-  { id: 'r10', name: 'Vikram Singh', type: 'direct', isE2EE: true, isPinned: false, members: 2, unreadCount: 0, lastMessage: 'Q3 budget meeting moved to Thursday', lastMessageTime: '1d ago', lastMessageSender: 'Vikram' },
-  { id: 'r11', name: 'Onboarding Team', type: 'group', isE2EE: false, isPinned: false, members: 4, unreadCount: 2, lastMessage: 'New joiner kit checklist updated', lastMessageTime: '1d ago', lastMessageSender: 'Deepa' },
-  { id: 'r12', name: '#random', type: 'channel', isE2EE: false, isPinned: false, members: 48, unreadCount: 0, lastMessage: 'Anyone up for cricket this weekend?', lastMessageTime: '2d ago', lastMessageSender: 'Ravi' },
-];
-
-const MESSAGES: ChatMessage[] = [
-  { id: 'm1', roomId: 'r1', senderId: 'c1', senderName: 'Priya Sharma', senderAvatar: null, body: 'Hi! I\'ve updated the leave policy document with the new carry-forward rules. Can you review it before we send it company-wide?', time: '10:15 AM', date: 'Today', isOwn: false, reactions: [] },
-  { id: 'm2', roomId: 'r1', senderId: 'me', senderName: 'You', senderAvatar: null, body: 'Sure, I\'ll take a look right away. Is there a specific section you want me to focus on?', time: '10:18 AM', date: 'Today', isOwn: true, reactions: [{ emoji: '👍', count: 1, reacted: false }] },
-  { id: 'm3', roomId: 'r1', senderId: 'c1', senderName: 'Priya Sharma', senderAvatar: null, body: 'Mainly the encashment section and the new parental leave additions. Also check if the holiday list is updated for Q3.', time: '10:20 AM', date: 'Today', isOwn: false, reactions: [] },
-  { id: 'm4', roomId: 'r1', senderId: 'me', senderName: 'You', senderAvatar: null, body: 'Got it. I noticed the encashment formula might need updating - the current one doesn\'t account for the basic+DA component.', time: '10:25 AM', date: 'Today', isOwn: true, reactions: [{ emoji: '💯', count: 1, reacted: true }] },
-  { id: 'm5', roomId: 'r1', senderId: 'c1', senderName: 'Priya Sharma', senderAvatar: null, body: 'Good catch! Please update that section. Also, I\'ve attached the new parental leave policy comparison sheet.', time: '10:28 AM', date: 'Today', isOwn: false, reactions: [], hasAttachment: true, attachmentName: 'Parental_Leave_Comparison.xlsx' },
-  { id: 'm6', roomId: 'r1', senderId: 'me', senderName: 'You', senderAvatar: null, body: 'Please review the leave policy updates', time: '10:32 AM', date: 'Today', isOwn: true, reactions: [], replyTo: { senderName: 'Priya Sharma', body: 'Mainly the encashment section and the new parental leave additions.' } },
-  { id: 'm7', roomId: 'r2', senderId: 'c5', senderName: 'Deepa Patel', senderAvatar: null, body: 'Hey team! I\'ve scheduled a team lunch for this Friday at 12:30 PM. Venue: The Spice Kitchen. Please confirm your attendance!', time: '09:45 AM', date: 'Today', isOwn: false, reactions: [{ emoji: '🎉', count: 5, reacted: true }, { emoji: '🍕', count: 3, reacted: false }] },
-  { id: 'm8', roomId: 'r2', senderId: 'c9', senderName: 'Sunita Joshi', senderAvatar: null, body: 'I\'m in! Also, can we discuss the Q3 training calendar during lunch?', time: '09:50 AM', date: 'Today', isOwn: false, reactions: [] },
-  { id: 'm9', roomId: 'r2', senderId: 'me', senderName: 'You', senderAvatar: null, body: 'Count me in! And yes, Sunita - let\'s add the compliance training sessions too.', time: '10:00 AM', date: 'Today', isOwn: true, reactions: [{ emoji: '✅', count: 2, reacted: false }] },
-  { id: 'm10', roomId: 'r2', senderId: 'c1', senderName: 'Priya Sharma', senderAvatar: null, body: 'Perfect! I\'ll book the private dining area so we can have our discussion. Also, Karthik confirmed - he\'ll join after his 12 PM call.', time: '10:30 AM', date: 'Today', isOwn: false, reactions: [] },
-  { id: 'm11', roomId: 'r3', senderId: 'hr', senderName: 'HR Admin', senderAvatar: null, body: '📢 Company Announcement: We\'re thrilled to announce our new group health insurance partnership with Star Health. Key changes:\n\n1. Enhanced coverage up to ₹10 lakhs\n2. New maternity benefit add-on\n3. Parents coverage option\n4. Cashless facility at 8,000+ hospitals\n\nEnrollment window: July 1-15. Contact HR for details.', time: '09:00 AM', date: 'Today', isOwn: false, reactions: [{ emoji: '❤️', count: 28, reacted: true }, { emoji: '🎉', count: 15, reacted: false }] },
-  { id: 'm12', roomId: 'r5', senderId: 'c3', senderName: 'Ananya Iyer', senderAvatar: null, body: '🔥 Hot leads update: 3 strong candidates for the Senior Developer position:\n\n1. Amit Gupta - 8yr exp, AWS certified\n2. Sneha Menon - 6yr exp, full-stack\n3. Rajesh Pillai - 10yr exp, team lead\n\nInterviews to be scheduled for next week. @Rahul can you confirm panel availability?', time: '09:30 AM', date: 'Today', isOwn: false, reactions: [{ emoji: '🎯', count: 3, reacted: false }], hasAttachment: true, attachmentName: 'Senior_Dev_Candidates.pdf' },
-  { id: 'm13', roomId: 'r7', senderId: 'c4', senderName: 'Karthik Nair', senderAvatar: null, body: '✅ Invoice #1042 for TechCorp has been approved. Payment will be processed in the next batch (July 5). Total: ₹4,50,000 + GST.', time: '08:00 AM', date: 'Today', isOwn: false, reactions: [{ emoji: '👍', count: 2, reacted: false }] },
-  { id: 'm14', roomId: 'r9', senderId: 'finance', senderName: 'Finance Team', senderAvatar: null, body: '📋 Reminder: June payroll processing starts Monday (July 3). Please ensure:\n- All attendance regularizations submitted\n- Leave encashment requests filed\n- Investment declaration updates\n- Overtime claims submitted\n\nDeadline: June 30 EOD', time: '08:30 AM', date: 'Today', isOwn: false, reactions: [{ emoji: '⚠️', count: 12, reacted: false }, { emoji: '✅', count: 8, reacted: true }] },
-];
-
-/* ── Helper ── */
-function getInitials(name: string) {
-  return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-}
-
-function getAvatarColor(id: string) {
-  const colors = [
-    'from-green-500 to-emerald-600',
-    'from-teal-500 to-teal-600',
-    'from-emerald-500 to-teal-600',
-    'from-amber-500 to-orange-600',
-    'from-rose-500 to-pink-600',
-    'from-cyan-500 to-green-600',
-  ];
-  const idx = Math.abs(id.charCodeAt(0) + (id.charCodeAt(1) || 0)) % colors.length;
-  return colors[idx];
-}
-
-export default function SmartChatPage() {
-  const [activeRoom, setActiveRoom] = useState<ChatRoom>(ROOMS[0]);
-  const [activeTab, setActiveTab] = useState<'all' | 'direct' | 'group' | 'channel'>('all');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [rooms, setRooms] = useState<ChatRoom[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [selectedRoom, setSelectedRoom] = useState<ChatRoom | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
-  const [showRightPanel, setShowRightPanel] = useState(false);
-  const [rightPanelTab, setRightPanelTab] = useState<'info' | 'pinned' | 'files' | 'members'>('info');
+  const [roomSearch, setRoomSearch] = useState('');
+  const [loadingRooms, setLoadingRooms] = useState(true);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const [sendingMessage, setSendingMessage] = useState(false);
   const [showNewChatModal, setShowNewChatModal] = useState(false);
+  const [newChatMembers, setNewChatMembers] = useState<string[]>([]);
+  const [newChatName, setNewChatName] = useState('');
+  const [newChatType, setNewChatType] = useState<'direct' | 'group'>('direct');
+  const [employeeSearch, setEmployeeSearch] = useState('');
+  const [loadingEmployees, setLoadingEmployees] = useState(false);
 
-  const filteredRooms = useMemo(() => {
-    let list = ROOMS;
-    if (activeTab !== 'all') {
-      list = list.filter(r => r.type === activeTab);
+  // ─── Fetch Chat Rooms ──────────────────────────
+  const fetchRooms = useCallback(async () => {
+    setLoadingRooms(true);
+    try {
+      const r = await fetch('/api/collaboration/chat/rooms', { headers: getAuthHeaders() });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed');
+      setRooms(d.rooms || []);
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Failed to load chat rooms');
+    } finally {
+      setLoadingRooms(false);
     }
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      list = list.filter(r => r.name.toLowerCase().includes(q));
+  }, []);
+
+  // ─── Fetch Employees for New Chat ──────────────
+  const fetchEmployees = useCallback(async (search = '') => {
+    setLoadingEmployees(true);
+    try {
+      const cid = effectiveCompanyId();
+      const r = await fetch(`/api/employees?limit=50&search=${encodeURIComponent(search)}${cid ? `&companyId=${cid}` : ''}`, { headers: getAuthHeaders() });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed');
+      setEmployees(d.employees || []);
+    } catch {
+      toast.error('Failed to load employees');
+    } finally {
+      setLoadingEmployees(false);
     }
-    // Pinned first
-    return [...list].sort((a, b) => (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0));
-  }, [activeTab, searchQuery]);
+  }, []);
 
-  const roomMessages = useMemo(() => {
-    return MESSAGES.filter(m => m.roomId === activeRoom.id);
-  }, [activeRoom]);
+  useEffect(() => { fetchRooms(); }, [fetchRooms]);
 
-  const onlineCount = CONTACTS.filter(c => c.online).length;
+  // ─── Fetch Messages for Selected Room ──────────
+  const fetchMessages = useCallback(async (roomId: string) => {
+    setLoadingMessages(true);
+    try {
+      const r = await fetch(`/api/collaboration/chat/rooms/${roomId}/messages?limit=100`, { headers: getAuthHeaders() });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed');
+      setMessages(d.messages || []);
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Failed to load messages');
+    } finally {
+      setLoadingMessages(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (selectedRoom) fetchMessages(selectedRoom.id);
+  }, [selectedRoom, fetchMessages]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  // ─── Send Message ──────────────────────────────
+  const handleSendMessage = async () => {
+    if (!selectedRoom || !newMessage.trim()) return;
+    setSendingMessage(true);
+    try {
+      const r = await fetch(`/api/collaboration/chat/rooms/${selectedRoom.id}/messages`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ body: newMessage.trim() }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed');
+      setNewMessage('');
+      fetchMessages(selectedRoom.id);
+      fetchRooms(); // Refresh unread counts
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Failed to send');
+    } finally {
+      setSendingMessage(false);
+    }
+  };
+
+  // ─── Create New Chat Room ──────────────────────
+  const handleCreateRoom = async () => {
+    if (newChatMembers.length === 0) {
+      toast.error('Select at least one member');
+      return;
+    }
+    try {
+      const r = await fetch('/api/collaboration/chat/rooms', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          name: newChatType === 'group' ? (newChatName || 'Group Chat') : undefined,
+          roomType: newChatType,
+          memberIds: newChatMembers,
+        }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed');
+
+      if (d.alreadyExisted) {
+        toast.success('Direct chat already exists — opened existing room');
+      } else {
+        toast.success(`${newChatType === 'direct' ? 'Direct' : 'Group'} chat created`);
+      }
+
+      setShowNewChatModal(false);
+      setNewChatMembers([]);
+      setNewChatName('');
+      setNewChatType('direct');
+      fetchRooms();
+      if (d.room) setSelectedRoom(d.room);
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Failed to create room');
+    }
+  };
+
+  // ─── Get room display name ─────────────────────
+  const getRoomName = (room: ChatRoom) => {
+    if (room.name) return room.name;
+    if (room.roomType === 'direct') {
+      const otherMember = room.members.find(m => m.userId !== user?.id);
+      if (otherMember) {
+        const emp = employees.find(e => e.id === otherMember.userId);
+        if (emp) return `${emp.firstName} ${emp.lastName}`;
+      }
+      return 'Direct Chat';
+    }
+    return 'Group Chat';
+  };
+
+  const getRoomIcon = (room: ChatRoom) => {
+    if (room.roomType === 'direct') return <FiMessageCircle className="w-4 h-4" />;
+    if (room.roomType === 'announcement') return <FiGlobe className="w-4 h-4" />;
+    return <FiHash className="w-4 h-4" />;
+  };
+
+  const formatTime = (dateStr: string) => {
+    const d = new Date(dateStr);
+    const now = new Date();
+    const isToday = d.toDateString() === now.toDateString();
+    if (isToday) return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' + d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const filteredRooms = rooms.filter(r => {
+    if (!roomSearch) return true;
+    const name = getRoomName(r).toLowerCase();
+    return name.includes(roomSearch.toLowerCase());
+  });
 
   return (
-    <div className="h-[calc(100vh-8rem)] flex flex-col">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-lg shadow-green-500/20">
-            <FiMessageCircle className="w-5 h-5 text-white" />
+    <div className="flex h-[calc(100vh-8rem)] gap-0 thb-card overflow-hidden">
+      {/* ─── Room List ─── */}
+      <div className="w-80 border-r border-slate-200 flex flex-col flex-shrink-0">
+        <div className="p-3 border-b border-slate-100">
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-sm font-bold text-slate-800">Chats</h2>
+            <button onClick={() => { setShowNewChatModal(true); fetchEmployees(); }} className="p-1.5 rounded-lg text-teal-500 hover:bg-teal-50 transition-colors" title="New Chat">
+              <FiPlus className="w-4 h-4" />
+            </button>
           </div>
-          <div>
-            <h1 className="text-xl font-bold text-thb-text-primary">Chat</h1>
-            <p className="text-xs text-thb-text-secondary">{onlineCount} colleagues online &middot; E2EE for 1:1 chats</p>
-          </div>
-        </div>
-        <button
-          onClick={() => setShowNewChatModal(true)}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors shadow-sm"
-        >
-          <FiPlus className="w-4 h-4" />
-          New Chat
-        </button>
-      </div>
-
-      {/* Main Chat Layout */}
-      <div className="thb-card overflow-hidden flex flex-1 min-h-0">
-        {/* ── Left Sidebar ── */}
-        <div className="w-80 border-r border-thb-border flex flex-col bg-slate-50/50">
-          {/* Search */}
-          <div className="p-3 border-b border-thb-border">
-            <div className="relative">
-              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                placeholder="Search conversations..."
-                className="w-full pl-9 pr-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 bg-white"
-              />
-            </div>
-          </div>
-
-          {/* Tabs */}
-          <div className="flex border-b border-thb-border">
-            {(['all', 'direct', 'group', 'channel'] as const).map(tab => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`flex-1 py-2 text-xs font-medium capitalize transition-colors ${
-                  activeTab === tab
-                    ? 'text-green-600 border-b-2 border-green-600 bg-green-50/50'
-                    : 'text-thb-text-muted hover:text-thb-text-secondary'
-                }`}
-              >
-                {tab}
-              </button>
-            ))}
-          </div>
-
-          {/* Room List */}
-          <div className="flex-1 overflow-y-auto">
-            {filteredRooms.map(room => (
-              <button
-                key={room.id}
-                onClick={() => setActiveRoom(room)}
-                className={`w-full text-left p-3 border-b border-thb-border/50 hover:bg-white transition-colors ${
-                  activeRoom.id === room.id ? 'bg-white shadow-sm' : ''
-                }`}
-              >
-                <div className="flex items-start gap-2.5">
-                  {/* Room Avatar */}
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
-                    room.type === 'channel'
-                      ? 'bg-slate-200 text-slate-600'
-                      : `bg-gradient-to-br ${getAvatarColor(room.id)} text-white`
-                  }`}>
-                    {room.type === 'channel' ? (
-                      <FiHash className="w-4 h-4" />
-                    ) : room.type === 'group' ? (
-                      <FiUsers className="w-4 h-4" />
-                    ) : (
-                      <span className="text-xs font-bold">{getInitials(room.name)}</span>
-                    )}
-                  </div>
-
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        {room.isPinned && <FiMapPin className="w-2.5 h-2.5 text-amber-500 flex-shrink-0" />}
-                        {room.isE2EE && <FiLock className="w-2.5 h-2.5 text-emerald-500 flex-shrink-0" />}
-                        <h3 className="text-sm font-medium text-thb-text-primary truncate">{room.name}</h3>
-                      </div>
-                      <span className="text-[10px] text-thb-text-muted flex-shrink-0 ml-2">{room.lastMessageTime}</span>
-                    </div>
-                    <div className="flex items-center justify-between mt-0.5">
-                      <p className="text-xs text-thb-text-muted truncate pr-2">
-                        <span className="font-medium text-thb-text-secondary">{room.lastMessageSender}: </span>
-                        {room.lastMessage}
-                      </p>
-                      {room.unreadCount > 0 && (
-                        <span className="flex-shrink-0 min-w-[18px] h-[18px] px-1 text-[10px] font-bold rounded-full bg-green-600 text-white flex items-center justify-center">
-                          {room.unreadCount}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </button>
-            ))}
-          </div>
-
-          {/* Online Contacts */}
-          <div className="p-3 border-t border-thb-border bg-white">
-            <h4 className="text-[10px] font-semibold uppercase tracking-wider text-thb-text-muted mb-2">Online — {onlineCount}</h4>
-            <div className="flex -space-x-1.5">
-              {CONTACTS.filter(c => c.online).slice(0, 8).map(c => (
-                <div
-                  key={c.id}
-                  className="relative w-7 h-7 rounded-full bg-gradient-to-br from-green-500 to-teal-600 flex items-center justify-center ring-2 ring-white"
-                  title={c.name}
-                >
-                  <span className="text-[9px] font-bold text-white">{getInitials(c.name)}</span>
-                  <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full ring-2 ring-white" />
-                </div>
-              ))}
-            </div>
+          <div className="relative">
+            <FiSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+            <input type="text" value={roomSearch} onChange={e => setRoomSearch(e.target.value)} placeholder="Search chats..." className="w-full pl-9 pr-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:outline-none focus:ring-1 focus:ring-teal-500" />
           </div>
         </div>
 
-        {/* ── Center Chat Area ── */}
-        <div className="flex-1 flex flex-col min-w-0">
-          {/* Chat Header */}
-          <div className="px-4 py-3 border-b border-thb-border flex items-center justify-between bg-white">
-            <div className="flex items-center gap-2.5">
-              <div className={`w-9 h-9 rounded-full flex items-center justify-center ${
-                activeRoom.type === 'channel'
-                  ? 'bg-slate-200 text-slate-600'
-                  : `bg-gradient-to-br ${getAvatarColor(activeRoom.id)} text-white`
+        <div className="flex-1 overflow-y-auto">
+          {loadingRooms ? (
+            <div className="p-6 text-center text-xs text-slate-400">Loading...</div>
+          ) : filteredRooms.length === 0 ? (
+            <div className="p-6 text-center text-xs text-slate-500">
+              <FiMessageCircle className="w-8 h-8 mx-auto mb-2 text-slate-300" />
+              No chats yet. Start a new conversation!
+            </div>
+          ) : filteredRooms.map(room => (
+            <button
+              key={room.id}
+              onClick={() => setSelectedRoom(room)}
+              className={`w-full flex items-center gap-3 px-3 py-3 text-left transition-colors border-b border-slate-50 ${
+                selectedRoom?.id === room.id ? 'bg-teal-50 border-l-2 border-l-teal-500' : 'hover:bg-slate-50'
+              }`}
+            >
+              <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${
+                room.roomType === 'direct' ? 'bg-teal-100 text-teal-600' :
+                room.roomType === 'announcement' ? 'bg-amber-100 text-amber-600' :
+                'bg-blue-100 text-blue-600'
               }`}>
-                {activeRoom.type === 'channel' ? (
-                  <FiHash className="w-4 h-4" />
-                ) : activeRoom.type === 'group' ? (
-                  <FiUsers className="w-4 h-4" />
-                ) : (
-                  <span className="text-xs font-bold">{getInitials(activeRoom.name)}</span>
-                )}
+                {getRoomIcon(room)}
               </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h2 className="text-sm font-semibold text-thb-text-primary">{activeRoom.name}</h2>
-                  {activeRoom.isE2EE && (
-                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-medium rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
-                      <FiLock className="w-2 h-2" /> E2EE
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold text-slate-800 truncate">{getRoomName(room)}</p>
+                  {room.isE2EE && <FiLock className="w-3 h-3 text-teal-500 flex-shrink-0" />}
+                </div>
+                <div className="flex items-center justify-between mt-0.5">
+                  <p className="text-[10px] text-slate-400 truncate max-w-[140px]">
+                    {room.messages?.[0]?.body || 'No messages yet'}
+                  </p>
+                  {room.unreadCount > 0 && (
+                    <span className="ml-1 min-w-[16px] h-4 flex items-center justify-center rounded-full bg-teal-500 text-white text-[9px] font-bold px-1">
+                      {room.unreadCount > 99 ? '99+' : room.unreadCount}
                     </span>
                   )}
                 </div>
-                <p className="text-[10px] text-thb-text-muted">
-                  {activeRoom.type === 'channel' ? `${activeRoom.members} members` : `${activeRoom.members} participants`}
-                </p>
               </div>
-            </div>
-            <div className="flex items-center gap-1">
-              <button className="p-2 text-thb-text-muted hover:bg-slate-100 hover:text-green-600 rounded-lg transition-colors" title="Audio call">
-                <FiPhone className="w-4 h-4" />
-              </button>
-              <button className="p-2 text-thb-text-muted hover:bg-slate-100 hover:text-teal-600 rounded-lg transition-colors" title="Video call">
-                <FiVideo className="w-4 h-4" />
-              </button>
-              <button className="p-2 text-thb-text-muted hover:bg-slate-100 hover:text-amber-600 rounded-lg transition-colors" title="Search in chat">
-                <FiSearch className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => setShowRightPanel(!showRightPanel)}
-                className={`p-2 rounded-lg transition-colors ${showRightPanel ? 'bg-green-50 text-green-600' : 'text-thb-text-muted hover:bg-slate-100 hover:text-green-600'}`}
-                title="Room info"
-              >
-                <FiMoreVertical className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
+            </button>
+          ))}
+        </div>
+      </div>
 
-          {/* Messages Area */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/30">
-            {/* Date separator */}
-            <div className="flex items-center gap-3">
-              <div className="flex-1 h-px bg-thb-border" />
-              <span className="text-[10px] font-medium text-thb-text-muted px-2 py-0.5 bg-white rounded-full border border-thb-border">Today</span>
-              <div className="flex-1 h-px bg-thb-border" />
-            </div>
-
-            {roomMessages.map(msg => (
-              <MessageBubble key={msg.id} message={msg} />
-            ))}
-
-            {roomMessages.length === 0 && (
-              <div className="flex-1 flex items-center justify-center text-sm text-thb-text-muted py-8">
-                <div className="text-center">
-                  <FiMessageCircle className="w-12 h-12 mx-auto mb-3 text-thb-text-muted/30" />
-                  <p className="font-medium">No messages yet</p>
-                  <p className="text-xs mt-1">Start the conversation!</p>
+      {/* ─── Message Area ─── */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {selectedRoom ? (
+          <>
+            {/* Room Header */}
+            <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between bg-white">
+              <div className="flex items-center gap-3">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                  selectedRoom.roomType === 'direct' ? 'bg-teal-100 text-teal-600' :
+                  selectedRoom.roomType === 'announcement' ? 'bg-amber-100 text-amber-600' :
+                  'bg-blue-100 text-blue-600'
+                }`}>
+                  {getRoomIcon(selectedRoom)}
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-800">{getRoomName(selectedRoom)}</h3>
+                  <p className="text-[10px] text-slate-400">
+                    {selectedRoom.members.length} member{selectedRoom.members.length !== 1 ? 's' : ''}
+                    {selectedRoom.isE2EE ? ' · E2EE' : ''}
+                    {selectedRoom.isAnnouncement ? ' · Announcement' : ''}
+                  </p>
                 </div>
               </div>
-            )}
-
-            {/* Typing indicator */}
-            <div className="flex items-center gap-2 pl-2">
-              <div className="flex gap-1">
-                <span className="w-1.5 h-1.5 bg-thb-text-muted rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                <span className="w-1.5 h-1.5 bg-thb-text-muted rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                <span className="w-1.5 h-1.5 bg-thb-text-muted rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+              <div className="flex items-center gap-1">
+                <button className="p-2 rounded-lg text-slate-400 hover:text-teal-500 hover:bg-teal-50 transition-colors" title="Audio Call">
+                  <FiPhone className="w-4 h-4" />
+                </button>
+                <button className="p-2 rounded-lg text-slate-400 hover:text-teal-500 hover:bg-teal-50 transition-colors" title="Video Call">
+                  <FiVideo className="w-4 h-4" />
+                </button>
               </div>
-              <span className="text-[10px] text-thb-text-muted">Priya is typing...</span>
             </div>
-          </div>
 
-          {/* Message Input */}
-          <div className="p-3 border-t border-thb-border bg-white">
-            <div className="flex items-end gap-2">
-              <div className="flex items-center gap-1 flex-shrink-0 pb-2">
-                <button className="p-1.5 text-thb-text-muted hover:text-green-600 hover:bg-green-50 rounded transition-colors" title="Attach file">
+            {/* Messages */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50/50">
+              {loadingMessages ? (
+                <div className="flex items-center justify-center h-full">
+                  <FiRefreshCw className="w-5 h-5 text-teal-500 animate-spin" />
+                </div>
+              ) : messages.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full text-slate-400">
+                  <FiMessageCircle className="w-10 h-10 mb-2" />
+                  <p className="text-sm">No messages yet. Say hello!</p>
+                </div>
+              ) : messages.map(msg => {
+                const isOwn = msg.senderId === user?.id;
+                return (
+                  <div key={msg.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`max-w-[70%] ${isOwn ? 'order-2' : ''}`}>
+                      {!isOwn && (
+                        <p className="text-[10px] text-slate-500 mb-0.5 ml-1">{msg.sender.firstName} {msg.sender.lastName}</p>
+                      )}
+                      <div className={`px-3 py-2 rounded-xl text-sm ${
+                        isOwn
+                          ? 'bg-teal-500 text-white rounded-br-sm'
+                          : 'bg-white border border-slate-200 text-slate-800 rounded-bl-sm shadow-sm'
+                      }`}>
+                        <p className="whitespace-pre-wrap break-words">{msg.body}</p>
+                      </div>
+                      <div className={`flex items-center gap-1 mt-0.5 ${isOwn ? 'justify-end' : ''}`}>
+                        <p className={`text-[9px] ${isOwn ? 'text-teal-400' : 'text-slate-400'} mx-1`}>
+                          {formatTime(msg.createdAt)}
+                        </p>
+                        {msg.dlpStatus === 'flagged' && <FiAlertCircle className="w-3 h-3 text-amber-500" />}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Message Input */}
+            <div className="px-4 py-3 border-t border-slate-200 bg-white">
+              <div className="flex items-center gap-2">
+                <button className="p-2 rounded-lg text-slate-400 hover:text-teal-500 hover:bg-teal-50 transition-colors" title="Attach file">
                   <FiPaperclip className="w-4 h-4" />
                 </button>
-                <button className="p-1.5 text-thb-text-muted hover:text-amber-600 hover:bg-amber-50 rounded transition-colors" title="Emoji">
-                  <FiSmile className="w-4 h-4" />
-                </button>
-                <button className="p-1.5 text-thb-text-muted hover:text-teal-600 hover:bg-teal-50 rounded transition-colors" title="Mention @">
-                  <FiUsers className="w-4 h-4" />
-                </button>
-              </div>
-              <div className="flex-1 relative">
                 <input
                   type="text"
                   value={newMessage}
                   onChange={e => setNewMessage(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); setNewMessage(''); } }}
-                  placeholder={`Message ${activeRoom.name}...`}
-                  className="w-full px-4 py-2.5 rounded-xl border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-300"
+                  onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }}
+                  placeholder="Type a message..."
+                  className="flex-1 px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-1 focus:ring-teal-500 focus:border-teal-400"
                 />
-              </div>
-              <button
-                disabled={!newMessage.trim()}
-                className="p-2.5 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
-              >
-                <FiSend className="w-4 h-4" />
-              </button>
-            </div>
-            <p className="text-[9px] text-thb-text-muted mt-1.5 pl-1">
-              Messages protected by DLP. Press Enter to send.
-            </p>
-          </div>
-        </div>
-
-        {/* ── Right Panel ── */}
-        {showRightPanel && (
-          <div className="w-72 border-l border-thb-border flex flex-col bg-white">
-            {/* Panel Tabs */}
-            <div className="flex border-b border-thb-border">
-              {(['info', 'pinned', 'files', 'members'] as const).map(tab => (
                 <button
-                  key={tab}
-                  onClick={() => setRightPanelTab(tab)}
-                  className={`flex-1 py-2.5 text-[10px] font-medium capitalize transition-colors ${
-                    rightPanelTab === tab
-                      ? 'text-green-600 border-b-2 border-green-600'
-                      : 'text-thb-text-muted hover:text-thb-text-secondary'
-                  }`}
+                  onClick={handleSendMessage}
+                  disabled={sendingMessage || !newMessage.trim()}
+                  className="p-2 rounded-lg bg-teal-500 text-white hover:bg-teal-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  title="Send"
                 >
-                  {tab}
+                  {sendingMessage ? <FiRefreshCw className="w-4 h-4 animate-spin" /> : <FiSend className="w-4 h-4" />}
                 </button>
-              ))}
+              </div>
             </div>
-
-            <div className="flex-1 overflow-y-auto p-4">
-              {rightPanelTab === 'info' && (
-                <div className="space-y-4">
-                  <div className="text-center">
-                    <div className={`w-16 h-16 rounded-full mx-auto mb-3 flex items-center justify-center ${
-                      activeRoom.type === 'channel'
-                        ? 'bg-slate-200 text-slate-600'
-                        : `bg-gradient-to-br ${getAvatarColor(activeRoom.id)} text-white`
-                    }`}>
-                      {activeRoom.type === 'channel' ? (
-                        <FiHash className="w-6 h-6" />
-                      ) : activeRoom.type === 'group' ? (
-                        <FiUsers className="w-6 h-6" />
-                      ) : (
-                        <span className="text-lg font-bold">{getInitials(activeRoom.name)}</span>
-                      )}
-                    </div>
-                    <h3 className="text-sm font-semibold text-thb-text-primary">{activeRoom.name}</h3>
-                    <p className="text-xs text-thb-text-muted mt-0.5">
-                      {activeRoom.type === 'direct' ? 'Direct Message' : activeRoom.type === 'group' ? 'Group Chat' : 'Channel'}
-                      {' '}&middot; {activeRoom.members} {activeRoom.type === 'channel' ? 'members' : 'participants'}
-                    </p>
-                  </div>
-
-                  {activeRoom.isE2EE && (
-                    <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200">
-                      <div className="flex items-center gap-2 mb-1">
-                        <FiLock className="w-3.5 h-3.5 text-emerald-600" />
-                        <span className="text-xs font-medium text-emerald-700">End-to-End Encrypted</span>
-                      </div>
-                      <p className="text-[10px] text-emerald-600">Messages are encrypted. Only participants can read them.</p>
-                    </div>
-                  )}
-
-                  <div>
-                    <h4 className="text-[10px] font-semibold uppercase tracking-wider text-thb-text-muted mb-2">Created</h4>
-                    <p className="text-xs text-thb-text-secondary">January 15, 2025</p>
-                  </div>
-
-                  <div>
-                    <h4 className="text-[10px] font-semibold uppercase tracking-wider text-thb-text-muted mb-2">Shared Media</h4>
-                    <div className="grid grid-cols-3 gap-1.5">
-                      {[1,2,3,4,5,6].map(i => (
-                        <div key={i} className="aspect-square rounded-lg bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center">
-                          <FiImage className="w-4 h-4 text-thb-text-muted" />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {rightPanelTab === 'pinned' && (
-                <div className="space-y-3">
-                  <h4 className="text-[10px] font-semibold uppercase tracking-wider text-thb-text-muted">Pinned Messages</h4>
-                  <div className="p-3 rounded-lg border border-thb-border bg-slate-50">
-                    <p className="text-xs text-thb-text-primary">📢 Company Announcement: New health insurance partnership</p>
-                    <p className="text-[10px] text-thb-text-muted mt-1">HR Admin &middot; Today 9:00 AM</p>
-                  </div>
-                  <div className="p-3 rounded-lg border border-thb-border bg-slate-50">
-                    <p className="text-xs text-thb-text-primary">Team lunch Friday at Spice Kitchen 12:30 PM</p>
-                    <p className="text-[10px] text-thb-text-muted mt-1">Deepa Patel &middot; Today 9:45 AM</p>
-                  </div>
-                </div>
-              )}
-
-              {rightPanelTab === 'files' && (
-                <div className="space-y-3">
-                  <h4 className="text-[10px] font-semibold uppercase tracking-wider text-thb-text-muted">Shared Files</h4>
-                  <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer">
-                    <div className="w-9 h-9 rounded-lg bg-emerald-100 flex items-center justify-center flex-shrink-0">
-                      <FiImage className="w-4 h-4 text-emerald-600" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-xs font-medium text-thb-text-primary truncate">Parental_Leave_Comparison.xlsx</p>
-                      <p className="text-[10px] text-thb-text-muted">245 KB &middot; Priya Sharma</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer">
-                    <div className="w-9 h-9 rounded-lg bg-red-100 flex items-center justify-center flex-shrink-0">
-                      <FiHash className="w-4 h-4 text-red-600" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-xs font-medium text-thb-text-primary truncate">Senior_Dev_Candidates.pdf</p>
-                      <p className="text-[10px] text-thb-text-muted">1.2 MB &middot; Ananya Iyer</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {rightPanelTab === 'members' && (
-                <div className="space-y-2">
-                  <h4 className="text-[10px] font-semibold uppercase tracking-wider text-thb-text-muted mb-2">
-                    Members ({activeRoom.members})
-                  </h4>
-                  {CONTACTS.slice(0, activeRoom.members).map(c => (
-                    <div key={c.id} className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-slate-50 transition-colors">
-                      <div className="relative">
-                        <div className={`w-8 h-8 rounded-full bg-gradient-to-br ${getAvatarColor(c.id)} flex items-center justify-center`}>
-                          <span className="text-[10px] font-bold text-white">{getInitials(c.name)}</span>
-                        </div>
-                        {c.online && (
-                          <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full ring-2 ring-white" />
-                        )}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-xs font-medium text-thb-text-primary truncate">{c.name}</p>
-                        <p className="text-[10px] text-thb-text-muted">{c.role}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+          </>
+        ) : (
+          <div className="flex flex-col items-center justify-center h-full text-slate-400">
+            <FiMessageCircle className="w-12 h-12 mb-3" />
+            <p className="text-sm font-medium">Select a chat to start messaging</p>
+            <p className="text-xs mt-1">Or create a new conversation</p>
           </div>
         )}
       </div>
 
-      {/* New Chat Modal */}
+      {/* ─── New Chat Modal ─── */}
       {showNewChatModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="thb-card p-6 w-full max-w-md">
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-thb-text-primary">New Chat</h3>
-              <button onClick={() => setShowNewChatModal(false)} className="text-thb-text-muted hover:text-thb-text-primary">
+              <h3 className="text-lg font-semibold text-slate-800">New Conversation</h3>
+              <button onClick={() => setShowNewChatModal(false)} className="text-slate-400 hover:text-slate-700">
                 <FiX className="w-5 h-5" />
               </button>
             </div>
-            <div className="space-y-4">
-              <div>
-                <label className="text-xs font-medium text-thb-text-secondary">Chat Type</label>
-                <div className="grid grid-cols-3 gap-2 mt-1">
-                  {(['direct', 'group', 'channel'] as const).map(type => (
-                    <button
-                      key={type}
-                      className="p-2.5 rounded-lg border border-thb-border text-center hover:bg-green-50 hover:border-green-200 transition-colors"
-                    >
-                      {type === 'direct' ? <FiLock className="w-4 h-4 mx-auto text-emerald-500" /> :
-                       type === 'group' ? <FiUsers className="w-4 h-4 mx-auto text-green-500" /> :
-                       <FiHash className="w-4 h-4 mx-auto text-teal-500" />}
-                      <p className="text-[10px] mt-1 text-thb-text-secondary capitalize">{type}</p>
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <label className="text-xs font-medium text-thb-text-secondary">Chat Name</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Project Alpha Team"
-                  className="w-full mt-1 px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-thb-text-secondary">Add Members</label>
-                <div className="mt-1 max-h-40 overflow-y-auto border border-thb-border rounded-lg">
-                  {CONTACTS.map(c => (
-                    <label key={c.id} className="flex items-center gap-2 p-2 hover:bg-slate-50 cursor-pointer">
-                      <input type="checkbox" className="rounded" />
-                      <div className={`w-6 h-6 rounded-full bg-gradient-to-br ${getAvatarColor(c.id)} flex items-center justify-center`}>
-                        <span className="text-[8px] font-bold text-white">{getInitials(c.name)}</span>
-                      </div>
-                      <span className="text-xs">{c.name}</span>
-                      {c.online && <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />}
-                    </label>
-                  ))}
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center justify-end gap-2 mt-5">
+
+            {/* Chat Type */}
+            <div className="flex gap-2 mb-4">
               <button
-                onClick={() => setShowNewChatModal(false)}
-                className="px-4 py-2 text-sm text-thb-text-secondary hover:bg-slate-100 rounded-lg transition-colors"
+                onClick={() => setNewChatType('direct')}
+                className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  newChatType === 'direct' ? 'bg-teal-500 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
               >
-                Cancel
+                <FiMessageCircle className="w-4 h-4 inline mr-1" /> Direct
               </button>
               <button
-                onClick={() => setShowNewChatModal(false)}
-                className="px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                onClick={() => setNewChatType('group')}
+                className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  newChatType === 'group' ? 'bg-teal-500 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
               >
-                Create Chat
+                <FiUsers className="w-4 h-4 inline mr-1" /> Group
               </button>
             </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
 
-/* ── Message Bubble Component ── */
-function MessageBubble({ message }: { message: ChatMessage }) {
-  return (
-    <div className={`flex ${message.isOwn ? 'justify-end' : 'justify-start'}`}>
-      <div className={`flex gap-2 max-w-[75%] ${message.isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
-        {!message.isOwn && (
-          <div className={`w-7 h-7 rounded-full bg-gradient-to-br ${getAvatarColor(message.senderId)} flex items-center justify-center flex-shrink-0 mt-1`}>
-            <span className="text-[8px] font-bold text-white">{getInitials(message.senderName)}</span>
-          </div>
-        )}
-        <div className={`${message.isOwn ? 'items-end' : 'items-start'} flex flex-col`}>
-          {!message.isOwn && (
-            <span className="text-[10px] font-medium text-thb-text-secondary mb-0.5 ml-1">{message.senderName}</span>
-          )}
+            {newChatType === 'group' && (
+              <input
+                type="text"
+                value={newChatName}
+                onChange={e => setNewChatName(e.target.value)}
+                placeholder="Group name..."
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm mb-4 focus:outline-none focus:ring-1 focus:ring-teal-500"
+              />
+            )}
 
-          {/* Reply indicator */}
-          {message.replyTo && (
-            <div className={`mb-1 px-3 py-1.5 rounded-lg text-[10px] border-l-2 ${
-              message.isOwn ? 'border-green-400 bg-green-50' : 'border-slate-300 bg-slate-50'
-            }`}>
-              <span className="font-medium">{message.replyTo.senderName}: </span>
-              <span className="text-thb-text-muted">{message.replyTo.body}</span>
+            {/* Employee Search */}
+            <div className="relative mb-3">
+              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+              <input
+                type="text"
+                value={employeeSearch}
+                onChange={e => { setEmployeeSearch(e.target.value); if (e.target.value.length >= 2) fetchEmployees(e.target.value); }}
+                placeholder="Search employees..."
+                className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-1 focus:ring-teal-500"
+              />
             </div>
-          )}
 
-          <div className={`px-3.5 py-2.5 rounded-2xl text-sm ${
-            message.isOwn
-              ? 'bg-green-600 text-white rounded-br-md'
-              : 'bg-white border border-thb-border text-thb-text-primary rounded-bl-md shadow-sm'
-          }`}>
-            <p className="whitespace-pre-wrap leading-relaxed">{message.body}</p>
-            {message.hasAttachment && (
-              <div className={`mt-2 p-2 rounded-lg flex items-center gap-2 ${
-                message.isOwn ? 'bg-white/10' : 'bg-slate-50 border border-thb-border'
-              }`}>
-                <FiPaperclip className={`w-3.5 h-3.5 ${message.isOwn ? 'text-green-200' : 'text-thb-text-muted'}`} />
-                <span className={`text-xs ${message.isOwn ? 'text-green-100' : 'text-thb-text-secondary'}`}>{message.attachmentName}</span>
+            {/* Selected Members */}
+            {newChatMembers.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mb-3">
+                {newChatMembers.map(id => {
+                  const emp = employees.find(e => e.id === id);
+                  return emp ? (
+                    <span key={id} className="px-2 py-1 bg-teal-50 text-teal-700 text-xs rounded-lg flex items-center gap-1">
+                      {emp.firstName} {emp.lastName}
+                      <button onClick={() => setNewChatMembers(prev => prev.filter(m => m !== id))} className="text-teal-500 hover:text-red-500">
+                        <FiX className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ) : null;
+                })}
               </div>
             )}
-          </div>
 
-          {/* Reactions */}
-          {message.reactions.length > 0 && (
-            <div className={`flex gap-1 mt-1 ${message.isOwn ? 'justify-end' : 'justify-start'} ml-1`}>
-              {message.reactions.map((r, i) => (
+            {/* Employee List */}
+            <div className="max-h-48 overflow-y-auto border border-slate-100 rounded-lg">
+              {loadingEmployees ? (
+                <div className="p-4 text-center text-xs text-slate-400">Loading...</div>
+              ) : employees.filter(e => e.id !== user?.id).map(emp => (
                 <button
-                  key={i}
-                  className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] rounded-full border transition-colors ${
-                    r.reacted
-                      ? 'border-green-300 bg-green-50 text-green-700'
-                      : 'border-thb-border bg-white text-thb-text-secondary hover:border-slate-300'
+                  key={emp.id}
+                  onClick={() => {
+                    if (newChatType === 'direct') {
+                      setNewChatMembers([emp.id]);
+                    } else {
+                      setNewChatMembers(prev => prev.includes(emp.id) ? prev.filter(m => m !== emp.id) : [...prev, emp.id]);
+                    }
+                  }}
+                  className={`w-full flex items-center gap-2 px-3 py-2 text-left text-xs hover:bg-slate-50 transition-colors ${
+                    newChatMembers.includes(emp.id) ? 'bg-teal-50' : ''
                   }`}
                 >
-                  <span>{r.emoji}</span>
-                  <span className="font-medium">{r.count}</span>
+                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-teal-400 to-cyan-500 flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0">
+                    {emp.firstName[0]}{emp.lastName[0]}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-medium text-slate-800 truncate">{emp.firstName} {emp.lastName}</p>
+                    <p className="text-[10px] text-slate-400">{emp.department?.name || 'No Dept'}</p>
+                  </div>
+                  {newChatMembers.includes(emp.id) && <FiCheck className="w-3.5 h-3.5 text-teal-500 ml-auto flex-shrink-0" />}
                 </button>
               ))}
             </div>
-          )}
 
-          <span className="text-[9px] text-thb-text-muted mt-0.5 ml-1">{message.time}</span>
+            <button
+              onClick={handleCreateRoom}
+              disabled={newChatMembers.length === 0}
+              className="mt-4 w-full 3boxes-btn-primary flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <FiPlus className="w-4 h-4" />
+              Create {newChatType === 'direct' ? 'Direct' : 'Group'} Chat
+            </button>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

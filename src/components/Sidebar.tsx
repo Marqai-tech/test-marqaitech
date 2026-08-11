@@ -109,7 +109,7 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false, cur
         <div className={`flex items-center h-14 px-4 border-b border-white/[0.06] ${collapsed ? 'justify-center' : 'gap-3'}`}>
           {user?.tenant?.logo ? (
             /* eslint-disable-next-line @next/next/no-img-element */
-            <img src={user.tenant.logo} alt={user.tenant.name || 'Tenant'} className="flex-shrink-0 w-10 h-10 rounded-xl object-contain bg-white/10 p-2 shadow-lg ring-1 ring-white/10" />
+            <img src={user.tenant.logo} alt={user.tenant.name || 'Tenant'} className="flex-shrink-0 w-10 h-10 rounded-xl object-contain bg-white p-2 shadow-lg ring-1 ring-white/10" />
           ) : (
             <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-green-500 via-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-green-500/20 ring-1 ring-white/10">
               <svg viewBox="0 0 35 11" className="w-5 h-4" fill="none">
