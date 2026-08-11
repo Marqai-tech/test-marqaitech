@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { checkTenantStatusOrBlock } from '@/lib/tenant-guard';
+import { validateEmail, validatePhone } from '@/lib/validators';
 
 function corsHeaders() {
   return {
@@ -229,6 +230,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Name is required' }, { status: 400, headers: corsHeaders() });
     }
 
+    // ─── Server-side validation ───
+    if (phone && typeof phone === 'string') {
+      const phoneResult = validatePhone(phone);
+      if (!phoneResult.valid) {
+        return NextResponse.json({ error: phoneResult.error }, { status: 400, headers: corsHeaders() });
+      }
+    }
+    if (email && typeof email === 'string') {
+      const emailResult = validateEmail(email);
+      if (!emailResult.valid) {
+        return NextResponse.json({ error: emailResult.error }, { status: 400, headers: corsHeaders() });
+      }
+    }
+
     // Coerce per-company employee cap + planned strength
     const maxEmployees = typeof bodyMaxEmployees === 'number' && bodyMaxEmployees > 0 ? bodyMaxEmployees : null;
     const plannedEmployeeCount = typeof bodyPlannedEmployeeCount === 'number' && bodyPlannedEmployeeCount >= 0 ? bodyPlannedEmployeeCount : null;
@@ -432,6 +447,20 @@ export async function PUT(req: NextRequest) {
     // Verify ownership for non-super_admin
     if (role !== 'super_admin' && existing.companyGroup?.tenantId !== callerTenantId) {
       return NextResponse.json({ error: 'Company does not belong to your tenant' }, { status: 403, headers: corsHeaders() });
+    }
+
+    // ─── Server-side validation ───
+    if (updateData.phone && typeof updateData.phone === 'string') {
+      const phoneResult = validatePhone(updateData.phone);
+      if (!phoneResult.valid) {
+        return NextResponse.json({ error: phoneResult.error }, { status: 400, headers: corsHeaders() });
+      }
+    }
+    if (updateData.email && typeof updateData.email === 'string') {
+      const emailResult = validateEmail(updateData.email);
+      if (!emailResult.valid) {
+        return NextResponse.json({ error: emailResult.error }, { status: 400, headers: corsHeaders() });
+      }
     }
 
     const company = await db.company.update({

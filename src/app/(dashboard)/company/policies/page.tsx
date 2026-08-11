@@ -62,6 +62,32 @@ export default function PoliciesPage() {
 
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault()
+
+    // Validate required fields
+    if (!form.title || !form.title.trim()) { toast.error('Policy title is required'); return }
+
+    // Validate version format (e.g., 1.0, 2.1)
+    if (form.version && !/^\d+(\.\d+)*$/.test(form.version)) {
+      toast.error('Enter a valid version number (e.g., 1.0, 2.1)');
+      return;
+    }
+
+    // Date validation: effective date cannot be after expiry date
+    if (form.effectiveDate && form.expiryDate) {
+      if (new Date(form.effectiveDate) > new Date(form.expiryDate)) {
+        toast.error('Effective Date cannot be later than Expiry Date');
+        return;
+      }
+    }
+
+    // Duplicate policy check (same title + version)
+    const duplicatePolicy = policies.find(p =>
+      p.title.toLowerCase() === form.title.toLowerCase() &&
+      (p.version || '').toLowerCase() === (form.version || '').toLowerCase() &&
+      p.id !== editingId
+    )
+    if (duplicatePolicy) { toast.error('A policy with this title and version already exists'); return }
+
     setSubmitting(true)
     try {
       const isEdit = !!editingId

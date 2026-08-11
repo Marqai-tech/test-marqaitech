@@ -6,6 +6,7 @@ import {
   FiPhone, FiFilter, FiTrendingUp, FiChevronDown, FiUser,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import { validateEmail, validatePhone, phoneInputFilter } from '@/lib/validators';
 import { useAuthStore } from '@/store/authStore';
 import { useAutoSeedDemo } from '@/hooks/useAutoSeedDemo';
 
@@ -91,6 +92,8 @@ export default function CRMLeadsPage() {
       toast.error('First name, last name, and email are required');
       return;
     }
+    { const r = validateEmail(form.email); if (!r.valid) { toast.error(r.error); return } }
+    if (form.phone) { const r = validatePhone(form.phone); if (!r.valid) { toast.error(r.error); return } }
     try {
       if (editingId) {
         const res = await fetch(`/api/crm/leads/${editingId}`, { method: 'PUT', headers: getAuthHeaders(), body: JSON.stringify({ ...form, score: Number(form.score) }) });
@@ -222,8 +225,8 @@ export default function CRMLeadsPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <input type="text" placeholder="First Name *" value={form.firstName} onChange={e => setForm({ ...form, firstName: e.target.value })} className="px-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" />
             <input type="text" placeholder="Last Name *" value={form.lastName} onChange={e => setForm({ ...form, lastName: e.target.value })} className="px-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" />
-            <input type="email" placeholder="Email *" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className="px-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" />
-            <input type="text" placeholder="Phone" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} className="px-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" />
+            <input type="email" placeholder="Email * (e.g., name@domain.com)" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className="px-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" />
+            <input type="tel" placeholder="Phone (10-digit Indian mobile)" value={form.phone} onChange={e => setForm({ ...form, phone: phoneInputFilter(e.target.value) })} className="px-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" />
             <input type="text" placeholder="Company" value={form.company} onChange={e => setForm({ ...form, company: e.target.value })} className="px-3 py-2 text-sm border border-thb-border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" />
             <select value={form.source} onChange={e => setForm({ ...form, source: e.target.value })} className="px-3 py-2 text-sm border border-thb-border rounded-lg bg-white">
               {SOURCES.map(s => <option key={s} value={s}>{s}</option>)}

@@ -38,6 +38,7 @@ import {
   FiXCircle,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import { validateEmail, validatePhone, phoneInputFilter } from '@/lib/validators';
 import { useAuthStore } from '@/store/authStore';
 import ModuleTips from '@/components/ModuleTips';
 import ModuleWorkflow from '@/components/ModuleWorkflow';
@@ -597,6 +598,8 @@ export default function RecruitmentPage() {
       toast.error('Please fill in required fields');
       return;
     }
+    { const r = validateEmail(appForm.candidateEmail); if (!r.valid) { toast.error(r.error); return } }
+    if (appForm.candidatePhone) { const r = validatePhone(appForm.candidatePhone); if (!r.valid) { toast.error(r.error); return } }
     try {
       setSubmittingApp(true);
       await fetch('/api/recruitment', {
@@ -989,11 +992,11 @@ export default function RecruitmentPage() {
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-thb-text-secondary mb-1">Email *</label>
-                  <input type="email" value={appForm.candidateEmail} onChange={e => setAppForm(p => ({ ...p, candidateEmail: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-400" />
+                  <input type="email" placeholder="e.g., name@domain.com" value={appForm.candidateEmail} onChange={e => setAppForm(p => ({ ...p, candidateEmail: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-400" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-thb-text-secondary mb-1">Phone</label>
-                  <input type="tel" value={appForm.candidatePhone} onChange={e => setAppForm(p => ({ ...p, candidatePhone: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-400" />
+                  <input type="tel" placeholder="10-digit Indian mobile" value={appForm.candidatePhone} onChange={e => setAppForm(p => ({ ...p, candidatePhone: phoneInputFilter(e.target.value) }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-400" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-thb-text-secondary mb-1">Expected Salary</label>

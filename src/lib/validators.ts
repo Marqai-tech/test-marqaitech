@@ -435,3 +435,125 @@ export function validateRegistrationForm(form: {
 
   return errors;
 }
+
+// ─── ZIP / Postal Code ──────────────────────────────────────────────────
+
+/**
+ * Validate Indian ZIP / Postal code.
+ * Indian PIN codes: exactly 6 digits, first digit 1-8.
+ */
+export function validateZipCode(value: string): { valid: boolean; error?: string } {
+  if (!value || !value.trim()) return { valid: true }; // Optional field
+  const trimmed = value.trim();
+  if (!/^\d{6}$/.test(trimmed)) return { valid: false, error: 'PIN code must be exactly 6 digits' };
+  if (!/^[1-8]/.test(trimmed)) return { valid: false, error: 'Invalid PIN code (first digit must be 1-8)' };
+  return { valid: true };
+}
+
+// ─── Nationality ────────────────────────────────────────────────────────
+
+/**
+ * Validate nationality field — letters and spaces only.
+ */
+export function validateNationality(value: string): { valid: boolean; error?: string } {
+  if (!value || !value.trim()) return { valid: true }; // Optional field
+  const trimmed = value.trim();
+  if (!/^[a-zA-Z\s]+$/.test(trimmed)) return { valid: false, error: 'Nationality can only contain letters and spaces' };
+  if (trimmed.length < 2) return { valid: false, error: 'Nationality must be at least 2 characters' };
+  return { valid: true };
+}
+
+// ─── PF Number ──────────────────────────────────────────────────────────
+
+/**
+ * Validate Provident Fund number.
+ * PF numbers are alphanumeric, typically region/office/establishment format.
+ */
+export function validatePFNumber(value: string): { valid: boolean; error?: string } {
+  if (!value || !value.trim()) return { valid: true }; // Optional field
+  const trimmed = value.trim();
+  if (trimmed.length < 5) return { valid: false, error: 'PF number must be at least 5 characters' };
+  if (trimmed.length > 25) return { valid: false, error: 'PF number is too long (max 25 characters)' };
+  // Allow alphanumeric, slashes, and hyphens (PF format: XX/XXX/XXXXX)
+  if (!/^[A-Za-z0-9\/\-]+$/.test(trimmed)) return { valid: false, error: 'PF number can only contain letters, numbers, slashes, and hyphens' };
+  return { valid: true };
+}
+
+// ─── ESI Number ─────────────────────────────────────────────────────────
+
+/**
+ * Validate ESI (Employee State Insurance) number.
+ * ESI numbers are typically 17 digits: XX-XX-XXXXXX-XXXXX-X
+ */
+export function validateESINumber(value: string): { valid: boolean; error?: string } {
+  if (!value || !value.trim()) return { valid: true }; // Optional field
+  const digits = value.replace(/\D/g, '');
+  if (digits.length < 10) return { valid: false, error: 'ESI number must be at least 10 digits' };
+  if (digits.length > 17) return { valid: false, error: 'ESI number is too long (max 17 digits)' };
+  return { valid: true };
+}
+
+// ─── Website URL ────────────────────────────────────────────────────────
+
+/**
+ * Validate website URL.
+ */
+export function validateWebsite(value: string): { valid: boolean; error?: string } {
+  if (!value || !value.trim()) return { valid: true }; // Optional field
+  const trimmed = value.trim();
+  try {
+    const url = new URL(trimmed.startsWith('http') ? trimmed : `https://${trimmed}`);
+    if (!url.hostname.includes('.')) return { valid: false, error: 'Enter a valid website URL (e.g., https://example.com)' };
+    return { valid: true };
+  } catch {
+    return { valid: false, error: 'Enter a valid website URL (e.g., https://example.com)' };
+  }
+}
+
+// ─── Input Restriction Helpers (for real-time keystroke filtering) ─────
+
+/**
+ * Strip non-digit characters from a string (for phone, Aadhaar, bank account, etc.)
+ * Used in onChange handlers to prevent alphabets/special chars from being entered.
+ */
+export function onlyDigits(value: string): string {
+  return value.replace(/[^\d]/g, '');
+}
+
+/**
+ * Strip non-letter characters (allows spaces, hyphens, apostrophes).
+ * Used for name fields, nationality, etc.
+ */
+export function onlyLetters(value: string): string {
+  return value.replace(/[^a-zA-Z\s\-'.]/g, '');
+}
+
+/**
+ * Strip non-alphanumeric characters (allows letters, digits, hyphens).
+ * Used for employee ID, department code, etc.
+ */
+export function onlyAlphanumeric(value: string): string {
+  return value.replace(/[^a-zA-Z0-9\-]/g, '');
+}
+
+/**
+ * Limit string length (for real-time input max enforcement).
+ */
+export function limitLength(value: string, max: number): string {
+  return value.slice(0, max);
+}
+
+/**
+ * For phone input: only digits, max 10 digits (local) or 13 (with +91 prefix).
+ */
+export function phoneInputFilter(value: string): string {
+  // Allow digits and leading + only
+  let filtered = value.replace(/[^\d+]/g, '');
+  // If starts with +, keep it but limit to +91 + 10 digits = 13 chars
+  if (filtered.startsWith('+')) {
+    filtered = '+' + filtered.slice(1).replace(/[^\d]/g, '');
+    return filtered.slice(0, 13);
+  }
+  // Otherwise just digits, max 12 (to allow 91 prefix + 10 digits)
+  return filtered.replace(/[^\d]/g, '').slice(0, 12);
+}

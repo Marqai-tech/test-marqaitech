@@ -10,6 +10,7 @@ import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
+import { validateEmail, validatePhone, phoneInputFilter } from '@/lib/validators';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -217,6 +218,16 @@ export default function TenantCompaniesPage() {
     if (!form.name.trim()) {
       toast.error('Company name is required');
       return;
+    }
+    // Email validation
+    if (form.email) {
+      const emailResult = validateEmail(form.email);
+      if (!emailResult.valid) { toast.error(emailResult.error || 'Invalid email'); return; }
+    }
+    // Phone validation
+    if (form.phone) {
+      const phoneResult = validatePhone(form.phone);
+      if (!phoneResult.valid) { toast.error(phoneResult.error || 'Invalid phone number'); return; }
     }
     // Tenant admin MUST select an existing group company (only super admin can
     // create group companies). If no group is selected, surface a clear error
@@ -716,10 +727,10 @@ export default function TenantCompaniesPage() {
                   <input value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })} className="form-input" />
                 </Field>
                 <Field label="Phone">
-                  <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="form-input" />
+                  <input value={form.phone} onChange={(e) => setForm({ ...form, phone: phoneInputFilter(e.target.value) })} placeholder="10-digit mobile" className="form-input" />
                 </Field>
                 <Field label="Email">
-                  <input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="form-input" />
+                  <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="info@company.com" className="form-input" />
                 </Field>
               </div>
 

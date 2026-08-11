@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { FiSettings, FiClock, FiBell, FiDollarSign, FiSave, FiCheck, FiGlobe } from 'react-icons/fi'
 import toast from 'react-hot-toast'
 import { useCompanyData } from '@/components/company/useCompanyData'
+import { validateEmail, validatePhone } from '@/lib/validators'
 
 interface SettingSection {
   id: string
@@ -66,6 +67,16 @@ export default function SettingsPage() {
   const handleSave = async () => {
     setSaving(true)
     try {
+      // Validate email
+      if (settings.companyEmail) {
+        const emailResult = validateEmail(settings.companyEmail as string)
+        if (!emailResult.valid) { toast.error(emailResult.error || 'Invalid email'); setSaving(false); return }
+      }
+      // Validate phone
+      if (settings.companyPhone) {
+        const phoneResult = validatePhone(settings.companyPhone as string)
+        if (!phoneResult.valid) { toast.error(phoneResult.error || 'Invalid phone number'); setSaving(false); return }
+      }
       // Simulate saving - in real app this would call an API
       await new Promise(resolve => setTimeout(resolve, 1000))
       toast.success('Settings saved successfully')
@@ -87,7 +98,7 @@ export default function SettingsPage() {
         { id: 'companyName', label: 'Company Name', description: 'Legal name of the organization', type: 'input', value: settings.companyName as string, placeholder: 'Enter company name' },
         { id: 'companyCode', label: 'Company Code', description: 'Short code used as identifier', type: 'input', value: settings.companyCode as string, placeholder: 'e.g. ACME' },
         { id: 'companyEmail', label: 'Official Email', description: 'Primary company email address', type: 'input', value: settings.companyEmail as string, placeholder: 'info@company.com' },
-        { id: 'companyPhone', label: 'Phone Number', description: 'Primary contact number', type: 'input', value: settings.companyPhone as string, placeholder: '+91-XXXX-XXXXXX' },
+        { id: 'companyPhone', label: 'Phone Number', description: 'Primary contact number (10-digit Indian mobile)', type: 'input', value: settings.companyPhone as string, placeholder: '9876543210' },
         { id: 'companyWebsite', label: 'Website', description: 'Company website URL', type: 'input', value: settings.companyWebsite as string, placeholder: 'https://www.company.com' },
       ],
     },

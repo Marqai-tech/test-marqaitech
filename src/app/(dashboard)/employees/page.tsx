@@ -39,6 +39,14 @@ import {
   validateBankAccount,
   validateUAN,
   validateName,
+  validateZipCode,
+  validateNationality,
+  validatePFNumber,
+  validateESINumber,
+  onlyDigits,
+  onlyLetters,
+  phoneInputFilter,
+  limitLength,
 } from '@/lib/validators';
 import ModuleTips from '@/components/ModuleTips';
 import ModuleWorkflow from '@/components/ModuleWorkflow';
@@ -321,6 +329,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
   // Horizontal form tab state
   const [formTab, setFormTab] = useState('personal');
   const [stepErrors, setStepErrors] = useState<Record<string, string>>({});
+  const [completedSteps, setCompletedSteps] = useState<Set<string>>(new Set());
   const formTabs = [
     { key: 'personal', label: 'Personal', icon: '👤' },
     { key: 'address', label: 'Address', icon: '📍' },
@@ -359,6 +368,10 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
       { field: 'lastName', label: 'Last Name', validate: (v) => validateName(v, 'Last name') },
       { field: 'email', label: 'Email', validate: validateEmailFormat },
       { field: 'phone', label: 'Phone', validate: validatePhone },
+      { field: 'nationality', label: 'Nationality', validate: validateNationality },
+    ],
+    address: [
+      { field: 'zipCode', label: 'ZIP Code', validate: validateZipCode },
     ],
     bank: [
       { field: 'bankIfscCode', label: 'IFSC', validate: validateIFSC },
@@ -368,11 +381,17 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
     ],
     statutory: [
       { field: 'pfUAN', label: 'UAN', validate: validateUAN },
+      { field: 'pfNumber', label: 'PF Number', validate: validatePFNumber },
+      { field: 'esiNumber', label: 'ESI Number', validate: validateESINumber },
+    ],
+    emergency: [
+      { field: 'emergencyContactPhone', label: 'Emergency Contact Phone', validate: validatePhone },
     ],
   };
 
   /** Validate current step and advance to next if valid */
   const handleNextStep = () => {
+    if (submitting) return; // Prevent double-click
     setStepErrors({});
     const errors: Record<string, string> = {};
 
@@ -402,6 +421,9 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
       toast.error(`Please fix: ${Object.values(errors).join(', ')}`, { duration: 4000 });
       return; // BLOCK navigation
     }
+
+    // Mark current step as completed
+    setCompletedSteps(prev => new Set([...prev, formTab]));
 
     // Advance to next tab
     const idx = formTabs.findIndex((t) => t.key === formTab);
@@ -691,7 +713,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
           avatar: emp.avatar || '',
         });
         setShowForm(true);
-        setFormTab('personal');
+        setFormTab('personal'); setCompletedSteps(new Set());
         setPhotoPreview(emp.avatar || null);
         setTimeout(() => document.getElementById('crud-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
       } catch (err) {
@@ -755,7 +777,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
       companyId: scopeCompanyId || '',
     });
     setShowForm(true);
-    setFormTab('personal');
+    setFormTab('personal'); setCompletedSteps(new Set());
     setDeleteConfirmId(null);
     setActionMenuOpen(null);
     setTimeout(() => document.getElementById('crud-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
@@ -816,7 +838,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
       avatar: emp.avatar || '',
     });
     setShowForm(true);
-    setFormTab('personal');
+    setFormTab('personal'); setCompletedSteps(new Set());
     setPhotoPreview(emp.avatar || null);
     setDeleteConfirmId(null);
     setActionMenuOpen(null);
@@ -831,7 +853,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
     setShowForm(false);
     setEditingId(null);
     setForm(initialForm);
-    setFormTab('personal');
+    setFormTab('personal'); setCompletedSteps(new Set());
     setPhotoPreview(null);
   };
 
@@ -853,7 +875,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
       // Auto-navigate to the tab that contains the first missing field
       const personalFields = ['Employee ID', 'First Name', 'Last Name', 'Email'];
       const employmentFields = ['Department', 'Designation', 'Date of Joining'];
-      if (personalFields.includes(missingFields[0])) setFormTab('personal');
+      if (personalFields.includes(missingFields[0])) { setFormTab('personal'); setCompletedSteps(new Set()); }
       else if (employmentFields.includes(missingFields[0])) setFormTab('employment');
       return;
     }
@@ -1292,21 +1314,32 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
 
             {/* Horizontal Section Tabs */}
             <div className="flex items-center gap-1 border-b border-thb-border mb-6 overflow-x-auto pb-px -mx-1 px-1">
-              {formTabs.map((tab) => (
+              {formTabs.map((tab, idx) => {
+                const currentIdx = formTabs.findIndex(t => t.key === formTab);
+                const isCompleted = completedSteps.has(tab.key);
+                const isAccessible = idx <= currentIdx || isCompleted || idx === 0;
+                return (
                 <button
                   key={tab.key}
                   type="button"
-                  onClick={() => setFormTab(tab.key)}
+                  onClick={() => isAccessible && setFormTab(tab.key)}
+                  disabled={!isAccessible}
                   className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 transition-colors shrink-0 ${
                     formTab === tab.key
                       ? 'border-green-500 text-green-600 bg-green-50'
-                      : 'border-transparent text-thb-text-muted hover:text-thb-text-primary hover:border-slate-300'
+                      : isCompleted
+                        ? 'border-transparent text-green-600 hover:text-green-700 hover:border-green-300'
+                        : isAccessible
+                          ? 'border-transparent text-thb-text-muted hover:text-thb-text-primary hover:border-slate-300'
+                          : 'border-transparent text-slate-300 cursor-not-allowed'
                   }`}
                 >
                   <span className="text-base">{tab.icon}</span>
                   {tab.label}
+                  {isCompleted && formTab !== tab.key && <span className="ml-1 text-[10px] text-green-500">✓</span>}
                 </button>
-              ))}
+                );
+              })}
             </div>
 
             {/* Progress Bar */}
@@ -1355,11 +1388,13 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">First Name *</label>
-                      <input type="text" value={form.firstName} onChange={e => updateForm('firstName', e.target.value)} required className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
+                      <input type="text" value={form.firstName} onChange={e => updateForm('firstName', onlyLetters(e.target.value))} required className={`w-full px-3 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 ${stepErrors.firstName ? 'border-red-400 bg-red-50' : 'border-thb-border'}`} />
+                      {stepErrors.firstName && <p className="text-xs text-red-500 mt-1">{stepErrors.firstName}</p>}
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Last Name *</label>
-                      <input type="text" value={form.lastName} onChange={e => updateForm('lastName', e.target.value)} required className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
+                      <input type="text" value={form.lastName} onChange={e => updateForm('lastName', onlyLetters(e.target.value))} required className={`w-full px-3 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 ${stepErrors.lastName ? 'border-red-400 bg-red-50' : 'border-thb-border'}`} />
+                      {stepErrors.lastName && <p className="text-xs text-red-500 mt-1">{stepErrors.lastName}</p>}
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">
@@ -1383,11 +1418,13 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Email *</label>
-                      <input type="email" value={form.email} onChange={e => updateForm('email', e.target.value)} required className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
+                      <input type="email" value={form.email} onChange={e => updateForm('email', e.target.value)} required className={`w-full px-3 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 ${stepErrors.email ? 'border-red-400 bg-red-50' : 'border-thb-border'}`} />
+                      {stepErrors.email && <p className="text-xs text-red-500 mt-1">{stepErrors.email}</p>}
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Phone</label>
-                      <input type="tel" value={form.phone} onChange={e => updateForm('phone', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
+                      <input type="tel" value={form.phone} onChange={e => updateForm('phone', phoneInputFilter(e.target.value))} placeholder="10-digit mobile" className={`w-full px-3 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 ${stepErrors.phone ? 'border-red-400 bg-red-50' : 'border-thb-border'}`} />
+                      {stepErrors.phone && <p className="text-xs text-red-500 mt-1">{stepErrors.phone}</p>}
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Date of Birth</label>
@@ -1414,7 +1451,8 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Nationality</label>
-                      <input type="text" value={form.nationality} onChange={e => updateForm('nationality', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
+                      <input type="text" value={form.nationality} onChange={e => updateForm('nationality', onlyLetters(e.target.value))} className={`w-full px-3 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 ${stepErrors.nationality ? 'border-red-400 bg-red-50' : 'border-thb-border'}`} />
+                      {stepErrors.nationality && <p className="text-xs text-red-500 mt-1">{stepErrors.nationality}</p>}
                     </div>
                   </div>
                   <div className="flex justify-end pt-2">
@@ -1443,7 +1481,8 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">ZIP Code</label>
-                      <input type="text" value={form.zipCode} onChange={e => updateForm('zipCode', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
+                      <input type="text" value={form.zipCode} onChange={e => updateForm('zipCode', onlyDigits(e.target.value).slice(0, 6))} placeholder="6-digit PIN" className={`w-full px-3 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 ${stepErrors.zipCode ? 'border-red-400 bg-red-50' : 'border-thb-border'}`} />
+                      {stepErrors.zipCode && <p className="text-xs text-red-500 mt-1">{stepErrors.zipCode}</p>}
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Country</label>
@@ -1590,19 +1629,23 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Bank Account No</label>
-                      <input type="text" value={form.bankAccountNo} onChange={e => updateForm('bankAccountNo', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
+                      <input type="text" value={form.bankAccountNo} onChange={e => updateForm('bankAccountNo', onlyDigits(e.target.value).slice(0, 18))} placeholder="9-18 digits" className={`w-full px-3 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 ${stepErrors.bankAccountNo ? 'border-red-400 bg-red-50' : 'border-thb-border'}`} />
+                      {stepErrors.bankAccountNo && <p className="text-xs text-red-500 mt-1">{stepErrors.bankAccountNo}</p>}
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">IFSC Code</label>
-                      <input type="text" value={form.bankIfscCode} onChange={e => updateForm('bankIfscCode', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
+                      <input type="text" value={form.bankIfscCode} onChange={e => updateForm('bankIfscCode', e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 11))} placeholder="e.g., SBIN0001234" className={`w-full px-3 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 ${stepErrors.bankIfscCode ? 'border-red-400 bg-red-50' : 'border-thb-border'}`} />
+                      {stepErrors.bankIfscCode && <p className="text-xs text-red-500 mt-1">{stepErrors.bankIfscCode}</p>}
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">PAN Number</label>
-                      <input type="text" value={form.panNumber} onChange={e => updateForm('panNumber', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
+                      <input type="text" value={form.panNumber} onChange={e => updateForm('panNumber', e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10))} placeholder="e.g., ABCDE1234F" className={`w-full px-3 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 ${stepErrors.panNumber ? 'border-red-400 bg-red-50' : 'border-thb-border'}`} />
+                      {stepErrors.panNumber && <p className="text-xs text-red-500 mt-1">{stepErrors.panNumber}</p>}
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Aadhaar Number</label>
-                      <input type="text" value={form.aadhaarNumber} onChange={e => updateForm('aadhaarNumber', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
+                      <input type="text" value={form.aadhaarNumber} onChange={e => updateForm('aadhaarNumber', onlyDigits(e.target.value).slice(0, 12))} placeholder="12-digit UID" className={`w-full px-3 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 ${stepErrors.aadhaarNumber ? 'border-red-400 bg-red-50' : 'border-thb-border'}`} />
+                      {stepErrors.aadhaarNumber && <p className="text-xs text-red-500 mt-1">{stepErrors.aadhaarNumber}</p>}
                     </div>
                   </div>
                   <div className="flex items-center justify-between pt-2">
@@ -1625,11 +1668,13 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                       <div>
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">PF Number</label>
-                        <input type="text" value={form.pfNumber} onChange={e => updateForm('pfNumber', e.target.value)} placeholder="e.g., PF/MH/12345/678" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
+                        <input type="text" value={form.pfNumber} onChange={e => updateForm('pfNumber', e.target.value.replace(/[^A-Za-z0-9\/\-]/g, '').slice(0, 25))} placeholder="e.g., PF/MH/12345/678" className={`w-full px-3 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 ${stepErrors.pfNumber ? 'border-red-400 bg-red-50' : 'border-thb-border'}`} />
+                      {stepErrors.pfNumber && <p className="text-xs text-red-500 mt-1">{stepErrors.pfNumber}</p>}
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">UAN Number</label>
-                        <input type="text" value={form.pfUAN} onChange={e => updateForm('pfUAN', e.target.value)} placeholder="12-digit UAN" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
+                        <input type="text" value={form.pfUAN} onChange={e => updateForm('pfUAN', onlyDigits(e.target.value).slice(0, 12))} placeholder="12-digit UAN" className={`w-full px-3 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 ${stepErrors.pfUAN ? 'border-red-400 bg-red-50' : 'border-thb-border'}`} />
+                      {stepErrors.pfUAN && <p className="text-xs text-red-500 mt-1">{stepErrors.pfUAN}</p>}
                       </div>
                     </div>
                   </div>
@@ -1667,7 +1712,8 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                       <div>
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">ESI Number</label>
-                        <input type="text" value={form.esiNumber} onChange={e => updateForm('esiNumber', e.target.value)} placeholder="e.g., 31-00-123456-000-0001" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
+                        <input type="text" value={form.esiNumber} onChange={e => updateForm('esiNumber', e.target.value.replace(/[^0-9\-]/g, '').slice(0, 25))} placeholder="e.g., 31-00-123456-000-0001" className={`w-full px-3 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 ${stepErrors.esiNumber ? 'border-red-400 bg-red-50' : 'border-thb-border'}`} />
+                      {stepErrors.esiNumber && <p className="text-xs text-red-500 mt-1">{stepErrors.esiNumber}</p>}
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">ESI Dispensary</label>
@@ -1734,7 +1780,8 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Emergency Contact Phone</label>
-                      <input type="tel" value={form.emergencyContactPhone} onChange={e => updateForm('emergencyContactPhone', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
+                      <input type="tel" value={form.emergencyContactPhone} onChange={e => updateForm('emergencyContactPhone', phoneInputFilter(e.target.value))} placeholder="10-digit mobile" className={`w-full px-3 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 ${stepErrors.emergencyContactPhone ? 'border-red-400 bg-red-50' : 'border-thb-border'}`} />
+                      {stepErrors.emergencyContactPhone && <p className="text-xs text-red-500 mt-1">{stepErrors.emergencyContactPhone}</p>}
                     </div>
                   </div>
                   <div className="flex items-center justify-between pt-2">

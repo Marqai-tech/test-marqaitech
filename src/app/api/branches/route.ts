@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCompanyFilter, getAuthInfo } from '@/lib/companyScope';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
+import { validateEmail, validatePhone } from '@/lib/validators';
 
 function corsHeaders() {
   return {
@@ -89,6 +90,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Name and companyId are required' }, { status: 400, headers: corsHeaders() });
     }
 
+    // ─── Server-side validation ───
+    if (phone && typeof phone === 'string') {
+      const phoneResult = validatePhone(phone);
+      if (!phoneResult.valid) {
+        return NextResponse.json({ error: phoneResult.error }, { status: 400, headers: corsHeaders() });
+      }
+    }
+    if (email && typeof email === 'string') {
+      const emailResult = validateEmail(email);
+      if (!emailResult.valid) {
+        return NextResponse.json({ error: emailResult.error }, { status: 400, headers: corsHeaders() });
+      }
+    }
+
     // Verify the company exists and belongs to the admin's tenant (for non-super_admin)
     const company = await db.company.findUnique({
       where: { id: companyId },
@@ -158,6 +173,20 @@ export async function PUT(req: NextRequest) {
     // Verify ownership for non-super_admin
     if (authInfo.role !== 'super_admin' && existing.company?.companyGroup?.tenantId !== authInfo.tenantId) {
       return NextResponse.json({ error: 'Branch does not belong to your tenant' }, { status: 403, headers: corsHeaders() });
+    }
+
+    // ─── Server-side validation ───
+    if (updateData.phone && typeof updateData.phone === 'string') {
+      const phoneResult = validatePhone(updateData.phone);
+      if (!phoneResult.valid) {
+        return NextResponse.json({ error: phoneResult.error }, { status: 400, headers: corsHeaders() });
+      }
+    }
+    if (updateData.email && typeof updateData.email === 'string') {
+      const emailResult = validateEmail(updateData.email);
+      if (!emailResult.valid) {
+        return NextResponse.json({ error: emailResult.error }, { status: 400, headers: corsHeaders() });
+      }
     }
 
     const branch = await db.branch.update({

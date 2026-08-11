@@ -5,6 +5,7 @@ import { FiBriefcase, FiPlus, FiSearch, FiEye, FiEdit2, FiTrash2, FiX, FiInfo, F
 import toast from 'react-hot-toast'
 import { useCompanyData, apiFetch, getStatusBadge } from '@/components/company/useCompanyData'
 import { DepartmentRecord } from '@/components/company/useCompanyData'
+import { onlyAlphanumeric } from '@/lib/validators'
 
 function TableWrapper({ title, icon, count, children }: { title: string; icon: React.ReactNode; count: number; children: React.ReactNode }) {
   return (
@@ -173,7 +174,7 @@ export default function DepartmentsPage() {
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Name *</label><input type="text" value={form.name || ''} onChange={e => updateForm('name', e.target.value)} required className={inputClass} placeholder="Department name" /></div>
-                <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Code</label><input type="text" value={form.code || ''} onChange={e => updateForm('code', e.target.value)} className={inputClass} placeholder="e.g. ENG" /></div>
+                <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Code</label><input type="text" value={form.code || ''} onChange={e => updateForm('code', onlyAlphanumeric(e.target.value))} className={inputClass} placeholder="e.g. ENG" /></div>
                 <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Company *</label><select value={form.companyId || ''} onChange={e => updateForm('companyId', e.target.value)} required className={inputClass}><option value="">Select Company</option>{companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
                 <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Status</label><select value={form.status || 'active'} onChange={e => updateForm('status', e.target.value)} className={inputClass}><option value="active">Active</option><option value="inactive">Inactive</option></select></div>
               </div>

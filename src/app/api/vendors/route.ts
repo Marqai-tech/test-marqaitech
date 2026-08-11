@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
+import { validateEmail, validatePhone } from '@/lib/validators';
 
 function corsHeaders() {
   return {
@@ -98,6 +99,20 @@ export async function POST(request: Request) {
         { error: 'Missing required fields: name, companyId' },
         { status: 400, headers: corsHeaders() }
       );
+    }
+
+    // ─── Server-side validation ───
+    if (contactPhone && typeof contactPhone === 'string') {
+      const phoneResult = validatePhone(contactPhone);
+      if (!phoneResult.valid) {
+        return NextResponse.json({ error: phoneResult.error }, { status: 400, headers: corsHeaders() });
+      }
+    }
+    if (contactEmail && typeof contactEmail === 'string') {
+      const emailResult = validateEmail(contactEmail);
+      if (!emailResult.valid) {
+        return NextResponse.json({ error: emailResult.error }, { status: 400, headers: corsHeaders() });
+      }
     }
 
     // If sub_vendor, validate parentVendorId

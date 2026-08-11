@@ -5,7 +5,7 @@ import { FiMapPin, FiPlus, FiSearch, FiEye, FiEdit2, FiTrash2, FiX, FiInfo, FiAl
 import toast from 'react-hot-toast'
 import { useCompanyData, apiFetch, getStatusBadge } from '@/components/company/useCompanyData'
 import { BranchRecord } from '@/components/company/useCompanyData'
-import { validatePhone } from '@/lib/validators'
+import { validatePhone, validateEmail, phoneInputFilter } from '@/lib/validators'
 
 function TableWrapper({ title, icon, count, children }: { title: string; icon: React.ReactNode; count: number; children: React.ReactNode }) {
   return (
@@ -66,6 +66,12 @@ export default function BranchesPage() {
     if (form.phone) {
       const phoneResult = validatePhone(form.phone)
       if (!phoneResult.valid) { toast.error(phoneResult.error || 'Invalid phone number'); return }
+    }
+
+    // Email validation
+    if (form.email) {
+      const emailResult = validateEmail(form.email)
+      if (!emailResult.valid) { toast.error(emailResult.error || 'Invalid email'); return }
     }
 
     // Duplicate name/code check within same company
@@ -187,8 +193,8 @@ export default function BranchesPage() {
                 <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">State</label><input type="text" value={form.state || ''} onChange={e => updateForm('state', e.target.value)} className={inputClass} /></div>
                 <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Country</label><input type="text" value={form.country || ''} onChange={e => updateForm('country', e.target.value)} className={inputClass} /></div>
                 <div className="sm:col-span-2 lg:col-span-3"><label className="block text-xs font-medium text-thb-text-secondary mb-1">Address</label><input type="text" value={form.address || ''} onChange={e => updateForm('address', e.target.value)} className={inputClass} /></div>
-                <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Phone</label><input type="tel" value={form.phone || ''} onChange={e => updateForm('phone', e.target.value)} className={inputClass} /></div>
-                <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Email</label><input type="email" value={form.email || ''} onChange={e => updateForm('email', e.target.value)} className={inputClass} /></div>
+                <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Phone</label><input type="tel" value={form.phone || ''} onChange={e => updateForm('phone', phoneInputFilter(e.target.value))} placeholder="10-digit mobile" className={inputClass} /></div>
+                <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Email</label><input type="email" value={form.email || ''} onChange={e => updateForm('email', e.target.value)} placeholder="branch@company.com" className={inputClass} /></div>
                 <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Status</label><select value={form.status || 'active'} onChange={e => updateForm('status', e.target.value)} className={inputClass}><option value="active">Active</option><option value="inactive">Inactive</option></select></div>
               </div>
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-thb-border">

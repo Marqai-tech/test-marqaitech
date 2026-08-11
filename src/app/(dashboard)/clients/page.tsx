@@ -9,6 +9,7 @@ import {
 } from 'react-icons/fi';
 import ModuleDashboardShell, { DashboardTabConfig } from '@/components/ModuleDashboardShell';
 import toast from 'react-hot-toast';
+import { validateEmail, validatePhone, phoneInputFilter } from '@/lib/validators';
 import { useAuthStore } from '@/store/authStore';
 import ModuleTips from '@/components/ModuleTips';
 import ModuleWorkflow from '@/components/ModuleWorkflow';
@@ -175,6 +176,8 @@ function ClientsContent() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name) { toast.error('Name is required'); return; }
+    if (form.contactEmail) { const r = validateEmail(form.contactEmail); if (!r.valid) { toast.error(r.error); return } }
+    if (form.contactPhone) { const r = validatePhone(form.contactPhone); if (!r.valid) { toast.error(r.error); return } }
     setSubmitting(true);
     try {
       if (editingId) {
@@ -319,8 +322,8 @@ function ClientsContent() {
               <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Industry</label><input value={form.industry} onChange={(e) => setForm({ ...form, industry: e.target.value })} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500" /></div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Contact Name</label><input value={form.contactName} onChange={(e) => setForm({ ...form, contactName: e.target.value })} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500" /></div>
-                <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Email</label><input type="email" value={form.contactEmail} onChange={(e) => setForm({ ...form, contactEmail: e.target.value })} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500" /></div>
-                <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Phone</label><input value={form.contactPhone} onChange={(e) => setForm({ ...form, contactPhone: e.target.value })} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500" /></div>
+                <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Email</label><input type="email" placeholder="e.g., name@domain.com" value={form.contactEmail} onChange={(e) => setForm({ ...form, contactEmail: e.target.value })} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500" /></div>
+                <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Phone</label><input type="tel" placeholder="10-digit Indian mobile" value={form.contactPhone} onChange={(e) => setForm({ ...form, contactPhone: phoneInputFilter(e.target.value) })} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500" /></div>
               </div>
               <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Address</label><input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500" /></div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">

@@ -4,6 +4,7 @@ import { verifyToken, getTokenFromHeaders, hashPassword } from '@/lib/auth';
 import { getDataScope } from '@/lib/roleAccess';
 import { getEmployeeCompanyFilter, getCompanyFilter, getAuthInfo, resolveCompanyScope } from '@/lib/companyScope';
 import { checkTenantStatusOrBlock } from '@/lib/tenant-guard';
+import { validateEmail, validatePhone, validateAadhaar, validatePAN, validateIFSC, validateBankAccount } from '@/lib/validators';
 
 function generateRandomPassword(length = 12): string {
   const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -269,6 +270,44 @@ export async function POST(request: Request) {
         { error: `Please fill in the required fields: ${missingFields.join(', ')}`, missingFields },
         { status: 400, headers: corsHeaders() }
       );
+    }
+
+    // ─── Server-side validation ───
+    if (phone && typeof phone === 'string') {
+      const phoneResult = validatePhone(phone);
+      if (!phoneResult.valid) {
+        return NextResponse.json({ error: phoneResult.error }, { status: 400, headers: corsHeaders() });
+      }
+    }
+    if (email && typeof email === 'string') {
+      const emailResult = validateEmail(email);
+      if (!emailResult.valid) {
+        return NextResponse.json({ error: emailResult.error }, { status: 400, headers: corsHeaders() });
+      }
+    }
+    if (aadhaarNumber && typeof aadhaarNumber === 'string') {
+      const aadhaarResult = validateAadhaar(aadhaarNumber);
+      if (!aadhaarResult.valid) {
+        return NextResponse.json({ error: aadhaarResult.error }, { status: 400, headers: corsHeaders() });
+      }
+    }
+    if (panNumber && typeof panNumber === 'string') {
+      const panResult = validatePAN(panNumber);
+      if (!panResult.valid) {
+        return NextResponse.json({ error: panResult.error }, { status: 400, headers: corsHeaders() });
+      }
+    }
+    if (bankIfscCode && typeof bankIfscCode === 'string') {
+      const ifscResult = validateIFSC(bankIfscCode);
+      if (!ifscResult.valid) {
+        return NextResponse.json({ error: ifscResult.error }, { status: 400, headers: corsHeaders() });
+      }
+    }
+    if (bankAccountNo && typeof bankAccountNo === 'string') {
+      const bankResult = validateBankAccount(bankAccountNo);
+      if (!bankResult.valid) {
+        return NextResponse.json({ error: bankResult.error }, { status: 400, headers: corsHeaders() });
+      }
     }
 
     // Try to create in database

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { createNotification } from '@/lib/notifications';
+import { validateEmail, validatePhone } from '@/lib/validators';
 
 function corsHeaders() {
   return {
@@ -163,6 +164,20 @@ export async function POST(request: Request) {
           { error: 'Missing required fields: jobPostingId, candidateName, candidateEmail' },
           { status: 400, headers: corsHeaders() }
         );
+      }
+
+      // ─── Server-side validation ───
+      if (candidatePhone && typeof candidatePhone === 'string') {
+        const phoneResult = validatePhone(candidatePhone);
+        if (!phoneResult.valid) {
+          return NextResponse.json({ error: phoneResult.error }, { status: 400, headers: corsHeaders() });
+        }
+      }
+      if (candidateEmail && typeof candidateEmail === 'string') {
+        const emailResult = validateEmail(candidateEmail);
+        if (!emailResult.valid) {
+          return NextResponse.json({ error: emailResult.error }, { status: 400, headers: corsHeaders() });
+        }
       }
 
       // Verify job posting exists AND belongs to the caller's tenant

@@ -68,6 +68,19 @@ export default function HolidaysPage() {
 
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault()
+
+    // Validate required fields
+    if (!form.name || !form.name.trim()) { toast.error('Holiday name is required'); return }
+    if (!form.date) { toast.error('Holiday date is required'); return }
+
+    // Duplicate holiday check (same name on same date)
+    const duplicateHoliday = holidays.find(h =>
+      h.name.toLowerCase() === form.name.toLowerCase() &&
+      h.date === form.date &&
+      h.id !== editingId
+    )
+    if (duplicateHoliday) { toast.error('A holiday with this name already exists for this date'); return }
+
     setSubmitting(true)
     try {
       const isEdit = !!editingId

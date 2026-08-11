@@ -6,6 +6,7 @@ import {
   FiEye, FiEdit2, FiTrash2, FiGlobe, FiMail, FiPhone,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import { validateEmail, validatePhone, phoneInputFilter } from '@/lib/validators';
 import { useAuthStore } from '@/store/authStore';
 import ModuleTips from '@/components/ModuleTips';
 import ModuleWorkflow from '@/components/ModuleWorkflow';
@@ -127,6 +128,8 @@ export default function VendorsPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name) { toast.error('Name is required'); return; }
+    if (form.contactEmail) { const r = validateEmail(form.contactEmail); if (!r.valid) { toast.error(r.error); return } }
+    if (form.contactPhone) { const r = validatePhone(form.contactPhone); if (!r.valid) { toast.error(r.error); return } }
     setSubmitting(true);
     try {
       if (editingId) {
@@ -305,9 +308,9 @@ export default function VendorsPage() {
               )}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Contact Name</label><input value={form.contactName} onChange={(e) => setForm({ ...form, contactName: e.target.value })} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500" /></div>
-                <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Contact Email</label><input type="email" value={form.contactEmail} onChange={(e) => setForm({ ...form, contactEmail: e.target.value })} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500" /></div>
+                <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Contact Email</label><input type="email" placeholder="e.g., name@domain.com" value={form.contactEmail} onChange={(e) => setForm({ ...form, contactEmail: e.target.value })} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500" /></div>
               </div>
-              <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Contact Phone</label><input value={form.contactPhone} onChange={(e) => setForm({ ...form, contactPhone: e.target.value })} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500" /></div>
+              <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Contact Phone</label><input type="tel" placeholder="10-digit Indian mobile" value={form.contactPhone} onChange={(e) => setForm({ ...form, contactPhone: phoneInputFilter(e.target.value) })} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500" /></div>
               <div><label className="block text-sm font-medium text-thb-text-secondary mb-1">Specialization</label><input value={form.specialization} onChange={(e) => setForm({ ...form, specialization: e.target.value })} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500" /></div>
               <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-thb-border">
                 <button type="button" onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
