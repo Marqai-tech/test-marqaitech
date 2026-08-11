@@ -7228,7 +7228,21 @@ model CollaborationSettings {
   calendarSyncEnabled     Boolean  @default(true)
   calendarSyncProvider    String   @default("google") // google | outlook | ical
   emailIntegrationEnabled Boolean  @default(false)
-  emailProvider           String   @default("smtp") // smtp | google | outlook
+  emailProvider           String   @default("smtp") // smtp | google | outlook | resend
+  // ─── SMTP Configuration ───
+  smtpHost                String?  // e.g. smtp.gmail.com, smtp.office365.com
+  smtpPort                Int      @default(587)
+  smtpUsername            String?  // SMTP login / email address
+  smtpPassword            String?  // Encrypted SMTP password / app password
+  smtpEncryption          String   @default("tls") // tls | ssl | none
+  smtpFromName            String?  // Display name for outgoing emails
+  smtpFromAddress         String?  // From address override (if different from username)
+  smtpReplyTo             String?  // Reply-to address
+  smtpVerifiedAt          DateTime? // When SMTP creds were last verified
+  smtpVerifyError         String?  // Last verification error message
+  // ─── Resend Configuration (alternative to SMTP) ───
+  resendApiKey            String?  // Resend API key (if emailProvider = 'resend')
+  resendFromAddress       String?  // Verified sender address for Resend
   autoDeleteMessages      Boolean  @default(false)
   maxCallDurationMin      Int      @default(60)
   allowExternalSharing    Boolean  @default(true)

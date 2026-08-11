@@ -21,6 +21,12 @@ import {
   FiBriefcase,
   FiTrendingUp,
   FiUpload,
+  FiMail,
+  FiSend,
+  FiCheckCircle,
+  FiAlertCircle,
+  FiEye,
+  FiEyeOff,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -567,9 +573,544 @@ function SettingsSectionCard({
 }
 
 /* ──────────────────────────────────────────────
+   SMTP Configuration Tab Component
+   ────────────────────────────────────────────── */
+function SmtpConfigTab() {
+  const { user } = useAuthStore();
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showResendKey, setShowResendKey] = useState(false);
+  const [testResult, setTestResult] = useState<{ success: boolean; error?: string } | null>(null);
+
+  const [config, setConfig] = useState({
+    emailIntegrationEnabled: false,
+    emailProvider: 'smtp',
+    smtpHost: '',
+    smtpPort: 587,
+    smtpUsername: '',
+    smtpPassword: '',
+    smtpEncryption: 'tls',
+    smtpFromName: '',
+    smtpFromAddress: '',
+    smtpReplyTo: '',
+    resendApiKey: '',
+    resendFromAddress: '',
+    smtpVerifiedAt: null as string | null,
+    smtpVerifyError: null as string | null,
+  });
+
+  const fetchConfig = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/settings/smtp', { headers: getAuthHeaders() });
+      if (res.ok) {
+        const data = await res.json();
+        const s = data.settings || {};
+        setConfig({
+          emailIntegrationEnabled: s.emailIntegrationEnabled ?? false,
+          emailProvider: s.emailProvider ?? 'smtp',
+          smtpHost: s.smtpHost ?? '',
+          smtpPort: s.smtpPort ?? 587,
+          smtpUsername: s.smtpUsername ?? '',
+          smtpPassword: s.smtpPassword ?? '',
+          smtpEncryption: s.smtpEncryption ?? 'tls',
+          smtpFromName: s.smtpFromName ?? '',
+          smtpFromAddress: s.smtpFromAddress ?? '',
+          smtpReplyTo: s.smtpReplyTo ?? '',
+          resendApiKey: s.resendApiKey ?? '',
+          resendFromAddress: s.resendFromAddress ?? '',
+          smtpVerifiedAt: s.smtpVerifiedAt ?? null,
+          smtpVerifyError: s.smtpVerifyError ?? null,
+        });
+      }
+    } catch { /* ignore */ }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { fetchConfig(); }, [fetchConfig]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch('/api/settings/smtp', {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(config),
+      });
+      if (res.ok) {
+        toast.success('SMTP configuration saved successfully');
+        fetchConfig();
+      } else {
+        const data = await res.json();
+        toast.error(data.error || 'Failed to save');
+      }
+    } catch {
+      toast.error('Failed to save SMTP configuration');
+    }
+    setSaving(false);
+  };
+
+  const handleTestConnection = async () => {
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const res = await fetch('/api/settings/smtp', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          smtpHost: config.smtpHost,
+          smtpPort: config.smtpPort,
+          smtpUsername: config.smtpUsername,
+          smtpPassword: config.smtpPassword,
+          smtpEncryption: config.smtpEncryption,
+        }),
+      });
+      const data = await res.json();
+      setTestResult(data);
+      if (data.success) {
+        toast.success('SMTP connection verified successfully!');
+        fetchConfig(); // Refresh to get updated smtpVerifiedAt
+      } else {
+        toast.error(data.error || 'Connection failed');
+      }
+    } catch {
+      setTestResult({ success: false, error: 'Network error' });
+      toast.error('Failed to test SMTP connection');
+    }
+    setTesting(false);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="animate-spin w-8 h-8 border-2 border-green-500 border-t-transparent rounded-full" />
+      </div>
+    );
+  }
+
+  const isSmtp = config.emailProvider === 'smtp' || config.emailProvider === 'google' || config.emailProvider === 'outlook';
+  const isResend = config.emailProvider === 'resend';
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="mb-4">
+        <h2 className="text-lg font-semibold text-thb-text-primary flex items-center gap-2">
+          <FiMail className="w-5 h-5 text-green-500" />
+          SMTP Email Configuration
+        </h2>
+        <p className="text-xs text-thb-text-muted mt-0.5">Configure email delivery for outgoing emails from the collaboration module</p>
+      </div>
+
+      {/* Enable Email Integration */}
+      <div className="thb-card">
+        <div className="p-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center text-green-500">
+                <FiMail className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-thb-text-primary">Email Integration</h3>
+                <p className="text-xs text-thb-text-muted">Enable sending real emails from the Email module</p>
+              </div>
+            </div>
+            <ToggleSwitch
+              enabled={config.emailIntegrationEnabled}
+              onToggle={() => setConfig(c => ({ ...c, emailIntegrationEnabled: !c.emailIntegrationEnabled }))}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Email Provider Selection */}
+      <div className="thb-card">
+        <div className="p-6">
+          <div className="flex items-center gap-3 mb-5">
+            <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-500">
+              <FiSend className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-thb-text-primary">Email Provider</h3>
+              <p className="text-xs text-thb-text-muted">Choose how emails are delivered</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {[
+              { key: 'smtp', label: 'Custom SMTP', desc: 'Any SMTP server', color: 'blue' },
+              { key: 'google', label: 'Gmail', desc: 'Google SMTP', color: 'red' },
+              { key: 'outlook', label: 'Outlook', desc: 'Office 365', color: 'indigo' },
+              { key: 'resend', label: 'Resend', desc: 'API-based', color: 'purple' },
+            ].map(p => (
+              <button
+                key={p.key}
+                onClick={() => setConfig(c => ({ ...c, emailProvider: p.key }))}
+                className={`p-4 rounded-xl border-2 transition-all text-left ${
+                  config.emailProvider === p.key
+                    ? `border-${p.color}-500 bg-${p.color}-50`
+                    : 'border-thb-border/50 hover:border-thb-border'
+                }`}
+              >
+                <p className="text-sm font-medium text-thb-text-primary">{p.label}</p>
+                <p className="text-xs text-thb-text-muted mt-0.5">{p.desc}</p>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* SMTP Configuration (for smtp, google, outlook) */}
+      {isSmtp && (
+        <div className="thb-card">
+          <div className="p-6">
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center text-amber-500">
+                <FiSettings className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-thb-text-primary">
+                  {config.emailProvider === 'google' ? 'Gmail SMTP Settings' : config.emailProvider === 'outlook' ? 'Outlook SMTP Settings' : 'SMTP Server Settings'}
+                </h3>
+                <p className="text-xs text-thb-text-muted">
+                  {config.emailProvider === 'google'
+                    ? 'Use a Gmail App Password (not your regular password)'
+                    : config.emailProvider === 'outlook'
+                    ? 'Use your Office 365 credentials'
+                    : 'Enter your SMTP server details'}
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Host */}
+              {config.emailProvider === 'smtp' && (
+                <div>
+                  <label className="block text-xs font-medium text-thb-text-muted mb-1.5">SMTP Host</label>
+                  <input
+                    type="text"
+                    value={config.smtpHost}
+                    onChange={e => setConfig(c => ({ ...c, smtpHost: e.target.value }))}
+                    placeholder="e.g., smtp.gmail.com"
+                    className="w-full px-4 py-2.5 rounded-lg border border-thb-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500"
+                  />
+                </div>
+              )}
+              {config.emailProvider !== 'smtp' && (
+                <div>
+                  <label className="block text-xs font-medium text-thb-text-muted mb-1.5">SMTP Host</label>
+                  <input
+                    type="text"
+                    value={config.emailProvider === 'google' ? 'smtp.gmail.com' : 'smtp.office365.com'}
+                    disabled
+                    className="w-full px-4 py-2.5 rounded-lg border border-thb-border bg-gray-50 text-sm text-thb-text-muted"
+                  />
+                </div>
+              )}
+
+              {/* Port */}
+              <div>
+                <label className="block text-xs font-medium text-thb-text-muted mb-1.5">Port</label>
+                <select
+                  value={config.smtpPort}
+                  onChange={e => setConfig(c => ({ ...c, smtpPort: parseInt(e.target.value) }))}
+                  className="w-full px-4 py-2.5 rounded-lg border border-thb-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500"
+                >
+                  <option value={587}>587 (TLS/STARTTLS)</option>
+                  <option value={465}>465 (SSL)</option>
+                  <option value={25}>25 (Unencrypted)</option>
+                  <option value={2525}>2525 (Alternative)</option>
+                </select>
+              </div>
+
+              {/* Username */}
+              <div>
+                <label className="block text-xs font-medium text-thb-text-muted mb-1.5">
+                  {config.emailProvider === 'google' ? 'Gmail Address' : config.emailProvider === 'outlook' ? 'Outlook Email' : 'SMTP Username'}
+                </label>
+                <input
+                  type="text"
+                  value={config.smtpUsername}
+                  onChange={e => setConfig(c => ({ ...c, smtpUsername: e.target.value }))}
+                  placeholder={config.emailProvider === 'google' ? 'you@gmail.com' : config.emailProvider === 'outlook' ? 'you@company.com' : 'username'}
+                  className="w-full px-4 py-2.5 rounded-lg border border-thb-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500"
+                />
+              </div>
+
+              {/* Password */}
+              <div>
+                <label className="block text-xs font-medium text-thb-text-muted mb-1.5">
+                  {config.emailProvider === 'google' ? 'App Password' : 'Password'}
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={config.smtpPassword}
+                    onChange={e => setConfig(c => ({ ...c, smtpPassword: e.target.value }))}
+                    placeholder={config.emailProvider === 'google' ? '16-char app password' : '••••••••'}
+                    className="w-full px-4 py-2.5 pr-10 rounded-lg border border-thb-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-thb-text-muted hover:text-thb-text-primary"
+                  >
+                    {showPassword ? <FiEyeOff className="w-4 h-4" /> : <FiEye className="w-4 h-4" />}
+                  </button>
+                </div>
+                {config.emailProvider === 'google' && (
+                  <p className="text-xs text-amber-500 mt-1">Generate an App Password at myaccount.google.com/apppasswords</p>
+                )}
+              </div>
+
+              {/* Encryption */}
+              {config.emailProvider === 'smtp' && (
+                <div>
+                  <label className="block text-xs font-medium text-thb-text-muted mb-1.5">Encryption</label>
+                  <select
+                    value={config.smtpEncryption}
+                    onChange={e => setConfig(c => ({ ...c, smtpEncryption: e.target.value }))}
+                    className="w-full px-4 py-2.5 rounded-lg border border-thb-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500"
+                  >
+                    <option value="tls">TLS (STARTTLS)</option>
+                    <option value="ssl">SSL</option>
+                    <option value="none">None</option>
+                  </select>
+                </div>
+              )}
+            </div>
+
+            {/* From Address Settings */}
+            <div className="mt-6 pt-5 border-t border-thb-border">
+              <h4 className="text-sm font-medium text-thb-text-primary mb-4">From Address Settings</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-thb-text-muted mb-1.5">From Name</label>
+                  <input
+                    type="text"
+                    value={config.smtpFromName}
+                    onChange={e => setConfig(c => ({ ...c, smtpFromName: e.target.value }))}
+                    placeholder="Company Name or Team"
+                    className="w-full px-4 py-2.5 rounded-lg border border-thb-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-thb-text-muted mb-1.5">From Email (override)</label>
+                  <input
+                    type="email"
+                    value={config.smtpFromAddress}
+                    onChange={e => setConfig(c => ({ ...c, smtpFromAddress: e.target.value }))}
+                    placeholder="Defaults to SMTP username"
+                    className="w-full px-4 py-2.5 rounded-lg border border-thb-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-thb-text-muted mb-1.5">Reply-To Address</label>
+                  <input
+                    type="email"
+                    value={config.smtpReplyTo}
+                    onChange={e => setConfig(c => ({ ...c, smtpReplyTo: e.target.value }))}
+                    placeholder="Optional reply-to address"
+                    className="w-full px-4 py-2.5 rounded-lg border border-thb-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Test Connection */}
+            <div className="mt-6 pt-5 border-t border-thb-border">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-sm font-medium text-thb-text-primary">Test Connection</h4>
+                  <p className="text-xs text-thb-text-muted">Verify your SMTP credentials work</p>
+                  {config.smtpVerifiedAt && (
+                    <div className="flex items-center gap-1.5 mt-2">
+                      <FiCheckCircle className="w-4 h-4 text-green-500" />
+                      <span className="text-xs text-green-600">
+                        Last verified: {new Date(config.smtpVerifiedAt).toLocaleString()}
+                      </span>
+                    </div>
+                  )}
+                  {config.smtpVerifyError && (
+                    <div className="flex items-center gap-1.5 mt-2">
+                      <FiAlertCircle className="w-4 h-4 text-red-500" />
+                      <span className="text-xs text-red-600">{config.smtpVerifyError}</span>
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center gap-3">
+                  {testResult && (
+                    <span className={`text-xs flex items-center gap-1 ${testResult.success ? 'text-green-600' : 'text-red-600'}`}>
+                      {testResult.success ? <FiCheckCircle className="w-4 h-4" /> : <FiAlertCircle className="w-4 h-4" />}
+                      {testResult.success ? 'Connected!' : testResult.error}
+                    </span>
+                  )}
+                  <button
+                    onClick={handleTestConnection}
+                    disabled={testing || !config.smtpHost || !config.smtpUsername || !config.smtpPassword}
+                    className="px-4 py-2 rounded-lg border border-thb-border text-sm font-medium hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+                  >
+                    {testing ? (
+                      <><div className="animate-spin w-4 h-4 border-2 border-green-500 border-t-transparent rounded-full" /> Testing...</>
+                    ) : (
+                      <><FiSend className="w-4 h-4" /> Test Connection</>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Gmail-specific help */}
+            {config.emailProvider === 'google' && (
+              <div className="mt-6 p-4 rounded-lg bg-amber-50 border border-amber-200">
+                <h4 className="text-sm font-medium text-amber-800 mb-2">Gmail Setup Instructions</h4>
+                <ol className="text-xs text-amber-700 space-y-1.5 list-decimal pl-4">
+                  <li>Go to <span className="font-mono">myaccount.google.com/security</span></li>
+                  <li>Enable 2-Step Verification if not already on</li>
+                  <li>Go to App Passwords (<span className="font-mono">myaccount.google.com/apppasswords</span>)</li>
+                  <li>Select "Mail" and your device, then click Generate</li>
+                  <li>Copy the 16-character password and paste it above</li>
+                  <li>Test the connection to verify it works</li>
+                </ol>
+              </div>
+            )}
+
+            {/* Outlook-specific help */}
+            {config.emailProvider === 'outlook' && (
+              <div className="mt-6 p-4 rounded-lg bg-indigo-50 border border-indigo-200">
+                <h4 className="text-sm font-medium text-indigo-800 mb-2">Outlook/Office 365 Setup</h4>
+                <ol className="text-xs text-indigo-700 space-y-1.5 list-decimal pl-4">
+                  <li>Use your Office 365 work email as the username</li>
+                  <li>For modern auth, ensure SMTP AUTH is enabled in Exchange Online</li>
+                  <li>Admin: Check Microsoft 365 admin center → Exchange → mail flow settings</li>
+                  <li>Some organizations block SMTP AUTH — contact your IT admin if connection fails</li>
+                  <li>Test the connection to verify it works</li>
+                </ol>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Resend Configuration */}
+      {isResend && (
+        <div className="thb-card">
+          <div className="p-6">
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center text-purple-500">
+                <FiSend className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-thb-text-primary">Resend API Configuration</h3>
+                <p className="text-xs text-thb-text-muted">Use Resend.com for modern API-based email delivery</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-thb-text-muted mb-1.5">API Key</label>
+                <div className="relative">
+                  <input
+                    type={showResendKey ? 'text' : 'password'}
+                    value={config.resendApiKey}
+                    onChange={e => setConfig(c => ({ ...c, resendApiKey: e.target.value }))}
+                    placeholder="re_xxxxxxxxxxxx"
+                    className="w-full px-4 py-2.5 pr-10 rounded-lg border border-thb-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowResendKey(!showResendKey)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-thb-text-muted hover:text-thb-text-primary"
+                  >
+                    {showResendKey ? <FiEyeOff className="w-4 h-4" /> : <FiEye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-thb-text-muted mb-1.5">Verified From Address</label>
+                <input
+                  type="email"
+                  value={config.resendFromAddress}
+                  onChange={e => setConfig(c => ({ ...c, resendFromAddress: e.target.value }))}
+                  placeholder="noreply@yourdomain.com"
+                  className="w-full px-4 py-2.5 rounded-lg border border-thb-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500"
+                />
+                <p className="text-xs text-thb-text-muted mt-1">Must be a domain verified in your Resend dashboard</p>
+              </div>
+            </div>
+
+            <div className="mt-6 p-4 rounded-lg bg-purple-50 border border-purple-200">
+              <h4 className="text-sm font-medium text-purple-800 mb-2">Resend Setup</h4>
+              <ol className="text-xs text-purple-700 space-y-1.5 list-decimal pl-4">
+                <li>Sign up at <span className="font-mono">resend.com</span></li>
+                <li>Add and verify your domain in the Resend dashboard</li>
+                <li>Generate an API key with &quot;Sending access&quot;</li>
+                <li>Paste the API key and your verified from address above</li>
+              </ol>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Logged-in User Info */}
+      <div className="thb-card">
+        <div className="p-6">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-500">
+              <FiUsers className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-thb-text-primary">Current User</h3>
+              <p className="text-xs text-thb-text-muted">Emails sent from the Email module will use this user&apos;s address</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-4 p-4 rounded-lg bg-gray-50 border border-thb-border/50">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center text-white text-sm font-medium">
+              {user?.name?.charAt(0)?.toUpperCase() || 'U'}
+            </div>
+            <div>
+              <p className="text-sm font-medium text-thb-text-primary">{user?.name || 'User'}</p>
+              <p className="text-xs text-thb-text-muted">{user?.email || user?.employee?.email || 'No email on file'}</p>
+            </div>
+            {config.emailIntegrationEnabled && (
+              <span className="ml-auto px-2.5 py-1 rounded-full bg-green-50 text-green-600 text-xs font-medium flex items-center gap-1">
+                <FiCheckCircle className="w-3 h-3" /> Active
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Save Button */}
+      <div className="flex items-center justify-end gap-3">
+        <button
+          onClick={() => fetchConfig()}
+          className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium hover:bg-gray-50 transition-colors"
+        >
+          Reset
+        </button>
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="px-6 py-2.5 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 shadow-sm shadow-green-500/25 transition-colors disabled:opacity-50 flex items-center gap-2"
+        >
+          {saving ? (
+            <><div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" /> Saving...</>
+          ) : (
+            <><FiSave className="w-4 h-4" /> Save Configuration</>
+          )}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ──────────────────────────────────────────────
    Sidebar Navigation Item
    ────────────────────────────────────────────── */
-type TabKey = 'general' | 'payroll' | 'leave' | 'attendance' | 'employee' | 'recruitment' | 'performance' | 'company' | 'roles' | 'notifications' | 'import';
+type TabKey = 'general' | 'payroll' | 'leave' | 'attendance' | 'employee' | 'recruitment' | 'performance' | 'company' | 'roles' | 'notifications' | 'smtp' | 'import';
 
 interface NavItem {
   key: TabKey;
@@ -588,6 +1129,7 @@ const allNavItems: NavItem[] = [
   { key: 'company', label: 'Company', icon: <FiDatabase className="w-4 h-4" /> },
   { key: 'roles', label: 'Roles & Permissions', icon: <FiShield className="w-4 h-4" /> },
   { key: 'notifications', label: 'Notifications', icon: <FiBell className="w-4 h-4" /> },
+  { key: 'smtp', label: 'SMTP Email', icon: <FiMail className="w-4 h-4" /> },
   { key: 'import', label: 'Bulk Import', icon: <FiUpload className="w-4 h-4" /> },
 ];
 
@@ -613,7 +1155,7 @@ function SettingsContent() {
   // Read tab from URL query parameter
   const tabFromUrl = searchParams.get('tab') as TabKey | null;
   const navItems = allNavItems;
-  const validTabs: TabKey[] = ['general', 'payroll', 'leave', 'attendance', 'employee', 'recruitment', 'performance', 'company', 'roles', 'notifications', 'import'];
+  const validTabs: TabKey[] = ['general', 'payroll', 'leave', 'attendance', 'employee', 'recruitment', 'performance', 'company', 'roles', 'notifications', 'smtp', 'import'];
   const defaultTab = (tabFromUrl && validTabs.includes(tabFromUrl)) ? tabFromUrl : 'general';
 
   const [activeTab, setActiveTab] = useState<TabKey>(defaultTab);
@@ -1254,6 +1796,9 @@ function SettingsContent() {
           )}
 
           {/* Notifications Tab */}
+          {/* SMTP Email Configuration Tab */}
+          {activeTab === 'smtp' && <SmtpConfigTab />}
+
           {/* Bulk Import Tab */}
           {activeTab === 'import' && (
             <div className="space-y-2">

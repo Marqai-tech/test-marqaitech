@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/tenant-db';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
+import { sendEmail } from '@/lib/email-sender';
 
 /** GET /api/email?folder=inbox&page=1&limit=50 */
 export async function GET(request: NextRequest) {
@@ -64,9 +65,10 @@ export async function GET(request: NextRequest) {
   }
 }
 
-/** POST /api/email — Send or draft email */
+/** POST /api/email — Send or draft email (with real SMTP delivery) */
 export async function POST(request: NextRequest) {
   const db = await getDb(request);
+  const platformDb = getPlatformDb();
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -83,6 +85,7 @@ export async function POST(request: NextRequest) {
     const employee = await db.employee.findFirst({ where: { userId: decoded.id } });
     if (!employee) return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
 
+    // ─── Save to database first ───
     const email = await db.emailMessage.create({
       data: {
         subject,
@@ -104,7 +107,56 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json({ email }, { status: 201 });
+    // ─── Actually send the email via SMTP if folder is 'sent' ───
+    let sendResult: { success: boolean; error?: string; provider?: string; messageId?: string } | null = null;
+
+    if (folder === 'sent') {
+      try {
+        // Resolve tenant for SMTP settings
+        const tenantSlug = request.headers.get('x-tenant-slug');
+        let tenantId: string | null = null;
+        if (tenantSlug) {
+          const tenant = await platformDb.tenant.findUnique({ where: { slug: tenantSlug } });
+          if (tenant) tenantId = tenant.id;
+        }
+        const user = await platformDb.user.findUnique({ where: { id: decoded.id as string } });
+        if (!tenantId && user?.tenantId) tenantId = user.tenantId;
+
+        if (tenantId) {
+          const settings = await db.collaborationSettings.findUnique({ where: { tenantId } });
+
+          if (settings && settings.emailIntegrationEnabled) {
+            // Convert email body to HTML if it's plain text
+            const htmlBody = emailBody.includes('<') && emailBody.includes('>')
+              ? emailBody
+              : emailBody.replace(/\n/g, '<br/>');
+
+            sendResult = await sendEmail(settings, {
+              to: Array.isArray(toAddresses) ? toAddresses : [toAddresses],
+              cc: ccAddresses ? (Array.isArray(ccAddresses) ? ccAddresses : [ccAddresses]) : undefined,
+              bcc: bccAddresses ? (Array.isArray(bccAddresses) ? bccAddresses : [bccAddresses]) : undefined,
+              subject,
+              html: htmlBody,
+              text: emailBody,
+              fromName: `${employee.firstName} ${employee.lastName}`,
+              fromAddress: employee.email,
+            });
+          } else {
+            sendResult = { success: false, error: 'Email integration not enabled or not configured. Configure SMTP in Settings.', provider: 'none' };
+          }
+        } else {
+          sendResult = { success: false, error: 'Tenant not found for SMTP configuration.', provider: 'none' };
+        }
+      } catch (smtpError: any) {
+        console.error('SMTP send error:', smtpError);
+        sendResult = { success: false, error: smtpError.message || 'SMTP send failed', provider: 'smtp' };
+      }
+    }
+
+    return NextResponse.json({
+      email,
+      sent: folder === 'sent' ? sendResult : undefined,
+    }, { status: 201 });
   } catch (error) {
     console.error('POST email error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

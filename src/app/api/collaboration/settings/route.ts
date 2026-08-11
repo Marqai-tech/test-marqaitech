@@ -58,7 +58,11 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    return NextResponse.json({ settings });
+    return NextResponse.json({ settings: {
+      ...settings,
+      smtpPassword: settings.smtpPassword ? '••••••••' : null,
+      resendApiKey: settings.resendApiKey ? '••••••••' : null,
+    } });
   } catch (error) {
     console.error('GET collaboration settings error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -98,11 +102,20 @@ export async function PATCH(request: NextRequest) {
       calendarSyncProvider,
       emailIntegrationEnabled,
       emailProvider,
+      // SMTP fields
+      smtpHost, smtpPort, smtpUsername, smtpPassword, smtpEncryption,
+      smtpFromName, smtpFromAddress, smtpReplyTo,
+      // Resend fields
+      resendApiKey, resendFromAddress,
       autoDeleteMessages,
       maxCallDurationMin,
       allowExternalSharing,
       watermarkEnabled,
     } = body;
+
+    // Skip masked passwords
+    const smtpPasswordClean = smtpPassword && smtpPassword !== '••••••••' ? smtpPassword : undefined;
+    const resendApiKeyClean = resendApiKey && resendApiKey !== '••••••••' ? resendApiKey : undefined;
 
     const settings = await db.collaborationSettings.upsert({
       where: { tenantId },
@@ -114,6 +127,16 @@ export async function PATCH(request: NextRequest) {
         ...(calendarSyncProvider && { calendarSyncProvider }),
         ...(emailIntegrationEnabled !== undefined && { emailIntegrationEnabled }),
         ...(emailProvider && { emailProvider }),
+        ...(smtpHost !== undefined && { smtpHost }),
+        ...(smtpPort !== undefined && { smtpPort }),
+        ...(smtpUsername !== undefined && { smtpUsername }),
+        ...(smtpPasswordClean && { smtpPassword: smtpPasswordClean }),
+        ...(smtpEncryption !== undefined && { smtpEncryption }),
+        ...(smtpFromName !== undefined && { smtpFromName }),
+        ...(smtpFromAddress !== undefined && { smtpFromAddress }),
+        ...(smtpReplyTo !== undefined && { smtpReplyTo }),
+        ...(resendApiKeyClean && { resendApiKey: resendApiKeyClean }),
+        ...(resendFromAddress !== undefined && { resendFromAddress }),
         ...(autoDeleteMessages !== undefined && { autoDeleteMessages }),
         ...(maxCallDurationMin !== undefined && { maxCallDurationMin }),
         ...(allowExternalSharing !== undefined && { allowExternalSharing }),
@@ -129,6 +152,16 @@ export async function PATCH(request: NextRequest) {
         calendarSyncProvider: calendarSyncProvider ?? 'google',
         emailIntegrationEnabled: emailIntegrationEnabled ?? false,
         emailProvider: emailProvider ?? 'smtp',
+        smtpHost: smtpHost ?? null,
+        smtpPort: smtpPort ?? 587,
+        smtpUsername: smtpUsername ?? null,
+        smtpPassword: smtpPasswordClean ?? null,
+        smtpEncryption: smtpEncryption ?? 'tls',
+        smtpFromName: smtpFromName ?? null,
+        smtpFromAddress: smtpFromAddress ?? null,
+        smtpReplyTo: smtpReplyTo ?? null,
+        resendApiKey: resendApiKeyClean ?? null,
+        resendFromAddress: resendFromAddress ?? null,
         autoDeleteMessages: autoDeleteMessages ?? false,
         maxCallDurationMin: maxCallDurationMin ?? 60,
         allowExternalSharing: allowExternalSharing ?? true,
@@ -137,7 +170,14 @@ export async function PATCH(request: NextRequest) {
       },
     });
 
-    return NextResponse.json({ settings });
+    // Mask passwords in response
+    const masked = {
+      ...settings,
+      smtpPassword: settings.smtpPassword ? '••••••••' : null,
+      resendApiKey: settings.resendApiKey ? '••••••••' : null,
+    };
+
+    return NextResponse.json({ settings: masked });
   } catch (error) {
     console.error('PATCH collaboration settings error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

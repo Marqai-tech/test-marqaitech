@@ -785,6 +785,7 @@ export const navSections: NavSection[] = [
       // ── Settings ──
       { label: 'Settings', href: '#settings-divider', icon: <FiSettings className="w-3.5 h-3.5" />, isDivider: true },
       { label: 'Collaboration Settings', href: '/collaboration/settings', icon: <FiSettings className="w-4 h-4" />, isNew: true },
+      { label: 'SMTP Email Config', href: '/settings?tab=smtp', icon: <FiMail className="w-4 h-4" />, isNew: true },
 
       // ── Reports ──
       { label: 'Reports', href: '#reports-divider', icon: <FiFileText className="w-3.5 h-3.5" />, isDivider: true },
