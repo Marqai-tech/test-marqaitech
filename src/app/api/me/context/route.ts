@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getDb, getPlatformDb } from '@/lib/tenant-db';
+import { getDb, getPlatformDb, getDbForTenantById } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -241,9 +241,14 @@ export async function GET(request: Request) {
       // Companies scoped to the requested tenant (or first tenant if none)
       const effectiveTenantId = requestedTenantId || callerTenantId || availableTenants[0]?.id;
       if (effectiveTenantId) {
+        // CRITICAL FIX: For super_admin, we must query the TARGET tenant's
+        // database, not the request's default DB (which may be the platform
+        // DB or the admin's own tenant DB). Without this, groups/companies
+        // show as empty when the super_admin switches tenants.
+        const targetDb = await getDbForTenantById(effectiveTenantId);
         availableCompanyGroups = await safe(
           'companyGroup.findMany(super_admin)',
-          () => db.companyGroup.findMany({
+          () => targetDb.companyGroup.findMany({
             where: { tenantId: effectiveTenantId },
             select: {
               id: true, name: true, tenantId: true,
@@ -257,12 +262,11 @@ export async function GET(request: Request) {
         if (groupIds.length > 0) {
           availableCompanies = await safe(
             'company.findMany(super_admin)',
-            () => db.company.findMany({
+            () => targetDb.company.findMany({
               where: { companyGroupId: { in: groupIds } },
               select: {
                 id: true, name: true, code: true, companyGroupId: true,
                 companyGroup: { select: { id: true, name: true } },
-                // Company has no `employees` Prisma relation — count branches only
                 _count: { select: { branches: true, departments: true } },
               },
               orderBy: { name: 'asc' },
@@ -274,9 +278,12 @@ export async function GET(request: Request) {
     } else if (role === 'tenant_admin') {
       // Tenant admin: scope to own tenant only
       if (callerTenantId) {
+        // FIX: Use tenant-specific DB for tenant_admin too, in case
+        // getDb(request) routed to the wrong DB (e.g., platform DB fallback).
+        const tenantAdminDb = await getDbForTenantById(callerTenantId);
         availableCompanyGroups = await safe(
           'companyGroup.findMany(tenant_admin)',
-          () => db.companyGroup.findMany({
+          () => tenantAdminDb.companyGroup.findMany({
             where: { tenantId: callerTenantId },
             select: {
               id: true, name: true, tenantId: true,
@@ -290,12 +297,11 @@ export async function GET(request: Request) {
         if (groupIds.length > 0) {
           availableCompanies = await safe(
             'company.findMany(tenant_admin)',
-            () => db.company.findMany({
+            () => tenantAdminDb.company.findMany({
               where: { companyGroupId: { in: groupIds } },
               select: {
                 id: true, name: true, code: true, companyGroupId: true,
                 companyGroup: { select: { id: true, name: true } },
-                // Company has no `employees` Prisma relation — count branches only
                 _count: { select: { branches: true, departments: true } },
               },
               orderBy: { name: 'asc' },
@@ -394,9 +400,11 @@ export async function GET(request: Request) {
       remaining: number | null;
     } | null = null;
     if (callerTenant && (role === 'tenant_admin' || role === 'super_admin')) {
+      // FIX: Use tenant-specific DB for quota queries too
+      const quotaDb = await getDbForTenantById(callerTenant.id);
       const groupsForQuota = await safe(
         'companyGroup.findMany(quota)',
-        () => db.companyGroup.findMany({
+        () => quotaDb.companyGroup.findMany({
           where: { tenantId: callerTenant.id },
           select: { id: true },
         }),
@@ -406,7 +414,7 @@ export async function GET(request: Request) {
       const usedCompanies = groupIdsForQuota.length
         ? await safe(
             'company.count(quota)',
-            () => db.company.count({ where: { companyGroupId: { in: groupIdsForQuota } } }),
+            () => quotaDb.company.count({ where: { companyGroupId: { in: groupIdsForQuota } } }),
             0,
           )
         : 0;

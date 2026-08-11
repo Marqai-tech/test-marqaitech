@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getDb, getPlatformDb } from '@/lib/tenant-db';
+import { getDb, getPlatformDb, getDbForTenantById } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { checkTenantStatusOrBlock } from '@/lib/tenant-guard';
 
@@ -64,9 +64,23 @@ export async function PATCH(
     }
 
     const { id } = await params;
-    const existing = await db.companyGroup.findUnique({ where: { id } });
+
+    // FIX: Try to find the group using tenant-specific DBs
+    let existing = await db.companyGroup.findUnique({ where: { id } });
+    let patchDb = db;
+    if (!existing && callerTenantId) {
+      // Fallback to tenant-specific DB
+      const tenantDb = await getDbForTenantById(callerTenantId);
+      existing = await tenantDb.companyGroup.findUnique({ where: { id } });
+      if (existing) patchDb = tenantDb;
+    }
     if (!existing) {
       return NextResponse.json({ error: 'Group company not found' }, { status: 404, headers: corsHeaders() });
+    }
+
+    // If we found it on the platform DB, switch to the tenant-specific DB for writes
+    if (existing && patchDb === db && existing.tenantId) {
+      patchDb = await getDbForTenantById(existing.tenantId);
     }
 
     // (callerTenantId kept for audit logging below — no longer used for authz
@@ -96,7 +110,7 @@ export async function PATCH(
       updateData.notes = notes ? String(notes) : null;
     }
 
-    const group = await db.companyGroup.update({
+    const group = await patchDb.companyGroup.update({
       where: { id },
       data: updateData,
       include: {
@@ -105,7 +119,7 @@ export async function PATCH(
       },
     });
 
-    await db.auditLog.create({
+    await patchDb.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'UPDATE_COMPANY_GROUP',
@@ -155,12 +169,28 @@ export async function DELETE(
     }
 
     const { id } = await params;
-    const existing = await db.companyGroup.findUnique({
+
+    // FIX: Try to find the group using tenant-specific DBs
+    let existing = await db.companyGroup.findUnique({
       where: { id },
       include: { _count: { select: { companies: true } } },
     });
+    let deleteDb = db;
+    if (!existing && callerTenantId) {
+      const tenantDb = await getDbForTenantById(callerTenantId);
+      existing = await tenantDb.companyGroup.findUnique({
+        where: { id },
+        include: { _count: { select: { companies: true } } },
+      });
+      if (existing) deleteDb = tenantDb;
+    }
     if (!existing) {
       return NextResponse.json({ error: 'Group company not found' }, { status: 404, headers: corsHeaders() });
+    }
+
+    // Switch to tenant-specific DB for writes
+    if (existing && deleteDb === db && existing.tenantId) {
+      deleteDb = await getDbForTenantById(existing.tenantId);
     }
 
     void callerTenantId;
@@ -172,9 +202,9 @@ export async function DELETE(
       );
     }
 
-    await db.companyGroup.delete({ where: { id } });
+    await deleteDb.companyGroup.delete({ where: { id } });
 
-    await db.auditLog.create({
+    await deleteDb.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'DELETE_COMPANY_GROUP',

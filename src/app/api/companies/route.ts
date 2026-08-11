@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb, getPlatformDb } from '@/lib/tenant-db';
+import { getDb, getPlatformDb, getDbForTenantById } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { checkTenantStatusOrBlock } from '@/lib/tenant-guard';
 import { validateEmail, validatePhone } from '@/lib/validators';
@@ -71,6 +71,14 @@ export async function GET(req: NextRequest) {
       effectiveTenantId = callerTenantId;
     }
 
+    // FIX: Resolve the correct tenant-specific DB for data queries.
+    // For super_admin, getDb(request) may return the platform DB, which won't
+    // have the tenant's CompanyGroup/Company data in isolated DB mode.
+    // We resolve the target tenant and use its dedicated DB.
+    const dataDb = effectiveTenantId
+      ? await getDbForTenantById(effectiveTenantId)
+      : db;
+
     const where: Record<string, unknown> = {};
     if (requestedGroupId) {
       // Group filter takes precedence over tenant filter (a group already
@@ -82,7 +90,7 @@ export async function GET(req: NextRequest) {
         where.companyGroup = { tenantId: callerTenantId };
       }
     } else if (effectiveTenantId) {
-      const companyGroups = await db.companyGroup.findMany({
+      const companyGroups = await dataDb.companyGroup.findMany({
         where: { tenantId: effectiveTenantId },
         select: { id: true },
       });
@@ -109,7 +117,7 @@ export async function GET(req: NextRequest) {
       ];
     }
 
-    const companies = await db.company.findMany({
+    const companies = await dataDb.company.findMany({
       where,
       include: {
         companyGroup: {
@@ -139,7 +147,7 @@ export async function GET(req: NextRequest) {
     if (companies.length > 0) {
       const companyIds = companies.map((c) => c.id);
       try {
-        const grouped = await db.employee.groupBy({
+        const grouped = await dataDb.employee.groupBy({
           by: ['companyId'],
           where: { companyId: { in: companyIds } },
           _count: { _all: true },
@@ -173,7 +181,7 @@ export async function GET(req: NextRequest) {
         // Also expose the caller's tenant-level quota so the UI can render
         // "X of Y companies used" without an extra round-trip.
         tenantQuota: effectiveTenantId
-          ? await db.tenant.findUnique({
+          ? await getPlatformDb().tenant.findUnique({
               where: { id: effectiveTenantId },
               select: { id: true, name: true, slug: true, maxCompaniesAllowed: true },
             })
@@ -254,8 +262,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Could not resolve target tenant' }, { status: 400, headers: corsHeaders() });
     }
 
+    // FIX: Use tenant-specific DB for all data operations
+    const tenantDataDb = await getDbForTenantById(targetTenantId);
+
     // Fetch the tenant (we need maxCompaniesAllowed + name for the response)
-    const targetTenant = await db.tenant.findUnique({
+    const targetTenant = await getPlatformDb().tenant.findUnique({
       where: { id: targetTenantId },
       select: {
         id: true,
@@ -271,13 +282,13 @@ export async function POST(req: NextRequest) {
 
     // ─── Quota check #1: tenant.maxCompaniesAllowed ───
     // Count current companies across all groups in this tenant
-    const groupsInTenant = await db.companyGroup.findMany({
+    const groupsInTenant = await tenantDataDb.companyGroup.findMany({
       where: { tenantId: targetTenantId },
       select: { id: true },
     });
     const groupIdsInTenant = groupsInTenant.map((g) => g.id);
     const currentCompanyCount = groupIdsInTenant.length
-      ? await db.company.count({ where: { companyGroupId: { in: groupIdsInTenant } } })
+      ? await tenantDataDb.company.count({ where: { companyGroupId: { in: groupIdsInTenant } } })
       : 0;
 
     if (targetTenant.maxCompaniesAllowed > 0 && currentCompanyCount >= targetTenant.maxCompaniesAllowed) {
@@ -297,7 +308,7 @@ export async function POST(req: NextRequest) {
     let groupRecord: { id: string; name: string; tenantId: string; maxCompanies: number | null; employeeLimitMode: string; maxEmployees: number | null } | null = null;
 
     if (groupId) {
-      groupRecord = await db.companyGroup.findUnique({
+      groupRecord = await tenantDataDb.companyGroup.findUnique({
         where: { id: groupId },
         select: { id: true, name: true, tenantId: true, maxCompanies: true, employeeLimitMode: true, maxEmployees: true },
       });
@@ -325,7 +336,7 @@ export async function POST(req: NextRequest) {
       }
       // Super admin: auto-create a group under the target tenant (back-compat)
       const groupName = (companyGroupName && String(companyGroupName).trim()) || `${name} Group`;
-      groupRecord = await db.companyGroup.create({
+      groupRecord = await tenantDataDb.companyGroup.create({
         data: { name: groupName, tenantId: targetTenantId },
         select: { id: true, name: true, tenantId: true, maxCompanies: true, employeeLimitMode: true, maxEmployees: true },
       });
@@ -334,7 +345,7 @@ export async function POST(req: NextRequest) {
 
     // ─── Quota check #2: group.maxCompanies ───
     if (groupRecord.maxCompanies !== null && groupRecord.maxCompanies > 0) {
-      const companiesInThisGroup = await db.company.count({ where: { companyGroupId: groupId } });
+      const companiesInThisGroup = await tenantDataDb.company.count({ where: { companyGroupId: groupId } });
       if (companiesInThisGroup >= groupRecord.maxCompanies) {
         return NextResponse.json(
           {
@@ -348,7 +359,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const company = await db.company.create({
+    const company = await tenantDataDb.company.create({
       data: {
         name,
         code: code || name.substring(0, 6).toUpperCase().replace(/\s/g, ''),
@@ -397,7 +408,7 @@ export async function POST(req: NextRequest) {
             tenantMaxCompanies: targetTenant.maxCompaniesAllowed,
             tenantCompaniesUsed: currentCompanyCount + 1,
             groupMaxCompanies: groupRecord.maxCompanies,
-            groupCompaniesUsed: (await db.company.count({ where: { companyGroupId: groupId } })),
+            groupCompaniesUsed: (await tenantDataDb.company.count({ where: { companyGroupId: groupId } })),
           },
         },
       },
@@ -436,7 +447,10 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: 'Company ID is required' }, { status: 400, headers: corsHeaders() });
     }
 
-    const existing = await db.company.findUnique({
+    // FIX: Use tenant-specific DB for company lookup/update
+    const updateDb = callerTenantId ? await getDbForTenantById(callerTenantId) : db;
+
+    const existing = await updateDb.company.findUnique({
       where: { id },
       include: { companyGroup: { select: { id: true, name: true, tenantId: true } } },
     });
@@ -463,7 +477,7 @@ export async function PUT(req: NextRequest) {
       }
     }
 
-    const company = await db.company.update({
+    const company = await updateDb.company.update({
       where: { id },
       data: updateData,
       include: {
@@ -506,7 +520,10 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: 'Company ID is required' }, { status: 400, headers: corsHeaders() });
     }
 
-    const existing = await db.company.findUnique({
+    // FIX: Use tenant-specific DB for company lookup/delete
+    const deleteDb = callerTenantId ? await getDbForTenantById(callerTenantId) : db;
+
+    const existing = await deleteDb.company.findUnique({
       where: { id },
       include: { companyGroup: { select: { id: true, name: true, tenantId: true } } },
     });
@@ -519,7 +536,7 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: 'Company does not belong to your tenant' }, { status: 403, headers: corsHeaders() });
     }
 
-    await db.company.delete({ where: { id } });
+    await deleteDb.company.delete({ where: { id } });
     return NextResponse.json({ message: 'Company deleted' }, { headers: corsHeaders() });
   } catch (error: unknown) {
     console.error('Delete company error:', error);

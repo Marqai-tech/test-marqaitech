@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getDb, getPlatformDb } from '@/lib/tenant-db';
+import { getDb, getPlatformDb, getDbForTenantById } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { checkTenantStatusOrBlock } from '@/lib/tenant-guard';
 
@@ -58,21 +58,25 @@ async function ensureDefaultGroupsForTenants(tenantIds: string[]): Promise<void>
     });
     const tenantsNeedingGroup = tenants.filter((t) => t.companyGroups.length === 0);
     if (tenantsNeedingGroup.length === 0) return;
-    await Promise.all(tenantsNeedingGroup.map((t) =>
-      db.companyGroup.create({
-        data: {
-          name: t.name,
-          tenantId: t.id,
-          employeeLimitMode: 'group_total',
-          maxEmployees: null,
-          maxCompanies: null,
-          notes: `Default group company auto-created for tenant "${t.name}". Shares the tenant name per the parent/child identity rule.`,
-        },
-      }).catch((e: unknown) => {
+    // FIX: Use tenant-specific DB for each tenant when creating default groups
+    await Promise.all(tenantsNeedingGroup.map(async (t) => {
+      try {
+        const tenantDb = await getDbForTenantById(t.id);
+        await tenantDb.companyGroup.create({
+          data: {
+            name: t.name,
+            tenantId: t.id,
+            employeeLimitMode: 'group_total',
+            maxEmployees: null,
+            maxCompanies: null,
+            notes: `Default group company auto-created for tenant "${t.name}". Shares the tenant name per the parent/child identity rule.`,
+          },
+        });
+      } catch (e: unknown) {
         // Don't let one failure block the others
         console.error(`[company-groups] Auto-create default group for tenant ${t.id} failed:`, e);
-      })
-    ));
+      }
+    }));
     console.log(`[company-groups] Auto-created default groups for ${tenantsNeedingGroup.length} tenant(s)`);
   }, undefined as unknown as void);
 }
@@ -152,9 +156,15 @@ export async function GET(request: Request) {
       await ensureDefaultGroupsForTenants([callerTenantId]);
     }
 
+    // FIX: For super_admin viewing a specific tenant, or for tenant_admin,
+    // use the tenant-specific DB instead of the request's default DB.
+    // This ensures we query the correct database in isolated DB mode.
+    const effectiveTenantId = (role === 'super_admin' && requestedTenantId) ? requestedTenantId : callerTenantId;
+    const groupDb = effectiveTenantId ? await getDbForTenantById(effectiveTenantId) : db;
+
     const groups = await safe(
       'companyGroup.findMany',
-      () => db.companyGroup.findMany({
+      () => groupDb.companyGroup.findMany({
         where,
         include: {
           tenant: { select: { id: true, name: true, slug: true } },
@@ -166,12 +176,6 @@ export async function GET(request: Request) {
               status: true,
               maxEmployees: true,
               plannedEmployeeCount: true,
-              // NOTE: Company has no `employees` Prisma relation
-              // (Employee.companyId is a raw String? without a relation
-              // field on Company). Counting employees per-company would
-              // require a raw SQL join. We count branches+departments here
-              // instead; the group-level employee count is computed below
-              // from a separate db.employee.count() call.
               _count: { select: { branches: true, departments: true } },
             },
             orderBy: { name: 'asc' },
@@ -195,7 +199,7 @@ export async function GET(request: Request) {
         // Group employee counts by companyId using a single query
         const employeeCounts = await safe(
           'employee.groupBy(companyId)',
-          () => db.employee.groupBy({
+          () => groupDb.employee.groupBy({
             by: ['companyId'],
             where: { companyId: { in: allCompanyIds } },
             _count: { _all: true },
@@ -339,8 +343,11 @@ export async function POST(request: Request) {
     const maxEmp = typeof maxEmployees === 'number' && maxEmployees >= 0 ? maxEmployees : null;
     const maxComp = typeof maxCompanies === 'number' && maxCompanies >= 0 ? maxCompanies : null;
 
+    // FIX: Use tenant-specific DB for group operations
+    const createGroupDb = await getDbForTenantById(targetTenantId);
+
     // Check for duplicate name within the same tenant
-    const existing = await db.companyGroup.findFirst({
+    const existing = await createGroupDb.companyGroup.findFirst({
       where: { tenantId: targetTenantId, name: { equals: String(name).trim(), mode: 'insensitive' } },
     });
     if (existing) {
@@ -350,7 +357,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const group = await db.companyGroup.create({
+    const group = await createGroupDb.companyGroup.create({
       data: {
         name: String(name).trim(),
         tenantId: targetTenantId,
