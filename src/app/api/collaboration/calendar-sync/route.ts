@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     const decoded = await verifyToken(token);
     if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
 
-    const employee = await db.employee.findFirst({ where: { userId: decoded.id } });
+    const employee = await db.employee.findFirst({ where: { userId: decoded.userId } });
     if (!employee) return NextResponse.json({ syncs: [] });
 
     const syncs = await db.calendarSync.findMany({
@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid provider' }, { status: 400 });
     }
 
-    const employee = await db.employee.findFirst({ where: { userId: decoded.id } });
+    const employee = await db.employee.findFirst({ where: { userId: decoded.userId } });
     if (!employee) return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
 
     const sync = await db.calendarSync.upsert({

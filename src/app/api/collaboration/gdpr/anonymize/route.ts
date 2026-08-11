@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
     const anonymizeReq = await db.gDPRAnonymizationRequest.create({
       data: {
         employeeId,
-        requestedBy: decoded.id,
+        requestedBy: decoded.userId,
         reason,
         status: 'in_progress',
         retentionPeriodYears,

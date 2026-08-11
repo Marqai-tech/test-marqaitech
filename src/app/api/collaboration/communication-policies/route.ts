@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
           policyKey: p.policyKey,
           policyValue: p.policyValue,
           appliesToRoomType: p.appliesToRoomType,
-          updatedBy: decoded.id,
+          updatedBy: decoded.userId,
         })),
         skipDuplicates: true,
       });
@@ -96,12 +96,12 @@ export async function PATCH(request: NextRequest) {
         policyKey,
         policyValue: typeof policyValue === 'string' ? policyValue : JSON.stringify(policyValue),
         appliesToRoomType,
-        updatedBy: decoded.id,
+        updatedBy: decoded.userId,
       },
       update: {
         policyValue: typeof policyValue === 'string' ? policyValue : JSON.stringify(policyValue),
         appliesToRoomType,
-        updatedBy: decoded.id,
+        updatedBy: decoded.userId,
       },
     });
 

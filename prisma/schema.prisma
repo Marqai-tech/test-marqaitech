@@ -5226,6 +5226,29 @@ model AttendancePolicyConfig {
   wfhActivityMonitoringEnabled Boolean @default(false)
   wfhInactivityThresholdHours Int @default(4) // flag if zero activity for 4h block
 
+  // ── Late Coming Policy (from SDL_POL_LEAVE_ATTENDANCE_01_2021) ──
+  lateMarkAllowancePerMonth Int @default(4) // how many late marks allowed per month before penalty
+  lateMarkHalfDayOnExceed Boolean @default(true) // half-day deduction for all late marks when allowance exceeded
+  halfDayAfterMinutes Int @default(81) // minutes after shift start when it becomes half day (e.g., 81 = 09:21 for 09:00 shift)
+  lateMarkNotApplicableOnTour Boolean @default(true) // late marks not applicable for tour/OD
+
+  // ── Shift Defaults ──
+  shiftStartDefault String @default("09:00") // default shift start time
+  shiftEndDefault String @default("17:30") // default shift end time
+  breakDurationMinutes Int @default(30) // lunch break duration in minutes
+
+  // ── Gate Pass / Permission Policy ──
+  gatePassMaxPerMonth Int @default(1) // max gate passes per month (0 = unlimited)
+  gatePassHalfDayOnExceed Boolean @default(true) // 2nd gate pass in month = half day leave
+  gatePassHalfDayNextDay Boolean @default(true) // half day gate pass marks next day as half day
+  gatePassEarlyHours Int @default(1) // gate pass early departure hours for full day consideration
+
+  // ── Canteen Policy ──
+  canteenEnabled Boolean @default(false) // canteen module based on attendance
+  canteenFreeForGeneralShift Boolean @default(true) // free lunch for general shift
+  canteenFreeForNightShift Boolean @default(true) // free dinner for night shift
+  canteenOtfreeThresholdHours Int @default(5) // OT hours above which dinner is free
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

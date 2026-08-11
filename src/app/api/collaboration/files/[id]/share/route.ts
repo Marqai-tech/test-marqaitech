@@ -22,7 +22,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const body = await request.json();
     const { recipientEmail, recipientUserId, expiresAt, downloadEnabled = true, watermarkEnabled = true } = body;
 
-    const employee = await db.employee.findFirst({ where: { userId: decoded.id } });
+    const employee = await db.employee.findFirst({ where: { userId: decoded.userId } });
     if (!employee) return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
 
     const file = await db.fileNode.findUnique({ where: { id } });

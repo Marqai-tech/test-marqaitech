@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     const decoded = await verifyToken(token);
     if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
 
-    const employee = await db.employee.findFirst({ where: { userId: decoded.id } });
+    const employee = await db.employee.findFirst({ where: { userId: decoded.userId } });
     if (!employee) return NextResponse.json({ rooms: [] });
 
     const rooms = await db.chatRoom.findMany({
@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'memberIds is required (at least one other member)' }, { status: 400 });
     }
 
-    const creator = await db.employee.findFirst({ where: { userId: decoded.id } });
+    const creator = await db.employee.findFirst({ where: { userId: decoded.userId } });
     if (!creator) return NextResponse.json({ error: 'Employee profile not found' }, { status: 404 });
 
     // For direct chats: check if a room already exists with exactly these 2 members

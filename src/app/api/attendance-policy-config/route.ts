@@ -42,6 +42,25 @@ export async function GET(request: Request) {
           autoApproveMinAttendancePct: 90,
           wfhActivityMonitoringEnabled: false,
           wfhInactivityThresholdHours: 4,
+          // Late Coming Policy
+          lateMarkAllowancePerMonth: 4,
+          lateMarkHalfDayOnExceed: true,
+          halfDayAfterMinutes: 81,
+          lateMarkNotApplicableOnTour: true,
+          // Shift Defaults
+          shiftStartDefault: '09:00',
+          shiftEndDefault: '17:30',
+          breakDurationMinutes: 30,
+          // Gate Pass Policy
+          gatePassMaxPerMonth: 1,
+          gatePassHalfDayOnExceed: true,
+          gatePassHalfDayNextDay: true,
+          gatePassEarlyHours: 1,
+          // Canteen Policy
+          canteenEnabled: false,
+          canteenFreeForGeneralShift: true,
+          canteenFreeForNightShift: true,
+          canteenOtfreeThresholdHours: 5,
           companyId: null,
           createdAt: new Date(0),
           updatedAt: new Date(0),
@@ -74,6 +93,21 @@ export async function GET(request: Request) {
         autoApproveMinAttendancePct: 90,
         wfhActivityMonitoringEnabled: false,
         wfhInactivityThresholdHours: 4,
+        lateMarkAllowancePerMonth: 4,
+        lateMarkHalfDayOnExceed: true,
+        halfDayAfterMinutes: 81,
+        lateMarkNotApplicableOnTour: true,
+        shiftStartDefault: '09:00',
+        shiftEndDefault: '17:30',
+        breakDurationMinutes: 30,
+        gatePassMaxPerMonth: 1,
+        gatePassHalfDayOnExceed: true,
+        gatePassHalfDayNextDay: true,
+        gatePassEarlyHours: 1,
+        canteenEnabled: false,
+        canteenFreeForGeneralShift: true,
+        canteenFreeForNightShift: true,
+        canteenOtfreeThresholdHours: 5,
         companyId: scope.companyId || scope.ownCompanyId || null,
         createdAt: new Date(0),
         updatedAt: new Date(0),
@@ -121,6 +155,25 @@ export async function PUT(request: Request) {
       autoApproveMinAttendancePct: Number(body.autoApproveMinAttendancePct) || 90,
       wfhActivityMonitoringEnabled: body.wfhActivityMonitoringEnabled !== undefined ? !!body.wfhActivityMonitoringEnabled : existing?.wfhActivityMonitoringEnabled ?? false,
       wfhInactivityThresholdHours: Number(body.wfhInactivityThresholdHours) || 4,
+      // Late Coming Policy
+      lateMarkAllowancePerMonth: body.lateMarkAllowancePerMonth !== undefined ? Number(body.lateMarkAllowancePerMonth) : existing?.lateMarkAllowancePerMonth ?? 4,
+      lateMarkHalfDayOnExceed: body.lateMarkHalfDayOnExceed !== undefined ? !!body.lateMarkHalfDayOnExceed : existing?.lateMarkHalfDayOnExceed ?? true,
+      halfDayAfterMinutes: body.halfDayAfterMinutes !== undefined ? Number(body.halfDayAfterMinutes) : existing?.halfDayAfterMinutes ?? 81,
+      lateMarkNotApplicableOnTour: body.lateMarkNotApplicableOnTour !== undefined ? !!body.lateMarkNotApplicableOnTour : existing?.lateMarkNotApplicableOnTour ?? true,
+      // Shift Defaults
+      shiftStartDefault: (body.shiftStartDefault as string) || existing?.shiftStartDefault || '09:00',
+      shiftEndDefault: (body.shiftEndDefault as string) || existing?.shiftEndDefault || '17:30',
+      breakDurationMinutes: body.breakDurationMinutes !== undefined ? Number(body.breakDurationMinutes) : existing?.breakDurationMinutes ?? 30,
+      // Gate Pass Policy
+      gatePassMaxPerMonth: body.gatePassMaxPerMonth !== undefined ? Number(body.gatePassMaxPerMonth) : existing?.gatePassMaxPerMonth ?? 1,
+      gatePassHalfDayOnExceed: body.gatePassHalfDayOnExceed !== undefined ? !!body.gatePassHalfDayOnExceed : existing?.gatePassHalfDayOnExceed ?? true,
+      gatePassHalfDayNextDay: body.gatePassHalfDayNextDay !== undefined ? !!body.gatePassHalfDayNextDay : existing?.gatePassHalfDayNextDay ?? true,
+      gatePassEarlyHours: body.gatePassEarlyHours !== undefined ? Number(body.gatePassEarlyHours) : existing?.gatePassEarlyHours ?? 1,
+      // Canteen Policy
+      canteenEnabled: body.canteenEnabled !== undefined ? !!body.canteenEnabled : existing?.canteenEnabled ?? false,
+      canteenFreeForGeneralShift: body.canteenFreeForGeneralShift !== undefined ? !!body.canteenFreeForGeneralShift : existing?.canteenFreeForGeneralShift ?? true,
+      canteenFreeForNightShift: body.canteenFreeForNightShift !== undefined ? !!body.canteenFreeForNightShift : existing?.canteenFreeForNightShift ?? true,
+      canteenOtfreeThresholdHours: body.canteenOtfreeThresholdHours !== undefined ? Number(body.canteenOtfreeThresholdHours) : existing?.canteenOtfreeThresholdHours ?? 5,
     };
 
     let config;

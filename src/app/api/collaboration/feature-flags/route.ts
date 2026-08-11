@@ -79,7 +79,7 @@ export async function PATCH(request: NextRequest) {
         maxCallDurationMin: maxCallDurationMin ?? 60,
         maxFileUploadMB: maxFileUploadMB ?? 100,
         maxChatAttachments: maxChatAttachments ?? 10,
-        configuredBy: decoded.id,
+        configuredBy: decoded.userId,
         notes,
       },
       update: {
@@ -87,7 +87,7 @@ export async function PATCH(request: NextRequest) {
         maxCallDurationMin,
         maxFileUploadMB,
         maxChatAttachments,
-        configuredBy: decoded.id,
+        configuredBy: decoded.userId,
         notes,
       },
     });

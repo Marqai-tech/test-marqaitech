@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status');
     const limit = Math.min(parseInt(searchParams.get('limit') || '50', 10), 200);
 
-    const employee = await db.employee.findFirst({ where: { userId: decoded.id } });
+    const employee = await db.employee.findFirst({ where: { userId: decoded.userId } });
     if (!employee) return NextResponse.json({ calls: [] });
 
     const where: Record<string, unknown> = {
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'At least one participant is required' }, { status: 400 });
     }
 
-    const employee = await db.employee.findFirst({ where: { userId: decoded.id } });
+    const employee = await db.employee.findFirst({ where: { userId: decoded.userId } });
     if (!employee) return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
 
     // REQ-SEC-EMP-03: Native WebRTC 1:1 calls are E2EE

@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
     const companyId = searchParams.get('companyId');
     const parentId = searchParams.get('parentId') || null;
 
-    const employee = await db.employee.findFirst({ where: { userId: decoded.id } });
+    const employee = await db.employee.findFirst({ where: { userId: decoded.userId } });
     if (!employee) return NextResponse.json({ files: [] });
 
     const where: Record<string, unknown> = {
@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'companyId required for company drive' }, { status: 400 });
     }
 
-    const employee = await db.employee.findFirst({ where: { userId: decoded.id } });
+    const employee = await db.employee.findFirst({ where: { userId: decoded.userId } });
     if (!employee) return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
 
     // REQ-SEC-EMP-01: DLP scan on name + description

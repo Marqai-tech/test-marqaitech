@@ -233,15 +233,31 @@ export default function AttendancePage() {
   /* ── Find current user's employee record ── */
   const fetchEmployee = useCallback(async () => {
     try {
+      // First: use the employee info from auth store if available (most reliable)
+      if (user?.employee?.id) {
+        setEmployee({
+          id: user.employee.id,
+          employeeId: user.employee.employeeId,
+          firstName: user.employee.firstName,
+          lastName: user.employee.lastName,
+          email: user.email,
+        });
+        return;
+      }
+      // Fallback: fetch from API and match by email or userId
       const empCid = effectiveCompanyId();
       const res = await fetch(`/api/employees?limit=500${empCid ? `&companyId=${empCid}` : ''}`, { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
-        const myEmp = data.employees?.find((e: { email: string }) => e.email === user?.email);
+        const myEmp = data.employees?.find((e: { email: string; userId?: string }) =>
+          e.email === user?.email || e.userId === user?.id
+        );
         if (myEmp) setEmployee(myEmp);
       }
-    } catch { /* ignore */ }
-  }, [user?.email]);
+    } catch (err) {
+      console.error('fetchEmployee error:', err);
+    }
+  }, [user?.email, user?.id, user?.employee]);
 
   /* ── Fetch self attendance ── */
   const fetchAttendance = useCallback(async () => {
@@ -271,7 +287,10 @@ export default function AttendancePage() {
 
   /* ── Check In ── */
   const handleCheckIn = async () => {
-    if (!employee) return;
+    if (!employee) {
+      toast.error('Employee record not found. Please ensure your profile is set up.');
+      return;
+    }
     try {
       setCheckingIn(true);
       const res = await fetch('/api/attendance', {
@@ -292,7 +311,10 @@ export default function AttendancePage() {
 
   /* ── Check Out ── */
   const handleCheckOut = async () => {
-    if (!employee) return;
+    if (!employee) {
+      toast.error('Employee record not found. Please ensure your profile is set up.');
+      return;
+    }
     try {
       setCheckingOut(true);
       const res = await fetch('/api/attendance', {

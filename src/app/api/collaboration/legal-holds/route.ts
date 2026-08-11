@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
     const hold = await db.legalHold.create({
       data: {
         tenantId,
-        initiatedBy: decoded.id,
+        initiatedBy: decoded.userId,
         targetUserId,
         targetRoomId,
         targetFileId,
@@ -116,7 +116,7 @@ export async function PATCH(request: NextRequest) {
       where: { id: holdId },
       data: {
         status: 'released',
-        releasedBy: decoded.id,
+        releasedBy: decoded.userId,
         releasedAt: new Date(),
         releaseReason: releaseReason || 'Released by Super Admin',
         endDate: new Date(),

@@ -13,10 +13,10 @@ export async function GET(request: NextRequest) {
     if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
 
     // Get tenant ID from decoded token
-    const user = await platformDb.user.findUnique({ where: { id: decoded.id as string } });
+    const user = await platformDb.user.findUnique({ where: { id: decoded.userId as string } });
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
-    const employee = await db.employee.findFirst({ where: { userId: decoded.id } });
+    const employee = await db.employee.findFirst({ where: { userId: decoded.userId } });
     if (!employee) return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
 
     // Find tenant through employee's company
@@ -79,7 +79,7 @@ export async function PATCH(request: NextRequest) {
     const decoded = await verifyToken(token);
     if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
 
-    const employee = await db.employee.findFirst({ where: { userId: decoded.id } });
+    const employee = await db.employee.findFirst({ where: { userId: decoded.userId } });
     if (!employee) return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
 
     const tenantSlug = request.headers.get('x-tenant-slug');
@@ -88,7 +88,7 @@ export async function PATCH(request: NextRequest) {
       const tenant = await platformDb.tenant.findUnique({ where: { slug: tenantSlug } });
       if (tenant) tenantId = tenant.id;
     }
-    const user = await platformDb.user.findUnique({ where: { id: decoded.id as string } });
+    const user = await platformDb.user.findUnique({ where: { id: decoded.userId as string } });
     if (!tenantId && user?.tenantId) tenantId = user.tenantId;
 
     if (!tenantId) return NextResponse.json({ error: 'Tenant not found' }, { status: 404 });

@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     const type = searchParams.get('type') || 'chat-activity';
     const period = searchParams.get('period') || '30d';
 
-    const employee = await db.employee.findFirst({ where: { userId: decoded.id } });
+    const employee = await db.employee.findFirst({ where: { userId: decoded.userId } });
     if (!employee) return NextResponse.json({ report: null });
 
     // Calculate period start

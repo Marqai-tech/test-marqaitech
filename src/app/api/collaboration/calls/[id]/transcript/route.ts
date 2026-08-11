@@ -29,7 +29,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (!call) return NextResponse.json({ error: 'Call not found' }, { status: 404 });
 
     // Verify the caller is a participant
-    const employee = await db.employee.findFirst({ where: { userId: decoded.id } });
+    const employee = await db.employee.findFirst({ where: { userId: decoded.userId } });
     if (!employee) return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
     if (call.initiatorId !== employee.id) {
       const participant = await db.callParticipant.findUnique({

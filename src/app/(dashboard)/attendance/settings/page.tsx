@@ -25,6 +25,25 @@ interface PolicyConfig {
   autoApproveMinAttendancePct: number;
   wfhActivityMonitoringEnabled: boolean;
   wfhInactivityThresholdHours: number;
+  // Late Coming Policy
+  lateMarkAllowancePerMonth: number;
+  lateMarkHalfDayOnExceed: boolean;
+  halfDayAfterMinutes: number;
+  lateMarkNotApplicableOnTour: boolean;
+  // Shift Defaults
+  shiftStartDefault: string;
+  shiftEndDefault: string;
+  breakDurationMinutes: number;
+  // Gate Pass Policy
+  gatePassMaxPerMonth: number;
+  gatePassHalfDayOnExceed: boolean;
+  gatePassHalfDayNextDay: boolean;
+  gatePassEarlyHours: number;
+  // Canteen Policy
+  canteenEnabled: boolean;
+  canteenFreeForGeneralShift: boolean;
+  canteenFreeForNightShift: boolean;
+  canteenOtfreeThresholdHours: number;
 }
 
 export default function AttendanceSettingsPage() {
@@ -342,7 +361,145 @@ export default function AttendanceSettingsPage() {
                 </div>
               )}
             </div>
+
+            {/* Late Coming Policy */}
+            <div className="pt-4 border-t border-thb-border">
+              <h4 className="text-xs font-semibold text-thb-text-muted uppercase tracking-wider mb-3">Late Coming Policy</h4>
+              <div className="grid grid-cols-2 gap-3 mb-3">
+                <div>
+                  <label className="block text-xs text-thb-text-muted mb-1">Late Mark Allowance / Month</label>
+                  <input type="number" value={config.lateMarkAllowancePerMonth} onChange={(e) => update('lateMarkAllowancePerMonth', Number(e.target.value))} min={0} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm" />
+                  <p className="text-[10px] text-thb-text-muted mt-1">Times late allowed per month before penalty</p>
+                </div>
+                <div>
+                  <label className="block text-xs text-thb-text-muted mb-1">Half Day After (min)</label>
+                  <input type="number" value={config.halfDayAfterMinutes} onChange={(e) => update('halfDayAfterMinutes', Number(e.target.value))} min={0} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm" />
+                  <p className="text-[10px] text-thb-text-muted mt-1">Minutes after shift start = half day (e.g., 81 = 09:21)</p>
+                </div>
+              </div>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm font-medium text-thb-text-primary">Half Day on Exceeding Allowance</p>
+                <button
+                  onClick={() => update('lateMarkHalfDayOnExceed', !config.lateMarkHalfDayOnExceed)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${config.lateMarkHalfDayOnExceed ? 'bg-teal-500' : 'bg-slate-200'}`}
+                >
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${config.lateMarkHalfDayOnExceed ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
+              </div>
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium text-thb-text-primary">Late Mark Not Applicable on Tour/OD</p>
+                <button
+                  onClick={() => update('lateMarkNotApplicableOnTour', !config.lateMarkNotApplicableOnTour)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${config.lateMarkNotApplicableOnTour ? 'bg-teal-500' : 'bg-slate-200'}`}
+                >
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${config.lateMarkNotApplicableOnTour ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
+              </div>
+            </div>
+
+            {/* Shift Defaults */}
+            <div className="pt-4 border-t border-thb-border">
+              <h4 className="text-xs font-semibold text-thb-text-muted uppercase tracking-wider mb-3">Shift Defaults</h4>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs text-thb-text-muted mb-1">Shift Start</label>
+                  <input type="time" value={config.shiftStartDefault} onChange={(e) => update('shiftStartDefault', e.target.value)} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs text-thb-text-muted mb-1">Shift End</label>
+                  <input type="time" value={config.shiftEndDefault} onChange={(e) => update('shiftEndDefault', e.target.value)} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs text-thb-text-muted mb-1">Break (min)</label>
+                  <input type="number" value={config.breakDurationMinutes} onChange={(e) => update('breakDurationMinutes', Number(e.target.value))} min={0} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm" />
+                </div>
+              </div>
+            </div>
+
+            {/* Gate Pass Policy */}
+            <div className="pt-4 border-t border-thb-border">
+              <h4 className="text-xs font-semibold text-thb-text-muted uppercase tracking-wider mb-3">Gate Pass / Permission</h4>
+              <div className="grid grid-cols-2 gap-3 mb-3">
+                <div>
+                  <label className="block text-xs text-thb-text-muted mb-1">Max Gate Passes / Month</label>
+                  <input type="number" value={config.gatePassMaxPerMonth} onChange={(e) => update('gatePassMaxPerMonth', Number(e.target.value))} min={0} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm" />
+                  <p className="text-[10px] text-thb-text-muted mt-1">0 = unlimited</p>
+                </div>
+                <div>
+                  <label className="block text-xs text-thb-text-muted mb-1">Early Departure (hrs)</label>
+                  <input type="number" value={config.gatePassEarlyHours} onChange={(e) => update('gatePassEarlyHours', Number(e.target.value))} min={0} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm" />
+                  <p className="text-[10px] text-thb-text-muted mt-1">Both punch = full day if within this limit</p>
+                </div>
+              </div>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm font-medium text-thb-text-primary">Half Day on 2nd Gate Pass</p>
+                <button
+                  onClick={() => update('gatePassHalfDayOnExceed', !config.gatePassHalfDayOnExceed)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${config.gatePassHalfDayOnExceed ? 'bg-teal-500' : 'bg-slate-200'}`}
+                >
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${config.gatePassHalfDayOnExceed ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
+              </div>
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium text-thb-text-primary">Half Day Gate Pass → Next Day Half Day</p>
+                <button
+                  onClick={() => update('gatePassHalfDayNextDay', !config.gatePassHalfDayNextDay)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${config.gatePassHalfDayNextDay ? 'bg-teal-500' : 'bg-slate-200'}`}
+                >
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${config.gatePassHalfDayNextDay ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
+              </div>
+            </div>
           </div>
+        </div>
+      </div>
+
+      {/* Canteen Policy */}
+      <div className="thb-card overflow-hidden">
+        <div className="px-5 py-4 border-b border-thb-border bg-slate-50">
+          <div className="flex items-center gap-2">
+            <FiSettings className="w-4 h-4 text-amber-600" />
+            <h3 className="font-semibold text-thb-text-primary">Canteen Policy (Attendance-Based)</h3>
+          </div>
+          <p className="text-xs text-thb-text-muted mt-0.5">Canteen module linked to attendance — free meals based on shift and OT</p>
+        </div>
+        <div className="p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium text-thb-text-primary">Canteen Module Enabled</p>
+            <button
+              onClick={() => update('canteenEnabled', !config.canteenEnabled)}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${config.canteenEnabled ? 'bg-teal-500' : 'bg-slate-200'}`}
+            >
+              <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${config.canteenEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+            </button>
+          </div>
+          {config.canteenEnabled && (
+            <div className="space-y-3 pl-4 border-l-2 border-amber-200">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-thb-text-primary">Free for General Shift (Lunch)</p>
+                <button
+                  onClick={() => update('canteenFreeForGeneralShift', !config.canteenFreeForGeneralShift)}
+                  className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${config.canteenFreeForGeneralShift ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}`}
+                >
+                  {config.canteenFreeForGeneralShift ? 'Free' : 'Chargeable'}
+                </button>
+              </div>
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-thb-text-primary">Free for Night Shift (Dinner)</p>
+                <button
+                  onClick={() => update('canteenFreeForNightShift', !config.canteenFreeForNightShift)}
+                  className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${config.canteenFreeForNightShift ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}`}
+                >
+                  {config.canteenFreeForNightShift ? 'Free' : 'Chargeable'}
+                </button>
+              </div>
+              <div>
+                <label className="block text-xs text-thb-text-muted mb-1">OT Free Threshold (hrs)</label>
+                <input type="number" value={config.canteenOtfreeThresholdHours} onChange={(e) => update('canteenOtfreeThresholdHours', Number(e.target.value))} min={0} className="w-full max-w-[200px] px-3 py-2 border border-thb-border rounded-lg text-sm" />
+                <p className="text-[10px] text-thb-text-muted mt-1">OT above this = free dinner; below = Rs.37 deduction</p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
