@@ -47,18 +47,36 @@ async function safe<T>(
 async function ensureDefaultGroupsForTenants(tenantIds: string[]): Promise<void> {
   if (tenantIds.length === 0) return;
   await safe('ensureDefaultGroupsForTenants', async () => {
-    // Fetch tenant names + existing group counts in one query each
+    // Fetch tenant names from the platform DB
     const tenants = await getPlatformDb().tenant.findMany({
       where: { id: { in: tenantIds } },
       select: {
         id: true,
         name: true,
-        companyGroups: { select: { id: true }, take: 1 },
       },
     });
-    const tenantsNeedingGroup = tenants.filter((t) => t.companyGroups.length === 0);
+    // FIX: Check group existence in each tenant's OWN database, not the
+    // platform DB. CompanyGroup lives in the tenant-specific DB, so
+    // getPlatformDb().companyGroup would either fail or always return 0.
+    const tenantsNeedingGroup: { id: string; name: string }[] = [];
+    for (const t of tenants) {
+      try {
+        const tenantDb = await getDbForTenantById(t.id);
+        const existingGroup = await tenantDb.companyGroup.findFirst({
+          where: { tenantId: t.id },
+          select: { id: true },
+        });
+        if (!existingGroup) {
+          tenantsNeedingGroup.push(t);
+        }
+      } catch (e: unknown) {
+        // If we can't check, assume group is needed
+        console.error(`[company-groups] Check for existing groups in tenant ${t.id} failed:`, e);
+        tenantsNeedingGroup.push(t);
+      }
+    }
     if (tenantsNeedingGroup.length === 0) return;
-    // FIX: Use tenant-specific DB for each tenant when creating default groups
+    // Use tenant-specific DB for each tenant when creating default groups
     await Promise.all(tenantsNeedingGroup.map(async (t) => {
       try {
         const tenantDb = await getDbForTenantById(t.id);

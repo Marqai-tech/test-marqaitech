@@ -4,6 +4,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { getCompanies, createCompany, updateCompany } from '@/lib/api';
 import { useAppStore } from '@/store/app-store';
 import type { CompanyInfo } from '@/lib/types';
+import { useCompanyContextStore } from '@/store/companyContextStore';
+import { useAuthStore } from '@/store/authStore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -19,6 +21,8 @@ import { toast } from 'sonner';
 
 export function Companies() {
   const { companies, setCompanies, setCurrentCompany } = useAppStore();
+  const { user } = useAuthStore();
+  const { availableCompanyGroups, hydrated: ctxHydrated, hydrate } = useCompanyContextStore();
   const [loading, setLoading] = useState(true);
   const [showAddCompany, setShowAddCompany] = useState(false);
   const [showEditCompany, setShowEditCompany] = useState(false);
@@ -29,7 +33,7 @@ export function Companies() {
   const [selectedCompany, setSelectedCompany] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({
-    name: '', code: '', industry: 'IT Services', country: '', currency: 'INR',
+    name: '', code: '', industry: 'IT Services', country: '', currency: 'INR', companyGroupId: '',
   });
 
   const fetchCompanies = useCallback(async () => {
@@ -58,14 +62,33 @@ export function Companies() {
 
   useEffect(() => { fetchCompanies(); }, [fetchCompanies]);
 
+  // Hydrate company context to get available groups
+  useEffect(() => {
+    if (!ctxHydrated) hydrate();
+  }, [ctxHydrated, hydrate]);
+
+  const isSuperAdmin = user?.role === 'super_admin';
+
   const handleCreateCompany = async () => {
     try {
+      // Group company required for non-super_admin
+      if (!isSuperAdmin && !form.companyGroupId) {
+        toast.error(
+          availableCompanyGroups.length === 0
+            ? 'No group companies exist under your tenant yet. Please ask your super admin to create one first.'
+            : 'Please select a group company. Only super admins can create new group companies.'
+        );
+        return;
+      }
       setSubmitting(true);
-      await createCompany(form);
+      const payload = { ...form };
+      if (!payload.companyGroupId) delete (payload as Record<string, unknown>).companyGroupId;
+      await createCompany(payload);
       toast.success('Company created successfully');
       setShowAddCompany(false);
-      setForm({ name: '', code: '', industry: 'IT Services', country: '', currency: 'INR' });
+      setForm({ name: '', code: '', industry: 'IT Services', country: '', currency: 'INR', companyGroupId: '' });
       fetchCompanies();
+      hydrate(true);
     } catch {
       toast.error('Failed to create company');
     } finally {
@@ -233,6 +256,24 @@ export function Companies() {
                 </Select>
               </div>
             </div>
+            {/* Group Company selector — required for tenant_admin */}
+            {!isSuperAdmin && (
+              <div className="space-y-1">
+                <Label className="text-sm">Group Company *</Label>
+                {availableCompanyGroups.length === 0 ? (
+                  <p className="text-xs text-amber-600">No group companies available. Ask your super admin to create one first.</p>
+                ) : (
+                  <Select value={form.companyGroupId} onValueChange={(v) => setForm(f => ({ ...f, companyGroupId: v }))}>
+                    <SelectTrigger><SelectValue placeholder="Select a group company" /></SelectTrigger>
+                    <SelectContent>
+                      {availableCompanyGroups.map(g => (
+                        <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label className="text-sm">Country</Label>

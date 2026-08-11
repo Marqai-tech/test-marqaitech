@@ -244,10 +244,13 @@ export async function GET(request: Request) {
         // AUTO-HEAL: Ensure the target tenant has at least one default group
         // company. Legacy tenants created before the auto-group feature would
         // otherwise show no groups, making the switcher look broken.
+        // FIX: Use tenant-specific DB for the existence check, because
+        // CompanyGroup lives in the tenant DB, not the platform DB.
         await safe(
           'ensureDefaultGroup(super_admin)',
           async () => {
-            const existingGroups = await getPlatformDb().companyGroup.findFirst({
+            const healCheckDb = await getDbForTenantById(effectiveTenantId);
+            const existingGroups = await healCheckDb.companyGroup.findFirst({
               where: { tenantId: effectiveTenantId },
               select: { id: true },
             });
@@ -256,8 +259,7 @@ export async function GET(request: Request) {
                 where: { id: effectiveTenantId },
                 select: { name: true },
               });
-              const healDb = await getDbForTenantById(effectiveTenantId);
-              await healDb.companyGroup.create({
+              await healCheckDb.companyGroup.create({
                 data: {
                   name: tenantInfo?.name || 'Default Group',
                   tenantId: effectiveTenantId,
@@ -314,10 +316,15 @@ export async function GET(request: Request) {
         // show availableCompanyGroups: [] and the tenant admin would be unable to
         // add companies (the form requires selecting a group). This mirrors the
         // same auto-heal logic in GET /api/company-groups.
+        // FIX: Use tenant-specific DB for the existence check, because
+        // CompanyGroup lives in the tenant DB, not the platform DB. Previously
+        // this used getPlatformDb() which would never find groups in the tenant
+        // DB, causing auto-heal to either fail silently or create duplicates.
+        const healCheckDb = await getDbForTenantById(callerTenantId);
         await safe(
           'ensureDefaultGroup(tenant_admin)',
           async () => {
-            const existingGroups = await getPlatformDb().companyGroup.findFirst({
+            const existingGroups = await healCheckDb.companyGroup.findFirst({
               where: { tenantId: callerTenantId },
               select: { id: true },
             });
@@ -326,8 +333,7 @@ export async function GET(request: Request) {
                 where: { id: callerTenantId },
                 select: { name: true },
               });
-              const tenantAdminDb = await getDbForTenantById(callerTenantId);
-              await tenantAdminDb.companyGroup.create({
+              await healCheckDb.companyGroup.create({
                 data: {
                   name: tenantInfo?.name || 'Default Group',
                   tenantId: callerTenantId,

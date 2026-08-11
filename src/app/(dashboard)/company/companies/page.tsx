@@ -1,14 +1,18 @@
 'use client'
 
-import { useState } from 'react'
-import { FiHome, FiPlus, FiSearch, FiEye, FiEdit2, FiTrash2, FiX, FiLayers, FiInfo, FiAlertTriangle, FiCheckCircle, FiSettings, FiBriefcase } from 'react-icons/fi'
+import { useState, useEffect } from 'react'
+import { FiHome, FiPlus, FiSearch, FiEye, FiEdit2, FiTrash2, FiX, FiLayers, FiInfo, FiAlertTriangle, FiCheckCircle, FiSettings, FiBriefcase, FiAlertCircle } from 'react-icons/fi'
 import toast from 'react-hot-toast'
 import { useCompanyData, apiFetch, fmtSalary, fmtDate, fmtDay, fmtTime, gradeCode, gradeName, getStatusBadge } from '@/components/company/useCompanyData'
 import { CompanyRecord } from '@/components/company/useCompanyData'
 import { validatePhone, validateEmail, validateWebsite, phoneInputFilter, onlyDigits } from '@/lib/validators'
+import { useCompanyContextStore } from '@/store/companyContextStore'
+import { useAuthStore } from '@/store/authStore'
 
 export default function CompaniesPage() {
   const { companies, branches, departments, loading, isAdmin, isSuperAdmin, isTenantAdmin, fetchCompanies } = useCompanyData()
+  const { user } = useAuthStore()
+  const { availableCompanyGroups, hydrated: ctxHydrated, hydrate } = useCompanyContextStore()
 
   const [search, setSearch] = useState('')
   const [showForm, setShowForm] = useState(false)
@@ -27,7 +31,7 @@ export default function CompaniesPage() {
   )
 
   const getDefaultForm = (): Record<string, string> => ({
-    name: '', code: '', country: 'India', currency: 'INR', timezone: 'Asia/Kolkata',
+    name: '', code: '', companyGroupId: '', country: 'India', currency: 'INR', timezone: 'Asia/Kolkata',
     city: '', state: '', address: '', zipCode: '', phone: '', email: '', website: '', taxId: '', status: 'active'
   })
 
@@ -61,6 +65,11 @@ export default function CompaniesPage() {
 
   const handleCancelForm = () => { setShowForm(false); setEditingId(null); setForm({}) }
 
+  // Hydrate company context to get available groups
+  useEffect(() => {
+    if (!ctxHydrated) hydrate();
+  }, [ctxHydrated, hydrate]);
+
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault()
 
@@ -82,6 +91,16 @@ export default function CompaniesPage() {
       if (!websiteResult.valid) { toast.error(websiteResult.error || 'Invalid website URL'); return }
     }
 
+    // Group company required for tenant_admin (only super_admin can auto-create groups)
+    if (!isSuperAdmin && !form.companyGroupId) {
+      toast.error(
+        availableCompanyGroups.length === 0
+          ? 'No group companies exist under your tenant yet. Please ask your super admin to create one first.'
+          : 'Please select a group company. Only super admins can create new group companies.'
+      );
+      return;
+    }
+
     // Duplicate name/code check
     const isEdit = !!editingId
     const duplicateName = companies.find(c => c.name.toLowerCase() === form.name.toLowerCase() && c.id !== editingId)
@@ -97,10 +116,14 @@ export default function CompaniesPage() {
       const method = isEdit ? 'PUT' : 'POST'
       const body: Record<string, unknown> = { ...form }
       if (isEdit) body.id = editingId
+      // Ensure companyGroupId is sent as a proper value (not empty string)
+      if (!body.companyGroupId) delete body.companyGroupId
       await apiFetch(url, { method, body: JSON.stringify(body) })
       toast.success(`Company ${isEdit ? 'updated' : 'created'} successfully`)
       handleCancelForm()
       fetchCompanies()
+      // Refresh context so new company appears in the switcher
+      hydrate(true)
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Operation failed')
     } finally { setSubmitting(false) }
@@ -227,6 +250,30 @@ export default function CompaniesPage() {
                 <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Name *</label><input type="text" value={form.name || ''} onChange={e => updateForm('name', e.target.value)} required className={inputClass} placeholder="Company name" /></div>
                 <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Code</label><input type="text" value={form.code || ''} onChange={e => updateForm('code', e.target.value)} className={inputClass} placeholder="e.g. 3BOXES" /></div>
                 <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Currency</label><select value={form.currency || 'INR'} onChange={e => updateForm('currency', e.target.value)} className={inputClass}><option value="INR">INR (₹)</option><option value="USD">USD ($)</option><option value="EUR">EUR (€)</option></select></div>
+              </div>
+              {/* Group Company selector — required for tenant_admin */}
+              {!isSuperAdmin && (
+                <div>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Group Company *</label>
+                  {availableCompanyGroups.length === 0 ? (
+                    <div className="px-3 py-2.5 rounded-lg border border-amber-200 bg-amber-50 flex items-start gap-2 text-xs text-amber-900">
+                      <FiAlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-bold mb-0.5">No group companies available</p>
+                        <p>Only your <b>super admin</b> can create group companies. Please ask them to create at least one group under your tenant first.</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <select value={form.companyGroupId || ''} onChange={e => updateForm('companyGroupId', e.target.value)} className={inputClass} required={!isSuperAdmin}>
+                      <option value="">— Select a group company —</option>
+                      {availableCompanyGroups.map(g => (
+                        <option key={g.id} value={g.id}>{g.name}</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              )}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">City</label><input type="text" value={form.city || ''} onChange={e => updateForm('city', e.target.value)} className={inputClass} /></div>
                 <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">State</label><input type="text" value={form.state || ''} onChange={e => updateForm('state', e.target.value)} className={inputClass} /></div>
                 <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Country</label><input type="text" value={form.country || ''} onChange={e => updateForm('country', e.target.value)} className={inputClass} /></div>
