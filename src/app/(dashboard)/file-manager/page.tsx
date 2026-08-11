@@ -1,14 +1,22 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   FiFolder, FiUpload, FiPlus, FiGrid, FiList, FiStar, FiDownload,
   FiShare2, FiTrash2, FiClock, FiFileText, FiFile, FiImage,
   FiChevronRight, FiChevronDown, FiSearch, FiMoreVertical,
   FiHardDrive, FiUsers, FiGlobe, FiEdit3, FiCopy, FiLock,
   FiX, FiActivity, FiUser, FiCalendar, FiHash, FiArrowUp,
-  FiRefreshCw, FiTrash,
+  FiRefreshCw, FiTrash, FiEye,
 } from 'react-icons/fi';
+import toast from 'react-hot-toast';
+import { useAuthStore } from '@/store/authStore';
+import { useCompanyContextStore } from '@/store/companyContextStore';
+
+function getAuthHeaders() {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
+  return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+}
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -49,10 +57,82 @@ interface ActivityEntry {
   detail?: string;
 }
 
-// ─── Sample Data ─────────────────────────────────────────────────────────────
+// ─── API Types & Helpers ─────────────────────────────────────────────────────
 
-const STORAGE_TOTAL = 50 * 1024; // 50 GB in MB
-const STORAGE_USED = 32.7 * 1024; // 32.7 GB in MB
+interface FileNodeAPI {
+  id: string;
+  name: string;
+  driveType: string;
+  ownerEmployeeId?: string;
+  owner?: { id: string; firstName: string; lastName: string; avatar?: string };
+  projectId?: string;
+  companyId?: string;
+  parentId?: string;
+  nodeType: string;
+  mimeType?: string;
+  sizeBytes: number;
+  storagePath?: string;
+  currentVersion: number;
+  dlpScanStatus: string;
+  watermarkEnabled: boolean;
+  isUnderLegalHold: boolean;
+  description?: string;
+  uploadedById: string;
+  uploadedBy?: { id: string; firstName: string; lastName: string; avatar?: string };
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  _count?: { versions: number; shareLinks: number };
+}
+
+function mimeTypeToFileType(mimeType?: string, nodeType?: string): FileType {
+  if (nodeType === 'folder') return 'folder';
+  if (!mimeType) return 'other';
+  if (mimeType.includes('pdf')) return 'pdf';
+  if (mimeType.includes('word') || mimeType.includes('document') || mimeType.includes('officedocument.wordprocessingml')) return 'doc';
+  if (mimeType.includes('sheet') || mimeType.includes('excel') || mimeType.includes('spreadsheet') || mimeType.includes('officedocument.spreadsheetml')) return 'xls';
+  if (mimeType.includes('image')) return 'img';
+  if (mimeType.includes('presentation') || mimeType.includes('powerpoint') || mimeType.includes('officedocument.presentationml')) return 'ppt';
+  return 'other';
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes === 0) return '—';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+}
+
+function formatDateShort(dateStr: string): string {
+  const d = new Date(dateStr);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function mapApiFileToFileItem(apiFile: FileNodeAPI): FileItem {
+  const uploaderName = apiFile.uploadedBy
+    ? `${apiFile.uploadedBy.firstName} ${apiFile.uploadedBy.lastName}`
+    : 'Unknown';
+  return {
+    id: apiFile.id,
+    name: apiFile.name,
+    type: mimeTypeToFileType(apiFile.mimeType, apiFile.nodeType),
+    size: apiFile.nodeType === 'folder' ? '—' : formatFileSize(apiFile.sizeBytes),
+    sizeBytes: apiFile.sizeBytes,
+    modified: formatDateShort(apiFile.updatedAt),
+    modifiedDate: new Date(apiFile.updatedAt),
+    owner: uploaderName,
+    shared: (apiFile._count?.shareLinks ?? 0) > 0,
+    sharedWith: [],
+    starred: false,
+    drive: (apiFile.driveType === 'personal' ? 'my' : apiFile.driveType === 'project' ? 'project' : 'company') as FileItem['drive'],
+    parentId: apiFile.parentId ?? null,
+    version: apiFile.currentVersion,
+    description: apiFile.description ?? '',
+  };
+}
+
+// ─── Static Config ──────────────────────────────────────────────────────────
 
 const DRIVES = [
   {
@@ -95,101 +175,6 @@ const CATEGORIES = [
   { key: 'pdf', label: 'PDFs', icon: FiFile, color: 'text-red-500', count: 9 },
 ];
 
-const FILES: FileItem[] = [
-  // ── Folders ──
-  { id: 'f1', name: 'Employee Documents', type: 'folder', size: '—', sizeBytes: 0, modified: 'Feb 28, 2026', modifiedDate: new Date('2026-02-28'), owner: 'HR Admin', shared: true, sharedWith: ['HR Team', 'Managers'], starred: true, drive: 'company', parentId: null, version: 0, description: 'Core employee documentation' },
-  { id: 'f2', name: 'Payroll Reports', type: 'folder', size: '—', sizeBytes: 0, modified: 'Mar 1, 2026', modifiedDate: new Date('2026-03-01'), owner: 'Finance Team', shared: true, sharedWith: ['Finance', 'HR'], starred: false, drive: 'company', parentId: null, version: 0, description: 'Monthly payroll reports and summaries' },
-  { id: 'f3', name: 'Offer Letters', type: 'folder', size: '—', sizeBytes: 0, modified: 'Feb 25, 2026', modifiedDate: new Date('2026-02-25'), owner: 'Recruitment Team', shared: true, sharedWith: ['Recruiters', 'HR Heads'], starred: true, drive: 'project', parentId: null, version: 0, description: 'All offer letter templates and issued letters' },
-  { id: 'f4', name: 'Onboarding Materials', type: 'folder', size: '—', sizeBytes: 0, modified: 'Mar 2, 2026', modifiedDate: new Date('2026-03-02'), owner: 'HR Admin', shared: true, sharedWith: ['HR Team', 'New Hires'], starred: false, drive: 'company', parentId: null, version: 0, description: 'Onboarding checklists, guides, and presentations' },
-  { id: 'f5', name: 'Policy Documents', type: 'folder', size: '—', sizeBytes: 0, modified: 'Jan 15, 2026', modifiedDate: new Date('2026-01-15'), owner: 'Legal Team', shared: true, sharedWith: ['All Employees'], starred: false, drive: 'company', parentId: null, version: 0, description: 'Company policies and compliance documents' },
-  { id: 'f6', name: 'Performance Reviews', type: 'folder', size: '—', sizeBytes: 0, modified: 'Feb 20, 2026', modifiedDate: new Date('2026-02-20'), owner: 'HR Admin', shared: true, sharedWith: ['HR Team', 'Managers'], starred: true, drive: 'project', parentId: null, version: 0, description: 'Quarterly and annual performance review documents' },
-  { id: 'f7', name: 'Training Materials', type: 'folder', size: '—', sizeBytes: 0, modified: 'Mar 3, 2026', modifiedDate: new Date('2026-03-03'), owner: 'L&D Team', shared: true, sharedWith: ['All Employees'], starred: false, drive: 'company', parentId: null, version: 0, description: 'Training guides, videos, and certification materials' },
-  { id: 'f8', name: 'Personal Notes', type: 'folder', size: '—', sizeBytes: 0, modified: 'Mar 4, 2026', modifiedDate: new Date('2026-03-04'), owner: 'Me', shared: false, sharedWith: [], starred: false, drive: 'my', parentId: null, version: 0, description: 'My personal workspace notes' },
-
-  // ── PDFs ──
-  { id: 'p1', name: 'Employee Handbook 2026.pdf', type: 'pdf', size: '4.2 MB', sizeBytes: 4404019, modified: 'Jan 10, 2026', modifiedDate: new Date('2026-01-10'), owner: 'Legal Team', shared: true, sharedWith: ['All Employees'], starred: true, drive: 'company', parentId: 'f5', version: 3, description: 'Updated company handbook with 2026 policy changes' },
-  { id: 'p2', name: 'Q4 2025 Payroll Summary.pdf', type: 'pdf', size: '1.8 MB', sizeBytes: 1887436, modified: 'Feb 15, 2026', modifiedDate: new Date('2026-02-15'), owner: 'Finance Team', shared: true, sharedWith: ['Finance', 'HR Heads'], starred: false, drive: 'company', parentId: 'f2', version: 2, description: 'Quarterly payroll summary report' },
-  { id: 'p3', name: 'Leave Policy 2026.pdf', type: 'pdf', size: '890 KB', sizeBytes: 911360, modified: 'Jan 20, 2026', modifiedDate: new Date('2026-01-20'), owner: 'HR Admin', shared: true, sharedWith: ['All Employees'], starred: false, drive: 'company', parentId: 'f5', version: 4, description: 'Updated leave and absence policy' },
-  { id: 'p4', name: 'Anti-Harassment Policy.pdf', type: 'pdf', size: '560 KB', sizeBytes: 573440, modified: 'Dec 5, 2025', modifiedDate: new Date('2025-12-05'), owner: 'Legal Team', shared: true, sharedWith: ['All Employees'], starred: false, drive: 'company', parentId: 'f5', version: 2, description: 'POSH compliance document' },
-  { id: 'p5', name: 'Benefits Guide 2026.pdf', type: 'pdf', size: '3.1 MB', sizeBytes: 3250585, modified: 'Feb 1, 2026', modifiedDate: new Date('2026-02-01'), owner: 'HR Admin', shared: true, sharedWith: ['All Employees'], starred: true, drive: 'company', parentId: 'f5', version: 3, description: 'Comprehensive employee benefits guide' },
-  { id: 'p6', name: 'IT Security Policy.pdf', type: 'pdf', size: '1.2 MB', sizeBytes: 1258291, modified: 'Mar 1, 2026', modifiedDate: new Date('2026-03-01'), owner: 'IT Admin', shared: true, sharedWith: ['All Employees'], starred: false, drive: 'company', parentId: 'f5', version: 5, description: 'Information security and acceptable use policy' },
-  { id: 'p7', name: 'Annual Compliance Report 2025.pdf', type: 'pdf', size: '5.6 MB', sizeBytes: 5872025, modified: 'Jan 31, 2026', modifiedDate: new Date('2026-01-31'), owner: 'Compliance Team', shared: true, sharedWith: ['Leadership', 'Legal'], starred: false, drive: 'company', parentId: 'f5', version: 1, description: 'Annual regulatory compliance report' },
-
-  // ── Docs ──
-  { id: 'd1', name: 'Offer Letter - Priya Sharma.docx', type: 'doc', size: '245 KB', sizeBytes: 250880, modified: 'Mar 2, 2026', modifiedDate: new Date('2026-03-02'), owner: 'Recruiter A', shared: true, sharedWith: ['HR Heads'], starred: true, drive: 'project', parentId: 'f3', version: 1, description: 'Offer letter for Senior Developer position' },
-  { id: 'd2', name: 'Offer Letter - Rahul Verma.docx', type: 'doc', size: '238 KB', sizeBytes: 243712, modified: 'Feb 28, 2026', modifiedDate: new Date('2026-02-28'), owner: 'Recruiter B', shared: true, sharedWith: ['HR Heads'], starred: false, drive: 'project', parentId: 'f3', version: 2, description: 'Offer letter for Product Manager position' },
-  { id: 'd3', name: 'Onboarding Checklist - Q1 2026.docx', type: 'doc', size: '180 KB', sizeBytes: 184320, modified: 'Mar 3, 2026', modifiedDate: new Date('2026-03-03'), owner: 'HR Admin', shared: true, sharedWith: ['HR Team'], starred: false, drive: 'company', parentId: 'f4', version: 4, description: 'Updated onboarding checklist for new hires' },
-  { id: 'd4', name: 'Meeting Notes - HR Review.docx', type: 'doc', size: '95 KB', sizeBytes: 97280, modified: 'Mar 4, 2026', modifiedDate: new Date('2026-03-04'), owner: 'Me', shared: false, sharedWith: [], starred: false, drive: 'my', parentId: 'f8', version: 1, description: 'Notes from weekly HR review meeting' },
-  { id: 'd5', name: 'Employee NDA Template.docx', type: 'doc', size: '320 KB', sizeBytes: 327680, modified: 'Jan 5, 2026', modifiedDate: new Date('2026-01-05'), owner: 'Legal Team', shared: true, sharedWith: ['HR Team', 'Legal'], starred: true, drive: 'company', parentId: 'f1', version: 6, description: 'Standard non-disclosure agreement template' },
-  { id: 'd6', name: 'WFH Policy Guidelines.docx', type: 'doc', size: '410 KB', sizeBytes: 419840, modified: 'Feb 10, 2026', modifiedDate: new Date('2026-02-10'), owner: 'HR Admin', shared: true, sharedWith: ['All Employees'], starred: false, drive: 'company', parentId: 'f5', version: 3, description: 'Work from home policy and guidelines' },
-  { id: 'd7', name: 'Travel Reimbursement Process.docx', type: 'doc', size: '155 KB', sizeBytes: 158720, modified: 'Jan 22, 2026', modifiedDate: new Date('2026-01-22'), owner: 'Finance Team', shared: true, sharedWith: ['All Employees'], starred: false, drive: 'company', parentId: 'f5', version: 2, description: 'Step-by-step travel reimbursement process' },
-
-  // ── Spreadsheets ──
-  { id: 'x1', name: 'Salary Register - Feb 2026.xlsx', type: 'xls', size: '2.4 MB', sizeBytes: 2516582, modified: 'Mar 1, 2026', modifiedDate: new Date('2026-03-01'), owner: 'Finance Team', shared: true, sharedWith: ['Finance', 'HR Heads'], starred: true, drive: 'company', parentId: 'f2', version: 1, description: 'Monthly salary register with all employee payments' },
-  { id: 'x2', name: 'Headcount Report Q1 2026.xlsx', type: 'xls', size: '1.6 MB', sizeBytes: 1677721, modified: 'Feb 28, 2026', modifiedDate: new Date('2026-02-28'), owner: 'HR Analyst', shared: true, sharedWith: ['HR Team', 'Leadership'], starred: false, drive: 'company', parentId: null, version: 3, description: 'Quarterly headcount analysis and projections' },
-  { id: 'x3', name: 'Leave Balance Tracker.xlsx', type: 'xls', size: '890 KB', sizeBytes: 911360, modified: 'Mar 3, 2026', modifiedDate: new Date('2026-03-03'), owner: 'HR Admin', shared: true, sharedWith: ['HR Team'], starred: false, drive: 'project', parentId: null, version: 12, description: 'Running leave balance tracker for all employees' },
-  { id: 'x4', name: 'Training Budget 2026.xlsx', type: 'xls', size: '340 KB', sizeBytes: 348160, modified: 'Jan 15, 2026', modifiedDate: new Date('2026-01-15'), owner: 'L&D Team', shared: true, sharedWith: ['Finance', 'HR Heads'], starred: false, drive: 'project', parentId: null, version: 2, description: 'Annual training budget allocation and tracking' },
-  { id: 'x5', name: 'Attendance Summary - Feb 2026.xlsx', type: 'xls', size: '1.1 MB', sizeBytes: 1153433, modified: 'Mar 2, 2026', modifiedDate: new Date('2026-03-02'), owner: 'HR Admin', shared: true, sharedWith: ['HR Team', 'Managers'], starred: false, drive: 'company', parentId: null, version: 1, description: 'Monthly attendance summary report' },
-  { id: 'x6', name: 'Tax Deduction Sheet - FY2025-26.xlsx', type: 'xls', size: '780 KB', sizeBytes: 798720, modified: 'Feb 20, 2026', modifiedDate: new Date('2026-02-20'), owner: 'Finance Team', shared: true, sharedWith: ['Finance'], starred: true, drive: 'company', parentId: 'f2', version: 5, description: 'TDS calculation and deduction sheet for all employees' },
-
-  // ── Presentations ──
-  { id: 't1', name: 'Company Town Hall - Q1 2026.pptx', type: 'ppt', size: '8.5 MB', sizeBytes: 8912896, modified: 'Mar 1, 2026', modifiedDate: new Date('2026-03-01'), owner: 'CEO Office', shared: true, sharedWith: ['All Employees'], starred: false, drive: 'company', parentId: null, version: 1, description: 'Quarterly town hall presentation slides' },
-  { id: 't2', name: 'HR Strategy Deck 2026.pptx', type: 'ppt', size: '5.2 MB', sizeBytes: 5452595, modified: 'Jan 8, 2026', modifiedDate: new Date('2026-01-08'), owner: 'CHRO', shared: true, sharedWith: ['Leadership', 'HR Team'], starred: true, drive: 'company', parentId: null, version: 4, description: 'Annual HR strategy and roadmap presentation' },
-  { id: 't3', name: 'Onboarding Presentation - New Hires.pptx', type: 'ppt', size: '6.8 MB', sizeBytes: 7130316, modified: 'Feb 15, 2026', modifiedDate: new Date('2026-02-15'), owner: 'HR Admin', shared: true, sharedWith: ['HR Team', 'New Hires'], starred: false, drive: 'company', parentId: 'f4', version: 7, description: 'Welcome presentation for new employee orientation' },
-  { id: 't4', name: 'Performance Review Training.pptx', type: 'ppt', size: '3.4 MB', sizeBytes: 3565158, modified: 'Feb 18, 2026', modifiedDate: new Date('2026-02-18'), owner: 'L&D Team', shared: true, sharedWith: ['Managers'], starred: false, drive: 'company', parentId: 'f7', version: 2, description: 'Manager training on conducting performance reviews' },
-
-  // ── Images ──
-  { id: 'i1', name: 'Company Logo - 2026.png', type: 'img', size: '2.1 MB', sizeBytes: 2202009, modified: 'Jan 2, 2026', modifiedDate: new Date('2026-01-02'), owner: 'Brand Team', shared: true, sharedWith: ['All Employees'], starred: true, drive: 'company', parentId: null, version: 2, description: 'Updated company logo files for 2026' },
-  { id: 'i2', name: 'Team Photo - Annual Day.jpg', type: 'img', size: '4.8 MB', sizeBytes: 5033164, modified: 'Dec 20, 2025', modifiedDate: new Date('2025-12-20'), owner: 'Events Team', shared: true, sharedWith: ['All Employees'], starred: false, drive: 'company', parentId: null, version: 1, description: 'Annual day celebration team photo' },
-  { id: 'i3', name: 'Org Chart - Engineering.png', type: 'img', size: '1.5 MB', sizeBytes: 1572864, modified: 'Feb 10, 2026', modifiedDate: new Date('2026-02-10'), owner: 'HR Admin', shared: true, sharedWith: ['Engineering', 'HR'], starred: false, drive: 'project', parentId: null, version: 6, description: 'Engineering department organizational chart' },
-  { id: 'i4', name: 'Office Floor Plan.png', type: 'img', size: '3.2 MB', sizeBytes: 3355443, modified: 'Nov 15, 2025', modifiedDate: new Date('2025-11-15'), owner: 'Admin Team', shared: true, sharedWith: ['All Employees'], starred: false, drive: 'company', parentId: null, version: 1, description: 'Updated office floor plan and seating arrangement' },
-  { id: 'i5', name: 'ID Card Template.png', type: 'img', size: '890 KB', sizeBytes: 911360, modified: 'Jan 12, 2026', modifiedDate: new Date('2026-01-12'), owner: 'Admin Team', shared: true, sharedWith: ['HR Team', 'Admin'], starred: false, drive: 'company', parentId: null, version: 3, description: 'Employee ID card design template' },
-];
-
-const VERSION_HISTORY: Record<string, VersionEntry[]> = {
-  'p1': [
-    { version: 3, date: 'Jan 10, 2026', user: 'Legal Team', size: '4.2 MB', change: 'Updated 2026 policy changes' },
-    { version: 2, date: 'Jun 15, 2025', user: 'Legal Team', size: '3.8 MB', change: 'Added remote work policy section' },
-    { version: 1, date: 'Jan 5, 2025', user: 'HR Admin', size: '3.5 MB', change: 'Initial upload' },
-  ],
-  'x1': [
-    { version: 1, date: 'Mar 1, 2026', user: 'Finance Team', size: '2.4 MB', change: 'February salary data added' },
-  ],
-  'd5': [
-    { version: 6, date: 'Jan 5, 2026', user: 'Legal Team', size: '320 KB', change: 'Updated jurisdiction clause' },
-    { version: 5, date: 'Sep 10, 2025', user: 'Legal Team', size: '310 KB', change: 'Added non-compete section' },
-    { version: 4, date: 'Mar 22, 2025', user: 'HR Admin', size: '290 KB', change: 'Updated confidentiality terms' },
-    { version: 3, date: 'Jan 15, 2025', user: 'Legal Team', size: '280 KB', change: 'Revised dispute resolution' },
-    { version: 2, date: 'Aug 1, 2024', user: 'Legal Team', size: '265 KB', change: 'Minor formatting updates' },
-    { version: 1, date: 'Jan 10, 2024', user: 'HR Admin', size: '250 KB', change: 'Initial template' },
-  ],
-  't3': [
-    { version: 7, date: 'Feb 15, 2026', user: 'HR Admin', size: '6.8 MB', change: 'Added new benefits slide' },
-    { version: 6, date: 'Jan 8, 2026', user: 'HR Admin', size: '6.5 MB', change: 'Updated company stats' },
-    { version: 5, date: 'Oct 5, 2025', user: 'L&D Team', size: '6.2 MB', change: 'Refreshed design template' },
-    { version: 4, date: 'Jul 12, 2025', user: 'HR Admin', size: '5.8 MB', change: 'Added DEI section' },
-  ],
-};
-
-const ACTIVITY_LOG: Record<string, ActivityEntry[]> = {
-  'p1': [
-    { action: 'viewed', user: 'Ankit Patel', date: 'Mar 4, 2026, 10:15 AM' },
-    { action: 'shared', user: 'Legal Team', date: 'Jan 10, 2026, 2:30 PM', detail: 'Shared with All Employees' },
-    { action: 'edited', user: 'Legal Team', date: 'Jan 10, 2026, 2:00 PM', detail: 'Updated to v3' },
-    { action: 'viewed', user: 'Priya Sharma', date: 'Jan 10, 2026, 9:00 AM' },
-    { action: 'uploaded', user: 'HR Admin', date: 'Jan 5, 2025, 11:00 AM' },
-  ],
-  'x1': [
-    { action: 'viewed', user: 'Finance Team', date: 'Mar 1, 2026, 4:00 PM' },
-    { action: 'uploaded', user: 'Finance Team', date: 'Mar 1, 2026, 3:30 PM', detail: 'New version uploaded' },
-  ],
-  'd5': [
-    { action: 'downloaded', user: 'Recruiter A', date: 'Mar 3, 2026, 11:00 AM' },
-    { action: 'viewed', user: 'HR Admin', date: 'Mar 2, 2026, 3:00 PM' },
-    { action: 'edited', user: 'Legal Team', date: 'Jan 5, 2026, 10:00 AM', detail: 'Updated to v6' },
-  ],
-};
-
 // ─── Icon & Color Mapping ────────────────────────────────────────────────────
 
 const FILE_TYPE_ICONS: Record<FileType, typeof FiFolder> = {
@@ -225,6 +210,10 @@ const FILE_TYPE_LABELS: Record<FileType, string> = {
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function FileManagerPage() {
+  // Auth & Context
+  const { user } = useAuthStore();
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
+
   // State
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
@@ -232,9 +221,9 @@ export default function FileManagerPage() {
   const [activeQuickAccess, setActiveQuickAccess] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState<FileType | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [starredFiles, setStarredFiles] = useState<Set<string>>(
-    new Set(FILES.filter(f => f.starred).map(f => f.id))
-  );
+  const [files, setFiles] = useState<FileItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [starredFiles, setStarredFiles] = useState<Set<string>>(new Set());
   const [showVersionHistory, setShowVersionHistory] = useState(false);
   const [showNewFolderModal, setShowNewFolderModal] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
@@ -244,12 +233,12 @@ export default function FileManagerPage() {
 
   // Derived
   const selectedFile = useMemo(
-    () => (selectedFileId ? FILES.find(f => f.id === selectedFileId) ?? null : null),
-    [selectedFileId]
+    () => (selectedFileId ? files.find(f => f.id === selectedFileId) ?? null : null),
+    [selectedFileId, files]
   );
 
   const displayedFiles = useMemo(() => {
-    let items = FILES;
+    let items = files;
 
     // Filter by drive
     if (activeQuickAccess === 'trash') return [];
@@ -258,7 +247,7 @@ export default function FileManagerPage() {
     } else if (activeQuickAccess === 'starred') {
       items = items.filter(f => starredFiles.has(f.id));
     } else if (activeQuickAccess === 'shared') {
-      items = items.filter(f => f.shared && f.owner !== 'Me');
+      items = items.filter(f => f.shared);
     } else if (activeCategory) {
       items = items.filter(f => f.type === activeCategory);
     } else {
@@ -285,19 +274,75 @@ export default function FileManagerPage() {
     });
 
     return items;
-  }, [activeDrive, activeQuickAccess, activeCategory, starredFiles, searchQuery, breadcrumb]);
+  }, [files, activeDrive, activeQuickAccess, activeCategory, starredFiles, searchQuery, breadcrumb]);
 
-  const storagePercent = Math.round((STORAGE_USED / STORAGE_TOTAL) * 100);
+  // Storage computed from files
+  const storageUsedBytes = useMemo(() => files.reduce((sum, f) => sum + f.sizeBytes, 0), [files]);
+  const STORAGE_TOTAL = 50 * 1024 * 1024 * 1024; // 50 GB fallback
+  const storageUsedMB = storageUsedBytes / (1024 * 1024);
+  const storageTotalMB = STORAGE_TOTAL / (1024 * 1024);
+  const storagePercent = storageTotalMB > 0 ? Math.round((storageUsedMB / storageTotalMB) * 100) : 0;
+
+  // Dynamic category counts
+  const categoryCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const f of files) { counts[f.type] = (counts[f.type] || 0) + 1; }
+    return counts;
+  }, [files]);
+
+  // Dynamic drive usage
+  const driveUsage = useMemo(() => {
+    const usage: Record<string, number> = { my: 0, project: 0, company: 0 };
+    for (const f of files) {
+      const key = f.drive;
+      usage[key] = (usage[key] || 0) + f.sizeBytes;
+    }
+    return usage;
+  }, [files]);
+
+  // ─── Fetch Files ─────────────────────────────────────────────────────────────
+  const fetchFiles = useCallback(async (driveType?: string, parentId?: string | null) => {
+    setLoading(true);
+    try {
+      const drive = driveType || (activeDrive === 'my' ? 'personal' : activeDrive);
+      const cid = effectiveCompanyId();
+      let url = `/api/collaboration/files?driveType=${drive}`;
+      if (parentId !== undefined) url += `&parentId=${parentId ?? 'null'}`;
+      if (drive === 'company' && cid) url += `&companyId=${cid}`;
+      const r = await fetch(url, { headers: getAuthHeaders() });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed to fetch files');
+      const mapped = (d.files || []).map(mapApiFileToFileItem);
+      setFiles(mapped);
+    } catch (err: unknown) {
+      console.error('fetchFiles error:', err);
+      toast.error('Failed to load files');
+      setFiles([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [activeDrive, effectiveCompanyId]);
+
+  useEffect(() => {
+    fetchFiles();
+  }, [fetchFiles, activeDrive, activeQuickAccess]);
 
   // Handlers
   const toggleStar = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
+    const wasStarred = starredFiles.has(id);
     setStarredFiles(prev => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
+    // Persist star to API
+    fetch('/api/collaboration/files', {
+      method: 'PATCH',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ id, starred: !wasStarred }),
+    }).catch(() => {});
   };
 
   const handleSidebarDriveClick = (drive: 'my' | 'project' | 'company') => {
@@ -307,6 +352,7 @@ export default function FileManagerPage() {
     const driveLabel = DRIVES.find(d => d.key === drive)?.label ?? drive;
     setBreadcrumb([{ id: null, name: driveLabel }]);
     setSelectedFileId(null);
+    fetchFiles(drive === 'my' ? 'personal' : drive);
   };
 
   const handleQuickAccessClick = (key: string) => {
@@ -342,13 +388,36 @@ export default function FileManagerPage() {
     setShowVersionHistory(false);
   };
 
-  const getVersions = (fileId: string): VersionEntry[] => VERSION_HISTORY[fileId] ?? [
-    { version: 1, date: FILES.find(f => f.id === fileId)?.modified ?? '', user: FILES.find(f => f.id === fileId)?.owner ?? '', size: FILES.find(f => f.id === fileId)?.size ?? '', change: 'Initial upload' },
-  ];
+  const handleDeleteFile = async (fileId: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    try {
+      const r = await fetch(`/api/collaboration/files?id=${fileId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      });
+      if (!r.ok) {
+        const d = await r.json();
+        throw new Error(d.error || 'Failed to delete');
+      }
+      toast.success('File deleted');
+      setFiles(prev => prev.filter(f => f.id !== fileId));
+      if (selectedFileId === fileId) setSelectedFileId(null);
+    } catch (err: unknown) {
+      toast.error('Failed to delete file');
+    }
+  };
 
-  const getActivities = (fileId: string): ActivityEntry[] => ACTIVITY_LOG[fileId] ?? [
-    { action: 'uploaded', user: FILES.find(f => f.id === fileId)?.owner ?? '', date: FILES.find(f => f.id === fileId)?.modified ?? '' },
-  ];
+  const getVersions = (fileId: string): VersionEntry[] => {
+    const f = files.find(f => f.id === fileId);
+    if (!f) return [];
+    return [{ version: f.version, date: f.modified, user: f.owner, size: f.size, change: f.version === 1 ? 'Initial upload' : `Updated to v${f.version}` }];
+  };
+
+  const getActivities = (fileId: string): ActivityEntry[] => {
+    const f = files.find(f => f.id === fileId);
+    if (!f) return [];
+    return [{ action: 'uploaded', user: f.owner, date: f.modified }];
+  };
 
   // ─── Render ─────────────────────────────────────────────────────────────────
 
@@ -394,7 +463,8 @@ export default function FileManagerPage() {
               {DRIVES.map(drive => {
                 const Icon = drive.icon;
                 const isActive = !activeQuickAccess && !activeCategory && activeDrive === drive.key;
-                const pct = Math.round((drive.used / drive.total) * 100);
+                const driveUsedGB = (driveUsage[drive.key] || 0) / (1024 * 1024 * 1024);
+                const pct = drive.total > 0 ? Math.round((driveUsedGB / drive.total) * 100) : 0;
                 return (
                   <button
                     key={drive.key}
@@ -409,7 +479,7 @@ export default function FileManagerPage() {
                     <div className="flex-1 text-left min-w-0">
                       <div className="flex items-center justify-between">
                         <span className="truncate">{drive.label}</span>
-                        <span className="text-[10px] text-thb-text-muted ml-1">{drive.used}/{drive.total} GB</span>
+                        <span className="text-[10px] text-thb-text-muted ml-1">{driveUsedGB.toFixed(1)}/{drive.total} GB</span>
                       </div>
                       <div className="mt-1 h-1 rounded-full bg-slate-100 overflow-hidden">
                         <div
@@ -443,7 +513,7 @@ export default function FileManagerPage() {
                   >
                     <Icon className={`w-4 h-4 ${isActive ? 'text-thb-primary' : cat.color}`} />
                     <span className="flex-1 text-left">{cat.label}</span>
-                    <span className="text-[10px] bg-slate-100 text-thb-text-muted px-1.5 py-0.5 rounded-full">{cat.count}</span>
+                    <span className="text-[10px] bg-slate-100 text-thb-text-muted px-1.5 py-0.5 rounded-full">{categoryCounts[cat.key] ?? 0}</span>
                   </button>
                 );
               })}
@@ -466,8 +536,8 @@ export default function FileManagerPage() {
               />
             </div>
             <div className="flex justify-between text-[10px] text-thb-text-muted">
-              <span>{(STORAGE_USED / 1024).toFixed(1)} GB used</span>
-              <span>{(STORAGE_TOTAL / 1024).toFixed(0)} GB total</span>
+              <span>{(storageUsedMB / 1024).toFixed(1)} GB used</span>
+              <span>{(storageTotalMB / 1024).toFixed(0)} GB total</span>
             </div>
             <p className="text-[10px] text-thb-text-muted mt-1">{storagePercent}% of storage used</p>
           </div>
@@ -496,7 +566,48 @@ export default function FileManagerPage() {
                 <FiPlus className="w-4 h-4" />
                 <span className="hidden sm:inline">New Folder</span>
               </button>
-              <button className="inline-flex items-center gap-1.5 px-3 py-2 bg-thb-primary text-white rounded-lg text-sm font-medium hover:bg-thb-primary-dark transition-colors shadow-sm">
+              <button
+                onClick={() => {
+                  const input = document.createElement('input');
+                  input.type = 'file';
+                  input.multiple = true;
+                  input.onchange = async (ev) => {
+                    const target = ev.target as HTMLInputElement;
+                    if (!target.files?.length) return;
+                    const driveType = activeDrive === 'my' ? 'personal' : activeDrive;
+                    const cid = effectiveCompanyId();
+                    const currentFolderId = breadcrumb[breadcrumb.length - 1]?.id;
+                    for (const file of Array.from(target.files)) {
+                      try {
+                        const body: Record<string, unknown> = {
+                          name: file.name,
+                          driveType,
+                          nodeType: 'file',
+                          mimeType: file.type || 'application/octet-stream',
+                          sizeBytes: file.size,
+                        };
+                        if (currentFolderId) body.parentId = currentFolderId;
+                        if (driveType === 'company' && cid) body.companyId = cid;
+                        const r = await fetch('/api/collaboration/files', {
+                          method: 'POST',
+                          headers: getAuthHeaders(),
+                          body: JSON.stringify(body),
+                        });
+                        if (!r.ok) {
+                          const d = await r.json();
+                          throw new Error(d.error || 'Upload failed');
+                        }
+                      } catch (err: unknown) {
+                        toast.error(`Failed to upload ${file.name}`);
+                      }
+                    }
+                    toast.success('Files uploaded');
+                    fetchFiles(driveType, currentFolderId);
+                  };
+                  input.click();
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-2 bg-thb-primary text-white rounded-lg text-sm font-medium hover:bg-thb-primary-dark transition-colors shadow-sm"
+              >
                 <FiUpload className="w-4 h-4" />
                 <span className="hidden sm:inline">Upload</span>
               </button>
@@ -571,7 +682,12 @@ export default function FileManagerPage() {
         {/* File Area */}
         <div className="flex-1 overflow-hidden flex">
           <div className="flex-1 overflow-y-auto px-6 pb-6">
-            {displayedFiles.length === 0 ? (
+            {loading ? (
+              <div className="flex flex-col items-center justify-center py-20 text-center">
+                <div className="w-10 h-10 border-2 border-thb-primary border-t-transparent rounded-full animate-spin mb-4" />
+                <p className="text-sm text-thb-text-muted">Loading files...</p>
+              </div>
+            ) : displayedFiles.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 text-center">
                 <div className="w-16 h-16 rounded-2xl bg-slate-50 flex items-center justify-center mb-4">
                   <FiFolder className="w-8 h-8 text-thb-text-muted" />
@@ -638,7 +754,7 @@ export default function FileManagerPage() {
                           <button className="p-1 text-thb-text-muted hover:text-emerald-600 rounded" title="Share">
                             <FiShare2 className="w-3 h-3" />
                           </button>
-                          <button className="p-1 text-thb-text-muted hover:text-red-500 rounded" title="Delete">
+                          <button onClick={(e) => handleDeleteFile(file.id, e)} className="p-1 text-thb-text-muted hover:text-red-500 rounded" title="Delete">
                             <FiTrash2 className="w-3 h-3" />
                           </button>
                         </div>
@@ -720,7 +836,7 @@ export default function FileManagerPage() {
                                   <button className="p-1.5 text-thb-text-muted hover:text-emerald-600 hover:bg-slate-100 rounded transition-colors" title="Share">
                                     <FiShare2 className="w-3.5 h-3.5" />
                                   </button>
-                                  <button className="p-1.5 text-thb-text-muted hover:text-red-500 hover:bg-slate-100 rounded transition-colors" title="Delete">
+                                  <button onClick={(e) => handleDeleteFile(file.id, e)} className="p-1.5 text-thb-text-muted hover:text-red-500 hover:bg-slate-100 rounded transition-colors" title="Delete">
                                     <FiTrash2 className="w-3.5 h-3.5" />
                                   </button>
                                 </>
@@ -934,8 +1050,25 @@ export default function FileManagerPage() {
                 autoFocus
                 onKeyDown={e => {
                   if (e.key === 'Enter' && newFolderName.trim()) {
-                    setShowNewFolderModal(false);
-                    setNewFolderName('');
+                    (async () => {
+                      try {
+                        const driveType = activeDrive === 'my' ? 'personal' : activeDrive;
+                        const cid = effectiveCompanyId();
+                        const body: Record<string, unknown> = { name: newFolderName.trim(), driveType, nodeType: 'folder' };
+                        const currentFolderId = breadcrumb[breadcrumb.length - 1]?.id;
+                        if (currentFolderId) body.parentId = currentFolderId;
+                        if (driveType === 'company' && cid) body.companyId = cid;
+                        const r = await fetch('/api/collaboration/files', { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify(body) });
+                        const d = await r.json();
+                        if (!r.ok) throw new Error(d.error || 'Failed');
+                        toast.success(`Folder "${newFolderName.trim()}" created`);
+                        fetchFiles(driveType, currentFolderId);
+                      } catch (err: unknown) {
+                        toast.error('Failed to create folder');
+                      }
+                      setShowNewFolderModal(false);
+                      setNewFolderName('');
+                    })();
                   }
                 }}
               />
@@ -950,8 +1083,25 @@ export default function FileManagerPage() {
               <button
                 onClick={() => {
                   if (newFolderName.trim()) {
-                    setShowNewFolderModal(false);
-                    setNewFolderName('');
+                    (async () => {
+                      try {
+                        const driveType = activeDrive === 'my' ? 'personal' : activeDrive;
+                        const cid = effectiveCompanyId();
+                        const body: Record<string, unknown> = { name: newFolderName.trim(), driveType, nodeType: 'folder' };
+                        const currentFolderId = breadcrumb[breadcrumb.length - 1]?.id;
+                        if (currentFolderId) body.parentId = currentFolderId;
+                        if (driveType === 'company' && cid) body.companyId = cid;
+                        const r = await fetch('/api/collaboration/files', { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify(body) });
+                        const d = await r.json();
+                        if (!r.ok) throw new Error(d.error || 'Failed');
+                        toast.success(`Folder "${newFolderName.trim()}" created`);
+                        fetchFiles(driveType, currentFolderId);
+                      } catch (err: unknown) {
+                        toast.error('Failed to create folder');
+                      }
+                      setShowNewFolderModal(false);
+                      setNewFolderName('');
+                    })();
                   }
                 }}
                 className="px-4 py-2 text-sm bg-thb-primary text-white rounded-lg hover:bg-thb-primary-dark transition-colors font-medium"

@@ -1,6 +1,8 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useAuthStore } from '@/store/authStore';
+import { useCompanyContextStore } from '@/store/companyContextStore';
 import {
   FiUsers,
   FiHeart,
@@ -25,7 +27,14 @@ import {
   FiSpeaker,
   FiCoffee,
   FiBriefcase,
+  FiLoader,
 } from 'react-icons/fi';
+
+/* ── Auth headers helper ── */
+function getAuthHeaders() {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
+  return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+}
 
 /* ── Types ── */
 interface Author {
@@ -115,252 +124,121 @@ interface NewJoiner {
   joinDate: string;
 }
 
-/* ── Sample Data ── */
-const trendingTopics: TrendingTopic[] = [
-  { id: '1', title: 'Annual Performance Reviews', posts: 48 },
-  { id: '2', title: 'New Office Space Discussion', posts: 35 },
-  { id: '3', title: 'Hackathon 2025 Teams', posts: 29 },
-  { id: '4', title: 'Remote Work Policy Update', posts: 24 },
-  { id: '5', title: 'Q2 Results Celebration', posts: 21 },
+/* ── API SocialPost shape ── */
+interface SocialPost {
+  id: string;
+  content: string;
+  postType: string;
+  authorId: string;
+  author: { id: string; firstName: string; lastName: string; avatar: string; designation?: { name: string } };
+  companyId?: string;
+  likesCount: number;
+  commentsCount: number;
+  sharesCount: number;
+  attachments?: any[];
+  hashtags?: string[];
+  isPinned: boolean;
+  isActive: boolean;
+  comments: SocialComment[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface SocialComment {
+  id: string;
+  content: string;
+  authorId: string;
+  author?: { id: string; firstName: string; lastName: string; avatar: string; designation?: { name: string } };
+  likesCount: number;
+  createdAt: string;
+}
+
+/* ── Helper: Gradient from name (deterministic) ── */
+const GRADIENTS = [
+  'from-rose-500 to-pink-600',
+  'from-amber-500 to-orange-600',
+  'from-emerald-500 to-teal-600',
+  'from-green-500 to-cyan-600',
+  'from-teal-500 to-teal-600',
+  'from-fuchsia-500 to-pink-600',
+  'from-sky-500 to-green-600',
+  'from-slate-600 to-gray-700',
+  'from-orange-500 to-red-600',
+  'from-cyan-500 to-green-600',
+  'from-lime-500 to-green-600',
+  'from-amber-400 to-yellow-500',
+  'from-teal-400 to-cyan-500',
+  'from-orange-400 to-red-500',
+  'from-rose-400 to-pink-500',
+  'from-fuchsia-600 to-pink-700',
+  'from-green-600 to-emerald-700',
+  'from-emerald-600 to-teal-700',
+  'from-green-500 to-emerald-600',
+  'from-cyan-500 via-green-500 to-emerald-600',
 ];
 
-const popularHashtags: Hashtag[] = [
-  { id: '1', tag: '#TeamWins', count: 156 },
-  { id: '2', tag: '#3BoxesCulture', count: 132 },
-  { id: '3', tag: '#WorkLifeBalance', count: 98 },
-  { id: '4', tag: '#InnovationFirst', count: 87 },
-  { id: '5', tag: '#EmployeeSpotlight', count: 74 },
-  { id: '6', tag: '#GrowthMindset', count: 63 },
-  { id: '7', tag: '#3BoxesFamily', count: 58 },
-  { id: '8', tag: '#LearningAndDev', count: 45 },
-];
+function gradientForName(name: string): string {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return GRADIENTS[Math.abs(hash) % GRADIENTS.length];
+}
 
-const activeMembers: ActiveMember[] = [
-  { id: '1', name: 'Priya Sharma', initials: 'PS', gradient: 'from-rose-500 to-pink-600', posts: 24 },
-  { id: '2', name: 'Arjun Mehta', initials: 'AM', gradient: 'from-amber-500 to-orange-600', posts: 19 },
-  { id: '3', name: 'Kavya Reddy', initials: 'KR', gradient: 'from-emerald-500 to-teal-600', posts: 17 },
-  { id: '4', name: 'Rahul Verma', initials: 'RV', gradient: 'from-green-500 to-cyan-600', posts: 15 },
-  { id: '5', name: 'Neha Gupta', initials: 'NG', gradient: 'from-teal-500 to-teal-600', posts: 14 },
-  { id: '6', name: 'Vikram Singh', initials: 'VS', gradient: 'from-fuchsia-500 to-pink-600', posts: 12 },
-];
-
-const companyAnnouncements: Announcement[] = [
-  { id: '1', title: 'Q3 Strategy All-Hands — July 15', time: '2h ago', type: 'urgent' },
-  { id: '2', title: 'Updated Leave Policy Effective Aug 1', time: '5h ago', type: 'policy' },
-  { id: '3', title: 'New Health Insurance Provider', time: '1d ago', type: 'info' },
-  { id: '4', title: 'Office Deep Cleaning — This Weekend', time: '2d ago', type: 'info' },
-];
-
-const upcomingBirthdays: BirthdayPerson[] = [
-  { id: '1', name: 'Deepa Nair', initials: 'DN', gradient: 'from-rose-400 to-pink-500', date: 'Jul 8', department: 'Design' },
-  { id: '2', name: 'Suresh Kumar', initials: 'SK', gradient: 'from-sky-400 to-green-500', date: 'Jul 10', department: 'Engineering' },
-  { id: '3', name: 'Anita Desai', initials: 'AD', gradient: 'from-lime-400 to-green-500', date: 'Jul 12', department: 'Marketing' },
-];
-
-const workAnniversaries: AnniversaryPerson[] = [
-  { id: '1', name: 'Rajesh Iyer', initials: 'RI', gradient: 'from-amber-400 to-yellow-500', years: 10, role: 'VP Engineering' },
-  { id: '2', name: 'Meera Patel', initials: 'MP', gradient: 'from-teal-400 to-cyan-500', years: 7, role: 'Sr. Product Manager' },
-  { id: '3', name: 'Siddharth Rao', initials: 'SR', gradient: 'from-orange-400 to-red-500', years: 5, role: 'Tech Lead' },
-];
-
-const newJoiners: NewJoiner[] = [
-  { id: '1', name: 'Tanvi Joshi', initials: 'TJ', gradient: 'from-teal-400 to-teal-500', role: 'UX Designer', department: 'Design', joinDate: 'Jul 1' },
-  { id: '2', name: 'Karan Malhotra', initials: 'KM', gradient: 'from-emerald-400 to-green-500', role: 'Backend Dev', department: 'Engineering', joinDate: 'Jul 1' },
-  { id: '3', name: 'Shreya Menon', initials: 'SM', gradient: 'from-green-400 to-emerald-500', role: 'HR Executive', department: 'People Ops', joinDate: 'Jun 28' },
-];
-
-const initialPosts: Post[] = [
-  {
-    id: '1',
-    author: { name: 'HR Communications', role: 'People Operations', initials: 'HR', gradient: 'from-green-600 to-emerald-700' },
-    time: '30 min ago',
-    content: '🚀 Exciting News! 3Boxes has been recognized as a "Great Place to Work" for the third consecutive year! This achievement belongs to every single one of you who makes our culture special. Thank you for being the heart of 3Boxes!',
-    imageGradient: 'from-green-600 via-emerald-600 to-teal-700',
-    imageLabel: '🏆 Great Place to Work Certified — 3 Years Running',
-    tags: ['#3BoxesCulture', '#TeamWins'],
-    likes: 142,
-    comments: 38,
-    shares: 24,
-    isPinned: true,
-    type: 'announcement',
-    commentList: [
-      { id: 'c1', author: { name: 'Priya Sharma', role: 'Engineering', initials: 'PS', gradient: 'from-rose-500 to-pink-600' }, text: 'So proud to be part of this team! 🎉', time: '15 min ago', likes: 8 },
-      { id: 'c2', author: { name: 'Arjun Mehta', role: 'Product', initials: 'AM', gradient: 'from-amber-500 to-orange-600' }, text: 'Well deserved! Our culture is truly special.', time: '10 min ago', likes: 5 },
-    ],
-  },
-  {
-    id: '2',
-    author: { name: 'Suresh Kumar', role: 'Engineering Lead', initials: 'SK', gradient: 'from-sky-500 to-green-600' },
-    time: '1h ago',
-    content: 'Big shoutout to the Platform Team for shipping the new API gateway 2 weeks ahead of schedule! 🎯 Your dedication and late-night sprints paid off. The performance benchmarks are incredible — 40% reduction in latency!',
-    tags: ['#TeamWins', '#InnovationFirst'],
-    likes: 89,
-    comments: 21,
-    shares: 12,
-    type: 'achievement',
-    commentList: [
-      { id: 'c3', author: { name: 'Kavya Reddy', role: 'QA Lead', initials: 'KR', gradient: 'from-emerald-500 to-teal-600' }, text: 'Testing was a breeze with this team! Great collaboration.', time: '45 min ago', likes: 4 },
-    ],
-  },
-  {
-    id: '3',
-    author: { name: 'People Operations', role: 'HR Team', initials: 'PO', gradient: 'from-emerald-600 to-teal-700' },
-    time: '2h ago',
-    content: '🎂 Happy Birthday to our amazing Design Lead, Deepa Nair! Your creative vision shapes everything beautiful at 3Boxes. Wishing you a fantastic day filled with joy and inspiration! 🎨✨',
-    imageGradient: 'from-rose-500 via-pink-500 to-fuchsia-600',
-    imageLabel: '🎂 Happy Birthday Deepa! 🎈',
-    tags: ['#EmployeeSpotlight', '#3BoxesFamily'],
-    likes: 76,
-    comments: 34,
-    shares: 5,
-    type: 'birthday',
-    commentList: [
-      { id: 'c4', author: { name: 'Deepa Nair', role: 'Design Lead', initials: 'DN', gradient: 'from-rose-400 to-pink-500' }, text: 'Thank you everyone! Feeling so loved 💕', time: '1h ago', likes: 12 },
-    ],
-  },
-  {
-    id: '4',
-    author: { name: 'Vikram Singh', role: 'CTO', initials: 'VS', gradient: 'from-fuchsia-600 to-pink-700' },
-    time: '3h ago',
-    content: 'Please join me in welcoming Tanvi Joshi and Karan Malhotra to the 3Boxes family! Tanvi joins our Design team as UX Designer and Karan comes aboard as Backend Developer. Both bring incredible talent and fresh perspectives. Make them feel at home! 🏠',
-    tags: ['#3BoxesFamily', '#EmployeeSpotlight'],
-    likes: 64,
-    comments: 28,
-    shares: 8,
-    type: 'welcome',
-    commentList: [
-      { id: 'c5', author: { name: 'Tanvi Joshi', role: 'UX Designer', initials: 'TJ', gradient: 'from-teal-400 to-teal-500' }, text: 'Thrilled to be here! Looking forward to creating amazing experiences 🎨', time: '2h ago', likes: 9 },
-      { id: 'c6', author: { name: 'Karan Malhotra', role: 'Backend Dev', initials: 'KM', gradient: 'from-emerald-400 to-green-500' }, text: 'Excited to contribute to the platform! 💪', time: '2h ago', likes: 7 },
-    ],
-  },
-  {
-    id: '5',
-    author: { name: 'Compliance Team', role: 'Legal & Compliance', initials: 'CT', gradient: 'from-slate-600 to-gray-700' },
-    time: '4h ago',
-    content: '📋 Important: Updated Data Privacy Policy is now effective. All employees must acknowledge the updated policy by July 15th. Please review the changes in the Documentation Hub under "Company Policies". This is mandatory for all team members.',
-    tags: ['#WorkLifeBalance'],
-    likes: 23,
-    comments: 15,
-    shares: 6,
-    type: 'policy',
-    commentList: [
-      { id: 'c7', author: { name: 'Rahul Verma', role: 'Finance', initials: 'RV', gradient: 'from-green-500 to-cyan-600' }, text: 'Completed the acknowledgment. The new clauses on remote data handling are very clear.', time: '3h ago', likes: 3 },
-    ],
-  },
-  {
-    id: '6',
-    author: { name: 'Events Committee', role: 'Culture Team', initials: 'EC', gradient: 'from-orange-500 to-red-600' },
-    time: '5h ago',
-    content: '🎯 Hackathon 2025 is coming! Mark your calendars for July 20-21. This year\'s theme: "AI for Good". Form your teams (3-5 members) and register by July 12. Amazing prizes await! Use the link in the comments to register. Let\'s innovate together!',
-    imageGradient: 'from-orange-500 via-red-500 to-rose-600',
-    imageLabel: '🎯 Hackathon 2025 — AI for Good | July 20-21',
-    tags: ['#InnovationFirst', '#3BoxesCulture'],
-    likes: 112,
-    comments: 45,
-    shares: 31,
-    type: 'event',
-    commentList: [
-      { id: 'c8', author: { name: 'Neha Gupta', role: 'Data Science', initials: 'NG', gradient: 'from-teal-500 to-teal-600' }, text: 'Team "Neural Ninjas" is ready! Who else is in? 🤖', time: '4h ago', likes: 11 },
-      { id: 'c9', author: { name: 'Arjun Mehta', role: 'Product', initials: 'AM', gradient: 'from-amber-500 to-orange-600' }, text: 'Looking for 2 more team members! DM me if interested.', time: '3h ago', likes: 6 },
-    ],
-  },
-  {
-    id: '7',
-    author: { name: 'Rajesh Iyer', role: 'VP Engineering', initials: 'RI', gradient: 'from-amber-500 to-yellow-600' },
-    time: '6h ago',
-    content: 'Reflecting on 10 incredible years at 3Boxes today! From a 5-person startup to a 500+ team — what a journey. Grateful for every challenge, every late night, and every celebration. Here\'s to the next decade of building something meaningful together. 🙏',
-    tags: ['#3BoxesCulture', '#GrowthMindset'],
-    likes: 198,
-    comments: 52,
-    shares: 18,
-    type: 'achievement',
-    commentList: [
-      { id: 'c10', author: { name: 'Vikram Singh', role: 'CTO', initials: 'VS', gradient: 'from-fuchsia-600 to-pink-700' }, text: 'You\'ve been the backbone of our engineering culture, Rajesh! Here\'s to many more! 🥂', time: '5h ago', likes: 15 },
-    ],
-  },
-  {
-    id: '8',
-    author: { name: 'Facilities Team', role: 'Operations', initials: 'FT', gradient: 'from-teal-500 to-emerald-600' },
-    time: '8h ago',
-    content: '☕ New espresso machine installed in the 3rd floor pantry! We\'ve also added oat milk and a selection of teas. Let us know your favorite brew in the comments. Happy caffeinating!',
-    likes: 67,
-    comments: 19,
-    shares: 4,
-    type: 'general',
-    commentList: [
-      { id: 'c11', author: { name: 'Kavya Reddy', role: 'QA Lead', initials: 'KR', gradient: 'from-emerald-500 to-teal-600' }, text: 'Finally! The old one was... an experience 😅', time: '7h ago', likes: 8 },
-    ],
-  },
-  {
-    id: '9',
-    author: { name: 'Learning & Development', role: 'L&D Team', initials: 'LD', gradient: 'from-cyan-500 to-green-600' },
-    time: '10h ago',
-    content: '📚 New Leadership Workshop series starting next week! "Leading with Empathy" — a 4-week program for managers at all levels. Limited to 25 participants. Register through the Learning Hub. First session: July 8 with guest facilitator Dr. Ananya Roy.',
-    imageGradient: 'from-cyan-500 via-green-500 to-emerald-600',
-    imageLabel: '📚 Leadership Workshop — Leading with Empathy',
-    tags: ['#LearningAndDev', '#GrowthMindset'],
-    likes: 54,
-    comments: 12,
-    shares: 9,
-    type: 'event',
-    commentList: [],
-  },
-  {
-    id: '10',
-    author: { name: 'Sales Champions', role: 'Sales Team', initials: 'SC', gradient: 'from-green-500 to-emerald-600' },
-    time: '12h ago',
-    content: '🎉 Q2 Target Achieved — 115% of quota! A massive shoutout to the entire Sales team for an outstanding quarter. Special recognition to the Enterprise team for closing 3 major deals in the final week. Client dinner celebration coming soon!',
-    tags: ['#TeamWins', '#3BoxesCulture'],
-    likes: 95,
-    comments: 27,
-    shares: 14,
-    type: 'achievement',
-    commentList: [
-      { id: 'c12', author: { name: 'Rahul Verma', role: 'Finance', initials: 'RV', gradient: 'from-green-500 to-cyan-600' }, text: 'Revenue charts look beautiful! 📈', time: '11h ago', likes: 7 },
-    ],
-  },
-  {
-    id: '11',
-    author: { name: 'CSR Committee', role: 'Social Impact', initials: 'CS', gradient: 'from-lime-500 to-green-600' },
-    time: '1d ago',
-    content: '🌱 Tree Plantation Drive Update: 3Boxes volunteers planted 250 saplings at the city park last Saturday! Thank you to all 45 volunteers who spent their weekend making our city greener. Next drive scheduled for August. Sign-ups open now!',
-    imageGradient: 'from-lime-500 via-green-500 to-emerald-600',
-    imageLabel: '🌱 250 Trees Planted — 3Boxes CSR Drive',
-    tags: ['#3BoxesCulture', '#TeamWins'],
-    likes: 83,
-    comments: 16,
-    shares: 11,
-    type: 'general',
-    commentList: [],
-  },
-  {
-    id: '12',
-    author: { name: 'IT Security', role: 'Information Security', initials: 'IS', gradient: 'from-red-500 to-rose-600' },
-    time: '1d ago',
-    content: '🔒 Security Reminder: Never share your login credentials or click on suspicious links. We\'ve noticed an increase in phishing attempts targeting company emails. Report any suspicious emails to security@3boxes.com immediately. Stay safe, stay secure!',
-    likes: 31,
-    comments: 8,
-    shares: 3,
-    type: 'policy',
-    commentList: [
-      { id: 'c13', author: { name: 'Priya Sharma', role: 'Engineering', initials: 'PS', gradient: 'from-rose-500 to-pink-600' }, text: 'Good reminder! I got one of those phishing emails yesterday. Reported it right away.', time: '20h ago', likes: 4 },
-    ],
-  },
-  {
-    id: '13',
-    author: { name: 'Wellness Committee', role: 'Employee Wellness', initials: 'WC', gradient: 'from-teal-500 to-teal-600' },
-    time: '1d ago',
-    content: '🧘 Weekly Mindfulness Session resumes this Thursday at 5:30 PM in the Meditation Room (Floor 2). Open to all employees — no experience needed. Start your weekend with a calm mind! Mats and refreshments provided.',
-    tags: ['#WorkLifeBalance'],
-    likes: 47,
-    comments: 9,
-    shares: 5,
-    type: 'event',
-    commentList: [],
-  },
-];
+function initialsForName(firstName: string, lastName: string): string {
+  return ((firstName?.[0] || '') + (lastName?.[0] || '')).toUpperCase() || '??';
+}
 
 /* ── Helper: Time ago utility ── */
+function formatTimeAgo(dateStr: string): string {
+  const now = Date.now();
+  const then = new Date(dateStr).getTime();
+  const diffMs = now - then;
+  if (diffMs < 60000) return 'Just now';
+  const diffMin = Math.floor(diffMs / 60000);
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `${diffHr}h ago`;
+  const diffDay = Math.floor(diffHr / 24);
+  if (diffDay < 7) return `${diffDay}d ago`;
+  const diffWk = Math.floor(diffDay / 7);
+  return `${diffWk}w ago`;
+}
+
+/* ── Map API SocialPost → UI Post ── */
+function mapApiPostToPost(sp: SocialPost): Post {
+  const authorName = `${sp.author?.firstName || ''} ${sp.author?.lastName || ''}`.trim() || 'Unknown';
+  const authorRole = sp.author?.designation?.name || 'Employee';
+  const authorInitials = initialsForName(sp.author?.firstName || '', sp.author?.lastName || '');
+  const authorGradient = gradientForName(authorName);
+
+  const postType = (['announcement', 'achievement', 'birthday', 'welcome', 'policy', 'event', 'general'].includes(sp.postType)
+    ? sp.postType
+    : 'general') as Post['type'];
+
+  return {
+    id: sp.id,
+    author: { name: authorName, role: authorRole, initials: authorInitials, gradient: authorGradient },
+    time: formatTimeAgo(sp.createdAt),
+    content: sp.content,
+    tags: sp.hashtags && sp.hashtags.length > 0 ? sp.hashtags : undefined,
+    likes: sp.likesCount || 0,
+    comments: sp.commentsCount || 0,
+    shares: sp.sharesCount || 0,
+    isLiked: false,
+    isPinned: sp.isPinned,
+    type: postType,
+    commentList: (sp.comments || []).map((c: SocialComment) => {
+      const cName = c.author ? `${c.author.firstName || ''} ${c.author.lastName || ''}`.trim() : 'Unknown';
+      const cRole = c.author?.designation?.name || '';
+      return {
+        id: c.id,
+        author: { name: cName, role: cRole, initials: initialsForName(c.author?.firstName || '', c.author?.lastName || ''), gradient: gradientForName(cName) },
+        text: c.content,
+        time: formatTimeAgo(c.createdAt),
+        likes: c.likesCount || 0,
+      };
+    }),
+  };
+}
 
 /* ── Sub-Components ── */
 
@@ -397,17 +275,139 @@ function PostTypeBadge({ type }: { type: Post['type'] }) {
 
 /* ── Main Page Component ── */
 export default function SocialFeedPage() {
-  const [posts, setPosts] = useState<Post[]>(initialPosts);
+  const { user } = useAuthStore();
+  const { selectedCompanyId } = useCompanyContextStore();
+
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [loading, setLoading] = useState(true);
   const [composerText, setComposerText] = useState('');
   const [expandedComments, setExpandedComments] = useState<Set<string>>(new Set());
   const [showCreatePostModal, setShowCreatePostModal] = useState(false);
+  const [commentInputs, setCommentInputs] = useState<Record<string, string>>({});
 
-  const toggleLike = useCallback((postId: string) => {
+  /* ── Fetch posts from API ── */
+  const fetchPosts = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await fetch('/api/social-feed?type=general&limit=50', { headers: getAuthHeaders() });
+      if (!res.ok) throw new Error('Failed to fetch posts');
+      const data = await res.json();
+      const apiPosts: SocialPost[] = data.posts || [];
+      setPosts(apiPosts.filter((p: SocialPost) => p.isActive !== false).map(mapApiPostToPost));
+    } catch (err) {
+      console.error('fetchPosts error:', err);
+      setPosts([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchPosts(); }, [fetchPosts]);
+
+  /* ── Compute sidebar data from posts ── */
+  const { computedTrending, computedHashtags, computedActiveMembers, computedAnnouncements, computedBirthdays, computedAnniversaries, computedNewJoiners } = useMemo(() => {
+    // Hashtags from all posts
+    const tagMap = new Map<string, number>();
+    posts.forEach(p => (p.tags || []).forEach(t => tagMap.set(t, (tagMap.get(t) || 0) + 1)));
+    const computedHashtags: Hashtag[] = Array.from(tagMap.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8)
+      .map(([tag, count], i) => ({ id: `ht-${i}`, tag, count }));
+
+    // Trending topics from hashtags
+    const computedTrending: TrendingTopic[] = Array.from(tagMap.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([title, posts], i) => ({ id: `tt-${i}`, title: title.startsWith('#') ? title.slice(1).replace(/([A-Z])/g, ' $1').trim() : title, posts }));
+
+    // Active members - count posts per author
+    const authorMap = new Map<string, { name: string; initials: string; gradient: string; count: number }>();
+    posts.forEach(p => {
+      const existing = authorMap.get(p.author.name);
+      if (existing) existing.count++;
+      else authorMap.set(p.author.name, { name: p.author.name, initials: p.author.initials, gradient: p.author.gradient, count: 1 });
+    });
+    const computedActiveMembers: ActiveMember[] = Array.from(authorMap.values())
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 6)
+      .map((m, i) => ({ id: `am-${i}`, name: m.name, initials: m.initials, gradient: m.gradient, posts: m.count }));
+
+    // Announcements from posts
+    const computedAnnouncements: Announcement[] = posts
+      .filter(p => p.type === 'announcement' || p.type === 'policy')
+      .slice(0, 4)
+      .map((p, i) => ({
+        id: p.id,
+        title: p.content.length > 60 ? p.content.slice(0, 60) + '...' : p.content,
+        time: p.time,
+        type: p.type === 'policy' ? 'policy' as const : 'info' as const,
+      }));
+
+    // Birthdays from posts
+    const computedBirthdays: BirthdayPerson[] = posts
+      .filter(p => p.type === 'birthday')
+      .slice(0, 3)
+      .map((p, i) => ({
+        id: p.id,
+        name: p.author.name,
+        initials: p.author.initials,
+        gradient: p.author.gradient,
+        date: p.time,
+        department: p.author.role,
+      }));
+
+    // Anniversaries from achievement posts
+    const computedAnniversaries: AnniversaryPerson[] = posts
+      .filter(p => p.type === 'achievement' && (p.content.toLowerCase().includes('year') || p.content.toLowerCase().includes('anniversar')))
+      .slice(0, 3)
+      .map((p, i) => ({
+        id: p.id,
+        name: p.author.name,
+        initials: p.author.initials,
+        gradient: p.author.gradient,
+        years: parseInt(p.content.match(/(\d+)\s+year/i)?.[1] || '1', 10),
+        role: p.author.role,
+      }));
+
+    // New joiners from welcome posts
+    const computedNewJoiners: NewJoiner[] = posts
+      .filter(p => p.type === 'welcome')
+      .slice(0, 3)
+      .map((p, i) => ({
+        id: p.id,
+        name: p.author.name,
+        initials: p.author.initials,
+        gradient: p.author.gradient,
+        role: p.author.role,
+        department: p.author.role,
+        joinDate: 'Recently',
+      }));
+
+    return { computedTrending, computedHashtags, computedActiveMembers, computedAnnouncements, computedBirthdays, computedAnniversaries, computedNewJoiners };
+  }, [posts]);
+
+  const toggleLike = useCallback(async (postId: string) => {
+    // Optimistic update
     setPosts(prev => prev.map(p =>
       p.id === postId
         ? { ...p, isLiked: !p.isLiked, likes: p.isLiked ? p.likes - 1 : p.likes + 1 }
         : p
     ));
+    try {
+      await fetch('/api/social-feed', {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ id: postId, action: 'like' }),
+      });
+    } catch (err) {
+      console.error('toggleLike error:', err);
+      // Revert on failure
+      setPosts(prev => prev.map(p =>
+        p.id === postId
+          ? { ...p, isLiked: !p.isLiked, likes: p.isLiked ? p.likes - 1 : p.likes + 1 }
+          : p
+      ));
+    }
   }, []);
 
   const toggleComments = useCallback((postId: string) => {
@@ -419,11 +419,53 @@ export default function SocialFeedPage() {
     });
   }, []);
 
-  const handleCreatePost = useCallback(() => {
+  const handleAddComment = useCallback(async (postId: string) => {
+    const text = commentInputs[postId]?.trim();
+    if (!text) return;
+    const currentUser = user;
+    const authorName = currentUser?.name || 'You';
+    const authorInitials = initialsForName(currentUser?.employee?.firstName || '', currentUser?.employee?.lastName || '');
+    const authorGradient = gradientForName(authorName);
+
+    // Optimistic: add comment locally
+    setPosts(prev => prev.map(p =>
+      p.id === postId
+        ? {
+            ...p,
+            comments: p.comments + 1,
+            commentList: [...(p.commentList || []), {
+              id: `c-new-${Date.now()}`,
+              author: { name: authorName, role: currentUser?.employee?.designation || 'Employee', initials: authorInitials, gradient: authorGradient },
+              text,
+              time: 'Just now',
+              likes: 0,
+            }],
+          }
+        : p
+    ));
+    setCommentInputs(prev => ({ ...prev, [postId]: '' }));
+
+    try {
+      await fetch('/api/social-feed', {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ id: postId, action: 'comment', commentContent: text }),
+      });
+    } catch (err) {
+      console.error('handleAddComment error:', err);
+    }
+  }, [commentInputs, user]);
+
+  const handleCreatePost = useCallback(async () => {
     if (!composerText.trim()) return;
+    const currentUser = user;
+    const authorName = currentUser?.name || 'You';
+    const authorInitials = initialsForName(currentUser?.employee?.firstName || '', currentUser?.employee?.lastName || '');
+    const authorGradient = gradientForName(authorName);
+
     const newPost: Post = {
       id: `new-${Date.now()}`,
-      author: { name: 'You', role: 'Employee', initials: 'YO', gradient: 'from-green-500 to-teal-600' },
+      author: { name: authorName, role: currentUser?.employee?.designation || 'Employee', initials: authorInitials, gradient: authorGradient },
       time: 'Just now',
       content: composerText.trim(),
       likes: 0,
@@ -432,10 +474,48 @@ export default function SocialFeedPage() {
       type: 'general',
       commentList: [],
     };
+    // Optimistic: add to top
     setPosts(prev => [newPost, ...prev]);
     setComposerText('');
     setShowCreatePostModal(false);
-  }, [composerText]);
+
+    try {
+      const res = await fetch('/api/social-feed', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          content: newPost.content,
+          postType: 'general',
+          companyId: selectedCompanyId || undefined,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        // Replace optimistic post with real one from API
+        if (data.post) {
+          setPosts(prev => prev.map(p => p.id === newPost.id ? mapApiPostToPost(data.post) : p));
+        }
+      }
+    } catch (err) {
+      console.error('handleCreatePost error:', err);
+    }
+  }, [composerText, user, selectedCompanyId]);
+
+  const handleDeletePost = useCallback(async (postId: string) => {
+    setPosts(prev => prev.filter(p => p.id !== postId));
+    try {
+      await fetch(`/api/social-feed?id=${postId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      });
+    } catch (err) {
+      console.error('handleDeletePost error:', err);
+    }
+  }, []);
+
+  // Current user info for avatar display
+  const currentUserInitials = user ? initialsForName(user.employee?.firstName || '', user.employee?.lastName || '') : 'YO';
+  const currentUserGradient = user ? gradientForName(user.name || 'You') : 'from-green-500 to-teal-600';
 
   return (
     <div className="space-y-6">
@@ -470,7 +550,7 @@ export default function SocialFeedPage() {
               <h3 className="font-semibold text-sm text-thb-text-primary">Trending Topics</h3>
             </div>
             <div className="space-y-3">
-              {trendingTopics.map((topic, idx) => (
+              {computedTrending.length > 0 ? computedTrending.map((topic, idx) => (
                 <div key={topic.id} className="flex items-start gap-3 group cursor-pointer">
                   <span className="text-xs font-bold text-thb-text-muted w-5 shrink-0 mt-0.5">{idx + 1}</span>
                   <div className="min-w-0">
@@ -478,7 +558,9 @@ export default function SocialFeedPage() {
                     <p className="text-[11px] text-thb-text-muted">{topic.posts} posts</p>
                   </div>
                 </div>
-              ))}
+              )) : (
+                <p className="text-xs text-thb-text-muted">No trending topics yet</p>
+              )}
             </div>
           </div>
 
@@ -489,16 +571,18 @@ export default function SocialFeedPage() {
               <h3 className="font-semibold text-sm text-thb-text-primary">Popular Hashtags</h3>
             </div>
             <div className="flex flex-wrap gap-2">
-              {popularHashtags.map(ht => (
+              {computedHashtags.length > 0 ? computedHashtags.map(ht => (
                 <span
                   key={ht.id}
                   className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-50 hover:bg-green-50 text-xs font-medium text-thb-text-secondary hover:text-green-600 border border-transparent hover:border-green-200 transition-all cursor-pointer"
                 >
                   <FiHash className="w-2.5 h-2.5" />
-                  {ht.tag.slice(1)}
+                  {ht.tag.startsWith('#') ? ht.tag.slice(1) : ht.tag}
                   <span className="text-thb-text-muted ml-0.5">({ht.count})</span>
                 </span>
-              ))}
+              )) : (
+                <p className="text-xs text-thb-text-muted">No hashtags yet</p>
+              )}
             </div>
           </div>
 
@@ -509,7 +593,7 @@ export default function SocialFeedPage() {
               <h3 className="font-semibold text-sm text-thb-text-primary">Active Members</h3>
             </div>
             <div className="space-y-3">
-              {activeMembers.map(member => (
+              {computedActiveMembers.length > 0 ? computedActiveMembers.map(member => (
                 <div key={member.id} className="flex items-center gap-3 group cursor-pointer">
                   <AvatarCircle initials={member.initials} gradient={member.gradient} size="sm" />
                   <div className="min-w-0 flex-1">
@@ -517,7 +601,9 @@ export default function SocialFeedPage() {
                     <p className="text-[11px] text-thb-text-muted">{member.posts} posts this week</p>
                   </div>
                 </div>
-              ))}
+              )) : (
+                <p className="text-xs text-thb-text-muted">No active members yet</p>
+              )}
             </div>
           </div>
         </aside>
@@ -527,7 +613,7 @@ export default function SocialFeedPage() {
           {/* Post Composer */}
           <div className="bg-thb-card-bg rounded-xl border border-thb-border p-4">
             <div className="flex items-start gap-3">
-              <AvatarCircle initials="YO" gradient="from-green-500 to-teal-600" size="md" />
+              <AvatarCircle initials={currentUserInitials} gradient={currentUserGradient} size="md" />
               <div className="flex-1 min-w-0">
                 <textarea
                   value={composerText}
@@ -561,7 +647,18 @@ export default function SocialFeedPage() {
 
           {/* Feed Posts */}
           <div className="space-y-4">
-            {posts.map(post => (
+            {loading ? (
+              <div className="flex items-center justify-center py-20">
+                <FiLoader className="w-8 h-8 text-green-500 animate-spin" />
+                <span className="ml-3 text-sm text-thb-text-muted">Loading feed...</span>
+              </div>
+            ) : posts.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-center">
+                <FiUsers className="w-12 h-12 text-thb-text-muted mb-3" />
+                <p className="text-sm font-medium text-thb-text-primary">No posts yet</p>
+                <p className="text-xs text-thb-text-muted mt-1">Be the first to share something with your team!</p>
+              </div>
+            ) : posts.map(post => (
               <article
                 key={post.id}
                 className={`bg-thb-card-bg rounded-xl border border-thb-border overflow-hidden transition-shadow hover:shadow-md ${post.isPinned ? 'ring-1 ring-green-200' : ''}`}
@@ -674,14 +771,20 @@ export default function SocialFeedPage() {
                     {/* Comment Input */}
                     <div className="p-4 pt-0">
                       <div className="flex items-center gap-2.5">
-                        <AvatarCircle initials="YO" gradient="from-green-500 to-teal-600" size="sm" />
+                        <AvatarCircle initials={currentUserInitials} gradient={currentUserGradient} size="sm" />
                         <div className="flex-1 flex items-center gap-2 bg-white rounded-lg border border-slate-200 px-3 py-2 focus-within:ring-2 focus-within:ring-green-500/20 focus-within:border-green-300 transition-all">
                           <input
                             type="text"
+                            value={commentInputs[post.id] || ''}
+                            onChange={e => setCommentInputs(prev => ({ ...prev, [post.id]: e.target.value }))}
+                            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleAddComment(post.id); } }}
                             placeholder="Write a comment..."
                             className="flex-1 text-xs text-thb-text-primary placeholder:text-thb-text-muted bg-transparent focus:outline-none"
                           />
-                          <button className="p-1 rounded text-thb-text-muted hover:text-green-600 transition-colors">
+                          <button
+                            onClick={() => handleAddComment(post.id)}
+                            className="p-1 rounded text-thb-text-muted hover:text-green-600 transition-colors"
+                          >
                             <FiSend className="w-3.5 h-3.5" />
                           </button>
                         </div>
@@ -703,7 +806,7 @@ export default function SocialFeedPage() {
               <h3 className="font-semibold text-sm text-thb-text-primary">Company Announcements</h3>
             </div>
             <div className="space-y-3">
-              {companyAnnouncements.map(ann => (
+              {computedAnnouncements.length > 0 ? computedAnnouncements.map(ann => (
                 <div key={ann.id} className="flex items-start gap-3 group cursor-pointer">
                   <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${
                     ann.type === 'urgent' ? 'bg-red-500' : ann.type === 'policy' ? 'bg-amber-500' : 'bg-green-500'
@@ -713,7 +816,9 @@ export default function SocialFeedPage() {
                     <p className="text-[11px] text-thb-text-muted mt-0.5">{ann.time}</p>
                   </div>
                 </div>
-              ))}
+              )) : (
+                <p className="text-xs text-thb-text-muted">No announcements</p>
+              )}
             </div>
           </div>
 
@@ -724,7 +829,7 @@ export default function SocialFeedPage() {
               <h3 className="font-semibold text-sm text-thb-text-primary">Upcoming Birthdays</h3>
             </div>
             <div className="space-y-3">
-              {upcomingBirthdays.map(person => (
+              {computedBirthdays.length > 0 ? computedBirthdays.map(person => (
                 <div key={person.id} className="flex items-center gap-3">
                   <AvatarCircle initials={person.initials} gradient={person.gradient} size="sm" />
                   <div className="min-w-0 flex-1">
@@ -733,7 +838,9 @@ export default function SocialFeedPage() {
                   </div>
                   <span className="text-lg">🎂</span>
                 </div>
-              ))}
+              )) : (
+                <p className="text-xs text-thb-text-muted">No upcoming birthdays</p>
+              )}
             </div>
           </div>
 
@@ -744,7 +851,7 @@ export default function SocialFeedPage() {
               <h3 className="font-semibold text-sm text-thb-text-primary">Work Anniversaries</h3>
             </div>
             <div className="space-y-3">
-              {workAnniversaries.map(person => (
+              {computedAnniversaries.length > 0 ? computedAnniversaries.map(person => (
                 <div key={person.id} className="flex items-center gap-3">
                   <AvatarCircle initials={person.initials} gradient={person.gradient} size="sm" />
                   <div className="min-w-0 flex-1">
@@ -756,7 +863,9 @@ export default function SocialFeedPage() {
                     <span className="text-[9px] text-thb-text-muted">years</span>
                   </div>
                 </div>
-              ))}
+              )) : (
+                <p className="text-xs text-thb-text-muted">No anniversaries</p>
+              )}
             </div>
           </div>
 
@@ -767,7 +876,7 @@ export default function SocialFeedPage() {
               <h3 className="font-semibold text-sm text-thb-text-primary">New Joiners</h3>
             </div>
             <div className="space-y-3">
-              {newJoiners.map(person => (
+              {computedNewJoiners.length > 0 ? computedNewJoiners.map(person => (
                 <div key={person.id} className="flex items-center gap-3">
                   <div className="relative">
                     <AvatarCircle initials={person.initials} gradient={person.gradient} size="sm" />
@@ -779,7 +888,9 @@ export default function SocialFeedPage() {
                   </div>
                   <span className="text-[10px] text-emerald-600 font-medium bg-emerald-50 px-1.5 py-0.5 rounded">{person.joinDate}</span>
                 </div>
-              ))}
+              )) : (
+                <p className="text-xs text-thb-text-muted">No new joiners</p>
+              )}
             </div>
           </div>
         </aside>
@@ -794,23 +905,25 @@ export default function SocialFeedPage() {
             <h3 className="font-semibold text-sm text-thb-text-primary">Trending Topics</h3>
           </div>
           <div className="space-y-2.5">
-            {trendingTopics.slice(0, 3).map((topic, idx) => (
+            {computedTrending.slice(0, 3).map((topic, idx) => (
               <div key={topic.id} className="flex items-start gap-2">
                 <span className="text-xs font-bold text-thb-text-muted w-4 shrink-0">{idx + 1}</span>
                 <p className="text-sm text-thb-text-primary font-medium">{topic.title}</p>
               </div>
             ))}
+            {computedTrending.length === 0 && <p className="text-xs text-thb-text-muted">No trending topics</p>}
           </div>
           <div className="flex items-center gap-2 mt-4 mb-3">
             <FiHash className="w-4 h-4 text-teal-500" />
             <h3 className="font-semibold text-sm text-thb-text-primary">Popular Hashtags</h3>
           </div>
           <div className="flex flex-wrap gap-1.5">
-            {popularHashtags.slice(0, 5).map(ht => (
+            {computedHashtags.slice(0, 5).map(ht => (
               <span key={ht.id} className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md bg-slate-50 text-[11px] font-medium text-thb-text-secondary">
                 {ht.tag}
               </span>
             ))}
+            {computedHashtags.length === 0 && <p className="text-xs text-thb-text-muted">No hashtags</p>}
           </div>
         </div>
 
@@ -822,7 +935,7 @@ export default function SocialFeedPage() {
               <h3 className="font-semibold text-sm text-thb-text-primary">Announcements</h3>
             </div>
             <div className="space-y-2.5">
-              {companyAnnouncements.slice(0, 3).map(ann => (
+              {computedAnnouncements.slice(0, 3).map(ann => (
                 <div key={ann.id} className="flex items-start gap-2">
                   <div className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${ann.type === 'urgent' ? 'bg-red-500' : 'bg-green-500'}`} />
                   <div>
@@ -831,6 +944,7 @@ export default function SocialFeedPage() {
                   </div>
                 </div>
               ))}
+              {computedAnnouncements.length === 0 && <p className="text-xs text-thb-text-muted">No announcements</p>}
             </div>
           </div>
 
@@ -840,7 +954,7 @@ export default function SocialFeedPage() {
               <h3 className="font-semibold text-sm text-thb-text-primary">New Joiners</h3>
             </div>
             <div className="space-y-2.5">
-              {newJoiners.map(person => (
+              {computedNewJoiners.map(person => (
                 <div key={person.id} className="flex items-center gap-2.5">
                   <AvatarCircle initials={person.initials} gradient={person.gradient} size="sm" />
                   <div className="min-w-0">
@@ -849,6 +963,7 @@ export default function SocialFeedPage() {
                   </div>
                 </div>
               ))}
+              {computedNewJoiners.length === 0 && <p className="text-xs text-thb-text-muted">No new joiners</p>}
             </div>
           </div>
         </div>
@@ -870,10 +985,12 @@ export default function SocialFeedPage() {
             </div>
             <div className="p-5">
               <div className="flex items-start gap-3">
-                <AvatarCircle initials="YO" gradient="from-green-500 to-teal-600" size="md" />
+                <AvatarCircle initials={currentUserInitials} gradient={currentUserGradient} size="md" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-thb-text-primary">You</p>
-                  <p className="text-xs text-thb-text-muted">Employee</p>
+                  <p className="text-sm font-semibold text-thb-text-primary">
+                    {user?.name || 'You'}
+                  </p>
+                  <p className="text-xs text-thb-text-muted">{user?.employee?.designation || 'Employee'}</p>
                 </div>
               </div>
               <textarea

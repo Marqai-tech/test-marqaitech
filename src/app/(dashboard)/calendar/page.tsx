@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   FiCalendar,
   FiChevronLeft,
@@ -15,13 +15,40 @@ import {
   FiGift,
   FiBookOpen,
   FiStar,
+  FiTrash2,
 } from 'react-icons/fi';
+import toast from 'react-hot-toast';
+import { useAuthStore } from '@/store/authStore';
+import { useCompanyContextStore } from '@/store/companyContextStore';
 
 /* ─────────── Types ─────────── */
 
 type ViewMode = 'month' | 'week' | 'day';
 type EventType = 'meeting' | 'leave' | 'holiday' | 'birthday' | 'training' | 'anniversary';
 
+/* API shape */
+interface ApiCalendarEvent {
+  id: string;
+  title: string;
+  description?: string;
+  eventType: string;
+  startDateTime: string;
+  endDateTime: string;
+  isAllDay: boolean;
+  location?: string;
+  color?: string;
+  createdBy: string;
+  companyId?: string;
+  attendees?: string;
+  recurrence?: string;
+  isPublic: boolean;
+  isActive: boolean;
+  creator: { id: string; firstName: string; lastName: string; avatar?: string };
+  createdAt: string;
+  updatedAt: string;
+}
+
+/* UI shape */
 interface CalendarEvent {
   id: string;
   title: string;
@@ -32,9 +59,12 @@ interface CalendarEvent {
   description?: string;
   location?: string;
   attendees?: string[];
+  isAllDay?: boolean;
+  startDateTime?: string;
+  endDateTime?: string;
 }
 
-/* ─────────── Sample Data ─────────── */
+/* ─────────── Event Colors ─────────── */
 
 const EVENT_COLORS: Record<EventType, { bg: string; text: string; dot: string; bar: string; icon: typeof FiCalendar }> = {
   meeting:   { bg: 'bg-green-50',    text: 'text-green-700',    dot: 'bg-green-500',    bar: 'bg-green-500',    icon: FiUsers },
@@ -50,44 +80,53 @@ const currentYear = today.getFullYear();
 const currentMonth = today.getMonth();
 const currentDay = today.getDate();
 
-const sampleEvents: CalendarEvent[] = [
-  // Meetings
-  { id: 'e1',  title: 'Daily Standup',              date: 1,  time: '09:00', endTime: '09:15', type: 'meeting',   description: 'Team sync-up',          location: 'Zoom',          attendees: ['Engineering Team'] },
-  { id: 'e2',  title: 'Sprint Planning',            date: 3,  time: '10:00', endTime: '12:00', type: 'meeting',   description: 'Sprint 24 planning',    location: 'Conf Room A',   attendees: ['Product', 'Engineering'] },
-  { id: 'e3',  title: '1:1 with Manager',           date: 5,  time: '14:00', endTime: '14:30', type: 'meeting',   description: 'Bi-weekly 1:1',         location: 'Manager Office',attendees: ['Rajesh Kumar'] },
-  { id: 'e4',  title: 'Client Call - Acme Corp',    date: 7,  time: '11:00', endTime: '12:00', type: 'meeting',   description: 'Project status update', location: 'Google Meet',   attendees: ['Acme Team', 'PM Team'] },
-  { id: 'e5',  title: 'Sprint Review',              date: 14, time: '16:00', endTime: '17:00', type: 'meeting',   description: 'Sprint 23 demo',        location: 'Conf Room B',   attendees: ['All Hands'] },
-  { id: 'e6',  title: 'Design Review',              date: 10, time: '15:00', endTime: '16:00', type: 'meeting',   description: 'UI/UX review session',  location: 'Design Lab',    attendees: ['Design Team'] },
-  { id: 'e7',  title: 'Retrospective',              date: 15, time: '15:00', endTime: '16:30', type: 'meeting',   description: 'Sprint 23 retro',       location: 'Conf Room A',   attendees: ['Engineering'] },
-  { id: 'e8',  title: 'All Hands Meeting',          date: 20, time: '10:00', endTime: '11:00', type: 'meeting',   description: 'Monthly company update', location: 'Auditorium',    attendees: ['Everyone'] },
-  { id: 'e9',  title: '1:1 with Report',            date: 22, time: '11:00', endTime: '11:30', type: 'meeting',   description: 'Weekly 1:1',            location: 'Zoom',          attendees: ['Priya Sharma'] },
-  { id: 'e10', title: 'Team Lunch',                 date: 25, time: '12:30', endTime: '13:30', type: 'meeting',   description: 'Monthly team bonding',   location: 'The Pavilion',  attendees: ['Engineering Team'] },
+/* ── Auth Helpers ── */
+function getAuthHeaders() {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
+  return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+}
 
-  // Leaves
-  { id: 'e11', title: 'Sick Leave - Ankit',         date: 4,  time: 'All Day', endTime: '',       type: 'leave',     description: 'Feeling unwell' },
-  { id: 'e12', title: 'PTO - Sarah',                date: 8,  time: 'All Day', endTime: '',       type: 'leave',     description: 'Family vacation' },
-  { id: 'e13', title: 'PTO - Sarah',                date: 9,  time: 'All Day', endTime: '',       type: 'leave',     description: 'Family vacation' },
-  { id: 'e14', title: 'Casual Leave - Mike',        date: 18, time: 'All Day', endTime: '',       type: 'leave',     description: 'Personal work' },
-  { id: 'e15', title: 'Half Day - Priya',           date: 26, time: '14:00',   endTime: '18:00',  type: 'leave',     description: 'Doctor appointment' },
+/** Map API CalendarEvent → UI CalendarEvent */
+function mapApiEventToUi(api: ApiCalendarEvent): CalendarEvent {
+  const start = new Date(api.startDateTime);
+  const end = new Date(api.endDateTime);
+  const dayOfMonth = start.getDate();
 
-  // Holidays
-  { id: 'e16', title: 'Republic Day',               date: 26, time: 'All Day', endTime: '',       type: 'holiday',   description: 'National holiday' },
-  { id: 'e17', title: 'Company Foundation Day',     date: 12, time: 'All Day', endTime: '',       type: 'holiday',   description: '3Boxes anniversary celebration' },
+  let time: string;
+  let endTime: string;
+  if (api.isAllDay) {
+    time = 'All Day';
+    endTime = '';
+  } else {
+    const pad = (n: number) => String(n).padStart(2, '0');
+    time = `${pad(start.getHours())}:${pad(start.getMinutes())}`;
+    endTime = `${pad(end.getHours())}:${pad(end.getMinutes())}`;
+  }
 
-  // Birthdays
-  { id: 'e18', title: "Birthday - Arjun Mehta",     date: 6,  time: 'All Day', endTime: '',       type: 'birthday',  description: '🎂 Happy Birthday!' },
-  { id: 'e19', title: "Birthday - Lisa Chen",       date: 19, time: 'All Day', endTime: '',       type: 'birthday',  description: '🎂 Happy Birthday!' },
-  { id: 'e20', title: "Birthday - David Park",      date: 28, time: 'All Day', endTime: '',       type: 'birthday',  description: '🎂 Happy Birthday!' },
+  let attendees: string[] | undefined;
+  if (api.attendees) {
+    try {
+      attendees = JSON.parse(api.attendees);
+    } catch {
+      attendees = undefined;
+    }
+  }
 
-  // Training
-  { id: 'e21', title: 'AWS Certification Training', date: 11, time: '10:00', endTime: '13:00', type: 'training',  description: 'Cloud fundamentals',    location: 'Training Room 1', attendees: ['DevOps Team'] },
-  { id: 'e22', title: 'Leadership Workshop',        date: 17, time: '09:00', endTime: '12:00', type: 'training',  description: 'Senior leadership',     location: 'Off-site',       attendees: ['Team Leads'] },
-  { id: 'e23', title: 'Security Awareness',         date: 23, time: '14:00', endTime: '15:30', type: 'training',  description: 'Annual security training',location: 'Online',        attendees: ['Everyone'] },
-
-  // Anniversaries
-  { id: 'e24', title: 'Work Anniversary - Neha',    date: 13, time: 'All Day', endTime: '',       type: 'anniversary', description: '5 years at 3Boxes!' },
-  { id: 'e25', title: 'Work Anniversary - Rohan',   date: 27, time: 'All Day', endTime: '',       type: 'anniversary', description: '3 years at 3Boxes!' },
-];
+  return {
+    id: api.id,
+    title: api.title,
+    date: dayOfMonth,
+    time,
+    endTime,
+    type: (api.eventType as EventType) || 'meeting',
+    description: api.description,
+    location: api.location,
+    attendees,
+    isAllDay: api.isAllDay,
+    startDateTime: api.startDateTime,
+    endDateTime: api.endDateTime,
+  };
+}
 
 /* ─────────── Helpers ─────────── */
 
@@ -114,11 +153,19 @@ function isToday(year: number, month: number, day: number): boolean {
 /* ─────────── Component ─────────── */
 
 export default function CalendarPage() {
+  const { user } = useAuthStore();
+  const { selectedCompany } = useCompanyContextStore();
+  void user;
+
   const [viewMonth, setViewMonth] = useState(currentMonth);
   const [viewYear, setViewYear] = useState(currentYear);
   const [selectedDate, setSelectedDate] = useState<number | null>(currentDay);
   const [viewMode, setViewMode] = useState<ViewMode>('month');
   const [showNewEventModal, setShowNewEventModal] = useState(false);
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [newEvent, setNewEvent] = useState({
     title: '',
     date: '',
@@ -129,19 +176,61 @@ export default function CalendarPage() {
     location: '',
   });
 
+  /* Fetch events from API */
+  const fetchEvents = useCallback(async () => {
+    try {
+      setLoading(true);
+      const monthStr = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}`;
+      const res = await fetch(`/api/calendar?month=${monthStr}`, { headers: getAuthHeaders() });
+      if (res.ok) {
+        const data = await res.json();
+        const apiEvents: ApiCalendarEvent[] = data.events || [];
+        setEvents(apiEvents.filter((e: ApiCalendarEvent) => e.isActive !== false).map(mapApiEventToUi));
+      } else {
+        setEvents([]);
+      }
+    } catch {
+      setEvents([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [viewYear, viewMonth]);
+
+  useEffect(() => {
+    fetchEvents();
+  }, [fetchEvents]);
+
+  /* Delete handler */
+  const handleDelete = useCallback(async (eventId: string) => {
+    try {
+      setDeletingId(eventId);
+      const res = await fetch(`/api/calendar?id=${eventId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) throw new Error('Failed to delete');
+      setEvents((prev) => prev.filter((e) => e.id !== eventId));
+      toast.success('Event deleted');
+    } catch {
+      toast.error('Failed to delete event');
+    } finally {
+      setDeletingId(null);
+    }
+  }, []);
+
   /* Derived data */
   const daysInMonth = getDaysInMonth(viewYear, viewMonth);
   const firstDay = getFirstDayOfMonth(viewYear, viewMonth);
   const prevMonthDays = getDaysInMonth(viewYear, viewMonth - 1);
 
   const eventsForMonth = useMemo(() => {
-    return sampleEvents.filter((e) => e.date <= daysInMonth);
-  }, [daysInMonth]);
+    return events.filter((e) => e.date <= daysInMonth);
+  }, [events, daysInMonth]);
 
   const eventsForSelectedDate = useMemo(() => {
     if (selectedDate === null) return [];
-    return sampleEvents.filter((e) => e.date === selectedDate);
-  }, [selectedDate]);
+    return events.filter((e) => e.date === selectedDate);
+  }, [events, selectedDate]);
 
   const eventsMap = useMemo(() => {
     const map: Record<number, CalendarEvent[]> = {};
@@ -153,10 +242,10 @@ export default function CalendarPage() {
   }, [eventsForMonth]);
 
   /* Stats */
-  const upcomingEvents = sampleEvents.filter((e) => e.date >= currentDay && e.type !== 'leave').length;
-  const meetingsToday = sampleEvents.filter((e) => e.date === currentDay && e.type === 'meeting').length;
-  const leavesToday = sampleEvents.filter((e) => e.date === currentDay && e.type === 'leave').length;
-  const holidaysThisMonth = sampleEvents.filter((e) => e.type === 'holiday').length;
+  const upcomingEvents = events.filter((e) => e.date >= currentDay && e.type !== 'leave').length;
+  const meetingsToday = events.filter((e) => e.date === currentDay && e.type === 'meeting').length;
+  const leavesToday = events.filter((e) => e.date === currentDay && e.type === 'leave').length;
+  const holidaysThisMonth = events.filter((e) => e.type === 'holiday').length;
 
   /* Navigation */
   const goToPrevMonth = () => {
@@ -308,8 +397,21 @@ export default function CalendarPage() {
             </div>
           </div>
 
+          {/* Loading indicator */}
+          {loading && (
+            <div className="py-12 text-center">
+              <div className="inline-flex items-center gap-2 text-sm text-thb-text-secondary">
+                <svg className="animate-spin w-5 h-5" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                Loading events...
+              </div>
+            </div>
+          )}
+
           {/* ── Month View ── */}
-          {viewMode === 'month' && (
+          {!loading && viewMode === 'month' && (
             <div>
               {/* Day Headers */}
               <div className="grid grid-cols-7 border-b border-thb-border">
@@ -393,7 +495,7 @@ export default function CalendarPage() {
           )}
 
           {/* ── Week View ── */}
-          {viewMode === 'week' && (
+          {!loading && viewMode === 'week' && (
             <div>
               <div className="grid grid-cols-7 border-b border-thb-border">
                 {weekDays.map((wd) => {
@@ -463,7 +565,7 @@ export default function CalendarPage() {
           )}
 
           {/* ── Day View ── */}
-          {viewMode === 'day' && selectedDate !== null && (
+          {!loading && viewMode === 'day' && selectedDate !== null && (
             <div>
               <div className="px-4 py-3 bg-slate-50 border-b border-thb-border">
                 <h3 className="text-sm font-bold text-thb-text-primary">{selectedDateFormatted}</h3>
@@ -530,7 +632,7 @@ export default function CalendarPage() {
           )}
 
           {/* Day view with no date selected */}
-          {viewMode === 'day' && selectedDate === null && (
+          {!loading && viewMode === 'day' && selectedDate === null && (
             <div className="py-20 text-center">
               <FiCalendar className="w-10 h-10 text-thb-text-muted mx-auto mb-3" />
               <p className="text-sm text-thb-text-secondary">Select a date to view day schedule</p>
@@ -556,7 +658,8 @@ export default function CalendarPage() {
                 {eventsForSelectedDate.length === 0 ? (
                   <div className="py-8 text-center">
                     <FiCalendar className="w-8 h-8 text-thb-text-muted mx-auto mb-2" />
-                    <p className="text-sm text-thb-text-secondary">No events scheduled</p>
+                    <p className="text-sm text-thb-text-secondary">{loading ? 'Loading...' : 'No events scheduled'}</p>
+                    {!loading && (
                     <button
                       onClick={() => setShowNewEventModal(true)}
                       className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-green-600 bg-green-50 rounded-lg hover:bg-green-100 transition-colors"
@@ -564,6 +667,7 @@ export default function CalendarPage() {
                       <FiPlus className="w-3 h-3" />
                       Add Event
                     </button>
+                    )}
                   </div>
                 ) : (
                   <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
@@ -611,11 +715,19 @@ export default function CalendarPage() {
                               )}
                             </div>
                           </div>
-                          <div className="mt-2 ml-12">
+                          <div className="mt-2 ml-12 flex items-center justify-between">
                             <span className={`inline-flex items-center gap-1 thb-badge ${colors.bg} ${colors.text}`}>
                               <span className={`w-1.5 h-1.5 rounded-full ${colors.dot}`} />
                               {ev.type.charAt(0).toUpperCase() + ev.type.slice(1)}
                             </span>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleDelete(ev.id); }}
+                              disabled={deletingId === ev.id}
+                              className="p-1 rounded hover:bg-red-50 text-thb-text-muted hover:text-red-500 transition-colors disabled:opacity-50"
+                              title="Delete event"
+                            >
+                              <FiTrash2 className="w-3 h-3" />
+                            </button>
                           </div>
                         </div>
                       );
@@ -807,14 +919,48 @@ export default function CalendarPage() {
                 Cancel
               </button>
               <button
-                onClick={() => {
-                  // In real app, this would save the event
-                  setShowNewEventModal(false);
-                  setNewEvent({ title: '', date: '', time: '09:00', endTime: '10:00', type: 'meeting', description: '', location: '' });
+                onClick={async () => {
+                  if (!newEvent.title.trim()) {
+                    toast.error('Event title is required');
+                    return;
+                  }
+                  try {
+                    setCreating(true);
+                    const isAllDay = newEvent.time === 'All Day' || !newEvent.time;
+                    const dateStr = newEvent.date || `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(selectedDate || currentDay).padStart(2, '0')}`;
+                    const startDateTime = isAllDay ? `${dateStr}T00:00:00` : `${dateStr}T${newEvent.time}:00`;
+                    const endDateTime = isAllDay ? `${dateStr}T23:59:59` : `${dateStr}T${newEvent.endTime}:00`;
+                    const payload: Record<string, unknown> = {
+                      title: newEvent.title,
+                      description: newEvent.description || undefined,
+                      eventType: newEvent.type,
+                      startDateTime,
+                      endDateTime,
+                      isAllDay,
+                      location: newEvent.location || undefined,
+                      companyId: selectedCompany?.id || undefined,
+                      isPublic: true,
+                    };
+                    const res = await fetch('/api/calendar', {
+                      method: 'POST',
+                      headers: getAuthHeaders(),
+                      body: JSON.stringify(payload),
+                    });
+                    if (!res.ok) throw new Error('Failed to create event');
+                    toast.success('Event created successfully');
+                    setShowNewEventModal(false);
+                    setNewEvent({ title: '', date: '', time: '09:00', endTime: '10:00', type: 'meeting', description: '', location: '' });
+                    fetchEvents();
+                  } catch {
+                    toast.error('Failed to create event');
+                  } finally {
+                    setCreating(false);
+                  }
                 }}
-                className="px-5 py-2.5 bg-green-600 text-white text-sm font-semibold rounded-lg hover:bg-green-700 transition-colors shadow-sm"
+                disabled={creating}
+                className="px-5 py-2.5 bg-green-600 text-white text-sm font-semibold rounded-lg hover:bg-green-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Create Event
+                {creating ? 'Creating...' : 'Create Event'}
               </button>
             </div>
           </div>

@@ -545,6 +545,17 @@ model Employee {
   bankAccounts           BankAccount[]
   gratuityLedgers        GratuityLedger[]
 
+  // ─── Collaboration Productivity back-references ───
+  calendarEvents         CalendarEvent[]     @relation("CalendarEvent_Creator")
+  emailMessages          EmailMessage[]      @relation("EmailMessage_Sender")
+  todoTasksCreated       TodoTask[]          @relation("TodoTask_Creator")
+  todoTasksAssigned      TodoTask[]          @relation("TodoTask_Assignee")
+  notesCreated           Note[]              @relation("Note_Creator")
+  socialPosts            SocialPost[]        @relation("SocialPost_Author")
+  socialComments         SocialComment[]     @relation("SocialComment_Author")
+  kanbanBoardsCreated    KanbanBoard[]       @relation("KanbanBoard_Creator")
+  kanbanCardsAssigned    KanbanCard[]        @relation("KanbanCard_Assignee")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -6995,4 +7006,237 @@ model CompanyPolicy {
   @@index([category])
   @@index([status])
   @@index([effectiveDate])
+}
+
+// ============ COLLABORATION PRODUCTIVITY MODULES ============
+
+// ─── Calendar Events ───────────────────────────────────────
+model CalendarEvent {
+  id            String   @id @default(cuid())
+  title         String
+  description   String?
+  eventType     String   @default("meeting") // meeting | leave | holiday | birthday | training | anniversary
+  startDateTime DateTime
+  endDateTime   DateTime
+  isAllDay      Boolean  @default(false)
+  location      String?
+  color         String?  // hex color
+  createdBy     String
+  creator       Employee @relation("CalendarEvent_Creator", fields: [createdBy], references: [id], onDelete: Cascade)
+  companyId     String?
+  attendees     String?  // JSON array of employee IDs
+  recurrence    String?  // JSON: { freq: "weekly", interval: 1, until: "2026-12-31" }
+  isPublic      Boolean  @default(true)
+  isActive      Boolean  @default(true)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([createdBy])
+  @@index([startDateTime])
+  @@index([companyId])
+}
+
+// ─── Email Messages ───────────────────────────────────────
+model EmailMessage {
+  id            String   @id @default(cuid())
+  subject       String
+  body          String
+  fromAddress   String
+  fromName      String?
+  toAddresses   String   // JSON array
+  ccAddresses   String?  // JSON array
+  bccAddresses  String?  // JSON array
+  folder        String   @default("inbox") // inbox | sent | drafts | starred | archive | trash
+  isRead        Boolean  @default(false)
+  isStarred     Boolean  @default(false)
+  hasAttachments Boolean @default(false)
+  attachments   String?  // JSON array of { name, size, type, url }
+  labels        String?  // JSON array of label strings
+  senderId      String?  // Employee ID if internal
+  sender        Employee? @relation("EmailMessage_Sender", fields: [senderId], references: [id], onDelete: SetNull)
+  threadId      String?  // For conversation threading
+  repliedToId   String?  // ID of email this replies to
+  priority      String   @default("normal") // low | normal | high | urgent
+  companyId     String?
+  isActive      Boolean  @default(true)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([folder])
+  @@index([senderId])
+  @@index([isRead])
+  @@index([threadId])
+  @@index([companyId])
+}
+
+// ─── Todo Tasks ────────────────────────────────────────────
+model TodoTask {
+  id            String   @id @default(cuid())
+  title         String
+  description   String?
+  priority      String   @default("Medium") // High | Medium | Low
+  status        String   @default("Pending") // Pending | In Progress | Completed | Overdue
+  category      String?  // HR | Finance | Recruitment | Training | Operations | Compliance | IT | General
+  dueDate       DateTime?
+  assignedToId  String?
+  assignee      Employee? @relation("TodoTask_Assignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  createdById   String
+  creator       Employee @relation("TodoTask_Creator", fields: [createdById], references: [id], onDelete: Cascade)
+  companyId     String?
+  completedAt   DateTime?
+  subtasks      String?  // JSON array of { title, completed: bool }
+  tags          String?  // JSON array of tag strings
+  isActive      Boolean  @default(true)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([assignedToId])
+  @@index([createdById])
+  @@index([status])
+  @@index([companyId])
+}
+
+// ─── Notes ─────────────────────────────────────────────────
+model Note {
+  id            String   @id @default(cuid())
+  title         String
+  content       String
+  category      String   @default("personal") // hr | meeting | policy | personal
+  color         String   @default("#3B82F6") // hex color for card
+  isPinned      Boolean  @default(false)
+  createdById   String
+  creator       Employee @relation("Note_Creator", fields: [createdById], references: [id], onDelete: Cascade)
+  companyId     String?
+  tags          String?  // JSON array
+  isActive      Boolean  @default(true)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([createdById])
+  @@index([category])
+  @@index([companyId])
+}
+
+// ─── Social Feed Posts ─────────────────────────────────────
+model SocialPost {
+  id            String   @id @default(cuid())
+  content       String
+  postType      String   @default("general") // announcement | achievement | birthday | welcome | policy | event | general
+  authorId      String
+  author        Employee @relation("SocialPost_Author", fields: [authorId], references: [id], onDelete: Cascade)
+  companyId     String?
+  likesCount    Int      @default(0)
+  commentsCount Int      @default(0)
+  sharesCount  Int      @default(0)
+  attachments   String?  // JSON array of { type, url, name }
+  hashtags      String?  // JSON array
+  isPinned      Boolean  @default(false)
+  isActive      Boolean  @default(true)
+  comments      SocialComment[]
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([authorId])
+  @@index([postType])
+  @@index([companyId])
+}
+
+model SocialComment {
+  id            String   @id @default(cuid())
+  postId        String
+  post          SocialPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  authorId      String
+  author        Employee @relation("SocialComment_Author", fields: [authorId], references: [id], onDelete: Cascade)
+  content       String
+  isActive      Boolean  @default(true)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([postId])
+  @@index([authorId])
+}
+
+model SocialLike {
+  id            String   @id @default(cuid())
+  postId        String
+  userId        String   // Employee ID
+  isActive      Boolean  @default(true)
+
+  createdAt     DateTime @default(now())
+
+  @@unique([postId, userId])
+  @@index([postId])
+}
+
+// ─── Kanban Board ──────────────────────────────────────────
+model KanbanBoard {
+  id            String   @id @default(cuid())
+  name          String
+  description   String?
+  companyId     String?
+  createdById   String
+  creator       Employee @relation("KanbanBoard_Creator", fields: [createdById], references: [id], onDelete: Cascade)
+  columns       String   @default("Backlog,To Do,In Progress,Done") // Comma-separated column names
+  isActive      Boolean  @default(true)
+  cards         KanbanCard[]
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([createdById])
+}
+
+model KanbanCard {
+  id            String   @id @default(cuid())
+  boardId       String
+  board         KanbanBoard @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  title         String
+  description   String?
+  column        String   // Column name: "Backlog" | "To Do" | "In Progress" | "Done"
+  priority      String   @default("Medium") // High | Medium | Low
+  category      String?  // HR | Recruitment | Onboarding | Training | Payroll | Compliance | Benefits | Performance | IT | General
+  assignedToId  String?
+  assignee      Employee? @relation("KanbanCard_Assignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  dueDate       DateTime?
+  subtasks      String?  // JSON array of { title, completed: bool }
+  tags          String?  // JSON array
+  order         Int      @default(0) // For sorting within column
+  isActive      Boolean  @default(true)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([boardId])
+  @@index([column])
+  @@index([assignedToId])
+}
+
+// ─── Collaboration Settings (persisted per-tenant) ─────────
+model CollaborationSettings {
+  id                      String   @id @default(cuid())
+  tenantId                String   @unique
+  encryptionEnabled       Boolean  @default(true)
+  fileSharingLimitMB      Int      @default(25)
+  messageRetentionDays    Int      @default(90)
+  calendarSyncEnabled     Boolean  @default(true)
+  calendarSyncProvider    String   @default("google") // google | outlook | ical
+  emailIntegrationEnabled Boolean  @default(false)
+  emailProvider           String   @default("smtp") // smtp | google | outlook
+  autoDeleteMessages      Boolean  @default(false)
+  maxCallDurationMin      Int      @default(60)
+  allowExternalSharing    Boolean  @default(true)
+  watermarkEnabled        Boolean  @default(false)
+  updatedBy               String?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([tenantId])
 }

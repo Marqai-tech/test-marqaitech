@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   FiLayers,
   FiPlus,
@@ -17,19 +17,54 @@ import {
   FiMoreHorizontal,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import { useAuthStore } from '@/store/authStore';
+import { useCompanyContextStore } from '@/store/companyContextStore';
 
 /* ──────────── Types ──────────── */
 type Priority = 'High' | 'Medium' | 'Low';
-type KanbanColumn = 'Backlog' | 'To Do' | 'In Progress' | 'Done';
+type KanbanColumn = string;
 type Category = 'HR' | 'Payroll' | 'Recruitment' | 'Admin' | 'Compliance' | 'Training' | 'Benefits' | 'Operations' | 'Onboarding' | 'Engagement';
 
+/* ── API Shapes ── */
+interface ApiKanbanBoard {
+  id: string;
+  name: string;
+  description?: string;
+  companyId?: string;
+  createdById: string;
+  columns: string[];
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface ApiKanbanCard {
+  id: string;
+  boardId: string;
+  title: string;
+  description?: string;
+  column: string;
+  priority: string;
+  category?: string;
+  assignedToId?: string;
+  assignee?: { id: string; firstName: string; lastName: string; avatar?: string };
+  dueDate?: string;
+  subtasks?: { title: string; completed: boolean }[];
+  tags?: string[];
+  order: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/* ── UI Shapes ── */
 interface KanbanCard {
   id: string;
   title: string;
   description: string;
   priority: Priority;
   category: Category;
-  column: KanbanColumn;
+  column: string;
   assignee: { name: string; initials: string; gradient: string };
   dueDate: string;
   subtasksDone: number;
@@ -45,18 +80,17 @@ interface NewCardForm {
   category: Category;
   dueDate: string;
   assigneeName: string;
-  column: KanbanColumn;
+  assigneeId: string;
+  column: string;
 }
 
 /* ──────────── Constants ──────────── */
-const BOARDS = ['HR Pipeline', 'Recruitment', 'Onboarding', 'Projects'] as const;
-
-const COLUMNS: { key: KanbanColumn; color: string; headerBg: string; headerText: string }[] = [
-  { key: 'Backlog', color: 'border-l-slate-400', headerBg: 'bg-slate-100', headerText: 'text-slate-700' },
-  { key: 'To Do', color: 'border-l-green-500', headerBg: 'bg-green-50', headerText: 'text-green-700' },
-  { key: 'In Progress', color: 'border-l-amber-500', headerBg: 'bg-amber-50', headerText: 'text-amber-700' },
-  { key: 'Done', color: 'border-l-emerald-500', headerBg: 'bg-emerald-50', headerText: 'text-emerald-700' },
-];
+const COLUMN_STYLE_MAP: Record<string, { color: string; headerBg: string; headerText: string }> = {
+  'Backlog': { color: 'border-l-slate-400', headerBg: 'bg-slate-100', headerText: 'text-slate-700' },
+  'To Do': { color: 'border-l-green-500', headerBg: 'bg-green-50', headerText: 'text-green-700' },
+  'In Progress': { color: 'border-l-amber-500', headerBg: 'bg-amber-50', headerText: 'text-amber-700' },
+  'Done': { color: 'border-l-emerald-500', headerBg: 'bg-emerald-50', headerText: 'text-emerald-700' },
+};
 
 const PRIORITY_STYLES: Record<Priority, { border: string; dot: string; label: string }> = {
   High: { border: 'border-l-red-500', dot: 'bg-red-500', label: 'text-red-600 bg-red-50' },
@@ -88,55 +122,42 @@ const AVATAR_GRADIENTS = [
   'from-lime-500 to-green-600',
 ];
 
-const ASSIGNEES = [
-  { name: 'Priya Sharma', initials: 'PS', gradient: AVATAR_GRADIENTS[0] },
-  { name: 'Rahul Mehta', initials: 'RM', gradient: AVATAR_GRADIENTS[1] },
-  { name: 'Anita Desai', initials: 'AD', gradient: AVATAR_GRADIENTS[2] },
-  { name: 'Vikram Singh', initials: 'VS', gradient: AVATAR_GRADIENTS[3] },
-  { name: 'Neha Gupta', initials: 'NG', gradient: AVATAR_GRADIENTS[4] },
-  { name: 'Arjun Patel', initials: 'AP', gradient: AVATAR_GRADIENTS[5] },
-  { name: 'Kavita Rao', initials: 'KR', gradient: AVATAR_GRADIENTS[6] },
-  { name: 'Deepak Kumar', initials: 'DK', gradient: AVATAR_GRADIENTS[7] },
-];
+/* ──────────── Auth Helper ──────────── */
+function getAuthHeaders() {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
+  return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+}
 
-/* ──────────── Sample Data ──────────── */
-const INITIAL_CARDS: KanbanCard[] = [
-  // ─── Backlog (6 cards) ───
-  { id: 'b1', title: 'Update employee handbook', description: 'Revise the employee handbook with new policies on remote work, dress code, and expense claims', priority: 'Medium', category: 'HR', column: 'Backlog', assignee: ASSIGNEES[0], dueDate: '2026-04-15', subtasksDone: 1, subtasksTotal: 4, attachments: 2, comments: 3 },
-  { id: 'b2', title: 'Design new onboarding flow', description: 'Create an improved onboarding experience with digital checklists and automated welcome emails', priority: 'Low', category: 'Onboarding', column: 'Backlog', assignee: ASSIGNEES[4], dueDate: '2026-04-20', subtasksDone: 0, subtasksTotal: 5, attachments: 1, comments: 1 },
-  { id: 'b3', title: 'Research HR analytics tools', description: 'Evaluate third-party analytics platforms for workforce insights and predictive attrition modeling', priority: 'Low', category: 'Operations', column: 'Backlog', assignee: ASSIGNEES[6], dueDate: '2026-05-01', subtasksDone: 0, subtasksTotal: 3, attachments: 0, comments: 0 },
-  { id: 'b4', title: 'Draft flexible work policy', description: 'Prepare a comprehensive flexible working hours and hybrid work policy document for leadership review', priority: 'Medium', category: 'HR', column: 'Backlog', assignee: ASSIGNEES[2], dueDate: '2026-04-10', subtasksDone: 1, subtasksTotal: 3, attachments: 1, comments: 2 },
-  { id: 'b5', title: 'Plan leadership training cohort', description: 'Identify high-potential employees and design a 6-month leadership development program', priority: 'Low', category: 'Training', column: 'Backlog', assignee: ASSIGNEES[5], dueDate: '2026-05-15', subtasksDone: 0, subtasksTotal: 4, attachments: 0, comments: 1 },
-  { id: 'b6', title: 'Set up employee self-service portal', description: 'Configure the self-service portal for leave requests, payslip downloads, and policy access', priority: 'Medium', category: 'Operations', column: 'Backlog', assignee: ASSIGNEES[7], dueDate: '2026-04-25', subtasksDone: 1, subtasksTotal: 6, attachments: 3, comments: 4 },
+/* ──────────── API → UI Mapper ──────────── */
+function mapApiCardToUiCard(apiCard: ApiKanbanCard): KanbanCard {
+  const firstName = apiCard.assignee?.firstName ?? '';
+  const lastName = apiCard.assignee?.lastName ?? '';
+  const fullName = `${firstName} ${lastName}`.trim() || 'Unassigned';
+  const initials = firstName && lastName ? `${firstName[0]}${lastName[0]}`.toUpperCase() : '??';
+  const gradientIndex = apiCard.assignee ? Math.abs(apiCard.assignee.id.charCodeAt(0) + apiCard.assignee.id.charCodeAt(1)) % AVATAR_GRADIENTS.length : 0;
 
-  // ─── To Do (7 cards) ───
-  { id: 't1', title: 'Process June payroll', description: 'Run payroll processing for all employees including statutory deductions and reimbursements', priority: 'High', category: 'Payroll', column: 'To Do', assignee: ASSIGNEES[1], dueDate: '2026-03-01', subtasksDone: 0, subtasksTotal: 5, attachments: 1, comments: 2 },
-  { id: 't2', title: 'Schedule team building event', description: 'Organize a quarterly team building event including venue booking and activity planning', priority: 'Low', category: 'Engagement', column: 'To Do', assignee: ASSIGNEES[4], dueDate: '2026-03-20', subtasksDone: 0, subtasksTotal: 4, attachments: 0, comments: 1 },
-  { id: 't3', title: 'Review leave policy amendments', description: 'Analyze proposed changes to the leave policy including carry-forward rules and sandwich leave', priority: 'Medium', category: 'HR', column: 'To Do', assignee: ASSIGNEES[0], dueDate: '2026-03-10', subtasksDone: 0, subtasksTotal: 3, attachments: 2, comments: 3 },
-  { id: 't4', title: 'Prepare Q2 appraisal forms', description: 'Create and distribute quarterly performance appraisal forms for all departments', priority: 'High', category: 'HR', column: 'To Do', assignee: ASSIGNEES[3], dueDate: '2026-03-15', subtasksDone: 0, subtasksTotal: 4, attachments: 1, comments: 0 },
-  { id: 't5', title: 'Audit vendor compliance certificates', description: 'Verify all active vendor compliance and insurance certificates are up to date and filed', priority: 'Medium', category: 'Compliance', column: 'To Do', assignee: ASSIGNEES[7], dueDate: '2026-03-12', subtasksDone: 0, subtasksTotal: 3, attachments: 4, comments: 1 },
-  { id: 't6', title: 'Create diversity & inclusion report', description: 'Compile annual D&I metrics and prepare the report for the board meeting', priority: 'Medium', category: 'HR', column: 'To Do', assignee: ASSIGNEES[6], dueDate: '2026-03-18', subtasksDone: 0, subtasksTotal: 5, attachments: 2, comments: 2 },
-  { id: 't7', title: 'Organize wellness workshop', description: 'Plan and coordinate a mental health and wellness workshop for all employees', priority: 'Low', category: 'Benefits', column: 'To Do', assignee: ASSIGNEES[2], dueDate: '2026-03-25', subtasksDone: 0, subtasksTotal: 3, attachments: 0, comments: 0 },
+  const subtasksTotal = apiCard.subtasks?.length ?? 0;
+  const subtasksDone = apiCard.subtasks?.filter(s => s.completed).length ?? 0;
 
-  // ─── In Progress (8 cards) ───
-  { id: 'i1', title: 'Recruitment for Senior Developer', description: 'Manage end-to-end recruitment for the Senior Full-Stack Developer position across all portals', priority: 'High', category: 'Recruitment', column: 'In Progress', assignee: ASSIGNEES[6], dueDate: '2026-03-05', subtasksDone: 3, subtasksTotal: 6, attachments: 5, comments: 8 },
-  { id: 'i2', title: 'Q2 Performance Reviews', description: 'Coordinate and track quarterly performance review cycle across all departments and teams', priority: 'High', category: 'HR', column: 'In Progress', assignee: ASSIGNEES[0], dueDate: '2026-03-08', subtasksDone: 2, subtasksTotal: 5, attachments: 3, comments: 6 },
-  { id: 'i3', title: 'Renew group health insurance', description: 'Coordinate with the insurance provider for policy renewal and updated employee coverage', priority: 'High', category: 'Benefits', column: 'In Progress', assignee: ASSIGNEES[2], dueDate: '2026-02-20', subtasksDone: 2, subtasksTotal: 4, attachments: 6, comments: 4 },
-  { id: 'i4', title: 'File TDS returns for Q4', description: 'Complete and file quarterly TDS returns with the Income Tax department before the due date', priority: 'High', category: 'Compliance', column: 'In Progress', assignee: ASSIGNEES[1], dueDate: '2026-02-25', subtasksDone: 3, subtasksTotal: 4, attachments: 2, comments: 3 },
-  { id: 'i5', title: 'Organize new hire orientation', description: 'Plan and execute the orientation program for employees joining in the March batch', priority: 'Medium', category: 'Onboarding', column: 'In Progress', assignee: ASSIGNEES[4], dueDate: '2026-03-08', subtasksDone: 3, subtasksTotal: 7, attachments: 4, comments: 5 },
-  { id: 'i6', title: 'Review vendor contracts', description: 'Audit and review all active vendor contracts for renewal or renegotiation terms', priority: 'Medium', category: 'Admin', column: 'In Progress', assignee: ASSIGNEES[3], dueDate: '2026-03-05', subtasksDone: 4, subtasksTotal: 8, attachments: 7, comments: 3 },
-  { id: 'i7', title: 'Update PF contribution rates', description: 'Update the provident fund contribution rates in the payroll system as per new government norms', priority: 'High', category: 'Payroll', column: 'In Progress', assignee: ASSIGNEES[1], dueDate: '2026-02-22', subtasksDone: 1, subtasksTotal: 3, attachments: 1, comments: 2 },
-  { id: 'i8', title: 'Employee engagement survey analysis', description: 'Analyze results from the Q1 employee engagement survey and prepare action items', priority: 'Medium', category: 'Engagement', column: 'In Progress', assignee: ASSIGNEES[5], dueDate: '2026-03-06', subtasksDone: 2, subtasksTotal: 4, attachments: 2, comments: 5 },
+  return {
+    id: apiCard.id,
+    title: apiCard.title,
+    description: apiCard.description ?? '',
+    priority: (['High', 'Medium', 'Low'].includes(apiCard.priority) ? apiCard.priority : 'Medium') as Priority,
+    category: ((apiCard.category ?? 'HR') as Category),
+    column: apiCard.column || 'Backlog',
+    assignee: { name: fullName, initials, gradient: AVATAR_GRADIENTS[gradientIndex] },
+    dueDate: apiCard.dueDate ?? '',
+    subtasksDone,
+    subtasksTotal,
+    attachments: 0,
+    comments: 0,
+  };
+}
 
-  // ─── Done (7 cards) ───
-  { id: 'd1', title: 'March payroll processed', description: 'Successfully completed payroll processing for all employees for the month of March', priority: 'High', category: 'Payroll', column: 'Done', assignee: ASSIGNEES[1], dueDate: '2026-03-01', subtasksDone: 5, subtasksTotal: 5, attachments: 3, comments: 4 },
-  { id: 'd2', title: 'Annual health checkup organized', description: 'Coordinated annual health checkup for all employees across 3 locations', priority: 'Medium', category: 'Benefits', column: 'Done', assignee: ASSIGNEES[2], dueDate: '2026-02-28', subtasksDone: 4, subtasksTotal: 4, attachments: 2, comments: 6 },
-  { id: 'd3', title: 'Conduct exit interview for Mark', description: 'Completed exit interview with Mark Johnson and processed knowledge transfer documentation', priority: 'Low', category: 'HR', column: 'Done', assignee: ASSIGNEES[0], dueDate: '2026-02-24', subtasksDone: 3, subtasksTotal: 3, attachments: 1, comments: 2 },
-  { id: 'd4', title: 'Publish job posting for Senior Developer', description: 'Created and published the Senior Full-Stack Developer job description on all portals', priority: 'Medium', category: 'Recruitment', column: 'Done', assignee: ASSIGNEES[6], dueDate: '2026-02-26', subtasksDone: 2, subtasksTotal: 2, attachments: 1, comments: 3 },
-  { id: 'd5', title: 'Submit gratuity liability report', description: 'Prepared and submitted the annual gratuity liability report to the finance department', priority: 'High', category: 'Compliance', column: 'Done', assignee: ASSIGNEES[1], dueDate: '2026-02-18', subtasksDone: 3, subtasksTotal: 3, attachments: 4, comments: 1 },
-  { id: 'd6', title: 'Complete fire safety drill', description: 'Organized and completed the annual fire safety drill across all office locations', priority: 'Medium', category: 'Operations', column: 'Done', assignee: ASSIGNEES[5], dueDate: '2026-02-20', subtasksDone: 4, subtasksTotal: 4, attachments: 2, comments: 5 },
-  { id: 'd7', title: 'Onboard February joiners', description: 'Successfully completed onboarding process for 8 new employees who joined in February', priority: 'Medium', category: 'Onboarding', column: 'Done', assignee: ASSIGNEES[4], dueDate: '2026-02-15', subtasksDone: 6, subtasksTotal: 6, attachments: 3, comments: 7 },
-];
+function getColumnStyle(key: string) {
+  return COLUMN_STYLE_MAP[key] ?? { color: 'border-l-slate-400', headerBg: 'bg-slate-100', headerText: 'text-slate-700' };
+}
 
 /* ──────────── Helpers ──────────── */
 function formatDate(dateStr: string): string {
@@ -158,11 +179,16 @@ function getSubtaskProgress(done: number, total: number): { percent: number; col
 
 /* ──────────── Component ──────────── */
 export default function KanbanBoardPage() {
-  const [cards, setCards] = useState<KanbanCard[]>(INITIAL_CARDS);
-  const [selectedBoard, setSelectedBoard] = useState<string>(BOARDS[0]);
+  const { selectedCompanyId } = useCompanyContextStore();
+
+  const [boards, setBoards] = useState<ApiKanbanBoard[]>([]);
+  const [cards, setCards] = useState<KanbanCard[]>([]);
+  const [selectedBoard, setSelectedBoard] = useState<string>('');
+  const [loading, setLoading] = useState(true);
+  const [employees, setEmployees] = useState<{ id: string; firstName: string; lastName: string }[]>([]);
   const [showBoardDropdown, setShowBoardDropdown] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [addColumn, setAddColumn] = useState<KanbanColumn>('To Do');
+  const [addColumn, setAddColumn] = useState<string>('To Do');
   const [searchQuery, setSearchQuery] = useState('');
   const [newCard, setNewCard] = useState<NewCardForm>({
     title: '',
@@ -170,9 +196,67 @@ export default function KanbanBoardPage() {
     priority: 'Medium',
     category: 'HR',
     dueDate: '',
-    assigneeName: ASSIGNEES[0].name,
+    assigneeName: '',
+    assigneeId: '',
     column: 'To Do',
   });
+
+  /* ── Derived columns from selected board ── */
+  const activeBoard = boards.find(b => b.id === selectedBoard);
+  const COLUMNS = useMemo(() => {
+    const colNames = activeBoard?.columns?.length ? activeBoard.columns : ['Backlog', 'To Do', 'In Progress', 'Done'];
+    return colNames.map(name => ({
+      key: name,
+      ...getColumnStyle(name),
+    }));
+  }, [activeBoard]);
+
+  /* ── Fetch Data ── */
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/kanban', { method: 'GET', headers: getAuthHeaders() });
+      if (!res.ok) throw new Error('Failed to fetch kanban data');
+      const data = await res.json();
+      const apiBoards: ApiKanbanBoard[] = (data.boards ?? []).map((b: ApiKanbanBoard) => ({
+        ...b,
+        columns: typeof b.columns === 'string' ? (b.columns as string).split(',').map((s: string) => s.trim()).filter(Boolean) : b.columns,
+      }));
+      setBoards(apiBoards);
+      if (apiBoards.length > 0 && (!selectedBoard || !apiBoards.find((b: ApiKanbanBoard) => b.id === selectedBoard))) {
+        setSelectedBoard(apiBoards[0].id);
+      }
+      const targetBoardId = selectedBoard || (apiBoards[0]?.id ?? '');
+      const apiCards: ApiKanbanCard[] = (data.cards ?? []).filter((c: ApiKanbanCard) => c.boardId === targetBoardId && c.isActive);
+      setCards(apiCards.map(mapApiCardToUiCard));
+    } catch {
+      toast.error('Failed to load kanban data');
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedBoard]);
+
+  const fetchEmployees = useCallback(async () => {
+    try {
+      const res = await fetch('/api/employees', { method: 'GET', headers: getAuthHeaders() });
+      if (!res.ok) return;
+      const data = await res.json();
+      const list = Array.isArray(data) ? data : (data.employees ?? []);
+      setEmployees(list.map((e: { id: string; firstName: string; lastName: string }) => ({ id: e.id, firstName: e.firstName, lastName: e.lastName })));
+    } catch { /* non-critical */ }
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+    fetchEmployees();
+  }, [fetchData, fetchEmployees]);
+
+  /* Re-filter cards when selectedBoard changes (boards already loaded) */
+  useEffect(() => {
+    if (!selectedBoard || boards.length === 0) return;
+    // We re-fetch to get cards for the new board
+    fetchData();
+  }, [selectedBoard]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ── Derived Stats ── */
   const stats = useMemo(() => {
@@ -184,7 +268,7 @@ export default function KanbanBoardPage() {
   }, [cards]);
 
   /* ── Filtered Cards by Column ── */
-  const getColumnCards = (column: KanbanColumn) => {
+  const getColumnCards = (column: string) => {
     let filtered = cards.filter(c => c.column === column);
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
@@ -199,34 +283,82 @@ export default function KanbanBoardPage() {
   };
 
   /* ── Add Card Handler ── */
-  const handleAddCard = () => {
+  const handleAddCard = async () => {
     if (!newCard.title.trim()) {
       toast.error('Card title is required');
       return;
     }
-    const assignee = ASSIGNEES.find(a => a.name === newCard.assigneeName) || ASSIGNEES[0];
-    const card: KanbanCard = {
-      id: `card-${Date.now()}`,
-      title: newCard.title.trim(),
-      description: newCard.description.trim(),
-      priority: newCard.priority,
-      category: newCard.category,
-      column: addColumn,
-      assignee,
-      dueDate: newCard.dueDate || new Date().toISOString().split('T')[0],
-      subtasksDone: 0,
-      subtasksTotal: 0,
-      attachments: 0,
-      comments: 0,
-    };
-    setCards(prev => [...prev, card]);
-    setShowAddModal(false);
-    setNewCard({ title: '', description: '', priority: 'Medium', category: 'HR', dueDate: '', assigneeName: ASSIGNEES[0].name, column: 'To Do' });
-    toast.success('Card added successfully');
+    try {
+      const body: Record<string, unknown> = {
+        boardId: selectedBoard,
+        title: newCard.title.trim(),
+        description: newCard.description.trim(),
+        column: addColumn,
+        priority: newCard.priority,
+        category: newCard.category,
+        dueDate: newCard.dueDate || new Date().toISOString().split('T')[0],
+        assignedToId: newCard.assigneeId || undefined,
+        order: cards.length,
+      };
+      const res = await fetch('/api/kanban', { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify(body) });
+      if (!res.ok) throw new Error('Failed to create card');
+      toast.success('Card added successfully');
+      setShowAddModal(false);
+      setNewCard({ title: '', description: '', priority: 'Medium', category: 'HR', dueDate: '', assigneeName: '', assigneeId: '', column: 'To Do' });
+      fetchData();
+    } catch {
+      toast.error('Failed to add card');
+    }
+  };
+
+  /* ── Add Board Handler ── */
+  const handleAddBoard = async (name: string) => {
+    if (!name.trim()) return;
+    try {
+      const body = {
+        action: 'createBoard',
+        name: name.trim(),
+        description: '',
+        columns: 'Backlog,To Do,In Progress,Done',
+        companyId: selectedCompanyId ?? undefined,
+      };
+      const res = await fetch('/api/kanban', { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify(body) });
+      if (!res.ok) throw new Error('Failed to create board');
+      toast.success('Board created');
+      fetchData();
+    } catch {
+      toast.error('Failed to create board');
+    }
+  };
+
+  /* ── Move Card Handler ── */
+  const handleMoveCard = async (cardId: string, newColumn: string) => {
+    // Optimistic update
+    setCards(prev => prev.map(c => c.id === cardId ? { ...c, column: newColumn } : c));
+    try {
+      const res = await fetch('/api/kanban', { method: 'PATCH', headers: getAuthHeaders(), body: JSON.stringify({ id: cardId, column: newColumn }) });
+      if (!res.ok) throw new Error('Failed to move card');
+    } catch {
+      toast.error('Failed to move card');
+      fetchData(); // revert
+    }
+  };
+
+  /* ── Delete Card Handler ── */
+  const handleDeleteCard = async (cardId: string) => {
+    setCards(prev => prev.filter(c => c.id !== cardId));
+    try {
+      const res = await fetch(`/api/kanban?id=${cardId}&type=card`, { method: 'DELETE', headers: getAuthHeaders() });
+      if (!res.ok) throw new Error('Failed to delete card');
+      toast.success('Card deleted');
+    } catch {
+      toast.error('Failed to delete card');
+      fetchData(); // revert
+    }
   };
 
   /* ── Open Add Modal for specific column ── */
-  const openAddModal = (column: KanbanColumn) => {
+  const openAddModal = (column: string) => {
     setAddColumn(column);
     setNewCard(prev => ({ ...prev, column }));
     setShowAddModal(true);
@@ -266,22 +398,22 @@ export default function KanbanBoardPage() {
               className="thb-btn flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-thb-border bg-white text-thb-text-primary hover:bg-slate-50 transition-colors"
             >
               <FiLayout className="w-4 h-4 text-thb-text-secondary" />
-              {selectedBoard}
+              {activeBoard?.name ?? 'Select Board'}
               <FiChevronDown className="w-4 h-4 text-thb-text-muted" />
             </button>
             {showBoardDropdown && (
               <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-thb-border rounded-xl shadow-lg z-20 py-1 animate-in fade-in slide-in-from-top-1">
-                {BOARDS.map(board => (
+                {boards.map(board => (
                   <button
-                    key={board}
-                    onClick={() => { setSelectedBoard(board); setShowBoardDropdown(false); }}
+                    key={board.id}
+                    onClick={() => { setSelectedBoard(board.id); setShowBoardDropdown(false); }}
                     className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
-                      selectedBoard === board
+                      selectedBoard === board.id
                         ? 'bg-teal-50 text-teal-700 font-medium'
                         : 'text-thb-text-primary hover:bg-slate-50'
                     }`}
                   >
-                    {board}
+                    {board.name}
                   </button>
                 ))}
               </div>
@@ -320,6 +452,12 @@ export default function KanbanBoardPage() {
       </div>
 
       {/* ═══════ Kanban Columns ═══════ */}
+      {loading ? (
+        <div className="flex items-center justify-center py-20">
+          <div className="w-8 h-8 border-4 border-teal-500 border-t-transparent rounded-full animate-spin" />
+          <span className="ml-3 text-sm text-thb-text-secondary">Loading board...</span>
+        </div>
+      ) : (
       <div className="flex gap-5 overflow-x-auto pb-4 -mx-1 px-1" style={{ minHeight: 'calc(100vh - 320px)' }}>
         {COLUMNS.map(col => {
           const columnCards = getColumnCards(col.key);
@@ -458,6 +596,7 @@ export default function KanbanBoardPage() {
           );
         })}
       </div>
+      )}
 
       {/* ═══════ Add Card Modal ═══════ */}
       {showAddModal && (
@@ -553,12 +692,16 @@ export default function KanbanBoardPage() {
                 <div>
                   <label className="block text-xs font-semibold text-thb-text-secondary uppercase tracking-wider mb-1.5">Assignee</label>
                   <select
-                    value={newCard.assigneeName}
-                    onChange={e => setNewCard(prev => ({ ...prev, assigneeName: e.target.value }))}
+                    value={newCard.assigneeId}
+                    onChange={e => {
+                      const emp = employees.find(emp => emp.id === e.target.value);
+                      setNewCard(prev => ({ ...prev, assigneeId: e.target.value, assigneeName: emp ? `${emp.firstName} ${emp.lastName}` : '' }));
+                    }}
                     className="thb-select w-full px-3 py-2.5 text-sm rounded-lg border border-thb-border bg-white text-thb-text-primary focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 appearance-none cursor-pointer"
                   >
-                    {ASSIGNEES.map(a => (
-                      <option key={a.name} value={a.name}>{a.name}</option>
+                    <option value="">Unassigned</option>
+                    {employees.map(e => (
+                      <option key={e.id} value={e.id}>{e.firstName} {e.lastName}</option>
                     ))}
                   </select>
                 </div>
@@ -567,7 +710,7 @@ export default function KanbanBoardPage() {
               {/* Column Selection */}
               <div>
                 <label className="block text-xs font-semibold text-thb-text-secondary uppercase tracking-wider mb-1.5">Column</label>
-                <div className="grid grid-cols-4 gap-2">
+                <div className={`grid gap-2`} style={{ gridTemplateColumns: `repeat(${COLUMNS.length}, minmax(0, 1fr))` }}>
                   {COLUMNS.map(col => (
                     <button
                       key={col.key}

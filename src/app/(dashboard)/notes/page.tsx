@@ -1,6 +1,8 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useAuthStore } from '@/store/authStore';
+import { useCompanyContextStore } from '@/store/companyContextStore';
 import {
   FiEdit3, FiSearch, FiPlus, FiGrid, FiList, FiMapPin,
   FiClock, FiTrash2, FiSave, FiX, FiChevronDown,
@@ -18,6 +20,42 @@ interface Note {
   pinned: boolean;
   lastEdited: string;
   createdAt: string;
+}
+
+// ── API Note shape ─────────────────────────────────────────────────────
+interface ApiNote {
+  id: string;
+  title: string;
+  content: string;
+  category: string;
+  color: string;
+  isPinned: boolean;
+  createdById: string;
+  creator?: { id: string; firstName: string; lastName: string; avatar: string };
+  companyId?: string;
+  tags?: string[];
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+function mapApiNoteToNote(api: ApiNote): Note {
+  return {
+    id: api.id,
+    title: api.title,
+    content: api.content,
+    category: (api.category as Note['category']) || 'personal',
+    color: api.color || 'default',
+    pinned: api.isPinned,
+    lastEdited: api.updatedAt || api.createdAt,
+    createdAt: api.createdAt,
+  };
+}
+
+// ── Auth Headers ───────────────────────────────────────────────────────
+function getAuthHeaders() {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
+  return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
 }
 
 // ── Category Config ────────────────────────────────────────────────────
@@ -75,179 +113,6 @@ const colorCardMap: Record<string, string> = {
   violet: 'bg-teal-50',
 };
 
-// ── Sample Data (15+ notes with realistic HR content) ──────────────────
-const initialNotes: Note[] = [
-  {
-    id: '1',
-    title: 'Q1 All-Hands Meeting Minutes',
-    content: 'Discussed company growth targets for Q1 2025. Revenue goal: $4.2M. Headcount plan: +15 engineers, +5 sales. New office expansion in Bangalore approved. Follow-up: HR to prepare onboarding plan for 20 new hires by Feb 15.',
-    category: 'meeting',
-    color: 'emerald',
-    pinned: true,
-    lastEdited: '2025-03-04T10:30:00',
-    createdAt: '2025-03-04T10:30:00',
-  },
-  {
-    id: '2',
-    title: 'Updated Remote Work Policy v3.2',
-    content: 'Effective April 1: Hybrid model — 3 days office, 2 days remote. Managers must approve WFH schedules weekly. Home office stipend increased to $500/quarter. Core hours: 10am–4pm IST. Compliance training required for all remote workers.',
-    category: 'policy',
-    color: 'violet',
-    pinned: true,
-    lastEdited: '2025-03-03T14:20:00',
-    createdAt: '2025-02-28T09:00:00',
-  },
-  {
-    id: '3',
-    title: 'Interview Feedback — Sarah Chen (Sr. Dev)',
-    content: 'Technical round: 8/10. Strong system design skills, solid Python/Go experience. Culture fit: Excellent — collaborative mindset, good communication. Concern: Salary expectation 15% above band. Recommendation: Hire with counter-offer at top of band.',
-    category: 'hr',
-    color: 'orange',
-    pinned: false,
-    lastEdited: '2025-03-04T16:45:00',
-    createdAt: '2025-03-04T16:45:00',
-  },
-  {
-    id: '4',
-    title: 'Onboarding Checklist — New Engineers',
-    content: 'Day 1: Laptop setup, email/Slack access, security training. Week 1: Team intro, codebase walkthrough, assign buddy. Week 2: First PR, 1:1 with manager. Month 1: 30-day check-in, performance goals set. IT: VPN, GitHub, JIRA access within 24h.',
-    category: 'hr',
-    color: 'sky',
-    pinned: true,
-    lastEdited: '2025-03-02T11:00:00',
-    createdAt: '2025-02-15T09:00:00',
-  },
-  {
-    id: '5',
-    title: 'Benefits Renewal Meeting Notes',
-    content: 'Met with insurance broker. Health premium increase: 8%. Dental unchanged. New: Mental health coverage expanded to include teletherapy (10 sessions/year). Decision needed by March 15. CFO approved budget for mental health add-on.',
-    category: 'meeting',
-    color: 'teal',
-    pinned: false,
-    lastEdited: '2025-03-01T15:30:00',
-    createdAt: '2025-03-01T15:30:00',
-  },
-  {
-    id: '6',
-    title: 'Diversity & Inclusion Initiative Plan',
-    content: 'Goals for 2025: Increase women in engineering to 35%. Launch mentorship program Q2. Partner with WomenWhoCode for recruitment. Unconscious bias training — mandatory for all managers by Q3. ERG budget: $15K/quarter per group.',
-    category: 'policy',
-    color: 'rose',
-    pinned: false,
-    lastEdited: '2025-02-28T10:00:00',
-    createdAt: '2025-02-20T10:00:00',
-  },
-  {
-    id: '7',
-    title: 'Performance Review Cycle — Timeline',
-    content: 'Self-assessments: March 1-15. Manager reviews: March 16-31. Calibration meetings: April 1-7. Final ratings: April 10. Employee discussions: April 14-18. Compensation adjustments effective: May 1. HR to send reminders at each stage.',
-    category: 'hr',
-    color: 'amber',
-    pinned: true,
-    lastEdited: '2025-03-04T08:00:00',
-    createdAt: '2025-02-25T08:00:00',
-  },
-  {
-    id: '8',
-    title: 'Weekly Standup — Recruitment Team',
-    content: 'Open positions: 12. Pipeline: 45 active candidates. This week: 8 interviews scheduled, 3 offers pending. Blocker: Backend Sr. Dev role — no qualified applicants. Action: Post on LinkedIn Premium, reach out to 5 passive candidates. Offer acceptance rate: 78%.',
-    category: 'meeting',
-    color: 'emerald',
-    pinned: false,
-    lastEdited: '2025-03-04T09:15:00',
-    createdAt: '2025-03-04T09:15:00',
-  },
-  {
-    id: '9',
-    title: 'Leave Policy Amendments — 2025',
-    content: 'Changes: Casual leave increased from 10 to 12 days. New: 5-day bereavement leave. Paternity leave extended to 15 days. Carry-forward cap: 5 PL days. Comp-off must be used within 30 days. All changes effective April 1, 2025.',
-    category: 'policy',
-    color: 'violet',
-    pinned: false,
-    lastEdited: '2025-02-27T13:00:00',
-    createdAt: '2025-02-27T13:00:00',
-  },
-  {
-    id: '10',
-    title: 'Employee Engagement Survey Results',
-    content: 'Response rate: 82%. Top positives: Team collaboration (4.3/5), Manager support (4.1/5). Areas for improvement: Career growth clarity (3.2/5), Work-life balance (3.4/5). Action plan: Career frameworks by Q3, flexible hours pilot in Engineering.',
-    category: 'hr',
-    color: 'orange',
-    pinned: false,
-    lastEdited: '2025-03-03T11:30:00',
-    createdAt: '2025-03-01T11:30:00',
-  },
-  {
-    id: '11',
-    title: 'Training Budget Allocation — Q2',
-    content: 'Total budget: $45K. Cloud certifications: $15K (AWS/Azure). Leadership program: $12K (10 managers). Soft skills: $8K. Conference tickets: $10K (5 employees). Approval: Manager + L&D head. Reimbursement within 30 days with receipt.',
-    category: 'hr',
-    color: 'sky',
-    pinned: false,
-    lastEdited: '2025-02-26T16:00:00',
-    createdAt: '2025-02-26T16:00:00',
-  },
-  {
-    id: '12',
-    title: 'Office Relocation Planning Notes',
-    content: 'Floor 3 renovation complete by April 15. New seating: Activity-based zones — Focus, Collab, Social. Hot-desking for sales team. Parking: 50 additional spots negotiated. Move weekend: April 19-20. IT to handle desk phone/monitor migration.',
-    category: 'meeting',
-    color: 'teal',
-    pinned: false,
-    lastEdited: '2025-03-02T14:00:00',
-    createdAt: '2025-02-22T14:00:00',
-  },
-  {
-    id: '13',
-    title: 'Personal — 1:1 Agenda with Director',
-    content: 'Topics: Q1 hiring progress update, budget variance for recruitment channels, D&I program approval, contractor-to-FTE conversions (3 pending), new ATS tool evaluation. Prepare: Dashboard screenshots, cost-per-hire metrics, attrition analysis.',
-    category: 'personal',
-    color: 'amber',
-    pinned: false,
-    lastEdited: '2025-03-04T07:30:00',
-    createdAt: '2025-03-03T07:30:00',
-  },
-  {
-    id: '14',
-    title: 'Compliance Audit Preparation',
-    content: 'SOC 2 Type II audit: April 28-30. Documents needed: Access control matrix, employee onboarding logs, termination checklist (last 12 months), training completion records, incident response playbook. Owner: InfoSec + HR. Deadline for doc collection: April 15.',
-    category: 'policy',
-    color: 'rose',
-    pinned: false,
-    lastEdited: '2025-03-03T09:00:00',
-    createdAt: '2025-02-18T09:00:00',
-  },
-  {
-    id: '15',
-    title: 'Exit Interview — Raj Patel (Senior QA)',
-    content: 'Reason: Career growth — moving to FAANG. Feedback: Good culture, supportive manager. Improvement areas: More automation tooling, clearer promotion path for IC track. Would recommend company: Yes. Notice period: 30 days (ending March 28). KT scheduled with Ankit.',
-    category: 'hr',
-    color: 'orange',
-    pinned: false,
-    lastEdited: '2025-02-28T15:00:00',
-    createdAt: '2025-02-28T15:00:00',
-  },
-  {
-    id: '16',
-    title: 'Personal — Learning Goals 2025',
-    content: 'Complete SHRM-SCP certification by Q3. Attend HR Tech conference (Oct). Read: "The Culture Code", "Radical Candor". Skill focus: Data analytics for HR — complete Google Data Analytics cert. Monthly: 1 HR podcast, 1 industry report.',
-    category: 'personal',
-    color: 'violet',
-    pinned: false,
-    lastEdited: '2025-02-25T20:00:00',
-    createdAt: '2025-01-05T20:00:00',
-  },
-  {
-    id: '17',
-    title: 'Salary Structure Review — Engineering',
-    content: 'Benchmark data from Radford: Junior Dev median $75K, Mid $105K, Senior $140K, Staff $180K. Current compa-ratio: 0.92. Recommendation: Adjust mid-level bands +8% to improve retention. Budget impact: ~$220K annually. Present to compensation committee March 20.',
-    category: 'hr',
-    color: 'rose',
-    pinned: false,
-    lastEdited: '2025-03-04T12:00:00',
-    createdAt: '2025-03-02T12:00:00',
-  },
-];
 
 // ── Helpers ────────────────────────────────────────────────────────────
 function formatDateRelative(dateStr: string): string {
@@ -267,7 +132,10 @@ function formatDateRelative(dateStr: string): string {
 
 // ── Main Component ─────────────────────────────────────────────────────
 export default function NotesPage() {
-  const [notes, setNotes] = useState<Note[]>(initialNotes);
+  const { user } = useAuthStore();
+  const { effectiveCompanyId } = useCompanyContextStore();
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -280,6 +148,30 @@ export default function NotesPage() {
   const [editorPinned, setEditorPinned] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
+
+  // ── Fetch Notes from API ──────────────────────────────────────────
+  const fetchNotes = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      const cid = effectiveCompanyId();
+      if (cid) params.set('companyId', cid);
+      const res = await fetch(`/api/notes?${params.toString()}`, { headers: getAuthHeaders() });
+      if (!res.ok) throw new Error('Failed to fetch notes');
+      const data = await res.json();
+      const apiNotes: ApiNote[] = data.notes || data || [];
+      setNotes(apiNotes.map(mapApiNoteToNote));
+    } catch (err) {
+      console.error('fetchNotes error:', err);
+      setNotes([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [effectiveCompanyId]);
+
+  useEffect(() => {
+    fetchNotes();
+  }, [fetchNotes]);
 
   // ── Derived State ──────────────────────────────────────────────────
   const filteredNotes = useMemo(() => {
@@ -320,8 +212,9 @@ export default function NotesPage() {
     setEditorPinned(note.pinned);
   }, []);
 
-  const handleSaveNote = useCallback(() => {
+  const handleSaveNote = useCallback(async () => {
     if (!selectedNoteId) return;
+    // Optimistic update
     setNotes((prev) =>
       prev.map((n) =>
         n.id === selectedNoteId
@@ -329,35 +222,93 @@ export default function NotesPage() {
           : n
       )
     );
-  }, [selectedNoteId, editorTitle, editorContent, editorCategory, editorColor, editorPinned]);
+    try {
+      await fetch('/api/notes', {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          id: selectedNoteId,
+          title: editorTitle,
+          content: editorContent,
+          category: editorCategory,
+          color: editorColor,
+          isPinned: editorPinned,
+        }),
+      });
+    } catch (err) {
+      console.error('handleSaveNote error:', err);
+      fetchNotes(); // revert on error
+    }
+  }, [selectedNoteId, editorTitle, editorContent, editorCategory, editorColor, editorPinned, fetchNotes]);
 
-  const handleDeleteNote = useCallback((id: string) => {
+  const handleDeleteNote = useCallback(async (id: string) => {
+    // Optimistic update
     setNotes((prev) => prev.filter((n) => n.id !== id));
     if (selectedNoteId === id) {
       setSelectedNoteId(null);
     }
-  }, [selectedNoteId]);
+    try {
+      await fetch(`/api/notes?id=${id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      });
+    } catch (err) {
+      console.error('handleDeleteNote error:', err);
+      fetchNotes(); // revert on error
+    }
+  }, [selectedNoteId, fetchNotes]);
 
-  const handleTogglePin = useCallback((id: string) => {
-    setNotes((prev) => prev.map((n) => (n.id === id ? { ...n, pinned: !n.pinned } : n)));
-  }, []);
+  const handleTogglePin = useCallback(async (id: string) => {
+    // Optimistic update
+    const target = notes.find((n) => n.id === id);
+    const newPinned = !target?.pinned;
+    setNotes((prev) => prev.map((n) => (n.id === id ? { ...n, pinned: newPinned } : n)));
+    try {
+      await fetch('/api/notes', {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ id, isPinned: newPinned }),
+      });
+    } catch (err) {
+      console.error('handleTogglePin error:', err);
+      fetchNotes(); // revert on error
+    }
+  }, [notes, fetchNotes]);
 
   const handleAddNote = useCallback(
-    (title: string, content: string, category: Note['category'], color: string) => {
-      const newNote: Note = {
-        id: Date.now().toString(),
-        title,
-        content,
-        category,
-        color,
-        pinned: false,
-        lastEdited: new Date().toISOString(),
-        createdAt: new Date().toISOString(),
-      };
-      setNotes((prev) => [newNote, ...prev]);
+    async (title: string, content: string, category: Note['category'], color: string) => {
+      try {
+        const cid = effectiveCompanyId();
+        const res = await fetch('/api/notes', {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({
+            title,
+            content,
+            category,
+            color,
+            isPinned: false,
+            companyId: cid || undefined,
+          }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const created = data.note || data;
+          if (created?.id) {
+            setNotes((prev) => [mapApiNoteToNote(created as ApiNote), ...prev]);
+          } else {
+            fetchNotes(); // fallback: refetch all
+          }
+        } else {
+          fetchNotes(); // fallback on error
+        }
+      } catch (err) {
+        console.error('handleAddNote error:', err);
+        fetchNotes();
+      }
       setShowAddModal(false);
     },
-    []
+    [effectiveCompanyId, fetchNotes]
   );
 
   const handleCloseEditor = useCallback(() => {
@@ -584,7 +535,12 @@ export default function NotesPage() {
           </div>
 
           {/* Notes Display */}
-          {filteredNotes.length === 0 ? (
+          {loading ? (
+            <div className="thb-card p-12 text-center">
+              <div className="w-10 h-10 border-4 border-orange-200 border-t-orange-500 rounded-full animate-spin mx-auto mb-4" />
+              <p className="text-sm text-thb-text-secondary">Loading notes…</p>
+            </div>
+          ) : filteredNotes.length === 0 ? (
             <div className="thb-card p-12 text-center">
               <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
                 <FiEdit3 className="w-7 h-7 text-thb-text-muted" />

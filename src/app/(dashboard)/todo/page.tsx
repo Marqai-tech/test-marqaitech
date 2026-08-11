@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   FiCheckSquare,
   FiPlus,
@@ -23,6 +23,13 @@ import {
   FiArrowDown,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import { useAuthStore } from '@/store/authStore';
+import { useCompanyContextStore } from '@/store/companyContextStore';
+
+function getAuthHeaders() {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
+  return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+}
 
 /* ──────────── Types ──────────── */
 type Priority = 'High' | 'Medium' | 'Low';
@@ -37,7 +44,7 @@ interface Task {
   category: Category;
   status: Status;
   dueDate: string;
-  assignedTo: { name: string; avatar: string; initials: string };
+  assignedTo: { name: string; avatar: string; initials: string; id?: string };
   createdAt: string;
 }
 
@@ -48,54 +55,61 @@ interface NewTask {
   category: Category;
   dueDate: string;
   assignedTo: string;
+  assignedToId?: string;
 }
 
-/* ──────────── Sample Data ──────────── */
-const ASSIGNEES = [
-  { name: 'Priya Sharma', avatar: '', initials: 'PS' },
-  { name: 'Rahul Mehta', avatar: '', initials: 'RM' },
-  { name: 'Anita Desai', avatar: '', initials: 'AD' },
-  { name: 'Vikram Singh', avatar: '', initials: 'VS' },
-  { name: 'Neha Gupta', avatar: '', initials: 'NG' },
-  { name: 'Arjun Patel', avatar: '', initials: 'AP' },
-  { name: 'Kavita Rao', avatar: '', initials: 'KR' },
-  { name: 'Deepak Kumar', avatar: '', initials: 'DK' },
-];
+/* ──────────── API Types ──────────── */
+interface ApiTodoTask {
+  id: string;
+  title: string;
+  description?: string;
+  priority: string;
+  status: string;
+  category?: string;
+  dueDate?: string;
+  assignedToId?: string;
+  assignee?: { id: string; firstName: string; lastName: string; avatar?: string | null };
+  createdById: string;
+  creator?: { id: string; firstName: string; lastName: string; avatar?: string | null };
+  companyId?: string;
+  completedAt?: string;
+  subtasks?: { title: string; completed: boolean }[];
+  tags?: string[];
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
 
-const INITIAL_TASKS: Task[] = [
-  { id: '1', title: 'Review leave applications for March', description: 'Process and review all pending leave applications submitted by employees for the month of March', priority: 'High', category: 'HR', status: 'In Progress', dueDate: '2026-03-05', assignedTo: ASSIGNEES[0], createdAt: '2026-02-25' },
-  { id: '2', title: 'Process payroll for June', description: 'Run payroll processing for all employees including statutory deductions and reimbursements', priority: 'High', category: 'Payroll', status: 'Pending', dueDate: '2026-03-01', assignedTo: ASSIGNEES[1], createdAt: '2026-02-20' },
-  { id: '3', title: 'Schedule team 1:1s for Q2', description: 'Set up quarterly one-on-one meetings between managers and their direct reports', priority: 'Medium', category: 'HR', status: 'Pending', dueDate: '2026-03-10', assignedTo: ASSIGNEES[2], createdAt: '2026-02-26' },
-  { id: '4', title: 'Update employee handbook', description: 'Revise the employee handbook with new policies on remote work, dress code, and expense claims', priority: 'Medium', category: 'HR', status: 'In Progress', dueDate: '2026-02-28', assignedTo: ASSIGNEES[3], createdAt: '2026-02-10' },
-  { id: '5', title: 'Prepare appraisal forms', description: 'Create and distribute annual performance appraisal forms for all departments', priority: 'High', category: 'HR', status: 'Pending', dueDate: '2026-03-15', assignedTo: ASSIGNEES[0], createdAt: '2026-02-27' },
-  { id: '6', title: 'File TDS returns for Q4', description: 'Complete and file quarterly TDS returns with the Income Tax department before the due date', priority: 'High', category: 'Compliance', status: 'Overdue', dueDate: '2026-02-25', assignedTo: ASSIGNEES[1], createdAt: '2026-02-01' },
-  { id: '7', title: 'Organize new hire orientation', description: 'Plan and execute the orientation program for employees joining in the March batch', priority: 'Medium', category: 'HR', status: 'In Progress', dueDate: '2026-03-08', assignedTo: ASSIGNEES[4], createdAt: '2026-02-22' },
-  { id: '8', title: 'Audit attendance records', description: 'Cross-verify biometric attendance data with manual records for discrepancies', priority: 'Medium', category: 'Operations', status: 'Pending', dueDate: '2026-03-12', assignedTo: ASSIGNEES[5], createdAt: '2026-02-24' },
-  { id: '9', title: 'Renew group health insurance', description: 'Coordinate with the insurance provider for policy renewal and updated employee coverage', priority: 'High', category: 'Benefits', status: 'Overdue', dueDate: '2026-02-20', assignedTo: ASSIGNEES[2], createdAt: '2026-01-30' },
-  { id: '10', title: 'Publish job posting for Senior Developer', description: 'Create and publish job description for the Senior Full-Stack Developer role on all portals', priority: 'Medium', category: 'Recruitment', status: 'Completed', dueDate: '2026-02-26', assignedTo: ASSIGNEES[6], createdAt: '2026-02-18' },
-  { id: '11', title: 'Conduct exit interview for Mark', description: 'Schedule and conduct exit interview with Mark Johnson who is serving his notice period', priority: 'Low', category: 'HR', status: 'Completed', dueDate: '2026-02-24', assignedTo: ASSIGNEES[0], createdAt: '2026-02-15' },
-  { id: '12', title: 'Update PF contribution rates', description: 'Update the provident fund contribution rates in the payroll system as per new government notification', priority: 'High', category: 'Payroll', status: 'Overdue', dueDate: '2026-02-22', assignedTo: ASSIGNEES[1], createdAt: '2026-02-05' },
-  { id: '13', title: 'Plan team building activity', description: 'Organize a quarterly team building event including venue booking and activity planning', priority: 'Low', category: 'HR', status: 'Pending', dueDate: '2026-03-20', assignedTo: ASSIGNEES[4], createdAt: '2026-02-28' },
-  { id: '14', title: 'Review vendor contracts', description: 'Audit and review all active vendor contracts for renewal or renegotiation', priority: 'Medium', category: 'Admin', status: 'In Progress', dueDate: '2026-03-05', assignedTo: ASSIGNEES[3], createdAt: '2026-02-20' },
-  { id: '15', title: 'Submit gratuity liability report', description: 'Prepare and submit the annual gratuity liability report to the finance department', priority: 'High', category: 'Compliance', status: 'Overdue', dueDate: '2026-02-18', assignedTo: ASSIGNEES[1], createdAt: '2026-02-01' },
-  { id: '16', title: 'Set up training room for workshop', description: 'Book training room and set up AV equipment for the leadership development workshop', priority: 'Low', category: 'Training', status: 'Completed', dueDate: '2026-02-25', assignedTo: ASSIGNEES[7], createdAt: '2026-02-19' },
-  { id: '17', title: 'Draft offer letter for UX Designer', description: 'Prepare the offer letter package including CTC breakdown for the selected UX Designer candidate', priority: 'High', category: 'Recruitment', status: 'In Progress', dueDate: '2026-03-02', assignedTo: ASSIGNEES[6], createdAt: '2026-02-27' },
-  { id: '18', title: 'Verify ESIC compliance', description: 'Ensure all ESIC contributions and filings are up to date for the current quarter', priority: 'Medium', category: 'Compliance', status: 'Pending', dueDate: '2026-03-08', assignedTo: ASSIGNEES[1], createdAt: '2026-02-23' },
-  { id: '19', title: 'Collect feedback on new HRMS module', description: 'Gather user feedback on the recently launched employee self-service portal module', priority: 'Low', category: 'Operations', status: 'Pending', dueDate: '2026-03-25', assignedTo: ASSIGNEES[5], createdAt: '2026-02-28' },
-  { id: '20', title: 'Process relocation requests', description: 'Review and process the three pending employee relocation requests with budget approvals', priority: 'Medium', category: 'HR', status: 'In Progress', dueDate: '2026-03-06', assignedTo: ASSIGNEES[0], createdAt: '2026-02-22' },
-  { id: '21', title: 'Reconcile payroll discrepancies', description: 'Investigate and resolve payroll discrepancies reported by 5 employees in the February cycle', priority: 'High', category: 'Payroll', status: 'Overdue', dueDate: '2026-02-23', assignedTo: ASSIGNEES[1], createdAt: '2026-02-15' },
-  { id: '22', title: 'Update emergency contact details', description: 'Send communication to all employees requesting updated emergency contact information', priority: 'Low', category: 'HR', status: 'Completed', dueDate: '2026-02-27', assignedTo: ASSIGNEES[4], createdAt: '2026-02-12' },
-  { id: '23', title: 'Arrange fire safety drill', description: 'Coordinate with facilities team for the bi-annual fire safety evacuation drill', priority: 'Medium', category: 'Admin', status: 'Pending', dueDate: '2026-03-18', assignedTo: ASSIGNEES[7], createdAt: '2026-02-26' },
-  { id: '24', title: 'Prepare board meeting agenda', description: 'Compile HR updates and metrics for the upcoming quarterly board meeting presentation', priority: 'High', category: 'HR', status: 'In Progress', dueDate: '2026-03-03', assignedTo: ASSIGNEES[0], createdAt: '2026-02-25' },
-  { id: '25', title: 'Enroll employees in dental plan', description: 'Process enrollment forms for employees opting into the new dental insurance plan', priority: 'Low', category: 'Benefits', status: 'Pending', dueDate: '2026-03-22', assignedTo: ASSIGNEES[2], createdAt: '2026-02-28' },
-  { id: '26', title: 'Screen resumes for Marketing Manager', description: 'Review and shortlist resumes received for the Marketing Manager position', priority: 'Medium', category: 'Recruitment', status: 'In Progress', dueDate: '2026-03-04', assignedTo: ASSIGNEES[6], createdAt: '2026-02-21' },
-  { id: '27', title: 'Update compliance training tracker', description: 'Update the mandatory compliance training completion tracker for all departments', priority: 'Medium', category: 'Training', status: 'Completed', dueDate: '2026-02-26', assignedTo: ASSIGNEES[7], createdAt: '2026-02-14' },
-  { id: '28', title: 'Generate monthly HR analytics report', description: 'Create the monthly HR dashboard with attrition, hiring, and engagement metrics', priority: 'Medium', category: 'HR', status: 'Pending', dueDate: '2026-03-07', assignedTo: ASSIGNEES[5], createdAt: '2026-02-27' },
-  { id: '29', title: 'Finalize intern conversion list', description: 'Prepare the list of interns eligible for full-time conversion with manager recommendations', priority: 'High', category: 'Recruitment', status: 'Overdue', dueDate: '2026-02-24', assignedTo: ASSIGNEES[6], createdAt: '2026-02-10' },
-  { id: '30', title: 'Order office supplies for March', description: 'Place requisition for office supplies and stationery for the upcoming month', priority: 'Low', category: 'Admin', status: 'Completed', dueDate: '2026-02-28', assignedTo: ASSIGNEES[7], createdAt: '2026-02-20' },
-  { id: '31', title: 'Configure L&D budget allocation', description: 'Set up the learning and development budget allocation for each department for FY2026-27', priority: 'Medium', category: 'Training', status: 'Pending', dueDate: '2026-03-14', assignedTo: ASSIGNEES[4], createdAt: '2026-02-26' },
-  { id: '32', title: 'Resolve shift scheduling conflict', description: 'Mediate and resolve the shift scheduling conflict between the production and quality teams', priority: 'High', category: 'Operations', status: 'In Progress', dueDate: '2026-03-01', assignedTo: ASSIGNEES[5], createdAt: '2026-02-24' },
-];
+interface Employee {
+  id: string;
+  employeeId: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  avatar?: string | null;
+  department?: { name: string } | null;
+  designation?: { name: string } | null;
+  status?: string;
+}
+
+function mapApiTask(t: ApiTodoTask): Task {
+  const a = t.assignee;
+  return {
+    id: t.id,
+    title: t.title,
+    description: t.description || '',
+    priority: (t.priority as Priority) || 'Medium',
+    category: (t.category as Category) || 'HR',
+    status: (t.status as Status) || 'Pending',
+    dueDate: t.dueDate || '',
+    assignedTo: a
+      ? { name: `${a.firstName} ${a.lastName}`, avatar: a.avatar || '', initials: `${a.firstName[0] || ''}${a.lastName[0] || ''}`, id: a.id }
+      : { name: 'Unassigned', avatar: '', initials: '?' },
+    createdAt: t.createdAt?.split('T')[0] || '',
+  };
+}
+
+
 
 /* ──────────── Helpers ──────────── */
 const PRIORITY_CONFIG: Record<Priority, { bg: string; text: string; icon: typeof FiArrowUp; iconColor: string }> = {
@@ -199,7 +213,7 @@ function TaskRow({ task, onToggleComplete, onDelete, onChangePriority, openActio
   const priorityConf = PRIORITY_CONFIG[task.priority];
   const catConf = CATEGORY_COLORS[task.category] || { bg: 'bg-slate-100', text: 'text-slate-700' };
   const PriorityIcon = priorityConf.icon;
-  const assigneeIdx = ASSIGNEES.findIndex(a => a.name === task.assignedTo.name);
+  const assigneeIdx = Math.abs(task.id.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0));
   const avatarGrad = AVATAR_GRADIENTS[assigneeIdx % AVATAR_GRADIENTS.length];
   const isOpen = openActionMenu === task.id;
 
@@ -332,7 +346,13 @@ function TaskRow({ task, onToggleComplete, onDelete, onChangePriority, openActio
 
 /* ══════════════ Main Component ══════════════ */
 export default function TodoPage() {
-  const [tasks, setTasks] = useState<Task[]>(INITIAL_TASKS);
+  const { user } = useAuthStore();
+  const { effectiveCompanyId } = useCompanyContextStore();
+
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [loadingEmployees, setLoadingEmployees] = useState(false);
   const [activeTab, setActiveTab] = useState<FilterTab>('All');
   const [priorityFilter, setPriorityFilter] = useState<Priority | 'All'>('All');
   const [categoryFilter, setCategoryFilter] = useState<Category | 'All'>('All');
@@ -341,6 +361,7 @@ export default function TodoPage() {
   const [showPriorityDropdown, setShowPriorityDropdown] = useState(false);
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [openActionMenu, setOpenActionMenu] = useState<string | null>(null);
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [newTask, setNewTask] = useState<NewTask>({
     title: '',
     description: '',
@@ -348,7 +369,51 @@ export default function TodoPage() {
     category: 'HR',
     dueDate: '',
     assignedTo: '',
+    assignedToId: '',
   });
+
+  /* ── Fetch Tasks from API ── */
+  const fetchTasks = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (activeTab !== 'All') params.set('status', activeTab);
+      if (priorityFilter !== 'All') params.set('priority', priorityFilter);
+      if (categoryFilter !== 'All') params.set('category', categoryFilter);
+      const cid = effectiveCompanyId();
+      if (cid) params.set('companyId', cid);
+      const query = params.toString() ? `?${params.toString()}` : '';
+      const res = await fetch(`/api/todo${query}`, { headers: getAuthHeaders() });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to load tasks');
+      const mapped = (data.tasks || []).map(mapApiTask);
+      setTasks(mapped);
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Failed to load tasks');
+    } finally {
+      setLoading(false);
+    }
+  }, [activeTab, priorityFilter, categoryFilter, effectiveCompanyId]);
+
+  /* ── Fetch Employees for Assignee Dropdown ── */
+  const fetchEmployees = useCallback(async () => {
+    setLoadingEmployees(true);
+    try {
+      const cid = effectiveCompanyId();
+      const res = await fetch(`/api/employees?limit=50${cid ? `&companyId=${cid}` : ''}`, { headers: getAuthHeaders() });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed');
+      setEmployees(data.employees || []);
+    } catch {
+      toast.error('Failed to load employees');
+    } finally {
+      setLoadingEmployees(false);
+    }
+  }, [effectiveCompanyId]);
+
+  /* ── Initial fetch ── */
+  useEffect(() => { fetchTasks(); }, [fetchTasks]);
+  useEffect(() => { fetchEmployees(); }, [fetchEmployees]);
 
   /* ── Derived Stats ── */
   const stats = useMemo(() => {
@@ -379,35 +444,74 @@ export default function TodoPage() {
   }, [tasks, activeTab, priorityFilter, categoryFilter, searchQuery]);
 
   /* ── Handlers ── */
-  const handleToggleComplete = useCallback((id: string) => {
-    setTasks(prev =>
-      prev.map(t => {
-        if (t.id !== id) return t;
-        const newStatus: Status = t.status === 'Completed' ? 'Pending' : 'Completed';
-        toast.success(newStatus === 'Completed' ? 'Task marked as completed' : 'Task marked as pending', { duration: 2000, icon: newStatus === 'Completed' ? '✅' : '🔄' });
-        return { ...t, status: newStatus };
-      })
-    );
-  }, []);
+  const handleToggleComplete = useCallback(async (id: string) => {
+    const task = tasks.find(t => t.id === id);
+    if (!task) return;
+    const newStatus: Status = task.status === 'Completed' ? 'Pending' : 'Completed';
+    // Optimistic update
+    setTasks(prev => prev.map(t => t.id === id ? { ...t, status: newStatus } : t));
+    try {
+      const res = await fetch('/api/todo', {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ id, status: newStatus }),
+      });
+      if (!res.ok) {
+        const d = await res.json();
+        throw new Error(d.error || 'Failed to update task');
+      }
+      toast.success(newStatus === 'Completed' ? 'Task marked as completed' : 'Task marked as pending', { duration: 2000, icon: newStatus === 'Completed' ? '✅' : '🔄' });
+    } catch (e: unknown) {
+      // Revert on error
+      setTasks(prev => prev.map(t => t.id === id ? { ...t, status: task.status } : t));
+      toast.error(e instanceof Error ? e.message : 'Failed to update task');
+    }
+  }, [tasks]);
 
-  const handleDeleteTask = useCallback((id: string) => {
+  const handleDeleteTask = useCallback(async (id: string) => {
+    const prevTasks = tasks;
     setTasks(prev => prev.filter(t => t.id !== id));
-    toast.success('Task deleted', { duration: 2000, icon: '🗑️' });
     setOpenActionMenu(null);
-  }, []);
+    try {
+      const res = await fetch(`/api/todo?id=${id}`, { method: 'DELETE', headers: getAuthHeaders() });
+      if (!res.ok) {
+        const d = await res.json();
+        throw new Error(d.error || 'Failed to delete task');
+      }
+      toast.success('Task deleted', { duration: 2000, icon: '🗑️' });
+    } catch (e: unknown) {
+      setTasks(prevTasks);
+      toast.error(e instanceof Error ? e.message : 'Failed to delete task');
+    }
+  }, [tasks]);
 
-  const handleChangePriority = useCallback((id: string, priority: Priority) => {
+  const handleChangePriority = useCallback(async (id: string, priority: Priority) => {
+    const prevTasks = tasks;
     setTasks(prev => prev.map(t => t.id === id ? { ...t, priority } : t));
-    toast.success(`Priority changed to ${priority}`, { duration: 2000, icon: '🚩' });
     setOpenActionMenu(null);
-  }, []);
+    try {
+      const res = await fetch('/api/todo', {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ id, priority }),
+      });
+      if (!res.ok) {
+        const d = await res.json();
+        throw new Error(d.error || 'Failed to update priority');
+      }
+      toast.success(`Priority changed to ${priority}`, { duration: 2000, icon: '🚩' });
+    } catch (e: unknown) {
+      setTasks(prevTasks);
+      toast.error(e instanceof Error ? e.message : 'Failed to update priority');
+    }
+  }, [tasks]);
 
   const handleToggleActionMenu = useCallback((id: string | null) => {
     setOpenActionMenu(id);
   }, []);
 
   const handleEditTask = useCallback((task: Task) => {
-    // Open the add modal pre-populated with task data for editing
+    setEditingTaskId(task.id);
     setNewTask({
       title: task.title,
       description: task.description,
@@ -415,14 +519,12 @@ export default function TodoPage() {
       category: task.category,
       dueDate: task.dueDate,
       assignedTo: task.assignedTo.name,
+      assignedToId: task.assignedTo.id,
     });
-    // Remove the old task so the "add" will effectively replace it
-    setTasks(prev => prev.filter(t => t.id !== task.id));
     setShowAddModal(true);
-    toast.success('Task loaded for editing', { duration: 2000 });
   }, []);
 
-  const handleAddTask = useCallback(() => {
+  const handleAddTask = useCallback(async () => {
     if (!newTask.title.trim()) {
       toast.error('Task title is required', { duration: 2500 });
       return;
@@ -432,24 +534,49 @@ export default function TodoPage() {
       return;
     }
 
-    const assignee = ASSIGNEES.find(a => a.name === newTask.assignedTo) || ASSIGNEES[0];
-    const task: Task = {
-      id: `task-${Date.now()}`,
+    const cid = effectiveCompanyId();
+    const body: Record<string, unknown> = {
       title: newTask.title.trim(),
       description: newTask.description.trim(),
       priority: newTask.priority,
       category: newTask.category,
-      status: 'Pending',
       dueDate: newTask.dueDate,
-      assignedTo: assignee,
-      createdAt: new Date().toISOString().split('T')[0],
+      assignedToId: newTask.assignedToId || undefined,
+      companyId: cid || undefined,
     };
 
-    setTasks(prev => [task, ...prev]);
+    try {
+      if (editingTaskId) {
+        // PATCH existing task
+        const res = await fetch('/api/todo', {
+          method: 'PATCH',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ id: editingTaskId, ...body }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to update task');
+        toast.success('Task updated successfully', { duration: 2000, icon: '✅' });
+      } else {
+        // POST new task
+        const res = await fetch('/api/todo', {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify(body),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to create task');
+        toast.success('Task added successfully', { duration: 2000, icon: '✅' });
+      }
+      // Refresh tasks from API
+      fetchTasks();
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Failed to save task');
+    }
+
     setShowAddModal(false);
-    setNewTask({ title: '', description: '', priority: 'Medium', category: 'HR', dueDate: '', assignedTo: '' });
-    toast.success('Task added successfully', { duration: 2000, icon: '✅' });
-  }, [newTask]);
+    setEditingTaskId(null);
+    setNewTask({ title: '', description: '', priority: 'Medium', category: 'HR', dueDate: '', assignedTo: '', assignedToId: '' });
+  }, [newTask, editingTaskId, effectiveCompanyId, fetchTasks]);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -638,7 +765,14 @@ export default function TodoPage() {
       </div>
 
       {/* ──── Task List ──── */}
-      {filteredTasks.length === 0 ? (
+      {loading ? (
+        <div className="thb-card p-12 text-center">
+          <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4 animate-pulse">
+            <FiList className="w-8 h-8 text-slate-300" />
+          </div>
+          <h3 className="text-sm font-semibold text-thb-text-primary mb-1">Loading tasks...</h3>
+        </div>
+      ) : filteredTasks.length === 0 ? (
         <div className="thb-card p-12 text-center">
           <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
             <FiCheckSquare className="w-8 h-8 text-slate-300" />
@@ -670,7 +804,7 @@ export default function TodoPage() {
       {/* ──── Add Task Modal ──── */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowAddModal(false)} />
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => { setShowAddModal(false); setEditingTaskId(null); }} />
           <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto animate-slide-in-up">
             {/* Modal Header */}
             <div className="sticky top-0 bg-white border-b border-thb-border px-6 py-4 rounded-t-2xl z-10">
@@ -679,10 +813,10 @@ export default function TodoPage() {
                   <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
                     <FiPlus className="w-4 h-4 text-white" />
                   </div>
-                  <h2 className="text-lg font-bold text-thb-text-primary">Add New Task</h2>
+                  <h2 className="text-lg font-bold text-thb-text-primary">{editingTaskId ? 'Edit Task' : 'Add New Task'}</h2>
                 </div>
                 <button
-                  onClick={() => setShowAddModal(false)}
+                  onClick={() => { setShowAddModal(false); setEditingTaskId(null); }}
                   className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors"
                 >
                   <FiX className="w-5 h-5" />
@@ -789,12 +923,15 @@ export default function TodoPage() {
                     <FiUser className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted pointer-events-none" />
                     <select
                       value={newTask.assignedTo}
-                      onChange={(e) => setNewTask(prev => ({ ...prev, assignedTo: e.target.value }))}
+                      onChange={(e) => {
+                        const emp = employees.find(em => `${em.firstName} ${em.lastName}` === e.target.value);
+                        setNewTask(prev => ({ ...prev, assignedTo: e.target.value, assignedToId: emp?.id || '' }));
+                      }}
                       className="w-full pl-9 pr-3 py-2.5 text-sm rounded-xl border border-thb-border bg-white text-thb-text-primary focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 transition-all appearance-none cursor-pointer"
                     >
                       <option value="">Select person</option>
-                      {ASSIGNEES.map(a => (
-                        <option key={a.name} value={a.name}>{a.name}</option>
+                      {employees.map(emp => (
+                        <option key={emp.id} value={`${emp.firstName} ${emp.lastName}`}>{emp.firstName} {emp.lastName}</option>
                       ))}
                     </select>
                   </div>
@@ -805,7 +942,7 @@ export default function TodoPage() {
             {/* Modal Footer */}
             <div className="sticky bottom-0 bg-white border-t border-thb-border px-6 py-4 rounded-b-2xl flex items-center justify-end gap-3">
               <button
-                onClick={() => setShowAddModal(false)}
+                onClick={() => { setShowAddModal(false); setEditingTaskId(null); }}
                 className="px-4 py-2.5 text-sm font-medium text-thb-text-secondary rounded-xl border border-thb-border hover:bg-slate-50 transition-colors"
               >
                 Cancel
@@ -814,7 +951,7 @@ export default function TodoPage() {
                 onClick={handleAddTask}
                 className="px-5 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-emerald-500 to-teal-600 rounded-xl hover:from-emerald-600 hover:to-teal-700 shadow-sm shadow-emerald-200 transition-all duration-200 active:scale-[0.98]"
               >
-                Create Task
+                {editingTaskId ? 'Update Task' : 'Create Task'}
               </button>
             </div>
           </div>
