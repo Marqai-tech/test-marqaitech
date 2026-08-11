@@ -241,6 +241,37 @@ export async function GET(request: Request) {
       // Companies scoped to the requested tenant (or first tenant if none)
       const effectiveTenantId = requestedTenantId || callerTenantId || availableTenants[0]?.id;
       if (effectiveTenantId) {
+        // AUTO-HEAL: Ensure the target tenant has at least one default group
+        // company. Legacy tenants created before the auto-group feature would
+        // otherwise show no groups, making the switcher look broken.
+        await safe(
+          'ensureDefaultGroup(super_admin)',
+          async () => {
+            const existingGroups = await getPlatformDb().companyGroup.findFirst({
+              where: { tenantId: effectiveTenantId },
+              select: { id: true },
+            });
+            if (!existingGroups) {
+              const tenantInfo = await getPlatformDb().tenant.findUnique({
+                where: { id: effectiveTenantId },
+                select: { name: true },
+              });
+              const healDb = await getDbForTenantById(effectiveTenantId);
+              await healDb.companyGroup.create({
+                data: {
+                  name: tenantInfo?.name || 'Default Group',
+                  tenantId: effectiveTenantId,
+                  employeeLimitMode: 'group_total',
+                  maxEmployees: null,
+                  maxCompanies: null,
+                  notes: `Default group company auto-created for tenant "${tenantInfo?.name || 'Unknown'}".`,
+                },
+              });
+            }
+          },
+          undefined as unknown as void,
+        );
+
         // CRITICAL FIX: For super_admin, we must query the TARGET tenant's
         // database, not the request's default DB (which may be the platform
         // DB or the admin's own tenant DB). Without this, groups/companies
@@ -278,6 +309,39 @@ export async function GET(request: Request) {
     } else if (role === 'tenant_admin') {
       // Tenant admin: scope to own tenant only
       if (callerTenantId) {
+        // AUTO-HEAL: Ensure the tenant has at least one default group company.
+        // Without this, legacy tenants created before the auto-group feature would
+        // show availableCompanyGroups: [] and the tenant admin would be unable to
+        // add companies (the form requires selecting a group). This mirrors the
+        // same auto-heal logic in GET /api/company-groups.
+        await safe(
+          'ensureDefaultGroup(tenant_admin)',
+          async () => {
+            const existingGroups = await getPlatformDb().companyGroup.findFirst({
+              where: { tenantId: callerTenantId },
+              select: { id: true },
+            });
+            if (!existingGroups) {
+              const tenantInfo = await getPlatformDb().tenant.findUnique({
+                where: { id: callerTenantId },
+                select: { name: true },
+              });
+              const tenantAdminDb = await getDbForTenantById(callerTenantId);
+              await tenantAdminDb.companyGroup.create({
+                data: {
+                  name: tenantInfo?.name || 'Default Group',
+                  tenantId: callerTenantId,
+                  employeeLimitMode: 'group_total',
+                  maxEmployees: null,
+                  maxCompanies: null,
+                  notes: `Default group company auto-created for tenant "${tenantInfo?.name || 'Unknown'}". Shares the tenant name per the parent/child identity rule.`,
+                },
+              });
+            }
+          },
+          undefined as unknown as void,
+        );
+
         // FIX: Use tenant-specific DB for tenant_admin too, in case
         // getDb(request) routed to the wrong DB (e.g., platform DB fallback).
         const tenantAdminDb = await getDbForTenantById(callerTenantId);
