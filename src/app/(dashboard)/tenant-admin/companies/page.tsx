@@ -117,6 +117,17 @@ export default function TenantCompaniesPage() {
   // Create-form state
   const [form, setForm] = useState({ ...EMPTY_FORM });
 
+  // BUG FIX: Auto-select the group company when only one exists.
+  // This prevents the common UX issue where the user opens the form,
+  // fills in all fields, but forgets to select the group (since there's
+  // only one) and gets a confusing backend error. If there's exactly
+  // one group, we pre-select it automatically.
+  useEffect(() => {
+    if (showCreate && !form.companyGroupId && availableCompanyGroups.length === 1) {
+      setForm(prev => ({ ...prev, companyGroupId: availableCompanyGroups[0].id }));
+    }
+  }, [showCreate, form.companyGroupId, availableCompanyGroups]);
+
   // Selected group for the create modal — when user picks a group, we display
   // the inherited employee-strength barrier so they know what they're working with
   const selectedGroupForForm = useMemo(
@@ -236,7 +247,7 @@ export default function TenantCompaniesPage() {
       toast.error(
         availableCompanyGroups.length === 0
           ? 'No group companies exist under your tenant yet. Please ask your super admin to create one first.'
-          : 'Please select a group company. Only super admins can create new group companies.'
+          : 'Please select a group company from the dropdown above. Only super admins can create new group companies — if no group is available, ask your super admin to create one under your tenant.'
       );
       return;
     }

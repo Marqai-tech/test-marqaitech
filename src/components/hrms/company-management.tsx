@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import {
   FiLayers, FiMapPin, FiBriefcase, FiCalendar, FiClock, FiPlus, FiSearch,
   FiEye, FiEdit2, FiTrash2, FiX, FiAward, FiMoon, FiSun, FiFileText,
-  FiAlertTriangle, FiHome, FiSettings, FiUsers, FiCheckCircle, FiInfo,
+  FiAlertTriangle, FiAlertCircle, FiHome, FiSettings, FiUsers, FiCheckCircle, FiInfo,
 } from 'react-icons/fi'
 import toast from 'react-hot-toast'
 import { useAuthStore } from '@/store/authStore'
@@ -249,7 +249,7 @@ export default function CompanyManagement() {
 
   const getDefaultForm = (type: string): Record<string, string> => {
     switch (type) {
-      case 'companies': return { name: '', code: '', country: 'India', currency: 'INR', timezone: 'Asia/Kolkata', city: '', state: '', address: '', zipCode: '', phone: '', email: '', website: '', taxId: '', status: 'active' }
+      case 'companies': return { name: '', code: '', companyGroupId: '', country: 'India', currency: 'INR', timezone: 'Asia/Kolkata', city: '', state: '', address: '', zipCode: '', phone: '', email: '', website: '', taxId: '', status: 'active' }
       case 'branches': return { name: '', code: '', companyId: companies[0]?.id || '', country: 'India', state: '', city: '', address: '', zipCode: '', phone: '', email: '', status: 'active' }
       case 'departments': return { name: '', code: '', companyId: companies[0]?.id || '', status: 'active' }
       case 'designations': return { title: '', departmentId: departments[0]?.id || '', level: '1', minSalary: '', maxSalary: '', status: 'active' }
@@ -307,6 +307,25 @@ export default function CompanyManagement() {
       const method = isEdit ? 'PUT' : 'POST'
       const body = { ...form }
       if (isEdit) body.id = editingId
+
+      // BUG FIX: For company creation, tenant_admin must provide companyGroupId.
+      // Only super_admin can auto-create groups. If companyGroupId is missing
+      // for a non-super_admin, show a clear error before hitting the API.
+      if (type === 'companies' && !isEdit && !isSuperAdmin && !body.companyGroupId) {
+        setSubmitting(false)
+        toast.error(
+          availableCompanyGroups.length === 0
+            ? 'No group companies exist under your tenant yet. Please ask your super admin to create one first.'
+            : 'Please select a group company. Only super admins can create new group companies.'
+        )
+        return
+      }
+      // For super_admin creating a company without a group, delete the empty
+      // companyGroupId so the backend auto-creates a group. For tenant_admin,
+      // the check above guarantees companyGroupId is set.
+      if (type === 'companies' && !body.companyGroupId) {
+        delete body.companyGroupId
+      }
 
       await apiFetch(url, { method, body: JSON.stringify(body) })
       const label = type.slice(0, -1).replace(/^./, c => c.toUpperCase())
@@ -459,6 +478,35 @@ export default function CompanyManagement() {
       <form onSubmit={handleSubmit} className="space-y-6">
         {activeTab === 'companies' && (
           <>
+            {/* Group Company selector — required for tenant_admin, optional for super_admin */}
+            {!isSuperAdmin && (
+              <div className="mb-4">
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">
+                  Group Company {!isSuperAdmin && '*'}
+                </label>
+                {availableCompanyGroups.length === 0 ? (
+                  <div className="px-4 py-3 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-900 flex items-start gap-2">
+                    <FiAlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-bold mb-0.5">No group companies available</p>
+                      <p>Only your <b>super admin</b> can create group companies. Please ask them to create at least one group under your tenant first.</p>
+                    </div>
+                  </div>
+                ) : (
+                  <select
+                    value={form.companyGroupId || ''}
+                    onChange={e => updateForm('companyGroupId', e.target.value)}
+                    className={selectClass}
+                    required={!isSuperAdmin}
+                  >
+                    <option value="">— Select a group company —</option>
+                    {availableCompanyGroups.map(g => (
+                      <option key={g.id} value={g.id}>{g.name}</option>
+                    ))}
+                  </select>
+                )}
+              </div>
+            )}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Name *</label><input type="text" value={form.name || ''} onChange={e => updateForm('name', e.target.value)} required className={inputClass} placeholder="Company name" /></div>
               <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Code</label><input type="text" value={form.code || ''} onChange={e => updateForm('code', e.target.value)} className={inputClass} placeholder="e.g. 3BOXES" /></div>

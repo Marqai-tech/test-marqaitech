@@ -159,14 +159,24 @@ export default function CompanySwitcher() {
   // IMPORTANT: We also include groups from availableCompanyGroups that have
   // NO companies yet. Previously, empty groups were invisible in the dropdown,
   // which confused users who created a group but couldn't see it or select it.
+  //
+  // BUG FIX: Use `companyGroupId` (the raw foreign key) as the primary
+  // grouping key, falling back to `companyGroup?.id` (the Prisma relation).
+  // Previously we used `companyGroup?.id` which could be null if the relation
+  // wasn't loaded, causing companies to appear under "Ungrouped" instead of
+  // their correct group. The foreign key `companyGroupId` is always present
+  // (it's a required field on Company), so it's the reliable source of truth.
   const groupedCompanies = availableCompanyGroups.reduce<Record<string, { groupName: string; items: typeof availableCompanies }>>((acc, g) => {
     acc[g.id] = { groupName: g.name, items: [] };
     return acc;
   }, {});
-  // Now add each company to its group
+  // Now add each company to its group using the FK as the primary key
   for (const c of availableCompanies) {
-    const gid = c.companyGroup?.id || 'ungrouped';
-    const gname = c.companyGroup?.name || 'Ungrouped';
+    // Prefer the raw foreign key (always present), fall back to the relation
+    const gid = c.companyGroupId || c.companyGroup?.id || 'ungrouped';
+    // Resolve the group name from availableCompanyGroups (authoritative),
+    // then fall back to the relation, then to 'Ungrouped'
+    const gname = availableCompanyGroups.find(g => g.id === gid)?.name || c.companyGroup?.name || 'Ungrouped';
     if (!groupedCompanies[gid]) groupedCompanies[gid] = { groupName: gname, items: [] };
     groupedCompanies[gid].items.push(c);
   }

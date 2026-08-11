@@ -70,6 +70,14 @@ export default function CompaniesPage() {
     if (!ctxHydrated) hydrate();
   }, [ctxHydrated, hydrate]);
 
+  // BUG FIX: Auto-select the group company when only one exists.
+  // Prevents UX issue where user fills form but forgets to select the only group.
+  useEffect(() => {
+    if (showForm && !editingId && !form.companyGroupId && availableCompanyGroups.length === 1) {
+      setForm(prev => ({ ...prev, companyGroupId: availableCompanyGroups[0].id }));
+    }
+  }, [showForm, editingId, form.companyGroupId, availableCompanyGroups]);
+
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault()
 
@@ -96,7 +104,7 @@ export default function CompaniesPage() {
       toast.error(
         availableCompanyGroups.length === 0
           ? 'No group companies exist under your tenant yet. Please ask your super admin to create one first.'
-          : 'Please select a group company. Only super admins can create new group companies.'
+          : 'Please select a group company from the dropdown. Only super admins can create new group companies — if no group is available, ask your super admin to create one under your tenant.'
       );
       return;
     }
@@ -117,7 +125,10 @@ export default function CompaniesPage() {
       const body: Record<string, unknown> = { ...form }
       if (isEdit) body.id = editingId
       // Ensure companyGroupId is sent as a proper value (not empty string)
-      if (!body.companyGroupId) delete body.companyGroupId
+      // BUG FIX: Only delete companyGroupId if it's truly empty/falsy AND
+      // the user is super_admin (who can auto-create groups). For tenant_admin,
+      // the check above guarantees companyGroupId is set, so we keep it.
+      if (!body.companyGroupId && isSuperAdmin) delete body.companyGroupId
       await apiFetch(url, { method, body: JSON.stringify(body) })
       toast.success(`Company ${isEdit ? 'updated' : 'created'} successfully`)
       handleCancelForm()
