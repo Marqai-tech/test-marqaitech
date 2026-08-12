@@ -54,11 +54,11 @@ interface AppState {
   setCompanies: (companies: CompanyInfo[]) => void;
 }
 
-const DEMO_COMPANIES: CompanyInfo[] = [
-  { id: 'comp-1', name: 'Marq AI Tech Pvt Ltd', code: '3BOXES', industry: 'IT Services', country: 'IN', currency: 'INR', employeeCount: 10, isActive: true },
-  { id: 'comp-2', name: 'ManufactPro Industries', code: 'MPI', industry: 'Manufacturing', country: 'IN', currency: 'INR', employeeCount: 5800, isActive: true },
-  { id: 'comp-3', name: 'HealthFirst Solutions', code: 'HFS', industry: 'Healthcare', country: 'GB', currency: 'GBP', employeeCount: 1200, isActive: true },
-];
+// No demo/dummy companies on the live platform.
+// Company data is always sourced from the authenticated user's context
+// via /api/me/context (see companyContextStore.ts).
+// The old DEMO_COMPANIES fallback has been removed per the live/demo separation rule.
+const EMPTY_COMPANIES: CompanyInfo[] = [];
 
 export const useAppStore = create<AppState>((set, get) => ({
   isAuthenticated: false,
@@ -69,9 +69,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   userName: '',
   userEmail: '',
   userAvatar: '',
-  
-  currentCompany: DEMO_COMPANIES[0],
-  companies: DEMO_COMPANIES,
+
+  currentCompany: null,
+  companies: EMPTY_COMPANIES,
   
   activeModule: 'dashboard',
   sidebarOpen: true,
@@ -114,7 +114,9 @@ export const useAppStore = create<AppState>((set, get) => ({
         companyCurrency: apiCompany?.currency,
       };
       
-      // Use company from API data, or fall back to demo company
+      // Use company from API data, or null if not available.
+      // No demo/dummy fallback on the live platform — company is always
+      // sourced from the authenticated user's context.
       const company = apiCompany ? {
         id: apiCompany.id,
         name: apiCompany.name,
@@ -125,7 +127,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         currency: apiCompany.currency || 'INR',
         employeeCount: 0,
         isActive: true,
-      } : DEMO_COMPANIES[0];
+      } : null;
       
       set({
         isAuthenticated: true,
@@ -149,7 +151,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       email,
       name,
       role,
-      companyId: DEMO_COMPANIES[0].id,
+      companyId: null,
       avatar: null,
     };
     set({

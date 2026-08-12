@@ -109,3 +109,30 @@ Stage Summary:
 - Employee form (40+ fields) now validates email, phone, Aadhaar (with Luhn), PAN (with entity type), IFSC, bank account, UAN
 - Search input sanitization applied to SearchBar component + 9 direct search inputs across dashboard pages
 - zod + @hookform/resolvers installed as foundation for migrating forms to react-hook-form + zod schemas
+
+---
+Task ID: 1
+Agent: main
+Task: Fix React error #31 on dashboard and remove dummy data from live site
+
+Work Log:
+- Investigated React error #31 "object with keys {id, name, code, currency, billingType}" on /dashboard
+- Traced the error to `project` field in timesheet API responses returning objects with those keys
+- Found 3 locations where project object was rendered directly as React child instead of project.name:
+  1. src/components/hrms/timesheet.tsx line 451: `{r.project}` → fixed to handle object case
+  2. src/components/hrms/timesheet.tsx line 520: `{t.project}` → fixed to handle object case
+  3. src/app/(dashboard)/dashboard/page.tsx line 749: `{t.project || t.task || 'General'}` → fixed to handle object case
+- Updated TimesheetRow interface in dashboard/page.tsx to correctly type project as string | object | null
+- Removed DEMO_COMPANIES hardcoded data from src/store/app-store.ts
+- Set default currentCompany to null instead of demo company
+- Removed demo company fallback in login method
+- Removed demo company ID from demoLogin method
+- Verified all seed/auto-seed routes have LIVE_MODE_GUARD protection
+- Verified super-admin dashboard API already filters out demo tenant in live mode
+- Build verified successful
+
+Stage Summary:
+- React error #31 root cause: timesheet API returns `project: {id, name, code, currency, billingType}` object, but UI rendered it directly as `{r.project}` instead of `{r.project?.name}`
+- Fixed by adding typeof checks: `typeof r.project === 'object' && r.project ? r.project.name : (r.project || '—')`
+- Removed all hardcoded demo/dummy company data from app-store.ts
+- Live/demo separation already enforced via isLiveMode() guards on all seed endpoints

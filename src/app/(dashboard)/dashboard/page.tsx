@@ -99,7 +99,7 @@ interface TrainingEnrollmentRow {
 interface TimesheetRow {
   id: string;
   date: string;
-  project?: string | null;
+  project?: string | { id: string; name: string; code?: string; currency?: string; billingType?: string } | null;
   task?: string | null;
   hours: number;
   status: string;
@@ -746,7 +746,7 @@ export default function ESSDashboardPage() {
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-slate-900">{fmtDate(t.date)}</p>
                     <p className="text-xs text-slate-500 mt-0.5 truncate">
-                      {t.project || t.task || 'General'} · {t.hours}h
+                      {(typeof t.project === 'object' && t.project ? t.project.name : t.project) || t.task || 'General'} · {t.hours}h
                     </p>
                   </div>
                   {statusBadge(t.status)}

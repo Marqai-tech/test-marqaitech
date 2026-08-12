@@ -448,7 +448,7 @@ export default function Timesheet() {
                     <TableBody>
                       {myWeeklyRows.map((r, idx) => (
                         <TableRow key={idx} className="border-slate-800">
-                          <TableCell className="text-white font-medium">{r.project}</TableCell>
+                          <TableCell className="text-white font-medium">{typeof r.project === 'object' && r.project ? r.project.name : (r.project || '—')}</TableCell>
                           <TableCell className="text-slate-300 text-sm">{r.task || '—'}</TableCell>
                           {r.days.map((h, di) => (
                             <TableCell key={di} className={`text-center ${h > 8 ? 'text-red-400' : di >= 5 && h > 0 ? 'text-amber-400' : 'text-slate-300'}`}>
@@ -517,7 +517,7 @@ export default function Timesheet() {
                             <div>{t.name}</div>
                             <div className="text-xs text-slate-500">{t.code}</div>
                           </TableCell>
-                          <TableCell className="text-slate-300">{t.project}</TableCell>
+                          <TableCell className="text-slate-300">{typeof t.project === 'object' && t.project ? t.project.name : (t.project || '—')}</TableCell>
                           <TableCell className="text-white font-medium text-center">{t.weekHours}h</TableCell>
                           <TableCell className="text-center">
                             <div className="flex items-center justify-center gap-2">
