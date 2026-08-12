@@ -26,7 +26,7 @@ const TH = ({ children }: { children: React.ReactNode }) => <th className="text-
 const TD = ({ children, className = '' }: { children: React.ReactNode; className?: string }) => <td className={`px-4 py-3 text-sm text-thb-text-secondary border-b border-thb-border/50 ${className}`}>{children}</td>
 
 export default function DepartmentsPage() {
-  const { companies, departments, loading, isAdmin, fetchDepartments } = useCompanyData()
+  const { companies, departments, loading, isAdmin, fetchDepartments, selectedCompanyId } = useCompanyData()
 
   const [search, setSearch] = useState('')
   const [showForm, setShowForm] = useState(false)
@@ -77,7 +77,8 @@ export default function DepartmentsPage() {
     try {
       const body: Record<string, unknown> = { ...form }
       if (isEdit) body.id = editingId
-      await apiFetch('/api/departments', { method: isEdit ? 'PUT' : 'POST', body: JSON.stringify(body) })
+      const cidParam = selectedCompanyId ? `?companyId=${selectedCompanyId}` : ''
+      await apiFetch(`/api/departments${cidParam}`, { method: isEdit ? 'PUT' : 'POST', body: JSON.stringify(body) })
       toast.success(`Department ${isEdit ? 'updated' : 'created'} successfully`)
       handleCancelForm()
       fetchDepartments()
@@ -88,7 +89,8 @@ export default function DepartmentsPage() {
   const handleDelete = async () => {
     setDeleting(true)
     try {
-      await apiFetch(`/api/departments?id=${deleteConfirmId}`, { method: 'DELETE' })
+      const cidParam = selectedCompanyId ? `&companyId=${selectedCompanyId}` : ''
+      await apiFetch(`/api/departments?id=${deleteConfirmId}${cidParam}`, { method: 'DELETE' })
       toast.success('Deleted successfully')
       fetchDepartments()
     } catch (err: unknown) { toast.error(err instanceof Error ? err.message : 'Delete failed') }

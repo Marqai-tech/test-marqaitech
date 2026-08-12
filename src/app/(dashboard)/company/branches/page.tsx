@@ -26,7 +26,7 @@ const TH = ({ children }: { children: React.ReactNode }) => <th className="text-
 const TD = ({ children, className = '' }: { children: React.ReactNode; className?: string }) => <td className={`px-4 py-3 text-sm text-thb-text-secondary border-b border-thb-border/50 ${className}`}>{children}</td>
 
 export default function BranchesPage() {
-  const { companies, branches, loading, isAdmin, fetchBranches } = useCompanyData()
+  const { companies, branches, loading, isAdmin, fetchBranches, selectedCompanyId } = useCompanyData()
 
   const [search, setSearch] = useState('')
   const [showForm, setShowForm] = useState(false)
@@ -89,7 +89,8 @@ export default function BranchesPage() {
     try {
       const body: Record<string, unknown> = { ...form }
       if (isEdit) body.id = editingId
-      await apiFetch('/api/branches', { method: isEdit ? 'PUT' : 'POST', body: JSON.stringify(body) })
+      const cidParam = selectedCompanyId ? `?companyId=${selectedCompanyId}` : ''
+      await apiFetch(`/api/branches${cidParam}`, { method: isEdit ? 'PUT' : 'POST', body: JSON.stringify(body) })
       toast.success(`Branch ${isEdit ? 'updated' : 'created'} successfully`)
       handleCancelForm()
       fetchBranches()
@@ -100,7 +101,8 @@ export default function BranchesPage() {
   const handleDelete = async () => {
     setDeleting(true)
     try {
-      await apiFetch(`/api/branches?id=${deleteConfirmId}`, { method: 'DELETE' })
+      const cidParam = selectedCompanyId ? `&companyId=${selectedCompanyId}` : ''
+      await apiFetch(`/api/branches?id=${deleteConfirmId}${cidParam}`, { method: 'DELETE' })
       toast.success('Deleted successfully')
       fetchBranches()
     } catch (err: unknown) { toast.error(err instanceof Error ? err.message : 'Delete failed') }

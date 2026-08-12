@@ -86,14 +86,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Title and departmentId are required' }, { status: 400, headers: corsHeaders() });
     }
 
-    // Verify the department belongs to the user's company
+    // Verify the department belongs to the user's/company-switcher's company
     const companyFilter = await getCompanyFilter(req);
     if (companyFilter && 'companyId' in companyFilter) {
       const department = await db.department.findFirst({
-        where: { id: departmentId, ...companyFilter },
+        where: { id: departmentId, companyId: companyFilter.companyId as string },
       });
       if (!department) {
-        return NextResponse.json({ error: 'Department not found in your company scope' }, { status: 403, headers: corsHeaders() });
+        return NextResponse.json({ error: 'Department not found in the selected company. Please select a valid department for this company.' }, { status: 403, headers: corsHeaders() });
+      }
+    } else {
+      // No company filter (admin without company selected) — just verify the department exists
+      const department = await db.department.findFirst({
+        where: { id: departmentId },
+      });
+      if (!department) {
+        return NextResponse.json({ error: 'Department not found' }, { status: 404, headers: corsHeaders() });
       }
     }
 

@@ -34,7 +34,7 @@ const typeMap: Record<string, string> = {
 }
 
 export default function HolidaysPage() {
-  const { holidays, loading, isAdmin, fetchHolidays } = useCompanyData()
+  const { holidays, loading, isAdmin, fetchHolidays, selectedCompanyId } = useCompanyData()
   const companyId = useCompanyContextStore(s => s.effectiveCompanyId())
 
   const [search, setSearch] = useState('')
@@ -87,7 +87,8 @@ export default function HolidaysPage() {
       const body: Record<string, unknown> = { ...form, companyId }
       if (isEdit) body.id = editingId
       if (!companyId) { toast.error('Company ID is required'); setSubmitting(false); return }
-      await apiFetch('/api/holidays', { method: isEdit ? 'PUT' : 'POST', body: JSON.stringify(body) })
+      const cidParam = selectedCompanyId ? `?companyId=${selectedCompanyId}` : ''
+      await apiFetch(`/api/holidays${cidParam}`, { method: isEdit ? 'PUT' : 'POST', body: JSON.stringify(body) })
       toast.success(`Holiday ${isEdit ? 'updated' : 'created'} successfully`)
       handleCancelForm()
       fetchHolidays()
@@ -98,7 +99,8 @@ export default function HolidaysPage() {
   const handleDelete = async () => {
     setDeleting(true)
     try {
-      await apiFetch(`/api/holidays?id=${deleteConfirmId}`, { method: 'DELETE' })
+      const cidParam = selectedCompanyId ? `&companyId=${selectedCompanyId}` : ''
+      await apiFetch(`/api/holidays?id=${deleteConfirmId}${cidParam}`, { method: 'DELETE' })
       toast.success('Deleted successfully')
       fetchHolidays()
     } catch (err: unknown) { toast.error(err instanceof Error ? err.message : 'Delete failed') }
