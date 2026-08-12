@@ -41,11 +41,16 @@ export async function GET(request: Request) {
     const search = searchParams.get('search');
 
     const where: Record<string, unknown> = {};
-    // On LIVE mode, exclude the demo tenant AND the platform placeholder tenant
-    // (slug '3boxeshrms' = 'Marq AI Tech Pvt Ltd') from the list.
-    // The only live tenant is 'marqaitechgroup' (MarqAI Tech Group).
+    // BIDIRECTIONAL FILTERING:
+    //   LIVE mode (3boxeshrms.com):  Hide demo tenant + placeholder tenant
+    //     - '3boxes-hrms-demo' (demo tenant)
+    //     - '3boxeshrms' (Marq AI Tech Pvt Ltd — platform placeholder, not a real tenant)
+    //   DEMO mode (nexus-hrms-mu.vercel.app):  Hide live tenant
+    //     - 'marqaitechgroup' (MarqAI Tech Group — real/live tenant, not for demo)
     if (isLiveMode(request)) {
       where.slug = { notIn: ['3boxes-hrms-demo', '3boxeshrms'] };
+    } else {
+      where.slug = { notIn: ['marqaitechgroup'] };
     }
     if (status) where.status = status;
     if (search) {

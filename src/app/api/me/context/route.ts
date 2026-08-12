@@ -230,12 +230,17 @@ export async function GET(request: Request) {
     if (role === 'super_admin') {
       // Super admin: list ALL tenants (not just 'active' ones) so the super
       // admin can see and manage suspended/pending tenants too.
-      // On LIVE mode, exclude the demo tenant AND the platform placeholder tenant
-      // (slug '3boxeshrms' = 'Marq AI Tech Pvt Ltd') which is not a real/live tenant.
-      // The only live tenant is 'marqaitechgroup' (MarqAI Tech Group).
-      const liveTenantFilter = isLiveMode(request)
+      //
+      // BIDIRECTIONAL FILTERING:
+      //   LIVE mode (3boxeshrms.com):  Hide demo tenant + placeholder tenant
+      //     - '3boxes-hrms-demo' (demo tenant, not for production)
+      //     - '3boxeshrms' (Marq AI Tech Pvt Ltd — platform placeholder, not a real tenant)
+      //   DEMO mode (nexus-hrms-mu.vercel.app):  Hide live tenant
+      //     - 'marqaitechgroup' (MarqAI Tech Group — real/live tenant, not for demo showcase)
+      const siteMode = isLiveMode(request) ? 'live' : 'demo';
+      const liveTenantFilter = siteMode === 'live'
         ? { slug: { notIn: ['3boxes-hrms-demo', '3boxeshrms'] } }
-        : {};
+        : { slug: { notIn: ['marqaitechgroup'] } };
       availableTenants = await safe(
         'tenant.findMany(all)',
         () => getPlatformDb().tenant.findMany({
