@@ -16,8 +16,8 @@ export async function OPTIONS() {
 }
 
 export async function GET(req: NextRequest) {
-  const db = await getDb(req);
   try {
+    const db = await getDb(req);
     const designationFilter = await getDesignationCompanyFilter(req);
     if (designationFilter === null) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
@@ -68,8 +68,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const db = await getDb(req);
   try {
+    const db = await getDb(req);
+
     // ─── Tenant status guard: block writes for suspended/inactive tenants ───
     const tenantBlock = await checkTenantStatusOrBlock(req, corsHeaders);
     if (tenantBlock) return tenantBlock;
@@ -84,6 +85,22 @@ export async function POST(req: NextRequest) {
 
     if (!title || !departmentId) {
       return NextResponse.json({ error: 'Title and departmentId are required' }, { status: 400, headers: corsHeaders() });
+    }
+
+    // ─── Type-safe conversion ───
+    // Frontend form sends strings; Prisma requires Int/Float
+    const parsedLevel = level != null && level !== '' ? Number(level) : 1;
+    const parsedMinSalary = minSalary != null && minSalary !== '' ? Number(minSalary) : null;
+    const parsedMaxSalary = maxSalary != null && maxSalary !== '' ? Number(maxSalary) : null;
+
+    if (isNaN(parsedLevel)) {
+      return NextResponse.json({ error: 'Level must be a valid number' }, { status: 400, headers: corsHeaders() });
+    }
+    if (parsedMinSalary !== null && isNaN(parsedMinSalary)) {
+      return NextResponse.json({ error: 'Min Salary must be a valid number' }, { status: 400, headers: corsHeaders() });
+    }
+    if (parsedMaxSalary !== null && isNaN(parsedMaxSalary)) {
+      return NextResponse.json({ error: 'Max Salary must be a valid number' }, { status: 400, headers: corsHeaders() });
     }
 
     // Verify the department belongs to the user's/company-switcher's company
@@ -109,9 +126,9 @@ export async function POST(req: NextRequest) {
       data: {
         title,
         departmentId,
-        level: level || 1,
-        minSalary: minSalary || null,
-        maxSalary: maxSalary || null,
+        level: parsedLevel,
+        minSalary: parsedMinSalary,
+        maxSalary: parsedMaxSalary,
         status: status || 'active',
       },
       include: {
@@ -122,23 +139,46 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ designation }, { status: 201, headers: corsHeaders() });
   } catch (error) {
     console.error('Designations POST error:', error);
-    return NextResponse.json({ error: 'Failed to create designation' }, { status: 500, headers: corsHeaders() });
+    const message = error instanceof Error ? error.message : 'Failed to create designation';
+    return NextResponse.json({ error: 'Failed to create designation', detail: message }, { status: 500, headers: corsHeaders() });
   }
 }
 
 export async function PUT(req: NextRequest) {
-  const db = await getDb(req);
   try {
+    const db = await getDb(req);
     const auth = await getAuthInfo(req);
     if (!auth) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
     }
 
     const body = await req.json();
-    const { id, ...updateData } = body;
+    const { id, level, minSalary, maxSalary, ...restUpdateData } = body;
 
     if (!id) {
       return NextResponse.json({ error: 'Designation ID is required' }, { status: 400, headers: corsHeaders() });
+    }
+
+    // ─── Type-safe conversion for numeric fields ───
+    const updateData: Record<string, unknown> = { ...restUpdateData };
+    if (level !== undefined) {
+      const parsed = level !== '' ? Number(level) : 1;
+      if (isNaN(parsed)) {
+        return NextResponse.json({ error: 'Level must be a valid number' }, { status: 400, headers: corsHeaders() });
+      }
+      updateData.level = parsed;
+    }
+    if (minSalary !== undefined) {
+      updateData.minSalary = minSalary !== '' && minSalary !== null ? Number(minSalary) : null;
+      if (updateData.minSalary !== null && isNaN(updateData.minSalary as number)) {
+        return NextResponse.json({ error: 'Min Salary must be a valid number' }, { status: 400, headers: corsHeaders() });
+      }
+    }
+    if (maxSalary !== undefined) {
+      updateData.maxSalary = maxSalary !== '' && maxSalary !== null ? Number(maxSalary) : null;
+      if (updateData.maxSalary !== null && isNaN(updateData.maxSalary as number)) {
+        return NextResponse.json({ error: 'Max Salary must be a valid number' }, { status: 400, headers: corsHeaders() });
+      }
     }
 
     const existing = await db.designation.findUnique({
@@ -166,13 +206,14 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ designation }, { headers: corsHeaders() });
   } catch (error) {
     console.error('Designations PUT error:', error);
-    return NextResponse.json({ error: 'Failed to update designation' }, { status: 500, headers: corsHeaders() });
+    const message = error instanceof Error ? error.message : 'Failed to update designation';
+    return NextResponse.json({ error: 'Failed to update designation', detail: message }, { status: 500, headers: corsHeaders() });
   }
 }
 
 export async function DELETE(req: NextRequest) {
-  const db = await getDb(req);
   try {
+    const db = await getDb(req);
     const auth = await getAuthInfo(req);
     if (!auth) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
@@ -203,6 +244,7 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ message: 'Designation deleted' }, { headers: corsHeaders() });
   } catch (error) {
     console.error('Designations DELETE error:', error);
-    return NextResponse.json({ error: 'Failed to delete designation' }, { status: 500, headers: corsHeaders() });
+    const message = error instanceof Error ? error.message : 'Failed to delete designation';
+    return NextResponse.json({ error: 'Failed to delete designation', detail: message }, { status: 500, headers: corsHeaders() });
   }
 }

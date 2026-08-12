@@ -83,7 +83,7 @@ export default function ShiftsPage() {
     setSubmitting(true)
     try {
       const isEdit = !!editingId
-      const body: Record<string, unknown> = { ...form, companyId }
+      const body: Record<string, unknown> = { ...form, companyId, breakDuration: Number(form.breakDuration) || 60, graceTime: Number(form.graceTime) || 15 }
       if (isEdit) body.id = editingId
       if (!companyId) { toast.error('Company ID is required'); setSubmitting(false); return }
       const cidParam = selectedCompanyId ? `?companyId=${selectedCompanyId}` : ''

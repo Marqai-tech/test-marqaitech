@@ -62,8 +62,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const db = await getDb(req);
   try {
+    const db = await getDb(req);
     const auth = await getAuthInfo(req);
     if (!auth) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
@@ -77,6 +77,13 @@ export async function POST(req: NextRequest) {
         { error: 'Missing required fields: name, startTime, endTime' },
         { status: 400, headers: corsHeaders() },
       );
+    }
+
+    // ─── Type-safe conversion ───
+    const parsedBreakDuration = breakDuration != null && breakDuration !== '' ? Number(breakDuration) : 60;
+    const parsedGraceTime = graceTime != null && graceTime !== '' ? Number(graceTime) : 15;
+    if (isNaN(parsedBreakDuration) || isNaN(parsedGraceTime)) {
+      return NextResponse.json({ error: 'breakDuration and graceTime must be valid numbers' }, { status: 400, headers: corsHeaders() });
     }
 
     // Resolve companyId: from body, or from user's scope
@@ -100,8 +107,8 @@ export async function POST(req: NextRequest) {
         name,
         startTime,
         endTime,
-        breakDuration: breakDuration || 60,
-        graceTime: graceTime || 15,
+        breakDuration: parsedBreakDuration,
+        graceTime: parsedGraceTime,
         status: status || 'active',
         companyId: resolvedCompanyId,
       },
@@ -113,7 +120,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(shift, { status: 201, headers: corsHeaders() });
   } catch (error) {
     console.error('Shifts POST error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() });
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    return NextResponse.json({ error: 'Internal server error', detail: message }, { status: 500, headers: corsHeaders() });
   }
 }
 

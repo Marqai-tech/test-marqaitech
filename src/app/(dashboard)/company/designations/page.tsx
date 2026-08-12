@@ -80,7 +80,15 @@ export default function DesignationsPage() {
 
     setSubmitting(true)
     try {
-      const body: Record<string, unknown> = { ...form }
+      // Build body with proper types for numeric fields (Prisma expects Int/Float, not strings)
+      const body: Record<string, unknown> = {
+        title: form.title,
+        departmentId: form.departmentId,
+        level: form.level ? Number(form.level) : 1,
+        minSalary: form.minSalary ? Number(form.minSalary) : null,
+        maxSalary: form.maxSalary ? Number(form.maxSalary) : null,
+        status: form.status || 'active',
+      }
       if (isEdit) body.id = editingId
       const cidParam = selectedCompanyId ? `?companyId=${selectedCompanyId}` : ''
       await apiFetch(`/api/designations${cidParam}`, { method: isEdit ? 'PUT' : 'POST', body: JSON.stringify(body) })
