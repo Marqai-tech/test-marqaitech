@@ -65,8 +65,7 @@ export async function OPTIONS() {
   return NextResponse.json({}, { headers: CORS });
 }
 
-/** Tenant slugs that are allowed to be cleaned up. */
-const ALLOWED_SLUGS = ['3boxeshrms', 'marqaitechgroup'];
+/** Demo tenant slug that is protected from cleanup. */
 
 function ok(data: unknown, status = 200) {
   return NextResponse.json(data, { status, headers: CORS });
@@ -101,18 +100,27 @@ export async function POST(request: Request) {
     if (!tenantSlug) return fail('Missing tenantSlug in request body', 400);
 
     // ─── 3. Validate tenant slug ───
-    if (!ALLOWED_SLUGS.includes(tenantSlug)) {
-      return fail(
-        `Cleanup not allowed for tenant "${tenantSlug}". Only ${ALLOWED_SLUGS.join(', ')} tenants can be cleaned.`,
-        403,
-      );
+    // Super admin can clean any tenant. Tenant admin can only clean their own.
+    // We no longer restrict to a hardcoded allowlist — the super admin UI
+    // dynamically lists all tenants and the user chooses which to clean.
+    // Only the demo tenant slug is protected from accidental cleanup.
+    if (tenantSlug === '3boxes-hrms-demo') {
+      return fail('Cannot clean the demo tenant (3boxes-hrms-demo). It is protected.', 403);
     }
 
     // ─── 4. Find tenant ───
+    // Search by slug OR domain, and don't require active status.
+    // Some tenants may be inactive or the slug might not match exactly.
     const tenant = await getPlatformDb().tenant.findFirst({
-      where: { slug: tenantSlug, status: 'active' },
+      where: {
+        OR: [
+          { slug: tenantSlug },
+          { domain: tenantSlug },
+          { domain: `${tenantSlug}.3boxeshrms.com` },
+        ],
+      },
     });
-    if (!tenant) return fail(`Tenant with slug "${tenantSlug}" not found or inactive`, 404);
+    if (!tenant) return fail(`Tenant with slug or domain "${tenantSlug}" not found in the platform database`, 404);
 
     // If the user is a tenant_admin, they can only clean their own tenant
     if (userRole === 'tenant_admin' && userPayload.tenantId !== tenant.id) {

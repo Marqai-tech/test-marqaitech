@@ -41,9 +41,11 @@ export async function GET(request: Request) {
     const search = searchParams.get('search');
 
     const where: Record<string, unknown> = {};
-    // On LIVE mode, exclude the demo tenant from the list
+    // On LIVE mode, exclude the demo tenant AND the platform placeholder tenant
+    // (slug '3boxeshrms' = 'Marq AI Tech Pvt Ltd') from the list.
+    // The only live tenant is 'marqaitechgroup' (MarqAI Tech Group).
     if (isLiveMode(request)) {
-      where.slug = { not: '3boxes-hrms-demo' };
+      where.slug = { notIn: ['3boxes-hrms-demo', '3boxeshrms'] };
     }
     if (status) where.status = status;
     if (search) {

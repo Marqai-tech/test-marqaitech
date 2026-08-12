@@ -198,6 +198,7 @@ export default function SuperAdminPage() {
   const [cleaningUp, setCleaningUp] = useState(false);
   const [cleanupResult, setCleanupResult] = useState<Record<string, unknown> | null>(null);
   const [showCleanupConfirm, setShowCleanupConfirm] = useState(false);
+  const [cleanupTargetSlug, setCleanupTargetSlug] = useState('');
 
   const formRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<HTMLDivElement>(null);
@@ -1052,45 +1053,44 @@ export default function SuperAdminPage() {
               (companies, departments, master configs) but deletes sample employees, transactions,
               and all auto-seeded ecosystem data. The demo site (nexus-hrms-mu.vercel.app) is NOT affected.
             </p>
-            <div className="flex flex-wrap gap-2">
-              {!showCleanupConfirm ? (
-                <>
+            {tenants.length === 0 ? (
+              <p className="text-xs text-slate-500">No tenants found. Create tenants first.</p>
+            ) : !showCleanupConfirm ? (
+              <div className="flex flex-wrap gap-2">
+                {tenants.map((t) => (
                   <button
-                    onClick={() => setShowCleanupConfirm(true)}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-500 text-white text-sm font-semibold hover:bg-amber-600 shadow-sm"
-                  >
-                    <FiTrash2 className="w-4 h-4" /> Clean 3boxeshrms
-                  </button>
-                  <button
-                    onClick={() => handleCleanupDemoData('marqaitechgroup')}
+                    key={t.id}
+                    onClick={() => { setCleanupTargetSlug(t.slug); setShowCleanupConfirm(true); }}
                     disabled={cleaningUp}
                     className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-500 text-white text-sm font-semibold hover:bg-amber-600 shadow-sm disabled:opacity-60"
                   >
-                    <FiTrash2 className="w-4 h-4" /> {cleaningUp ? 'Cleaning...' : 'Clean marqaitechgroup'}
+                    <FiTrash2 className="w-4 h-4" /> {cleaningUp ? 'Cleaning...' : `Clean ${t.name}`}
                   </button>
-                </>
-              ) : (
-                <div className="w-full p-3 bg-white rounded-lg border border-amber-300 space-y-2">
-                  <p className="text-sm font-semibold text-amber-800">Confirm: Delete all demo/sample data for 3boxeshrms tenant?</p>
-                  <p className="text-xs text-amber-700">This action cannot be undone. Structural data (companies, configs) will be preserved.</p>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => handleCleanupDemoData('3boxeshrms')}
-                      disabled={cleaningUp}
-                      className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700 disabled:opacity-60"
-                    >
-                      {cleaningUp ? 'Cleaning...' : 'Yes, Delete Demo Data'}
-                    </button>
-                    <button
-                      onClick={() => setShowCleanupConfirm(false)}
-                      className="px-4 py-2 rounded-lg border border-slate-200 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-                    >
-                      Cancel
-                    </button>
-                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="p-3 bg-white rounded-lg border border-amber-300 space-y-2">
+                <p className="text-sm font-semibold text-amber-800">
+                  Confirm: Delete all demo/sample data for tenant &quot;{cleanupTargetSlug}&quot;?
+                </p>
+                <p className="text-xs text-amber-700">This action cannot be undone. Structural data (companies, configs) will be preserved.</p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleCleanupDemoData(cleanupTargetSlug)}
+                    disabled={cleaningUp}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700 disabled:opacity-60"
+                  >
+                    {cleaningUp ? 'Cleaning...' : 'Yes, Delete Demo Data'}
+                  </button>
+                  <button
+                    onClick={() => setShowCleanupConfirm(false)}
+                    className="px-4 py-2 rounded-lg border border-slate-200 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                  >
+                    Cancel
+                  </button>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
             {cleanupResult && (
               <div className="mt-3 p-3 bg-white rounded-lg border border-green-200">
                 <p className="text-xs font-semibold text-green-800 mb-1">Cleanup completed:</p>
