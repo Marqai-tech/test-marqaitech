@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getPlatformDb, getDbForTenant } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
+import { isLiveMode, isDemoTenant } from '@/lib/site-mode';
 
 function corsHeaders() {
   return {
@@ -32,22 +33,22 @@ export async function GET(request: Request) {
     }
 
     const platformDb = getPlatformDb();
+    const liveMode = isLiveMode(request);
+
+    // On LIVE mode, exclude the demo tenant from counts and lists
+    const tenantFilter = liveMode ? { slug: { not: '3boxes-hrms-demo' } } : {};
 
     // Tenant counts by status (from platform DB)
     const [totalTenants, activeTenants, suspendedTenants, inactiveTenants] = await Promise.all([
-      platformDb.tenant.count(),
-      platformDb.tenant.count({ where: { status: 'active' } }),
-      platformDb.tenant.count({ where: { status: 'suspended' } }),
-      platformDb.tenant.count({ where: { status: 'inactive' } }),
+      platformDb.tenant.count({ where: tenantFilter }),
+      platformDb.tenant.count({ where: { ...tenantFilter, status: 'active' } }),
+      platformDb.tenant.count({ where: { ...tenantFilter, status: 'suspended' } }),
+      platformDb.tenant.count({ where: { ...tenantFilter, status: 'inactive' } }),
     ]);
 
     // ─── Aggregate counts across ALL tenant databases ───
-    // The platform DB (neondb) stores Tenant, User, TenantDatabase, Subscription,
-    // and other cross-tenant records. But Company, CompanyGroup, Employee data
-    // lives in each tenant's dedicated database (tenant_marqaitechgroup, tenant_demo, etc.)
-    // So to get accurate totals, we need to query each tenant's DB and sum the results.
-
     const tenants = await platformDb.tenant.findMany({
+      where: tenantFilter,
       select: { id: true, slug: true, status: true },
     });
 

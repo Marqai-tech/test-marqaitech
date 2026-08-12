@@ -15,8 +15,8 @@ export async function OPTIONS() {
 }
 
 export async function GET(req: NextRequest) {
-  const db = await getDb(req);
   try {
+    const db = await getDb(req);
     const companyFilter = await getCompanyFilter(req);
     if (companyFilter === null) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
@@ -97,7 +97,16 @@ export async function POST(req: NextRequest) {
 
     if (!resolvedCompanyId) {
       return NextResponse.json(
-        { error: 'companyId is required' },
+        { error: 'companyId is required — please select a company first' },
+        { status: 400, headers: corsHeaders() },
+      );
+    }
+
+    // Verify the company exists in the tenant DB before creating
+    const companyExists = await db.company.findUnique({ where: { id: resolvedCompanyId }, select: { id: true } });
+    if (!companyExists) {
+      return NextResponse.json(
+        { error: 'Company not found. Please select a valid company.' },
         { status: 400, headers: corsHeaders() },
       );
     }
@@ -126,8 +135,8 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
-  const db = await getDb(req);
   try {
+    const db = await getDb(req);
     const auth = await getAuthInfo(req);
     if (!auth) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
@@ -167,8 +176,8 @@ export async function PUT(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const db = await getDb(req);
   try {
+    const db = await getDb(req);
     const auth = await getAuthInfo(req);
     if (!auth) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });

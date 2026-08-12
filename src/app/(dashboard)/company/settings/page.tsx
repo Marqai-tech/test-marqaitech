@@ -4,7 +4,6 @@ import { useState } from 'react'
 import { FiSettings, FiClock, FiBell, FiDollarSign, FiSave, FiCheck, FiGlobe } from 'react-icons/fi'
 import toast from 'react-hot-toast'
 import { useCompanyData } from '@/components/company/useCompanyData'
-import { validateEmail, validatePhone } from '@/lib/validators'
 
 interface SettingSection {
   id: string
@@ -19,7 +18,7 @@ interface SettingItem {
   id: string
   label: string
   description: string
-  type: 'toggle' | 'input' | 'select' | 'time'
+  type: 'toggle' | 'input' | 'select' | 'time' | 'readonly'
   value: string | boolean
   options?: { label: string; value: string }[]
   placeholder?: string
@@ -27,15 +26,10 @@ interface SettingItem {
 
 export default function SettingsPage() {
   const { companies } = useCompanyData()
+  const company = companies[0]
   const [saving, setSaving] = useState(false)
 
   const [settings, setSettings] = useState<Record<string, string | boolean>>({
-    // Company Information
-    companyName: companies[0]?.name || '',
-    companyCode: companies[0]?.code || '',
-    companyEmail: companies[0]?.email || '',
-    companyPhone: companies[0]?.phone || '',
-    companyWebsite: companies[0]?.website || '',
     // Working Hours
     workStartTime: '09:00',
     workEndTime: '18:00',
@@ -67,16 +61,6 @@ export default function SettingsPage() {
   const handleSave = async () => {
     setSaving(true)
     try {
-      // Validate email
-      if (settings.companyEmail) {
-        const emailResult = validateEmail(settings.companyEmail as string)
-        if (!emailResult.valid) { toast.error(emailResult.error || 'Invalid email'); setSaving(false); return }
-      }
-      // Validate phone
-      if (settings.companyPhone) {
-        const phoneResult = validatePhone(settings.companyPhone as string)
-        if (!phoneResult.valid) { toast.error(phoneResult.error || 'Invalid phone number'); setSaving(false); return }
-      }
       // Simulate saving - in real app this would call an API
       await new Promise(resolve => setTimeout(resolve, 1000))
       toast.success('Settings saved successfully')
@@ -91,15 +75,15 @@ export default function SettingsPage() {
     {
       id: 'company-info',
       title: 'Company Information',
-      description: 'Basic company details and contact information',
+      description: 'Auto-populated from company setup — managed in Companies section',
       icon: <FiGlobe className="w-5 h-5" />,
       gradient: 'from-green-500 to-emerald-600',
       settings: [
-        { id: 'companyName', label: 'Company Name', description: 'Legal name of the organization', type: 'input', value: settings.companyName as string, placeholder: 'Enter company name' },
-        { id: 'companyCode', label: 'Company Code', description: 'Short code used as identifier', type: 'input', value: settings.companyCode as string, placeholder: 'e.g. ACME' },
-        { id: 'companyEmail', label: 'Official Email', description: 'Primary company email address', type: 'input', value: settings.companyEmail as string, placeholder: 'info@company.com' },
-        { id: 'companyPhone', label: 'Phone Number', description: 'Primary contact number (10-digit Indian mobile)', type: 'input', value: settings.companyPhone as string, placeholder: '9876543210' },
-        { id: 'companyWebsite', label: 'Website', description: 'Company website URL', type: 'input', value: settings.companyWebsite as string, placeholder: 'https://www.company.com' },
+        { id: 'companyName', label: 'Company Name', description: 'Legal name of the organization', type: 'readonly', value: company?.name || '—' },
+        { id: 'companyCode', label: 'Company Code', description: 'Short code used as identifier', type: 'readonly', value: company?.code || '—' },
+        { id: 'companyEmail', label: 'Official Email', description: 'Primary company email address', type: 'readonly', value: company?.email || '—' },
+        { id: 'companyPhone', label: 'Phone Number', description: 'Primary contact number', type: 'readonly', value: company?.phone || '—' },
+        { id: 'companyWebsite', label: 'Website', description: 'Company website URL', type: 'readonly', value: company?.website || '—' },
       ],
     },
     {
@@ -190,6 +174,11 @@ export default function SettingsPage() {
                   <p className="text-xs text-thb-text-muted mt-0.5">{item.description}</p>
                 </div>
                 <div className="flex-shrink-0 sm:w-56">
+                  {item.type === 'readonly' && (
+                    <div className="w-full px-3 py-2 rounded-lg border border-thb-border bg-slate-50 text-sm text-thb-text-secondary">
+                      {item.value as string || '—'}
+                    </div>
+                  )}
                   {item.type === 'toggle' && (
                     <button
                       onClick={() => updateSetting(item.id, !settings[item.id])}

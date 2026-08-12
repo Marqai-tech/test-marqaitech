@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders, hashPassword } from '@/lib/auth';
 import { ensureSchemaSynced } from '@/lib/schema-sync';
+import { isLiveMode } from '@/lib/site-mode';
 
 function corsHeaders() {
   return {
@@ -40,6 +41,10 @@ export async function GET(request: Request) {
     const search = searchParams.get('search');
 
     const where: Record<string, unknown> = {};
+    // On LIVE mode, exclude the demo tenant from the list
+    if (isLiveMode(request)) {
+      where.slug = { not: '3boxes-hrms-demo' };
+    }
     if (status) where.status = status;
     if (search) {
       where.OR = [

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb, getDbForTenantById } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
+import { isLiveMode } from '@/lib/site-mode';
 
 function corsHeaders() {
   return {
@@ -229,9 +230,12 @@ export async function GET(request: Request) {
     if (role === 'super_admin') {
       // Super admin: list ALL tenants (not just 'active' ones) so the super
       // admin can see and manage suspended/pending tenants too.
+      // On LIVE mode, exclude the demo tenant.
+      const liveTenantFilter = isLiveMode(request) ? { slug: { not: '3boxes-hrms-demo' } } : {};
       availableTenants = await safe(
         'tenant.findMany(all)',
         () => getPlatformDb().tenant.findMany({
+          where: liveTenantFilter,
           select: { id: true, name: true, slug: true, plan: true, status: true, maxCompaniesAllowed: true },
           orderBy: { name: 'asc' },
         }),

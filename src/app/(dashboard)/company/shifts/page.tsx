@@ -121,10 +121,13 @@ export default function ShiftsPage() {
             <p className="text-sm text-thb-text-secondary">Manage work shift timings for attendance tracking</p>
           </div>
         </div>
-        {isAdmin && (
+        {isAdmin && companyId && (
           <button onClick={openAdd} className="inline-flex items-center gap-2 px-4 py-2.5 bg-teal-500 text-white rounded-lg hover:bg-teal-600 font-medium text-sm shadow-sm shadow-teal-500/25 transition-colors">
             <FiPlus className="w-4 h-4" /> Add Shift
           </button>
+        )}
+        {isAdmin && !companyId && (
+          <span className="text-xs text-amber-600 bg-amber-50 px-3 py-1.5 rounded-lg">Select a company to add shifts</span>
         )}
       </div>
 

@@ -23,6 +23,8 @@ export default getRequestConfig(async ({ requestLocale }) => {
     messages,
     // Direction for RTL support (Arabic)
     timeZone: 'UTC',
-    now: new Date(),
+    // Note: `now` field removed — passing Date objects across Server→Client
+    // boundary causes React error #31 (non-serializable props).
+    // next-intl defaults to Date.now() on the client side, which is sufficient.
   };
 });
