@@ -194,6 +194,11 @@ export default function SuperAdminPage() {
   const [auditEndDate, setAuditEndDate] = useState('');
   const [auditSearch, setAuditSearch] = useState('');
 
+  // Cleanup demo data state
+  const [cleaningUp, setCleaningUp] = useState(false);
+  const [cleanupResult, setCleanupResult] = useState<Record<string, unknown> | null>(null);
+  const [showCleanupConfirm, setShowCleanupConfirm] = useState(false);
+
   const formRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<HTMLDivElement>(null);
 
@@ -257,6 +262,33 @@ export default function SuperAdminPage() {
     } catch { toast.error('Failed to load audit logs'); }
     finally { setAuditLoading(false); }
   }, [auditPage, auditAction, auditModule, auditStartDate, auditEndDate]);
+
+  // ─── Cleanup Demo Data ────────────────────────────────────
+  const handleCleanupDemoData = useCallback(async (tenantSlug: string) => {
+    try {
+      setCleaningUp(true);
+      setCleanupResult(null);
+      const res = await fetch('/api/admin/cleanup-sample-data', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ tenantSlug }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setCleanupResult(data);
+        toast.success(`Demo data cleaned for ${tenantSlug}`);
+        fetchDashboard();
+        fetchTenants();
+      } else {
+        toast.error(data.error || 'Cleanup failed');
+      }
+    } catch {
+      toast.error('Failed to clean up demo data');
+    } finally {
+      setCleaningUp(false);
+      setShowCleanupConfirm(false);
+    }
+  }, [fetchDashboard, fetchTenants]);
 
   useEffect(() => {
     queueMicrotask(() => fetchDashboard());
@@ -1010,6 +1042,62 @@ export default function SuperAdminPage() {
               </div>
             </>
           ) : null}
+          {/* ═══ CLEANUP DEMO DATA ═══ */}
+          <div className="thb-card p-6 border-amber-200 bg-amber-50/30">
+            <h3 className="font-semibold text-thb-text-primary mb-3 flex items-center gap-2">
+              <FiTrash2 className="w-4 h-4 text-amber-600" /> Cleanup Demo / Sample Data
+            </h3>
+            <p className="text-xs text-thb-text-secondary mb-4 leading-relaxed">
+              Remove all dummy/sample/demo data from production tenants. This keeps structural data
+              (companies, departments, master configs) but deletes sample employees, transactions,
+              and all auto-seeded ecosystem data. The demo site (nexus-hrms-mu.vercel.app) is NOT affected.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {!showCleanupConfirm ? (
+                <>
+                  <button
+                    onClick={() => setShowCleanupConfirm(true)}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-500 text-white text-sm font-semibold hover:bg-amber-600 shadow-sm"
+                  >
+                    <FiTrash2 className="w-4 h-4" /> Clean 3boxeshrms
+                  </button>
+                  <button
+                    onClick={() => handleCleanupDemoData('marqaitechgroup')}
+                    disabled={cleaningUp}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-500 text-white text-sm font-semibold hover:bg-amber-600 shadow-sm disabled:opacity-60"
+                  >
+                    <FiTrash2 className="w-4 h-4" /> {cleaningUp ? 'Cleaning...' : 'Clean marqaitechgroup'}
+                  </button>
+                </>
+              ) : (
+                <div className="w-full p-3 bg-white rounded-lg border border-amber-300 space-y-2">
+                  <p className="text-sm font-semibold text-amber-800">Confirm: Delete all demo/sample data for 3boxeshrms tenant?</p>
+                  <p className="text-xs text-amber-700">This action cannot be undone. Structural data (companies, configs) will be preserved.</p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleCleanupDemoData('3boxeshrms')}
+                      disabled={cleaningUp}
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700 disabled:opacity-60"
+                    >
+                      {cleaningUp ? 'Cleaning...' : 'Yes, Delete Demo Data'}
+                    </button>
+                    <button
+                      onClick={() => setShowCleanupConfirm(false)}
+                      className="px-4 py-2 rounded-lg border border-slate-200 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+            {cleanupResult && (
+              <div className="mt-3 p-3 bg-white rounded-lg border border-green-200">
+                <p className="text-xs font-semibold text-green-800 mb-1">Cleanup completed:</p>
+                <pre className="text-[10px] text-green-700 overflow-auto max-h-40">{JSON.stringify(cleanupResult, null, 2)}</pre>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
