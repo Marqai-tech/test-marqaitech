@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, Suspense } from 'react';
+import { useState, useMemo, useEffect, Suspense } from 'react';
 import {
   FiBriefcase, FiLayers, FiCheckSquare, FiClock, FiUsers, FiFlag,
   FiPlus, FiSearch, FiFilter, FiGrid, FiList, FiChevronDown,
@@ -57,100 +57,78 @@ function getPriorityBadge(priority: string) {
   return map[priority] || 'thb-badge thb-badge-info';
 }
 
-/* ── Demo Data ── */
-const DEMO_PROJECTS = [
-  { id: '1', name: 'HRMS Core Platform', client: '3Boxes Internal', status: 'active', progress: 72, startDate: '2025-01-15', endDate: '2025-08-30', teamSize: 8, budget: 450000, manager: 'Rajesh Kumar', priority: 'high' },
-  { id: '2', name: 'Mobile App Development', client: 'TechCorp Inc', status: 'active', progress: 45, startDate: '2025-03-01', endDate: '2025-10-15', teamSize: 5, budget: 280000, manager: 'Priya Sharma', priority: 'high' },
-  { id: '3', name: 'Data Analytics Dashboard', client: 'AnalyticsPro', status: 'on_hold', progress: 30, startDate: '2025-02-10', endDate: '2025-07-20', teamSize: 4, budget: 180000, manager: 'Vikram Singh', priority: 'medium' },
-  { id: '4', name: 'API Integration Layer', client: '3Boxes Internal', status: 'active', progress: 88, startDate: '2024-11-01', endDate: '2025-06-30', teamSize: 3, budget: 120000, manager: 'Anita Desai', priority: 'medium' },
-  { id: '5', name: 'E-Commerce Platform', client: 'RetailMax', status: 'completed', progress: 100, startDate: '2024-06-01', endDate: '2025-02-28', teamSize: 10, budget: 650000, manager: 'Rajesh Kumar', priority: 'low' },
-  { id: '6', name: 'Cloud Migration', client: 'CloudFirst Ltd', status: 'active', progress: 55, startDate: '2025-04-01', endDate: '2025-12-31', teamSize: 6, budget: 320000, manager: 'Suresh Patel', priority: 'critical' },
-  { id: '7', name: 'AI Chatbot Integration', client: 'ServiceBot Inc', status: 'draft', progress: 5, startDate: '2025-07-01', endDate: '2025-11-30', teamSize: 4, budget: 200000, manager: 'Priya Sharma', priority: 'medium' },
-  { id: '8', name: 'Legacy System Upgrade', client: 'OldTech Corp', status: 'cancelled', progress: 15, startDate: '2025-01-01', endDate: '2025-06-30', teamSize: 3, budget: 150000, manager: 'Vikram Singh', priority: 'low' },
-];
-
-const DEMO_SPRINTS = [
-  { id: 's1', name: 'Sprint 12 - Core Features', projectId: '1', projectName: 'HRMS Core Platform', status: 'active', startDate: '2025-06-16', endDate: '2025-06-30', goal: 'Complete user management & reporting modules', totalTasks: 14, completedTasks: 9, velocity: 21 },
-  { id: 's2', name: 'Sprint 8 - Mobile UI', projectId: '2', projectName: 'Mobile App Development', status: 'active', startDate: '2025-06-16', endDate: '2025-06-30', goal: 'Build dashboard & notification screens', totalTasks: 10, completedTasks: 6, velocity: 15 },
-  { id: 's3', name: 'Sprint 5 - API v2', projectId: '4', projectName: 'API Integration Layer', status: 'active', startDate: '2025-06-16', endDate: '2025-06-30', goal: 'Complete REST endpoints & documentation', totalTasks: 8, completedTasks: 7, velocity: 18 },
-  { id: 's4', name: 'Sprint 13 - Planning', projectId: '1', projectName: 'HRMS Core Platform', status: 'planning', startDate: '2025-07-01', endDate: '2025-07-14', goal: 'Sprint planning for attendance module', totalTasks: 12, completedTasks: 0, velocity: 0 },
-];
-
-const DEMO_TASKS = [
-  { id: 't1', title: 'Implement user authentication flow', project: 'HRMS Core Platform', assignee: 'Amit K.', priority: 'critical', dueDate: '2025-06-25', storyPoints: 8, status: 'in_progress', sprint: 'Sprint 12' },
-  { id: 't2', title: 'Design reporting dashboard layout', project: 'HRMS Core Platform', assignee: 'Neha R.', priority: 'high', dueDate: '2025-06-28', storyPoints: 5, status: 'in_progress', sprint: 'Sprint 12' },
-  { id: 't3', title: 'Build mobile notification system', project: 'Mobile App Development', assignee: 'Ravi M.', priority: 'high', dueDate: '2025-06-30', storyPoints: 8, status: 'review', sprint: 'Sprint 8' },
-  { id: 't4', title: 'API rate limiting middleware', project: 'API Integration Layer', assignee: 'Sanjay P.', priority: 'medium', dueDate: '2025-06-27', storyPoints: 3, status: 'done', sprint: 'Sprint 5' },
-  { id: 't5', title: 'Database migration scripts', project: 'Cloud Migration', assignee: 'Kavita S.', priority: 'critical', dueDate: '2025-06-20', storyPoints: 13, status: 'backlog', sprint: 'Backlog' },
-  { id: 't6', title: 'Unit tests for payroll module', project: 'HRMS Core Platform', assignee: 'Deepak V.', priority: 'medium', dueDate: '2025-07-02', storyPoints: 5, status: 'todo', sprint: 'Sprint 12' },
-  { id: 't7', title: 'Performance optimization sprint', project: 'HRMS Core Platform', assignee: 'Amit K.', priority: 'low', dueDate: '2025-07-05', storyPoints: 3, status: 'todo', sprint: 'Sprint 13' },
-  { id: 't8', title: 'Mobile dashboard API integration', project: 'Mobile App Development', assignee: 'Neha R.', priority: 'high', dueDate: '2025-06-29', storyPoints: 8, status: 'in_progress', sprint: 'Sprint 8' },
-  { id: 't9', title: 'Cloud infrastructure setup', project: 'Cloud Migration', assignee: 'Suresh P.', priority: 'critical', dueDate: '2025-06-18', storyPoints: 13, status: 'in_progress', sprint: 'Backlog' },
-  { id: 't10', title: 'Chatbot NLP model training', project: 'AI Chatbot Integration', assignee: 'Priya S.', priority: 'medium', dueDate: '2025-08-15', storyPoints: 21, status: 'backlog', sprint: 'Backlog' },
-  { id: 't11', title: 'E2E testing for leave module', project: 'HRMS Core Platform', assignee: 'Ravi M.', priority: 'high', dueDate: '2025-06-26', storyPoints: 5, status: 'review', sprint: 'Sprint 12' },
-  { id: 't12', title: 'OAuth2 provider integration', project: 'API Integration Layer', assignee: 'Amit K.', priority: 'high', dueDate: '2025-06-30', storyPoints: 8, status: 'done', sprint: 'Sprint 5' },
-  { id: 't13', title: 'Accessibility audit report', project: 'Mobile App Development', assignee: 'Neha R.', priority: 'medium', dueDate: '2025-07-01', storyPoints: 3, status: 'todo', sprint: 'Sprint 8' },
-  { id: 't14', title: 'CI/CD pipeline configuration', project: 'Cloud Migration', assignee: 'Sanjay P.', priority: 'high', dueDate: '2025-07-03', storyPoints: 5, status: 'todo', sprint: 'Backlog' },
-  { id: 't15', title: 'Data encryption at rest', project: 'Cloud Migration', assignee: 'Kavita S.', priority: 'critical', dueDate: '2025-06-22', storyPoints: 8, status: 'review', sprint: 'Backlog' },
-];
-
 const CHART_COLORS = ['#8B5CF6', '#EC4899', '#3B82F6', '#10B981', '#F59E0B', '#EF4444'];
 
-const projectStatusData = [
-  { name: 'Active', value: 4, color: '#10B981' },
-  { name: 'On Hold', value: 1, color: '#F59E0B' },
-  { name: 'Completed', value: 1, color: '#3B82F6' },
-  { name: 'Cancelled', value: 1, color: '#EF4444' },
-  { name: 'Draft', value: 1, color: '#94A3B8' },
-];
+const STATUS_COLORS: Record<string, string> = {
+  active: '#10B981',
+  on_hold: '#F59E0B',
+  completed: '#3B82F6',
+  cancelled: '#EF4444',
+  draft: '#94A3B8',
+};
 
-const burndownData = [
-  { day: 'Day 1', ideal: 80, actual: 80 },
-  { day: 'Day 2', ideal: 73, actual: 78 },
-  { day: 'Day 3', ideal: 66, actual: 72 },
-  { day: 'Day 4', ideal: 59, actual: 65 },
-  { day: 'Day 5', ideal: 52, actual: 58 },
-  { day: 'Day 6', ideal: 45, actual: 50 },
-  { day: 'Day 7', ideal: 38, actual: 44 },
-  { day: 'Day 8', ideal: 31, actual: 38 },
-  { day: 'Day 9', ideal: 24, actual: 30 },
-  { day: 'Day 10', ideal: 17, actual: 22 },
-];
+const TASK_STATUS_COLORS: Record<string, string> = {
+  backlog: '#94A3B8',
+  todo: '#3B82F6',
+  in_progress: '#F59E0B',
+  review: '#8B5CF6',
+  done: '#10B981',
+};
 
-const taskDistData = [
-  { name: 'Backlog', count: 3, fill: '#94A3B8' },
-  { name: 'To Do', count: 4, fill: '#3B82F6' },
-  { name: 'In Progress', count: 5, fill: '#F59E0B' },
-  { name: 'Review', count: 3, fill: '#8B5CF6' },
-  { name: 'Done', count: 2, fill: '#10B981' },
-];
+const TASK_STATUS_LABELS: Record<string, string> = {
+  backlog: 'Backlog',
+  todo: 'To Do',
+  in_progress: 'In Progress',
+  review: 'Review',
+  done: 'Done',
+};
 
-const teamWorkloadData = [
-  { name: 'Amit K.', tasks: 3, color: '#8B5CF6' },
-  { name: 'Neha R.', tasks: 4, color: '#EC4899' },
-  { name: 'Ravi M.', tasks: 2, color: '#3B82F6' },
-  { name: 'Sanjay P.', tasks: 2, color: '#10B981' },
-  { name: 'Kavita S.', tasks: 2, color: '#F59E0B' },
-  { name: 'Deepak V.', tasks: 1, color: '#EF4444' },
-  { name: 'Suresh P.', tasks: 1, color: '#6366F1' },
-];
+/* ── Types ── */
+interface ApiProject {
+  id: string;
+  name: string;
+  code?: string;
+  projectType: string;
+  status: string;
+  progress: number;
+  startDate: string;
+  endDate?: string;
+  budgetAmount: number;
+  estimatedHours: number;
+  actualHours: number;
+  client?: { id: string; name: string; code?: string };
+  department?: { id: string; name: string; code?: string };
+  company?: { id: string; name: string };
+  _count?: { tasks: number; allocations: number; milestones: number };
+  tasks?: { id: string; name: string; status: string; priority: string }[];
+  allocations?: {
+    id: string; role?: string; allocationPct: number; status: string;
+    employee: { id: string; firstName: string; lastName: string; employeeId?: string };
+  }[];
+}
 
-const recentActivity = [
-  { id: '1', user: 'Amit K.', action: 'moved task', target: 'Implement user authentication flow', from: 'To Do', to: 'In Progress', time: '10 min ago', icon: <FiActivity className="w-3 h-3" /> },
-  { id: '2', user: 'Neha R.', action: 'completed', target: 'Design reporting dashboard layout', from: '', to: 'Review', time: '25 min ago', icon: <FiCheckSquare className="w-3 h-3" /> },
-  { id: '3', user: 'Sanjay P.', action: 'added comment on', target: 'API rate limiting middleware', from: '', to: '', time: '1 hour ago', icon: <FiActivity className="w-3 h-3" /> },
-  { id: '4', user: 'Rajesh Kumar', action: 'created sprint', target: 'Sprint 13 - Planning', from: '', to: '', time: '2 hours ago', icon: <FiLayers className="w-3 h-3" /> },
-  { id: '5', user: 'Priya S.', action: 'updated', target: 'AI Chatbot Integration project', from: '', to: '', time: '3 hours ago', icon: <FiEdit2 className="w-3 h-3" /> },
-  { id: '6', user: 'Kavita S.', action: 'moved task', target: 'Data encryption at rest', from: 'In Progress', to: 'Review', time: '4 hours ago', icon: <FiActivity className="w-3 h-3" /> },
-];
+interface ApiTask {
+  id: string;
+  name: string;
+  status: string;
+  priority: string;
+  estimatedHours: number;
+  actualHours: number;
+  assignedToId?: string;
+  plannedEnd?: string;
+  project?: { id: string; name: string };
+  projectTask?: { isBillable: boolean };
+}
 
-const upcomingDeadlines = [
-  { id: '1', title: 'Cloud infrastructure setup', project: 'Cloud Migration', dueDate: '2025-06-18', priority: 'critical', assignee: 'Suresh P.' },
-  { id: '2', title: 'Data encryption at rest', project: 'Cloud Migration', dueDate: '2025-06-22', priority: 'critical', assignee: 'Kavita S.' },
-  { id: '3', title: 'Database migration scripts', project: 'Cloud Migration', dueDate: '2025-06-20', priority: 'critical', assignee: 'Kavita S.' },
-  { id: '4', title: 'Implement user authentication flow', project: 'HRMS Core Platform', dueDate: '2025-06-25', priority: 'critical', assignee: 'Amit K.' },
-  { id: '5', title: 'E2E testing for leave module', project: 'HRMS Core Platform', dueDate: '2025-06-26', priority: 'high', assignee: 'Ravi M.' },
-];
+/* ── Empty State Component ── */
+function EmptyChartState({ message }: { message: string }) {
+  return (
+    <div className="h-[200px] flex flex-col items-center justify-center text-slate-400">
+      <FiBarChart2 className="w-8 h-8 mb-2 text-slate-300" />
+      <p className="text-sm">{message}</p>
+    </div>
+  );
+}
 
 /* ── Tab Types ── */
 type TabId = 'dashboard' | 'projects' | 'sprints' | 'tasks' | 'timeline' | 'reports';
@@ -233,6 +211,7 @@ export default function ProjectManagementPage() {
 
 /* ── Main Component ── */
 function ProjectManagementContent() {
+  const { user } = useAuthStore();
   const [activeTab, setActiveTab] = useState<TabId>('dashboard');
   const [searchQuery, setSearchQuery] = useState('');
   const [projectViewMode, setProjectViewMode] = useState<'grid' | 'list'>('grid');
@@ -243,36 +222,164 @@ function ProjectManagementContent() {
   const [myTasksOnly, setMyTasksOnly] = useState(false);
   const [draggedTask, setDraggedTask] = useState<string | null>(null);
 
-  const stats = useMemo(() => ({
-    totalProjects: DEMO_PROJECTS.length,
-    activeSprints: DEMO_SPRINTS.filter(s => s.status === 'active').length,
-    tasksThisWeek: 23,
-    overdueTasks: DEMO_TASKS.filter(t => new Date(t.dueDate) < new Date() && t.status !== 'done').length,
-    teamUtilization: 78,
-    completedMilestones: 12,
-  }), []);
+  // API data state
+  const [projects, setProjects] = useState<ApiProject[]>([]);
+  const [allTasks, setAllTasks] = useState<ApiTask[]>([]);
+  const [loading, setLoading] = useState(true);
 
+  // Fetch data on mount
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  async function fetchData() {
+    try {
+      setLoading(true);
+      const [projRes, taskRes] = await Promise.all([
+        fetch('/api/projects?limit=50', { headers: getAuthHeaders() }),
+        fetch('/api/project-reports', { headers: getAuthHeaders() }),
+      ]);
+
+      if (projRes.ok) {
+        const projData = await projRes.json();
+        setProjects(projData.projects || []);
+      }
+
+      if (taskRes.ok) {
+        const reportData = await taskRes.json();
+        // Fetch all tasks across projects
+        if (reportData.budgetVsActual) {
+          // We have report data; also try to get individual tasks
+        }
+      }
+
+      // Fetch tasks for all projects (batch)
+      if (projects.length > 0) {
+        // We'll rely on the tasks included in project data
+      }
+    } catch {
+      // Silently handle - empty state will show
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // Refetch when projects load to get tasks
+  useEffect(() => {
+    if (projects.length > 0 && allTasks.length === 0) {
+      fetchAllTasks();
+    }
+  }, [projects]);
+
+  async function fetchAllTasks() {
+    try {
+      // Fetch tasks from a few projects to populate kanban
+      const taskPromises = projects.slice(0, 10).map(p =>
+        fetch(`/api/projects/${p.id}/tasks?limit=50`, { headers: getAuthHeaders() })
+          .then(res => res.ok ? res.json() : { tasks: [] })
+          .catch(() => ({ tasks: [] }))
+      );
+      const results = await Promise.all(taskPromises);
+      const tasks: ApiTask[] = [];
+      for (let i = 0; i < results.length; i++) {
+        const result = results[i] as { tasks: ApiTask[] };
+        for (const t of (result.tasks || [])) {
+          tasks.push({ ...t, project: { id: projects[i].id, name: projects[i].name } });
+        }
+      }
+      setAllTasks(tasks);
+    } catch {
+      // Silently handle
+    }
+  }
+
+  // Also load on initial fetch complete
+  useEffect(() => {
+    if (!loading && projects.length > 0 && allTasks.length === 0) {
+      fetchAllTasks();
+    }
+  }, [loading]);
+
+  // Computed data
   const filteredProjects = useMemo(() => {
-    let projects = DEMO_PROJECTS;
-    if (projectFilter !== 'all') projects = projects.filter(p => p.status === projectFilter);
-    if (searchQuery) projects = projects.filter(p =>
+    let filtered = projects;
+    if (projectFilter !== 'all') filtered = filtered.filter(p => p.status === projectFilter);
+    if (searchQuery) filtered = filtered.filter(p =>
       p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.client.toLowerCase().includes(searchQuery.toLowerCase())
+      (p.client?.name || '').toLowerCase().includes(searchQuery.toLowerCase())
     );
-    return projects;
-  }, [projectFilter, searchQuery]);
+    return filtered;
+  }, [projects, projectFilter, searchQuery]);
+
+  const projectStatusData = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const p of projects) {
+      counts[p.status] = (counts[p.status] || 0) + 1;
+    }
+    return Object.entries(counts).map(([status, value]) => ({
+      name: formatStatus(status),
+      value,
+      color: STATUS_COLORS[status] || '#94A3B8',
+    }));
+  }, [projects]);
+
+  const taskDistData = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const t of allTasks) {
+      const status = t.status || 'todo';
+      counts[status] = (counts[status] || 0) + 1;
+    }
+    return Object.entries(counts).map(([status, count]) => ({
+      name: TASK_STATUS_LABELS[status] || status,
+      count,
+      fill: TASK_STATUS_COLORS[status] || '#94A3B8',
+    }));
+  }, [allTasks]);
+
+  const teamWorkloadData = useMemo(() => {
+    // Compute workload from project allocations
+    const workload: Record<string, { tasks: number; color: string }> = {};
+    let colorIdx = 0;
+    for (const p of projects) {
+      for (const alloc of (p.allocations || [])) {
+        const name = `${alloc.employee.firstName} ${alloc.employee.lastName}`;
+        if (!workload[name]) {
+          workload[name] = { tasks: 0, color: CHART_COLORS[colorIdx % CHART_COLORS.length] };
+          colorIdx++;
+        }
+        workload[name].tasks += 1;
+      }
+    }
+    return Object.entries(workload).map(([name, data]) => ({
+      name,
+      tasks: data.tasks,
+      color: data.color,
+    }));
+  }, [projects]);
+
+  const overdueTasksList = useMemo(() => {
+    return allTasks.filter(t => {
+      if (!t.plannedEnd || t.status === 'done' || t.status === 'cancelled') return false;
+      return new Date(t.plannedEnd) < new Date();
+    });
+  }, [allTasks]);
 
   const kanbanColumns = useMemo(() => [
-    { key: 'backlog', label: 'Backlog', color: 'bg-slate-100', borderColor: 'border-t-slate-400', tasks: DEMO_TASKS.filter(t => t.status === 'backlog') },
-    { key: 'todo', label: 'To Do', color: 'bg-green-50', borderColor: 'border-t-green-500', tasks: DEMO_TASKS.filter(t => t.status === 'todo') },
-    { key: 'in_progress', label: 'In Progress', color: 'bg-amber-50', borderColor: 'border-t-amber-500', tasks: DEMO_TASKS.filter(t => t.status === 'in_progress') },
-    { key: 'review', label: 'Review', color: 'bg-teal-50', borderColor: 'border-t-teal-500', tasks: DEMO_TASKS.filter(t => t.status === 'review') },
-    { key: 'done', label: 'Done', color: 'bg-emerald-50', borderColor: 'border-t-emerald-500', tasks: DEMO_TASKS.filter(t => t.status === 'done') },
-  ], []);
+    { key: 'backlog', label: 'Backlog', color: 'bg-slate-100', borderColor: 'border-t-slate-400', tasks: allTasks.filter(t => t.status === 'backlog') },
+    { key: 'todo', label: 'To Do', color: 'bg-green-50', borderColor: 'border-t-green-500', tasks: allTasks.filter(t => t.status === 'todo') },
+    { key: 'in_progress', label: 'In Progress', color: 'bg-amber-50', borderColor: 'border-t-amber-500', tasks: allTasks.filter(t => t.status === 'in_progress') },
+    { key: 'review', label: 'Review', color: 'bg-teal-50', borderColor: 'border-t-teal-500', tasks: allTasks.filter(t => t.status === 'review') },
+    { key: 'done', label: 'Done', color: 'bg-emerald-50', borderColor: 'border-t-emerald-500', tasks: allTasks.filter(t => t.status === 'done') },
+  ], [allTasks]);
 
-  const overdueTasksList = useMemo(() =>
-    DEMO_TASKS.filter(t => new Date(t.dueDate) < new Date() && t.status !== 'done'),
-    []);
+  const stats = useMemo(() => ({
+    totalProjects: projects.length,
+    activeSprints: 0, // No sprint data from API
+    tasksThisWeek: allTasks.length,
+    overdueTasks: overdueTasksList.length,
+    teamUtilization: projects.length > 0 ? Math.round(projects.reduce((a, p) => a + (p.progress || 0), 0) / projects.length) : 0,
+    completedMilestones: 0, // No milestone data from API
+  }), [projects, allTasks, overdueTasksList]);
 
   /* ── Dashboard Tab ── */
   const renderDashboard = () => (
@@ -282,74 +389,88 @@ function ProjectManagementContent() {
         {/* Project Status Pie */}
         <div className="thb-card p-4">
           <h3 className="text-sm font-semibold text-slate-700 mb-3">Project Status</h3>
-          <ResponsiveContainer width="100%" height={200}>
-            <PieChart>
-              <Pie data={projectStatusData} cx="50%" cy="50%" innerRadius={45} outerRadius={75} paddingAngle={3} dataKey="value">
-                {projectStatusData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
-          <div className="flex flex-wrap gap-2 mt-2">
-            {projectStatusData.map((d, i) => (
-              <span key={i} className="flex items-center gap-1 text-xs text-slate-600">
-                <span className="w-2 h-2 rounded-full" style={{ background: d.color }} />{d.name} ({d.value})
-              </span>
-            ))}
-          </div>
+          {loading ? (
+            <div className="h-[200px] animate-pulse bg-slate-100 rounded" />
+          ) : projectStatusData.length > 0 ? (
+            <>
+              <ResponsiveContainer width="100%" height={200}>
+                <PieChart>
+                  <Pie data={projectStatusData} cx="50%" cy="50%" innerRadius={45} outerRadius={75} paddingAngle={3} dataKey="value">
+                    {projectStatusData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {projectStatusData.map((d, i) => (
+                  <span key={i} className="flex items-center gap-1 text-xs text-slate-600">
+                    <span className="w-2 h-2 rounded-full" style={{ background: d.color }} />{d.name} ({d.value})
+                  </span>
+                ))}
+              </div>
+            </>
+          ) : (
+            <EmptyChartState message="No project data" />
+          )}
         </div>
 
-        {/* Sprint Burndown */}
+        {/* Sprint Burndown — requires sprint data not available via API */}
         <div className="thb-card p-4">
           <h3 className="text-sm font-semibold text-slate-700 mb-3">Sprint Burndown</h3>
-          <ResponsiveContainer width="100%" height={200}>
-            <AreaChart data={burndownData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
-              <XAxis dataKey="day" tick={{ fontSize: 10 }} />
-              <YAxis tick={{ fontSize: 10 }} />
-              <Tooltip />
-              <Legend iconType="line" wrapperStyle={{ fontSize: 10 }} />
-              <Area type="monotone" dataKey="ideal" stroke="#94A3B8" fill="#F1F5F9" strokeWidth={2} strokeDasharray="5 5" name="Ideal" />
-              <Area type="monotone" dataKey="actual" stroke="#8B5CF6" fill="#F5F3FF" strokeWidth={2} name="Actual" />
-            </AreaChart>
-          </ResponsiveContainer>
+          {projects.length > 0 ? (
+            <EmptyChartState message="Sprint data not available" />
+          ) : (
+            <EmptyChartState message="No sprint data" />
+          )}
         </div>
 
         {/* Task Distribution */}
         <div className="thb-card p-4">
           <h3 className="text-sm font-semibold text-slate-700 mb-3">Task Distribution</h3>
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={taskDistData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
-              <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-              <YAxis tick={{ fontSize: 10 }} />
-              <Tooltip />
-              <Bar dataKey="count" radius={[4, 4, 0, 0]}>
-                {taskDistData.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+          {loading ? (
+            <div className="h-[200px] animate-pulse bg-slate-100 rounded" />
+          ) : taskDistData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={taskDistData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
+                <XAxis dataKey="name" tick={{ fontSize: 10 }} />
+                <YAxis tick={{ fontSize: 10 }} />
+                <Tooltip />
+                <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+                  {taskDistData.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <EmptyChartState message="No task data" />
+          )}
         </div>
 
         {/* Team Workload */}
         <div className="thb-card p-4">
           <h3 className="text-sm font-semibold text-slate-700 mb-3">Team Workload</h3>
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={teamWorkloadData} layout="vertical">
-              <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
-              <XAxis type="number" tick={{ fontSize: 10 }} />
-              <YAxis dataKey="name" type="category" tick={{ fontSize: 10 }} width={60} />
-              <Tooltip />
-              <Bar dataKey="tasks" radius={[0, 4, 4, 0]}>
-                {teamWorkloadData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+          {loading ? (
+            <div className="h-[200px] animate-pulse bg-slate-100 rounded" />
+          ) : teamWorkloadData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={teamWorkloadData} layout="vertical">
+                <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
+                <XAxis type="number" tick={{ fontSize: 10 }} />
+                <YAxis dataKey="name" type="category" tick={{ fontSize: 10 }} width={60} />
+                <Tooltip />
+                <Bar dataKey="tasks" radius={[0, 4, 4, 0]}>
+                  {teamWorkloadData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <EmptyChartState message="No allocation data" />
+          )}
         </div>
       </div>
 
       {/* Bottom Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Overdue Tasks */}
         <div className="thb-card p-4">
           <div className="flex items-center justify-between mb-3">
@@ -362,37 +483,13 @@ function ProjectManagementContent() {
             {overdueTasksList.map(t => (
               <div key={t.id} className="flex items-center justify-between p-2 rounded-lg bg-red-50 border border-red-100">
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-slate-800 truncate">{t.title}</p>
-                  <p className="text-xs text-slate-500">{t.project} &middot; {t.assignee}</p>
+                  <p className="text-sm font-medium text-slate-800 truncate">{t.name}</p>
+                  <p className="text-xs text-slate-500">{t.project?.name || '—'}</p>
                 </div>
-                <span className="text-xs text-red-600 font-medium ml-2">{formatDate(t.dueDate)}</span>
+                <span className="text-xs text-red-600 font-medium ml-2">{formatDate(t.plannedEnd)}</span>
               </div>
             ))}
             {overdueTasksList.length === 0 && <p className="text-sm text-slate-400 text-center py-4">No overdue tasks</p>}
-          </div>
-        </div>
-
-        {/* Recent Activity */}
-        <div className="thb-card p-4">
-          <h3 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
-            <FiActivity className="w-4 h-4 text-teal-500" /> Recent Activity
-          </h3>
-          <div className="space-y-2 max-h-64 overflow-y-auto">
-            {recentActivity.map(a => (
-              <div key={a.id} className="flex gap-2 p-2 rounded-lg hover:bg-slate-50 transition-colors">
-                <div className="w-7 h-7 rounded-full bg-teal-100 text-teal-600 flex items-center justify-center flex-shrink-0 text-xs font-semibold">
-                  {a.user.split(' ').map(w => w[0]).join('')}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs text-slate-700">
-                    <span className="font-semibold">{a.user}</span> {a.action}{' '}
-                    <span className="font-medium text-slate-900">{a.target}</span>
-                    {a.from && a.to && <span className="text-slate-400"> ({a.from} → {a.to})</span>}
-                  </p>
-                  <p className="text-xs text-slate-400">{a.time}</p>
-                </div>
-              </div>
-            ))}
           </div>
         </div>
 
@@ -402,18 +499,25 @@ function ProjectManagementContent() {
             <FiCalendar className="w-4 h-4 text-amber-500" /> Upcoming Deadlines
           </h3>
           <div className="space-y-2 max-h-64 overflow-y-auto">
-            {upcomingDeadlines.map(d => (
-              <div key={d.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-slate-50 transition-colors">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-slate-800 truncate">{d.title}</p>
-                  <p className="text-xs text-slate-500">{d.project} &middot; {d.assignee}</p>
+            {allTasks
+              .filter(t => t.plannedEnd && t.status !== 'done' && t.status !== 'cancelled' && new Date(t.plannedEnd) >= new Date())
+              .sort((a, b) => new Date(a.plannedEnd!).getTime() - new Date(b.plannedEnd!).getTime())
+              .slice(0, 5)
+              .map(t => (
+                <div key={t.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-slate-50 transition-colors">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-slate-800 truncate">{t.name}</p>
+                    <p className="text-xs text-slate-500">{t.project?.name || '—'}</p>
+                  </div>
+                  <div className="flex flex-col items-end ml-2">
+                    <span className={getPriorityBadge(t.priority)}>{t.priority}</span>
+                    <span className="text-xs text-slate-400 mt-1">{formatDate(t.plannedEnd)}</span>
+                  </div>
                 </div>
-                <div className="flex flex-col items-end ml-2">
-                  <span className={getPriorityBadge(d.priority)}>{d.priority}</span>
-                  <span className="text-xs text-slate-400 mt-1">{formatDate(d.dueDate)}</span>
-                </div>
-              </div>
-            ))}
+              ))}
+            {allTasks.filter(t => t.plannedEnd && t.status !== 'done' && t.status !== 'cancelled' && new Date(t.plannedEnd) >= new Date()).length === 0 && (
+              <p className="text-sm text-slate-400 text-center py-4">No upcoming deadlines</p>
+            )}
           </div>
         </div>
       </div>
@@ -468,15 +572,29 @@ function ProjectManagementContent() {
         </div>
       </div>
 
-      {/* Grid View */}
-      {projectViewMode === 'grid' ? (
+      {loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="thb-card p-4 animate-pulse">
+              <div className="h-4 bg-slate-200 rounded w-2/3 mb-2" />
+              <div className="h-3 bg-slate-100 rounded w-1/2 mb-4" />
+              <div className="h-2 bg-slate-100 rounded mb-4" />
+              <div className="grid grid-cols-2 gap-2">
+                <div className="h-3 bg-slate-100 rounded" />
+                <div className="h-3 bg-slate-100 rounded" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : projectViewMode === 'grid' ? (
+        /* Grid View */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredProjects.map(p => (
             <div key={p.id} className="thb-card thb-card-hover p-4 cursor-pointer">
               <div className="flex items-start justify-between mb-3">
                 <div className="flex-1 min-w-0">
                   <h3 className="text-sm font-semibold text-slate-800 truncate">{p.name}</h3>
-                  <p className="text-xs text-slate-500 mt-0.5">{p.client}</p>
+                  <p className="text-xs text-slate-500 mt-0.5">{p.client?.name || p.company?.name || '—'}</p>
                 </div>
                 <span className={getStatusBadge(p.status)}>{formatStatus(p.status)}</span>
               </div>
@@ -491,9 +609,9 @@ function ProjectManagementContent() {
               </div>
               <div className="grid grid-cols-2 gap-2 text-xs text-slate-500">
                 <div className="flex items-center gap-1"><FiCalendar className="w-3 h-3" />{formatDate(p.startDate)}</div>
-                <div className="flex items-center gap-1"><FiUsers className="w-3 h-3" />{p.teamSize} members</div>
-                <div className="flex items-center gap-1"><FiUser className="w-3 h-3" />{p.manager}</div>
-                <div className="flex items-center gap-1"><span className="font-medium text-slate-700">${(p.budget / 1000).toFixed(0)}k</span> budget</div>
+                <div className="flex items-center gap-1"><FiUsers className="w-3 h-3" />{p._count?.allocations || 0} members</div>
+                <div className="flex items-center gap-1"><FiFileText className="w-3 h-3" />{p._count?.tasks || 0} tasks</div>
+                <div className="flex items-center gap-1"><span className="font-medium text-slate-700">${((p.budgetAmount || 0) / 1000).toFixed(0)}k</span> budget</div>
               </div>
             </div>
           ))}
@@ -510,7 +628,6 @@ function ProjectManagementContent() {
                   <th className="text-left px-4 py-3 font-semibold text-slate-600">Client</th>
                   <th className="text-left px-4 py-3 font-semibold text-slate-600">Status</th>
                   <th className="text-left px-4 py-3 font-semibold text-slate-600">Progress</th>
-                  <th className="text-left px-4 py-3 font-semibold text-slate-600">Manager</th>
                   <th className="text-left px-4 py-3 font-semibold text-slate-600">Team</th>
                   <th className="text-left px-4 py-3 font-semibold text-slate-600">Budget</th>
                   <th className="text-left px-4 py-3 font-semibold text-slate-600">Dates</th>
@@ -520,7 +637,7 @@ function ProjectManagementContent() {
                 {filteredProjects.map(p => (
                   <tr key={p.id} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
                     <td className="px-4 py-3 font-medium text-slate-800">{p.name}</td>
-                    <td className="px-4 py-3 text-slate-600">{p.client}</td>
+                    <td className="px-4 py-3 text-slate-600">{p.client?.name || '—'}</td>
                     <td className="px-4 py-3"><span className={getStatusBadge(p.status)}>{formatStatus(p.status)}</span></td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
@@ -530,9 +647,8 @@ function ProjectManagementContent() {
                         <span className="text-xs text-slate-500">{p.progress}%</span>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-slate-600">{p.manager}</td>
-                    <td className="px-4 py-3 text-slate-600">{p.teamSize}</td>
-                    <td className="px-4 py-3 text-slate-700 font-medium">${(p.budget / 1000).toFixed(0)}k</td>
+                    <td className="px-4 py-3 text-slate-600">{p._count?.allocations || 0}</td>
+                    <td className="px-4 py-3 text-slate-700 font-medium">${((p.budgetAmount || 0) / 1000).toFixed(0)}k</td>
                     <td className="px-4 py-3 text-xs text-slate-500">{formatDate(p.startDate)} — {formatDate(p.endDate)}</td>
                   </tr>
                 ))}
@@ -555,87 +671,11 @@ function ProjectManagementContent() {
         </button>
       </div>
 
-      {/* Active Sprints */}
-      <div>
-        <h4 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
-          <FiPlay className="w-4 h-4 text-emerald-500" /> Active Sprints
-        </h4>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {DEMO_SPRINTS.filter(s => s.status === 'active').map(s => {
-            const pct = s.totalTasks > 0 ? Math.round((s.completedTasks / s.totalTasks) * 100) : 0;
-            return (
-              <div key={s.id} className="thb-card thb-card-hover p-4">
-                <div className="flex items-start justify-between mb-2">
-                  <div>
-                    <h5 className="text-sm font-semibold text-slate-800">{s.name}</h5>
-                    <p className="text-xs text-slate-500 mt-0.5">{s.projectName}</p>
-                  </div>
-                  <span className="thb-badge thb-badge-success">Active</span>
-                </div>
-                <p className="text-xs text-slate-500 mb-3">Goal: {s.goal}</p>
-                <div className="mb-3">
-                  <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
-                    <span>{s.completedTasks}/{s.totalTasks} tasks</span>
-                    <span className="font-medium">{pct}%</span>
-                  </div>
-                  <div className="w-full bg-slate-100 rounded-full h-2">
-                    <div className="h-2 rounded-full bg-emerald-500 transition-all" style={{ width: `${pct}%` }} />
-                  </div>
-                </div>
-                <div className="flex items-center justify-between text-xs text-slate-500">
-                  <span className="flex items-center gap-1"><FiCalendar className="w-3 h-3" />{formatDate(s.startDate)} — {formatDate(s.endDate)}</span>
-                  <span className="flex items-center gap-1"><FiZap className="w-3 h-3 text-amber-500" />Velocity: {s.velocity}</span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Planning Sprints */}
-      <div>
-        <h4 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
-          <FiPause className="w-4 h-4 text-amber-500" /> Planning
-        </h4>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {DEMO_SPRINTS.filter(s => s.status === 'planning').map(s => (
-            <div key={s.id} className="thb-card p-4 border-dashed border-2">
-              <div className="flex items-start justify-between mb-2">
-                <div>
-                  <h5 className="text-sm font-semibold text-slate-800">{s.name}</h5>
-                  <p className="text-xs text-slate-500 mt-0.5">{s.projectName}</p>
-                </div>
-                <span className="thb-badge thb-badge-warning">Planning</span>
-              </div>
-              <p className="text-xs text-slate-500 mb-2">Goal: {s.goal}</p>
-              <div className="flex items-center justify-between text-xs text-slate-500">
-                <span className="flex items-center gap-1"><FiCalendar className="w-3 h-3" />{formatDate(s.startDate)} — {formatDate(s.endDate)}</span>
-                <span>{s.totalTasks} tasks planned</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Sprint Velocity Chart */}
-      <div className="thb-card p-4">
-        <h4 className="text-sm font-semibold text-slate-700 mb-3">Sprint Velocity Trend</h4>
-        <ResponsiveContainer width="100%" height={200}>
-          <BarChart data={[
-            { sprint: 'S8', velocity: 18 },
-            { sprint: 'S9', velocity: 22 },
-            { sprint: 'S10', velocity: 19 },
-            { sprint: 'S11', velocity: 24 },
-            { sprint: 'S12', velocity: 21 },
-            { sprint: 'S5', velocity: 18 },
-          ]}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
-            <XAxis dataKey="sprint" tick={{ fontSize: 11 }} />
-            <YAxis tick={{ fontSize: 11 }} />
-            <Tooltip />
-            <Bar dataKey="velocity" fill="#8B5CF6" radius={[4, 4, 0, 0]} name="Story Points" />
-          </BarChart>
-        </ResponsiveContainer>
+      {/* No sprint data available from API — show empty state */}
+      <div className="thb-card p-8 text-center">
+        <FiLayers className="w-10 h-10 mx-auto text-slate-300 mb-3" />
+        <h4 className="text-sm font-semibold text-slate-700 mb-1">No Sprint Data</h4>
+        <p className="text-xs text-slate-500 max-w-md mx-auto">Sprint management data is not yet available from the API. Create sprints to see them here.</p>
       </div>
     </div>
   );
@@ -655,276 +695,211 @@ function ProjectManagementContent() {
         </button>
       </div>
 
-      {/* Kanban Board */}
-      <div className="flex gap-4 overflow-x-auto pb-4" style={{ minHeight: '400px' }}>
-        {kanbanColumns.map(col => (
-          <div key={col.key} className="flex-shrink-0 w-72"
-            onDragOver={e => { e.preventDefault(); e.currentTarget.style.background = 'rgba(139,92,246,0.05)'; }}
-            onDragLeave={e => { e.currentTarget.style.background = ''; }}
-            onDrop={e => {
-              e.currentTarget.style.background = '';
-              if (draggedTask) {
-                toast.success(`Task moved to ${col.label}`);
-                setDraggedTask(null);
-              }
-            }}
-          >
-            <div className={`${col.color} ${col.borderColor} border-t-2 rounded-t-lg px-3 py-2 flex items-center justify-between`}>
-              <span className="text-sm font-semibold text-slate-700">{col.label}</span>
-              <span className="w-5 h-5 rounded-full bg-white text-xs font-medium text-slate-600 flex items-center justify-center shadow-sm">{col.tasks.length}</span>
+      {loading ? (
+        <div className="flex gap-4 overflow-x-auto pb-4">
+          {[1, 2, 3, 4, 5].map(i => (
+            <div key={i} className="flex-shrink-0 w-72">
+              <div className="animate-pulse h-8 bg-slate-100 rounded-t-lg mb-2" />
+              <div className="animate-pulse h-64 bg-slate-50 rounded-b-lg" />
             </div>
-            <div className="bg-slate-50/50 rounded-b-lg p-2 space-y-2 min-h-[320px]">
-              {col.tasks.map(t => (
-                <div key={t.id} draggable
-                  onDragStart={() => setDraggedTask(t.id)}
-                  className="thb-card p-3 cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow"
-                >
-                  <div className="flex items-start justify-between mb-2">
-                    <p className="text-sm font-medium text-slate-800 flex-1">{t.title}</p>
+          ))}
+        </div>
+      ) : allTasks.length > 0 ? (
+        /* Kanban Board */
+        <div className="flex gap-4 overflow-x-auto pb-4" style={{ minHeight: '400px' }}>
+          {kanbanColumns.map(col => (
+            <div key={col.key} className="flex-shrink-0 w-72"
+              onDragOver={e => { e.preventDefault(); e.currentTarget.style.background = 'rgba(139,92,246,0.05)'; }}
+              onDragLeave={e => { e.currentTarget.style.background = ''; }}
+              onDrop={e => {
+                e.currentTarget.style.background = '';
+                if (draggedTask) {
+                  toast.success(`Task moved to ${col.label}`);
+                  setDraggedTask(null);
+                }
+              }}
+            >
+              <div className={`${col.color} ${col.borderColor} border-t-2 rounded-t-lg px-3 py-2 flex items-center justify-between`}>
+                <span className="text-sm font-semibold text-slate-700">{col.label}</span>
+                <span className="w-5 h-5 rounded-full bg-white text-xs font-medium text-slate-600 flex items-center justify-center shadow-sm">{col.tasks.length}</span>
+              </div>
+              <div className="bg-slate-50/50 rounded-b-lg p-2 space-y-2 min-h-[320px]">
+                {col.tasks.map(t => (
+                  <div key={t.id} draggable
+                    onDragStart={() => setDraggedTask(t.id)}
+                    className="thb-card p-3 cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow"
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <p className="text-sm font-medium text-slate-800 flex-1">{t.name}</p>
+                    </div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className={getPriorityBadge(t.priority)}>{t.priority}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs text-slate-500">
+                      <span className="flex items-center gap-1">
+                        <FiClock className="w-3 h-3" />{formatDate(t.plannedEnd)}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-400 mt-1 truncate">{t.project?.name || '—'}</p>
                   </div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className={getPriorityBadge(t.priority)}>{t.priority}</span>
-                    <span className="text-xs text-slate-400 flex items-center gap-1"><FiTarget className="w-3 h-3" />{t.storyPoints} SP</span>
-                  </div>
-                  <div className="flex items-center justify-between text-xs text-slate-500">
-                    <span className="flex items-center gap-1"><FiUser className="w-3 h-3" />{t.assignee}</span>
-                    <span className={`flex items-center gap-1 ${new Date(t.dueDate) < new Date() && t.status !== 'done' ? 'text-red-500 font-medium' : ''}`}>
-                      <FiClock className="w-3 h-3" />{formatDate(t.dueDate)}
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-400 mt-1 truncate">{t.project}</p>
-                </div>
-              ))}
-              {col.tasks.length === 0 && (
-                <div className="text-center py-8 text-xs text-slate-400">No tasks</div>
-              )}
+                ))}
+                {col.tasks.length === 0 && (
+                  <div className="text-center py-8 text-xs text-slate-400">No tasks</div>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      ) : (
+        <div className="thb-card p-8 text-center">
+          <FiCheckSquare className="w-10 h-10 mx-auto text-slate-300 mb-3" />
+          <h4 className="text-sm font-semibold text-slate-700 mb-1">No Tasks</h4>
+          <p className="text-xs text-slate-500">Create tasks to see them on the Kanban board.</p>
+        </div>
+      )}
     </div>
   );
 
   /* ── Timeline Tab ── */
   const renderTimeline = () => {
-    const timelineProjects = DEMO_PROJECTS.filter(p => p.status !== 'cancelled');
+    const timelineProjects = projects.filter(p => p.status !== 'cancelled' && p.startDate);
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const projectColors: Record<string, string> = {
-      '1': '#8B5CF6', '2': '#EC4899', '3': '#F59E0B', '4': '#3B82F6', '5': '#10B981', '6': '#EF4444', '7': '#6366F1',
-    };
+    const currentYear = new Date().getFullYear();
 
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold text-slate-800">Project Timeline</h3>
           <div className="flex items-center gap-2 text-sm text-slate-500">
-            <FiCalendar className="w-4 h-4" /> 2025
+            <FiCalendar className="w-4 h-4" /> {currentYear}
           </div>
         </div>
 
-        <div className="thb-card overflow-hidden">
-          <div className="overflow-x-auto">
-            {/* Month Headers */}
-            <div className="flex border-b border-slate-100 bg-slate-50">
-              <div className="w-48 flex-shrink-0 px-4 py-2 text-xs font-semibold text-slate-600">Project</div>
-              {months.map((m, i) => (
-                <div key={i} className="w-20 flex-shrink-0 px-2 py-2 text-xs text-center font-medium text-slate-500 border-l border-slate-100">{m}</div>
-              ))}
-            </div>
-
-            {/* Project Rows */}
-            {timelineProjects.map(p => {
-              const startMonth = new Date(p.startDate).getMonth();
-              const endMonth = new Date(p.endDate).getMonth();
-              const startYear = new Date(p.startDate).getFullYear();
-              const endYear = new Date(p.endDate).getFullYear();
-              const adjustedStart = startYear === 2025 ? startMonth : 0;
-              const adjustedEnd = endYear === 2025 ? endMonth : 11;
-              const color = projectColors[p.id] || '#8B5CF6';
-              const pctComplete = p.progress / 100;
-
-              return (
-                <div key={p.id} className="flex items-center border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
-                  <div className="w-48 flex-shrink-0 px-4 py-3">
-                    <p className="text-sm font-medium text-slate-800 truncate">{p.name}</p>
-                    <p className="text-xs text-slate-400">{p.client}</p>
-                  </div>
-                  <div className="flex-1 flex relative h-10">
-                    {months.map((m, i) => (
-                      <div key={i} className="w-20 flex-shrink-0 border-l border-slate-100 h-full" />
-                    ))}
-                    {/* Bar */}
-                    <div className="absolute top-1.5 h-7 rounded-md" style={{
-                      left: `${(adjustedStart / 12) * 100}%`,
-                      width: `${((adjustedEnd - adjustedStart + 1) / 12) * 100}%`,
-                      background: color,
-                      opacity: 0.2,
-                    }} />
-                    <div className="absolute top-1.5 h-7 rounded-md" style={{
-                      left: `${(adjustedStart / 12) * 100}%`,
-                      width: `${((adjustedEnd - adjustedStart + 1) / 12) * 100 * pctComplete}%`,
-                      background: color,
-                      borderRadius: '6px',
-                    }}>
-                      <span className="text-xs text-white font-medium px-2 leading-7 whitespace-nowrap">{p.progress}%</span>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Milestones */}
-        <div className="thb-card p-4">
-          <h4 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
-            <FiFlag className="w-4 h-4 text-teal-500" /> Key Milestones
-          </h4>
-          <div className="space-y-2">
-            {[
-              { date: '2025-06-30', label: 'API v2 Release', project: 'API Integration Layer', status: 'on_track' },
-              { date: '2025-08-30', label: 'HRMS Core v1.0', project: 'HRMS Core Platform', status: 'at_risk' },
-              { date: '2025-10-15', label: 'Mobile App Beta', project: 'Mobile App Development', status: 'on_track' },
-              { date: '2025-12-31', label: 'Cloud Migration Complete', project: 'Cloud Migration', status: 'at_risk' },
-            ].map((m, i) => (
-              <div key={i} className="flex items-center justify-between p-2 rounded-lg hover:bg-slate-50 transition-colors">
-                <div className="flex items-center gap-3">
-                  <div className={`w-3 h-3 rounded-full ${m.status === 'on_track' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-                  <div>
-                    <p className="text-sm font-medium text-slate-800">{m.label}</p>
-                    <p className="text-xs text-slate-500">{m.project}</p>
-                  </div>
-                </div>
-                <span className="text-xs text-slate-500">{formatDate(m.date)}</span>
-              </div>
+        {loading ? (
+          <div className="thb-card p-5 space-y-3">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="animate-pulse h-10 bg-slate-100 rounded" />
             ))}
           </div>
-        </div>
-      </div>
-    );
-  };
+        ) : timelineProjects.length > 0 ? (
+          <div className="thb-card overflow-hidden">
+            <div className="overflow-x-auto">
+              {/* Month Headers */}
+              <div className="flex border-b border-slate-100 bg-slate-50">
+                <div className="w-48 flex-shrink-0 px-4 py-2 text-xs font-semibold text-slate-600">Project</div>
+                {months.map((m, i) => (
+                  <div key={i} className="w-20 flex-shrink-0 px-2 py-2 text-xs text-center font-medium text-slate-500 border-l border-slate-100">{m}</div>
+                ))}
+              </div>
 
-  /* ── Reports Tab ── */
-  const renderReports = () => {
-    const velocityData = [
-      { sprint: 'Sprint 7', planned: 25, completed: 20 },
-      { sprint: 'Sprint 8', planned: 28, completed: 22 },
-      { sprint: 'Sprint 9', planned: 22, completed: 19 },
-      { sprint: 'Sprint 10', planned: 30, completed: 24 },
-      { sprint: 'Sprint 11', planned: 26, completed: 24 },
-      { sprint: 'Sprint 12', planned: 28, completed: 21 },
-    ];
+              {/* Project Rows */}
+              {timelineProjects.map((p, idx) => {
+                const startMonth = new Date(p.startDate).getMonth();
+                const endMonth = p.endDate ? new Date(p.endDate).getMonth() : 11;
+                const startYear = new Date(p.startDate).getFullYear();
+                const endYear = p.endDate ? new Date(p.endDate).getFullYear() : currentYear;
+                const adjustedStart = startYear === currentYear ? startMonth : 0;
+                const adjustedEnd = endYear === currentYear ? endMonth : 11;
+                const color = CHART_COLORS[idx % CHART_COLORS.length];
+                const pctComplete = p.progress / 100;
 
-    const timeData = [
-      { project: 'HRMS Core', hours: 640, budget: 800 },
-      { project: 'Mobile App', hours: 380, budget: 500 },
-      { project: 'Data Analytics', hours: 220, budget: 300 },
-      { project: 'API Layer', hours: 280, budget: 300 },
-      { project: 'Cloud Migration', hours: 420, budget: 600 },
-    ];
-
-    return (
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-slate-800">Project Reports</h3>
-          <button onClick={() => toast.success('Report exported successfully!')} className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
-            <FiFileText className="w-4 h-4" /> Export Report
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Velocity Chart */}
-          <div className="thb-card p-4">
-            <h4 className="text-sm font-semibold text-slate-700 mb-3">Sprint Velocity</h4>
-            <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={velocityData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
-                <XAxis dataKey="sprint" tick={{ fontSize: 10 }} />
-                <YAxis tick={{ fontSize: 10 }} />
-                <Tooltip />
-                <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Bar dataKey="planned" fill="#C4B5FD" radius={[4, 4, 0, 0]} name="Planned" />
-                <Bar dataKey="completed" fill="#8B5CF6" radius={[4, 4, 0, 0]} name="Completed" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Burndown Chart */}
-          <div className="thb-card p-4">
-            <h4 className="text-sm font-semibold text-slate-700 mb-3">Sprint Burndown (Current)</h4>
-            <ResponsiveContainer width="100%" height={250}>
-              <AreaChart data={burndownData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
-                <XAxis dataKey="day" tick={{ fontSize: 10 }} />
-                <YAxis tick={{ fontSize: 10 }} />
-                <Tooltip />
-                <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Area type="monotone" dataKey="ideal" stroke="#94A3B8" fill="#F1F5F9" strokeWidth={2} strokeDasharray="5 5" name="Ideal" />
-                <Area type="monotone" dataKey="actual" stroke="#EC4899" fill="#FDF2F8" strokeWidth={2} name="Actual" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Budget vs Hours */}
-          <div className="thb-card p-4">
-            <h4 className="text-sm font-semibold text-slate-700 mb-3">Budget vs Hours (in hundreds)</h4>
-            <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={timeData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
-                <XAxis dataKey="project" tick={{ fontSize: 10 }} />
-                <YAxis tick={{ fontSize: 10 }} />
-                <Tooltip />
-                <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Bar dataKey="hours" fill="#3B82F6" radius={[4, 4, 0, 0]} name="Hours Logged" />
-                <Bar dataKey="budget" fill="#BFDBFE" radius={[4, 4, 0, 0]} name="Budget Hours" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Resource Utilization */}
-          <div className="thb-card p-4">
-            <h4 className="text-sm font-semibold text-slate-700 mb-3">Resource Utilization</h4>
-            <div className="space-y-3">
-              {teamWorkloadData.map((m, i) => {
-                const util = Math.min(100, Math.round((m.tasks / 5) * 100));
                 return (
-                  <div key={i}>
-                    <div className="flex items-center justify-between text-xs mb-1">
-                      <span className="font-medium text-slate-700">{m.name}</span>
-                      <span className={`${util > 80 ? 'text-red-600' : util > 60 ? 'text-amber-600' : 'text-emerald-600'} font-medium`}>{util}%</span>
+                  <div key={p.id} className="flex items-center border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
+                    <div className="w-48 flex-shrink-0 px-4 py-3">
+                      <p className="text-sm font-medium text-slate-800 truncate">{p.name}</p>
+                      <p className="text-xs text-slate-400">{p.client?.name || '—'}</p>
                     </div>
-                    <div className="w-full bg-slate-100 rounded-full h-2">
-                      <div className="h-2 rounded-full transition-all" style={{ width: `${util}%`, background: util > 80 ? '#EF4444' : util > 60 ? '#F59E0B' : '#10B981' }} />
+                    <div className="flex-1 flex relative h-10">
+                      {months.map((m, i) => (
+                        <div key={i} className="w-20 flex-shrink-0 border-l border-slate-100 h-full" />
+                      ))}
+                      {/* Bar */}
+                      <div className="absolute top-1.5 h-7 rounded-md" style={{
+                        left: `${(adjustedStart / 12) * 100}%`,
+                        width: `${((adjustedEnd - adjustedStart + 1) / 12) * 100}%`,
+                        background: color,
+                        opacity: 0.2,
+                      }} />
+                      <div className="absolute top-1.5 h-7 rounded-md" style={{
+                        left: `${(adjustedStart / 12) * 100}%`,
+                        width: `${((adjustedEnd - adjustedStart + 1) / 12) * 100 * pctComplete}%`,
+                        background: color,
+                        borderRadius: '6px',
+                      }}>
+                        <span className="text-xs text-white font-medium px-2 leading-7 whitespace-nowrap">{p.progress}%</span>
+                      </div>
                     </div>
                   </div>
                 );
               })}
             </div>
           </div>
-        </div>
-
-        {/* Summary Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="thb-card p-4 text-center">
-            <p className="text-2xl font-bold text-teal-600">124</p>
-            <p className="text-xs text-slate-500 mt-1">Total Story Points</p>
+        ) : (
+          <div className="thb-card p-8 text-center">
+            <FiCalendar className="w-10 h-10 mx-auto text-slate-300 mb-3" />
+            <h4 className="text-sm font-semibold text-slate-700 mb-1">No Timeline Data</h4>
+            <p className="text-xs text-slate-500">Create projects with start and end dates to see the timeline.</p>
           </div>
-          <div className="thb-card p-4 text-center">
-            <p className="text-2xl font-bold text-emerald-600">1,940</p>
-            <p className="text-xs text-slate-500 mt-1">Hours Logged</p>
-          </div>
-          <div className="thb-card p-4 text-center">
-            <p className="text-2xl font-bold text-amber-600">78%</p>
-            <p className="text-xs text-slate-500 mt-1">Utilization Rate</p>
-          </div>
-          <div className="thb-card p-4 text-center">
-            <p className="text-2xl font-bold text-green-600">$2.35M</p>
-            <p className="text-xs text-slate-500 mt-1">Total Budget</p>
-          </div>
-        </div>
+        )}
       </div>
     );
   };
+
+  /* ── Reports Tab ── */
+  const renderReports = () => (
+    <div className="space-y-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <h3 className="text-lg font-semibold text-slate-800">Project Reports</h3>
+        <a href="/project-management/reports" className="inline-flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors">
+          <FiBarChart2 className="w-4 h-4" /> Full Reports Page
+        </a>
+      </div>
+
+      {projects.length === 0 ? (
+        <div className="thb-card p-8 text-center">
+          <FiTrendingUp className="w-10 h-10 mx-auto text-slate-300 mb-3" />
+          <h4 className="text-sm font-semibold text-slate-700 mb-1">No Report Data</h4>
+          <p className="text-xs text-slate-500">Project report data will appear here once projects are created.</p>
+        </div>
+      ) : (
+        <>
+          {/* Summary Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="thb-card p-4 text-center">
+              <p className="text-2xl font-bold text-teal-600">{allTasks.length}</p>
+              <p className="text-xs text-slate-500 mt-1">Total Tasks</p>
+            </div>
+            <div className="thb-card p-4 text-center">
+              <p className="text-2xl font-bold text-emerald-600">{allTasks.filter(t => t.status === 'done').length}</p>
+              <p className="text-xs text-slate-500 mt-1">Completed Tasks</p>
+            </div>
+            <div className="thb-card p-4 text-center">
+              <p className="text-2xl font-bold text-amber-600">{stats.teamUtilization}%</p>
+              <p className="text-xs text-slate-500 mt-1">Avg Progress</p>
+            </div>
+            <div className="thb-card p-4 text-center">
+              <p className="text-2xl font-bold text-green-600">${((projects.reduce((a, p) => a + (p.budgetAmount || 0), 0)) / 1000000).toFixed(2)}M</p>
+              <p className="text-xs text-slate-500 mt-1">Total Budget</p>
+            </div>
+          </div>
+
+          {projectStatusData.length > 0 && (
+            <div className="thb-card p-4">
+              <h4 className="text-sm font-semibold text-slate-700 mb-3">Project Status Distribution</h4>
+              <ResponsiveContainer width="100%" height={250}>
+                <PieChart>
+                  <Pie data={projectStatusData} cx="50%" cy="50%" innerRadius={60} outerRadius={90} paddingAngle={3} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
+                    {projectStatusData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
 
   /* ── Create Project Modal ── */
   const renderCreateProjectModal = () => showCreateProject && (
@@ -945,13 +920,12 @@ function ProjectManagementContent() {
               <input type="text" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500" placeholder="Client name" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Manager</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Project Type</label>
               <select className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20">
-                <option>Select manager</option>
-                <option>Rajesh Kumar</option>
-                <option>Priya Sharma</option>
-                <option>Vikram Singh</option>
-                <option>Anita Desai</option>
+                <option value="internal">Internal</option>
+                <option value="client">Client</option>
+                <option value="r_and_d">R&D</option>
+                <option value="support">Support</option>
               </select>
             </div>
           </div>
@@ -984,10 +958,6 @@ function ProjectManagementContent() {
             <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
             <textarea rows={3} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500" placeholder="Project description..." />
           </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Team Members</label>
-            <input type="text" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500" placeholder="Search and add team members..." />
-          </div>
         </div>
         <div className="flex items-center justify-end gap-3 p-4 border-t border-slate-100">
           <button onClick={() => setShowCreateProject(false)} className="px-4 py-2 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition-colors">Cancel</button>
@@ -1014,7 +984,7 @@ function ProjectManagementContent() {
             <label className="block text-sm font-medium text-slate-700 mb-1">Project *</label>
             <select className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20">
               <option>Select project</option>
-              {DEMO_PROJECTS.filter(p => p.status === 'active').map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              {projects.filter(p => p.status === 'active').map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
           </div>
           <div className="grid grid-cols-2 gap-4">
@@ -1062,28 +1032,7 @@ function ProjectManagementContent() {
               <label className="block text-sm font-medium text-slate-700 mb-1">Project</label>
               <select className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20">
                 <option>Select project</option>
-                {DEMO_PROJECTS.filter(p => p.status === 'active').map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Sprint</label>
-              <select className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20">
-                <option>Select sprint</option>
-                {DEMO_SPRINTS.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </select>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Assignee</label>
-              <select className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20">
-                <option>Select assignee</option>
-                <option>Amit K.</option>
-                <option>Neha R.</option>
-                <option>Ravi M.</option>
-                <option>Sanjay P.</option>
-                <option>Kavita S.</option>
-                <option>Deepak V.</option>
+                {projects.filter(p => p.status === 'active').map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
             </div>
             <div>
@@ -1114,10 +1063,6 @@ function ProjectManagementContent() {
               </select>
             </div>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Labels</label>
-            <input type="text" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500" placeholder="bug, feature, enhancement (comma-separated)" />
-          </div>
         </div>
         <div className="flex items-center justify-end gap-3 p-4 border-t border-slate-100">
           <button onClick={() => setShowCreateTask(false)} className="px-4 py-2 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition-colors">Cancel</button>
@@ -1143,10 +1088,10 @@ function ProjectManagementContent() {
             {[
               { label: 'Total Projects', value: stats.totalProjects, icon: <FiBriefcase className="w-4 h-4" />, color: 'bg-white/15' },
               { label: 'Active Sprints', value: stats.activeSprints, icon: <FiLayers className="w-4 h-4" />, color: 'bg-white/15' },
-              { label: 'Tasks This Week', value: stats.tasksThisWeek, icon: <FiCheckSquare className="w-4 h-4" />, color: 'bg-white/15' },
+              { label: 'Total Tasks', value: stats.tasksThisWeek, icon: <FiCheckSquare className="w-4 h-4" />, color: 'bg-white/15' },
               { label: 'Overdue Tasks', value: stats.overdueTasks, icon: <FiAlertCircle className="w-4 h-4" />, color: 'bg-red-500/30' },
-              { label: 'Team Utilization', value: `${stats.teamUtilization}%`, icon: <FiUsers className="w-4 h-4" />, color: 'bg-white/15' },
-              { label: 'Milestones Done', value: stats.completedMilestones, icon: <FiFlag className="w-4 h-4" />, color: 'bg-white/15' },
+              { label: 'Avg Progress', value: `${stats.teamUtilization}%`, icon: <FiUsers className="w-4 h-4" />, color: 'bg-white/15' },
+              { label: 'Milestones', value: stats.completedMilestones, icon: <FiFlag className="w-4 h-4" />, color: 'bg-white/15' },
             ].map((s, i) => (
               <div key={i} className={`${s.color} backdrop-blur-sm rounded-xl px-3 py-2 text-white`}>
                 <div className="flex items-center gap-2 text-white/70 text-xs mb-0.5">{s.icon}{s.label}</div>

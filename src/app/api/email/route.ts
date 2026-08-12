@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { sendEmail } from '@/lib/email-sender';
+import { withSchemaSync } from '@/lib/schema-sync';
 
 /** GET /api/email?folder=inbox&page=1&limit=50 */
 export async function GET(request: NextRequest) {
@@ -12,6 +13,7 @@ export async function GET(request: NextRequest) {
     const decoded = await verifyToken(token);
     if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
 
+    await withSchemaSync(() => Promise.resolve());
     const { searchParams } = new URL(request.url);
     const folder = searchParams.get('folder') || 'inbox';
     const page = parseInt(searchParams.get('page') || '1', 10);

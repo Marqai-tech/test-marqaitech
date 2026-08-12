@@ -54,13 +54,6 @@ const jobPortalWorkflowSteps = [
   { step: 7, title: 'Schedule Interviews', description: 'Coordinate interview slots with panel' },
 ];
 
-/* ── Featured Jobs (demo) ── */
-const FEATURED_JOBS = [
-  { id: 'fj1', title: 'Senior AI/ML Engineer', company: 'Marq AI Tech Pvt Ltd', location: 'Mumbai, India', salary: '₹35L - ₹50L', match: 95, tags: ['AI/ML', 'Python', 'TensorFlow'] },
-  { id: 'fj2', title: 'Product Design Lead', company: '3Boxes Solutions', location: 'Hyderabad, India', salary: '₹25L - ₹40L', match: 88, tags: ['Design', 'Figma', 'Leadership'] },
-  { id: 'fj3', title: 'DevOps Architect', company: '3Boxes Staffing', location: 'Bangalore, India', salary: '₹30L - ₹45L', match: 82, tags: ['AWS', 'Kubernetes', 'CI/CD'] },
-];
-
 function getJobStatusBadge(status: string) {
   const map: Record<string, string> = {
     open: 'thb-badge thb-badge-success',
@@ -130,6 +123,18 @@ export default function JobPortalPage() {
       return matchesSearch && matchesLocation;
     });
   }, [jobPostings, searchQuery, locationFilter]);
+
+  // Featured jobs: open positions sorted by application count (most popular first), limit to 6
+  const featuredJobs = useMemo(() => {
+    return jobPostings
+      .filter((j) => j.status === 'open')
+      .sort((a, b) => {
+        const aCount = a._count?.applications || a.applications?.length || 0;
+        const bCount = b._count?.applications || b.applications?.length || 0;
+        return bCount - aCount;
+      })
+      .slice(0, 6);
+  }, [jobPostings]);
 
   const handleApply = (jobId: string) => {
     setSelectedJobId(jobId);
@@ -206,55 +211,60 @@ export default function JobPortalPage() {
         </button>
       </div>
 
-      {/* Featured Jobs Tab */}
+      {/* Featured Jobs Tab — derived from API data */}
       {activeTab === 'featured' && (
         <div className="space-y-4">
-          {/* AI Recommendations */}
-          <div className="thb-card p-4 border-l-4 border-l-teal-500">
-            <div className="flex items-center gap-2 mb-3">
-              <FiZap className="w-5 h-5 text-teal-500" />
-              <h3 className="text-sm font-semibold text-thb-text-primary">AI Job Recommendations</h3>
-              <span className="thb-badge thb-badge-purple">AI</span>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {[
-                { reason: 'Based on your skills in React and TypeScript', match: 92 },
-                { reason: 'Matches your experience level (5+ years)', match: 85 },
-                { reason: 'Aligned with your location preferences', match: 78 },
-              ].map((rec, i) => (
-                <div key={i} className="p-3 rounded-lg bg-teal-50 border border-teal-100">
-                  <p className="text-xs text-thb-text-secondary mb-1">{rec.reason}</p>
-                  <span className="bg-emerald-50 text-emerald-700 text-xs font-medium px-2 py-0.5 rounded-full">{rec.match}% match</span>
+          {loading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="thb-card p-5 animate-pulse space-y-3">
+                  <div className="h-4 w-24 bg-slate-200 rounded" />
+                  <div className="h-5 w-48 bg-slate-200 rounded" />
+                  <div className="h-3 w-32 bg-slate-100 rounded" />
+                  <div className="h-3 w-40 bg-slate-100 rounded" />
                 </div>
               ))}
             </div>
-          </div>
-
-          {/* Featured Job Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {FEATURED_JOBS.map(job => (
-              <div key={job.id} className="thb-card thb-card-hover p-5 border-amber-200">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1"><FiZap className="w-3 h-3" /> Featured</span>
-                  <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold px-2 py-0.5 rounded-full">{job.match}% Match</span>
-                </div>
-                <h3 className="font-semibold text-sm text-thb-text-primary mb-1">{job.title}</h3>
-                <p className="text-xs text-thb-text-secondary flex items-center gap-1 mb-1"><FiGlobe className="w-3 h-3" />{job.company}</p>
-                <div className="flex flex-wrap items-center gap-2 text-xs text-thb-text-muted mb-3">
-                  <span className="flex items-center gap-1"><FiMapPin className="w-3 h-3" />{job.location}</span>
-                  <span className="flex items-center gap-1"><FiDollarSign className="w-3 h-3" />{job.salary}</span>
-                </div>
-                <div className="flex flex-wrap gap-1 mb-3">
-                  {job.tags.map(tag => (
-                    <span key={tag} className="bg-slate-100 text-slate-700 text-[10px] font-medium px-2 py-0.5 rounded-full">{tag}</span>
-                  ))}
-                </div>
-                <button className="w-full bg-emerald-600 text-white text-sm font-medium py-2 rounded-lg hover:bg-emerald-700 transition-colors flex items-center justify-center gap-1">
-                  Apply Now <FiArrowRight className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            ))}
-          </div>
+          ) : featuredJobs.length === 0 ? (
+            <div className="thb-card p-8 text-center">
+              <FiStar className="w-12 h-12 text-thb-text-muted mx-auto mb-3" />
+              <h3 className="text-thb-text-primary font-semibold mb-1">No Featured Jobs</h3>
+              <p className="text-sm text-thb-text-muted">Featured positions will appear here based on popularity and application activity</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {featuredJobs.map(job => {
+                const appCount = job._count?.applications || job.applications?.length || 0;
+                return (
+                  <div key={job.id} className="thb-card thb-card-hover p-5 border-amber-200">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1"><FiZap className="w-3 h-3" /> Featured</span>
+                      <span className="bg-sky-50 text-sky-700 border border-sky-200 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1"><FiUsers className="w-3 h-3" /> {appCount} applicants</span>
+                    </div>
+                    <h3 className="font-semibold text-sm text-thb-text-primary mb-1">{job.title}</h3>
+                    {job.department && (
+                      <p className="text-xs text-thb-text-secondary flex items-center gap-1 mb-1">
+                        <FiBriefcase className="w-3 h-3" />{job.department.name}
+                      </p>
+                    )}
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-thb-text-muted mb-3">
+                      {job.location && <span className="flex items-center gap-1"><FiMapPin className="w-3 h-3" />{job.location}</span>}
+                      {job.salary && <span className="flex items-center gap-1"><FiDollarSign className="w-3 h-3" />{job.salary}</span>}
+                      <span className="flex items-center gap-1"><FiClock className="w-3 h-3" />{job.type}</span>
+                    </div>
+                    {job.experience && (
+                      <div className="flex flex-wrap gap-1 mb-3">
+                        <span className="bg-slate-100 text-slate-700 text-[10px] font-medium px-2 py-0.5 rounded-full">{job.experience}</span>
+                      </div>
+                    )}
+                    <button onClick={() => handleApply(job.id)} className="w-full bg-emerald-600 text-white text-sm font-medium py-2 rounded-lg hover:bg-emerald-700 transition-colors flex items-center justify-center gap-1">
+                      Apply Now <FiArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
+import { withSchemaSync } from '@/lib/schema-sync';
 
 /** GET /api/collaboration/settings */
 export async function GET(request: NextRequest) {
@@ -12,6 +13,7 @@ export async function GET(request: NextRequest) {
     const decoded = await verifyToken(token);
     if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
 
+    await withSchemaSync(() => Promise.resolve());
     // Get tenant ID from decoded token
     const user = await platformDb.user.findUnique({ where: { id: decoded.userId as string } });
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });

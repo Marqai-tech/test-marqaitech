@@ -926,9 +926,205 @@ const SYNC_STATEMENTS: string[] = [
   `ALTER TABLE "Holiday" ADD COLUMN IF NOT EXISTS "companyId" TEXT NOT NULL DEFAULT ''`,
   `CREATE INDEX IF NOT EXISTS "Holiday_companyId_idx" ON "Holiday"("companyId")`,
 
-  // ─── AttendancePolicyConfig: add companyId column (multi-tenant scoping) ───
-  `ALTER TABLE "AttendancePolicyConfig" ADD COLUMN IF NOT EXISTS "companyId" TEXT`,
+  // ─── AttendancePolicyConfig: ensure table exists (missing on some Vercel deploys) ───
+  `CREATE TABLE IF NOT EXISTS "AttendancePolicyConfig" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "companyId" TEXT,
+    "roundEnabled" BOOLEAN NOT NULL DEFAULT false,
+    "roundMinutes" INTEGER NOT NULL DEFAULT 15,
+    "roundDirection" TEXT NOT NULL DEFAULT 'nearest',
+    "lateGraceMinutes" INTEGER NOT NULL DEFAULT 15,
+    "earlyGraceMinutes" INTEGER NOT NULL DEFAULT 10,
+    "autoOvertimeEnabled" BOOLEAN NOT NULL DEFAULT true,
+    "overtimeThresholdMinutes" INTEGER NOT NULL DEFAULT 480,
+    "autoApprovePermissionMinutes" INTEGER NOT NULL DEFAULT 0,
+    "autoApproveMinAttendancePct" DOUBLE PRECISION NOT NULL DEFAULT 90,
+    "autoApproveLeaveSingleDay" BOOLEAN NOT NULL DEFAULT false,
+    "autoApproveLeaveTypes" TEXT NOT NULL DEFAULT '[]',
+    "autoApproveOvertimeHours" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "autoApproveGatepassMinutes" INTEGER NOT NULL DEFAULT 0,
+    "wfhActivityMonitoringEnabled" BOOLEAN NOT NULL DEFAULT false,
+    "wfhInactivityThresholdHours" INTEGER NOT NULL DEFAULT 4,
+    "lateMarkAllowancePerMonth" INTEGER NOT NULL DEFAULT 4,
+    "lateMarkHalfDayOnExceed" BOOLEAN NOT NULL DEFAULT true,
+    "halfDayAfterMinutes" INTEGER NOT NULL DEFAULT 21,
+    "lateMarkNotApplicableOnTour" BOOLEAN NOT NULL DEFAULT true,
+    "shiftStartDefault" TEXT NOT NULL DEFAULT '09:00',
+    "shiftEndDefault" TEXT NOT NULL DEFAULT '17:30',
+    "breakDurationMinutes" INTEGER NOT NULL DEFAULT 30,
+    "gatePassMaxPerMonth" INTEGER NOT NULL DEFAULT 1,
+    "gatePassHalfDayOnExceed" BOOLEAN NOT NULL DEFAULT true,
+    "gatePassHalfDayNextDay" BOOLEAN NOT NULL DEFAULT true,
+    "gatePassEarlyHours" INTEGER NOT NULL DEFAULT 1,
+    "canteenEnabled" BOOLEAN NOT NULL DEFAULT true,
+    "canteenFreeForGeneralShift" BOOLEAN NOT NULL DEFAULT true,
+    "canteenFreeForNightShift" BOOLEAN NOT NULL DEFAULT true,
+    "canteenOtfreeThresholdHours" INTEGER NOT NULL DEFAULT 5,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "AttendancePolicyConfig_pkey" PRIMARY KEY ("id")
+  )`,
   `CREATE INDEX IF NOT EXISTS "AttendancePolicyConfig_companyId_idx" ON "AttendancePolicyConfig"("companyId")`,
+
+  // ─── EmailMessage: ensure table exists ───
+  `CREATE TABLE IF NOT EXISTS "EmailMessage" (
+    "id" TEXT NOT NULL,
+    "subject" TEXT NOT NULL DEFAULT '',
+    "body" TEXT NOT NULL DEFAULT '',
+    "fromAddress" TEXT NOT NULL DEFAULT '',
+    "fromName" TEXT NOT NULL DEFAULT '',
+    "toAddresses" TEXT NOT NULL DEFAULT '[]',
+    "ccAddresses" TEXT,
+    "bccAddresses" TEXT,
+    "folder" TEXT NOT NULL DEFAULT 'inbox',
+    "isRead" BOOLEAN NOT NULL DEFAULT false,
+    "isStarred" BOOLEAN NOT NULL DEFAULT false,
+    "hasAttachments" BOOLEAN NOT NULL DEFAULT false,
+    "attachments" TEXT,
+    "labels" TEXT,
+    "priority" TEXT NOT NULL DEFAULT 'normal',
+    "threadId" TEXT,
+    "repliedToId" TEXT,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "senderId" TEXT,
+    "companyId" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "EmailMessage_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE INDEX IF NOT EXISTS "EmailMessage_senderId_idx" ON "EmailMessage"("senderId")`,
+  `CREATE INDEX IF NOT EXISTS "EmailMessage_companyId_idx" ON "EmailMessage"("companyId")`,
+
+  // ─── TodoTask: ensure table exists ───
+  `CREATE TABLE IF NOT EXISTS "TodoTask" (
+    "id" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "description" TEXT NOT NULL DEFAULT '',
+    "priority" TEXT NOT NULL DEFAULT 'Medium',
+    "category" TEXT NOT NULL DEFAULT 'Admin',
+    "status" TEXT NOT NULL DEFAULT 'Pending',
+    "dueDate" TEXT,
+    "subtasks" TEXT NOT NULL DEFAULT '[]',
+    "tags" TEXT NOT NULL DEFAULT '[]',
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "createdById" TEXT,
+    "assignedToId" TEXT,
+    "companyId" TEXT,
+    "completedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "TodoTask_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE INDEX IF NOT EXISTS "TodoTask_createdById_idx" ON "TodoTask"("createdById")`,
+  `CREATE INDEX IF NOT EXISTS "TodoTask_assignedToId_idx" ON "TodoTask"("assignedToId")`,
+
+  // ─── Note: ensure table exists ───
+  `CREATE TABLE IF NOT EXISTS "Note" (
+    "id" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "content" TEXT NOT NULL DEFAULT '',
+    "category" TEXT NOT NULL DEFAULT 'personal',
+    "color" TEXT NOT NULL DEFAULT 'default',
+    "isPinned" BOOLEAN NOT NULL DEFAULT false,
+    "tags" TEXT NOT NULL DEFAULT '[]',
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "createdById" TEXT,
+    "companyId" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "Note_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE INDEX IF NOT EXISTS "Note_createdById_idx" ON "Note"("createdById")`,
+
+  // ─── KanbanBoard: ensure table exists ───
+  `CREATE TABLE IF NOT EXISTS "KanbanBoard" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "description" TEXT,
+    "columns" TEXT NOT NULL DEFAULT 'Backlog,To Do,In Progress,Done',
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "createdById" TEXT,
+    "companyId" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "KanbanBoard_pkey" PRIMARY KEY ("id")
+  )`,
+
+  // ─── KanbanCard: ensure table exists ───
+  `CREATE TABLE IF NOT EXISTS "KanbanCard" (
+    "id" TEXT NOT NULL,
+    "boardId" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "description" TEXT,
+    "column" TEXT NOT NULL DEFAULT 'To Do',
+    "priority" TEXT NOT NULL DEFAULT 'Medium',
+    "category" TEXT,
+    "subtasks" TEXT NOT NULL DEFAULT '[]',
+    "tags" TEXT NOT NULL DEFAULT '[]',
+    "order" INTEGER NOT NULL DEFAULT 0,
+    "dueDate" TEXT,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "assignedToId" TEXT,
+    "createdById" TEXT,
+    "companyId" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "KanbanCard_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE INDEX IF NOT EXISTS "KanbanCard_boardId_idx" ON "KanbanCard"("boardId")`,
+  `CREATE INDEX IF NOT EXISTS "KanbanCard_assignedToId_idx" ON "KanbanCard"("assignedToId")`,
+
+  // ─── CollaborationSettings: ensure table exists ───
+  `CREATE TABLE IF NOT EXISTS "CollaborationSettings" (
+    "id" TEXT NOT NULL,
+    "tenantId" TEXT NOT NULL,
+    "encryptionEnabled" BOOLEAN NOT NULL DEFAULT true,
+    "fileSharingLimitMB" INTEGER NOT NULL DEFAULT 25,
+    "messageRetentionDays" INTEGER NOT NULL DEFAULT 365,
+    "calendarSyncEnabled" BOOLEAN NOT NULL DEFAULT true,
+    "calendarSyncProvider" TEXT NOT NULL DEFAULT 'google',
+    "emailIntegrationEnabled" BOOLEAN NOT NULL DEFAULT false,
+    "emailProvider" TEXT NOT NULL DEFAULT 'smtp',
+    "smtpHost" TEXT,
+    "smtpPort" INTEGER,
+    "smtpUsername" TEXT,
+    "smtpPassword" TEXT,
+    "smtpEncryption" TEXT NOT NULL DEFAULT 'tls',
+    "smtpFromName" TEXT,
+    "smtpFromAddress" TEXT,
+    "smtpReplyTo" TEXT,
+    "resendApiKey" TEXT,
+    "resendFromAddress" TEXT,
+    "autoDeleteMessages" BOOLEAN NOT NULL DEFAULT false,
+    "maxCallDurationMin" INTEGER NOT NULL DEFAULT 60,
+    "allowExternalSharing" BOOLEAN NOT NULL DEFAULT true,
+    "watermarkEnabled" BOOLEAN NOT NULL DEFAULT false,
+    "updatedBy" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "CollaborationSettings_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "CollaborationSettings_tenantId_key" ON "CollaborationSettings"("tenantId")`,
+
+  // ─── CalendarEvent: ensure table exists ───
+  `CREATE TABLE IF NOT EXISTS "CalendarEvent" (
+    "id" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "description" TEXT,
+    "startDate" TIMESTAMP(3) NOT NULL,
+    "endDate" TIMESTAMP(3) NOT NULL,
+    "allDay" BOOLEAN NOT NULL DEFAULT false,
+    "color" TEXT,
+    "type" TEXT NOT NULL DEFAULT 'meeting',
+    "location" TEXT,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "createdById" TEXT,
+    "companyId" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "CalendarEvent_pkey" PRIMARY KEY ("id")
+  )`,
 ];
 
 // Foreign key constraints — added separately so we can use DROP + ADD pattern.
@@ -1006,6 +1202,32 @@ const FK_STATEMENTS: string[] = [
   // ─── AttendancePolicyConfig FK (companyId → Company) ───
   `ALTER TABLE "AttendancePolicyConfig" DROP CONSTRAINT IF EXISTS "AttendancePolicyConfig_companyId_fkey"`,
   `ALTER TABLE "AttendancePolicyConfig" ADD CONSTRAINT "AttendancePolicyConfig_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
+
+  // ─── EmailMessage FKs ───
+  `ALTER TABLE "EmailMessage" DROP CONSTRAINT IF EXISTS "EmailMessage_senderId_fkey"`,
+  `ALTER TABLE "EmailMessage" ADD CONSTRAINT "EmailMessage_senderId_fkey" FOREIGN KEY ("senderId") REFERENCES "Employee"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
+  `ALTER TABLE "EmailMessage" DROP CONSTRAINT IF EXISTS "EmailMessage_companyId_fkey"`,
+  `ALTER TABLE "EmailMessage" ADD CONSTRAINT "EmailMessage_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
+
+  // ─── TodoTask FKs ───
+  `ALTER TABLE "TodoTask" DROP CONSTRAINT IF EXISTS "TodoTask_createdById_fkey"`,
+  `ALTER TABLE "TodoTask" ADD CONSTRAINT "TodoTask_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "Employee"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
+  `ALTER TABLE "TodoTask" DROP CONSTRAINT IF EXISTS "TodoTask_assignedToId_fkey"`,
+  `ALTER TABLE "TodoTask" ADD CONSTRAINT "TodoTask_assignedToId_fkey" FOREIGN KEY ("assignedToId") REFERENCES "Employee"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
+
+  // ─── Note FKs ───
+  `ALTER TABLE "Note" DROP CONSTRAINT IF EXISTS "Note_createdById_fkey"`,
+  `ALTER TABLE "Note" ADD CONSTRAINT "Note_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "Employee"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
+
+  // ─── KanbanCard FKs ───
+  `ALTER TABLE "KanbanCard" DROP CONSTRAINT IF EXISTS "KanbanCard_boardId_fkey"`,
+  `ALTER TABLE "KanbanCard" ADD CONSTRAINT "KanbanCard_boardId_fkey" FOREIGN KEY ("boardId") REFERENCES "KanbanBoard"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+  `ALTER TABLE "KanbanCard" DROP CONSTRAINT IF EXISTS "KanbanCard_assignedToId_fkey"`,
+  `ALTER TABLE "KanbanCard" ADD CONSTRAINT "KanbanCard_assignedToId_fkey" FOREIGN KEY ("assignedToId") REFERENCES "Employee"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
+
+  // ─── CalendarEvent FKs ───
+  `ALTER TABLE "CalendarEvent" DROP CONSTRAINT IF EXISTS "CalendarEvent_createdById_fkey"`,
+  `ALTER TABLE "CalendarEvent" ADD CONSTRAINT "CalendarEvent_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "Employee"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
 ];
 
 export async function ensureSchemaSynced(): Promise<void> {

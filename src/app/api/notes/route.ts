@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
+import { withSchemaSync } from '@/lib/schema-sync';
 
 /** GET /api/notes?category=personal&companyId=xxx */
 export async function GET(request: NextRequest) {
@@ -11,6 +12,7 @@ export async function GET(request: NextRequest) {
     const decoded = await verifyToken(token);
     if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
 
+    await withSchemaSync(() => Promise.resolve());
     const { searchParams } = new URL(request.url);
     const category = searchParams.get('category');
     const companyId = searchParams.get('companyId');

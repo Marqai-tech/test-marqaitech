@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
   FiBarChart2, FiBriefcase, FiDollarSign, FiTrendingUp,
-  FiDownload, FiCheckCircle,
+  FiDownload, FiCheckCircle, FiAlertCircle,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
@@ -19,88 +19,74 @@ function formatCurrency(v: number) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(v);
 }
 
-/* ── Demo Data ── */
-const REVENUE_BY_TYPE = [
-  { name: 'Client', value: 620000, color: '#10B981' },
-  { name: 'Internal', value: 200000, color: '#3B82F6' },
-  { name: 'R&D', value: 345000, color: '#8B5CF6' },
-  { name: 'Support', value: 125000, color: '#F59E0B' },
-];
+/* ── Types ── */
+type BudgetVsActual = { id?: string; name: string; type: string; budget: number; actual: number; progress: number };
+type RevenueEntry = { name: string; value: number; color: string };
+type MonthlyStart = { month: string; projects: number };
+type ResourceUtil = { name: string; allocated: number; available: number; headcount: number };
 
-const MONTHLY_STARTS = [
-  { month: 'Oct', projects: 2 },
-  { month: 'Nov', projects: 3 },
-  { month: 'Dec', projects: 1 },
-  { month: 'Jan', projects: 4 },
-  { month: 'Feb', projects: 3 },
-  { month: 'Mar', projects: 5 },
-];
+interface ReportData {
+  revenueByType: RevenueEntry[];
+  monthlyStarts: MonthlyStart[];
+  budgetVsActual: BudgetVsActual[];
+  resourceUtilization: ResourceUtil[];
+  summaryStats: {
+    total: number;
+    active: number;
+    completed: number;
+    totalBudget: number;
+    avgProgress: number;
+  };
+  taskDistribution: Record<string, number>;
+  overdueTasks: { id: string; name: string; priority: string; project: { name: string } }[];
+}
 
-const BUDGET_VS_ACTUAL = [
-  { name: 'Website Redesign', type: 'client', budget: 120000, actual: 54000, progress: 45 },
-  { name: 'Mobile App', type: 'client', budget: 200000, actual: 60000, progress: 30 },
-  { name: 'HRMS Upgrade', type: 'internal', budget: 50000, actual: 7500, progress: 15 },
-  { name: 'AI Research', type: 'r_and_d', budget: 300000, actual: 60000, progress: 20 },
-  { name: 'Support Portal', type: 'support', budget: 80000, actual: 0, progress: 0 },
-  { name: 'Legacy Migration', type: 'internal', budget: 150000, actual: 127500, progress: 85 },
-  { name: 'Data Analytics', type: 'client', budget: 175000, actual: 175000, progress: 100 },
-  { name: 'Security Audit', type: 'r_and_d', budget: 45000, actual: 27000, progress: 60 },
-];
-
-const RESOURCE_UTILIZATION = [
-  { name: 'Engineering', allocated: 85, available: 15, headcount: 24 },
-  { name: 'Design', allocated: 72, available: 28, headcount: 8 },
-  { name: 'QA', allocated: 68, available: 32, headcount: 6 },
-  { name: 'DevOps', allocated: 90, available: 10, headcount: 5 },
-  { name: 'Management', allocated: 55, available: 45, headcount: 4 },
-];
+/* ── Empty State Component ── */
+function EmptyChartState({ message }: { message: string }) {
+  return (
+    <div className="h-64 flex flex-col items-center justify-center text-slate-400">
+      <FiBarChart2 className="w-8 h-8 mb-2 text-slate-300" />
+      <p className="text-sm">{message}</p>
+    </div>
+  );
+}
 
 export default function ReportsPage() {
   const { user } = useAuthStore();
-  const [projects, setProjects] = useState<BudgetVsActual[]>(BUDGET_VS_ACTUAL);
+  const [reportData, setReportData] = useState<ReportData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => { fetchProjects(); }, []);
+  useEffect(() => { fetchReportData(); }, []);
 
-  async function fetchProjects() {
+  async function fetchReportData() {
     try {
       setLoading(true);
-      const res = await fetch('/api/projects?limit=50', { headers: getAuthHeaders() });
+      setError(null);
+      const res = await fetch('/api/project-reports', { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
-        if (data.projects?.length > 0) {
-          setProjects(data.projects.map((p: { name: string; projectType: string; budgetAmount: number; progress: number }) => ({
-            name: p.name, type: p.projectType || 'internal',
-            budget: p.budgetAmount || 0, actual: Math.round((p.budgetAmount || 0) * (p.progress || 0) / 100),
-            progress: p.progress || 0,
-          })));
-        }
+        setReportData(data);
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        setError(errData.error || 'Failed to load report data');
       }
-    } catch { /* use demo data */ }
-    finally { setLoading(false); }
+    } catch {
+      setError('Failed to connect to server');
+    } finally {
+      setLoading(false);
+    }
   }
 
+  const projects = reportData?.budgetVsActual ?? [];
+  const revenueData = reportData?.revenueByType ?? [];
+  const monthlyStarts = reportData?.monthlyStarts ?? [];
+  const resourceUtilization = reportData?.resourceUtilization ?? [];
+
   const summaryStats = useMemo(() => {
-    const total = projects.length;
-    const active = projects.filter(p => p.progress > 0 && p.progress < 100).length;
-    const completed = projects.filter(p => p.progress >= 100).length;
-    const totalBudget = projects.reduce((a, p) => a + p.budget, 0);
-    const avgProgress = total > 0 ? Math.round(projects.reduce((a, p) => a + p.progress, 0) / total) : 0;
-    return { total, active, completed, totalBudget, avgProgress };
-  }, [projects]);
-
-  const revenueData = useMemo(() => {
-    const byType: Record<string, number> = {};
-    for (const p of projects) {
-      const key = p.type || 'internal';
-      byType[key] = (byType[key] || 0) + p.budget;
-    }
-    const colorMap: Record<string, string> = { internal: '#3B82F6', client: '#10B981', r_and_d: '#8B5CF6', support: '#F59E0B' };
-    const labelMap: Record<string, string> = { internal: 'Internal', client: 'Client', r_and_d: 'R&D', support: 'Support' };
-    return Object.entries(byType).map(([k, v]) => ({ name: labelMap[k] || k, value: v, color: colorMap[k] || '#94A3B8' }));
-  }, [projects]);
-
-  const displayRevenue = revenueData.length > 0 ? revenueData : REVENUE_BY_TYPE;
+    if (reportData?.summaryStats) return reportData.summaryStats;
+    return { total: 0, active: 0, completed: 0, totalBudget: 0, avgProgress: 0 };
+  }, [reportData]);
 
   function handleExport() {
     toast.success('Report export initiated. File will download shortly.');
@@ -119,6 +105,19 @@ export default function ReportsPage() {
           <FiDownload className="w-4 h-4" /> Export Report
         </button>
       </div>
+
+      {/* Error State */}
+      {error && (
+        <div className="thb-card p-4 border border-red-200 bg-red-50">
+          <div className="flex items-center gap-2 text-red-700">
+            <FiAlertCircle className="w-5 h-5" />
+            <p className="text-sm font-medium">{error}</p>
+          </div>
+          <button onClick={fetchReportData} className="mt-2 text-sm text-red-600 underline hover:text-red-800">
+            Retry
+          </button>
+        </div>
+      )}
 
       {/* Summary Stat Cards */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
@@ -150,13 +149,13 @@ export default function ReportsPage() {
           <h3 className="font-semibold text-thb-text-primary mb-4">Budget by Project Type</h3>
           {loading ? (
             <div className="h-64 animate-pulse bg-slate-100 rounded" />
-          ) : (
+          ) : revenueData.length > 0 ? (
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie data={displayRevenue} cx="50%" cy="50%" innerRadius={60} outerRadius={95}
+                  <Pie data={revenueData} cx="50%" cy="50%" innerRadius={60} outerRadius={95}
                     paddingAngle={3} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
-                    {displayRevenue.map((entry, idx) => (
+                    {revenueData.map((entry, idx) => (
                       <Cell key={idx} fill={entry.color} />
                     ))}
                   </Pie>
@@ -165,6 +164,8 @@ export default function ReportsPage() {
                 </PieChart>
               </ResponsiveContainer>
             </div>
+          ) : (
+            <EmptyChartState message="No budget data available" />
           )}
         </div>
 
@@ -173,10 +174,10 @@ export default function ReportsPage() {
           <h3 className="font-semibold text-thb-text-primary mb-4">Monthly Project Starts</h3>
           {loading ? (
             <div className="h-64 animate-pulse bg-slate-100 rounded" />
-          ) : (
+          ) : monthlyStarts.length > 0 && monthlyStarts.some(m => m.projects > 0) ? (
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={MONTHLY_STARTS}>
+                <BarChart data={monthlyStarts}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
                   <XAxis dataKey="month" tick={{ fontSize: 12 }} stroke="#94A3B8" />
                   <YAxis tick={{ fontSize: 12 }} stroke="#94A3B8" allowDecimals={false} />
@@ -185,6 +186,8 @@ export default function ReportsPage() {
                 </BarChart>
               </ResponsiveContainer>
             </div>
+          ) : (
+            <EmptyChartState message="No project start data available" />
           )}
         </div>
       </div>
@@ -194,72 +197,96 @@ export default function ReportsPage() {
         <div className="px-5 py-3 border-b border-thb-border">
           <h3 className="font-semibold text-thb-text-primary">Budget vs Actual Comparison</h3>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-50 border-b border-thb-border">
-              <tr>
-                <th className="text-left px-4 py-3 font-medium text-thb-text-secondary">Project</th>
-                <th className="text-left px-4 py-3 font-medium text-thb-text-secondary">Type</th>
-                <th className="text-right px-4 py-3 font-medium text-thb-text-secondary">Budget</th>
-                <th className="text-right px-4 py-3 font-medium text-thb-text-secondary">Actual</th>
-                <th className="text-right px-4 py-3 font-medium text-thb-text-secondary">Variance</th>
-                <th className="text-left px-4 py-3 font-medium text-thb-text-secondary">Progress</th>
-              </tr>
-            </thead>
-            <tbody>
-              {projects.map((p, i) => {
-                const variance = p.budget - p.actual;
-                const varClass = variance >= 0 ? 'text-emerald-600' : 'text-red-600';
-                return (
-                  <tr key={i} className="border-b border-thb-border hover:bg-slate-50/50">
-                    <td className="px-4 py-3 font-medium text-thb-text-primary">{p.name}</td>
-                    <td className="px-4 py-3 text-thb-text-secondary capitalize">{(p.type || 'internal').replace('_', ' ')}</td>
-                    <td className="px-4 py-3 text-right text-thb-text-secondary">{formatCurrency(p.budget)}</td>
-                    <td className="px-4 py-3 text-right text-thb-text-secondary">{formatCurrency(p.actual)}</td>
-                    <td className={`px-4 py-3 text-right font-medium ${varClass}`}>
-                      {variance >= 0 ? '+' : ''}{formatCurrency(variance)}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <div className="w-16 bg-slate-100 rounded-full h-1.5">
-                          <div className="bg-thb-primary rounded-full h-1.5" style={{ width: `${p.progress}%` }} />
+        {loading ? (
+          <div className="p-5 space-y-3">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="animate-pulse h-10 bg-slate-100 rounded" />
+            ))}
+          </div>
+        ) : projects.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50 border-b border-thb-border">
+                <tr>
+                  <th className="text-left px-4 py-3 font-medium text-thb-text-secondary">Project</th>
+                  <th className="text-left px-4 py-3 font-medium text-thb-text-secondary">Type</th>
+                  <th className="text-right px-4 py-3 font-medium text-thb-text-secondary">Budget</th>
+                  <th className="text-right px-4 py-3 font-medium text-thb-text-secondary">Actual</th>
+                  <th className="text-right px-4 py-3 font-medium text-thb-text-secondary">Variance</th>
+                  <th className="text-left px-4 py-3 font-medium text-thb-text-secondary">Progress</th>
+                </tr>
+              </thead>
+              <tbody>
+                {projects.map((p, i) => {
+                  const variance = p.budget - p.actual;
+                  const varClass = variance >= 0 ? 'text-emerald-600' : 'text-red-600';
+                  return (
+                    <tr key={p.id || i} className="border-b border-thb-border hover:bg-slate-50/50">
+                      <td className="px-4 py-3 font-medium text-thb-text-primary">{p.name}</td>
+                      <td className="px-4 py-3 text-thb-text-secondary capitalize">{(p.type || 'internal').replace('_', ' ')}</td>
+                      <td className="px-4 py-3 text-right text-thb-text-secondary">{formatCurrency(p.budget)}</td>
+                      <td className="px-4 py-3 text-right text-thb-text-secondary">{formatCurrency(p.actual)}</td>
+                      <td className={`px-4 py-3 text-right font-medium ${varClass}`}>
+                        {variance >= 0 ? '+' : ''}{formatCurrency(variance)}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <div className="w-16 bg-slate-100 rounded-full h-1.5">
+                            <div className="bg-thb-primary rounded-full h-1.5" style={{ width: `${p.progress}%` }} />
+                          </div>
+                          <span className="text-xs text-thb-text-muted w-8">{p.progress}%</span>
                         </div>
-                        <span className="text-xs text-thb-text-muted w-8">{p.progress}%</span>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="p-8 text-center text-slate-400">
+            <FiBarChart2 className="w-8 h-8 mx-auto mb-2 text-slate-300" />
+            <p className="text-sm">No project budget data available</p>
+          </div>
+        )}
       </div>
 
       {/* Resource Utilization */}
       <div className="thb-card p-5">
         <h3 className="font-semibold text-thb-text-primary mb-4">Resource Utilization Summary</h3>
-        <div className="space-y-4">
-          {RESOURCE_UTILIZATION.map(dept => (
-            <div key={dept.name} className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-              <div className="w-32 flex-shrink-0">
-                <p className="text-sm font-medium text-thb-text-primary">{dept.name}</p>
-                <p className="text-xs text-thb-text-muted">{dept.headcount} people</p>
-              </div>
-              <div className="flex-1 flex items-center gap-3">
-                <div className="flex-1 bg-slate-100 rounded-full h-6 relative overflow-hidden">
-                  <div className="bg-thb-primary h-full rounded-full transition-all flex items-center justify-end pr-2"
-                    style={{ width: `${dept.allocated}%` }}>
-                    {dept.allocated > 15 && <span className="text-xs text-white font-medium">{dept.allocated}%</span>}
-                  </div>
+        {loading ? (
+          <div className="space-y-4">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="animate-pulse h-8 bg-slate-100 rounded" />
+            ))}
+          </div>
+        ) : resourceUtilization.length > 0 ? (
+          <div className="space-y-4">
+            {resourceUtilization.map(dept => (
+              <div key={dept.name} className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                <div className="w-32 flex-shrink-0">
+                  <p className="text-sm font-medium text-thb-text-primary">{dept.name}</p>
+                  <p className="text-xs text-thb-text-muted">{dept.headcount} people</p>
                 </div>
-                <span className="text-xs text-thb-text-muted w-20 text-right">{dept.allocated}% allocated</span>
+                <div className="flex-1 flex items-center gap-3">
+                  <div className="flex-1 bg-slate-100 rounded-full h-6 relative overflow-hidden">
+                    <div className="bg-thb-primary h-full rounded-full transition-all flex items-center justify-end pr-2"
+                      style={{ width: `${dept.allocated}%` }}>
+                      {dept.allocated > 15 && <span className="text-xs text-white font-medium">{dept.allocated}%</span>}
+                    </div>
+                  </div>
+                  <span className="text-xs text-thb-text-muted w-20 text-right">{dept.allocated}% allocated</span>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <div className="py-8 text-center text-slate-400">
+            <FiBarChart2 className="w-8 h-8 mx-auto mb-2 text-slate-300" />
+            <p className="text-sm">No resource allocation data available</p>
+          </div>
+        )}
       </div>
     </div>
   );
 }
-
-type BudgetVsActual = { name: string; type: string; budget: number; actual: number; progress: number };
