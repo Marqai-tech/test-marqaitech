@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb, getPlatformDb } from '@/lib/tenant-db';
+import { getDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
-import { withSchemaSync, ensureSchemaSynced } from '@/lib/schema-sync';
+import { ensureSchemaSynced } from '@/lib/schema-sync';
+
+async function safeQuery<T>(fn: () => Promise<T>): Promise<T | null> {
+  try { return await fn(); } catch { return null; }
+}
 
 function corsHeaders() {
   return {
@@ -30,7 +34,7 @@ export async function GET(request: NextRequest) {
     const reportType = searchParams.get('type') || 'summary';
 
     // Fetch all candidates for aggregation
-    const candidates = await db.preboardingCandidate.findMany({
+    const candidates = (await safeQuery(() => db.preboardingCandidate.findMany({
       select: {
         id: true,
         status: true,
@@ -41,7 +45,7 @@ export async function GET(request: NextRequest) {
         accountProvisioned: true,
         createdAt: true,
       },
-    });
+    }))) ?? [];
 
     if (reportType === 'summary') {
       // Summary: totals, by stage, completion rates

@@ -15,6 +15,15 @@ export async function OPTIONS() {
   return NextResponse.json({}, { headers: corsHeaders() });
 }
 
+/** Safe wrapper — returns null on Prisma/table-missing errors instead of throwing */
+async function safeQuery<T>(fn: () => Promise<T>): Promise<T | null> {
+  try {
+    return await fn();
+  } catch {
+    return null;
+  }
+}
+
 export async function GET(request: Request) {
   await withSchemaSync(() => Promise.resolve());
 
@@ -42,39 +51,39 @@ export async function GET(request: Request) {
       instancesByStatus,
       recentExecutions,
     ] = await Promise.all([
-      db.workflowDefinition.count(),
-      db.workflowDefinition.count({ where: { isActive: true } }),
-      db.workflowInstance.count(),
-      db.workflowInstance.groupBy({
+      safeQuery(() => db.workflowDefinition.count()),
+      safeQuery(() => db.workflowDefinition.count({ where: { isActive: true } })),
+      safeQuery(() => db.workflowInstance.count()),
+      safeQuery(() => db.workflowInstance.groupBy({
         by: ['status'],
         _count: { _all: true },
-      }),
-      db.workflowInstance.findMany({
+      })),
+      safeQuery(() => db.workflowInstance.findMany({
         take: 20,
         orderBy: { createdAt: 'desc' },
         include: {
           workflowDefinition: { select: { name: true, module: true } },
         },
-      }),
+      })),
     ]);
 
     const workflowStats = {
-      totalDefinitions: totalWorkflowDefs,
-      activeDefinitions: activeWorkflowDefs,
-      totalInstances,
-      byStatus: instancesByStatus.map((s) => ({
+      totalDefinitions: totalWorkflowDefs ?? 0,
+      activeDefinitions: activeWorkflowDefs ?? 0,
+      totalInstances: totalInstances ?? 0,
+      byStatus: (instancesByStatus ?? []).map((s: any) => ({
         status: s.status,
         count: s._count._all,
       })),
-      recentExecutions: recentExecutions.map((e) => ({
+      recentExecutions: (recentExecutions ?? []).map((e: any) => ({
         id: e.id,
-        workflowName: e.workflowDefinition.name,
-        module: e.workflowDefinition.module,
-        entityType: e.entityType,
-        status: e.status,
-        currentStep: e.currentStep,
-        createdAt: e.createdAt.toISOString(),
-        updatedAt: e.updatedAt.toISOString(),
+        workflowName: e.workflowDefinition?.name ?? 'Unknown',
+        module: e.workflowDefinition?.module ?? '',
+        entityType: e.entityType ?? '',
+        status: e.status ?? '',
+        currentStep: e.currentStep ?? 0,
+        createdAt: e.createdAt?.toISOString?.() ?? e.createdAt,
+        updatedAt: e.updatedAt?.toISOString?.() ?? e.updatedAt,
       })),
     };
 
@@ -85,27 +94,27 @@ export async function GET(request: Request) {
       policiesByCategory,
       policiesByStatus,
     ] = await Promise.all([
-      db.policy.count(),
-      db.policy.count({ where: { status: 'active' } }),
-      db.policy.groupBy({
+      safeQuery(() => db.policy.count()),
+      safeQuery(() => db.policy.count({ where: { status: 'active' } })),
+      safeQuery(() => db.policy.groupBy({
         by: ['category'],
         _count: { _all: true },
-      }),
-      db.policy.groupBy({
+      })),
+      safeQuery(() => db.policy.groupBy({
         by: ['status'],
         _count: { _all: true },
-      }),
+      })),
     ]);
 
     const policyMetrics = {
-      total: totalPolicies,
-      active: activePolicies,
-      byCategory: policiesByCategory.map((p) => ({
-        category: p.category,
+      total: totalPolicies ?? 0,
+      active: activePolicies ?? 0,
+      byCategory: (policiesByCategory ?? []).map((p: any) => ({
+        category: p.category ?? 'uncategorized',
         count: p._count._all,
       })),
-      byStatus: policiesByStatus.map((p) => ({
-        status: p.status,
+      byStatus: (policiesByStatus ?? []).map((p: any) => ({
+        status: p.status ?? 'unknown',
         count: p._count._all,
       })),
     };
@@ -117,33 +126,33 @@ export async function GET(request: Request) {
       auditByModule,
       auditByAction,
     ] = await Promise.all([
-      db.auditLog.count({
+      safeQuery(() => db.auditLog.count({
         where: { createdAt: { gte: thirtyDaysAgo } },
-      }),
-      db.auditLog.groupBy({
+      })),
+      safeQuery(() => db.auditLog.groupBy({
         by: ['module'],
         where: { createdAt: { gte: thirtyDaysAgo } },
         _count: { _all: true },
         orderBy: { _count: { _all: 'desc' } },
         take: 10,
-      }),
-      db.auditLog.groupBy({
+      })),
+      safeQuery(() => db.auditLog.groupBy({
         by: ['action'],
         where: { createdAt: { gte: thirtyDaysAgo } },
         _count: { _all: true },
         orderBy: { _count: { _all: 'desc' } },
         take: 10,
-      }),
+      })),
     ]);
 
     const auditSummary = {
-      totalLast30Days: auditLogCount,
-      byModule: auditByModule.map((a) => ({
-        module: a.module,
+      totalLast30Days: auditLogCount ?? 0,
+      byModule: (auditByModule ?? []).map((a: any) => ({
+        module: a.module ?? 'unknown',
         count: a._count._all,
       })),
-      byAction: auditByAction.map((a) => ({
-        action: a.action,
+      byAction: (auditByAction ?? []).map((a: any) => ({
+        action: a.action ?? 'unknown',
         count: a._count._all,
       })),
     };
@@ -155,33 +164,33 @@ export async function GET(request: Request) {
       notificationsByCategory,
       notificationsByType,
     ] = await Promise.all([
-      db.notification.count({
+      safeQuery(() => db.notification.count({
         where: { createdAt: { gte: thirtyDaysAgo } },
-      }),
-      db.notification.count({
+      })),
+      safeQuery(() => db.notification.count({
         where: { isRead: false, createdAt: { gte: thirtyDaysAgo } },
-      }),
-      db.notification.groupBy({
+      })),
+      safeQuery(() => db.notification.groupBy({
         by: ['category'],
         where: { createdAt: { gte: thirtyDaysAgo } },
         _count: { _all: true },
-      }),
-      db.notification.groupBy({
+      })),
+      safeQuery(() => db.notification.groupBy({
         by: ['type'],
         where: { createdAt: { gte: thirtyDaysAgo } },
         _count: { _all: true },
-      }),
+      })),
     ]);
 
     const notificationStats = {
-      totalLast30Days: totalNotifications,
-      unreadLast30Days: unreadNotifications,
-      byCategory: notificationsByCategory.map((n) => ({
-        category: n.category,
+      totalLast30Days: totalNotifications ?? 0,
+      unreadLast30Days: unreadNotifications ?? 0,
+      byCategory: (notificationsByCategory ?? []).map((n: any) => ({
+        category: n.category ?? 'unknown',
         count: n._count._all,
       })),
-      byType: notificationsByType.map((n) => ({
-        type: n.type,
+      byType: (notificationsByType ?? []).map((n: any) => ({
+        type: n.type ?? 'unknown',
         count: n._count._all,
       })),
     };

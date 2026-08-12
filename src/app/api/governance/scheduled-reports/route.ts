@@ -3,6 +3,10 @@ import { getDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { withSchemaSync } from '@/lib/schema-sync';
 
+async function safeQuery<T>(fn: () => Promise<T>): Promise<T | null> {
+  try { return await fn(); } catch { return null; }
+}
+
 function corsHeaders() {
   return {
     'Access-Control-Allow-Origin': '*',
@@ -41,10 +45,10 @@ export async function GET(request: Request) {
       where.isActive = isActive === 'true';
     }
 
-    const reportSchedules = await db.reportSchedule.findMany({
+    const reportSchedules = (await safeQuery(() => db.reportSchedule.findMany({
       where,
       orderBy: { createdAt: 'desc' },
-    });
+    }))) ?? [];
 
     return NextResponse.json({ reportSchedules }, { headers: corsHeaders() });
   } catch (error) {

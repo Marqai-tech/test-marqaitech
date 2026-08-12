@@ -3,6 +3,10 @@ import { getDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { ensureSchemaSynced } from '@/lib/schema-sync';
 
+async function safeQuery<T>(fn: () => Promise<T>): Promise<T | null> {
+  try { return await fn(); } catch { return null; }
+}
+
 function corsHeaders() {
   return {
     'Access-Control-Allow-Origin': '*',
@@ -51,20 +55,20 @@ export async function GET(request: Request) {
     const now = new Date();
     const sixMonthsAgo = new Date(now.getTime() - 180 * 86400000);
 
-    // Parallel data fetch
+    // Parallel data fetch with safeQuery so one failure doesn't crash the batch
     const [
       jobPostings,
       applications,
       offers,
       requisitions,
     ] = await Promise.all([
-      db.jobPosting.findMany({
+      safeQuery(() => db.jobPosting.findMany({
         include: {
           department: { select: { id: true, name: true } },
           applications: { select: { id: true, status: true, appliedDate: true, source: true } },
         },
-      }),
-      db.jobApplication.findMany({
+      })),
+      safeQuery(() => db.jobApplication.findMany({
         select: {
           id: true,
           status: true,
@@ -73,8 +77,8 @@ export async function GET(request: Request) {
           jobPostingId: true,
           jobPosting: { select: { id: true, title: true, departmentId: true, department: { select: { id: true, name: true } } } },
         },
-      }),
-      db.offer.findMany({
+      })),
+      safeQuery(() => db.offer.findMany({
         select: {
           id: true,
           status: true,
@@ -82,16 +86,21 @@ export async function GET(request: Request) {
           createdAt: true,
           respondedAt: true,
         },
-      }),
-      db.requisition.findMany({
+      })),
+      safeQuery(() => db.requisition.findMany({
         select: { id: true, status: true, numberOfOpenings: true },
-      }),
+      })),
     ]);
+
+    const _jobPostings = jobPostings ?? [];
+    const _applications = applications ?? [];
+    const _offers = offers ?? [];
+    const _requisitions = requisitions ?? [];
 
     // ── Hiring Summary (by department) ──
     const deptMap = new Map<string, { open: number; inProgress: number; hired: number }>();
     // Initialize departments from job postings
-    (jobPostings || []).forEach((j) => {
+    _jobPostings.forEach((j) => {
       const dept = j.department?.name || 'Unknown';
       if (!deptMap.has(dept)) deptMap.set(dept, { open: 0, inProgress: 0, hired: 0 });
       const agg = deptMap.get(dept)!;
@@ -104,7 +113,7 @@ export async function GET(request: Request) {
     });
 
     // Count hired applications by department
-    (applications || []).filter((a) => a.status === 'hired').forEach((a) => {
+    _applications.filter((a) => a.status === 'hired').forEach((a) => {
       const dept = a.jobPosting?.department?.name || 'Unknown';
       if (!deptMap.has(dept)) deptMap.set(dept, { open: 0, inProgress: 0, hired: 0 });
       deptMap.get(dept)!.hired += 1;
@@ -116,20 +125,20 @@ export async function GET(request: Request) {
     }));
 
     // ── Overall Summary ──
-    const totalOpenPositions = (jobPostings || []).filter((j) => j.status === 'open').length;
-    const totalApplications = (applications || []).length;
-    const totalOffersMade = (offers || []).length;
-    const totalHired = (applications || []).filter((a) => a.status === 'hired').length;
+    const totalOpenPositions = _jobPostings.filter((j) => j.status === 'open').length;
+    const totalApplications = _applications.length;
+    const totalOffersMade = _offers.length;
+    const totalHired = _applications.filter((a) => a.status === 'hired').length;
     const hiringRate = totalApplications > 0 ? Math.round((totalHired / totalApplications) * 1000) / 10 : 0;
 
     // ── Time to Hire ──
     // Average days from application to hire for hired candidates
     const tthValues: number[] = [];
     const tthByDeptMap = new Map<string, number[]>();
-    (applications || []).filter((a) => a.status === 'hired' && a.appliedDate).forEach((a) => {
+    _applications.filter((a) => a.status === 'hired' && a.appliedDate).forEach((a) => {
       // Use the latest interview or offer date as proxy for "hire date"
       // In absence of a direct hireDate on the application, we look at corresponding offer
-      const matchingOffer = (offers || []).find(
+      const matchingOffer = _offers.find(
         (o) => o.jobPostingId === a.jobPostingId && o.status === 'accepted'
       );
       if (matchingOffer?.respondedAt) {
@@ -156,7 +165,7 @@ export async function GET(request: Request) {
 
     // ── Time to Fill ──
     const ttfValues: number[] = [];
-    (jobPostings || []).filter((j) => j.status === 'filled' && j.postedDate).forEach((j) => {
+    _jobPostings.filter((j) => j.status === 'filled' && j.postedDate).forEach((j) => {
       const days = daysBetween(j.postedDate, j.closingDate);
       if (days !== null && days >= 0) ttfValues.push(days);
     });
@@ -166,7 +175,7 @@ export async function GET(request: Request) {
 
     // ── Source Analytics ──
     const bySourceMap = new Map<string, { applications: number; hired: number }>();
-    (applications || []).forEach((a) => {
+    _applications.forEach((a) => {
       const src = a.source || 'website';
       if (!bySourceMap.has(src)) bySourceMap.set(src, { applications: 0, hired: 0 });
       const agg = bySourceMap.get(src)!;
@@ -181,9 +190,9 @@ export async function GET(request: Request) {
     }));
 
     // ── Offer Acceptance ──
-    const offersAccepted = (offers || []).filter((o) => o.status === 'accepted').length;
-    const offersRejected = (offers || []).filter((o) => o.status === 'rejected').length;
-    const offersPending = (offers || []).filter((o) => !['accepted', 'rejected', 'withdrawn'].includes(o.status)).length;
+    const offersAccepted = _offers.filter((o) => o.status === 'accepted').length;
+    const offersRejected = _offers.filter((o) => o.status === 'rejected').length;
+    const offersPending = _offers.filter((o) => !['accepted', 'rejected', 'withdrawn'].includes(o.status)).length;
     const totalOfferResponses = offersAccepted + offersRejected;
     const offerAcceptanceRate = totalOfferResponses > 0
       ? Math.round((offersAccepted / totalOfferResponses) * 1000) / 10
@@ -196,7 +205,7 @@ export async function GET(request: Request) {
       monthlyMap.set(monthKey(d), { applications: 0, hires: 0, offers: 0 });
     }
 
-    (applications || []).forEach((a) => {
+    _applications.forEach((a) => {
       if (!a.appliedDate) return;
       const d = a.appliedDate instanceof Date ? a.appliedDate : new Date(a.appliedDate);
       if (d >= sixMonthsAgo) {
@@ -207,7 +216,7 @@ export async function GET(request: Request) {
       }
     });
 
-    (offers || []).forEach((o) => {
+    _offers.forEach((o) => {
       const d = o.createdAt instanceof Date ? o.createdAt : new Date(o.createdAt);
       if (d >= sixMonthsAgo) {
         const k = monthKey(d);
@@ -222,7 +231,7 @@ export async function GET(request: Request) {
     }));
 
     // ── Open Requisitions ──
-    const openRequisitions = (requisitions || []).filter(
+    const openRequisitions = _requisitions.filter(
       (r) => r.status === 'open' || r.status === 'approved'
     ).length;
 

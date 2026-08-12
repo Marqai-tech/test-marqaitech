@@ -8,6 +8,10 @@ import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { withSchemaSync } from '@/lib/schema-sync';
 
+async function safeQuery<T>(fn: () => Promise<T>): Promise<T | null> {
+  try { return await fn(); } catch { return null; }
+}
+
 function corsHeaders() {
   return {
     'Access-Control-Allow-Origin': '*',
@@ -59,9 +63,9 @@ export async function GET(request: NextRequest) {
     if (!tenantId) return NextResponse.json({ error: 'Tenant not found' }, { status: 404, headers: corsHeaders() });
 
     // Fetch all project settings for this tenant
-    const rows = await db.setting.findMany({
+    const rows = (await safeQuery(() => db.setting.findMany({
       where: { tenantId, category: SETTINGS_CATEGORY },
-    });
+    }))) ?? [];
 
     // Build a merged settings object: defaults overridden by DB values
     const settings: Record<string, unknown> = {};
@@ -113,7 +117,7 @@ export async function PUT(request: NextRequest) {
     if (!tenantId) return NextResponse.json({ error: 'Tenant not found' }, { status: 404, headers: corsHeaders() });
 
     // Get employee for company context
-    const employee = await db.employee.findFirst({ where: { userId: decoded.userId } });
+    const employee = await safeQuery(() => db.employee.findFirst({ where: { userId: decoded.userId } }));
     const companyId = employee?.companyId ?? null;
 
     // Role check: only admins can update settings
@@ -141,7 +145,7 @@ export async function PUT(request: NextRequest) {
         strValue = String(rawValue);
       }
 
-      await db.setting.upsert({
+      const result = await safeQuery(() => db.setting.upsert({
         where: {
           tenantId_companyId_category_key: {
             tenantId,
@@ -165,14 +169,18 @@ export async function PUT(request: NextRequest) {
           previousValue: undefined, // Prisma will keep existing
           version: { increment: 1 },
         },
-      });
+      }));
+
+      if (!result) {
+        return NextResponse.json({ error: `Failed to upsert setting: ${key}` }, { status: 500, headers: corsHeaders() });
+      }
       upsertedKeys.push(key);
     }
 
     // Re-fetch to return latest state
-    const rows = await db.setting.findMany({
+    const rows = (await safeQuery(() => db.setting.findMany({
       where: { tenantId, category: SETTINGS_CATEGORY },
-    });
+    }))) ?? [];
 
     const settings: Record<string, unknown> = {};
     for (const [key, def] of Object.entries(DEFAULT_SETTINGS)) {

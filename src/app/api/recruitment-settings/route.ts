@@ -3,6 +3,10 @@ import { getDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { ensureSchemaSynced } from '@/lib/schema-sync';
 
+async function safeQuery<T>(fn: () => Promise<T>): Promise<T | null> {
+  try { return await fn(); } catch { return null; }
+}
+
 function corsHeaders() {
   return {
     'Access-Control-Allow-Origin': '*',
@@ -63,10 +67,10 @@ export async function GET(request: Request) {
     // Find the tenant ID — either from the token directly or from the employee lookup
     let tenantId = decodedRec.tenantId as string | undefined;
     if (!tenantId && decodedRec.userId) {
-      const emp = await db.employee.findFirst({
+      const emp = await safeQuery(() => db.employee.findFirst({
         where: { userId: decodedRec.userId as string },
         select: { company: { select: { companyGroup: { select: { tenantId: true } } } } },
-      });
+      }));
       tenantId = emp?.company?.companyGroup?.tenantId;
     }
     if (!tenantId) {
@@ -74,10 +78,10 @@ export async function GET(request: Request) {
     }
 
     // Fetch existing settings from DB
-    const rows = await db.setting.findMany({
+    const rows = (await safeQuery(() => db.setting.findMany({
       where: { tenantId, category: SETTINGS_CATEGORY, companyId: null },
       select: { key: true, value: true, dataType: true },
-    });
+    }))) ?? [];
 
     // Merge with defaults
     const settings: Record<string, any> = {};
@@ -127,10 +131,10 @@ export async function PUT(request: Request) {
 
     let tenantId = decodedRec.tenantId as string | undefined;
     if (!tenantId && decodedRec.userId) {
-      const emp = await db.employee.findFirst({
+      const emp = await safeQuery(() => db.employee.findFirst({
         where: { userId: decodedRec.userId as string },
         select: { company: { select: { companyGroup: { select: { tenantId: true } } } } },
-      });
+      }));
       tenantId = emp?.company?.companyGroup?.tenantId;
     }
     if (!tenantId) {
@@ -156,7 +160,7 @@ export async function PUT(request: Request) {
       else serialized = String(rawVal);
 
       upserts.push(
-        db.setting.upsert({
+        safeQuery(() => db.setting.upsert({
           where: { tenantId_companyId_category_key: { tenantId, companyId: null, category: SETTINGS_CATEGORY, key } },
           create: {
             tenantId,
@@ -170,29 +174,34 @@ export async function PUT(request: Request) {
             value: serialized,
             previousValue: undefined, // let Prisma keep current
           },
-        })
+        }))
       );
     }
 
-    await Promise.all(upserts);
+    const upsertResults = await Promise.all(upserts);
+    // Check if any upsert failed
+    const failedIndex = upsertResults.findIndex(r => r === null);
+    if (failedIndex !== -1) {
+      return NextResponse.json({ error: 'Failed to upsert one or more settings' }, { status: 500, headers: corsHeaders() });
+    }
 
     // Audit log
     if (decodedRec.userId) {
-      await db.auditLog.create({
+      await safeQuery(() => db.auditLog.create({
         data: {
           userId: decodedRec.userId as string,
           action: 'UPDATE_RECRUITMENT_SETTINGS',
           module: 'recruitment',
           details: 'Updated recruitment settings',
         },
-      });
+      }));
     }
 
     // Return fresh settings (same logic as GET)
-    const rows = await db.setting.findMany({
+    const rows = (await safeQuery(() => db.setting.findMany({
       where: { tenantId, category: SETTINGS_CATEGORY, companyId: null },
       select: { key: true, value: true, dataType: true },
-    });
+    }))) ?? [];
 
     const settings: Record<string, any> = {};
     for (const [key, def] of Object.entries(DEFAULT_SETTINGS)) {

@@ -3,6 +3,10 @@ import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { withSchemaSync } from '@/lib/schema-sync';
 
+async function safeQuery<T>(fn: () => Promise<T>): Promise<T | null> {
+  try { return await fn(); } catch { return null; }
+}
+
 function corsHeaders() {
   return {
     'Access-Control-Allow-Origin': '*',
@@ -33,10 +37,10 @@ const DEFAULTS = {
 
 /** Helper: read all support settings for a tenant */
 async function readSettings(db: any, tenantId: string) {
-  const rows = await db.setting.findMany({
+  const rows = (await safeQuery(() => db.setting.findMany({
     where: { tenantId, category: CATEGORY, companyId: null },
     select: { key: true, value: true, dataType: true },
-  });
+  }))) ?? [];
 
   const map: Record<string, any> = {};
   for (const row of rows) {
@@ -113,7 +117,7 @@ export async function PUT(request: NextRequest) {
 
     await withSchemaSync(() => Promise.resolve());
 
-    const employee = await db.employee.findFirst({ where: { userId: decoded.userId as string } });
+    const employee = await safeQuery(() => db.employee.findFirst({ where: { userId: decoded.userId as string } }));
     if (!employee) return NextResponse.json({ error: 'Employee not found' }, { status: 404, headers: corsHeaders() });
 
     const user = await platformDb.user.findUnique({ where: { id: decoded.userId as string } });
@@ -145,11 +149,11 @@ export async function PUT(request: NextRequest) {
     const upsertSetting = (key: string, value: any, dataType: string) => {
       const serialized = dataType === 'json' || dataType === 'array' ? JSON.stringify(value) : String(value);
       upserts.push(
-        db.setting.upsert({
+        safeQuery(() => db.setting.upsert({
           where: { tenantId_companyId_category_key: { tenantId, companyId: null, category: CATEGORY, key } },
           update: { value: serialized, dataType },
           create: { tenantId, companyId: null, category: CATEGORY, key, value: serialized, dataType },
-        })
+        }))
       );
     };
 
@@ -164,19 +168,22 @@ export async function PUT(request: NextRequest) {
     if (autoCloseResolved !== undefined) upsertSetting('autoCloseResolved', autoCloseResolved, 'boolean');
     if (autoCloseDays !== undefined) upsertSetting('autoCloseDays', autoCloseDays, 'number');
 
-    await Promise.all(upserts);
+    const upsertResults = await Promise.all(upserts);
+    // Check if any upsert failed
+    const failedIndex = upsertResults.findIndex(r => r === null);
+    if (failedIndex !== -1) {
+      return NextResponse.json({ error: 'Failed to upsert one or more settings' }, { status: 500, headers: corsHeaders() });
+    }
 
     // Audit log
-    try {
-      await db.auditLog.create({
-        data: {
-          userId: decoded.userId as string,
-          action: 'UPDATE_SUPPORT_SETTINGS',
-          module: 'support',
-          details: 'Updated support/helpdesk settings',
-        },
-      });
-    } catch {}
+    await safeQuery(() => db.auditLog.create({
+      data: {
+        userId: decoded.userId as string,
+        action: 'UPDATE_SUPPORT_SETTINGS',
+        module: 'support',
+        details: 'Updated support/helpdesk settings',
+      },
+    }));
 
     const settings = await readSettings(db, tenantId);
     return NextResponse.json({ settings }, { headers: corsHeaders() });

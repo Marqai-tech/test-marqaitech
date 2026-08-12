@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
+import { withSchemaSync } from '@/lib/schema-sync';
+
+async function safeQuery<T>(fn: () => Promise<T>): Promise<T | null> {
+  try { return await fn(); } catch { return null; }
+}
 
 function corsHeaders() {
   return {
@@ -23,12 +28,14 @@ export async function GET(request: NextRequest) {
     const decoded = await verifyToken(token);
     if (!decoded) return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
 
+    await withSchemaSync(() => Promise.resolve());
+
     const { searchParams } = new URL(request.url);
     const reportType = searchParams.get('type') || 'ticket-summary';
 
     if (reportType === 'ticket-summary') {
       // Fetch all tickets with category info
-      const tickets = await db.ticket.findMany({
+      const tickets = (await safeQuery(() => db.ticket.findMany({
         select: {
           id: true,
           priority: true,
@@ -43,7 +50,7 @@ export async function GET(request: NextRequest) {
           assignedAgentName: true,
           requesterId: true,
         },
-      });
+      }))) ?? [];
 
       // Group by category
       const byCategory: Record<string, { open: number; inProgress: number; resolved: number; closed: number; cancelled: number }> = {};
@@ -104,7 +111,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (reportType === 'sla-compliance') {
-      const tickets = await db.ticket.findMany({
+      const tickets = (await safeQuery(() => db.ticket.findMany({
         select: {
           id: true,
           priority: true,
@@ -113,7 +120,7 @@ export async function GET(request: NextRequest) {
           resolvedAt: true,
           slaDeadline: true,
         },
-      });
+      }))) ?? [];
 
       // Calculate SLA compliance
       const withSla = tickets.filter(t => t.slaDeadline);
@@ -166,7 +173,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (reportType === 'agent-performance') {
-      const tickets = await db.ticket.findMany({
+      const tickets = (await safeQuery(() => db.ticket.findMany({
         select: {
           id: true,
           assignedAgentId: true,
@@ -176,7 +183,7 @@ export async function GET(request: NextRequest) {
           createdAt: true,
           resolvedAt: true,
         },
-      });
+      }))) ?? [];
 
       // Group by agent
       const agentMap: Record<string, { name: string; assigned: number; resolved: number; open: number; avgResolutionHours: number; priorities: Record<string, number> }> = {};
@@ -238,7 +245,7 @@ export async function GET(request: NextRequest) {
     if (reportType === 'csat-scores') {
       // CSAT would typically come from a feedback/rating model
       // Since we don't have a dedicated CSAT model, we derive from ticket resolution
-      const tickets = await db.ticket.findMany({
+      const tickets = (await safeQuery(() => db.ticket.findMany({
         select: {
           id: true,
           status: true,
@@ -247,7 +254,7 @@ export async function GET(request: NextRequest) {
           createdAt: true,
           slaDeadline: true,
         },
-      });
+      }))) ?? [];
 
       const resolved = tickets.filter(t => t.status === 'resolved' || t.status === 'closed');
       // Derive a satisfaction proxy from SLA compliance

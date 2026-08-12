@@ -3,6 +3,10 @@ import { getDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { withSchemaSync } from '@/lib/schema-sync';
 
+async function safeQuery<T>(fn: () => Promise<T>): Promise<T | null> {
+  try { return await fn(); } catch { return null; }
+}
+
 function corsHeaders() {
   return {
     'Access-Control-Allow-Origin': '*',
@@ -39,10 +43,10 @@ export async function GET(request: Request) {
       category: category || 'governance',
     };
 
-    const settings = await db.setting.findMany({
+    const settings = (await safeQuery(() => db.setting.findMany({
       where,
       orderBy: [{ category: 'asc' }, { key: 'asc' }],
-    });
+    }))) ?? [];
 
     return NextResponse.json({ settings }, { headers: corsHeaders() });
   } catch (error) {
@@ -88,15 +92,15 @@ export async function PUT(request: Request) {
 
     if (id) {
       // Update existing setting
-      const existing = await db.setting.findFirst({
+      const existing = await safeQuery(() => db.setting.findFirst({
         where: { id, tenantId },
-      });
+      }));
 
       if (!existing) {
         return NextResponse.json({ error: 'Setting not found' }, { status: 404, headers: corsHeaders() });
       }
 
-      const updated = await db.setting.update({
+      const updated = await safeQuery(() => db.setting.update({
         where: { id },
         data: {
           value: String(value),
@@ -104,23 +108,27 @@ export async function PUT(request: Request) {
           version: { increment: 1 },
           ...(description !== undefined && { description }),
         },
-      });
+      }));
+
+      if (!updated) {
+        return NextResponse.json({ error: 'Failed to update setting' }, { status: 500, headers: corsHeaders() });
+      }
 
       // Audit log
-      await db.auditLog.create({
+      await safeQuery(() => db.auditLog.create({
         data: {
           userId: decoded.userId as string,
           action: 'UPDATE_GOVERNANCE_SETTING',
           module: 'governance',
           details: `Updated setting ${existing.key} from "${existing.value}" to "${value}"`,
         },
-      });
+      }));
 
       return NextResponse.json({ setting: updated }, { headers: corsHeaders() });
     }
 
     // Create new setting using upsert (unique constraint on tenantId+companyId+category+key)
-    const setting = await db.setting.upsert({
+    const setting = await safeQuery(() => db.setting.upsert({
       where: {
         tenantId_companyId_category_key: {
           tenantId,
@@ -143,17 +151,21 @@ export async function PUT(request: Request) {
         dataType: settingDataType,
         ...(description !== undefined && { description }),
       },
-    });
+    }));
+
+    if (!setting) {
+      return NextResponse.json({ error: 'Failed to upsert setting' }, { status: 500, headers: corsHeaders() });
+    }
 
     // Audit log
-    await db.auditLog.create({
+    await safeQuery(() => db.auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'CREATE_GOVERNANCE_SETTING',
         module: 'governance',
         details: `Created/updated governance setting ${key} = "${value}"`,
       },
-    });
+    }));
 
     return NextResponse.json({ setting }, { status: 201, headers: corsHeaders() });
   } catch (error) {

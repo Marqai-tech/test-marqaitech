@@ -14,6 +14,10 @@ import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { withSchemaSync } from '@/lib/schema-sync';
 
+async function safeQuery<T>(fn: () => Promise<T>): Promise<T | null> {
+  try { return await fn(); } catch { return null; }
+}
+
 function corsHeaders() {
   return {
     'Access-Control-Allow-Origin': '*',
@@ -57,7 +61,7 @@ export async function GET(request: NextRequest) {
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404, headers: corsHeaders() });
 
     // ── 1. Fetch all projects ──
-    const projects = await db.project.findMany({
+    const projects = (await safeQuery(() => db.project.findMany({
       include: {
         department: { select: { id: true, name: true } },
         _count: { select: { allocations: true, tasks: true } },
@@ -74,7 +78,7 @@ export async function GET(request: NextRequest) {
           where: { status: 'active' },
         },
       },
-    });
+    }))) ?? [];
 
     // ── 2. Revenue (budget) by project type ──
     const budgetByType: Record<string, number> = {};
@@ -145,9 +149,9 @@ export async function GET(request: NextRequest) {
     const avgProgress = total > 0 ? Math.round(projects.reduce((a, p) => a + (p.progress || 0), 0) / total) : 0;
 
     // ── 7. Task status distribution (across all projects) ──
-    const tasks = await db.projectTask.findMany({
+    const tasks = (await safeQuery(() => db.projectTask.findMany({
       select: { status: true, assignedToId: true, priority: true },
-    });
+    }))) ?? [];
 
     const taskDist: Record<string, number> = {};
     for (const t of tasks) {
@@ -155,7 +159,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Overdue tasks (tasks past due date that aren't done)
-    const overdueTasks = await db.projectTask.findMany({
+    const overdueTasks = (await safeQuery(() => db.projectTask.findMany({
       where: {
         plannedEnd: { lt: new Date() },
         status: { notIn: ['done', 'cancelled'] },
@@ -167,7 +171,7 @@ export async function GET(request: NextRequest) {
         project: { select: { name: true } },
       },
       take: 20,
-    });
+    }))) ?? [];
 
     return NextResponse.json({
       revenueByType,
