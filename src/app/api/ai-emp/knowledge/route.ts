@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
     if (!query) return NextResponse.json({ error: 'query is required' }, { status: 400 });
 
     const employee = await db.employee.findFirst({
-      where: { userId: decoded.id },
+      where: { userId: decoded.userId as string },
       select: { id: true, firstName: true, lastName: true, email: true, department: { select: { name: true } } },
     });
 
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
     // Build context-aware system prompt
     const userContext = employee
       ? `User: ${employee.firstName} ${employee.lastName} (${employee.email}), Department: ${employee.department?.name || 'N/A'}`
-      : `User ID: ${decoded.id}`;
+      : `User ID: ${decoded.userId as string}`;
 
     let contextData = '';
     if (intent === 'leave_balance' && employee) {
@@ -109,7 +109,7 @@ Common topics: leave balance, payslips, attendance, policies, benefits, employee
     // Persist the query + response for audit + improvement
     const knowledgeQuery = await db.aIKnowledgeQuery.create({
       data: {
-        userId: decoded.id,
+        userId: decoded.userId as string,
         query,
         intent,
         responseText: reply,

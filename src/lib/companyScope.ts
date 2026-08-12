@@ -18,7 +18,7 @@
  *   // filter = { companyId: 'yyy' } for admins who selected a specific company
  */
 
-import prisma from '@/lib/prisma';
+import { getDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { getDataScope } from '@/lib/roleAccess';
 
@@ -69,9 +69,12 @@ export async function resolveCompanyScope(request: Request): Promise<CompanyScop
     const scope = getDataScope(role);
     const tenantId = (decoded.tenantId as string) || null;
 
+    // Use tenant-scoped DB (not platform DB) so employee records are found correctly
+    const db = await getDb(request);
+
     // Resolve the user's own company from their Employee record
     let ownCompanyId: string | null = null;
-    const employee = await prisma.employee.findFirst({
+    const employee = await db.employee.findFirst({
       where: { userId, status: 'active' },
       select: { companyId: true, id: true },
     });
@@ -79,7 +82,7 @@ export async function resolveCompanyScope(request: Request): Promise<CompanyScop
       ownCompanyId = employee.companyId;
     } else if (employee?.id) {
       // Try to get companyId from EmployeeCompanyMapping
-      const primaryMapping = await prisma.employeeCompanyMapping.findFirst({
+      const primaryMapping = await db.employeeCompanyMapping.findFirst({
         where: { employeeId: employee.id, isPrimary: true },
         select: { companyId: true },
       });
@@ -87,7 +90,7 @@ export async function resolveCompanyScope(request: Request): Promise<CompanyScop
         ownCompanyId = primaryMapping.companyId;
       } else {
         // Try any mapping
-        const anyMapping = await prisma.employeeCompanyMapping.findFirst({
+        const anyMapping = await db.employeeCompanyMapping.findFirst({
           where: { employeeId: employee.id },
           select: { companyId: true },
         });

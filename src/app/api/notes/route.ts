@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     const category = searchParams.get('category');
     const companyId = searchParams.get('companyId');
 
-    const employee = await db.employee.findFirst({ where: { userId: decoded.id } });
+    const employee = await db.employee.findFirst({ where: { userId: decoded.userId as string } });
     if (!employee) return NextResponse.json({ notes: [] });
 
     const where: Record<string, unknown> = { isActive: true, createdById: employee.id };
@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
 
     if (!title || !content) return NextResponse.json({ error: 'title and content are required' }, { status: 400 });
 
-    const employee = await db.employee.findFirst({ where: { userId: decoded.id } });
+    const employee = await db.employee.findFirst({ where: { userId: decoded.userId as string } });
     if (!employee) return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
 
     const note = await db.note.create({

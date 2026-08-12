@@ -159,7 +159,7 @@ export async function POST(req: NextRequest) {
     try {
       await db.auditLog.create({
         data: {
-          userId: (auth.decoded.id as string) || '00000000-0000-0000-0000-000000000000',
+          userId: (auth.decoded.userId as string) || '00000000-0000-0000-0000-000000000000',
           action: action === 'approve' ? 'CANDIDATE_RESUME_BUILDER_APPROVED' : 'CANDIDATE_RESUME_BUILDER_REVOKED',
           module: 'candidate_portal',
           details: `${action === 'approve' ? 'Approved' : 'Revoked'} AI Resume Builder access for ${email} (${updated.candidateName})`,

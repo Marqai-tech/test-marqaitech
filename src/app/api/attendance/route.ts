@@ -158,7 +158,7 @@ export async function POST(request: Request) {
     // scope === 'all' && no companyId → admin can access any employee
 
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    today.setUTCHours(0, 0, 0, 0);
 
     const existingRecord = await db.attendance.findUnique({
       where: {
@@ -178,7 +178,27 @@ export async function POST(request: Request) {
       }
 
       const now = new Date();
-      const isLate = now.getHours() > 9 || (now.getHours() === 9 && now.getMinutes() > 15);
+      // Use policy config for late detection instead of hardcoded time
+      let isLate = false;
+      try {
+        const policyConfig = await db.attendancePolicyConfig.findFirst({
+          where: { companyId: targetEmployee.companyId },
+          select: { shiftStartDefault: true, lateGraceMinutes: true },
+        });
+        if (policyConfig?.shiftStartDefault) {
+          const [shiftH, shiftM] = policyConfig.shiftStartDefault.split(':').map(Number);
+          const graceMinutes = policyConfig.lateGraceMinutes || 15;
+          const deadlineMinutes = shiftH * 60 + shiftM + graceMinutes;
+          const nowMinutes = now.getHours() * 60 + now.getMinutes();
+          isLate = nowMinutes > deadlineMinutes;
+        } else {
+          // Fallback: 9:00 shift + 15 min grace = 9:15
+          isLate = now.getHours() > 9 || (now.getHours() === 9 && now.getMinutes() > 15);
+        }
+      } catch {
+        // Fallback if policy config query fails
+        isLate = now.getHours() > 9 || (now.getHours() === 9 && now.getMinutes() > 15);
+      }
 
       const attendance = await db.attendance.upsert({
         where: {

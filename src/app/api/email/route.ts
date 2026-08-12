@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(parseInt(searchParams.get('limit') || '50', 10), 200);
     const search = searchParams.get('search');
 
-    const employee = await db.employee.findFirst({ where: { userId: decoded.id } });
+    const employee = await db.employee.findFirst({ where: { userId: decoded.userId as string } });
     if (!employee) return NextResponse.json({ emails: [], total: 0 });
 
     const where: Record<string, unknown> = { isActive: true };
@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'subject, body, and toAddresses are required' }, { status: 400 });
     }
 
-    const employee = await db.employee.findFirst({ where: { userId: decoded.id } });
+    const employee = await db.employee.findFirst({ where: { userId: decoded.userId as string } });
     if (!employee) return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
 
     // ─── Save to database first ───
@@ -119,7 +119,7 @@ export async function POST(request: NextRequest) {
           const tenant = await platformDb.tenant.findUnique({ where: { slug: tenantSlug } });
           if (tenant) tenantId = tenant.id;
         }
-        const user = await platformDb.user.findUnique({ where: { id: decoded.id as string } });
+        const user = await platformDb.user.findUnique({ where: { id: decoded.userId as string } });
         if (!tenantId && user?.tenantId) tenantId = user.tenantId;
 
         if (tenantId) {

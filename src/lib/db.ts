@@ -105,6 +105,14 @@ function createFallbackProxy(): PrismaClient {
         'trialRegistration',
         // Per-tenant database isolation
         'tenantDatabase',
+        // Collaboration module models (email, todo, notes, kanban, settings)
+        'emailMessage', 'todoTask', 'note',
+        'kanbanBoard', 'kanbanCard',
+        'collaborationSettings',
+        // Social feed
+        'socialPost', 'socialComment', 'socialLike',
+        // Calendar
+        'calendarEvent',
       ]
 
       if (modelNames.includes(prop)) {

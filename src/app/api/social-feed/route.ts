@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     const companyId = searchParams.get('companyId');
     const limit = Math.min(parseInt(searchParams.get('limit') || '50', 10), 200);
 
-    const employee = await db.employee.findFirst({ where: { userId: decoded.id } });
+    const employee = await db.employee.findFirst({ where: { userId: decoded.userId as string } });
     if (!employee) return NextResponse.json({ posts: [] });
 
     const where: Record<string, unknown> = { isActive: true };
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
 
     if (!content) return NextResponse.json({ error: 'content is required' }, { status: 400 });
 
-    const employee = await db.employee.findFirst({ where: { userId: decoded.id } });
+    const employee = await db.employee.findFirst({ where: { userId: decoded.userId as string } });
     if (!employee) return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
 
     const post = await db.socialPost.create({
@@ -104,7 +104,7 @@ export async function PATCH(request: NextRequest) {
     const { id, action, commentContent, ...updates } = body;
     if (!id) return NextResponse.json({ error: 'Post id is required' }, { status: 400 });
 
-    const employee = await db.employee.findFirst({ where: { userId: decoded.id } });
+    const employee = await db.employee.findFirst({ where: { userId: decoded.userId as string } });
     if (!employee) return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
 
     if (action === 'like') {

@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
         isVisibleToManager: !!isVisibleToManager,
         isVisibleToPeer: !!isVisibleToPeer,
         displayOrder: displayOrder || 0,
-        createdById: decoded.id,
+        createdById: decoded.userId as string,
       },
     });
 

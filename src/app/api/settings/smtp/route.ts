@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     const decoded = await verifyToken(token);
     if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
 
-    const user = await platformDb.user.findUnique({ where: { id: decoded.id as string } });
+    const user = await platformDb.user.findUnique({ where: { id: decoded.userId as string } });
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
     // Resolve tenant
@@ -62,10 +62,10 @@ export async function PATCH(request: NextRequest) {
     const decoded = await verifyToken(token);
     if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
 
-    const employee = await db.employee.findFirst({ where: { userId: decoded.id } });
+    const employee = await db.employee.findFirst({ where: { userId: decoded.userId as string } });
     if (!employee) return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
 
-    const user = await platformDb.user.findUnique({ where: { id: decoded.id as string } });
+    const user = await platformDb.user.findUnique({ where: { id: decoded.userId as string } });
     const tenantSlug = request.headers.get('x-tenant-slug');
     let tenantId: string | null = null;
     if (tenantSlug) {
@@ -161,7 +161,7 @@ export async function POST(request: NextRequest) {
     if (result.success) {
       const db = await getDb(request);
       const platformDb = getPlatformDb();
-      const user = await platformDb.user.findUnique({ where: { id: decoded.id as string } });
+      const user = await platformDb.user.findUnique({ where: { id: decoded.userId as string } });
       const tenantSlug = request.headers.get('x-tenant-slug');
       let tenantId: string | null = null;
       if (tenantSlug) {
@@ -180,7 +180,7 @@ export async function POST(request: NextRequest) {
       // Save the error
       const db = await getDb(request);
       const platformDb = getPlatformDb();
-      const user = await platformDb.user.findUnique({ where: { id: decoded.id as string } });
+      const user = await platformDb.user.findUnique({ where: { id: decoded.userId as string } });
       const tenantSlug = request.headers.get('x-tenant-slug');
       let tenantId: string | null = null;
       if (tenantSlug) {

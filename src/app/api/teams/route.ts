@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
 
     // Non-admins: only teams they're a member of (or teams they lead)
     if (!['super_admin', 'tenant_admin', 'admin'].includes(decoded.role)) {
-      const employee = await db.employee.findFirst({ where: { userId: decoded.id } });
+      const employee = await db.employee.findFirst({ where: { userId: decoded.userId as string } });
       if (employee) {
         where.OR = [
           { leadId: employee.id },
@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
     if (!name) return NextResponse.json({ error: 'name is required' }, { status: 400 });
 
     // Resolve creator employee ID
-    const creator = await db.employee.findFirst({ where: { userId: decoded.id } });
+    const creator = await db.employee.findFirst({ where: { userId: decoded.userId as string } });
     const creatorId = creator?.id || leadId;
 
     const team = await db.team.create({

@@ -5206,7 +5206,7 @@ model AttendancePolicyConfig {
   roundMinutes    Int      @default(15)  // round to nearest 15 minutes
   roundDirection  String   @default("nearest") // "nearest" | "up" | "down"
   // Late-coming grace (minutes)
-  lateGraceMinutes Int     @default(10)
+  lateGraceMinutes Int     @default(15)
   // Early-departure grace (minutes)
   earlyGraceMinutes Int    @default(10)
   // REQ-OT-01: auto-OT enabled
@@ -5229,7 +5229,7 @@ model AttendancePolicyConfig {
   // ── Late Coming Policy (from SDL_POL_LEAVE_ATTENDANCE_01_2021) ──
   lateMarkAllowancePerMonth Int @default(4) // how many late marks allowed per month before penalty
   lateMarkHalfDayOnExceed Boolean @default(true) // half-day deduction for all late marks when allowance exceeded
-  halfDayAfterMinutes Int @default(81) // minutes after shift start when it becomes half day (e.g., 81 = 09:21 for 09:00 shift)
+  halfDayAfterMinutes Int @default(21) // minutes after shift start when it becomes half day (e.g., 21 = 09:21 for 09:00 shift)
   lateMarkNotApplicableOnTour Boolean @default(true) // late marks not applicable for tour/OD
 
   // ── Shift Defaults ──
@@ -5244,7 +5244,7 @@ model AttendancePolicyConfig {
   gatePassEarlyHours Int @default(1) // gate pass early departure hours for full day consideration
 
   // ── Canteen Policy ──
-  canteenEnabled Boolean @default(false) // canteen module based on attendance
+  canteenEnabled Boolean @default(true) // canteen module based on attendance
   canteenFreeForGeneralShift Boolean @default(true) // free lunch for general shift
   canteenFreeForNightShift Boolean @default(true) // free dinner for night shift
   canteenOtfreeThresholdHours Int @default(5) // OT hours above which dinner is free

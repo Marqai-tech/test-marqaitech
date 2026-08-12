@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     // Save user message
     await db.aIChatLog.create({
       data: {
-        userId: decoded.id as string,
+        userId: decoded.userId as string,
         sessionId,
         role: 'user',
         message,
@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
     // Save assistant reply
     await db.aIChatLog.create({
       data: {
-        userId: decoded.id as string,
+        userId: decoded.userId as string,
         sessionId,
         role: 'assistant',
         message: reply,

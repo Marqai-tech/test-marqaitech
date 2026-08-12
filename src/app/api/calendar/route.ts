@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     const month = searchParams.get('month'); // e.g. "2026-08"
     const companyId = searchParams.get('companyId');
 
-    const employee = await db.employee.findFirst({ where: { userId: decoded.id } });
+    const employee = await db.employee.findFirst({ where: { userId: decoded.userId as string } });
     if (!employee) return NextResponse.json({ events: [] });
 
     const where: Record<string, unknown> = { isActive: true };
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'title, startDateTime, and endDateTime are required' }, { status: 400 });
     }
 
-    const employee = await db.employee.findFirst({ where: { userId: decoded.id } });
+    const employee = await db.employee.findFirst({ where: { userId: decoded.userId as string } });
     if (!employee) return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
 
     const event = await db.calendarEvent.create({

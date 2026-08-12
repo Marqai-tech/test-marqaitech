@@ -300,8 +300,8 @@ export default function AttendancePage() {
       });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
       toast.success('Checked in successfully!');
-      fetchAttendance();
-      if (isAdmin) fetchAdminAttendance();
+      await fetchAttendance();
+      if (isAdmin) await fetchAdminAttendance();
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Check-in failed');
     } finally {
@@ -324,8 +324,8 @@ export default function AttendancePage() {
       });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
       toast.success('Checked out successfully!');
-      fetchAttendance();
-      if (isAdmin) fetchAdminAttendance();
+      await fetchAttendance();
+      if (isAdmin) await fetchAdminAttendance();
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Check-out failed');
     } finally {
@@ -334,12 +334,11 @@ export default function AttendancePage() {
   };
 
   /* ── Today's status for self view ── */
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  // Use UTC-based YYYY-MM-DD string comparison to avoid timezone mismatch
+  const todayStr = new Date().toISOString().slice(0, 10);
   const todayRecord = attendance.find(a => {
-    const d = new Date(a.date);
-    d.setHours(0, 0, 0, 0);
-    return d.getTime() === today.getTime();
+    const dateStr = new Date(a.date).toISOString().slice(0, 10);
+    return dateStr === todayStr;
   });
   const isCheckedIn = !!todayRecord?.checkIn;
   const isCheckedOut = !!todayRecord?.checkOut;
