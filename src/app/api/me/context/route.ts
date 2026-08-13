@@ -533,6 +533,7 @@ export async function GET(request: Request) {
     // switcher defaults correctly instead of showing a dead reference.
     let effectiveTenantId = callerTenantId;
     let effectiveTenant = callerTenant;
+    let tenantWasOverridden = false;
     if (role === 'super_admin' && callerTenantId) {
       const callerInAvailable = availableTenants.some((t) => t.id === callerTenantId);
       if (!callerInAvailable && availableTenants.length > 0) {
@@ -548,7 +549,45 @@ export async function GET(request: Request) {
           }),
           null,
         );
+        tenantWasOverridden = true;
       }
+    }
+
+    // ─── FIX: Recompute tenantQuota from effectiveTenant if overridden ───
+    // Previously, tenantQuota was computed from callerTenant (the hidden tenant).
+    // After override, we must recompute from effectiveTenant so the quota
+    // reflects the visible tenant, not the hidden one.
+    if (tenantWasOverridden && effectiveTenant) {
+      const quotaDb = await getDbForTenantById(effectiveTenant.id);
+      const groupsForQuota = await safe(
+        'companyGroup.findMany(quota-override)',
+        () => quotaDb.companyGroup.findMany({
+          where: { tenantId: effectiveTenant!.id },
+          select: { id: true },
+        }),
+        [],
+      );
+      const groupIdsForQuota = groupsForQuota.map((g) => g.id);
+      const usedCompanies = groupIdsForQuota.length
+        ? await safe(
+            'company.count(quota-override)',
+            () => quotaDb.company.count({ where: { companyGroupId: { in: groupIdsForQuota } } }),
+            0,
+          )
+        : 0;
+      tenantQuota = {
+        maxCompanies: effectiveTenant.maxCompaniesAllowed,
+        used: usedCompanies,
+        remaining: effectiveTenant.maxCompaniesAllowed > 0 ? Math.max(0, effectiveTenant.maxCompaniesAllowed - usedCompanies) : null,
+      };
+    }
+
+    // ─── FIX: Scrub ownCompany/ownCompanyId if they belong to hidden tenant ───
+    // Super admins from the hidden tenant may have ownCompany set to a company
+    // in the hidden tenant's DB. This should not leak to the client.
+    if (tenantWasOverridden) {
+      ownCompanyId = null;
+      ownCompany = null;
     }
 
     // ─── SERVER-SIDE SAFETY NET (GOLDEN RULE) ───
@@ -602,19 +641,33 @@ export async function GET(request: Request) {
       finalTenantQuota = null;
     }
 
-    console.log(`[me/context] GOLDEN RULE FINAL: siteMode=${siteModeFinal}, hiddenSlugs=[${hiddenSlugsFinal.join(',')}], tenants=${finalAvailableTenants.length}, groups=${finalAvailableCompanyGroups.length}, companies=${finalAvailableCompanies.length}, tenantSlug=${effectiveTenant?.slug || 'null'}`);
+    // 6. Scrub ownCompanyId/ownCompany if they might belong to a hidden tenant
+    // (super_admin from hidden tenant shouldn't see their "own company")
+    let finalOwnCompanyId = ownCompanyId;
+    let finalOwnCompany = ownCompany;
+    if (effectiveTenant && hiddenSlugsFinal.includes(effectiveTenant.slug)) {
+      finalOwnCompanyId = null;
+      finalOwnCompany = null;
+    }
+
+    // 7. Filter mappedCompanies — remove any whose companyGroupId was filtered out
+    const finalMappedCompanies = mappedCompanies.filter(
+      (mc) => visibleGroupIdSet.has(mc.companyGroupId)
+    );
+
+    console.log(`[me/context] GOLDEN RULE FINAL: siteMode=${siteModeFinal}, hiddenSlugs=[${hiddenSlugsFinal.join(',')}], tenants=${finalAvailableTenants.length}, groups=${finalAvailableCompanyGroups.length}, companies=${finalAvailableCompanies.length}, tenantSlug=${effectiveTenant?.slug || 'null'}, envMode=${process.env.SITE_MODE || 'unset'}`);
 
     return NextResponse.json({
       role,
       tenantId: effectiveTenantId,
       tenant: effectiveTenant,
       tenantQuota: finalTenantQuota,
-      ownCompanyId,
-      ownCompany,
+      ownCompanyId: finalOwnCompanyId,
+      ownCompany: finalOwnCompany,
       availableTenants: finalAvailableTenants,
       availableCompanyGroups: finalAvailableCompanyGroups,
       availableCompanies: finalAvailableCompanies,
-      mappedCompanies,
+      mappedCompanies: finalMappedCompanies,
     }, { headers: corsHeaders() });
   } catch (error) {
     // Log the FULL error so we can debug from Vercel logs.
