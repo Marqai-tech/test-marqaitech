@@ -7,7 +7,7 @@ import {
   FiRefreshCw, FiAlertCircle,
 } from 'react-icons/fi';
 import { useAuthStore } from '@/store/authStore';
-import { useCompanyContextStore } from '@/store/companyContextStore';
+import { useCompanyContextStore, isHiddenTenant } from '@/store/companyContextStore';
 
 /**
  * CompanySwitcher
@@ -44,6 +44,13 @@ export default function CompanySwitcher() {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const ref = useRef<HTMLDivElement>(null);
+
+  // ─── GOLDEN RULE: Defensive filter — NEVER render hidden tenants ───
+  // Even if the store somehow contains a hidden tenant (stale localStorage,
+  // API bug, race condition), we scrub it at render time so the user NEVER
+  // sees "Marq AI Tech Pvt Ltd" on the live site.
+  const safeAvailableTenants = availableTenants.filter(t => !isHiddenTenant(t.slug));
+  const safeTenant = tenant && tenant.slug && !isHiddenTenant(tenant.slug) ? tenant : null;
 
   /**
    * SRS REQ-SA-10 / REQ-SEC-06: log every context swap to the audit trail.
@@ -113,7 +120,7 @@ export default function CompanySwitcher() {
   useEffect(() => {
     if (!open) return;
     const userRole = (user?.role || role || 'employee').toLowerCase();
-    if (userRole === 'super_admin' && availableTenants.length === 0 && !hydrating) {
+    if (userRole === 'super_admin' && safeAvailableTenants.length === 0 && !hydrating) {
       refreshContext();
     } else if (userRole === 'tenant_admin' && availableCompanies.length === 0 && !hydrating) {
       // Only auto-refresh if we also have no groups — otherwise the tenant
@@ -126,7 +133,7 @@ export default function CompanySwitcher() {
       // Employee with mapped companies: auto-refresh if no mappings loaded yet
       refreshContext();
     }
-  }, [open, user?.role, role, availableTenants.length, availableCompanies.length, availableCompanyGroups.length, mappedCompanies.length, hydrating, refreshContext]);
+  }, [open, user?.role, role, safeAvailableTenants.length, availableCompanies.length, availableCompanyGroups.length, mappedCompanies.length, hydrating, refreshContext]);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -152,8 +159,8 @@ export default function CompanySwitcher() {
   // The tenant that's currently in scope (for super_admin: the selected one;
   // for tenant_admin: their own tenant)
   const scopedTenant = isSuperAdmin
-    ? availableTenants.find((t) => t.id === selectedTenantId) || null
-    : tenant;
+    ? safeAvailableTenants.find((t) => t.id === selectedTenantId) || null
+    : safeTenant;
 
   // For admins: group companies by companyGroup for nicer UX.
   // IMPORTANT: We also include groups from availableCompanyGroups that have
@@ -193,7 +200,7 @@ export default function CompanySwitcher() {
   // ---------- non-admin with no mapped companies: static badge ----------
   if (!allowSwitch) {
     const label = ownCompany?.name || 'Not yet assigned';
-    const tenantName = tenant?.name;
+    const tenantName = safeTenant?.name;
     return (
       <div
         className="flex flex-col px-3 py-1 rounded-lg bg-slate-100 border border-slate-200 text-[11px] font-semibold text-slate-700 max-w-[180px] sm:max-w-[240px]"
@@ -214,8 +221,7 @@ export default function CompanySwitcher() {
     const currentCompanyId = selectedCompanyId || ownCompanyId;
     const currentCompany = mappedCompanies.find((mc) => mc.id === currentCompanyId) || ownCompany;
     const label = currentCompany?.name || 'Not yet assigned';
-    const tenantName = tenant?.name;
-
+    const tenantName = safeTenant?.name;
     // Filter mapped companies by search
     const filteredMapped = search
       ? mappedCompanies.filter((mc) =>
@@ -405,7 +411,7 @@ export default function CompanySwitcher() {
 
           {/* ERROR BANNER — shown when /api/me/context failed and we have
               no data. The user can click Retry to force-refresh. */}
-          {lastError && availableTenants.length === 0 && availableCompanies.length === 0 && (
+          {lastError && safeAvailableTenants.length === 0 && availableCompanies.length === 0 && (
             <div className="px-4 py-3 border-b border-red-100 bg-red-50/80 flex items-start gap-2">
               <FiAlertCircle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
               <div className="flex-1 min-w-0">
@@ -424,7 +430,7 @@ export default function CompanySwitcher() {
           {/* LOADING BANNER — shown during the very first hydrate (before any
               data has been seen). Subsequent refreshes show the spinner in the
               header button instead, so the existing list stays visible. */}
-          {hydrating && availableTenants.length === 0 && availableCompanies.length === 0 && !lastError && (
+          {hydrating && safeAvailableTenants.length === 0 && availableCompanies.length === 0 && !lastError && (
             <div className="px-4 py-6 flex items-center justify-center gap-2 text-slate-500">
               <FiRefreshCw className="w-4 h-4 animate-spin" />
               <span className="text-xs">Loading tenants & companies…</span>
@@ -436,17 +442,17 @@ export default function CompanySwitcher() {
               hierarchy is: ONE parent company (= your tenant) → many group
               companies → many companies. The tenant_admin can pick any
               company under any group, but cannot switch parent companies. */}
-          {isTenantAdmin && tenant && (
+          {isTenantAdmin && safeTenant && (
             <div className="px-4 py-3 border-b border-slate-100 bg-gradient-to-r from-emerald-50/70 to-teal-50/40">
               <div className="flex items-center gap-2">
                 <div className="w-7 h-7 rounded-md bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white text-[11px] font-bold flex-shrink-0">
-                  {tenant.name?.[0]?.toUpperCase() || 'T'}
+                  {safeTenant.name?.[0]?.toUpperCase() || 'T'}
                 </div>
                 <div className="min-w-0">
                   <p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Parent company (tenant)</p>
-                  <p className="text-xs font-bold text-slate-900 truncate">{tenant.name}</p>
+                  <p className="text-xs font-bold text-slate-900 truncate">{safeTenant.name}</p>
                   <p className="text-[10px] text-slate-500 truncate">
-                    {tenant.slug} · {availableCompanyGroups.length} group{availableCompanyGroups.length === 1 ? '' : 's'} · {availableCompanies.length} compan{availableCompanies.length === 1 ? 'y' : 'ies'}
+                    {safeTenant.slug} · {availableCompanyGroups.length} group{availableCompanyGroups.length === 1 ? '' : 's'} · {availableCompanies.length} compan{availableCompanies.length === 1 ? 'y' : 'ies'}
                   </p>
                 </div>
               </div>
@@ -461,13 +467,13 @@ export default function CompanySwitcher() {
             <div className="px-4 py-3 border-b border-slate-100">
               <div className="flex items-center justify-between mb-2">
                 <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1">
-                  <FiHome className="w-3 h-3" /> Parent companies ({availableTenants.length})
+                  <FiHome className="w-3 h-3" /> Parent companies ({safeAvailableTenants.length})
                 </label>
                 <span className="text-[10px] text-slate-400">
                   {selectedTenantId ? 'Click to switch' : 'Select a parent'}
                 </span>
               </div>
-              {availableTenants.length === 0 ? (
+              {safeAvailableTenants.length === 0 ? (
                 <div className="py-3">
                   {hydrating ? (
                     <p className="text-xs text-slate-400 italic flex items-center gap-1.5">
@@ -489,7 +495,7 @@ export default function CompanySwitcher() {
                 </div>
               ) : (
                 <div className="max-h-[140px] overflow-y-auto space-y-1 pr-1">
-                  {availableTenants.map((t) => {
+                  {safeAvailableTenants.map((t) => {
                     const isSelected = selectedTenantId === t.id;
                     return (
                       <button
@@ -714,7 +720,7 @@ export default function CompanySwitcher() {
           <div className="px-4 py-2 bg-slate-50/80 border-t border-slate-100 text-[11px] text-slate-500 flex items-center justify-between">
             <span>
               {isSuperAdmin
-                ? `${availableTenants.length} parent${availableTenants.length === 1 ? '' : 's'} · ${availableCompanyGroups.length} group${availableCompanyGroups.length === 1 ? '' : 's'} · ${availableCompanies.length} compan${availableCompanies.length === 1 ? 'y' : 'ies'}`
+                ? `${safeAvailableTenants.length} parent${safeAvailableTenants.length === 1 ? '' : 's'} · ${availableCompanyGroups.length} group${availableCompanyGroups.length === 1 ? '' : 's'} · ${availableCompanies.length} compan${availableCompanies.length === 1 ? 'y' : 'ies'}`
                 : `${availableCompanyGroups.length} group${availableCompanyGroups.length === 1 ? '' : 's'} · ${availableCompanies.length} compan${availableCompanies.length === 1 ? 'y' : 'ies'}`}
             </span>
             {isSuperAdmin && (

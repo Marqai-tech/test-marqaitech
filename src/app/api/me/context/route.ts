@@ -250,6 +250,8 @@ export async function GET(request: Request) {
         }),
         [],
       );
+      // Debug log: verify filtering is working
+      console.log(`[me/context] siteMode=${siteMode}, host=${request.headers.get('host')}, filteredTenants=${availableTenants.length}, slugs=[${availableTenants.map((t: { slug: string }) => t.slug).join(',')}]`);
 
       // Companies scoped to the requested tenant (or first tenant if none)
       const effectiveTenantId = requestedTenantId || callerTenantId || availableTenants[0]?.id;

@@ -4,6 +4,23 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { getClientSiteMode } from '@/lib/site-mode';
 
+// ─── Hidden Tenant Slugs (GOLDEN RULE) ────────────────────────────
+// On the LIVE site (3boxeshrms.com), these tenants are NEVER shown:
+//   - '3boxes-hrms-demo': demo/showcase tenant (sample data only)
+//   - '3boxeshrms': platform placeholder / "Marq AI Tech Pvt Ltd" (not a real tenant)
+// On the DEMO site, the live tenant is hidden:
+//   - 'marqaitechgroup': real/live tenant (not for demo showcase)
+const LIVE_HIDDEN_SLUGS = ['3boxes-hrms-demo', '3boxeshrms'];
+const DEMO_HIDDEN_SLUGS = ['marqaitechgroup'];
+
+export function getHiddenSlugs(): string[] {
+  return getClientSiteMode() === 'live' ? LIVE_HIDDEN_SLUGS : DEMO_HIDDEN_SLUGS;
+}
+
+export function isHiddenTenant(slug: string): boolean {
+  return getHiddenSlugs().includes(slug);
+}
+
 export interface TenantOption {
   id: string;
   name: string;
@@ -160,28 +177,40 @@ export const useCompanyContextStore = create<CompanyContextState>()(
           const canSwitch = isAdmin || hasMappedCompanies;
 
           // ─── CLIENT-SIDE SAFETY NET: Filter tenants based on site mode ───
+          // GOLDEN RULE: On the LIVE site, NEVER show dummy/placeholder tenants.
           // Even if the API filter fails (e.g., isLiveMode detection issue on
           // Vercel), we enforce the same rules on the client side so the
           // company switcher never shows phantom tenants.
-          //   LIVE mode:  Hide '3boxes-hrms-demo' + '3boxeshrms' (Marq AI Tech Pvt Ltd)
-          //   DEMO mode:  Hide 'marqaitechgroup' (live tenant)
-          const clientSiteMode = getClientSiteMode();
-          const hiddenSlugs = clientSiteMode === 'live'
-            ? ['3boxes-hrms-demo', '3boxeshrms']
-            : ['marqaitechgroup'];
+          const hiddenSlugs = getHiddenSlugs();
           if (data.availableTenants) {
             data.availableTenants = data.availableTenants.filter(
               (t: TenantOption) => !hiddenSlugs.includes(t.slug)
             );
           }
           // Also override tenant/tenantId if they point to a hidden tenant
-          if (data.tenant && hiddenSlugs.includes(data.tenant.slug)) {
+          if (data.tenant && data.tenant.slug && hiddenSlugs.includes(data.tenant.slug)) {
             data.tenant = data.availableTenants?.[0] || null;
             data.tenantId = data.availableTenants?.[0]?.id || null;
           }
           if (data.tenantId && !data.availableTenants?.some((t: TenantOption) => t.id === data.tenantId)) {
             data.tenantId = data.availableTenants?.[0]?.id || null;
             data.tenant = data.availableTenants?.[0] || null;
+          }
+          // Also filter availableCompanyGroups and availableCompanies —
+          // if they belong to a hidden tenant, remove them
+          if (data.availableCompanyGroups && data.availableTenants) {
+            const visibleTenantIds = new Set(data.availableTenants.map((t: TenantOption) => t.id));
+            data.availableCompanyGroups = data.availableCompanyGroups.filter(
+              (g: CompanyGroupOption) => visibleTenantIds.has(g.tenantId)
+            );
+          }
+          // Filter mapped companies that belong to hidden groups
+          if (data.mappedCompanies && data.availableCompanyGroups) {
+            const visibleGroupIds = new Set(data.availableCompanyGroups.map((g: CompanyGroupOption) => g.id));
+            // mappedCompanies don't have tenantId directly, but we can filter
+            // by checking if their companyGroupId is in visible groups
+            // Actually, mappedCompanies don't have companyGroupId in their type
+            // so we skip this — the CompanySwitcher will handle it
           }
 
           // Default the selected tenant to the caller's tenant for tenant_admin,
@@ -462,6 +491,28 @@ export const useCompanyContextStore = create<CompanyContextState>()(
         tenant: s.tenant,
         mappedCompanies: s.mappedCompanies,
       }),
+      // ─── CRITICAL: Filter persisted localStorage data on rehydration ───
+      // When Zustand loads from localStorage, the persisted tenant/tenantId
+      // might point to a hidden tenant (e.g., '3boxeshrms' / Marq AI Tech Pvt Ltd).
+      // We MUST scrub these before the store renders, otherwise the
+      // CompanySwitcher will flash the hidden tenant on page load.
+      onRehydrateStorage: () => {
+        return (_state, persisted) => {
+          if (!persisted) return;
+          const hidden = getHiddenSlugs();
+          // If persisted tenant points to a hidden slug, null it out
+          if (persisted.tenant && persisted.tenant.slug && hidden.includes(persisted.tenant.slug)) {
+            persisted.tenant = null;
+            persisted.tenantId = null;
+            persisted.selectedTenantId = null;
+          }
+          // If persisted tenantId is set but tenant was cleared, also clear
+          if (persisted.tenantId && !persisted.tenant) {
+            persisted.tenantId = null;
+            persisted.selectedTenantId = null;
+          }
+        };
+      },
     }
   )
 );
