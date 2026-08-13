@@ -91,6 +91,55 @@ export default async function RootLayout({
         <meta name="msapplication-navbutton-color" content="#3B82F6" />
       </head>
       <body className="min-h-full flex flex-col">
+        {/* ─── GOLDEN RULE: Nuclear localStorage cleanup ───
+             Runs synchronously BEFORE React hydrates. On the LIVE site,
+             completely removes any persisted company context data that
+             references hidden tenants ('3boxeshrms', '3boxes-hrms-demo').
+             This prevents even a single frame of "Marq AI Tech Pvt Ltd"
+             appearing in the company switcher from stale localStorage. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){
+              try{
+                var h=window.location.hostname.toLowerCase();
+                var isLive=h==='3boxeshrms.com'||h.endsWith('.3boxeshrms.com');
+                var isDemo=h.endsWith('.vercel.app')&&!h.includes('3boxeshrms.com');
+                // Nuke the OLD v1 key completely — it contains stale hidden tenant data
+                localStorage.removeItem('tb_company_ctx');
+                // Also scrub the v2 key if it has hidden tenant data
+                var keys=['tb_company_ctx_v2'];
+                for(var i=0;i<keys.length;i++){
+                  var raw=localStorage.getItem(keys[i]);
+                  if(!raw)continue;
+                  var d=JSON.parse(raw);
+                  if(!d||!d.state)continue;
+                  var s=d.state;
+                  var changed=false;
+                  if(isLive){
+                    var hidden=['3boxes-hrms-demo','3boxeshrms'];
+                    if(s.tenant&&s.tenant.slug&&hidden.indexOf(s.tenant.slug)!==-1){
+                      s.tenant=null;s.tenantId=null;s.selectedTenantId=null;s.ownCompany=null;s.ownCompanyId=null;changed=true;
+                    }
+                    if(s.availableTenants&&Array.isArray(s.availableTenants)){
+                      var before=s.availableTenants.length;
+                      s.availableTenants=s.availableTenants.filter(function(t){return hidden.indexOf(t.slug)===-1;});
+                      if(s.availableTenants.length!==before)changed=true;
+                    }
+                  }
+                  if(isDemo){
+                    if(s.tenant&&s.tenant.slug&&s.tenant.slug==='marqaitechgroup'){
+                      s.tenant=null;s.tenantId=null;s.selectedTenantId=null;changed=true;
+                    }
+                  }
+                  if(changed){
+                    localStorage.setItem(keys[i],JSON.stringify(d));
+                    console.warn('[GOLDEN RULE] Scrubbed hidden tenant from localStorage before React hydrate');
+                  }
+                }
+              }catch(e){}
+            })();`,
+          }}
+        />
         <NextIntlClientProvider locale={activeLocale} messages={messages}>
           {children}
         </NextIntlClientProvider>

@@ -495,7 +495,7 @@ export const useCompanyContextStore = create<CompanyContextState>()(
       },
     }),
     {
-      name: 'tb_company_ctx',
+      name: 'tb_company_ctx_v2', // v2: forces fresh localStorage — old v1 data with hidden tenants is ignored
       storage: createJSONStorage(() => localStorage),
       // Persist the user's selection AND role — role is needed so the
       // CompanySwitcher can render the correct label/button immediately on
