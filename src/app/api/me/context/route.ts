@@ -252,9 +252,25 @@ export async function GET(request: Request) {
       );
       // Debug log: verify filtering is working
       console.log(`[me/context] siteMode=${siteMode}, host=${request.headers.get('host')}, filteredTenants=${availableTenants.length}, slugs=[${availableTenants.map((t: { slug: string }) => t.slug).join(',')}]`);
+      console.log(`[me/context] GOLDEN RULE: requestedTenantId=${requestedTenantId || 'none'}, callerTenantId=${callerTenantId || 'none'}, requestedVisible=${requestedTenantId ? availableTenants.some((t: { id: string }) => t.id === requestedTenantId) : false}, callerVisible=${callerTenantId ? availableTenants.some((t: { id: string }) => t.id === callerTenantId) : false}, effectiveTenantId=${effectiveTenantId || 'none'}`);
 
       // Companies scoped to the requested tenant (or first tenant if none)
-      const effectiveTenantId = requestedTenantId || callerTenantId || availableTenants[0]?.id;
+      // GOLDEN RULE FIX: Validate both requestedTenantId and callerTenantId
+      // against the FILTERED availableTenants. On the live site, the super
+      // admin's JWT tenantId points to '3boxeshrms' (hidden), and if we
+      // blindly use it as effectiveTenantId, we fetch companies/groups from
+      // the hidden tenant's DB, leaking "Marq AI Tech Pvt Ltd" into the
+      // company switcher.
+      const requestedTenantIsVisible = requestedTenantId
+        ? availableTenants.some((t) => t.id === requestedTenantId)
+        : false;
+      const callerTenantIsVisible = callerTenantId
+        ? availableTenants.some((t) => t.id === callerTenantId)
+        : false;
+      const effectiveTenantId =
+        (requestedTenantIsVisible ? requestedTenantId : null) ||
+        (callerTenantIsVisible ? callerTenantId : null) ||
+        availableTenants[0]?.id;
       if (effectiveTenantId) {
         // AUTO-HEAL: Ensure the target tenant has at least one default group
         // company. Legacy tenants created before the auto-group feature would

@@ -52,6 +52,16 @@ export default function CompanySwitcher() {
   const safeAvailableTenants = availableTenants.filter(t => !isHiddenTenant(t.slug));
   const safeTenant = tenant && tenant.slug && !isHiddenTenant(tenant.slug) ? tenant : null;
 
+  // ─── GOLDEN RULE: Defensive filter — NEVER render companies/groups from hidden tenants ───
+  // If availableCompanyGroups or availableCompanies belong to a hidden tenant
+  // (e.g., leaked by /api/me/context before the fix), scrub them at render time.
+  // This is a belt-and-suspenders approach: the API should already filter them
+  // out, but we enforce the golden rule client-side too.
+  const visibleTenantIds = new Set(safeAvailableTenants.map(t => t.id));
+  const safeAvailableCompanyGroups = availableCompanyGroups.filter(g => visibleTenantIds.has(g.tenantId));
+  const safeGroupIds = new Set(safeAvailableCompanyGroups.map(g => g.id));
+  const safeAvailableCompanies = availableCompanies.filter(c => safeGroupIds.has(c.companyGroupId));
+
   /**
    * SRS REQ-SA-10 / REQ-SEC-06: log every context swap to the audit trail.
    * Best-effort — never blocks the UI on a logging failure. We read the
@@ -122,18 +132,18 @@ export default function CompanySwitcher() {
     const userRole = (user?.role || role || 'employee').toLowerCase();
     if (userRole === 'super_admin' && safeAvailableTenants.length === 0 && !hydrating) {
       refreshContext();
-    } else if (userRole === 'tenant_admin' && availableCompanies.length === 0 && !hydrating) {
+    } else if (userRole === 'tenant_admin' && safeAvailableCompanies.length === 0 && !hydrating) {
       // Only auto-refresh if we also have no groups — otherwise the tenant
       // legitimately has groups but no companies yet, and auto-refresh would
       // cause an unnecessary flicker every time they open the dropdown.
-      if (availableCompanyGroups.length === 0) {
+      if (safeAvailableCompanyGroups.length === 0) {
         refreshContext();
       }
     } else if (!['super_admin', 'tenant_admin'].includes(userRole) && mappedCompanies.length === 0 && !hydrating) {
       // Employee with mapped companies: auto-refresh if no mappings loaded yet
       refreshContext();
     }
-  }, [open, user?.role, role, safeAvailableTenants.length, availableCompanies.length, availableCompanyGroups.length, mappedCompanies.length, hydrating, refreshContext]);
+  }, [open, user?.role, role, safeAvailableTenants.length, safeAvailableCompanies.length, safeAvailableCompanyGroups.length, mappedCompanies.length, hydrating, refreshContext]);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -163,7 +173,7 @@ export default function CompanySwitcher() {
     : safeTenant;
 
   // For admins: group companies by companyGroup for nicer UX.
-  // IMPORTANT: We also include groups from availableCompanyGroups that have
+  // IMPORTANT: We also include groups from safeAvailableCompanyGroups that have
   // NO companies yet. Previously, empty groups were invisible in the dropdown,
   // which confused users who created a group but couldn't see it or select it.
   //
@@ -173,17 +183,19 @@ export default function CompanySwitcher() {
   // wasn't loaded, causing companies to appear under "Ungrouped" instead of
   // their correct group. The foreign key `companyGroupId` is always present
   // (it's a required field on Company), so it's the reliable source of truth.
-  const groupedCompanies = availableCompanyGroups.reduce<Record<string, { groupName: string; items: typeof availableCompanies }>>((acc, g) => {
+  // GOLDEN RULE: Use safeAvailableCompanyGroups and safeAvailableCompanies
+  // so we never group/render companies from hidden tenants.
+  const groupedCompanies = safeAvailableCompanyGroups.reduce<Record<string, { groupName: string; items: typeof safeAvailableCompanies }>>((acc, g) => {
     acc[g.id] = { groupName: g.name, items: [] };
     return acc;
   }, {});
   // Now add each company to its group using the FK as the primary key
-  for (const c of availableCompanies) {
+  for (const c of safeAvailableCompanies) {
     // Prefer the raw foreign key (always present), fall back to the relation
     const gid = c.companyGroupId || c.companyGroup?.id || 'ungrouped';
-    // Resolve the group name from availableCompanyGroups (authoritative),
+    // Resolve the group name from safeAvailableCompanyGroups (authoritative),
     // then fall back to the relation, then to 'Ungrouped'
-    const gname = availableCompanyGroups.find(g => g.id === gid)?.name || c.companyGroup?.name || 'Ungrouped';
+    const gname = safeAvailableCompanyGroups.find(g => g.id === gid)?.name || c.companyGroup?.name || 'Ungrouped';
     if (!groupedCompanies[gid]) groupedCompanies[gid] = { groupName: gname, items: [] };
     groupedCompanies[gid].items.push(c);
   }
@@ -411,7 +423,7 @@ export default function CompanySwitcher() {
 
           {/* ERROR BANNER — shown when /api/me/context failed and we have
               no data. The user can click Retry to force-refresh. */}
-          {lastError && safeAvailableTenants.length === 0 && availableCompanies.length === 0 && (
+          {lastError && safeAvailableTenants.length === 0 && safeAvailableCompanies.length === 0 && (
             <div className="px-4 py-3 border-b border-red-100 bg-red-50/80 flex items-start gap-2">
               <FiAlertCircle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
               <div className="flex-1 min-w-0">
@@ -430,7 +442,7 @@ export default function CompanySwitcher() {
           {/* LOADING BANNER — shown during the very first hydrate (before any
               data has been seen). Subsequent refreshes show the spinner in the
               header button instead, so the existing list stays visible. */}
-          {hydrating && safeAvailableTenants.length === 0 && availableCompanies.length === 0 && !lastError && (
+          {hydrating && safeAvailableTenants.length === 0 && safeAvailableCompanies.length === 0 && !lastError && (
             <div className="px-4 py-6 flex items-center justify-center gap-2 text-slate-500">
               <FiRefreshCw className="w-4 h-4 animate-spin" />
               <span className="text-xs">Loading tenants & companies…</span>
@@ -452,7 +464,7 @@ export default function CompanySwitcher() {
                   <p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Parent company (tenant)</p>
                   <p className="text-xs font-bold text-slate-900 truncate">{safeTenant.name}</p>
                   <p className="text-[10px] text-slate-500 truncate">
-                    {safeTenant.slug} · {availableCompanyGroups.length} group{availableCompanyGroups.length === 1 ? '' : 's'} · {availableCompanies.length} compan{availableCompanies.length === 1 ? 'y' : 'ies'}
+                    {safeTenant.slug} · {safeAvailableCompanyGroups.length} group{safeAvailableCompanyGroups.length === 1 ? '' : 's'} · {safeAvailableCompanies.length} compan{safeAvailableCompanies.length === 1 ? 'y' : 'ies'}
                   </p>
                 </div>
               </div>
@@ -593,7 +605,7 @@ export default function CompanySwitcher() {
                     {isSuperAdmin ? 'All companies in parent' : 'All companies (group)'}
                   </p>
                   <p className="text-[11px] text-slate-500">
-                    {availableCompanies.length} companies · {availableCompanyGroups.length} groups
+                    {safeAvailableCompanies.length} companies · {safeAvailableCompanyGroups.length} groups
                     {scopedTenant ? ` · ${scopedTenant.name}` : ''}
                   </p>
                 </div>
