@@ -1,19 +1,20 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   FiGlobe, FiPlus, FiEdit2, FiX, FiCheck, FiShield,
-  FiAlertCircle, FiCopy, FiExternalLink,
+  FiAlertCircle, FiCopy, FiExternalLink, FiRefreshCw,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import { isClientLiveMode } from '@/lib/site-mode';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
   return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
 }
 
-// ─── Demo Data ───────────────────────────────────────────
+// ─── Types ───────────────────────────────────────────────
 interface Domain {
   id: string;
   domainName: string;
@@ -26,15 +27,14 @@ interface Domain {
   dnsValue: string;
 }
 
-const demoDomains: Domain[] = [
-  { id: 'dom-001', domainName: 'hr.acmeglobal.com', tenant: 'Acme Global Corp', status: 'active', sslStatus: 'active', verifiedDate: '2025-01-20', createdAt: '2025-01-15', dnsType: 'CNAME', dnsValue: 'cname.3boxes.app' },
-  { id: 'dom-002', domainName: 'app.techstart.io', tenant: 'TechStart Solutions', status: 'active', sslStatus: 'active', verifiedDate: '2025-03-05', createdAt: '2025-03-01', dnsType: 'CNAME', dnsValue: 'cname.3boxes.app' },
-  { id: 'dom-003', domainName: 'portal.globalhr.com', tenant: 'GlobalHR Services', status: 'pending', sslStatus: 'pending', verifiedDate: null, createdAt: '2025-06-10', dnsType: 'A', dnsValue: '34.120.45.89' },
-  { id: 'dom-004', domainName: 'hr.3boxesinnovations.com', tenant: '3Boxes Innovations', status: 'active', sslStatus: 'active', verifiedDate: '2025-02-18', createdAt: '2025-02-10', dnsType: 'CNAME', dnsValue: 'cname.3boxes.app' },
-  { id: 'dom-005', domainName: 'people.brightpath.co', tenant: 'BrightPath Inc', status: 'failed', sslStatus: 'none', verifiedDate: null, createdAt: '2025-04-01', dnsType: 'A', dnsValue: '34.120.45.89' },
-  { id: 'dom-006', domainName: 'work.vertexdynamics.com', tenant: 'Vertex Dynamics', status: 'pending', sslStatus: 'pending', verifiedDate: null, createdAt: '2025-05-20', dnsType: 'CNAME', dnsValue: 'cname.3boxes.app' },
-  { id: 'dom-007', domainName: 'hr.orionsystems.io', tenant: 'Orion Systems', status: 'active', sslStatus: 'expired', verifiedDate: '2024-11-15', createdAt: '2024-11-01', dnsType: 'CNAME', dnsValue: 'cname.3boxes.app' },
-];
+interface TenantRecord {
+  id: string;
+  name: string;
+  slug: string;
+  domain?: string | null;
+  domainVerified?: boolean;
+  createdAt: string;
+}
 
 const statusBadge: Record<string, string> = {
   active: 'thb-badge thb-badge-success',
@@ -58,35 +58,83 @@ const sslIconColor: Record<string, string> = {
 
 export default function DomainPage() {
   const { user } = useAuthStore();
-  const [domains, setDomains] = useState<Domain[]>(demoDomains);
+  const liveMode = isClientLiveMode();
+  const [domains, setDomains] = useState<Domain[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [showDnsPanel, setShowDnsPanel] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [editTenantId, setEditTenantId] = useState<string | null>(null);
   const [form, setForm] = useState({
     domainName: '', tenant: '', status: 'pending' as Domain['status'],
     dnsType: 'CNAME', dnsValue: 'cname.3boxes.app',
   });
 
+  const fetchDomains = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/tenants?limit=100', { headers: getAuthHeaders() });
+      if (!res.ok) throw new Error('Failed to fetch tenants');
+      const data = await res.json();
+      const tenants: TenantRecord[] = data.tenants || data || [];
+
+      const filtered = liveMode
+        ? tenants.filter((t: TenantRecord) => t.slug !== '3boxes-hrms-demo' && t.slug !== '3boxeshrms')
+        : tenants;
+
+      const mapped: Domain[] = filtered.map((t: TenantRecord) => ({
+        id: t.id,
+        domainName: t.domain || 'No custom domain',
+        tenant: t.name,
+        status: t.domain ? (t.domainVerified ? 'active' : 'pending') : 'failed',
+        sslStatus: t.domain ? (t.domainVerified ? 'active' : 'pending') : 'none',
+        verifiedDate: t.domainVerified ? t.createdAt : null,
+        createdAt: t.createdAt ? new Date(t.createdAt).toISOString().slice(0, 10) : '',
+        dnsType: 'CNAME',
+        dnsValue: 'cname.3boxes.app',
+      }));
+      setDomains(mapped);
+    } catch (err) {
+      toast.error('Failed to load domains');
+      setDomains([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [liveMode]);
+
+  useEffect(() => { fetchDomains(); }, [fetchDomains]);
+
   const activeCount = domains.filter((d) => d.status === 'active').length;
   const pendingCount = domains.filter((d) => d.status === 'pending').length;
   const sslActiveCount = domains.filter((d) => d.sslStatus === 'active').length;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.domainName || !form.tenant) { toast.error('Domain name and tenant are required'); return; }
-    if (editingId) {
-      setDomains((prev) => prev.map((d) => d.id === editingId ? { ...d, domainName: form.domainName, tenant: form.tenant, status: form.status, dnsType: form.dnsType, dnsValue: form.dnsValue } : d));
-      toast.success('Domain updated');
+    if (editingId && editTenantId) {
+      try {
+        const res = await fetch(`/api/tenants/${editTenantId}`, {
+          method: 'PATCH',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ domain: form.domainName }),
+        });
+        if (!res.ok) throw new Error('Failed to update domain');
+        toast.success('Domain updated');
+        fetchDomains();
+      } catch {
+        toast.error('Failed to update domain');
+      }
     } else {
-      setDomains((prev) => [...prev, { id: `dom-${Date.now()}`, domainName: form.domainName, tenant: form.tenant, status: form.status, sslStatus: 'pending', verifiedDate: null, createdAt: new Date().toISOString().slice(0, 10), dnsType: form.dnsType, dnsValue: form.dnsValue }]);
-      toast.success('Domain added');
+      toast.info('Use tenant settings to assign a domain, then verify here');
     }
     setShowForm(false);
     setEditingId(null);
+    setEditTenantId(null);
   };
 
   const handleEdit = (domain: Domain) => {
     setEditingId(domain.id);
+    setEditTenantId(domain.id);
     setForm({ domainName: domain.domainName, tenant: domain.tenant, status: domain.status, dnsType: domain.dnsType, dnsValue: domain.dnsValue });
     setShowForm(true);
   };
@@ -108,35 +156,57 @@ export default function DomainPage() {
             <p className="text-emerald-100 mt-1 text-sm">Manage custom domains, DNS configuration, and SSL certificates</p>
           </div>
           <div className="flex gap-2">
+            <button onClick={fetchDomains} className="inline-flex items-center gap-2 px-4 py-2.5 bg-white/20 backdrop-blur text-white rounded-lg font-medium text-sm hover:bg-white/30 transition-colors">
+              <FiRefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
+            </button>
             <button onClick={() => setShowDnsPanel(!showDnsPanel)} className="inline-flex items-center gap-2 px-4 py-2.5 bg-white/20 backdrop-blur text-white rounded-lg font-medium text-sm hover:bg-white/30 transition-colors">
               <FiExternalLink className="w-4 h-4" /> DNS Guide
             </button>
-            <button onClick={() => { setShowForm(true); setEditingId(null); setForm({ domainName: '', tenant: '', status: 'pending', dnsType: 'CNAME', dnsValue: 'cname.3boxes.app' }); }} className="inline-flex items-center gap-2 px-4 py-2.5 bg-white/20 backdrop-blur text-white rounded-lg font-medium text-sm hover:bg-white/30 transition-colors">
+            <button onClick={() => { setShowForm(true); setEditingId(null); setEditTenantId(null); setForm({ domainName: '', tenant: '', status: 'pending', dnsType: 'CNAME', dnsValue: 'cname.3boxes.app' }); }} className="inline-flex items-center gap-2 px-4 py-2.5 bg-white/20 backdrop-blur text-white rounded-lg font-medium text-sm hover:bg-white/30 transition-colors">
               <FiPlus className="w-4 h-4" /> Add Domain
             </button>
           </div>
         </div>
       </div>
 
+      {/* Loading State */}
+      {loading && (
+        <div className="thb-card p-12 text-center">
+          <FiRefreshCw className="w-8 h-8 mx-auto mb-3 text-thb-text-muted animate-spin" />
+          <p className="text-thb-text-muted">Loading domains…</p>
+        </div>
+      )}
+
+      {/* Empty State */}
+      {!loading && domains.length === 0 && (
+        <div className="thb-card p-12 text-center">
+          <FiGlobe className="w-12 h-12 mx-auto mb-3 text-thb-text-muted opacity-40" />
+          <p className="text-lg font-medium text-thb-text-primary">{liveMode ? 'No live data' : 'No domains found'}</p>
+          <p className="text-sm text-thb-text-muted mt-1">{liveMode ? 'No tenants with custom domains exist yet.' : 'Add a domain to get started.'}</p>
+        </div>
+      )}
+
       {/* Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {[
-          { label: 'Total Domains', value: domains.length, icon: <FiGlobe className="w-5 h-5" />, bg: 'bg-teal-50 text-teal-500' },
-          { label: 'Active', value: activeCount, icon: <FiCheck className="w-5 h-5" />, bg: 'bg-emerald-50 text-emerald-500' },
-          { label: 'Pending', value: pendingCount, icon: <FiAlertCircle className="w-5 h-5" />, bg: 'bg-amber-50 text-amber-500' },
-          { label: 'SSL Active', value: sslActiveCount, icon: <FiShield className="w-5 h-5" />, bg: 'bg-teal-50 text-teal-500' },
-        ].map((card) => (
-          <div key={card.label} className="thb-card p-5">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-xs font-medium text-thb-text-muted">{card.label}</p>
-                <p className="text-2xl font-bold text-thb-text-primary mt-1">{card.value}</p>
+      {!loading && domains.length > 0 && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[
+            { label: 'Total Domains', value: domains.length, icon: <FiGlobe className="w-5 h-5" />, bg: 'bg-teal-50 text-teal-500' },
+            { label: 'Active', value: activeCount, icon: <FiCheck className="w-5 h-5" />, bg: 'bg-emerald-50 text-emerald-500' },
+            { label: 'Pending', value: pendingCount, icon: <FiAlertCircle className="w-5 h-5" />, bg: 'bg-amber-50 text-amber-500' },
+            { label: 'SSL Active', value: sslActiveCount, icon: <FiShield className="w-5 h-5" />, bg: 'bg-teal-50 text-teal-500' },
+          ].map((card) => (
+            <div key={card.label} className="thb-card p-5">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-xs font-medium text-thb-text-muted">{card.label}</p>
+                  <p className="text-2xl font-bold text-thb-text-primary mt-1">{card.value}</p>
+                </div>
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${card.bg}`}>{card.icon}</div>
               </div>
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${card.bg}`}>{card.icon}</div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* DNS Configuration Panel */}
       {showDnsPanel && (
@@ -175,7 +245,7 @@ export default function DomainPage() {
         <div className="thb-card border-l-4 border-l-teal-500 p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-thb-text-primary">{editingId ? 'Edit Domain' : 'Add Domain'}</h3>
-            <button onClick={() => { setShowForm(false); setEditingId(null); }} className="p-1.5 text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 rounded-lg"><FiX className="w-4 h-4" /></button>
+            <button onClick={() => { setShowForm(false); setEditingId(null); setEditTenantId(null); }} className="p-1.5 text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 rounded-lg"><FiX className="w-4 h-4" /></button>
           </div>
           <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Domain Name</label><input className={inputCls} value={form.domainName} onChange={(e) => setForm((p) => ({ ...p, domainName: e.target.value }))} placeholder="hr.yourcompany.com" /></div>
@@ -189,34 +259,36 @@ export default function DomainPage() {
       )}
 
       {/* Domain List */}
-      <div className="thb-card overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead><tr className="text-left text-xs text-thb-text-muted border-b border-thb-border bg-slate-50">
-              <th className="px-4 py-3 font-medium">Domain</th>
-              <th className="px-4 py-3 font-medium">Tenant</th>
-              <th className="px-4 py-3 font-medium">Status</th>
-              <th className="px-4 py-3 font-medium">SSL</th>
-              <th className="px-4 py-3 font-medium">DNS Type</th>
-              <th className="px-4 py-3 font-medium">Verified Date</th>
-              <th className="px-4 py-3 font-medium">Action</th>
-            </tr></thead>
-            <tbody>
-              {domains.map((domain) => (
-                <tr key={domain.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
-                  <td className="px-4 py-3 font-medium text-thb-text-primary flex items-center gap-2"><FiGlobe className="w-3.5 h-3.5 text-thb-text-muted" /> {domain.domainName}</td>
-                  <td className="px-4 py-3 text-thb-text-secondary">{domain.tenant}</td>
-                  <td className="px-4 py-3"><span className={statusBadge[domain.status]}>{domain.status}</span></td>
-                  <td className="px-4 py-3"><span className="flex items-center gap-1.5"><FiShield className={`w-3.5 h-3.5 ${sslIconColor[domain.sslStatus]}`} /><span className={sslBadge[domain.sslStatus]}>{domain.sslStatus}</span></span></td>
-                  <td className="px-4 py-3 text-thb-text-secondary font-mono text-xs">{domain.dnsType}</td>
-                  <td className="px-4 py-3 text-thb-text-secondary">{domain.verifiedDate || '—'}</td>
-                  <td className="px-4 py-3"><button onClick={() => handleEdit(domain)} className="inline-flex items-center gap-1 text-green-500 hover:text-green-700 text-xs font-medium"><FiEdit2 className="w-3.5 h-3.5" /> Edit</button></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {!loading && domains.length > 0 && (
+        <div className="thb-card overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead><tr className="text-left text-xs text-thb-text-muted border-b border-thb-border bg-slate-50">
+                <th className="px-4 py-3 font-medium">Domain</th>
+                <th className="px-4 py-3 font-medium">Tenant</th>
+                <th className="px-4 py-3 font-medium">Status</th>
+                <th className="px-4 py-3 font-medium">SSL</th>
+                <th className="px-4 py-3 font-medium">DNS Type</th>
+                <th className="px-4 py-3 font-medium">Verified Date</th>
+                <th className="px-4 py-3 font-medium">Action</th>
+              </tr></thead>
+              <tbody>
+                {domains.map((domain) => (
+                  <tr key={domain.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
+                    <td className="px-4 py-3 font-medium text-thb-text-primary flex items-center gap-2"><FiGlobe className="w-3.5 h-3.5 text-thb-text-muted" /> {domain.domainName}</td>
+                    <td className="px-4 py-3 text-thb-text-secondary">{domain.tenant}</td>
+                    <td className="px-4 py-3"><span className={statusBadge[domain.status]}>{domain.status}</span></td>
+                    <td className="px-4 py-3"><span className="flex items-center gap-1.5"><FiShield className={`w-3.5 h-3.5 ${sslIconColor[domain.sslStatus]}`} /><span className={sslBadge[domain.sslStatus]}>{domain.sslStatus}</span></span></td>
+                    <td className="px-4 py-3 text-thb-text-secondary font-mono text-xs">{domain.dnsType}</td>
+                    <td className="px-4 py-3 text-thb-text-secondary">{domain.verifiedDate || '—'}</td>
+                    <td className="px-4 py-3"><button onClick={() => handleEdit(domain)} className="inline-flex items-center gap-1 text-green-500 hover:text-green-700 text-xs font-medium"><FiEdit2 className="w-3.5 h-3.5" /> Edit</button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

@@ -2,6 +2,7 @@
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import { getClientSiteMode } from '@/lib/site-mode';
 
 export interface TenantOption {
   id: string;
@@ -157,6 +158,31 @@ export const useCompanyContextStore = create<CompanyContextState>()(
           const isAdmin = role === 'super_admin' || role === 'tenant_admin';
           const hasMappedCompanies = (data.mappedCompanies || []).length > 1;
           const canSwitch = isAdmin || hasMappedCompanies;
+
+          // ─── CLIENT-SIDE SAFETY NET: Filter tenants based on site mode ───
+          // Even if the API filter fails (e.g., isLiveMode detection issue on
+          // Vercel), we enforce the same rules on the client side so the
+          // company switcher never shows phantom tenants.
+          //   LIVE mode:  Hide '3boxes-hrms-demo' + '3boxeshrms' (Marq AI Tech Pvt Ltd)
+          //   DEMO mode:  Hide 'marqaitechgroup' (live tenant)
+          const clientSiteMode = getClientSiteMode();
+          const hiddenSlugs = clientSiteMode === 'live'
+            ? ['3boxes-hrms-demo', '3boxeshrms']
+            : ['marqaitechgroup'];
+          if (data.availableTenants) {
+            data.availableTenants = data.availableTenants.filter(
+              (t: TenantOption) => !hiddenSlugs.includes(t.slug)
+            );
+          }
+          // Also override tenant/tenantId if they point to a hidden tenant
+          if (data.tenant && hiddenSlugs.includes(data.tenant.slug)) {
+            data.tenant = data.availableTenants?.[0] || null;
+            data.tenantId = data.availableTenants?.[0]?.id || null;
+          }
+          if (data.tenantId && !data.availableTenants?.some((t: TenantOption) => t.id === data.tenantId)) {
+            data.tenantId = data.availableTenants?.[0]?.id || null;
+            data.tenant = data.availableTenants?.[0] || null;
+          }
 
           // Default the selected tenant to the caller's tenant for tenant_admin,
           // or to the first available for super_admin (if a previous selection

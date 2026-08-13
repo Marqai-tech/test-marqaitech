@@ -114,7 +114,7 @@ export const navSections: NavSection[] = [
       { label: 'Trial Requests', href: '/super-admin/trial-requests', icon: <FiBriefcase className="w-4 h-4" />, roles: ['super_admin'], isNew: true },
       { label: 'RBAC Management', href: '/super-admin/rbac', icon: <FiLock className="w-4 h-4" />, roles: ['super_admin'] },
       { label: 'Module Management', href: '/super-admin/tenant-modules', icon: <FiGrid className="w-4 h-4" />, roles: ['super_admin'], isNew: true },
-      { label: 'Tenant Configuration', href: '/tenant-admin/tenant-configuration', icon: <FiSettings className="w-4 h-4" />, roles: ['super_admin'], isNew: true },
+      { label: 'Tenant Configuration', href: '/super-admin/tenant-configuration', icon: <FiSettings className="w-4 h-4" />, roles: ['super_admin'], isNew: true },
       { label: 'AI Admin Console', href: '/ai-admin', icon: <FiCpu className="w-4 h-4" />, roles: ['super_admin'], isNew: true },
     ],
   },

@@ -1,19 +1,20 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   FiHeadphones, FiPlus, FiEdit2, FiX, FiCheck,
-  FiAlertTriangle, FiClock, FiUser, FiFilter,
+  FiAlertTriangle, FiClock, FiUser, FiFilter, FiRefreshCw,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import { isClientLiveMode } from '@/lib/site-mode';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
   return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
 }
 
-// ─── Demo Data ───────────────────────────────────────────
+// ─── Types ───────────────────────────────────────────────
 interface Ticket {
   id: string;
   subject: string;
@@ -24,19 +25,6 @@ interface Ticket {
   createdDate: string;
   description: string;
 }
-
-const demoTickets: Ticket[] = [
-  { id: 'TKT-001', subject: 'Payroll processing failed for June cycle', tenant: 'Acme Global Corp', priority: 'critical', status: 'in_progress', assignee: 'Sarah M.', createdDate: '2025-06-28', description: 'Monthly payroll run failed with database timeout error.' },
-  { id: 'TKT-002', subject: 'Cannot add new employee - validation error', tenant: 'TechStart Solutions', priority: 'high', status: 'open', assignee: 'Unassigned', createdDate: '2025-06-29', description: 'HR admin getting validation error when trying to add employee.' },
-  { id: 'TKT-003', subject: 'Attendance report not generating', tenant: '3Boxes Innovations', priority: 'medium', status: 'in_progress', assignee: 'Mike R.', createdDate: '2025-06-27', description: 'Monthly attendance report export is stuck at 50%.' },
-  { id: 'TKT-004', subject: 'Custom domain SSL renewal', tenant: 'GlobalHR Services', priority: 'low', status: 'resolved', assignee: 'David K.', createdDate: '2025-06-20', description: 'SSL certificate needs renewal for portal.globalhr.com.' },
-  { id: 'TKT-005', subject: 'Performance module not loading', tenant: 'BrightPath Inc', priority: 'high', status: 'open', assignee: 'Sarah M.', createdDate: '2025-06-30', description: 'Performance review page shows blank screen.' },
-  { id: 'TKT-006', subject: 'Data export request for audit', tenant: 'PeakPerformance Ltd', priority: 'medium', status: 'in_progress', assignee: 'Lisa T.', createdDate: '2025-06-25', description: 'Need complete data export for annual compliance audit.' },
-  { id: 'TKT-007', subject: 'Mobile app login issues', tenant: 'Vertex Dynamics', priority: 'medium', status: 'resolved', assignee: 'Mike R.', createdDate: '2025-06-18', description: 'Several employees unable to login via mobile app.' },
-  { id: 'TKT-008', subject: 'Leave policy configuration error', tenant: 'Orion Systems', priority: 'low', status: 'closed', assignee: 'David K.', createdDate: '2025-06-15', description: 'Leave policy rules not applying correctly for new joiners.' },
-  { id: 'TKT-009', subject: 'API rate limit exceeded', tenant: 'Acme Global Corp', priority: 'high', status: 'open', assignee: 'Unassigned', createdDate: '2025-06-30', description: 'API calls returning 429 errors during peak hours.' },
-  { id: 'TKT-010', subject: 'Integration with Slack broken', tenant: 'TechStart Solutions', priority: 'medium', status: 'in_progress', assignee: 'Lisa T.', createdDate: '2025-06-26', description: 'Slack integration stopped sending notifications.' },
-];
 
 const priorityBadge: Record<string, string> = {
   low: 'thb-badge thb-badge-info',
@@ -54,7 +42,9 @@ const statusBadge: Record<string, string> = {
 
 export default function TenantTicketsPage() {
   const { user } = useAuthStore();
-  const [tickets, setTickets] = useState<Ticket[]>(demoTickets);
+  const liveMode = isClientLiveMode();
+  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [loading, setLoading] = useState(true);
   const [priorityFilter, setPriorityFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [showForm, setShowForm] = useState(false);
@@ -63,6 +53,39 @@ export default function TenantTicketsPage() {
     subject: '', tenant: '', priority: 'medium' as Ticket['priority'],
     status: 'open' as Ticket['status'], assignee: '', description: '',
   });
+
+  const fetchTickets = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/tickets?limit=100', { headers: getAuthHeaders() });
+      if (!res.ok) throw new Error('Failed to fetch tickets');
+      const data = await res.json();
+      const raw = data.tickets || data || [];
+
+      const filtered = liveMode
+        ? raw.filter((t: any) => t.tenant?.slug !== '3boxes-hrms-demo' && t.tenant?.slug !== '3boxeshrms')
+        : raw;
+
+      const mapped: Ticket[] = filtered.map((t: any) => ({
+        id: t.id || `TKT-${Math.random().toString(36).slice(2, 8)}`,
+        subject: t.subject || t.title || '',
+        tenant: t.tenant?.name || t.tenantName || 'Unknown',
+        priority: (t.priority || 'medium') as Ticket['priority'],
+        status: (t.status || 'open') as Ticket['status'],
+        assignee: t.assignee?.name || t.assignee || 'Unassigned',
+        createdDate: t.createdAt ? new Date(t.createdAt).toISOString().slice(0, 10) : '',
+        description: t.description || '',
+      }));
+      setTickets(mapped);
+    } catch (err) {
+      toast.error('Failed to load tickets');
+      setTickets([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [liveMode]);
+
+  useEffect(() => { fetchTickets(); }, [fetchTickets]);
 
   const filtered = useMemo(() => {
     let result = tickets;
@@ -74,17 +97,37 @@ export default function TenantTicketsPage() {
   const openCount = tickets.filter((t) => t.status === 'open').length;
   const inProgressCount = tickets.filter((t) => t.status === 'in_progress').length;
   const resolvedCount = tickets.filter((t) => t.status === 'resolved' || t.status === 'closed').length;
-  const avgResolution = '2.4 days';
+  const avgResolution = '—';
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.subject || !form.tenant) { toast.error('Subject and tenant are required'); return; }
     if (editingId) {
-      setTickets((prev) => prev.map((t) => t.id === editingId ? { ...t, ...form } : t));
-      toast.success('Ticket updated');
+      try {
+        const res = await fetch(`/api/tickets/${editingId}`, {
+          method: 'PATCH',
+          headers: getAuthHeaders(),
+          body: JSON.stringify(form),
+        });
+        if (!res.ok) throw new Error('Failed to update ticket');
+        toast.success('Ticket updated');
+        fetchTickets();
+      } catch {
+        toast.error('Failed to update ticket');
+      }
     } else {
-      setTickets((prev) => [...prev, { ...form, id: `TKT-${Date.now()}`, createdDate: new Date().toISOString().slice(0, 10) }]);
-      toast.success('Ticket created');
+      try {
+        const res = await fetch('/api/tickets', {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify(form),
+        });
+        if (!res.ok) throw new Error('Failed to create ticket');
+        toast.success('Ticket created');
+        fetchTickets();
+      } catch {
+        toast.error('Failed to create ticket');
+      }
     }
     setShowForm(false);
     setEditingId(null);
@@ -107,44 +150,70 @@ export default function TenantTicketsPage() {
             <h1 className="text-2xl font-bold text-white flex items-center gap-3"><FiHeadphones className="w-7 h-7" /> Tenant Support Tickets</h1>
             <p className="text-rose-100 mt-1 text-sm">Manage and resolve support requests from all platform tenants</p>
           </div>
-          <button onClick={() => { setShowForm(true); setEditingId(null); setForm({ subject: '', tenant: '', priority: 'medium', status: 'open', assignee: '', description: '' }); }} className="inline-flex items-center gap-2 px-4 py-2.5 bg-white/20 backdrop-blur text-white rounded-lg font-medium text-sm hover:bg-white/30 transition-colors">
-            <FiPlus className="w-4 h-4" /> New Ticket
-          </button>
+          <div className="flex gap-2">
+            <button onClick={fetchTickets} className="inline-flex items-center gap-2 px-4 py-2.5 bg-white/20 backdrop-blur text-white rounded-lg font-medium text-sm hover:bg-white/30 transition-colors">
+              <FiRefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
+            </button>
+            <button onClick={() => { setShowForm(true); setEditingId(null); setForm({ subject: '', tenant: '', priority: 'medium', status: 'open', assignee: '', description: '' }); }} className="inline-flex items-center gap-2 px-4 py-2.5 bg-white/20 backdrop-blur text-white rounded-lg font-medium text-sm hover:bg-white/30 transition-colors">
+              <FiPlus className="w-4 h-4" /> New Ticket
+            </button>
+          </div>
         </div>
       </div>
 
+      {/* Loading State */}
+      {loading && (
+        <div className="thb-card p-12 text-center">
+          <FiRefreshCw className="w-8 h-8 mx-auto mb-3 text-thb-text-muted animate-spin" />
+          <p className="text-thb-text-muted">Loading tickets…</p>
+        </div>
+      )}
+
+      {/* Empty State */}
+      {!loading && tickets.length === 0 && (
+        <div className="thb-card p-12 text-center">
+          <FiHeadphones className="w-12 h-12 mx-auto mb-3 text-thb-text-muted opacity-40" />
+          <p className="text-lg font-medium text-thb-text-primary">{liveMode ? 'No live data' : 'No tickets found'}</p>
+          <p className="text-sm text-thb-text-muted mt-1">{liveMode ? 'No support tickets exist yet.' : 'Create a ticket to get started.'}</p>
+        </div>
+      )}
+
       {/* Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {[
-          { label: 'Open', value: openCount, icon: <FiAlertTriangle className="w-5 h-5" />, bg: 'bg-red-50 text-red-500' },
-          { label: 'In Progress', value: inProgressCount, icon: <FiClock className="w-5 h-5" />, bg: 'bg-amber-50 text-amber-500' },
-          { label: 'Resolved', value: resolvedCount, icon: <FiCheck className="w-5 h-5" />, bg: 'bg-emerald-50 text-emerald-500' },
-          { label: 'Avg Resolution', value: avgResolution, icon: <FiClock className="w-5 h-5" />, bg: 'bg-teal-50 text-teal-500' },
-        ].map((card) => (
-          <div key={card.label} className="thb-card p-5">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-xs font-medium text-thb-text-muted">{card.label}</p>
-                <p className="text-2xl font-bold text-thb-text-primary mt-1">{card.value}</p>
+      {!loading && tickets.length > 0 && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[
+            { label: 'Open', value: openCount, icon: <FiAlertTriangle className="w-5 h-5" />, bg: 'bg-red-50 text-red-500' },
+            { label: 'In Progress', value: inProgressCount, icon: <FiClock className="w-5 h-5" />, bg: 'bg-amber-50 text-amber-500' },
+            { label: 'Resolved', value: resolvedCount, icon: <FiCheck className="w-5 h-5" />, bg: 'bg-emerald-50 text-emerald-500' },
+            { label: 'Avg Resolution', value: avgResolution, icon: <FiClock className="w-5 h-5" />, bg: 'bg-teal-50 text-teal-500' },
+          ].map((card) => (
+            <div key={card.label} className="thb-card p-5">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-xs font-medium text-thb-text-muted">{card.label}</p>
+                  <p className="text-2xl font-bold text-thb-text-primary mt-1">{card.value}</p>
+                </div>
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${card.bg}`}>{card.icon}</div>
               </div>
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${card.bg}`}>{card.icon}</div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* Filters */}
-      <div className="thb-card p-4 flex flex-wrap items-center gap-3">
-        <FiFilter className="w-4 h-4 text-thb-text-muted" />
-        <span className="text-sm text-thb-text-secondary">Priority:</span>
-        {['', 'low', 'medium', 'high', 'critical'].map((p) => (
-          <button key={p} onClick={() => setPriorityFilter(p)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${priorityFilter === p ? 'bg-rose-500 text-white' : 'bg-slate-100 text-thb-text-secondary hover:bg-slate-200'}`}>{p || 'All'}</button>
-        ))}
-        <span className="text-sm text-thb-text-secondary ml-4">Status:</span>
-        {['', 'open', 'in_progress', 'resolved', 'closed'].map((s) => (
-          <button key={s} onClick={() => setStatusFilter(s)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${statusFilter === s ? 'bg-rose-500 text-white' : 'bg-slate-100 text-thb-text-secondary hover:bg-slate-200'}`}>{s ? s.replace('_', ' ') : 'All'}</button>
-        ))}
-      </div>
+      {!loading && tickets.length > 0 && (
+        <div className="thb-card p-4 flex flex-wrap items-center gap-3">
+          <FiFilter className="w-4 h-4 text-thb-text-muted" />
+          <span className="text-sm text-thb-text-secondary">Priority:</span>
+          {['', 'low', 'medium', 'high', 'critical'].map((p) => (
+            <button key={p} onClick={() => setPriorityFilter(p)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${priorityFilter === p ? 'bg-rose-500 text-white' : 'bg-slate-100 text-thb-text-secondary hover:bg-slate-200'}`}>{p || 'All'}</button>
+          ))}
+          <span className="text-sm text-thb-text-secondary ml-4">Status:</span>
+          {['', 'open', 'in_progress', 'resolved', 'closed'].map((s) => (
+            <button key={s} onClick={() => setStatusFilter(s)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${statusFilter === s ? 'bg-rose-500 text-white' : 'bg-slate-100 text-thb-text-secondary hover:bg-slate-200'}`}>{s ? s.replace('_', ' ') : 'All'}</button>
+          ))}
+        </div>
+      )}
 
       {/* Form */}
       {showForm && (
@@ -166,32 +235,34 @@ export default function TenantTicketsPage() {
       )}
 
       {/* Ticket List */}
-      <div className="space-y-3">
-        {filtered.map((ticket) => (
-          <div key={ticket.id} className="thb-card p-4 hover:shadow-md transition-shadow">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="font-mono text-xs text-thb-text-muted">{ticket.id}</span>
-                  <span className={priorityBadge[ticket.priority]}>{ticket.priority}</span>
-                  <span className={statusBadge[ticket.status]}>{ticket.status.replace('_', ' ')}</span>
+      {!loading && tickets.length > 0 && (
+        <div className="space-y-3">
+          {filtered.map((ticket) => (
+            <div key={ticket.id} className="thb-card p-4 hover:shadow-md transition-shadow">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="font-mono text-xs text-thb-text-muted">{ticket.id}</span>
+                    <span className={priorityBadge[ticket.priority]}>{ticket.priority}</span>
+                    <span className={statusBadge[ticket.status]}>{ticket.status.replace('_', ' ')}</span>
+                  </div>
+                  <h4 className="text-sm font-semibold text-thb-text-primary truncate">{ticket.subject}</h4>
+                  <p className="text-xs text-thb-text-muted mt-0.5 line-clamp-1">{ticket.description}</p>
                 </div>
-                <h4 className="text-sm font-semibold text-thb-text-primary truncate">{ticket.subject}</h4>
-                <p className="text-xs text-thb-text-muted mt-0.5 line-clamp-1">{ticket.description}</p>
-              </div>
-              <div className="flex items-center gap-4 text-xs text-thb-text-secondary flex-shrink-0">
-                <div className="flex items-center gap-1"><FiUser className="w-3.5 h-3.5" /> {ticket.tenant}</div>
-                <div className="flex items-center gap-1"><FiClock className="w-3.5 h-3.5" /> {ticket.assignee}</div>
-                <div className="text-thb-text-muted">{ticket.createdDate}</div>
-                <button onClick={() => handleEdit(ticket)} className="inline-flex items-center gap-1 text-green-500 hover:text-green-700 font-medium"><FiEdit2 className="w-3.5 h-3.5" />Edit</button>
+                <div className="flex items-center gap-4 text-xs text-thb-text-secondary flex-shrink-0">
+                  <div className="flex items-center gap-1"><FiUser className="w-3.5 h-3.5" /> {ticket.tenant}</div>
+                  <div className="flex items-center gap-1"><FiClock className="w-3.5 h-3.5" /> {ticket.assignee}</div>
+                  <div className="text-thb-text-muted">{ticket.createdDate}</div>
+                  <button onClick={() => handleEdit(ticket)} className="inline-flex items-center gap-1 text-green-500 hover:text-green-700 font-medium"><FiEdit2 className="w-3.5 h-3.5" />Edit</button>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
-        {filtered.length === 0 && (
-          <div className="thb-card p-8 text-center text-thb-text-muted"><FiAlertTriangle className="w-8 h-8 mx-auto mb-2 opacity-50" /><p>No tickets match the current filters</p></div>
-        )}
-      </div>
+          ))}
+          {filtered.length === 0 && (
+            <div className="thb-card p-8 text-center text-thb-text-muted"><FiAlertTriangle className="w-8 h-8 mx-auto mb-2 opacity-50" /><p>No tickets match the current filters</p></div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
