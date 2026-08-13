@@ -508,10 +508,35 @@ export async function GET(request: Request) {
       };
     }
 
+    // ─── LIVE/DEMO MODE TENANT OVERRIDE ───
+    // If the caller's own tenant is filtered from availableTenants (e.g., the
+    // super admin's JWT points to '3boxeshrms' which is hidden on the live site),
+    // override tenantId/tenant to the first available tenant so the company
+    // switcher defaults correctly instead of showing a dead reference.
+    let effectiveTenantId = callerTenantId;
+    let effectiveTenant = callerTenant;
+    if (role === 'super_admin' && callerTenantId) {
+      const callerInAvailable = availableTenants.some((t) => t.id === callerTenantId);
+      if (!callerInAvailable && availableTenants.length > 0) {
+        effectiveTenantId = availableTenants[0].id;
+        effectiveTenant = await safe(
+          'tenant.findUnique(override)',
+          () => getPlatformDb().tenant.findUnique({
+            where: { id: effectiveTenantId as string },
+            select: {
+              id: true, name: true, slug: true, plan: true, status: true,
+              maxCompaniesAllowed: true, country: true, currency: true, timezone: true,
+            },
+          }),
+          null,
+        );
+      }
+    }
+
     return NextResponse.json({
       role,
-      tenantId: callerTenantId,
-      tenant: callerTenant,
+      tenantId: effectiveTenantId,
+      tenant: effectiveTenant,
       tenantQuota,
       ownCompanyId,
       ownCompany,

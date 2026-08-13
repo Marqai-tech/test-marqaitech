@@ -165,11 +165,18 @@ export const useCompanyContextStore = create<CompanyContextState>()(
           const stillExists = persistedSelectedTenant
             ? (data.availableTenants || []).some((t: TenantOption) => t.id === persistedSelectedTenant)
             : false;
+          // Also validate the caller's own tenantId — on the live site, certain
+          // tenants (e.g., '3boxeshrms' / 'Marq AI Tech Pvt Ltd') are filtered
+          // from availableTenants. If the caller's tenantId points to a filtered
+          // tenant, we must skip it and default to the first available tenant.
+          const callerTenantIdInList = data.tenantId
+            ? (data.availableTenants || []).some((t: TenantOption) => t.id === data.tenantId)
+            : false;
           let selectedTenantId: string | null = null;
           if (canSwitch) {
             if (role === 'super_admin') {
               selectedTenantId = (stillExists ? persistedSelectedTenant : null)
-                || data.tenantId
+                || (callerTenantIdInList ? data.tenantId : null)
                 || data.availableTenants?.[0]?.id
                 || null;
             } else {
