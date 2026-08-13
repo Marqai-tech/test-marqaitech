@@ -55,7 +55,12 @@ export async function GET(request: Request) {
     }
 
     if (status) where.status = status;
-    if (currency) where.currency = currency;
+    // In LIVE mode, force INR-only currency for subscriptions
+    if (isSuperAdmin && isLiveMode(request)) {
+      where.currency = 'INR';
+    } else if (currency) {
+      where.currency = currency;
+    }
 
     const [subscriptions, total] = await Promise.all([
       getPlatformDb().subscription.findMany({
@@ -122,7 +127,8 @@ export async function POST(request: Request) {
         trialEnd: trialEnd ? new Date(trialEnd) : null,
         billingCycle: billingCycle || 'monthly',
         amount: amount ?? 0,
-        currency: currency || 'INR',
+        // In LIVE mode, force INR currency
+        currency: isLiveMode(request) ? 'INR' : (currency || 'INR'),
         paymentStatus: paymentStatus || 'pending',
         status: 'active',
         autoRenew: autoRenew ?? true,
