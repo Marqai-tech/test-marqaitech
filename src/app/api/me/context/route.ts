@@ -250,10 +250,6 @@ export async function GET(request: Request) {
         }),
         [],
       );
-      // Debug log: verify filtering is working
-      console.log(`[me/context] siteMode=${siteMode}, host=${request.headers.get('host')}, filteredTenants=${availableTenants.length}, slugs=[${availableTenants.map((t: { slug: string }) => t.slug).join(',')}]`);
-      console.log(`[me/context] GOLDEN RULE: requestedTenantId=${requestedTenantId || 'none'}, callerTenantId=${callerTenantId || 'none'}, requestedVisible=${requestedTenantId ? availableTenants.some((t: { id: string }) => t.id === requestedTenantId) : false}, callerVisible=${callerTenantId ? availableTenants.some((t: { id: string }) => t.id === callerTenantId) : false}, effectiveTenantId=${effectiveTenantId || 'none'}`);
-
       // Companies scoped to the requested tenant (or first tenant if none)
       // GOLDEN RULE FIX: Validate both requestedTenantId and callerTenantId
       // against the FILTERED availableTenants. On the live site, the super
@@ -271,6 +267,10 @@ export async function GET(request: Request) {
         (requestedTenantIsVisible ? requestedTenantId : null) ||
         (callerTenantIsVisible ? callerTenantId : null) ||
         availableTenants[0]?.id;
+
+      // Debug log: verify filtering is working (AFTER effectiveTenantId is declared)
+      console.log(`[me/context] siteMode=${siteMode}, host=${request.headers.get('host')}, filteredTenants=${availableTenants.length}, slugs=[${availableTenants.map((t: { slug: string }) => t.slug).join(',')}]`);
+      console.log(`[me/context] GOLDEN RULE: requestedTenantId=${requestedTenantId || 'none'}, callerTenantId=${callerTenantId || 'none'}, requestedVisible=${requestedTenantIsVisible}, callerVisible=${callerTenantIsVisible}, effectiveTenantId=${effectiveTenantId || 'none'}`);
       if (effectiveTenantId) {
         // AUTO-HEAL: Ensure the target tenant has at least one default group
         // company. Legacy tenants created before the auto-group feature would
@@ -551,16 +551,69 @@ export async function GET(request: Request) {
       }
     }
 
+    // ─── SERVER-SIDE SAFETY NET (GOLDEN RULE) ───
+    // Belt-and-suspenders: even if the filtering above has a bug, we scrub
+    // the response data one last time before sending it. This ensures NO
+    // hidden tenant data ever reaches the client.
+    const siteModeFinal = isLiveMode(request) ? 'live' : 'demo';
+    const hiddenSlugsFinal = siteModeFinal === 'live'
+      ? ['3boxes-hrms-demo', '3boxeshrms']
+      : ['marqaitechgroup'];
+
+    // 1. Scrub tenant/tenantId if they point to a hidden slug
+    if (effectiveTenant && effectiveTenant.slug && hiddenSlugsFinal.includes(effectiveTenant.slug)) {
+      console.warn(`[me/context] GOLDEN RULE: Scrubbing hidden tenant "${effectiveTenant.slug}" from response tenant field`);
+      effectiveTenant = availableTenants[0]
+        ? await safe(
+            'tenant.findUnique(scrub)',
+            () => getPlatformDb().tenant.findUnique({
+              where: { id: availableTenants[0].id },
+              select: {
+                id: true, name: true, slug: true, plan: true, status: true,
+                maxCompaniesAllowed: true, country: true, currency: true, timezone: true,
+              },
+            }),
+            null,
+          )
+        : null;
+      effectiveTenantId = effectiveTenant?.id || null;
+    }
+
+    // 2. Filter availableTenants one more time (should already be filtered, but just in case)
+    const finalAvailableTenants = availableTenants.filter(
+      (t) => !hiddenSlugsFinal.includes(t.slug)
+    );
+
+    // 3. Filter availableCompanyGroups — remove any that belong to hidden tenants
+    const visibleTenantIdSet = new Set(finalAvailableTenants.map((t) => t.id));
+    const finalAvailableCompanyGroups = availableCompanyGroups.filter(
+      (g) => visibleTenantIdSet.has(g.tenantId)
+    );
+
+    // 4. Filter availableCompanies — remove any whose group was filtered out
+    const visibleGroupIdSet = new Set(finalAvailableCompanyGroups.map((g) => g.id));
+    const finalAvailableCompanies = availableCompanies.filter(
+      (c) => visibleGroupIdSet.has(c.companyGroupId)
+    );
+
+    // 5. Scrub tenantQuota if it was computed from a hidden tenant
+    let finalTenantQuota = tenantQuota;
+    if (tenantQuota && effectiveTenant && effectiveTenant.slug && hiddenSlugsFinal.includes(effectiveTenant.slug)) {
+      finalTenantQuota = null;
+    }
+
+    console.log(`[me/context] GOLDEN RULE FINAL: siteMode=${siteModeFinal}, hiddenSlugs=[${hiddenSlugsFinal.join(',')}], tenants=${finalAvailableTenants.length}, groups=${finalAvailableCompanyGroups.length}, companies=${finalAvailableCompanies.length}, tenantSlug=${effectiveTenant?.slug || 'null'}`);
+
     return NextResponse.json({
       role,
       tenantId: effectiveTenantId,
       tenant: effectiveTenant,
-      tenantQuota,
+      tenantQuota: finalTenantQuota,
       ownCompanyId,
       ownCompany,
-      availableTenants,
-      availableCompanyGroups,
-      availableCompanies,
+      availableTenants: finalAvailableTenants,
+      availableCompanyGroups: finalAvailableCompanyGroups,
+      availableCompanies: finalAvailableCompanies,
       mappedCompanies,
     }, { headers: corsHeaders() });
   } catch (error) {

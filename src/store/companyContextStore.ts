@@ -312,10 +312,32 @@ export const useCompanyContextStore = create<CompanyContextState>()(
           const res = await fetch(`/api/me/context?tenantId=${encodeURIComponent(tenantId)}`, { headers: getAuthHeaders() });
           if (!res.ok) return;
           const data = await res.json();
+
+          // ─── CLIENT-SIDE SAFETY NET (GOLDEN RULE) ───
+          // Apply the same filtering as hydrate() to ensure no hidden
+          // tenant data leaks through this code path either.
+          const hiddenSlugs = getHiddenSlugs();
+          let filteredGroups = data.availableCompanyGroups || [];
+          let filteredCompanies = data.availableCompanies || [];
+          const currentTenants = get().availableTenants;
+          if (currentTenants.length > 0) {
+            const visibleTenantIds = new Set(currentTenants.map((t: TenantOption) => t.id));
+            filteredGroups = filteredGroups.filter(
+              (g: CompanyGroupOption) => visibleTenantIds.has(g.tenantId)
+            );
+            const visibleGroupIds = new Set(filteredGroups.map((g: CompanyGroupOption) => g.id));
+            filteredCompanies = filteredCompanies.filter(
+              (c: CompanyOption) => visibleGroupIds.has(c.companyGroupId)
+            );
+          }
+          // Also validate: don't set tenantId to a hidden tenant
+          const targetTenant = currentTenants.find((t: TenantOption) => t.id === tenantId);
+          const safeTenantId = targetTenant && !hiddenSlugs.includes(targetTenant.slug) ? tenantId : null;
+
           set({
-            availableCompanyGroups: data.availableCompanyGroups || [],
-            availableCompanies: data.availableCompanies || [],
-            selectedTenantId: tenantId,
+            availableCompanyGroups: filteredGroups,
+            availableCompanies: filteredCompanies,
+            selectedTenantId: safeTenantId || currentTenants[0]?.id || null,
             selectedGroupId: null,    // reset on tenant change
             selectedCompanyId: null,  // reset on tenant change
           });
@@ -502,6 +524,7 @@ export const useCompanyContextStore = create<CompanyContextState>()(
           const hidden = getHiddenSlugs();
           // If persisted tenant points to a hidden slug, null it out
           if (persisted.tenant && persisted.tenant.slug && hidden.includes(persisted.tenant.slug)) {
+            console.warn(`[companyCtx] Scrubbing hidden tenant "${persisted.tenant.slug}" from localStorage on rehydration`);
             persisted.tenant = null;
             persisted.tenantId = null;
             persisted.selectedTenantId = null;
@@ -510,6 +533,24 @@ export const useCompanyContextStore = create<CompanyContextState>()(
           if (persisted.tenantId && !persisted.tenant) {
             persisted.tenantId = null;
             persisted.selectedTenantId = null;
+          }
+          // GOLDEN RULE: Also clear selectedTenantId if it matches a hidden tenant
+          // (e.g., user previously selected '3boxeshrms' and it was persisted)
+          if (persisted.selectedTenantId) {
+            // We can't look up the slug from just an ID here, but we already
+            // cleared selectedTenantId if tenant was hidden above. As an extra
+            // safety net, if tenantId was cleared, also clear selectedTenantId.
+            if (!persisted.tenantId) {
+              persisted.selectedTenantId = null;
+            }
+          }
+          // Also scrub ownCompany/ownCompanyId if they somehow reference
+          // data from a hidden tenant (edge case but possible)
+          if (persisted.tenantId === null && persisted.ownCompany) {
+            // If we have no tenant, we shouldn't have an ownCompany either
+            // (it would be orphaned data from a hidden tenant)
+            persisted.ownCompany = null;
+            persisted.ownCompanyId = null;
           }
         };
       },

@@ -618,13 +618,13 @@ export default function CompanySwitcher() {
               <div className="px-4 py-6 text-center text-slate-400">
                 <FiInfo className="w-8 h-8 mx-auto mb-2" />
                 <p className="text-sm">
-                  {availableCompanyGroups.length === 0
+                  {safeAvailableCompanyGroups.length === 0
                     ? isSuperAdmin
                       ? 'No group companies created under this parent yet'
                       : 'No group companies exist under your parent yet'
                     : 'No matches for your search'}
                 </p>
-                {availableCompanyGroups.length === 0 && (
+                {safeAvailableCompanyGroups.length === 0 && (
                   <a
                     href={isSuperAdmin ? '/super-admin' : '/tenant-admin/companies'}
                     onClick={() => setOpen(false)}
@@ -732,8 +732,8 @@ export default function CompanySwitcher() {
           <div className="px-4 py-2 bg-slate-50/80 border-t border-slate-100 text-[11px] text-slate-500 flex items-center justify-between">
             <span>
               {isSuperAdmin
-                ? `${safeAvailableTenants.length} parent${safeAvailableTenants.length === 1 ? '' : 's'} · ${availableCompanyGroups.length} group${availableCompanyGroups.length === 1 ? '' : 's'} · ${availableCompanies.length} compan${availableCompanies.length === 1 ? 'y' : 'ies'}`
-                : `${availableCompanyGroups.length} group${availableCompanyGroups.length === 1 ? '' : 's'} · ${availableCompanies.length} compan${availableCompanies.length === 1 ? 'y' : 'ies'}`}
+                ? `${safeAvailableTenants.length} parent${safeAvailableTenants.length === 1 ? '' : 's'} · ${safeAvailableCompanyGroups.length} group${safeAvailableCompanyGroups.length === 1 ? '' : 's'} · ${safeAvailableCompanies.length} compan${safeAvailableCompanies.length === 1 ? 'y' : 'ies'}`
+                : `${safeAvailableCompanyGroups.length} group${safeAvailableCompanyGroups.length === 1 ? '' : 's'} · ${safeAvailableCompanies.length} compan${safeAvailableCompanies.length === 1 ? 'y' : 'ies'}`}
             </span>
             {isSuperAdmin && (
               <a
