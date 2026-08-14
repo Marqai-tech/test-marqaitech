@@ -192,3 +192,26 @@ Stage Summary:
 - All dashboard/home data is now live (no dummy/mock data on LIVE site)
 - Module reorganization complete with nav updates
 - AI Settings page created in Super Admin
+---
+Task ID: 1
+Agent: main
+Task: Permanent fix for "Marq AI Tech Pvt Ltd" in company switcher + attendance/leave module fixes
+
+Work Log:
+- Added HARDCODED slug/name defensive check in CompanySwitcher.tsx (works even during SSR)
+- Added same hardcoded check in Sidebar.tsx and companyContextStore.ts (hydrate + onRehydrateStorage)
+- Fixed 3 API routes to use getServerHiddenSlugs() instead of isLiveMode() alone: switch-tenant, tenant-info, tenants
+- Added hidden slug guard to /api/tenants/[id] GET handler
+- Added graceful fallback for AttendancePolicyConfig table not existing in tenant DB
+- Added withSchemaSync wrapper to attendance API queries
+- Fixed halfDayAfterMinutes PUT fallback from 81 to 21
+- Merged leave-policy and settings into single page with 2 tabs
+- /leave/settings now redirects to /leave/leave-policy
+- Updated navData to show single 'Leave Policy & Settings' entry
+- Build succeeded, committed, pushed to main
+
+Stage Summary:
+- Nuclear hardcoded check ensures "Marq AI Tech Pvt Ltd" NEVER renders regardless of SSR/hydration timing
+- 4 API routes now use foolproof tenant-filter.ts detection
+- Attendance API returns defaults instead of 500 when table missing in tenant DB
+- Leave policy and settings merged into tabbed UI
