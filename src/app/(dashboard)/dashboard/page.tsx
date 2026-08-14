@@ -196,8 +196,8 @@ export default function ESSDashboardPage() {
     const [leaveData, attData, leaveReqData, payslipData, perfData, goalsData, trainData, tsData, ticketData, docData] =
       await Promise.all([
         safe('/api/leave/balance'),
-        safe('/api/attendance?limit=30'),
-        safe('/api/leave?status=pending&limit=50'),
+        safe('/api/attendance?limit=100'),
+        safe('/api/leave?status=pending&limit=1'),
         safe('/api/payroll/payslips?limit=5'),
         safe('/api/performance?limit=1'),
         safe('/api/goals?limit=5'),
@@ -225,20 +225,29 @@ export default function ESSDashboardPage() {
       setLeaveSummary(leaveData.summary);
     }
 
-    /* attendance */
+    /* attendance — filter to current month for accurate rate */
     if (attData?.attendance || attData?.records) {
-      const rows: AttendanceRow[] = attData.attendance || attData.records || [];
-      setAttendanceRows(rows);
-      if (rows.length > 0) {
-        const present = rows.filter((a) => ['present', 'late'].includes(a.status)).length;
-        setAttendanceRate(Math.round((present / rows.length) * 100));
+      const allRows: AttendanceRow[] = attData.attendance || attData.records || [];
+      // Only count attendance for the current month
+      const now = new Date();
+      const currentMonth = now.getMonth();
+      const currentYear = now.getFullYear();
+      const rows = allRows.filter((a) => {
+        const d = new Date(a.date);
+        return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+      });
+      setAttendanceRows(rows.length > 0 ? rows : allRows.slice(0, 30));
+      const usedRows = rows.length > 0 ? rows : allRows.slice(0, 30);
+      if (usedRows.length > 0) {
+        const present = usedRows.filter((a) => ['present', 'late', 'half_day'].includes(a.status)).length;
+        setAttendanceRate(Math.round((present / usedRows.length) * 100));
       }
     }
 
-    /* pending leaves (my own) */
+    /* pending leaves — use pagination.total for accurate count */
     if (leaveReqData?.leaveRequests || leaveReqData?.leaves) {
-      const rows = leaveReqData.leaveRequests || leaveReqData.leaves || [];
-      setPendingLeaves(rows.length);
+      const total = leaveReqData.pagination?.total || leaveReqData.total || 0;
+      setPendingLeaves(total || (leaveReqData.leaveRequests || leaveReqData.leaves || []).length);
     }
 
     /* payslips */

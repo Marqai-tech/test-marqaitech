@@ -58,24 +58,22 @@ export async function GET(request: Request) {
     let totalCompanies = 0;
     let totalEmployees = 0;
 
-    try {
-      totalGroupCompanies += await platformDb.companyGroup.count();
-      totalCompanies += await platformDb.company.count();
-      totalEmployees += await platformDb.employee.count({ where: { status: 'active' } });
-    } catch (e) {
-      console.error('[SuperAdmin Dashboard] Platform DB count failed:', e);
-    }
-
+    // FIX: Only aggregate from per-tenant databases, NOT from platformDb.
+    // Previously, platformDb counts were added first, then tenant DB counts
+    // were added on top — causing double-counting for any tenant whose
+    // getDbForTenant() falls back to platformDb (e.g., tenants without a
+    // dedicated TenantDatabase record). Now we ONLY count from tenant DBs
+    // that have an active TenantDatabase record.
     for (const tenant of tenants) {
       if (!tenant.slug) continue;
       try {
-        const tenantDb = await getDbForTenant(tenant.slug);
         const tenantDbRecord = await platformDb.tenantDatabase.findFirst({
           where: { tenant: { slug: tenant.slug }, isActive: true },
           select: { id: true },
         });
         if (!tenantDbRecord) continue;
 
+        const tenantDb = await getDbForTenant(tenant.slug);
         const [groupCount, companyCount, employeeCount] = await Promise.all([
           tenantDb.companyGroup.count(),
           tenantDb.company.count(),

@@ -283,21 +283,21 @@ function SuperAdminHome({ firstName, greeting, today }: { firstName: string; gre
     };
 
     const [empData, deptData, branchData, usersData, logsData] = await Promise.all([
-      safe(`/api/employees?limit=1${scopeQuery ? '&' + scopeQuery.slice(1) : ''}`),
+      safe(`/api/employees?limit=1&status=active${scopeQuery ? '&' + scopeQuery.slice(1) : ''}`),
       safe(`/api/departments?limit=1${scopeQuery ? '&' + scopeQuery.slice(1) : ''}`),
       safe(`/api/branches?limit=1${scopeQuery ? '&' + scopeQuery.slice(1) : ''}`),
-      safe('/api/users?limit=1'),
-      safe(`/api/audit-logs?limit=8${scopeQuery ? '&' + scopeQuery.slice(1) : ''}`),
+      safe('/api/super-admin/dashboard'),
+      safe(`/api/super-admin/audit-logs?limit=8`),
     ]);
 
     setStats({
       totalEmployees: empData?.pagination?.total || empData?.total || 0,
-      totalUsers: usersData?.pagination?.total || usersData?.total || 0,
+      totalUsers: usersData?.totalEmployees || 0,
       totalDepartments: deptData?.pagination?.total || deptData?.total || 0,
       totalBranches: branchData?.pagination?.total || branchData?.total || 0,
     });
 
-    const logs = logsData?.auditLogs || logsData?.logs || logsData?.data || [];
+    const logs = logsData?.auditLogs || logsData?.logs || logsData?.data || logsData?.recentActivity || [];
     if (Array.isArray(logs)) setRecentLogs(logs.slice(0, 8));
 
     setLoading(false);
@@ -420,8 +420,8 @@ function HRAdminHome({ firstName, greeting, today }: { firstName: string; greeti
     };
 
     const [empData, empList, leaveData, payrollData] = await Promise.all([
-      safe(`/api/employees?limit=1${scopeQuery}`),
-      safe(`/api/employees?limit=200${scopeQuery}`),
+      safe(`/api/employees?limit=1&status=active${scopeQuery}`),
+      safe(`/api/employees?limit=200&status=active${scopeQuery}`),
       safe(`/api/leave?status=pending&limit=10${scopeQuery}`),
       safe(`/api/payroll?status=draft&limit=1${scopeQuery}`),
     ]);
@@ -619,7 +619,7 @@ function ManagerHome({ firstName, greeting, today }: { firstName: string; greeti
     };
 
     const [empData, attData, leaveData] = await Promise.all([
-      safe('/api/employees?limit=200'),
+      safe('/api/employees?limit=200&status=active'),
       safe('/api/attendance?limit=30'),
       safe('/api/leave?status=pending&limit=20'),
     ]);
@@ -634,7 +634,7 @@ function ManagerHome({ firstName, greeting, today }: { firstName: string; greeti
     });
     const presentCount = todayRecords.filter((a: { status: string }) => ['present', 'late', 'half_day'].includes(a.status?.toLowerCase())).length;
     setStats({
-      teamSize: empRows.length,
+      teamSize: empData?.pagination?.total || empRows.length,
       presentToday: presentCount > 0 ? presentCount : (todayRecords.length > 0 ? todayRecords.filter((a: { status: string }) => a.status !== 'absent').length : 0),
       onLeave: leaveData?.pagination?.total || 0,
       pendingApprovals: leaveData?.pagination?.total || 0,
