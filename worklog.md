@@ -136,3 +136,34 @@ Stage Summary:
 - Fixed by adding typeof checks: `typeof r.project === 'object' && r.project ? r.project.name : (r.project || '—')`
 - Removed all hardcoded demo/dummy company data from app-store.ts
 - Live/demo separation already enforced via isLiveMode() guards on all seed endpoints
+---
+Task ID: 1
+Agent: main
+Task: PERMANENT FIX for "Marq AI Tech Pvt Ltd" leak + Module Reorganization + AI Settings Page
+
+Work Log:
+- Conducted comprehensive codebase audit finding 17 leak points across authStore, /api/auth/me, /api/auth/login, Sidebar, WelcomeGreeting, settings page, offer template, and more
+- Root cause identified: authStore.ts had NO hidden-tenant filtering while companyContextStore.ts did
+- Added scrubHiddenTenant() to authStore.ts — runs on both login() and fetchUser()
+- Added server-side hidden tenant filtering to /api/auth/me/route.ts and /api/auth/login/route.ts
+- Blocked hidden tenant access in /api/auth/switch-tenant/route.ts and /api/public/tenant-info/route.ts
+- Fixed Sidebar.tsx to use companyContextStore's filtered tenant instead of authStore's unfiltered user.tenant
+- Fixed WelcomeGreeting.tsx to use safeTenantLogo from companyContextStore
+- Removed hardcoded "Marq AI Tech Pvt Ltd" fallback from settings/page.tsx
+- Changed offer-template.ts default from "Marq AI Tech Pvt Ltd" to "Your Organization"
+- Changed generate-pdf/route.ts to use dynamic company name
+- Removed user.tenant.name fallbacks from tenant-admin pages
+- Removed Shifts, Holidays, Policies, Company Settings from Company module navData
+- Added Shifts + Holiday Master to Attendance module (Masters section)
+- Added Leave Policy to Leave module (Settings section)
+- Added Travel Policy to Travel module (Settings section)
+- Created AI Settings page at /super-admin/ai-settings with 3 tabs
+- Created API route at /api/super-admin/ai-settings (GET/PUT)
+- Added AI Settings nav item in super admin navData section
+- Build succeeded, committed, pushed to trigger Vercel deployment
+
+Stage Summary:
+- 7-layer defense against hidden tenant leak (authStore scrub, server-side filtering on /auth/me, /auth/login, /switch-tenant, /public/tenant-info, Sidebar, WelcomeGreeting)
+- Module reorganization complete: shifts/holiday→Attendance, leave policy→Leave, travel policy→Travel
+- AI Settings page created with Model Configuration, Data Training, and Permissions tabs
+- Deploy triggered via git push to main
