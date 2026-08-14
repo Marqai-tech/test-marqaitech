@@ -596,6 +596,24 @@ export async function GET(request: Request) {
       ownCompany = null;
     }
 
+    // ─── FIX: Ensure availableTenants includes caller's own tenant ───
+    // For tenant_admin and non-admin roles, availableTenants was never populated
+    // (only super_admin gets the full tenant list). This causes the safety net
+    // filter (below) to build an empty visibleTenantIdSet, which wipes out ALL
+    // company groups and companies — making the company switcher show nothing
+    // for tenant_admins on their own tenant subdomain (e.g. marqaitechgroup.3boxeshrms.com).
+    // We must add the caller's own tenant so the safety net preserves their data.
+    if (callerTenantId && callerTenant && !availableTenants.some(t => t.id === callerTenantId)) {
+      availableTenants.push({
+        id: callerTenant.id,
+        name: callerTenant.name,
+        slug: callerTenant.slug,
+        plan: callerTenant.plan,
+        status: callerTenant.status,
+        maxCompaniesAllowed: callerTenant.maxCompaniesAllowed,
+      });
+    }
+
     // ─── SERVER-SIDE SAFETY NET (GOLDEN RULE — FOOLPROOF) ───
     // Belt-and-suspenders: even if the filtering above has a bug, we scrub
     // the response data one last time before sending it. This ensures NO
