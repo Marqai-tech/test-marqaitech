@@ -1702,7 +1702,7 @@ function SettingsContent() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                       <div>
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">Company Name</label>
-                        <p className="px-3 py-2.5 text-sm text-thb-text-primary bg-slate-50 rounded-lg border border-thb-border/50">{(() => { const n = tenant.name || ''; return !n.toLowerCase().includes('3boxes') && !n.toLowerCase().includes('3 boxes') ? 'Marq AI Tech Pvt Ltd' : n; })()}</p>
+                        <p className="px-3 py-2.5 text-sm text-thb-text-primary bg-slate-50 rounded-lg border border-thb-border/50">{tenant.name || 'Your Organization'}</p>
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">Slug</label>

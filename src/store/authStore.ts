@@ -1,6 +1,41 @@
 'use client';
 
 import { create } from 'zustand';
+import { isClientLiveMode, getClientSiteMode } from '@/lib/site-mode';
+
+// ─── Hidden Tenant Slugs (MUST match companyContextStore.ts) ────────
+// On the LIVE site, these tenants are NEVER shown to any user.
+// On the DEMO site, the live tenant is hidden.
+const AUTH_LIVE_HIDDEN_SLUGS = ['3boxes-hrms-demo', '3boxeshrms'];
+const AUTH_DEMO_HIDDEN_SLUGS = ['marqaitechgroup'];
+
+function getAuthHiddenSlugs(): string[] {
+  if (typeof window === 'undefined') return [];
+  return isClientLiveMode() ? AUTH_LIVE_HIDDEN_SLUGS : AUTH_DEMO_HIDDEN_SLUGS;
+}
+
+function isAuthHiddenTenant(slug: string): boolean {
+  return getAuthHiddenSlugs().includes(slug);
+}
+
+/**
+ * Scrub hidden tenant data from a user object.
+ * In LIVE mode, if the user's tenant slug is in the hidden list,
+ * we null out tenantId and tenant so that no component ever renders
+ * "Marq AI Tech Pvt Ltd" or "3Boxes HRMS Demo" on the live site.
+ * For super_admin, we set tenantId to null entirely since they
+ * aren't scoped to any single tenant.
+ * For other users, we null it out (which may redirect them to login).
+ */
+function scrubHiddenTenant<T extends { tenantId?: string; tenant?: { slug?: string } | null }>(user: T): T {
+  if (!user) return user;
+  const hiddenSlugs = getAuthHiddenSlugs();
+  if (hiddenSlugs.length === 0) return user;
+  if (user.tenant?.slug && hiddenSlugs.includes(user.tenant.slug)) {
+    return { ...user, tenantId: undefined, tenant: null };
+  }
+  return user;
+}
 
 interface TenantInfo {
   id: string;
@@ -96,7 +131,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         throw new Error(data.error || 'Login failed');
       }
 
-      const { token, user } = data;
+      const { token, user: rawUser } = data;
+
+      // ─── GOLDEN RULE: Scrub hidden tenant from authStore ───
+      // On the LIVE site, we NEVER store hidden tenant data (e.g., "Marq AI Tech Pvt Ltd")
+      // in authStore. This prevents Sidebar, WelcomeGreeting, and any other component
+      // that reads user.tenant from displaying the hidden tenant name.
+      const user = scrubHiddenTenant(rawUser);
 
       if (typeof window !== 'undefined') {
         localStorage.setItem('tb_token', token);
@@ -188,7 +229,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         return;
       }
 
-      const user = await res.json();
+      const rawUser = await res.json();
+
+      // ─── GOLDEN RULE: Scrub hidden tenant from authStore ───
+      // On the LIVE site, we NEVER store hidden tenant data (e.g., "Marq AI Tech Pvt Ltd")
+      // in authStore. This prevents Sidebar, WelcomeGreeting, and any other component
+      // that reads user.tenant from displaying the hidden tenant name.
+      const user = scrubHiddenTenant(rawUser);
 
       // ─── Tenant status guard ───
       // If the user's tenant is suspended, inactive, or pending_approval,

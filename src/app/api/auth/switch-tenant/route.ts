@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { createToken, verifyToken } from '@/lib/auth';
+import { isLiveMode } from '@/lib/site-mode';
+
+// ─── Hidden Tenant Slugs (MUST match companyContextStore.ts) ────
+const LIVE_HIDDEN_SLUGS = ['3boxes-hrms-demo', '3boxeshrms'];
+const DEMO_HIDDEN_SLUGS = ['marqaitechgroup'];
 
 function corsHeaders() {
   return {
@@ -73,6 +78,15 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: 'No active admin user found for this tenant' },
         { status: 404, headers: corsHeaders() }
+      );
+    }
+
+    // ─── GOLDEN RULE: Block switching to hidden tenants ───
+    const hiddenSlugs = isLiveMode(request) ? LIVE_HIDDEN_SLUGS : DEMO_HIDDEN_SLUGS;
+    if (targetUser.tenant?.slug && hiddenSlugs.includes(targetUser.tenant.slug)) {
+      return NextResponse.json(
+        { error: 'Cannot switch to this tenant' },
+        { status: 403, headers: corsHeaders() }
       );
     }
 

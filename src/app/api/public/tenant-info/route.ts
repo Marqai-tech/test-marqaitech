@@ -1,5 +1,10 @@
 import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
+import { isLiveMode, isDemoMode } from '@/lib/site-mode';
+
+// ─── Hidden Tenant Slugs (MUST match companyContextStore.ts) ────
+const LIVE_HIDDEN_SLUGS = ['3boxes-hrms-demo', '3boxeshrms'];
+const DEMO_HIDDEN_SLUGS = ['marqaitechgroup'];
 
 /**
  * GET /api/public/tenant-info?slug=marqaitechgroup
@@ -7,6 +12,8 @@ import { getDb, getPlatformDb } from '@/lib/tenant-db';
  * Public endpoint (no auth required) that returns basic tenant information
  * for subdomain-based login page branding. Only returns non-sensitive data:
  * name, slug, and logo.
+ *
+ * GOLDEN RULE: Hidden tenants are never returned on the live site.
  */
 export async function GET(request: Request) {
   const db = await getDb(request);
@@ -16,6 +23,12 @@ export async function GET(request: Request) {
 
     if (!slug) {
       return NextResponse.json({ error: 'Slug parameter is required' }, { status: 400 });
+    }
+
+    // ─── GOLDEN RULE: Block hidden tenants on live/demo ───
+    const hiddenSlugs = isLiveMode(request) ? LIVE_HIDDEN_SLUGS : DEMO_HIDDEN_SLUGS;
+    if (hiddenSlugs.includes(slug)) {
+      return NextResponse.json({ error: 'Tenant not found' }, { status: 404 });
     }
 
     const tenant = await getPlatformDb().tenant.findUnique({

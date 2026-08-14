@@ -1,6 +1,15 @@
 import { NextResponse } from 'next/server';
 import { getPlatformDb, getDbForTenant, getDbForTenantById } from '@/lib/tenant-db';
 import { verifyPassword, createToken } from '@/lib/auth';
+import { isLiveMode, isDemoMode } from '@/lib/site-mode';
+
+// ─── Hidden Tenant Slugs (MUST match companyContextStore.ts & authStore.ts) ────
+const LIVE_HIDDEN_SLUGS = ['3boxes-hrms-demo', '3boxeshrms'];
+const DEMO_HIDDEN_SLUGS = ['marqaitechgroup'];
+
+function getHiddenSlugsForRequest(request: Request): string[] {
+  return isLiveMode(request) ? LIVE_HIDDEN_SLUGS : DEMO_HIDDEN_SLUGS;
+}
 
 function corsHeaders() {
   return {
@@ -446,6 +455,23 @@ export async function POST(request: Request) {
       );
     }
 
+    // ─── GOLDEN RULE: Scrub hidden tenant from login response ───
+    // On the LIVE site, if the user's tenant slug is hidden (e.g., '3boxeshrms'),
+    // we null out tenantId and tenant so the client never receives
+    // "Marq AI Tech Pvt Ltd" in the login response.
+    const hiddenSlugs = getHiddenSlugsForRequest(request);
+    const isTenantHidden = user.tenant?.slug && hiddenSlugs.includes(user.tenant.slug);
+    const safeTenantId = isTenantHidden ? null : user.tenantId;
+    const safeTenant = isTenantHidden ? null : (user.tenant ? {
+      id: user.tenant.id,
+      name: user.tenant.name,
+      slug: user.tenant.slug,
+      plan: user.tenant.plan,
+      currency: user.tenant.currency,
+      timezone: user.tenant.timezone,
+      logo: user.tenant.logo,
+    } : null);
+
     return NextResponse.json(
       {
         token,
@@ -454,17 +480,9 @@ export async function POST(request: Request) {
           name: user.name,
           email: user.email,
           role: user.role,
-          tenantId: user.tenantId,
+          tenantId: safeTenantId,
           avatar: user.avatar,
-          tenant: user.tenant ? {
-            id: user.tenant.id,
-            name: user.tenant.name,
-            slug: user.tenant.slug,
-            plan: user.tenant.plan,
-            currency: user.tenant.currency,
-            timezone: user.tenant.timezone,
-            logo: user.tenant.logo,
-          } : null,
+          tenant: safeTenant,
           company: companyData,
         },
       },

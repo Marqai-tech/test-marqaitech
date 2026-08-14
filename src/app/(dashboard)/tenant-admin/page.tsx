@@ -326,7 +326,7 @@ export default function TenantAdminPage() {
     { key: 'configuration' as const, label: 'Configuration', icon: FiGlobe },
   ];
 
-  const tenantName = tenantInfo?.name || tenant?.name || user?.tenant?.name || 'your tenant';
+  const tenantName = tenantInfo?.name || tenant?.name || 'your tenant';
 
   return (
     <div className="space-y-6">

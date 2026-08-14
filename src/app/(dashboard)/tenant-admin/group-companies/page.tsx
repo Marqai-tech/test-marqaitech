@@ -119,7 +119,7 @@ export default function TenantGroupCompaniesPage() {
     );
   }
 
-  const tenantName = tenant?.name || user?.tenant?.name || 'your tenant';
+  const tenantName = tenant?.name || 'your tenant';
   const totalGroups = groups.length;
   const totalCompanies = groups.reduce((s, g) => s + (g._count?.companies || 0), 0);
   const totalEmployees = groups.reduce((s, g) => s + (g._count?.employees || 0), 0);

@@ -9,7 +9,7 @@ import {
   FiChevronRight,
 } from 'react-icons/fi';
 import { useAuthStore } from '@/store/authStore';
-import { useCompanyContextStore } from '@/store/companyContextStore';
+import { useCompanyContextStore, isHiddenTenant } from '@/store/companyContextStore';
 import { canRoleAccessModule, isModuleEnabledForTenant } from '@/lib/roleAccess';
 import { navSections, PINNED_ITEMS, PICKER_ROUTES } from '@/lib/navData';
 import type { NavItem, NavSection } from '@/lib/navData';
@@ -29,7 +29,19 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false, cur
   const userRole = user?.role || 'admin';
   const tenantSlug = useCompanyContextStore(s => s.tenant?.slug) || '';
   const tenantId = useCompanyContextStore(s => s.tenant?.id) || '';
+  const contextTenant = useCompanyContextStore(s => s.tenant);
   const { fetchModules } = useTenantModuleStore();
+
+  // ─── GOLDEN RULE: Use companyContextStore's tenant (filtered) for branding ───
+  // NEVER use user.tenant from authStore directly — it may contain hidden tenant
+  // data (e.g., "Marq AI Tech Pvt Ltd"). The companyContextStore is always filtered.
+  const safeTenant = (contextTenant && contextTenant.slug && !isHiddenTenant(contextTenant.slug))
+    ? contextTenant
+    : null;
+  const safeTenantLogo = safeTenant?.logo || null;
+  const safeTenantName = user?.role === 'super_admin'
+    ? '3Boxes'
+    : (safeTenant?.name || '3Boxes');
 
   // Fetch tenant module flags on mount (populates roleAccess DB overrides)
   useEffect(() => {
@@ -107,9 +119,9 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false, cur
       {/* Brand Header */}
       {!isMobileMenu && (
         <div className={`flex items-center h-14 px-4 border-b border-white/[0.06] ${collapsed ? 'justify-center' : 'gap-3'}`}>
-          {user?.tenant?.logo ? (
+          {safeTenantLogo ? (
             /* eslint-disable-next-line @next/next/no-img-element */
-            <img src={user.tenant.logo} alt={user.tenant.name || 'Tenant'} className="flex-shrink-0 w-10 h-10 rounded-xl object-contain bg-white p-2 shadow-lg ring-1 ring-white/10" />
+            <img src={safeTenantLogo} alt={safeTenantName} className="flex-shrink-0 w-10 h-10 rounded-xl object-contain bg-white p-2 shadow-lg ring-1 ring-white/10" />
           ) : (
             <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-green-500 via-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-green-500/20 ring-1 ring-white/10">
               <svg viewBox="0 0 35 11" className="w-5 h-4" fill="none">
@@ -122,7 +134,7 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false, cur
           {!collapsed && (
             <div className="overflow-hidden">
               <h1 className="text-base font-bold text-white tracking-tight whitespace-nowrap">
-                {user?.role === 'super_admin' ? '3Boxes' : (user?.tenant?.name || '3Boxes')} <span className="text-[10px] font-semibold text-green-400 tracking-wider">{user?.role === 'super_admin' ? 'Platform' : 'HRMS'}</span>
+                {safeTenantName} <span className="text-[10px] font-semibold text-green-400 tracking-wider">{user?.role === 'super_admin' ? 'Platform' : 'HRMS'}</span>
               </h1>
               <p className="text-[9px] text-thb-sidebar-text leading-none -mt-0.5">{user?.role === 'super_admin' ? 'Super Admin · Platform Control' : 'People · Process · Technology'}</p>
             </div>

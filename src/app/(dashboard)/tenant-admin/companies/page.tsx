@@ -306,7 +306,7 @@ export default function TenantCompaniesPage() {
 
   // Quota display: prefer tenantQuota from context store, fall back to the per-fetch one
   const quota = tenantQuota || activeTenantQuota;
-  const tenantName = tenant?.name || activeTenantName || user?.tenant?.name || 'your tenant';
+  const tenantName = tenant?.name || activeTenantName || 'your tenant';
   const quotaReached = !!quota && quota.maxCompanies > 0 && quota.used >= quota.maxCompanies;
 
   return (

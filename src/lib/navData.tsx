@@ -115,6 +115,7 @@ export const navSections: NavSection[] = [
       { label: 'RBAC Management', href: '/super-admin/rbac', icon: <FiLock className="w-4 h-4" />, roles: ['super_admin'] },
       { label: 'Module Management', href: '/super-admin/tenant-modules', icon: <FiGrid className="w-4 h-4" />, roles: ['super_admin'], isNew: true },
       { label: 'Tenant Configuration', href: '/super-admin/tenant-configuration', icon: <FiSettings className="w-4 h-4" />, roles: ['super_admin'], isNew: true },
+      { label: 'AI Settings', href: '/super-admin/ai-settings', icon: <FiCpu className="w-4 h-4" />, roles: ['super_admin'], isNew: true },
       { label: 'AI Admin Console', href: '/ai-admin', icon: <FiCpu className="w-4 h-4" />, roles: ['super_admin'], isNew: true },
     ],
   },
@@ -168,13 +169,6 @@ export const navSections: NavSection[] = [
       { label: 'Departments', href: '/company/departments', icon: <FiBriefcase className="w-4 h-4" />, moduleKey: 'company' },
       { label: 'Designations', href: '/company/designations', icon: <FiAward className="w-4 h-4" />, moduleKey: 'company' },
       { label: 'Grades', href: '/company/grades', icon: <FiLayers className="w-4 h-4" />, moduleKey: 'company' },
-      { label: 'Shifts', href: '/company/shifts', icon: <FiWatch className="w-4 h-4" />, moduleKey: 'company' },
-      { label: 'Holidays', href: '/company/holidays', icon: <FiCalendar className="w-4 h-4" />, moduleKey: 'company' },
-      { label: 'Policies', href: '/company/policies', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'company' },
-
-      // ── Company Settings ──
-      { label: 'Settings', href: '#settings-divider', icon: <FiSettings className="w-3.5 h-3.5" />, moduleKey: 'company', isDivider: true },
-      { label: 'Company Settings', href: '/company/settings', icon: <FiSettings className="w-4 h-4" />, moduleKey: 'company', isNew: true },
 
       // ── Company Reports ──
       { label: 'Reports', href: '#reports-divider', icon: <FiFileText className="w-3.5 h-3.5" />, moduleKey: 'company', isDivider: true },
@@ -249,6 +243,7 @@ export const navSections: NavSection[] = [
 
       // ── Settings ──
       { label: 'Settings', href: '#settings-divider', icon: <FiSettings className="w-3.5 h-3.5" />, moduleKey: 'leave', isDivider: true },
+      { label: 'Leave Policy', href: '/company/policies', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'leave' },
       { label: 'Leave Policy Config', href: '/leave/settings', icon: <FiSettings className="w-4 h-4" />, moduleKey: 'leave', isNew: true },
       { label: 'Leave Types', href: '/leave/types', icon: <FiLayers className="w-4 h-4" />, moduleKey: 'leave', isNew: true },
       { label: 'Holiday Calendar', href: '/leave/holidays', icon: <FiCalendar className="w-4 h-4" />, moduleKey: 'leave', isNew: true },
@@ -285,6 +280,11 @@ export const navSections: NavSection[] = [
       { label: 'Overtime Requests', href: '/attendance/overtime', icon: <FiClock className="w-4 h-4" />, moduleKey: 'attendance' },
       { label: 'Comp-Off Balance', href: '/attendance/comp-off', icon: <FiGift className="w-4 h-4" />, moduleKey: 'attendance' },
 
+      // ── Masters ──
+      { label: 'Masters', href: '#masters-divider', icon: <FiDatabase className="w-3.5 h-3.5" />, moduleKey: 'attendance', isDivider: true },
+      { label: 'Shifts', href: '/company/shifts', icon: <FiWatch className="w-4 h-4" />, moduleKey: 'attendance' },
+      { label: 'Holiday Master', href: '/company/holidays', icon: <FiCalendar className="w-4 h-4" />, moduleKey: 'attendance' },
+
       // ── Configuration ──
       { label: 'Configuration', href: '#config-divider', icon: <FiSettings className="w-3.5 h-3.5" />, moduleKey: 'attendance', isDivider: true },
       { label: 'Geofences', href: '/attendance/geofence', icon: <FiMapPin className="w-4 h-4" />, moduleKey: 'attendance' },
@@ -294,7 +294,7 @@ export const navSections: NavSection[] = [
       // ── Settings ──
       { label: 'Settings', href: '#settings-divider', icon: <FiSettings className="w-3.5 h-3.5" />, moduleKey: 'attendance', isDivider: true },
       { label: 'Attendance Settings', href: '/attendance/settings', icon: <FiSettings className="w-4 h-4" />, moduleKey: 'attendance' },
-      { label: 'Attendance Policies', href: '/attendance/policy-config', icon: <FiSettings className="w-4 h-4" />, moduleKey: 'attendance' },
+      { label: 'Attendance Policy', href: '/attendance/policy-config', icon: <FiSettings className="w-4 h-4" />, moduleKey: 'attendance' },
 
       // ── Reports ──
       { label: 'Reports', href: '#reports-divider', icon: <FiFileText className="w-3.5 h-3.5" />, moduleKey: 'attendance', isDivider: true },
@@ -547,6 +547,7 @@ export const navSections: NavSection[] = [
 
       // ── Settings ──
       { label: 'Settings', href: '#settings-divider', icon: <FiSettings className="w-3.5 h-3.5" />, moduleKey: 'travel', isDivider: true },
+      { label: 'Travel Policy', href: '/company/policies', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'travel' },
       { label: 'Travel & Expense Settings', href: '/travel/settings', icon: <FiSettings className="w-4 h-4" />, moduleKey: 'travel', isNew: true },
 
       // ── Reports ──

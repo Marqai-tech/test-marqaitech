@@ -291,8 +291,8 @@ export default function SetupWizardPage() {
   const [direction, setDirection] = useState<'forward' | 'backward'>('forward');
 
   const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
-  const tenantName = user?.tenant?.name || 'Your Company';
-  const tenantId = user?.tenantId || '';
+  const tenantName = tenant?.name || 'Your Company';
+  const tenantId = tenant?.id || user?.tenantId || '';
 
   // Load state from localStorage via lazy initializer
   const [wizard, setWizard] = useState<WizardState>(() => {

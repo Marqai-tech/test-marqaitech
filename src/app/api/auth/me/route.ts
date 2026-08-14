@@ -1,6 +1,15 @@
 import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb, getDbForTenant, getDbForTenantById } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
+import { isLiveMode, isDemoMode } from '@/lib/site-mode';
+
+// ─── Hidden Tenant Slugs (MUST match companyContextStore.ts & authStore.ts) ────
+const LIVE_HIDDEN_SLUGS = ['3boxes-hrms-demo', '3boxeshrms'];
+const DEMO_HIDDEN_SLUGS = ['marqaitechgroup'];
+
+function getHiddenSlugsForRequest(request: Request): string[] {
+  return isLiveMode(request) ? LIVE_HIDDEN_SLUGS : DEMO_HIDDEN_SLUGS;
+}
 
 function corsHeaders() {
   return {
@@ -226,6 +235,25 @@ export async function GET(request: Request) {
       // Continue without employee data — user can still be authenticated
     }
 
+    // ─── GOLDEN RULE: Scrub hidden tenant from API response ───
+    // On the LIVE site, if the user's tenant slug is hidden (e.g., '3boxeshrms'),
+    // we null out tenantId and tenant so the client never receives
+    // "Marq AI Tech Pvt Ltd". The client-side authStore also scrubs as a
+    // second line of defense, but we enforce it server-side too.
+    const hiddenSlugs = getHiddenSlugsForRequest(request);
+    const isTenantHidden = user.tenant?.slug && hiddenSlugs.includes(user.tenant.slug);
+    const safeTenantId = isTenantHidden ? null : user.tenantId;
+    const safeTenant = isTenantHidden ? null : (user.tenant ? {
+      id: user.tenant.id,
+      name: user.tenant.name,
+      slug: user.tenant.slug,
+      plan: user.tenant.plan,
+      currency: user.tenant.currency,
+      timezone: user.tenant.timezone,
+      logo: user.tenant.logo,
+      status: user.tenant.status,
+    } : null);
+
     return NextResponse.json(
       {
         id: user.id,
@@ -234,17 +262,8 @@ export async function GET(request: Request) {
         role: user.role,
         avatar: user.avatar,
         status: user.status,
-        tenantId: user.tenantId,
-        tenant: user.tenant ? {
-          id: user.tenant.id,
-          name: user.tenant.name,
-          slug: user.tenant.slug,
-          plan: user.tenant.plan,
-          currency: user.tenant.currency,
-          timezone: user.tenant.timezone,
-          logo: user.tenant.logo,
-          status: user.tenant.status,
-        } : null,
+        tenantId: safeTenantId,
+        tenant: safeTenant,
         employee: employeeData,
         lastLogin: user.lastLogin,
         createdAt: user.createdAt,

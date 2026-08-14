@@ -78,7 +78,7 @@ export function renderOfferTemplate(
   body: string,
   input: TemplateRenderInput
 ): TemplateRenderOutput {
-  const companyName = input.companyName || 'Marq AI Tech Pvt Ltd';
+  const companyName = input.companyName || 'Your Organization';
   const today = input.todayDate || new Date();
 
   const values: Record<string, string> = {
