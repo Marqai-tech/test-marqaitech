@@ -167,3 +167,28 @@ Stage Summary:
 - Module reorganization complete: shifts/holiday→Attendance, leave policy→Leave, travel policy→Travel
 - AI Settings page created with Model Configuration, Data Training, and Permissions tabs
 - Deploy triggered via git push to main
+---
+Task ID: 1
+Agent: Main Agent
+Task: PERMANENT FIX for "Marq AI Tech Pvt Ltd" in company switcher + live data + module reorg + AI Settings
+
+Work Log:
+- Diagnosed ROOT CAUSE: 3boxeshrms.vercel.app was in DEMO_DOMAINS, causing isLiveMode() to return 'demo' on Vercel internal routing
+- Created /src/lib/tenant-filter.ts: FOOLPROOF shared filter with direct hostname checking (no env vars, no site-mode detection)
+- Removed 3boxeshrms.vercel.app from DEMO_DOMAINS in site-mode.ts
+- Updated CompanySwitcher.tsx with isTenantHiddenClient() as FINAL render-time backstop
+- Updated companyContextStore.ts and authStore.ts with dual-filter (foolproof + site-mode)
+- Updated /api/me/context, /api/auth/login, /api/auth/me routes with server-side dual-filter
+- Enhanced layout.tsx nuclear script with www. prefix check and NAME-based scrub
+- Fixed home page: Replaced Math.round(empRows.length * 0.85) mock with actual attendance API data
+- Fixed payroll/recruitment/employee dashboards: No DEMO_DATA fallback on LIVE site
+- Module reorg: Moved shifts→/attendance/shifts, holidays→/attendance/holidays, split policies into /attendance/attendance-policy, /leave/leave-policy, /travel/travel-policy
+- Removed /company/settings page
+- Created /super-admin/ai-settings/page.tsx (1,079 lines) with 5 sections
+- Build succeeded, committed and pushed to main
+
+Stage Summary:
+- Permanent fix deployed for "Marq AI Tech Pvt Ltd" leak with 9 defense layers
+- All dashboard/home data is now live (no dummy/mock data on LIVE site)
+- Module reorganization complete with nav updates
+- AI Settings page created in Super Admin
