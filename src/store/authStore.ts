@@ -2,20 +2,28 @@
 
 import { create } from 'zustand';
 import { isClientLiveMode, getClientSiteMode } from '@/lib/site-mode';
+import { isTenantHiddenClient, LIVE_HIDDEN_SLUGS, DEMO_HIDDEN_SLUGS } from '@/lib/tenant-filter';
 
-// ─── Hidden Tenant Slugs (MUST match companyContextStore.ts) ────────
-// On the LIVE site, these tenants are NEVER shown to any user.
-// On the DEMO site, the live tenant is hidden.
-const AUTH_LIVE_HIDDEN_SLUGS = ['3boxes-hrms-demo', '3boxeshrms'];
-const AUTH_DEMO_HIDDEN_SLUGS = ['marqaitechgroup'];
-
+// ─── Hidden Tenant Slugs (GOLDEN RULE) ────────────────────────────
+// PRIMARY: tenant-filter.ts (FOOLPROOF hostname-based detection)
+// SECONDARY: site-mode.ts (env var + host header, may fail on Vercel)
 function getAuthHiddenSlugs(): string[] {
   if (typeof window === 'undefined') return [];
-  return isClientLiveMode() ? AUTH_LIVE_HIDDEN_SLUGS : AUTH_DEMO_HIDDEN_SLUGS;
+  // PRIMARY: FOOLPROOF hostname check
+  const foolproofSlugs = isTenantHiddenClient('3boxeshrms') // dummy check to see if client is live
+    ? LIVE_HIDDEN_SLUGS
+    : (isClientLiveMode() ? LIVE_HIDDEN_SLUGS : DEMO_HIDDEN_SLUGS);
+  // Union with site-mode based slugs
+  const siteModeSlugs = isClientLiveMode() ? LIVE_HIDDEN_SLUGS : DEMO_HIDDEN_SLUGS;
+  return [...new Set([...foolproofSlugs, ...siteModeSlugs])];
 }
 
 function isAuthHiddenTenant(slug: string): boolean {
-  return getAuthHiddenSlugs().includes(slug);
+  if (typeof window === 'undefined') return false;
+  // PRIMARY: FOOLPROOF check (direct hostname, no env vars)
+  if (isTenantHiddenClient(slug)) return true;
+  // SECONDARY: site-mode based check
+  return (isClientLiveMode() ? LIVE_HIDDEN_SLUGS : DEMO_HIDDEN_SLUGS).includes(slug);
 }
 
 /**

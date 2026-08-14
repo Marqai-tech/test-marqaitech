@@ -3,22 +3,27 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { getClientSiteMode } from '@/lib/site-mode';
+import { isTenantHiddenClient, getClientHiddenSlugs, LIVE_HIDDEN_SLUGS, DEMO_HIDDEN_SLUGS } from '@/lib/tenant-filter';
 
 // ─── Hidden Tenant Slugs (GOLDEN RULE) ────────────────────────────
-// On the LIVE site (3boxeshrms.com), these tenants are NEVER shown:
-//   - '3boxes-hrms-demo': demo/showcase tenant (sample data only)
-//   - '3boxeshrms': platform placeholder / "Marq AI Tech Pvt Ltd" (not a real tenant)
-// On the DEMO site, the live tenant is hidden:
-//   - 'marqaitechgroup': real/live tenant (not for demo showcase)
-const LIVE_HIDDEN_SLUGS = ['3boxes-hrms-demo', '3boxeshrms'];
-const DEMO_HIDDEN_SLUGS = ['marqaitechgroup'];
-
+// PRIMARY: tenant-filter.ts (FOOLPROOF hostname-based detection)
+// SECONDARY: site-mode.ts (env var + host header, may fail on Vercel)
+// Both are checked so even if one fails, the other catches it.
 export function getHiddenSlugs(): string[] {
-  return getClientSiteMode() === 'live' ? LIVE_HIDDEN_SLUGS : DEMO_HIDDEN_SLUGS;
+  // Use tenant-filter.ts as PRIMARY source (checks hostname directly)
+  const foolproofSlugs = getClientHiddenSlugs();
+  // Also get the site-mode based slugs as SECONDARY
+  const siteModeSlugs = getClientSiteMode() === 'live' ? LIVE_HIDDEN_SLUGS : DEMO_HIDDEN_SLUGS;
+  // Union both — a slug is hidden if EITHER method says so
+  return [...new Set([...foolproofSlugs, ...siteModeSlugs])];
 }
 
 export function isHiddenTenant(slug: string): boolean {
-  return getHiddenSlugs().includes(slug);
+  // PRIMARY: FOOLPROOF check (direct hostname, no env vars)
+  if (isTenantHiddenClient(slug)) return true;
+  // SECONDARY: site-mode based check
+  const siteModeSlugs = getClientSiteMode() === 'live' ? LIVE_HIDDEN_SLUGS : DEMO_HIDDEN_SLUGS;
+  return siteModeSlugs.includes(slug);
 }
 
 export interface TenantOption {

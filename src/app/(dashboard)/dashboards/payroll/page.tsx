@@ -390,13 +390,35 @@ function PayrollContent() {
         const json = await res.json();
         const m = json.metrics || {};
         const hasData = m.totalGrossPay > 0 || m.totalNetPay > 0;
-        setData(hasData ? json : DEMO_DATA);
+        // On the LIVE site, NEVER fall back to DEMO_DATA — show real data
+        // even if it's zeros. DEMO_DATA is only for the demo/showcase site.
+        const isLive = typeof window !== 'undefined' && (
+          window.location.hostname === '3boxeshrms.com' ||
+          window.location.hostname.endsWith('.3boxeshrms.com')
+        );
+        setData(hasData || isLive ? json : DEMO_DATA);
       } else {
-        setData(DEMO_DATA);
+        // On API failure, only use DEMO_DATA on demo sites
+        const isLive = typeof window !== 'undefined' && (
+          window.location.hostname === '3boxeshrms.com' ||
+          window.location.hostname.endsWith('.3boxeshrms.com')
+        );
+        if (isLive) {
+          setData(json || { metrics: {}, recentRuns: [], monthlyTrend: [], departmentBreakdown: [] });
+        } else {
+          setData(DEMO_DATA);
+        }
       }
     } catch {
-      setData(DEMO_DATA);
-      if (showToast) toast.error('Could not refresh dashboard — showing demo data');
+      // On error, only use DEMO_DATA on demo sites
+      const isLive = typeof window !== 'undefined' && (
+        window.location.hostname === '3boxeshrms.com' ||
+        window.location.hostname.endsWith('.3boxeshrms.com')
+      );
+      if (!isLive) {
+        setData(DEMO_DATA);
+        if (showToast) toast.error('Could not refresh dashboard — showing demo data');
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);

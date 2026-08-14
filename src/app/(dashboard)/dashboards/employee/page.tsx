@@ -322,12 +322,18 @@ function EmployeeContent() {
   const { user } = useAuthStore();
 
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState<StatCard[]>(DEMO_STATS);
-  const [attendanceTrend] = useState(DEMO_ATTENDANCE_TREND);
-  const [leaveUsage, setLeaveUsage] = useState(DEMO_LEAVE_USAGE);
-  const [schedule] = useState<ScheduleItem[]>(DEMO_SCHEDULE);
-  const [payslips, setPayslips] = useState<PayslipRow[]>(DEMO_PAYSLIPS);
-  const [announcements, setAnnouncements] = useState<Announcement[]>(DEMO_ANNOUNCEMENTS);
+  // On the LIVE site, initialize with zeros (not demo data).
+  // Demo data is only appropriate on the demo/showcase site.
+  const isLiveSite = typeof window !== 'undefined' && (
+    window.location.hostname === '3boxeshrms.com' ||
+    window.location.hostname.endsWith('.3boxeshrms.com')
+  );
+  const [stats, setStats] = useState<StatCard[]>(isLiveSite ? DEMO_STATS.map(s => ({ ...s, value: 0 })) : DEMO_STATS);
+  const [attendanceTrend] = useState(isLiveSite ? [] : DEMO_ATTENDANCE_TREND);
+  const [leaveUsage, setLeaveUsage] = useState(isLiveSite ? [] : DEMO_LEAVE_USAGE);
+  const [schedule] = useState<ScheduleItem[]>(isLiveSite ? [] : DEMO_SCHEDULE);
+  const [payslips, setPayslips] = useState<PayslipRow[]>(isLiveSite ? [] : DEMO_PAYSLIPS);
+  const [announcements, setAnnouncements] = useState<Announcement[]>(isLiveSite ? [] : DEMO_ANNOUNCEMENTS);
 
   const today = useMemo(() => formatDate(new Date()), []);
   const greeting = useMemo(() => getGreeting(), []);

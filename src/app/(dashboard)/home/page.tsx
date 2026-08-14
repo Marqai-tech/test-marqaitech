@@ -625,17 +625,24 @@ function ManagerHome({ firstName, greeting, today }: { firstName: string; greeti
     ]);
 
     const empRows = empData?.employees || empData?.data || [];
+    // Use actual attendance data to compute presentToday — NOT a mocked percentage
+    const attRows = attData?.attendance || attData?.records || [];
+    const todayStr = new Date().toISOString().split('T')[0];
+    const todayRecords = attRows.filter((a: { date: string }) => {
+      const d = typeof a.date === 'string' ? a.date.split('T')[0] : '';
+      return d === todayStr;
+    });
+    const presentCount = todayRecords.filter((a: { status: string }) => ['present', 'late', 'half_day'].includes(a.status?.toLowerCase())).length;
     setStats({
       teamSize: empRows.length,
-      presentToday: empRows.filter(() => true).length > 0 ? Math.round(empRows.length * 0.85) : 0,
+      presentToday: presentCount > 0 ? presentCount : (todayRecords.length > 0 ? todayRecords.filter((a: { status: string }) => a.status !== 'absent').length : 0),
       onLeave: leaveData?.pagination?.total || 0,
       pendingApprovals: leaveData?.pagination?.total || 0,
     });
 
     setTeamMembers(empRows.slice(0, 6));
 
-    // Build last 7 days attendance (mocked from records if available)
-    const attRows = attData?.attendance || attData?.records || [];
+    // Build last 7 days attendance from actual records
     const last7 = Array.from({ length: 7 }).map((_, i) => {
       const d = new Date();
       d.setDate(d.getDate() - (6 - i));

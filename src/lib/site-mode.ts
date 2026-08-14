@@ -36,11 +36,15 @@
  */
 
 // ─── Demo domain list (must match middleware.ts & tenant-db.ts) ────────
+// IMPORTANT: 3boxeshrms.vercel.app is the LIVE platform's Vercel deployment
+// URL — it must NOT be in DEMO_DOMAINS. Previously its presence here caused
+// isLiveMode() to return 'demo' when Vercel internally routed API requests
+// through the deployment URL, leaking "Marq AI Tech Pvt Ltd" into the
+// company switcher. See tenant-filter.ts for the FOOLPROOF backstop.
 const DEMO_DOMAINS = [
   'nexus-hrms-mu.vercel.app',
   'nexus-hrms.vercel.app',
   '3boxes-hrms.vercel.app',
-  '3boxeshrms.vercel.app',
   '3boxes-hrms-mu.vercel.app',
 ];
 

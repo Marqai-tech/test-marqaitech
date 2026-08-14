@@ -91,10 +91,12 @@ export default async function RootLayout({
         <meta name="msapplication-navbutton-color" content="#3B82F6" />
       </head>
       <body className="min-h-full flex flex-col">
-        {/* ─── GOLDEN RULE: Nuclear localStorage cleanup ───
-             Runs synchronously BEFORE React hydrates. On the LIVE site,
-             completely removes any persisted company context data that
-             references hidden tenants ('3boxeshrms', '3boxes-hrms-demo').
+        {/* ─── GOLDEN RULE: Nuclear localStorage cleanup (FOOLPROOF) ───
+             Runs synchronously BEFORE React hydrates. This is the
+             ULTIMATE backstop — it checks window.location.hostname
+             DIRECTLY (no env vars, no site-mode detection) and removes
+             any persisted company context data that references hidden
+             tenants ('3boxeshrms', '3boxes-hrms-demo').
              This prevents even a single frame of "Marq AI Tech Pvt Ltd"
              appearing in the company switcher from stale localStorage. */}
         <script
@@ -102,7 +104,8 @@ export default async function RootLayout({
             __html: `(function(){
               try{
                 var h=window.location.hostname.toLowerCase();
-                var isLive=h==='3boxeshrms.com'||h.endsWith('.3boxeshrms.com');
+                // FOOLPROOF: Direct hostname check — no env vars, no detection
+                var isLive=h==='3boxeshrms.com'||h.endsWith('.3boxeshrms.com')||h==='www.3boxeshrms.com';
                 var isDemo=h.endsWith('.vercel.app')&&!h.includes('3boxeshrms.com');
                 // Nuke the OLD v1 key completely — it contains stale hidden tenant data
                 localStorage.removeItem('tb_company_ctx');
@@ -115,6 +118,8 @@ export default async function RootLayout({
                   if(!d||!d.state)continue;
                   var s=d.state;
                   var changed=false;
+                  // LIVE site: ALWAYS hide '3boxes-hrms-demo' and '3boxeshrms'
+                  // This is HARDCODED — no env vars, no detection, no way to bypass
                   if(isLive){
                     var hidden=['3boxes-hrms-demo','3boxeshrms'];
                     if(s.tenant&&s.tenant.slug&&hidden.indexOf(s.tenant.slug)!==-1){
@@ -124,6 +129,16 @@ export default async function RootLayout({
                       var before=s.availableTenants.length;
                       s.availableTenants=s.availableTenants.filter(function(t){return hidden.indexOf(t.slug)===-1;});
                       if(s.availableTenants.length!==before)changed=true;
+                    }
+                    // ALSO: Check by tenant NAME as a nuclear backstop
+                    // If tenant.name contains "Marq AI Tech Pvt Ltd", remove it
+                    if(s.tenant&&s.tenant.name&&s.tenant.name.indexOf('Marq AI Tech Pvt Ltd')!==-1){
+                      s.tenant=null;s.tenantId=null;s.selectedTenantId=null;s.ownCompany=null;s.ownCompanyId=null;changed=true;
+                    }
+                    if(s.availableTenants&&Array.isArray(s.availableTenants)){
+                      var before2=s.availableTenants.length;
+                      s.availableTenants=s.availableTenants.filter(function(t){return !t.name||t.name.indexOf('Marq AI Tech Pvt Ltd')===-1;});
+                      if(s.availableTenants.length!==before2)changed=true;
                     }
                   }
                   if(isDemo){

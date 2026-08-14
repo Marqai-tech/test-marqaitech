@@ -18,9 +18,9 @@ function CompanyDashboardContent() {
     { label: 'Departments', value: departments.length, icon: <FiBriefcase className="w-4 h-4" />, color: 'text-emerald-500 bg-emerald-50', href: '/company/departments' },
     { label: 'Designations', value: designations.length, icon: <FiAward className="w-4 h-4" />, color: 'text-teal-500 bg-teal-50', href: '/company/designations' },
     { label: 'Grades', value: [...new Set(designations.map(d => d.level))].length, icon: <FiLayers className="w-4 h-4" />, color: 'text-teal-500 bg-teal-50', href: '/company/grades' },
-    { label: 'Shifts', value: shifts.length, icon: <FiClock className="w-4 h-4" />, color: 'text-amber-500 bg-amber-50', href: '/company/shifts' },
-    { label: 'Holidays', value: holidays.length, icon: <FiCalendar className="w-4 h-4" />, color: 'text-red-500 bg-red-50', href: '/company/holidays' },
-    { label: 'Policies', value: policies.length, icon: <FiFileText className="w-4 h-4" />, color: 'text-teal-500 bg-teal-50', href: '/company/policies' },
+    { label: 'Shifts', value: shifts.length, icon: <FiClock className="w-4 h-4" />, color: 'text-amber-500 bg-amber-50', href: '/attendance/shifts' },
+    { label: 'Holidays', value: holidays.length, icon: <FiCalendar className="w-4 h-4" />, color: 'text-red-500 bg-red-50', href: '/attendance/holidays' },
+    { label: 'Policies', value: policies.length, icon: <FiFileText className="w-4 h-4" />, color: 'text-teal-500 bg-teal-50', href: '/leave/leave-policy' },
   ];
 
   const masterLinks = [
@@ -29,13 +29,12 @@ function CompanyDashboardContent() {
     { title: 'Departments', desc: 'Define functional departments within the organization', href: '/company/departments', icon: <FiBriefcase className="w-5 h-5" />, color: 'from-cyan-500 to-teal-600', count: departments.length },
     { title: 'Designations', desc: 'Create job titles with grade levels and salary ranges', href: '/company/designations', icon: <FiAward className="w-5 h-5" />, color: 'from-teal-500 to-teal-600', count: designations.length },
     { title: 'Grades', desc: 'View grades derived from designation levels', href: '/company/grades', icon: <FiLayers className="w-5 h-5" />, color: 'from-teal-500 to-pink-600', count: [...new Set(designations.map(d => d.level))].length },
-    { title: 'Shifts', desc: 'Configure work shift timings for attendance tracking', href: '/company/shifts', icon: <FiClock className="w-5 h-5" />, color: 'from-amber-500 to-orange-600', count: shifts.length },
-    { title: 'Holidays', desc: 'Add public, festival, and company holidays for the year', href: '/company/holidays', icon: <FiCalendar className="w-5 h-5" />, color: 'from-red-500 to-rose-600', count: holidays.length },
-    { title: 'Policies', desc: 'Create HR, leave, attendance, and other company policies', href: '/company/policies', icon: <FiFileText className="w-5 h-5" />, color: 'from-emerald-500 to-teal-600', count: policies.length },
+    { title: 'Shifts', desc: 'Configure work shift timings for attendance tracking', href: '/attendance/shifts', icon: <FiClock className="w-5 h-5" />, color: 'from-amber-500 to-orange-600', count: shifts.length },
+    { title: 'Holidays', desc: 'Add public, festival, and company holidays for the year', href: '/attendance/holidays', icon: <FiCalendar className="w-5 h-5" />, color: 'from-red-500 to-rose-600', count: holidays.length },
+    { title: 'Policies', desc: 'Create HR, leave, attendance, and other company policies', href: '/leave/leave-policy', icon: <FiFileText className="w-5 h-5" />, color: 'from-emerald-500 to-teal-600', count: policies.length },
   ];
 
   const featureLinks = [
-    { title: 'Company Settings', desc: 'Configure company-wide settings, preferences & integrations', href: '/company/settings', icon: <FiSettings className="w-5 h-5" />, color: 'from-green-500 to-emerald-600', isNew: true },
     { title: 'Company Reports', desc: 'View reports on company structure, headcount & compliance', href: '/company/reports', icon: <FiFileText className="w-5 h-5" />, color: 'from-teal-500 to-emerald-600', isNew: true },
   ];
 

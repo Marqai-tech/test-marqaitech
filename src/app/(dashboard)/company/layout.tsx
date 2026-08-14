@@ -15,10 +15,6 @@ const subNavItems = [
   { label: 'Departments', href: '/company/departments', icon: FiBriefcase },
   { label: 'Designations', href: '/company/designations', icon: FiAward },
   { label: 'Grades', href: '/company/grades', icon: FiLayers },
-  { label: 'Shifts', href: '/company/shifts', icon: FiClock },
-  { label: 'Holidays', href: '/company/holidays', icon: FiCalendar },
-  { label: 'Policies', href: '/company/policies', icon: FiFileText },
-  { label: 'Settings', href: '/company/settings', icon: FiSettings },
   { label: 'Reports', href: '/company/reports', icon: FiBarChart2 },
 ]
 

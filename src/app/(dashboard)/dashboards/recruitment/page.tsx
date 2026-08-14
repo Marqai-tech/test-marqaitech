@@ -345,12 +345,18 @@ function RecruitmentContent() {
   const { selectedCompany } = useCompanyContextStore();
 
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState<StatCard[]>(DEMO_STATS);
-  const [pipelineData, setPipelineData] = useState(DEMO_PIPELINE_DATA);
-  const [sourceData, setSourceData] = useState(DEMO_SOURCE_DATA);
-  const [monthlyTrend, setMonthlyTrend] = useState(DEMO_MONTHLY_TREND);
-  const [recentApplications, setRecentApplications] = useState<Application[]>(DEMO_RECENT_APPLICATIONS);
-  const [upcomingInterviews, setUpcomingInterviews] = useState<Interview[]>(DEMO_UPCOMING_INTERVIEWS);
+  // On the LIVE site, initialize with zeros (not demo data).
+  // Demo data is only appropriate on the demo/showcase site.
+  const isLiveSite = typeof window !== 'undefined' && (
+    window.location.hostname === '3boxeshrms.com' ||
+    window.location.hostname.endsWith('.3boxeshrms.com')
+  );
+  const [stats, setStats] = useState<StatCard[]>(isLiveSite ? DEMO_STATS.map(s => ({ ...s, value: 0 })) : DEMO_STATS);
+  const [pipelineData, setPipelineData] = useState(isLiveSite ? [] : DEMO_PIPELINE_DATA);
+  const [sourceData, setSourceData] = useState(isLiveSite ? [] : DEMO_SOURCE_DATA);
+  const [monthlyTrend, setMonthlyTrend] = useState(isLiveSite ? [] : DEMO_MONTHLY_TREND);
+  const [recentApplications, setRecentApplications] = useState<Application[]>(isLiveSite ? [] : DEMO_RECENT_APPLICATIONS);
+  const [upcomingInterviews, setUpcomingInterviews] = useState<Interview[]>(isLiveSite ? [] : DEMO_UPCOMING_INTERVIEWS);
   const [quickActions] = useState<QuickAction[]>(DEMO_QUICK_ACTIONS);
 
   const companyName = selectedCompany?.name || user?.company?.name || '3Boxes Tech';

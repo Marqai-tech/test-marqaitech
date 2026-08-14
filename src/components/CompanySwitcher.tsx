@@ -8,6 +8,7 @@ import {
 } from 'react-icons/fi';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore, isHiddenTenant } from '@/store/companyContextStore';
+import { isTenantHiddenClient, LIVE_HIDDEN_SLUGS, PLATFORM_PLACEHOLDER_NAME } from '@/lib/tenant-filter';
 
 /**
  * CompanySwitcher
@@ -45,12 +46,14 @@ export default function CompanySwitcher() {
   const [search, setSearch] = useState('');
   const ref = useRef<HTMLDivElement>(null);
 
-  // ─── GOLDEN RULE: Defensive filter — NEVER render hidden tenants ───
-  // Even if the store somehow contains a hidden tenant (stale localStorage,
-  // API bug, race condition), we scrub it at render time so the user NEVER
-  // sees "Marq AI Tech Pvt Ltd" on the live site.
-  const safeAvailableTenants = availableTenants.filter(t => !isHiddenTenant(t.slug));
-  const safeTenant = tenant && tenant.slug && !isHiddenTenant(tenant.slug) ? tenant : null;
+  // ─── GOLDEN RULE: ULTIMATE DEFENSIVE FILTER — NEVER render hidden tenants ───
+  // This is the FINAL backstop. It uses tenant-filter.ts which checks
+  // window.location.hostname DIRECTLY (no env vars, no site-mode detection).
+  // Even if EVERY other defense layer fails (API, store, localStorage),
+  // this filter ensures the user NEVER sees "Marq AI Tech Pvt Ltd" on
+  // 3boxeshrms.com. This is HARDCODED and CANNOT be bypassed.
+  const safeAvailableTenants = availableTenants.filter(t => !isTenantHiddenClient(t.slug) && !isHiddenTenant(t.slug));
+  const safeTenant = tenant && tenant.slug && !isTenantHiddenClient(tenant.slug) && !isHiddenTenant(tenant.slug) ? tenant : null;
 
   // ─── GOLDEN RULE: Defensive filter — NEVER render companies/groups from hidden tenants ───
   // If availableCompanyGroups or availableCompanies belong to a hidden tenant

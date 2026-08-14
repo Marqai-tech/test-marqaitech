@@ -7,6 +7,8 @@ import { useCompanyData, apiFetch, fmtDate, getStatusBadge } from '@/components/
 import { PolicyRecord } from '@/components/company/useCompanyData'
 import { useCompanyContextStore } from '@/store/companyContextStore'
 
+const POLICY_CATEGORY = 'leave'
+
 function TableWrapper({ title, icon, count, children }: { title: string; icon: React.ReactNode; count: number; children: React.ReactNode }) {
   return (
     <div className="thb-card overflow-hidden">
@@ -25,7 +27,7 @@ function TableWrapper({ title, icon, count, children }: { title: string; icon: R
 const TH = ({ children }: { children: React.ReactNode }) => <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider border-b border-thb-border bg-slate-50/50">{children}</th>
 const TD = ({ children, className = '' }: { children: React.ReactNode; className?: string }) => <td className={`px-4 py-3 text-sm text-thb-text-secondary border-b border-thb-border/50 ${className}`}>{children}</td>
 
-export default function PoliciesPage() {
+export default function LeavePolicyPage() {
   const { policies, loading, isAdmin, fetchPolicies, selectedCompanyId } = useCompanyData()
   const companyId = useCompanyContextStore(s => s.effectiveCompanyId())
 
@@ -41,12 +43,14 @@ export default function PoliciesPage() {
 
   const inputClass = 'w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400'
   const q = search.toLowerCase()
-  const fPolicies = policies.filter(p =>
+  // Filter policies to only show leave category
+  const categoryPolicies = policies.filter(p => p.category === POLICY_CATEGORY)
+  const fPolicies = categoryPolicies.filter(p =>
     p.title.toLowerCase().includes(q) || p.category.toLowerCase().includes(q)
   )
 
   const getDefaultForm = (): Record<string, string> => ({
-    title: '', category: 'hr', description: '', version: '1.0', status: 'active', effectiveDate: '', expiryDate: ''
+    title: '', category: POLICY_CATEGORY, description: '', version: '1.0', status: 'active', effectiveDate: '', expiryDate: ''
   })
 
   const getFormFromRecord = (r: PolicyRecord): Record<string, string> => {
@@ -63,16 +67,13 @@ export default function PoliciesPage() {
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault()
 
-    // Validate required fields
     if (!form.title || !form.title.trim()) { toast.error('Policy title is required'); return }
 
-    // Validate version format (e.g., 1.0, 2.1)
     if (form.version && !/^\d+(\.\d+)*$/.test(form.version)) {
       toast.error('Enter a valid version number (e.g., 1.0, 2.1)');
       return;
     }
 
-    // Date validation: effective date cannot be after expiry date
     if (form.effectiveDate && form.expiryDate) {
       if (new Date(form.effectiveDate) > new Date(form.expiryDate)) {
         toast.error('Effective Date cannot be later than Expiry Date');
@@ -80,7 +81,6 @@ export default function PoliciesPage() {
       }
     }
 
-    // Duplicate policy check (same title + version)
     const duplicatePolicy = policies.find(p =>
       p.title.toLowerCase() === form.title.toLowerCase() &&
       (p.version || '').toLowerCase() === (form.version || '').toLowerCase() &&
@@ -91,7 +91,7 @@ export default function PoliciesPage() {
     setSubmitting(true)
     try {
       const isEdit = !!editingId
-      const body: Record<string, unknown> = { ...form, companyId }
+      const body: Record<string, unknown> = { ...form, companyId, category: POLICY_CATEGORY }
       if (isEdit) body.id = editingId
       if (!companyId) { toast.error('Company ID is required'); setSubmitting(false); return }
       const cidParam = selectedCompanyId ? `?companyId=${selectedCompanyId}` : ''
@@ -125,8 +125,8 @@ export default function PoliciesPage() {
             <FiFileText className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-thb-text-primary">Policies</h1>
-            <p className="text-sm text-thb-text-secondary">Manage company policies and compliance documents</p>
+            <h1 className="text-xl font-bold text-thb-text-primary">Leave Policy</h1>
+            <p className="text-sm text-thb-text-secondary">Manage leave policies and compliance documents</p>
           </div>
         </div>
         {isAdmin && (
@@ -139,7 +139,7 @@ export default function PoliciesPage() {
       {/* Search */}
       <div className="relative">
         <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
-        <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by title, category..." className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-thb-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400" />
+        <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by title..." className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-thb-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400" />
       </div>
 
       {/* View Detail */}
@@ -171,13 +171,12 @@ export default function PoliciesPage() {
         <div className="thb-card border-l-4 border-l-teal-500">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold text-thb-text-primary">{editingId ? 'Edit' : 'Add'} Policy</h2>
+              <h2 className="text-lg font-semibold text-thb-text-primary">{editingId ? 'Edit' : 'Add'} Leave Policy</h2>
               <button onClick={handleCancelForm} className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors"><FiX className="w-5 h-5" /></button>
             </div>
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Title *</label><input type="text" value={form.title || ''} onChange={e => updateForm('title', e.target.value)} required className={inputClass} placeholder="Policy title" /></div>
-                <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Category</label><select value={form.category || 'hr'} onChange={e => updateForm('category', e.target.value)} className={inputClass}><option value="hr">HR</option><option value="it">IT</option><option value="leave">Leave</option><option value="attendance">Attendance</option><option value="finance">Finance</option><option value="work">Work</option><option value="safety">Safety</option><option value="code_of_conduct">Code of Conduct</option></select></div>
                 <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Version</label><input type="text" value={form.version || '1.0'} onChange={e => updateForm('version', e.target.value)} className={inputClass} placeholder="1.0" /></div>
                 <div className="sm:col-span-2 lg:col-span-3"><label className="block text-xs font-medium text-thb-text-secondary mb-1">Description</label><input type="text" value={form.description || ''} onChange={e => updateForm('description', e.target.value)} className={inputClass} placeholder="Brief description" /></div>
                 <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Effective Date</label><input type="date" value={form.effectiveDate || ''} onChange={e => updateForm('effectiveDate', e.target.value)} className={inputClass} /></div>
@@ -199,17 +198,17 @@ export default function PoliciesPage() {
       {loading.policies ? (
         <div className="flex items-center justify-center py-12"><FiSettings className="w-8 h-8 animate-spin text-teal-400" /></div>
       ) : (
-        <TableWrapper title="Company Policies" icon={<FiFileText className="w-4 h-4 text-teal-500" />} count={policies.length}>
-          <thead><tr><TH>Policy</TH><TH>Category</TH><TH>Version</TH><TH>Effective</TH><TH>Status</TH><TH className="text-right">Actions</TH></tr></thead>
+        <TableWrapper title="Leave Policies" icon={<FiFileText className="w-4 h-4 text-teal-500" />} count={categoryPolicies.length}>
+          <thead><tr><TH>Policy</TH><TH>Version</TH><TH>Effective</TH><TH>Status</TH><TH className="text-right">Actions</TH></tr></thead>
           <tbody>
             {fPolicies.length === 0 ? (
-              <tr><td colSpan={6} className="px-4 py-12 text-center"><FiFileText className="w-10 h-10 text-thb-text-muted mx-auto mb-3" /><p className="text-thb-text-secondary font-medium">No policies found</p></td></tr>
+              <tr><td colSpan={5} className="px-4 py-12 text-center"><FiFileText className="w-10 h-10 text-thb-text-muted mx-auto mb-3" /><p className="text-thb-text-secondary font-medium">No leave policies found</p></td></tr>
             ) : fPolicies.map(p => {
               const badge = getStatusBadge(p.status)
               return (
                 <tr key={p.id} className={`transition-colors ${deleteConfirmId === p.id ? 'bg-red-50' : 'hover:bg-slate-50/50'}`}>
                   {deleteConfirmId === p.id ? (
-                    <td colSpan={6} className="px-4 py-3">
+                    <td colSpan={5} className="px-4 py-3">
                       <div className="flex items-center justify-between gap-3">
                         <div className="flex items-center gap-2"><FiAlertTriangle className="w-4 h-4 text-red-500" /><span className="text-sm text-red-600">Delete <b>{p.title}</b>?</span></div>
                         <div className="flex items-center gap-2">
@@ -221,7 +220,6 @@ export default function PoliciesPage() {
                   ) : (
                     <>
                       <TD className="font-medium text-thb-text-primary">{p.title}</TD>
-                      <TD><span className="thb-badge thb-badge-info">{p.category}</span></TD>
                       <TD>v{p.version}</TD>
                       <TD>{p.effectiveDate ? fmtDate(p.effectiveDate) : '—'}</TD>
                       <TD><span className={badge.className}>{badge.label}</span></TD>

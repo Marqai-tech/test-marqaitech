@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb, getDbForTenantById } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { isLiveMode } from '@/lib/site-mode';
+import { isServerLiveSite, getServerHiddenSlugs, LIVE_HIDDEN_SLUGS as FOOLPROOF_LIVE_HIDDEN, DEMO_HIDDEN_SLUGS as FOOLPROOF_DEMO_HIDDEN } from '@/lib/tenant-filter';
 
 function corsHeaders() {
   return {
@@ -231,16 +232,21 @@ export async function GET(request: Request) {
       // Super admin: list ALL tenants (not just 'active' ones) so the super
       // admin can see and manage suspended/pending tenants too.
       //
-      // BIDIRECTIONAL FILTERING:
+      // BIDIRECTIONAL FILTERING (FOOLPROOF):
       //   LIVE mode (3boxeshrms.com):  Hide demo tenant + placeholder tenant
       //     - '3boxes-hrms-demo' (demo tenant, not for production)
       //     - '3boxeshrms' (Marq AI Tech Pvt Ltd — platform placeholder, not a real tenant)
       //   DEMO mode (nexus-hrms-mu.vercel.app):  Hide live tenant
       //     - 'marqaitechgroup' (MarqAI Tech Group — real/live tenant, not for demo showcase)
+      //
+      // FOOLPROOF: Use tenant-filter.ts as PRIMARY (direct hostname check),
+      // then ALSO check isLiveMode() as SECONDARY. A slug is hidden if
+      // EITHER method says so. This prevents Vercel internal routing bugs.
       const siteMode = isLiveMode(request) ? 'live' : 'demo';
-      const liveTenantFilter = siteMode === 'live'
-        ? { slug: { notIn: ['3boxes-hrms-demo', '3boxeshrms'] } }
-        : { slug: { notIn: ['marqaitechgroup'] } };
+      const foolproofSlugs = getServerHiddenSlugs(request);
+      const siteModeSlugs = siteMode === 'live' ? ['3boxes-hrms-demo', '3boxeshrms'] : ['marqaitechgroup'];
+      const allHiddenSlugs = [...new Set([...foolproofSlugs, ...siteModeSlugs])];
+      const liveTenantFilter = { slug: { notIn: allHiddenSlugs } };
       availableTenants = await safe(
         'tenant.findMany(all)',
         () => getPlatformDb().tenant.findMany({
@@ -590,14 +596,19 @@ export async function GET(request: Request) {
       ownCompany = null;
     }
 
-    // ─── SERVER-SIDE SAFETY NET (GOLDEN RULE) ───
+    // ─── SERVER-SIDE SAFETY NET (GOLDEN RULE — FOOLPROOF) ───
     // Belt-and-suspenders: even if the filtering above has a bug, we scrub
     // the response data one last time before sending it. This ensures NO
     // hidden tenant data ever reaches the client.
+    // FOOLPROOF: Use tenant-filter.ts (direct hostname check) as PRIMARY,
+    // then ALSO check isLiveMode() as SECONDARY.
     const siteModeFinal = isLiveMode(request) ? 'live' : 'demo';
-    const hiddenSlugsFinal = siteModeFinal === 'live'
+    const foolproofSlugsFinal = getServerHiddenSlugs(request);
+    const siteModeSlugsFinal = siteModeFinal === 'live'
       ? ['3boxes-hrms-demo', '3boxeshrms']
       : ['marqaitechgroup'];
+    // Union: a slug is hidden if EITHER method says so
+    const hiddenSlugsFinal = [...new Set([...foolproofSlugsFinal, ...siteModeSlugsFinal])];
 
     // 1. Scrub tenant/tenantId if they point to a hidden slug
     if (effectiveTenant && effectiveTenant.slug && hiddenSlugsFinal.includes(effectiveTenant.slug)) {
