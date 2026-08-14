@@ -15,6 +15,7 @@ import {
   Tooltip, XAxis, YAxis, CartesianGrid,
 } from 'recharts';
 import { useAuthStore } from '@/store/authStore';
+import { getClientSiteMode } from '@/lib/site-mode';
 
 /* ─────────────────── helpers ─────────────────── */
 
@@ -322,12 +323,8 @@ function EmployeeContent() {
   const { user } = useAuthStore();
 
   const [loading, setLoading] = useState(true);
-  // On the LIVE site, initialize with zeros (not demo data).
-  // Demo data is only appropriate on the demo/showcase site.
-  const isLiveSite = typeof window !== 'undefined' && (
-    window.location.hostname === '3boxeshrms.com' ||
-    window.location.hostname.endsWith('.3boxeshrms.com')
-  );
+  // GOLDEN RULE: On LIVE site, initialize with zeros (not demo data).
+  const isLiveSite = getClientSiteMode() === 'live';
   const [stats, setStats] = useState<StatCard[]>(isLiveSite ? DEMO_STATS.map(s => ({ ...s, value: 0 })) : DEMO_STATS);
   const [attendanceTrend] = useState(isLiveSite ? [] : DEMO_ATTENDANCE_TREND);
   const [leaveUsage, setLeaveUsage] = useState(isLiveSite ? [] : DEMO_LEAVE_USAGE);

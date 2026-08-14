@@ -165,7 +165,18 @@ export const useCompanyContextStore = create<CompanyContextState>()(
         if (state.hydrated && !force) return;
         set({ hydrating: true });
         try {
-          const res = await fetch('/api/me/context', { headers: getAuthHeaders() });
+          // ─── FIX: Include persisted selectedTenantId in the fetch URL ───
+          // Without this, the API defaults to the first available tenant's
+          // groups/companies. If the user previously selected a different tenant
+          // (persisted via selectedTenantId), we must tell the API which tenant
+          // to scope the groups/companies to. Otherwise, on page reload or
+          // navigation, the switcher shows the wrong tenant's groups/companies
+          // or none at all if the default tenant has no groups.
+          const persistedTenantId = state.selectedTenantId;
+          const contextUrl = persistedTenantId
+            ? `/api/me/context?tenantId=${encodeURIComponent(persistedTenantId)}`
+            : '/api/me/context';
+          const res = await fetch(contextUrl, { headers: getAuthHeaders() });
           if (!res.ok) {
             // Don't mark hydrated=true on auth failure — let the user retry.
             // The authStore will handle 401 by logging the user out.

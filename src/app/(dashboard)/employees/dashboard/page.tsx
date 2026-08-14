@@ -231,11 +231,11 @@ export default function EmployeeDashboardPage() {
       }
     } catch (err) {
       console.error('Dashboard fetch error:', err);
-      // Use sample data on error
+      // GOLDEN RULE: On error, show zeros/empty — NOT fake data
       setStats(getSampleStats());
       setDepartments(getSampleDepartments());
-      setRecentUpdates(generateSampleUpdates());
-      setHeadcountTrend(generateSampleTrend(150));
+      setRecentUpdates([]);
+      setHeadcountTrend([]);
     } finally {
       setLoading(false);
     }

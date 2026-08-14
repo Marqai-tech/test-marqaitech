@@ -1201,12 +1201,19 @@ function EmployeeHome({ firstName, greeting, today }: { firstName: string; greet
     const timesheets = timesheetData?.timesheets || timesheetData?.data || [];
     setLatestTimesheets(timesheets.slice(0, 5));
 
-    setAnnouncements([
-      { title: 'Company Holiday - ' + new Date().toLocaleDateString('en-US', { month: 'long' }) + ' 26th', date: 'In 10 days', type: 'holiday' },
-      { title: 'Team Town Hall Meeting', date: 'Tomorrow · 4:00 PM', type: 'event' },
-      { title: 'New Leave Policy Update', date: 'This week', type: 'policy' },
-      { title: 'Quarterly Review Cycle Open', date: 'Now', type: 'review' },
-    ]);
+    // Announcements — fetch from API, NOT hardcoded
+    // GOLDEN RULE: No dummy data on the super admin or any live page.
+    // Only show announcements that actually exist in the database.
+    const announcementData = await safe('/api/announcements?limit=5');
+    const apiAnnouncements = announcementData?.announcements || announcementData?.data || [];
+    if (apiAnnouncements.length > 0) {
+      setAnnouncements(apiAnnouncements.map((a: { title: string; createdAt: string; type?: string }) => ({
+        title: a.title,
+        date: new Date(a.createdAt).toLocaleDateString(),
+        type: a.type || 'info',
+      })));
+    }
+    // If no announcements exist in the DB, show empty — NOT fake announcements
 
     setLoading(false);
   }, [scopeQuery]);

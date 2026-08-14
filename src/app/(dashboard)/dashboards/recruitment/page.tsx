@@ -15,6 +15,7 @@ import {
 } from 'recharts';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
+import { getClientSiteMode } from '@/lib/site-mode';
 
 /* ═══════════════ helpers ═══════════════ */
 
@@ -345,12 +346,9 @@ function RecruitmentContent() {
   const { selectedCompany } = useCompanyContextStore();
 
   const [loading, setLoading] = useState(true);
-  // On the LIVE site, initialize with zeros (not demo data).
+  // GOLDEN RULE: On the LIVE site, initialize with zeros (not demo data).
   // Demo data is only appropriate on the demo/showcase site.
-  const isLiveSite = typeof window !== 'undefined' && (
-    window.location.hostname === '3boxeshrms.com' ||
-    window.location.hostname.endsWith('.3boxeshrms.com')
-  );
+  const isLiveSite = getClientSiteMode() === 'live';
   const [stats, setStats] = useState<StatCard[]>(isLiveSite ? DEMO_STATS.map(s => ({ ...s, value: 0 })) : DEMO_STATS);
   const [pipelineData, setPipelineData] = useState(isLiveSite ? [] : DEMO_PIPELINE_DATA);
   const [sourceData, setSourceData] = useState(isLiveSite ? [] : DEMO_SOURCE_DATA);

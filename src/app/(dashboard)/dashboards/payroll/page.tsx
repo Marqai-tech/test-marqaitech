@@ -50,6 +50,7 @@ import {
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
+import { getClientSiteMode } from '@/lib/site-mode';
 
 /* ─── Colours ─── */
 const COLORS: Record<string, string> = {
@@ -390,19 +391,13 @@ function PayrollContent() {
         const json = await res.json();
         const m = json.metrics || {};
         const hasData = m.totalGrossPay > 0 || m.totalNetPay > 0;
-        // On the LIVE site, NEVER fall back to DEMO_DATA — show real data
+        // GOLDEN RULE: On LIVE site, NEVER fall back to DEMO_DATA — show real data
         // even if it's zeros. DEMO_DATA is only for the demo/showcase site.
-        const isLive = typeof window !== 'undefined' && (
-          window.location.hostname === '3boxeshrms.com' ||
-          window.location.hostname.endsWith('.3boxeshrms.com')
-        );
+        const isLive = getClientSiteMode() === 'live';
         setData(hasData || isLive ? json : DEMO_DATA);
       } else {
         // On API failure, only use DEMO_DATA on demo sites
-        const isLive = typeof window !== 'undefined' && (
-          window.location.hostname === '3boxeshrms.com' ||
-          window.location.hostname.endsWith('.3boxeshrms.com')
-        );
+        const isLive = getClientSiteMode() === 'live';
         if (isLive) {
           setData(json || { metrics: {}, recentRuns: [], monthlyTrend: [], departmentBreakdown: [] });
         } else {
@@ -411,10 +406,7 @@ function PayrollContent() {
       }
     } catch {
       // On error, only use DEMO_DATA on demo sites
-      const isLive = typeof window !== 'undefined' && (
-        window.location.hostname === '3boxeshrms.com' ||
-        window.location.hostname.endsWith('.3boxeshrms.com')
-      );
+      const isLive = getClientSiteMode() === 'live';
       if (!isLive) {
         setData(DEMO_DATA);
         if (showToast) toast.error('Could not refresh dashboard — showing demo data');
@@ -496,9 +488,9 @@ function PayrollContent() {
     ];
   })();
 
-  // Pending items
-  const pendingApprovals = data?.metrics?.pendingApprovals ?? DEMO_DATA.metrics.pendingApprovals;
-  const activeHolds = data?.metrics?.activeHolds ?? DEMO_DATA.metrics.activeHolds;
+  // Pending items — GOLDEN RULE: use 0 as fallback, NOT DEMO_DATA
+  const pendingApprovals = data?.metrics?.pendingApprovals ?? 0;
+  const activeHolds = data?.metrics?.activeHolds ?? 0;
 
   // Upcoming filing deadlines
   const filingDeadlines = [
