@@ -47,13 +47,23 @@ export default function CompanySwitcher() {
   const ref = useRef<HTMLDivElement>(null);
 
   // ─── GOLDEN RULE: ULTIMATE DEFENSIVE FILTER — NEVER render hidden tenants ───
-  // This is the FINAL backstop. It uses tenant-filter.ts which checks
-  // window.location.hostname DIRECTLY (no env vars, no site-mode detection).
-  // Even if EVERY other defense layer fails (API, store, localStorage),
+  // This is the FINAL backstop. It uses THREE independent checks:
+  //   1. HARDCODED slug/name check — works even during SSR when window is undefined
+  //   2. tenant-filter.ts (isTenantHiddenClient) — checks window.location.hostname DIRECTLY
+  //   3. isHiddenTenant from store — combines hostname + site-mode detection
+  // Even if EVERY other defense layer fails (API, store, localStorage, SSR),
   // this filter ensures the user NEVER sees "Marq AI Tech Pvt Ltd" on
   // 3boxeshrms.com. This is HARDCODED and CANNOT be bypassed.
-  const safeAvailableTenants = availableTenants.filter(t => !isTenantHiddenClient(t.slug) && !isHiddenTenant(t.slug));
-  const safeTenant = tenant && tenant.slug && !isTenantHiddenClient(tenant.slug) && !isHiddenTenant(tenant.slug) ? tenant : null;
+  const _HARDCODED_HIDDEN_SLUGS = ['3boxes-hrms-demo', '3boxeshrms'];
+  const _HARDCODED_HIDDEN_NAME = 'Marq AI Tech Pvt Ltd';
+  const _isHardcodedHidden = (t: { slug?: string; name?: string } | null) =>
+    !t ? false :
+    _HARDCODED_HIDDEN_SLUGS.includes(t.slug || '') ||
+    (t.name || '').includes(_HARDCODED_HIDDEN_NAME);
+  const safeAvailableTenants = availableTenants.filter(t =>
+    !_isHardcodedHidden(t) && !isTenantHiddenClient(t.slug) && !isHiddenTenant(t.slug)
+  );
+  const safeTenant = tenant && !_isHardcodedHidden(tenant) && !isTenantHiddenClient(tenant.slug) && !isHiddenTenant(tenant.slug) ? tenant : null;
 
   // ─── GOLDEN RULE: Defensive filter — NEVER render companies/groups from hidden tenants ───
   // If availableCompanyGroups or availableCompanies belong to a hidden tenant

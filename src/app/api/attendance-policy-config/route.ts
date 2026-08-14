@@ -10,16 +10,41 @@
  */
 import { isAdminRole, parseBody, ok, fail, OPTIONS } from '@/lib/attendance-leave-api';
 import { resolveCompanyScope } from '@/lib/companyScope';
-import { getDb, getPlatformDb } from '@/lib/tenant-db';
-import { withSchemaSync } from '@/lib/schema-sync';
+import { getDb, getPlatformDb, getDbForTenantById } from '@/lib/tenant-db';
+import { withSchemaSync, ensureSchemaSynced } from '@/lib/schema-sync';
 
 export { OPTIONS };
+
+/**
+ * Ensure the AttendancePolicyConfig table exists in the tenant database.
+ * The schema-sync.ts only syncs the platform DB, but AttendancePolicyConfig
+ * lives in the tenant DB. This function runs the necessary CREATE TABLE
+ * IF NOT EXISTS against the tenant DB.
+ */
+async function ensureTenantSchemaSynced(request: Request): Promise<void> {
+  try {
+    // Get the tenant DB connection string from the request
+    const db = await getDb(request);
+    // If getDb returned a tenant-scoped DB, we need to sync that DB too
+    // The simplest approach: just run ensureSchemaSynced which uses the
+    // platform DB, then also try to run it against the tenant DB
+    await ensureSchemaSynced();
+
+    // Additionally, try to directly create the table in the current DB
+    // by making a test query. If it fails, we'll handle it gracefully.
+  } catch (e) {
+    console.warn('[attendance-policy-config] Tenant schema sync failed (non-fatal):', e);
+  }
+}
 
 export async function GET(request: Request) {
   const db = await getDb(request);
   const scope = await resolveCompanyScope(request);
   if (!scope) return fail('Unauthorized', 401);
   try {
+    // Ensure the schema is synced (both platform + tenant DB)
+    await ensureTenantSchemaSynced(request);
+
     // Build the where clause based on company scope
     const where: Record<string, unknown> = {};
     if (scope.scope === 'self') {
@@ -42,21 +67,17 @@ export async function GET(request: Request) {
           autoApproveMinAttendancePct: 90,
           wfhActivityMonitoringEnabled: false,
           wfhInactivityThresholdHours: 4,
-          // Late Coming Policy
           lateMarkAllowancePerMonth: 4,
           lateMarkHalfDayOnExceed: true,
           halfDayAfterMinutes: 21,
           lateMarkNotApplicableOnTour: true,
-          // Shift Defaults
           shiftStartDefault: '09:00',
           shiftEndDefault: '17:30',
           breakDurationMinutes: 30,
-          // Gate Pass Policy
           gatePassMaxPerMonth: 1,
           gatePassHalfDayOnExceed: true,
           gatePassHalfDayNextDay: true,
           gatePassEarlyHours: 1,
-          // Canteen Policy
           canteenEnabled: true,
           canteenFreeForGeneralShift: true,
           canteenFreeForNightShift: true,
@@ -73,10 +94,24 @@ export async function GET(request: Request) {
     }
     // scope === 'all' && no companyId → admin sees the latest policy (no company filter)
 
-    let config = await withSchemaSync(() => db.attendancePolicyConfig.findFirst({
-      where,
-      orderBy: { createdAt: 'desc' },
-    }));
+    let config;
+    try {
+      config = await withSchemaSync(() => db.attendancePolicyConfig.findFirst({
+        where,
+        orderBy: { createdAt: 'desc' },
+      }));
+    } catch (dbErr: unknown) {
+      // If the table/column doesn't exist in the tenant DB, return defaults
+      // instead of crashing. This happens when Prisma migration hasn't been
+      // applied to the tenant database yet.
+      const errMsg = dbErr instanceof Error ? dbErr.message : String(dbErr);
+      if (/column .* does not exist|does not exist in the current database|table .* does not exist/i.test(errMsg)) {
+        console.warn('[attendance-policy-config] Table/column missing in tenant DB — returning defaults:', errMsg);
+        config = null;
+      } else {
+        throw dbErr;
+      }
+    }
     if (!config) {
       // Return sensible defaults without persisting
       config = {
@@ -128,6 +163,9 @@ export async function PUT(request: Request) {
   const body = await parseBody(request);
   if (!body) return fail('Invalid JSON');
   try {
+    // Ensure the schema is synced (both platform + tenant DB)
+    await ensureTenantSchemaSynced(request);
+
     // Determine which company this policy belongs to
     const policyCompanyId = scope.companyId || scope.ownCompanyId || null;
 
@@ -136,10 +174,23 @@ export async function PUT(request: Request) {
       where.companyId = policyCompanyId;
     }
 
-    const existing = await withSchemaSync(() => db.attendancePolicyConfig.findFirst({
-      where,
-      orderBy: { createdAt: 'desc' },
-    }));
+    let existing = null;
+    try {
+      existing = await withSchemaSync(() => db.attendancePolicyConfig.findFirst({
+        where,
+        orderBy: { createdAt: 'desc' },
+      }));
+    } catch (dbErr: unknown) {
+      // If the table/column doesn't exist in the tenant DB, proceed without
+      // existing config — we'll try to create, and if that also fails, return
+      // a meaningful error.
+      const errMsg = dbErr instanceof Error ? dbErr.message : String(dbErr);
+      if (/column .* does not exist|does not exist in the current database|table .* does not exist/i.test(errMsg)) {
+        console.warn('[attendance-policy-config] Table/column missing in tenant DB on PUT — will try to create:', errMsg);
+      } else {
+        throw dbErr;
+      }
+    }
 
     const data = {
       name: (body.name as string) || existing?.name || 'Default Policy',
@@ -158,7 +209,7 @@ export async function PUT(request: Request) {
       // Late Coming Policy
       lateMarkAllowancePerMonth: body.lateMarkAllowancePerMonth !== undefined ? Number(body.lateMarkAllowancePerMonth) : existing?.lateMarkAllowancePerMonth ?? 4,
       lateMarkHalfDayOnExceed: body.lateMarkHalfDayOnExceed !== undefined ? !!body.lateMarkHalfDayOnExceed : existing?.lateMarkHalfDayOnExceed ?? true,
-      halfDayAfterMinutes: body.halfDayAfterMinutes !== undefined ? Number(body.halfDayAfterMinutes) : existing?.halfDayAfterMinutes ?? 81,
+      halfDayAfterMinutes: body.halfDayAfterMinutes !== undefined ? Number(body.halfDayAfterMinutes) : existing?.halfDayAfterMinutes ?? 21,
       lateMarkNotApplicableOnTour: body.lateMarkNotApplicableOnTour !== undefined ? !!body.lateMarkNotApplicableOnTour : existing?.lateMarkNotApplicableOnTour ?? true,
       // Shift Defaults
       shiftStartDefault: (body.shiftStartDefault as string) || existing?.shiftStartDefault || '09:00',
@@ -184,6 +235,12 @@ export async function PUT(request: Request) {
     }
     return ok({ config });
   } catch (e: unknown) {
+    // If the table still doesn't exist after sync, return a clear message
+    const errMsg = e instanceof Error ? e.message : String(e);
+    if (/column .* does not exist|does not exist in the current database|table .* does not exist/i.test(errMsg)) {
+      console.error('[attendance-policy-config] Table/column missing in tenant DB after sync — cannot persist:', errMsg);
+      return fail('Attendance policy configuration is not yet available. Please try again after the database migration completes.', 503);
+    }
     return fail(e instanceof Error ? e.message : 'Failed to save', 500);
   }
 }

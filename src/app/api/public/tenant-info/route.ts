@@ -1,10 +1,14 @@
 import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
-import { isLiveMode, isDemoMode } from '@/lib/site-mode';
+import { isLiveMode } from '@/lib/site-mode';
+import { getServerHiddenSlugs, LIVE_HIDDEN_SLUGS, DEMO_HIDDEN_SLUGS } from '@/lib/tenant-filter';
 
-// ─── Hidden Tenant Slugs (MUST match companyContextStore.ts) ────
-const LIVE_HIDDEN_SLUGS = ['3boxes-hrms-demo', '3boxeshrms'];
-const DEMO_HIDDEN_SLUGS = ['marqaitechgroup'];
+// ─── Hidden Tenant Slugs (GOLDEN RULE — FOOLPROOF) ──────────────────
+function getHiddenSlugsForRequest(request: Request): string[] {
+  const foolproof = getServerHiddenSlugs(request);
+  const siteMode = isLiveMode(request) ? LIVE_HIDDEN_SLUGS : DEMO_HIDDEN_SLUGS;
+  return [...new Set([...foolproof, ...siteMode])];
+}
 
 /**
  * GET /api/public/tenant-info?slug=marqaitechgroup
@@ -26,7 +30,7 @@ export async function GET(request: Request) {
     }
 
     // ─── GOLDEN RULE: Block hidden tenants on live/demo ───
-    const hiddenSlugs = isLiveMode(request) ? LIVE_HIDDEN_SLUGS : DEMO_HIDDEN_SLUGS;
+    const hiddenSlugs = getHiddenSlugsForRequest(request);
     if (hiddenSlugs.includes(slug)) {
       return NextResponse.json({ error: 'Tenant not found' }, { status: 404 });
     }

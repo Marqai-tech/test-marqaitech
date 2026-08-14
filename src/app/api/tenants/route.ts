@@ -3,6 +3,14 @@ import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders, hashPassword } from '@/lib/auth';
 import { ensureSchemaSynced } from '@/lib/schema-sync';
 import { isLiveMode } from '@/lib/site-mode';
+import { getServerHiddenSlugs, LIVE_HIDDEN_SLUGS, DEMO_HIDDEN_SLUGS } from '@/lib/tenant-filter';
+
+// ─── Hidden Tenant Slugs (GOLDEN RULE — FOOLPROOF) ──────────────────
+function getHiddenSlugsForRequest(request: Request): string[] {
+  const foolproof = getServerHiddenSlugs(request);
+  const siteMode = isLiveMode(request) ? LIVE_HIDDEN_SLUGS : DEMO_HIDDEN_SLUGS;
+  return [...new Set([...foolproof, ...siteMode])];
+}
 
 function corsHeaders() {
   return {
@@ -41,17 +49,16 @@ export async function GET(request: Request) {
     const search = searchParams.get('search');
 
     const where: Record<string, unknown> = {};
-    // BIDIRECTIONAL FILTERING:
+    // BIDIRECTIONAL FILTERING (GOLDEN RULE — FOOLPROOF):
     //   LIVE mode (3boxeshrms.com):  Hide demo tenant + placeholder tenant
     //     - '3boxes-hrms-demo' (demo tenant)
     //     - '3boxeshrms' (Marq AI Tech Pvt Ltd — platform placeholder, not a real tenant)
     //   DEMO mode (nexus-hrms-mu.vercel.app):  Hide live tenant
     //     - 'marqaitechgroup' (MarqAI Tech Group — real/live tenant, not for demo)
-    if (isLiveMode(request)) {
-      where.slug = { notIn: ['3boxes-hrms-demo', '3boxeshrms'] };
-    } else {
-      where.slug = { notIn: ['marqaitechgroup'] };
-    }
+    // FOOLPROOF: Use tenant-filter.ts as PRIMARY (direct hostname check),
+    // then ALSO check isLiveMode() as SECONDARY. Union both.
+    const hiddenSlugs = getHiddenSlugsForRequest(request);
+    where.slug = { notIn: hiddenSlugs };
     if (status) where.status = status;
     if (search) {
       where.OR = [

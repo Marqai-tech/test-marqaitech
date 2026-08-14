@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { resolveCompanyScope } from '@/lib/companyScope';
+import { withSchemaSync } from '@/lib/schema-sync';
 
 function corsHeaders() {
   return {
@@ -37,10 +38,10 @@ export async function GET(request: Request) {
     // ─── Company-scoped data visibility ───
     if (scope.scope === 'self') {
       // Employees can only see their own attendance records
-      const employee = await db.employee.findFirst({
+      const employee = await withSchemaSync(() => db.employee.findFirst({
         where: { userId: scope.userId, status: 'active' },
         select: { id: true },
-      });
+      }));
       if (employee) {
         where.employeeId = employee.id;
       } else {
@@ -62,7 +63,7 @@ export async function GET(request: Request) {
     if (status) where.status = status;
 
     const [attendance, total] = await Promise.all([
-      db.attendance.findMany({
+      withSchemaSync(() => db.attendance.findMany({
         where,
         include: {
           employee: {
@@ -78,8 +79,8 @@ export async function GET(request: Request) {
         orderBy: { date: 'desc' },
         skip: (page - 1) * limit,
         take: limit,
-      }),
-      db.attendance.count({ where }),
+      })),
+      withSchemaSync(() => db.attendance.count({ where })),
     ]);
 
     return NextResponse.json(
@@ -96,6 +97,14 @@ export async function GET(request: Request) {
     );
   } catch (error) {
     console.error('Get attendance error:', error);
+    const errMsg = error instanceof Error ? error.message : String(error);
+    // If table/column doesn't exist, return empty data instead of 500
+    if (/column .* does not exist|does not exist in the current database|table .* does not exist/i.test(errMsg)) {
+      return NextResponse.json(
+        { attendance: [], pagination: { page, limit, total: 0, totalPages: 0 } },
+        { headers: corsHeaders() }
+      );
+    }
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500, headers: corsHeaders() }

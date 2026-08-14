@@ -35,7 +35,14 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false, cur
   // ─── GOLDEN RULE: Use companyContextStore's tenant (filtered) for branding ───
   // NEVER use user.tenant from authStore directly — it may contain hidden tenant
   // data (e.g., "Marq AI Tech Pvt Ltd"). The companyContextStore is always filtered.
-  const safeTenant = (contextTenant && contextTenant.slug && !isHiddenTenant(contextTenant.slug))
+  // NUCLEAR: Also hardcode-check slug and name — works even during SSR.
+  const _HARDCODED_HIDDEN_SLUGS = ['3boxes-hrms-demo', '3boxeshrms'];
+  const _HARDCODED_HIDDEN_NAME = 'Marq AI Tech Pvt Ltd';
+  const _isHardcodedHidden = (t: { slug?: string; name?: string } | null) =>
+    !t ? false :
+    _HARDCODED_HIDDEN_SLUGS.includes(t.slug || '') ||
+    (t.name || '').includes(_HARDCODED_HIDDEN_NAME);
+  const safeTenant = (contextTenant && contextTenant.slug && !_isHardcodedHidden(contextTenant) && !isHiddenTenant(contextTenant.slug))
     ? contextTenant
     : null;
   const safeTenantLogo = safeTenant?.logo || null;

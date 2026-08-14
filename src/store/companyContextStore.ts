@@ -186,14 +186,21 @@ export const useCompanyContextStore = create<CompanyContextState>()(
           // Even if the API filter fails (e.g., isLiveMode detection issue on
           // Vercel), we enforce the same rules on the client side so the
           // company switcher never shows phantom tenants.
+          // NUCLEAR: Also hardcode-check slug and name — works even during SSR.
           const hiddenSlugs = getHiddenSlugs();
+          const _HARDCODED_HIDDEN = ['3boxes-hrms-demo', '3boxeshrms'];
+          const _HARDCODED_HIDDEN_NAME = 'Marq AI Tech Pvt Ltd';
+          const _isHardcodedHidden = (t: { slug?: string; name?: string } | null) =>
+            !t ? false :
+            _HARDCODED_HIDDEN.includes(t.slug || '') ||
+            (t.name || '').includes(_HARDCODED_HIDDEN_NAME);
           if (data.availableTenants) {
             data.availableTenants = data.availableTenants.filter(
-              (t: TenantOption) => !hiddenSlugs.includes(t.slug)
+              (t: TenantOption) => !hiddenSlugs.includes(t.slug) && !_isHardcodedHidden(t)
             );
           }
           // Also override tenant/tenantId if they point to a hidden tenant
-          if (data.tenant && data.tenant.slug && hiddenSlugs.includes(data.tenant.slug)) {
+          if (data.tenant && (hiddenSlugs.includes(data.tenant.slug) || _isHardcodedHidden(data.tenant))) {
             data.tenant = data.availableTenants?.[0] || null;
             data.tenantId = data.availableTenants?.[0]?.id || null;
           }
@@ -527,12 +534,29 @@ export const useCompanyContextStore = create<CompanyContextState>()(
         return (_state, persisted) => {
           if (!persisted) return;
           const hidden = getHiddenSlugs();
+          // NUCLEAR: Also hardcode-check — works even if getHiddenSlugs() fails
+          const _HARDCODED_HIDDEN = ['3boxes-hrms-demo', '3boxeshrms'];
+          const _HARDCODED_HIDDEN_NAME = 'Marq AI Tech Pvt Ltd';
+          const _isHardcodedHidden = (t: { slug?: string; name?: string } | null) =>
+            !t ? false :
+            _HARDCODED_HIDDEN.includes(t.slug || '') ||
+            (t.name || '').includes(_HARDCODED_HIDDEN_NAME);
           // If persisted tenant points to a hidden slug, null it out
-          if (persisted.tenant && persisted.tenant.slug && hidden.includes(persisted.tenant.slug)) {
+          if (persisted.tenant && persisted.tenant.slug && (hidden.includes(persisted.tenant.slug) || _isHardcodedHidden(persisted.tenant))) {
             console.warn(`[companyCtx] Scrubbing hidden tenant "${persisted.tenant.slug}" from localStorage on rehydration`);
             persisted.tenant = null;
             persisted.tenantId = null;
             persisted.selectedTenantId = null;
+          }
+          // NUCLEAR: Also filter availableTenants that match hardcoded hidden slugs/names
+          if (persisted.availableTenants && Array.isArray(persisted.availableTenants)) {
+            const before = persisted.availableTenants.length;
+            persisted.availableTenants = persisted.availableTenants.filter(
+              (t: TenantOption) => !hidden.includes(t.slug) && !_isHardcodedHidden(t)
+            );
+            if (persisted.availableTenants.length !== before) {
+              console.warn(`[companyCtx] Scrubbed ${before - persisted.availableTenants.length} hidden tenants from availableTenants on rehydration`);
+            }
           }
           // If persisted tenantId is set but tenant was cleared, also clear
           if (persisted.tenantId && !persisted.tenant) {

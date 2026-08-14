@@ -243,8 +243,7 @@ export const navSections: NavSection[] = [
 
       // ── Settings ──
       { label: 'Settings', href: '#settings-divider', icon: <FiSettings className="w-3.5 h-3.5" />, moduleKey: 'leave', isDivider: true },
-      { label: 'Leave Policy', href: '/leave/leave-policy', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'leave' },
-      { label: 'Leave Policy Config', href: '/leave/settings', icon: <FiSettings className="w-4 h-4" />, moduleKey: 'leave', isNew: true },
+      { label: 'Leave Policy & Settings', href: '/leave/leave-policy', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'leave' },
       { label: 'Leave Types', href: '/leave/types', icon: <FiLayers className="w-4 h-4" />, moduleKey: 'leave', isNew: true },
       { label: 'Holiday Calendar', href: '/leave/holidays', icon: <FiCalendar className="w-4 h-4" />, moduleKey: 'leave', isNew: true },
 

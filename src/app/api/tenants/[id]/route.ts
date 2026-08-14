@@ -3,6 +3,15 @@ import { getDb, getPlatformDb, getDbForTenant } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { createNotification } from '@/lib/notifications';
 import { ensureSchemaSynced } from '@/lib/schema-sync';
+import { getServerHiddenSlugs, LIVE_HIDDEN_SLUGS, DEMO_HIDDEN_SLUGS } from '@/lib/tenant-filter';
+import { isLiveMode } from '@/lib/site-mode';
+
+// ─── Hidden Tenant Slugs (GOLDEN RULE — FOOLPROOF) ──────────────────
+function getHiddenSlugsForRequest(request: Request): string[] {
+  const foolproof = getServerHiddenSlugs(request);
+  const siteMode = isLiveMode(request) ? LIVE_HIDDEN_SLUGS : DEMO_HIDDEN_SLUGS;
+  return [...new Set([...foolproof, ...siteMode])];
+}
 
 function corsHeaders() {
   return {
@@ -66,6 +75,12 @@ export async function GET(
     });
 
     if (!tenantBasic) {
+      return NextResponse.json({ error: 'Tenant not found' }, { status: 404, headers: corsHeaders() });
+    }
+
+    // ─── GOLDEN RULE: Block access to hidden tenants ───
+    const hiddenSlugs = getHiddenSlugsForRequest(request);
+    if (tenantBasic.slug && hiddenSlugs.includes(tenantBasic.slug)) {
       return NextResponse.json({ error: 'Tenant not found' }, { status: 404, headers: corsHeaders() });
     }
 

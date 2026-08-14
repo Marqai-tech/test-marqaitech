@@ -1,11 +1,17 @@
 import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { createToken, verifyToken } from '@/lib/auth';
+import { getServerHiddenSlugs, LIVE_HIDDEN_SLUGS, DEMO_HIDDEN_SLUGS } from '@/lib/tenant-filter';
 import { isLiveMode } from '@/lib/site-mode';
 
-// ─── Hidden Tenant Slugs (MUST match companyContextStore.ts) ────
-const LIVE_HIDDEN_SLUGS = ['3boxes-hrms-demo', '3boxeshrms'];
-const DEMO_HIDDEN_SLUGS = ['marqaitechgroup'];
+// ─── Hidden Tenant Slugs (GOLDEN RULE — FOOLPROOF) ──────────────────
+// Uses tenant-filter.ts as PRIMARY (direct hostname check), then
+// isLiveMode() as SECONDARY. A slug is hidden if EITHER says so.
+function getHiddenSlugsForRequest(request: Request): string[] {
+  const foolproof = getServerHiddenSlugs(request);
+  const siteMode = isLiveMode(request) ? LIVE_HIDDEN_SLUGS : DEMO_HIDDEN_SLUGS;
+  return [...new Set([...foolproof, ...siteMode])];
+}
 
 function corsHeaders() {
   return {
@@ -82,7 +88,7 @@ export async function POST(request: Request) {
     }
 
     // ─── GOLDEN RULE: Block switching to hidden tenants ───
-    const hiddenSlugs = isLiveMode(request) ? LIVE_HIDDEN_SLUGS : DEMO_HIDDEN_SLUGS;
+    const hiddenSlugs = getHiddenSlugsForRequest(request);
     if (targetUser.tenant?.slug && hiddenSlugs.includes(targetUser.tenant.slug)) {
       return NextResponse.json(
         { error: 'Cannot switch to this tenant' },
