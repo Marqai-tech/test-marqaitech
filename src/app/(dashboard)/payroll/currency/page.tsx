@@ -4,6 +4,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useCallback, useEffect, useState } from 'react';
 import { FiDollarSign, FiPlus, FiEdit2, FiTrash2, FiEye, FiX, FiSearch, FiRefreshCw, FiTrendingUp, FiRepeat } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import { useCompanyContextStore } from '@/store/companyContextStore';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -152,6 +153,7 @@ const emptyRateForm = {
 
 export default function CurrencyFXPage() {
   const { user } = useAuthStore();
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
   const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'admin';
 
   const [currencyConfigs, setCurrencyConfigs] = useState<CurrencyConfig[]>([]);
@@ -186,8 +188,8 @@ export default function CurrencyFXPage() {
     try {
       setLoading(true);
       const [currRes, rateRes] = await Promise.all([
-        fetch('/api/payroll/currency', { headers: getAuthHeaders() }),
-        fetch('/api/payroll/exchange-rates', { headers: getAuthHeaders() }),
+        fetch(`/api/payroll/currency?${scopeQuery}` , { headers: getAuthHeaders() }),
+        fetch(`/api/payroll/exchange-rates?${scopeQuery}` , { headers: getAuthHeaders() }),
       ]);
 
       if (currRes.ok) {
@@ -204,6 +206,9 @@ export default function CurrencyFXPage() {
       setLoading(false);
     }
   }, []);
+  const cid = effectiveCompanyId();
+  const scopeQuery = cid ? `companyId=${cid}&` : '';
+
 
   useEffect(() => { queueMicrotask(() => fetchData()); }, [fetchData]);
 
@@ -267,13 +272,13 @@ export default function CurrencyFXPage() {
         roundingPrecision: parseInt(configForm.roundingPrecision) || 2,
       };
       if (editingConfigId) {
-        const res = await fetch(`/api/payroll/currency/${editingConfigId}`, {
+        const res = await fetch(`/api/payroll/currency/${editingConfigId}?${scopeQuery}` , {
           method: 'PUT', headers: getAuthHeaders(), body: JSON.stringify(payload),
         });
         if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed to update'); }
         toast.success('Currency config updated');
       } else {
-        const res = await fetch('/api/payroll/currency', {
+        const res = await fetch(`/api/payroll/currency?${scopeQuery}` , {
           method: 'POST', headers: getAuthHeaders(), body: JSON.stringify(payload),
         });
         if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed to create'); }
@@ -329,13 +334,13 @@ export default function CurrencyFXPage() {
         isActive: true,
       };
       if (editingRateId) {
-        const res = await fetch(`/api/payroll/exchange-rates/${editingRateId}`, {
+        const res = await fetch(`/api/payroll/exchange-rates/${editingRateId}?${scopeQuery}` , {
           method: 'PUT', headers: getAuthHeaders(), body: JSON.stringify(payload),
         });
         if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed to update'); }
         toast.success('Exchange rate updated');
       } else {
-        const res = await fetch('/api/payroll/exchange-rates', {
+        const res = await fetch(`/api/payroll/exchange-rates?${scopeQuery}` , {
           method: 'POST', headers: getAuthHeaders(), body: JSON.stringify(payload),
         });
         if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed to create'); }

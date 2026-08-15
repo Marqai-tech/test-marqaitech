@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { FiLayers, FiDatabase, FiShield, FiBarChart2, FiEdit3, FiPercent, FiClipboard, FiDollarSign, FiGrid, FiGlobe, FiArrowRight } from 'react-icons/fi';
+import { useCompanyContextStore } from '@/store/companyContextStore';
 
 interface MasterTile {
   title: string;

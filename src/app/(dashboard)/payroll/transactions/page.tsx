@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { FiEdit3, FiPlayCircle, FiActivity, FiDollarSign, FiTruck, FiLock, FiCheckSquare, FiFile, FiGlobe, FiUserCheck, FiCpu, FiArrowRight } from 'react-icons/fi';
+import { useCompanyContextStore } from '@/store/companyContextStore';
 
 interface TransactionTile {
   title: string;

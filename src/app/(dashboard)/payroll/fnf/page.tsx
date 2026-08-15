@@ -8,6 +8,7 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import { useCompanyContextStore } from '@/store/companyContextStore';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -101,6 +102,7 @@ const emptyForm = {
 
 export default function FNFSettlementPage() {
   const { user } = useAuthStore();
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
   const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'admin';
 
   const [records, setRecords] = useState<FNFCalculation[]>([]);
@@ -119,7 +121,7 @@ export default function FNFSettlementPage() {
 
   const fetchEmployees = useCallback(async () => {
     try {
-      const res = await fetch('/api/employees?limit=200', { headers: getAuthHeaders() });
+      const res = await fetch(`/api/employees?${scopeQuery}limit=200`, { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
         const list = data.employees || data.data || [];
@@ -153,6 +155,9 @@ export default function FNFSettlementPage() {
       setLoading(false);
     }
   }, [statusFilter, employeeFilter]);
+  const cid = effectiveCompanyId();
+  const scopeQuery = cid ? `companyId=${cid}&` : '';
+
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -257,13 +262,13 @@ export default function FNFSettlementPage() {
       };
 
       if (editingId) {
-        const res = await fetch(`/api/payroll/fnf/${editingId}`, {
+        const res = await fetch(`/api/payroll/fnf/${editingId}?${scopeQuery}` , {
           method: 'PUT', headers: getAuthHeaders(), body: JSON.stringify(payload),
         });
         if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed to update'); }
         toast.success('F&F calculation updated successfully');
       } else {
-        const res = await fetch('/api/payroll/fnf', {
+        const res = await fetch(`/api/payroll/fnf?${scopeQuery}` , {
           method: 'POST', headers: getAuthHeaders(), body: JSON.stringify(payload),
         });
         if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed to create'); }
@@ -280,7 +285,7 @@ export default function FNFSettlementPage() {
 
   const handleStatusAction = async (id: string, status: string) => {
     try {
-      const res = await fetch(`/api/payroll/fnf/${id}`, {
+      const res = await fetch(`/api/payroll/fnf/${id}?${scopeQuery}` , {
         method: 'PATCH', headers: getAuthHeaders(), body: JSON.stringify({ status }),
       });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
@@ -294,7 +299,7 @@ export default function FNFSettlementPage() {
 
   const handleViewDetail = async (id: string) => {
     try {
-      const res = await fetch(`/api/payroll/fnf/${id}`, { headers: getAuthHeaders() });
+      const res = await fetch(`/api/payroll/fnf/${id}?${scopeQuery}` , { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
         setDetailData(data.data);

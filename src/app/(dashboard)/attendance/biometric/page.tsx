@@ -20,6 +20,7 @@ import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import ModuleTips from '@/components/ModuleTips';
 import ModuleWorkflow from '@/components/ModuleWorkflow';
+import { useCompanyContextStore } from '@/store/companyContextStore';
 
 /* ── Auth helpers ── */
 function getAuthHeaders() {
@@ -111,6 +112,7 @@ const biometricWorkflowSteps = [
 /* ── Component ── */
 export default function BiometricPage() {
   const { user } = useAuthStore();
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
   const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
 
   const [tab, setTab] = useState<'devices' | 'enrollments' | 'punches' | 'thresholds'>('devices');
@@ -128,6 +130,9 @@ export default function BiometricPage() {
   const [newToken, setNewToken] = useState<{ device: string; token: string } | null>(null);
   const [punchesSummary, setPunchesSummary] = useState<{ todayTotal: number; todayFlagged: number; last7Flagged: number } | null>(null);
   const [nowTick, setNowTick] = useState(() => Date.now());
+  const cid = effectiveCompanyId();
+  const scopeQuery = cid ? `companyId=${cid}&` : '';
+
 
   useEffect(() => {
     const id = setInterval(() => setNowTick(Date.now()), 60_000);
@@ -156,7 +161,7 @@ export default function BiometricPage() {
   /* ── Fetchers ── */
   const fetchDevices = useCallback(async () => {
     try {
-      const r = await fetch('/api/attendance/biometric/devices', { headers: getAuthHeaders() });
+      const r = await fetch(`/api/attendance/biometric/devices?${scopeQuery}` , { headers: getAuthHeaders() });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error);
       setDevices(d.devices || []);
@@ -167,7 +172,7 @@ export default function BiometricPage() {
 
   const fetchEnrollments = useCallback(async () => {
     try {
-      const r = await fetch('/api/attendance/biometric/enroll?limit=200', { headers: getAuthHeaders() });
+      const r = await fetch(`/api/attendance/biometric/enroll?${scopeQuery}limit=200`, { headers: getAuthHeaders() });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error);
       setEnrollments(d.enrollments || []);
@@ -178,7 +183,7 @@ export default function BiometricPage() {
 
   const fetchPunches = useCallback(async () => {
     try {
-      const r = await fetch('/api/attendance/biometric/punch-log?limit=100', { headers: getAuthHeaders() });
+      const r = await fetch(`/api/attendance/biometric/punch-log?${scopeQuery}limit=100`, { headers: getAuthHeaders() });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error);
       setPunches(d.punches || []);
@@ -190,7 +195,7 @@ export default function BiometricPage() {
 
   const fetchThresholds = useCallback(async () => {
     try {
-      const r = await fetch('/api/attendance/biometric/thresholds', { headers: getAuthHeaders() });
+      const r = await fetch(`/api/attendance/biometric/thresholds?${scopeQuery}` , { headers: getAuthHeaders() });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error);
       setThresholds(d.thresholds);
@@ -202,9 +207,9 @@ export default function BiometricPage() {
   const fetchAux = useCallback(async () => {
     try {
       const [br, gf, em] = await Promise.all([
-        fetch('/api/branches?limit=200', { headers: getAuthHeaders() }).then((r) => r.json()).catch(() => ({ branches: [] })),
-        fetch('/api/attendance/geofence?limit=200', { headers: getAuthHeaders() }).then((r) => r.json()).catch(() => ({ geofences: [] })),
-        fetch('/api/employees?limit=500', { headers: getAuthHeaders() }).then((r) => r.json()).catch(() => ({ employees: [] })),
+        fetch(`/api/branches?${scopeQuery}limit=200`, { headers: getAuthHeaders() }).then((r) => r.json()).catch(() => ({ branches: [] })),
+        fetch(`/api/attendance/geofence?${scopeQuery}limit=200`, { headers: getAuthHeaders() }).then((r) => r.json()).catch(() => ({ geofences: [] })),
+        fetch(`/api/employees?${scopeQuery}limit=500`, { headers: getAuthHeaders() }).then((r) => r.json()).catch(() => ({ employees: [] })),
       ]);
       setBranches(br.branches || []);
       setGeofences(gf.geofences || []);
@@ -228,7 +233,7 @@ export default function BiometricPage() {
     }
     setSubmitting(true);
     try {
-      const r = await fetch('/api/attendance/biometric/devices', {
+      const r = await fetch(`/api/attendance/biometric/devices?${scopeQuery}` , {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify(deviceForm),
@@ -255,7 +260,7 @@ export default function BiometricPage() {
     }
     setSubmitting(true);
     try {
-      const r = await fetch('/api/attendance/biometric/enroll', {
+      const r = await fetch(`/api/attendance/biometric/enroll?${scopeQuery}` , {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({
@@ -280,7 +285,7 @@ export default function BiometricPage() {
   const handleRotate = async (deviceId: string, deviceName: string) => {
     if (!confirm(`Rotate API token for "${deviceName}"? The old token stops working immediately.`)) return;
     try {
-      const r = await fetch(`/api/attendance/biometric/devices/${deviceId}/rotate-token`, {
+      const r = await fetch(`/api/attendance/biometric/devices/${deviceId}/rotate-token?${scopeQuery}` , {
         method: 'POST',
         headers: getAuthHeaders(),
       });
@@ -296,7 +301,7 @@ export default function BiometricPage() {
   /* ── Toggle active ── */
   const handleToggleActive = async (device: BiometricDevice) => {
     try {
-      const r = await fetch(`/api/attendance/biometric/devices/${device.id}`, {
+      const r = await fetch(`/api/attendance/biometric/devices/${device.id}?${scopeQuery}` , {
         method: 'PATCH',
         headers: getAuthHeaders(),
         body: JSON.stringify({ isActive: !device.isActive }),
@@ -314,7 +319,7 @@ export default function BiometricPage() {
   const handleRevokeEnrollment = async (enrollment: BiometricEnrollment) => {
     if (!confirm(`Revoke biometric enrollment for ${enrollment.employee.firstName} ${enrollment.employee.lastName} on ${enrollment.device.name}?`)) return;
     try {
-      const r = await fetch(`/api/attendance/biometric/enrollments/${enrollment.id}`, {
+      const r = await fetch(`/api/attendance/biometric/enrollments/${enrollment.id}?${scopeQuery}` , {
         method: 'DELETE',
         headers: getAuthHeaders(),
       });
@@ -332,7 +337,7 @@ export default function BiometricPage() {
     if (!thresholds) return;
     setSubmitting(true);
     try {
-      const r = await fetch('/api/attendance/biometric/thresholds', {
+      const r = await fetch(`/api/attendance/biometric/thresholds?${scopeQuery}` , {
         method: 'PATCH',
         headers: getAuthHeaders(),
         body: JSON.stringify(thresholds),

@@ -4,6 +4,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useCallback, useEffect, useState } from 'react';
 import { FiBook, FiPlus, FiEdit2, FiTrash2, FiEye, FiX, FiSearch, FiRefreshCw } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import { useCompanyContextStore } from '@/store/companyContextStore';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -98,6 +99,7 @@ const emptyForm = {
 
 export default function GLMappingPage() {
   const { user } = useAuthStore();
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
   const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'admin' || user?.role === 'admin';
 
   const [mappings, setMappings] = useState<GLAccountMapping[]>([]);
@@ -116,8 +118,8 @@ export default function GLMappingPage() {
     try {
       setLoading(true);
       const [mappingRes, compRes] = await Promise.all([
-        fetch('/api/payroll/gl-mappings', { headers: getAuthHeaders() }),
-        fetch('/api/payroll/components', { headers: getAuthHeaders() }),
+        fetch(`/api/payroll/gl-mappings?${scopeQuery}` , { headers: getAuthHeaders() }),
+        fetch(`/api/payroll/components?${scopeQuery}` , { headers: getAuthHeaders() }),
       ]);
       if (mappingRes.ok) {
         const data = await mappingRes.json();
@@ -134,6 +136,9 @@ export default function GLMappingPage() {
       setLoading(false);
     }
   }, []);
+  const cid = effectiveCompanyId();
+  const scopeQuery = cid ? `companyId=${cid}&` : '';
+
 
   useEffect(() => { queueMicrotask(() => fetchData()); }, [fetchData]);
 
@@ -190,11 +195,11 @@ export default function GLMappingPage() {
         effectiveTo: form.effectiveTo ? new Date(form.effectiveTo).toISOString() : null,
       };
       if (editingId) {
-        const res = await fetch(`/api/payroll/gl-mappings/${editingId}`, { method: 'PUT', headers: getAuthHeaders(), body: JSON.stringify(payload) });
+        const res = await fetch(`/api/payroll/gl-mappings/${editingId}?${scopeQuery}` , { method: 'PUT', headers: getAuthHeaders(), body: JSON.stringify(payload) });
         if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed to update'); }
         toast.success('GL mapping updated');
       } else {
-        const res = await fetch('/api/payroll/gl-mappings', { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify(payload) });
+        const res = await fetch(`/api/payroll/gl-mappings?${scopeQuery}` , { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify(payload) });
         if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed to create'); }
         toast.success('GL mapping created');
       }
@@ -209,7 +214,7 @@ export default function GLMappingPage() {
   const handleDelete = async (id: string) => {
     setDeleting(true);
     try {
-      const res = await fetch(`/api/payroll/gl-mappings/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
+      const res = await fetch(`/api/payroll/gl-mappings/${id}?${scopeQuery}` , { method: 'DELETE', headers: getAuthHeaders() });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed to delete'); }
       toast.success('GL mapping deleted');
       setDeleteConfirmId(null);

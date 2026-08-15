@@ -18,6 +18,7 @@ import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import ModuleTips from '@/components/ModuleTips';
 import ModuleWorkflow from '@/components/ModuleWorkflow';
+import { useCompanyContextStore } from '@/store/companyContextStore';
 
 /* ── Types ── */
 interface Asset {
@@ -187,6 +188,7 @@ export default function AssetsPage() {
 /* ── Component ── */
 function AssetsContent() {
   const { user } = useAuthStore();
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
   const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
 
   const [assets, setAssets] = useState<Asset[]>([]);
@@ -212,7 +214,7 @@ function AssetsContent() {
       if (filterCategory) params.set('category', filterCategory);
       if (filterStatus) params.set('status', filterStatus);
 
-      const assetsRes = await fetch(`/api/assets?${params.toString()}`, { headers });
+      const assetsRes = await fetch(`/api/assets?${scopeQuery}${params.toString()}` , { headers });
 
       if (assetsRes.ok) {
         const data = await assetsRes.json();
@@ -225,6 +227,9 @@ function AssetsContent() {
       setLoading(false);
     }
   }, [filterCategory, filterStatus]);
+  const cid = effectiveCompanyId();
+  const scopeQuery = cid ? `companyId=${cid}&` : '';
+
 
   useEffect(() => { queueMicrotask(() => fetchData()); }, [fetchData]);
 
@@ -294,7 +299,7 @@ function AssetsContent() {
       };
 
       if (editingId) {
-        const res = await fetch(`/api/assets/${editingId}`, {
+        const res = await fetch(`/api/assets/${editingId}?${scopeQuery}` , {
           method: 'PATCH',
           headers: getAuthHeaders(),
           body: JSON.stringify(body),
@@ -302,7 +307,7 @@ function AssetsContent() {
         if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed to update'); }
         toast.success('Asset updated successfully');
       } else {
-        const res = await fetch('/api/assets', {
+        const res = await fetch(`/api/assets?${scopeQuery}` , {
           method: 'POST',
           headers: getAuthHeaders(),
           body: JSON.stringify(body),
@@ -323,7 +328,7 @@ function AssetsContent() {
   const handleDelete = async (id: string) => {
     try {
       setDeleting(true);
-      const res = await fetch(`/api/assets/${id}`, {
+      const res = await fetch(`/api/assets/${id}?${scopeQuery}` , {
         method: 'DELETE',
         headers: getAuthHeaders(),
       });

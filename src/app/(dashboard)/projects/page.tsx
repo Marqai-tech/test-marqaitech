@@ -9,6 +9,7 @@ import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import ModuleTips from '@/components/ModuleTips';
 import ModuleWorkflow from '@/components/ModuleWorkflow';
+import { useCompanyContextStore } from '@/store/companyContextStore';
 
 /* ── Helpers ── */
 function getAuthHeaders() {
@@ -161,6 +162,7 @@ const projectWorkflowSteps = [
 /* ── Component ── */
 export default function ProjectsPage() {
   const { user } = useAuthStore();
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
   const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
 
   const [projects, setProjects] = useState<Project[]>([]);
@@ -189,7 +191,7 @@ export default function ProjectsPage() {
   const fetchProjects = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/projects?limit=100', { headers: getAuthHeaders() });
+      const res = await fetch(`/api/projects?${scopeQuery}limit=100`, { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
         setProjects(data.projects || (Array.isArray(data) ? data : []));
@@ -200,6 +202,9 @@ export default function ProjectsPage() {
       setLoading(false);
     }
   }, []);
+  const cid = effectiveCompanyId();
+  const scopeQuery = cid ? `companyId=${cid}&` : '';
+
 
   useEffect(() => {
     queueMicrotask(() => fetchProjects());
@@ -213,7 +218,7 @@ export default function ProjectsPage() {
     setDetailTab('tasks');
     setTimeout(() => document.getElementById('view-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
     try {
-      const res = await fetch(`/api/projects/${p.id}`, { headers: getAuthHeaders() });
+      const res = await fetch(`/api/projects/${p.id}?${scopeQuery}` , { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
         setViewingProject(data.project || data);
@@ -299,7 +304,7 @@ export default function ProjectsPage() {
 
       if (editingId) {
         // PATCH for editing
-        const res = await fetch(`/api/projects/${editingId}`, {
+        const res = await fetch(`/api/projects/${editingId}?${scopeQuery}` , {
           method: 'PUT',
           headers: getAuthHeaders(),
           body: JSON.stringify(body),
@@ -312,7 +317,7 @@ export default function ProjectsPage() {
       } else {
         // POST for creating
         body.companyId = form.companyId;
-        const res = await fetch('/api/projects', {
+        const res = await fetch(`/api/projects?${scopeQuery}` , {
           method: 'POST',
           headers: getAuthHeaders(),
           body: JSON.stringify(body),
@@ -337,7 +342,7 @@ export default function ProjectsPage() {
   const handleDelete = async (id: string) => {
     try {
       setDeleting(true);
-      const res = await fetch(`/api/projects/${id}`, {
+      const res = await fetch(`/api/projects/${id}?${scopeQuery}` , {
         method: 'DELETE',
         headers: getAuthHeaders(),
       });
@@ -363,7 +368,7 @@ export default function ProjectsPage() {
   const handleAddTask = async () => {
     if (!newTask.name || !viewingProject) return;
     try {
-      const res = await fetch(`/api/projects/${viewingProject.id}/tasks`, {
+      const res = await fetch(`/api/projects/${viewingProject.id}/tasks?${scopeQuery}` , {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify(newTask),
@@ -372,7 +377,7 @@ export default function ProjectsPage() {
       toast.success('Task added');
       setNewTask({ name: '', priority: 'medium', estimatedHours: 0 });
       // Refresh the viewing project
-      const fresh = await fetch(`/api/projects/${viewingProject.id}`, { headers: getAuthHeaders() });
+      const fresh = await fetch(`/api/projects/${viewingProject.id}?${scopeQuery}` , { headers: getAuthHeaders() });
       if (fresh.ok) {
         const data = await fresh.json();
         setViewingProject(data.project || data);

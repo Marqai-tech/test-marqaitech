@@ -4,6 +4,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useCallback, useEffect, useState } from 'react';
 import { FiCreditCard, FiPlus, FiEdit2, FiTrash2, FiEye, FiX, FiSearch, FiRefreshCw, FiUser, FiStar } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import { useCompanyContextStore } from '@/store/companyContextStore';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -127,6 +128,7 @@ const emptyForm = {
 
 export default function EmployeePaymentMethodsPage() {
   const { user } = useAuthStore();
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
   const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'admin';
 
   const [paymentMethods, setPaymentMethods] = useState<EmployeePaymentMethod[]>([]);
@@ -153,7 +155,7 @@ export default function EmployeePaymentMethodsPage() {
   // --- Data Fetching ---
   const fetchEmployees = useCallback(async () => {
     try {
-      const res = await fetch('/api/employees?limit=500', { headers: getAuthHeaders() });
+      const res = await fetch(`/api/employees?${scopeQuery}limit=500`, { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
         const list = Array.isArray(data) ? data : data.data || data.employees || [];
@@ -191,6 +193,9 @@ export default function EmployeePaymentMethodsPage() {
       setLoading(false);
     }
   }, [employeeFilter, statusFilter, paymentTypeFilter, primaryFilter]);
+  const cid = effectiveCompanyId();
+  const scopeQuery = cid ? `companyId=${cid}&` : '';
+
 
   useEffect(() => { queueMicrotask(() => { fetchEmployees(); fetchData(); }); }, [fetchEmployees, fetchData]);
 
@@ -254,7 +259,7 @@ export default function EmployeePaymentMethodsPage() {
     setViewLoading(true);
     setViewingMethod(null);
     try {
-      const res = await fetch(`/api/payroll/payment-methods/${m.id}`, { headers: getAuthHeaders() });
+      const res = await fetch(`/api/payroll/payment-methods/${m.id}?${scopeQuery}` , { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
         setViewingMethod(data.data || data);
@@ -290,7 +295,7 @@ export default function EmployeePaymentMethodsPage() {
       };
 
       if (editingId) {
-        const res = await fetch(`/api/payroll/payment-methods/${editingId}`, {
+        const res = await fetch(`/api/payroll/payment-methods/${editingId}?${scopeQuery}` , {
           method: 'PUT',
           headers: getAuthHeaders(),
           body: JSON.stringify(payload),
@@ -298,7 +303,7 @@ export default function EmployeePaymentMethodsPage() {
         if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed to update'); }
         toast.success('Payment method updated successfully');
       } else {
-        const res = await fetch('/api/payroll/payment-methods', {
+        const res = await fetch(`/api/payroll/payment-methods?${scopeQuery}` , {
           method: 'POST',
           headers: getAuthHeaders(),
           body: JSON.stringify(payload),
@@ -318,7 +323,7 @@ export default function EmployeePaymentMethodsPage() {
   const handleDelete = async (id: string) => {
     setDeleting(true);
     try {
-      const res = await fetch(`/api/payroll/payment-methods/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
+      const res = await fetch(`/api/payroll/payment-methods/${id}?${scopeQuery}` , { method: 'DELETE', headers: getAuthHeaders() });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed to delete'); }
       toast.success('Payment method deactivated successfully');
       setDeleteConfirmId(null);

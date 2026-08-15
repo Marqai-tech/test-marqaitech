@@ -4,6 +4,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useCallback, useEffect, useState } from 'react';
 import { FiDatabase, FiPlus, FiEdit2, FiTrash2, FiEye, FiX, FiSearch, FiRefreshCw } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import { useCompanyContextStore } from '@/store/companyContextStore';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -160,6 +161,7 @@ const emptyForm = {
 
 export default function PayrollComponentsPage() {
   const { user } = useAuthStore();
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
   const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'admin';
 
   const [components, setComponents] = useState<PayrollComponent[]>([]);
@@ -204,6 +206,9 @@ export default function PayrollComponentsPage() {
       setLoading(false);
     }
   }, [countryFilter, typeFilter, categoryFilter, activeFilter]);
+  const cid = effectiveCompanyId();
+  const scopeQuery = cid ? `companyId=${cid}&` : '';
+
 
   useEffect(() => { queueMicrotask(() => fetchData()); }, [fetchData]);
 
@@ -269,7 +274,7 @@ export default function PayrollComponentsPage() {
     setViewLoading(true);
     setViewingComponent(null);
     try {
-      const res = await fetch(`/api/payroll/components/${c.id}`, { headers: getAuthHeaders() });
+      const res = await fetch(`/api/payroll/components/${c.id}?${scopeQuery}` , { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
         setViewingComponent(data.data || data);
@@ -303,7 +308,7 @@ export default function PayrollComponentsPage() {
       };
 
       if (editingId) {
-        const res = await fetch(`/api/payroll/components/${editingId}`, {
+        const res = await fetch(`/api/payroll/components/${editingId}?${scopeQuery}` , {
           method: 'PUT',
           headers: getAuthHeaders(),
           body: JSON.stringify(payload),
@@ -311,7 +316,7 @@ export default function PayrollComponentsPage() {
         if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed to update'); }
         toast.success('Component updated successfully');
       } else {
-        const res = await fetch('/api/payroll/components', {
+        const res = await fetch(`/api/payroll/components?${scopeQuery}` , {
           method: 'POST',
           headers: getAuthHeaders(),
           body: JSON.stringify(payload),
@@ -331,7 +336,7 @@ export default function PayrollComponentsPage() {
   const handleDelete = async (id: string) => {
     setDeleting(true);
     try {
-      const res = await fetch(`/api/payroll/components/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
+      const res = await fetch(`/api/payroll/components/${id}?${scopeQuery}` , { method: 'DELETE', headers: getAuthHeaders() });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed to delete'); }
       toast.success('Component deactivated successfully');
       setDeleteConfirmId(null);

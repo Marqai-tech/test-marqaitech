@@ -8,6 +8,7 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import { useCompanyContextStore } from '@/store/companyContextStore';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -105,6 +106,7 @@ function calculateAmount(rateType: string, hours: number, rate: number, basicSal
 
 export default function OvertimePage() {
   const { user } = useAuthStore();
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
   const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'admin';
 
   const [records, setRecords] = useState<OvertimeRecord[]>([]);
@@ -137,7 +139,7 @@ export default function OvertimePage() {
   // --- Data Fetching ---
   const fetchEmployees = useCallback(async () => {
     try {
-      const res = await fetch('/api/employees?limit=200', { headers: getAuthHeaders() });
+      const res = await fetch(`/api/employees?${scopeQuery}limit=200`, { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
         const list = data.employees || data.data || [];
@@ -175,6 +177,9 @@ export default function OvertimePage() {
       setLoading(false);
     }
   }, [statusFilter, employeeFilter, dateFilter]);
+  const cid = effectiveCompanyId();
+  const scopeQuery = cid ? `companyId=${cid}&` : '';
+
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -264,7 +269,7 @@ export default function OvertimePage() {
       };
 
       if (editingId) {
-        const res = await fetch(`/api/payroll/overtime/${editingId}`, {
+        const res = await fetch(`/api/payroll/overtime/${editingId}?${scopeQuery}` , {
           method: 'PUT',
           headers: getAuthHeaders(),
           body: JSON.stringify(payload),
@@ -272,7 +277,7 @@ export default function OvertimePage() {
         if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed to update'); }
         toast.success('Overtime record updated successfully');
       } else {
-        const res = await fetch('/api/payroll/overtime', {
+        const res = await fetch(`/api/payroll/overtime?${scopeQuery}` , {
           method: 'POST',
           headers: getAuthHeaders(),
           body: JSON.stringify(payload),
@@ -292,7 +297,7 @@ export default function OvertimePage() {
   const handleDelete = async (id: string) => {
     setDeleting(true);
     try {
-      const res = await fetch(`/api/payroll/overtime/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
+      const res = await fetch(`/api/payroll/overtime/${id}?${scopeQuery}` , { method: 'DELETE', headers: getAuthHeaders() });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed to delete'); }
       toast.success('Overtime record deleted successfully');
       setDeleteConfirmId(null);
@@ -307,7 +312,7 @@ export default function OvertimePage() {
   // --- Approval Handlers ---
   const handleApprove = async (id: string) => {
     try {
-      const res = await fetch(`/api/payroll/overtime/${id}`, {
+      const res = await fetch(`/api/payroll/overtime/${id}?${scopeQuery}` , {
         method: 'PATCH',
         headers: getAuthHeaders(),
         body: JSON.stringify({ status: 'approved' }),
@@ -322,7 +327,7 @@ export default function OvertimePage() {
 
   const handleReject = async (id: string) => {
     try {
-      const res = await fetch(`/api/payroll/overtime/${id}`, {
+      const res = await fetch(`/api/payroll/overtime/${id}?${scopeQuery}` , {
         method: 'PATCH',
         headers: getAuthHeaders(),
         body: JSON.stringify({ status: 'rejected' }),

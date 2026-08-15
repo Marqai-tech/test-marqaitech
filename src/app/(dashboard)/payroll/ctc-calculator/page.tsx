@@ -8,6 +8,7 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import { useCompanyContextStore } from '@/store/companyContextStore';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -167,6 +168,7 @@ const IND_DEDUCTION_LABELS: Record<string, string> = {
 // ─── Main Component ───
 export default function CTCCalculatorPage() {
   const { user } = useAuthStore();
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
   const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'admin';
 
   // Input state
@@ -197,7 +199,7 @@ export default function CTCCalculatorPage() {
   const fetchTemplates = useCallback(async () => {
     try {
       setLoadingTemplates(true);
-      const res = await fetch('/api/payroll/ctc-calculator', { headers: getAuthHeaders() });
+      const res = await fetch(`/api/payroll/ctc-calculator?${scopeQuery}` , { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
         setTemplates(Array.isArray(data.data) ? data.data : []);
@@ -208,6 +210,9 @@ export default function CTCCalculatorPage() {
       setLoadingTemplates(false);
     }
   }, []);
+  const cid = effectiveCompanyId();
+  const scopeQuery = cid ? `companyId=${cid}&` : '';
+
 
   useEffect(() => {
     queueMicrotask(() => fetchTemplates());
@@ -238,7 +243,7 @@ export default function CTCCalculatorPage() {
         payload.includeESI = includeESI;
       }
 
-      const res = await fetch('/api/payroll/ctc-calculator', {
+      const res = await fetch(`/api/payroll/ctc-calculator?${scopeQuery}` , {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify(payload),

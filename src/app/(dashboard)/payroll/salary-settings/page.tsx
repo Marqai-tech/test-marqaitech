@@ -7,6 +7,7 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import { useCompanyContextStore } from '@/store/companyContextStore';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -69,6 +70,7 @@ function SettingSection({ title, icon, enabled, onToggle, children }: {
 
 export default function SalarySettingsPage() {
   const { user } = useAuthStore();
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
   const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'admin';
 
   const [settings, setSettings] = useState<SalarySettings>(defaultSettings);
@@ -78,7 +80,7 @@ export default function SalarySettingsPage() {
   const fetchSettings = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/payroll/salary-settings', { headers: getAuthHeaders() });
+      const res = await fetch(`/api/payroll/salary-settings?${scopeQuery}` , { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
         if (data.data) setSettings(data.data);
@@ -89,13 +91,16 @@ export default function SalarySettingsPage() {
       setLoading(false);
     }
   }, []);
+  const cid = effectiveCompanyId();
+  const scopeQuery = cid ? `companyId=${cid}&` : '';
+
 
   useEffect(() => { queueMicrotask(() => fetchSettings()); }, [fetchSettings]);
 
   const handleSave = async () => {
     setSaving(true);
     try {
-      const res = await fetch('/api/payroll/salary-settings', {
+      const res = await fetch(`/api/payroll/salary-settings?${scopeQuery}` , {
         method: 'PUT',
         headers: getAuthHeaders(),
         body: JSON.stringify(settings),

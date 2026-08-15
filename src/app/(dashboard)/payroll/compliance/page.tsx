@@ -4,6 +4,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useCallback, useEffect, useState } from 'react';
 import { FiCalendar, FiPlus, FiEdit2, FiTrash2, FiEye, FiX, FiSearch, FiRefreshCw, FiAlertTriangle, FiCheckCircle, FiClock, FiFileText } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import { useCompanyContextStore } from '@/store/companyContextStore';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -168,6 +169,7 @@ const emptyForm = {
 
 export default function CompliancePage() {
   const { user } = useAuthStore();
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
   const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'admin';
 
   const [obligations, setObligations] = useState<ComplianceObligation[]>([]);
@@ -207,7 +209,7 @@ export default function CompliancePage() {
 
       const [oblRes, filRes] = await Promise.all([
         fetch(`/api/payroll/compliance${qs ? `?${qs}` : ''}`, { headers: getAuthHeaders() }),
-        fetch('/api/payroll/compliance-filings', { headers: getAuthHeaders() }),
+        fetch(`/api/payroll/compliance-filings?${scopeQuery}` , { headers: getAuthHeaders() }),
       ]);
 
       if (oblRes.ok) {
@@ -224,6 +226,9 @@ export default function CompliancePage() {
       setLoading(false);
     }
   }, [countryFilter, frequencyFilter]);
+  const cid = effectiveCompanyId();
+  const scopeQuery = cid ? `companyId=${cid}&` : '';
+
 
   useEffect(() => { queueMicrotask(() => fetchData()); }, [fetchData]);
 
@@ -291,11 +296,11 @@ export default function CompliancePage() {
         filingFormat: form.filingFormat || null,
       };
       if (editingId) {
-        const res = await fetch(`/api/payroll/compliance/${editingId}`, { method: 'PUT', headers: getAuthHeaders(), body: JSON.stringify(payload) });
+        const res = await fetch(`/api/payroll/compliance/${editingId}?${scopeQuery}` , { method: 'PUT', headers: getAuthHeaders(), body: JSON.stringify(payload) });
         if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed to update'); }
         toast.success('Compliance obligation updated');
       } else {
-        const res = await fetch('/api/payroll/compliance', { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify(payload) });
+        const res = await fetch(`/api/payroll/compliance?${scopeQuery}` , { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify(payload) });
         if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed to create'); }
         toast.success('Compliance obligation created');
       }
@@ -310,7 +315,7 @@ export default function CompliancePage() {
   const handleDelete = async (id: string) => {
     setDeleting(true);
     try {
-      const res = await fetch(`/api/payroll/compliance/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
+      const res = await fetch(`/api/payroll/compliance/${id}?${scopeQuery}` , { method: 'DELETE', headers: getAuthHeaders() });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed to delete'); }
       toast.success('Compliance obligation deleted');
       setDeleteConfirmId(null);
@@ -337,7 +342,7 @@ export default function CompliancePage() {
         if (!reason) { setTransitioningFilingId(null); return; }
         body.rejectionReason = reason;
       }
-      const res = await fetch(`/api/payroll/compliance-filings/${filingId}`, {
+      const res = await fetch(`/api/payroll/compliance-filings/${filingId}?${scopeQuery}` , {
         method: 'PATCH', headers: getAuthHeaders(), body: JSON.stringify(body),
       });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed to transition'); }

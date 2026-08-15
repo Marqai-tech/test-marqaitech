@@ -17,6 +17,7 @@ import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import ModuleTips from '@/components/ModuleTips';
 import ModuleWorkflow from '@/components/ModuleWorkflow';
+import { useCompanyContextStore } from '@/store/companyContextStore';
 
 /* ── Types ── */
 interface PerformanceReview {
@@ -187,6 +188,7 @@ export default function PerformancePage() {
 /* ── Component ── */
 function PerformanceContent() {
   const { user } = useAuthStore();
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
   const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
 
   const [reviews, setReviews] = useState<PerformanceReview[]>([]);
@@ -214,8 +216,8 @@ function PerformanceContent() {
       if (filterStatus) params.set('status', filterStatus);
 
       const [revRes, empRes] = await Promise.allSettled([
-        fetch(`/api/performance?${params.toString()}`, { headers }),
-        fetch('/api/employees?limit=500', { headers }),
+        fetch(`/api/performance?${scopeQuery}${params.toString()}` , { headers }),
+        fetch(`/api/employees?${scopeQuery}limit=500`, { headers }),
       ]);
 
       if (revRes.status === 'fulfilled' && revRes.value.ok) {
@@ -234,6 +236,9 @@ function PerformanceContent() {
       setLoading(false);
     }
   }, [filterStatus]);
+  const cid = effectiveCompanyId();
+  const scopeQuery = cid ? `companyId=${cid}&` : '';
+
 
   useEffect(() => { queueMicrotask(() => fetchData()); }, [fetchData]);
 
@@ -316,7 +321,7 @@ function PerformanceContent() {
       };
 
       if (editingId) {
-        const res = await fetch(`/api/performance/${editingId}`, {
+        const res = await fetch(`/api/performance/${editingId}?${scopeQuery}` , {
           method: 'PUT',
           headers,
           body: JSON.stringify(payload),
@@ -324,7 +329,7 @@ function PerformanceContent() {
         if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
         toast.success('Review updated successfully');
       } else {
-        const res = await fetch('/api/performance', {
+        const res = await fetch(`/api/performance?${scopeQuery}` , {
           method: 'POST',
           headers,
           body: JSON.stringify(payload),
@@ -346,7 +351,7 @@ function PerformanceContent() {
   const handleDelete = async (id: string) => {
     try {
       setDeleting(true);
-      const res = await fetch(`/api/performance/${id}`, {
+      const res = await fetch(`/api/performance/${id}?${scopeQuery}` , {
         method: 'DELETE',
         headers: getAuthHeaders(),
       });

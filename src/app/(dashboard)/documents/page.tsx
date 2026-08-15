@@ -15,6 +15,7 @@ import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import ModuleTips from '@/components/ModuleTips';
 import ModuleWorkflow from '@/components/ModuleWorkflow';
+import { useCompanyContextStore } from '@/store/companyContextStore';
 
 /* ── Types ── */
 interface Document {
@@ -127,6 +128,7 @@ const initialForm = {
 /* ── Component ── */
 export default function DocumentsPage() {
   const { user } = useAuthStore();
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
   const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
 
   const [documents, setDocuments] = useState<Document[]>([]);
@@ -155,8 +157,8 @@ export default function DocumentsPage() {
       if (filterStatus) params.set('status', filterStatus);
 
       const [docRes, empRes] = await Promise.all([
-        fetch(`/api/documents?${params.toString()}`, { headers }),
-        fetch('/api/employees?limit=500', { headers }),
+        fetch(`/api/documents?${scopeQuery}${params.toString()}` , { headers }),
+        fetch(`/api/employees?${scopeQuery}limit=500`, { headers }),
       ]);
 
       if (docRes.ok) {
@@ -175,6 +177,9 @@ export default function DocumentsPage() {
       setLoading(false);
     }
   }, [filterType, filterStatus]);
+  const cid = effectiveCompanyId();
+  const scopeQuery = cid ? `companyId=${cid}&` : '';
+
 
   useEffect(() => { queueMicrotask(() => fetchData()); }, [fetchData]);
 
@@ -240,7 +245,7 @@ export default function DocumentsPage() {
       };
 
       if (editingId) {
-        const res = await fetch(`/api/documents/${editingId}`, {
+        const res = await fetch(`/api/documents/${editingId}?${scopeQuery}` , {
           method: 'PATCH',
           headers: getAuthHeaders(),
           body: JSON.stringify(body),
@@ -248,7 +253,7 @@ export default function DocumentsPage() {
         if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed to update'); }
         toast.success('Document updated successfully');
       } else {
-        const res = await fetch('/api/documents', {
+        const res = await fetch(`/api/documents?${scopeQuery}` , {
           method: 'POST',
           headers: getAuthHeaders(),
           body: JSON.stringify({ ...body, employeeId: form.employeeId }),
@@ -269,7 +274,7 @@ export default function DocumentsPage() {
   const handleDelete = async (id: string) => {
     try {
       setDeleting(true);
-      const res = await fetch(`/api/documents/${id}`, {
+      const res = await fetch(`/api/documents/${id}?${scopeQuery}` , {
         method: 'DELETE',
         headers: getAuthHeaders(),
       });

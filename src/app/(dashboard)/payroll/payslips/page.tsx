@@ -7,6 +7,7 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import { useCompanyContextStore } from '@/store/companyContextStore';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -117,6 +118,7 @@ function getStatusBadge(status: string) {
 
 export default function PayslipsPage() {
   useAuthStore();
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
   const [records, setRecords] = useState<PayslipRecord[]>([]);
   const [employees, setEmployees] = useState<EmployeeOption[]>([]);
   const [loading, setLoading] = useState(true);
@@ -130,7 +132,7 @@ export default function PayslipsPage() {
 
   const fetchEmployees = useCallback(async () => {
     try {
-      const res = await fetch('/api/employees?limit=200', { headers: getAuthHeaders() });
+      const res = await fetch(`/api/employees?${scopeQuery}limit=200`, { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
         const list = data.employees || data.data || [];
@@ -153,7 +155,7 @@ export default function PayslipsPage() {
       if (yearFilter) params.set('year', yearFilter);
       if (employeeFilter) params.set('employeeId', employeeFilter);
       const qs = params.toString();
-      const url = `/api/payroll/payslips${qs ? `?${qs}` : ''}`;
+      const url = `/api/payroll/payslips?${scopeQuery}${qs}`;
       const res = await fetch(url, { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
@@ -165,6 +167,9 @@ export default function PayslipsPage() {
       setLoading(false);
     }
   }, [monthFilter, yearFilter, employeeFilter]);
+  const cid = effectiveCompanyId();
+  const scopeQuery = cid ? `companyId=${cid}&` : '';
+
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -202,7 +207,7 @@ export default function PayslipsPage() {
   const handleViewPayslip = async (id: string) => {
     setLoadingDetail(true);
     try {
-      const res = await fetch(`/api/payroll/payslips/${id}`, { headers: getAuthHeaders() });
+      const res = await fetch(`/api/payroll/payslips/${id}?${scopeQuery}` , { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
         setSelectedPayslip(data.data);
@@ -218,7 +223,7 @@ export default function PayslipsPage() {
 
   const handleGeneratePayslip = async (payrollId: string) => {
     try {
-      const res = await fetch('/api/payroll/payslips', {
+      const res = await fetch(`/api/payroll/payslips?${scopeQuery}` , {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({ payrollId }),

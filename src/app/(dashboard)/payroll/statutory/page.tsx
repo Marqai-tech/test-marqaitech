@@ -7,6 +7,7 @@ import {
   FiChevronDown, FiChevronUp, FiGlobe, FiUsers, FiDatabase, FiAlertTriangle,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import { useCompanyContextStore } from '@/store/companyContextStore';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -202,6 +203,7 @@ const emptyForm = {
 
 export default function StatutoryComponentsPage() {
   const { user } = useAuthStore();
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
   const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'admin';
 
   const [components, setComponents] = useState<StatutoryComponent[]>([]);
@@ -245,6 +247,9 @@ export default function StatutoryComponentsPage() {
       setLoading(false);
     }
   }, [countryFilter, partyTypeFilter]);
+  const cid = effectiveCompanyId();
+  const scopeQuery = cid ? `companyId=${cid}&` : '';
+
 
   useEffect(() => { queueMicrotask(() => fetchData()); }, [fetchData]);
 
@@ -311,7 +316,7 @@ export default function StatutoryComponentsPage() {
     setViewLoading(true);
     setViewingComponent(null);
     try {
-      const res = await fetch(`/api/payroll/statutory/${c.id}`, { headers: getAuthHeaders() });
+      const res = await fetch(`/api/payroll/statutory/${c.id}?${scopeQuery}` , { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
         setViewingComponent(data.data || data);
@@ -351,7 +356,7 @@ export default function StatutoryComponentsPage() {
       };
 
       if (editingId) {
-        const res = await fetch(`/api/payroll/statutory/${editingId}`, {
+        const res = await fetch(`/api/payroll/statutory/${editingId}?${scopeQuery}` , {
           method: 'PUT',
           headers: getAuthHeaders(),
           body: JSON.stringify(payload),
@@ -359,7 +364,7 @@ export default function StatutoryComponentsPage() {
         if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed to update'); }
         toast.success('Statutory component updated successfully');
       } else {
-        const res = await fetch('/api/payroll/statutory', {
+        const res = await fetch(`/api/payroll/statutory?${scopeQuery}` , {
           method: 'POST',
           headers: getAuthHeaders(),
           body: JSON.stringify(payload),
@@ -379,7 +384,7 @@ export default function StatutoryComponentsPage() {
   const handleDelete = async (id: string) => {
     setDeleting(true);
     try {
-      const res = await fetch(`/api/payroll/statutory/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
+      const res = await fetch(`/api/payroll/statutory/${id}?${scopeQuery}` , { method: 'DELETE', headers: getAuthHeaders() });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed to delete'); }
       toast.success('Statutory component deleted successfully');
       setDeleteConfirmId(null);

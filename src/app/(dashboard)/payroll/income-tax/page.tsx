@@ -8,6 +8,7 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import { useCompanyContextStore } from '@/store/companyContextStore';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -72,6 +73,7 @@ type TabType = 'calculator' | 'declarations';
 
 export default function IncomeTaxPage() {
   const { user } = useAuthStore();
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
   const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'admin';
 
   const [activeTab, setActiveTab] = useState<TabType>('calculator');
@@ -106,7 +108,7 @@ export default function IncomeTaxPage() {
       setLoadingEmployees(true);
       const params = new URLSearchParams({ limit: '20' });
       if (search) params.set('search', search);
-      const res = await fetch(`/api/employees?${params}`, { headers: getAuthHeaders() });
+      const res = await fetch(`/api/employees?${scopeQuery}${params}` , { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
         setEmployees(data.employees || []);
@@ -114,6 +116,9 @@ export default function IncomeTaxPage() {
     } catch { /* silently */ }
     finally { setLoadingEmployees(false); }
   }, [isAdmin]);
+  const cid = effectiveCompanyId();
+  const scopeQuery = cid ? `companyId=${cid}&` : '';
+
 
   useEffect(() => {
     if (isAdmin && showDecForm) {
@@ -129,7 +134,7 @@ export default function IncomeTaxPage() {
     }
     setCalculating(true);
     try {
-      const res = await fetch('/api/payroll/income-tax', {
+      const res = await fetch(`/api/payroll/income-tax?${scopeQuery}` , {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify(taxInput),
@@ -152,7 +157,7 @@ export default function IncomeTaxPage() {
   const fetchDeclarations = useCallback(async () => {
     try {
       setLoadingDecs(true);
-      const res = await fetch('/api/payroll/income-tax-declarations', { headers: getAuthHeaders() });
+      const res = await fetch(`/api/payroll/income-tax-declarations?${scopeQuery}` , { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
         setDeclarations(Array.isArray(data.data) ? data.data : []);
@@ -173,7 +178,7 @@ export default function IncomeTaxPage() {
     setSubmittingDec(true);
     try {
       const payload = { ...decForm, status: 'DRAFT' };
-      const res = await fetch('/api/payroll/income-tax-declarations', {
+      const res = await fetch(`/api/payroll/income-tax-declarations?${scopeQuery}` , {
         method: 'POST', headers: getAuthHeaders(), body: JSON.stringify(payload),
       });
       if (res.ok) {
@@ -190,7 +195,7 @@ export default function IncomeTaxPage() {
 
   const handleUpdateStatus = async (id: string, status: string, comments?: string) => {
     try {
-      const res = await fetch(`/api/payroll/income-tax-declarations/${id}`, {
+      const res = await fetch(`/api/payroll/income-tax-declarations/${id}?${scopeQuery}` , {
         method: 'PUT', headers: getAuthHeaders(),
         body: JSON.stringify({ status, reviewComments: comments || '' }),
       });

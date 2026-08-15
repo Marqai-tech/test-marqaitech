@@ -8,6 +8,7 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import { useCompanyContextStore } from '@/store/companyContextStore';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -128,6 +129,7 @@ function DetailItem({ label, value, badge }: { label: string; value: string | nu
 
 export default function TaxSlabsPage() {
   const { user } = useAuthStore();
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
   const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'admin';
 
   const [slabs, setSlabs] = useState<TaxSlabTable[]>([]);
@@ -169,6 +171,9 @@ export default function TaxSlabsPage() {
       setLoading(false);
     }
   }, [countryFilter, taxYearFilter]);
+  const cid = effectiveCompanyId();
+  const scopeQuery = cid ? `companyId=${cid}&` : '';
+
 
   useEffect(() => { queueMicrotask(() => fetchData()); }, [fetchData]);
 
@@ -247,7 +252,7 @@ export default function TaxSlabsPage() {
     setViewLoading(true);
     setViewingSlab(null);
     try {
-      const res = await fetch(`/api/payroll/tax-slabs/${s.id}`, { headers: getAuthHeaders() });
+      const res = await fetch(`/api/payroll/tax-slabs/${s.id}?${scopeQuery}` , { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
         setViewingSlab(data.data || data);
@@ -292,7 +297,7 @@ export default function TaxSlabsPage() {
       };
 
       if (editingId) {
-        const res = await fetch(`/api/payroll/tax-slabs/${editingId}`, {
+        const res = await fetch(`/api/payroll/tax-slabs/${editingId}?${scopeQuery}` , {
           method: 'PUT',
           headers: getAuthHeaders(),
           body: JSON.stringify(payload),
@@ -300,7 +305,7 @@ export default function TaxSlabsPage() {
         if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed to update'); }
         toast.success('Tax slab table updated successfully');
       } else {
-        const res = await fetch('/api/payroll/tax-slabs', {
+        const res = await fetch(`/api/payroll/tax-slabs?${scopeQuery}` , {
           method: 'POST',
           headers: getAuthHeaders(),
           body: JSON.stringify(payload),
@@ -320,7 +325,7 @@ export default function TaxSlabsPage() {
   const handleDelete = async (id: string) => {
     setDeleting(true);
     try {
-      const res = await fetch(`/api/payroll/tax-slabs/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
+      const res = await fetch(`/api/payroll/tax-slabs/${id}?${scopeQuery}` , { method: 'DELETE', headers: getAuthHeaders() });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed to delete'); }
       toast.success('Tax slab table deleted successfully');
       setDeleteConfirmId(null);

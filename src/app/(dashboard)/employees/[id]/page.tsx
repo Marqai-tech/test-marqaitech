@@ -34,6 +34,7 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import { useCompanyContextStore } from '@/store/companyContextStore';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -43,6 +44,7 @@ function getAuthHeaders() {
 // ─── Employee Policies Tab Component ───
 function EmployeePoliciesTab({ employeeId }: { employeeId: string }) {
   const { user } = useAuthStore();
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
   const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'admin';
   const [policies, setPolicies] = useState<{ leave?: Record<string, unknown>; attendance?: Record<string, unknown>; travel?: Record<string, unknown>; salaryStructure?: Record<string, unknown>; leavePolicyId?: string | null; attendancePolicyId?: string | null; travelPolicyId?: string | null; salaryStructureId?: string | null } | null>(null);
   const [leavePolicies, setLeavePolicies] = useState<Array<{ id: string; title: string; version: string; effectiveDate?: string | null }>>([]);
@@ -52,13 +54,15 @@ function EmployeePoliciesTab({ employeeId }: { employeeId: string }) {
   const [saving, setSaving] = useState<string | null>(null);
 
   const fetchPolicies = useCallback(async () => {
+    const cid = effectiveCompanyId();
+    const sq = cid ? `companyId=${cid}&` : '';
     try {
       const [polRes, lpRes, apRes, tpRes, ssRes] = await Promise.allSettled([
-        fetch(`/api/employees/${employeeId}/policies`, { headers: getAuthHeaders() }),
-        fetch('/api/policies?category=leave', { headers: getAuthHeaders() }),
-        fetch('/api/policies?category=attendance', { headers: getAuthHeaders() }),
-        fetch('/api/policies?category=travel', { headers: getAuthHeaders() }),
-        fetch('/api/salary-structures', { headers: getAuthHeaders() }),
+        fetch(`/api/employees/${employeeId}/policies?${sq}`, { headers: getAuthHeaders() }),
+        fetch(`/api/policies?${sq}category=leave`, { headers: getAuthHeaders() }),
+        fetch(`/api/policies?${sq}category=attendance`, { headers: getAuthHeaders() }),
+        fetch(`/api/policies?${sq}category=travel`, { headers: getAuthHeaders() }),
+        fetch(`/api/salary-structures?${sq}`, { headers: getAuthHeaders() }),
       ]);
       if (polRes.status === 'fulfilled' && polRes.value.ok) { const d = await polRes.value.json(); setPolicies(d.data); }
       if (lpRes.status === 'fulfilled' && lpRes.value.ok) { const d = await lpRes.value.json(); setLeavePolicies((d.policies || d.data || [])); }
@@ -259,6 +263,7 @@ export default function EmployeeDetailPage() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
 
   const [employee, setEmployee] = useState<EmployeeData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -315,12 +320,14 @@ export default function EmployeeDetailPage() {
 
   const fetchRelatedData = useCallback(async () => {
     if (!employee) return;
+    const cid = effectiveCompanyId();
+    const sq = cid ? `companyId=${cid}&` : '';
     try {
       const headers = getAuthHeaders();
       const [attRes, payRes, leaveRes] = await Promise.allSettled([
-        fetch(`/api/attendance?employeeId=${employee.id}&limit=30`, { headers }),
-        fetch(`/api/payroll?employeeId=${employee.id}&limit=12`, { headers }),
-        fetch(`/api/leave?employeeId=${employee.id}&limit=20`, { headers }),
+        fetch(`/api/attendance?${sq}employeeId=${employee.id}&limit=30`, { headers }),
+        fetch(`/api/payroll?${sq}employeeId=${employee.id}&limit=12`, { headers }),
+        fetch(`/api/leave?${sq}employeeId=${employee.id}&limit=20`, { headers }),
       ]);
       if (attRes.status === 'fulfilled' && attRes.value.ok) {
         const d = await attRes.value.json();

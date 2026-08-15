@@ -12,6 +12,7 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import { useCompanyContextStore } from '@/store/companyContextStore';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -46,6 +47,7 @@ export default function PayrollApprovalsPage() {
   const [actioningId, setActioningId] = useState<string | null>(null);
   const [notesById, setNotesById] = useState<Record<string, string>>({});
   const { user } = useAuthStore();
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
 
   const fetchApprovals = useCallback(async () => {
     setLoading(true);
@@ -64,6 +66,9 @@ export default function PayrollApprovalsPage() {
       setLoading(false);
     }
   }, [filter]);
+  const cid = effectiveCompanyId();
+  const scopeQuery = cid ? `companyId=${cid}&` : '';
+
 
   useEffect(() => { fetchApprovals(); }, [fetchApprovals]);
 
@@ -75,7 +80,7 @@ export default function PayrollApprovalsPage() {
     }
     setActioningId(id);
     try {
-      const res = await fetch('/api/payroll/approvals', {
+      const res = await fetch(`/api/payroll/approvals?${scopeQuery}` , {
         method: 'PATCH', headers: getAuthHeaders(),
         body: JSON.stringify({ id, action, notes }),
       });

@@ -38,6 +38,7 @@ import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import ModuleTips from '@/components/ModuleTips';
 import ModuleIntro from '@/components/ModuleIntro';
+import { useCompanyContextStore } from '@/store/companyContextStore';
 
 /* ── Helpers ── */
 function getAuthHeaders() {
@@ -501,6 +502,7 @@ const payrollTips = [
 export default function PayrollManagementPage() {
   const router = useRouter();
   const { user } = useAuthStore();
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
 
   const [stats, setStats] = useState<SummaryStats>({
     totalEmployees: 0,
@@ -531,7 +533,7 @@ export default function PayrollManagementPage() {
       setLoadingStats(true);
       const headers = getAuthHeaders();
 
-      const res = await fetch('/api/payroll/summary', { headers });
+      const res = await fetch(`/api/payroll/summary?${scopeQuery}` , { headers });
 
       if (res.ok) {
         const data = await res.json();
@@ -577,6 +579,9 @@ export default function PayrollManagementPage() {
       setLoadingStats(false);
     }
   }, []);
+  const cid = effectiveCompanyId();
+  const scopeQuery = cid ? `companyId=${cid}&` : '';
+
 
   useEffect(() => {
     queueMicrotask(() => fetchStats());

@@ -18,6 +18,7 @@ import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import ModuleTips from '@/components/ModuleTips';
 import ModuleWorkflow from '@/components/ModuleWorkflow';
+import { useCompanyContextStore } from '@/store/companyContextStore';
 
 /* ── Types ── */
 interface Training {
@@ -136,6 +137,7 @@ const initialForm = {
 /* ── Component ── */
 export default function TrainingPage() {
   const { user } = useAuthStore();
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
   const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
 
   const [trainings, setTrainings] = useState<Training[]>([]);
@@ -169,8 +171,8 @@ export default function TrainingPage() {
       if (filterStatus) params.set('status', filterStatus);
 
       const [trainRes, empRes] = await Promise.allSettled([
-        fetch(`/api/training?${params.toString()}`, { headers }),
-        fetch('/api/employees?limit=500', { headers }),
+        fetch(`/api/training?${scopeQuery}${params.toString()}` , { headers }),
+        fetch(`/api/employees?${scopeQuery}limit=500`, { headers }),
       ]);
 
       if (trainRes.status === 'fulfilled' && trainRes.value.ok) {
@@ -189,6 +191,9 @@ export default function TrainingPage() {
       setLoading(false);
     }
   }, [filterCategory, filterStatus]);
+  const cid = effectiveCompanyId();
+  const scopeQuery = cid ? `companyId=${cid}&` : '';
+
 
   useEffect(() => { queueMicrotask(() => fetchData()); }, [fetchData]);
 
@@ -264,7 +269,7 @@ export default function TrainingPage() {
       };
 
       if (editingId) {
-        const res = await fetch(`/api/training/${editingId}`, {
+        const res = await fetch(`/api/training/${editingId}?${scopeQuery}` , {
           method: 'PUT',
           headers,
           body: JSON.stringify(payload),
@@ -272,7 +277,7 @@ export default function TrainingPage() {
         if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
         toast.success('Training updated successfully');
       } else {
-        const res = await fetch('/api/training', {
+        const res = await fetch(`/api/training?${scopeQuery}` , {
           method: 'POST',
           headers,
           body: JSON.stringify(payload),
@@ -294,7 +299,7 @@ export default function TrainingPage() {
   const handleDelete = async (id: string) => {
     try {
       setDeleting(true);
-      const res = await fetch(`/api/training/${id}`, {
+      const res = await fetch(`/api/training/${id}?${scopeQuery}` , {
         method: 'DELETE',
         headers: getAuthHeaders(),
       });
@@ -314,7 +319,7 @@ export default function TrainingPage() {
     if (!enrollTrainingId || !enrollEmpId) { toast.error('Select an employee'); return; }
     try {
       setEnrolling(true);
-      const res = await fetch(`/api/training/${enrollTrainingId}`, {
+      const res = await fetch(`/api/training/${enrollTrainingId}?${scopeQuery}` , {
         method: 'PATCH',
         headers: getAuthHeaders(),
         body: JSON.stringify({ action: 'enroll', employeeId: enrollEmpId }),

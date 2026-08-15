@@ -8,6 +8,7 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import { useCompanyContextStore } from '@/store/companyContextStore';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -144,6 +145,7 @@ const emptyForm = {
 
 export default function PayrollInputsPage() {
   const { user } = useAuthStore();
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
   const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'admin';
 
   const [inputs, setInputs] = useState<PayrollInput[]>([]);
@@ -172,7 +174,7 @@ export default function PayrollInputsPage() {
   // --- Data Fetching ---
   const fetchEmployees = useCallback(async () => {
     try {
-      const res = await fetch('/api/employees?limit=200', { headers: getAuthHeaders() });
+      const res = await fetch(`/api/employees?${scopeQuery}limit=200`, { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
         const list = data.employees || data.data || [];
@@ -209,6 +211,9 @@ export default function PayrollInputsPage() {
       setLoading(false);
     }
   }, [inputTypeFilter, approvalStatusFilter, employeeFilter]);
+  const cid = effectiveCompanyId();
+  const scopeQuery = cid ? `companyId=${cid}&` : '';
+
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -333,7 +338,7 @@ export default function PayrollInputsPage() {
       };
 
       if (editingId) {
-        const res = await fetch(`/api/payroll/inputs/${editingId}`, {
+        const res = await fetch(`/api/payroll/inputs/${editingId}?${scopeQuery}` , {
           method: 'PUT',
           headers: getAuthHeaders(),
           body: JSON.stringify(payload),
@@ -341,7 +346,7 @@ export default function PayrollInputsPage() {
         if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed to update'); }
         toast.success('Payroll input updated successfully');
       } else {
-        const res = await fetch('/api/payroll/inputs', {
+        const res = await fetch(`/api/payroll/inputs?${scopeQuery}` , {
           method: 'POST',
           headers: getAuthHeaders(),
           body: JSON.stringify(payload),
@@ -361,7 +366,7 @@ export default function PayrollInputsPage() {
   const handleDelete = async (id: string) => {
     setDeleting(true);
     try {
-      const res = await fetch(`/api/payroll/inputs/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
+      const res = await fetch(`/api/payroll/inputs/${id}?${scopeQuery}` , { method: 'DELETE', headers: getAuthHeaders() });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed to delete'); }
       toast.success('Payroll input deleted successfully');
       setDeleteConfirmId(null);
@@ -376,7 +381,7 @@ export default function PayrollInputsPage() {
   // --- Approval Handlers ---
   const handleApprove = async (id: string) => {
     try {
-      const res = await fetch(`/api/payroll/inputs/${id}`, {
+      const res = await fetch(`/api/payroll/inputs/${id}?${scopeQuery}` , {
         method: 'PATCH',
         headers: getAuthHeaders(),
         body: JSON.stringify({ approvalStatus: 'APPROVED' }),
@@ -391,7 +396,7 @@ export default function PayrollInputsPage() {
 
   const handleReject = async (id: string) => {
     try {
-      const res = await fetch(`/api/payroll/inputs/${id}`, {
+      const res = await fetch(`/api/payroll/inputs/${id}?${scopeQuery}` , {
         method: 'PATCH',
         headers: getAuthHeaders(),
         body: JSON.stringify({ approvalStatus: 'REJECTED' }),
@@ -415,7 +420,7 @@ export default function PayrollInputsPage() {
     const ids = [...selectedPendingIds];
     for (const id of ids) {
       try {
-        const res = await fetch(`/api/payroll/inputs/${id}`, {
+        const res = await fetch(`/api/payroll/inputs/${id}?${scopeQuery}` , {
           method: 'PATCH',
           headers: getAuthHeaders(),
           body: JSON.stringify({ approvalStatus: 'APPROVED' }),
@@ -445,7 +450,7 @@ export default function PayrollInputsPage() {
     const ids = [...selectedPendingIds];
     for (const id of ids) {
       try {
-        const res = await fetch(`/api/payroll/inputs/${id}`, {
+        const res = await fetch(`/api/payroll/inputs/${id}?${scopeQuery}` , {
           method: 'PATCH',
           headers: getAuthHeaders(),
           body: JSON.stringify({ approvalStatus: 'REJECTED' }),

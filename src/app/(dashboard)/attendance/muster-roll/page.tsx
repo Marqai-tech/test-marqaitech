@@ -14,6 +14,7 @@ import {
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import { useCompanyContextStore } from '@/store/companyContextStore';
 
 /* ── Types ── */
 interface Employee {
@@ -92,6 +93,7 @@ function getMonthName(month: number) {
 export default function MusterRollPage() {
   const router = useRouter();
   const { user } = useAuthStore();
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
   const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'admin';
 
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -107,7 +109,7 @@ export default function MusterRollPage() {
   /* Fetch employees based on role */
   const fetchEmployees = useCallback(async () => {
     try {
-      const res = await fetch('/api/employees?limit=500', { headers: getAuthHeaders() });
+      const res = await fetch(`/api/employees?${scopeQuery}limit=500`, { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
         let filteredEmployees = data.employees || [];
@@ -168,6 +170,9 @@ export default function MusterRollPage() {
       toast.error('Failed to load attendance data');
     }
   }, [employees, selectedMonth]);
+  const cid = effectiveCompanyId();
+  const scopeQuery = cid ? `companyId=${cid}&` : '';
+
 
   useEffect(() => {
     queueMicrotask(() => fetchEmployees());

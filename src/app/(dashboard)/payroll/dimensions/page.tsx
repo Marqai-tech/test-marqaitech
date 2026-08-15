@@ -4,6 +4,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useCallback, useEffect, useState } from 'react';
 import { FiGrid, FiPlus, FiEdit2, FiTrash2, FiEye, FiX, FiSearch, FiRefreshCw, FiLayers } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import { useCompanyContextStore } from '@/store/companyContextStore';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -107,6 +108,7 @@ const emptyForm = {
 
 export default function DimensionsPage() {
   const { user } = useAuthStore();
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
   const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'admin';
 
   const [dimensions, setDimensions] = useState<DimensionDefinition[]>([]);
@@ -138,6 +140,9 @@ export default function DimensionsPage() {
       setLoading(false);
     }
   }, [typeFilter]);
+  const cid = effectiveCompanyId();
+  const scopeQuery = cid ? `companyId=${cid}&` : '';
+
 
   useEffect(() => { queueMicrotask(() => fetchData()); }, [fetchData]);
 
@@ -194,11 +199,11 @@ export default function DimensionsPage() {
         effectiveFrom: new Date(form.effectiveFrom).toISOString(),
       };
       if (editingId) {
-        const res = await fetch(`/api/payroll/dimensions/${editingId}`, { method: 'PUT', headers: getAuthHeaders(), body: JSON.stringify(payload) });
+        const res = await fetch(`/api/payroll/dimensions/${editingId}?${scopeQuery}` , { method: 'PUT', headers: getAuthHeaders(), body: JSON.stringify(payload) });
         if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed to update'); }
         toast.success('Dimension updated');
       } else {
-        const res = await fetch('/api/payroll/dimensions', { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify(payload) });
+        const res = await fetch(`/api/payroll/dimensions?${scopeQuery}` , { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify(payload) });
         if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed to create'); }
         toast.success('Dimension created');
       }
@@ -213,7 +218,7 @@ export default function DimensionsPage() {
   const handleDelete = async (id: string) => {
     setDeleting(true);
     try {
-      const res = await fetch(`/api/payroll/dimensions/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
+      const res = await fetch(`/api/payroll/dimensions/${id}?${scopeQuery}` , { method: 'DELETE', headers: getAuthHeaders() });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed to delete'); }
       toast.success('Dimension deleted');
       setDeleteConfirmId(null);

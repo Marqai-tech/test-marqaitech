@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { useCompanyContextStore } from '@/store/companyContextStore';
 
 export default function InsightsPage() {
   const [insights, setInsights] = useState<any[]>([]);

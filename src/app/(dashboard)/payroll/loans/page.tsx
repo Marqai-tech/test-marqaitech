@@ -8,6 +8,7 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import { useCompanyContextStore } from '@/store/companyContextStore';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -126,6 +127,7 @@ function calculateEMI(principal: number, rate: number, months: number): number {
 
 export default function LoansPage() {
   const { user } = useAuthStore();
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
   const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'admin';
 
   const [loans, setLoans] = useState<Loan[]>([]);
@@ -156,7 +158,7 @@ export default function LoansPage() {
   // --- Data Fetching ---
   const fetchEmployees = useCallback(async () => {
     try {
-      const res = await fetch('/api/employees?limit=200', { headers: getAuthHeaders() });
+      const res = await fetch(`/api/employees?${scopeQuery}limit=200`, { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
         const list = data.employees || data.data || [];
@@ -193,6 +195,9 @@ export default function LoansPage() {
       setLoading(false);
     }
   }, [statusFilter, loanTypeFilter, employeeFilter]);
+  const cid = effectiveCompanyId();
+  const scopeQuery = cid ? `companyId=${cid}&` : '';
+
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -289,7 +294,7 @@ export default function LoansPage() {
       };
 
       if (editingId) {
-        const res = await fetch(`/api/payroll/loans/${editingId}`, {
+        const res = await fetch(`/api/payroll/loans/${editingId}?${scopeQuery}` , {
           method: 'PUT',
           headers: getAuthHeaders(),
           body: JSON.stringify(payload),
@@ -297,7 +302,7 @@ export default function LoansPage() {
         if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed to update'); }
         toast.success('Loan updated successfully');
       } else {
-        const res = await fetch('/api/payroll/loans', {
+        const res = await fetch(`/api/payroll/loans?${scopeQuery}` , {
           method: 'POST',
           headers: getAuthHeaders(),
           body: JSON.stringify(payload),
@@ -317,7 +322,7 @@ export default function LoansPage() {
   const handleDelete = async (id: string) => {
     setDeleting(true);
     try {
-      const res = await fetch(`/api/payroll/loans/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
+      const res = await fetch(`/api/payroll/loans/${id}?${scopeQuery}` , { method: 'DELETE', headers: getAuthHeaders() });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed to delete'); }
       toast.success('Loan deleted successfully');
       setDeleteConfirmId(null);
@@ -332,7 +337,7 @@ export default function LoansPage() {
   // --- Approval Handlers ---
   const handleApprove = async (id: string) => {
     try {
-      const res = await fetch(`/api/payroll/loans/${id}`, {
+      const res = await fetch(`/api/payroll/loans/${id}?${scopeQuery}` , {
         method: 'PATCH',
         headers: getAuthHeaders(),
         body: JSON.stringify({ status: 'approved' }),
@@ -347,7 +352,7 @@ export default function LoansPage() {
 
   const handleReject = async (id: string) => {
     try {
-      const res = await fetch(`/api/payroll/loans/${id}`, {
+      const res = await fetch(`/api/payroll/loans/${id}?${scopeQuery}` , {
         method: 'PATCH',
         headers: getAuthHeaders(),
         body: JSON.stringify({ status: 'rejected' }),

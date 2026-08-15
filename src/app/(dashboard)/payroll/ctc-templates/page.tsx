@@ -7,6 +7,7 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import { useCompanyContextStore } from '@/store/companyContextStore';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -137,6 +138,7 @@ const emptyForm = {
 
 export default function CTCTemplatesPage() {
   const { user } = useAuthStore();
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
   const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'admin';
 
   const [templates, setTemplates] = useState<CTCTemplate[]>([]);
@@ -178,6 +180,9 @@ export default function CTCTemplatesPage() {
       setLoading(false);
     }
   }, [countryFilter, statusFilter]);
+  const cid = effectiveCompanyId();
+  const scopeQuery = cid ? `companyId=${cid}&` : '';
+
 
   useEffect(() => { queueMicrotask(() => fetchData()); }, [fetchData]);
 
@@ -240,7 +245,7 @@ export default function CTCTemplatesPage() {
     setViewLoading(true);
     setViewingTemplate(null);
     try {
-      const res = await fetch(`/api/payroll/ctc-templates/${t.id}`, { headers: getAuthHeaders() });
+      const res = await fetch(`/api/payroll/ctc-templates/${t.id}?${scopeQuery}` , { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
         setViewingTemplate(data.data || data);
@@ -272,7 +277,7 @@ export default function CTCTemplatesPage() {
       };
 
       if (editingId) {
-        const res = await fetch(`/api/payroll/ctc-templates/${editingId}`, {
+        const res = await fetch(`/api/payroll/ctc-templates/${editingId}?${scopeQuery}` , {
           method: 'PUT',
           headers: getAuthHeaders(),
           body: JSON.stringify(payload),
@@ -280,7 +285,7 @@ export default function CTCTemplatesPage() {
         if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed to update'); }
         toast.success('CTC template updated successfully');
       } else {
-        const res = await fetch('/api/payroll/ctc-templates', {
+        const res = await fetch(`/api/payroll/ctc-templates?${scopeQuery}` , {
           method: 'POST',
           headers: getAuthHeaders(),
           body: JSON.stringify(payload),
@@ -300,7 +305,7 @@ export default function CTCTemplatesPage() {
   const handleDelete = async (id: string) => {
     setDeleting(true);
     try {
-      const res = await fetch(`/api/payroll/ctc-templates/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
+      const res = await fetch(`/api/payroll/ctc-templates/${id}?${scopeQuery}` , { method: 'DELETE', headers: getAuthHeaders() });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed to delete'); }
       toast.success('CTC template deleted successfully');
       setDeleteConfirmId(null);

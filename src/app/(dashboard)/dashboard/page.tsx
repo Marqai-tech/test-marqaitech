@@ -148,7 +148,7 @@ function StatSkeleton() {
 export default function ESSDashboardPage() {
   const router = useRouter();
   const { user } = useAuthStore();
-  const { effectiveCompanyLabel, hydrated, hydrate } = useCompanyContextStore();
+  const { effectiveCompanyLabel, effectiveCompanyId, hydrated, hydrate } = useCompanyContextStore();
 
   useEffect(() => {
     if (!hydrated) hydrate();
@@ -181,6 +181,8 @@ export default function ESSDashboardPage() {
   const fetchESS = useCallback(async () => {
     setLoading(true);
     const headers = getAuthHeaders();
+    const cid = effectiveCompanyId();
+    const scopeQuery = cid ? `companyId=${cid}&` : '';
 
     // Helper that swallows errors and returns null
     const safe = async (url: string) => {
@@ -195,16 +197,16 @@ export default function ESSDashboardPage() {
 
     const [leaveData, attData, leaveReqData, payslipData, perfData, goalsData, trainData, tsData, ticketData, docData] =
       await Promise.all([
-        safe('/api/leave/balance'),
-        safe('/api/attendance?limit=100'),
-        safe('/api/leave?status=pending&limit=1'),
-        safe('/api/payroll/payslips?limit=5'),
-        safe('/api/performance?limit=1'),
-        safe('/api/goals?limit=5'),
-        safe('/api/training?limit=10'),
-        safe('/api/timesheets?limit=5'),
-        safe('/api/tickets?limit=5'),
-        safe('/api/documents?limit=5'),
+        safe(`/api/leave/balance?${scopeQuery}limit=50`),
+        safe(`/api/attendance?${scopeQuery}limit=100`),
+        safe(`/api/leave?${scopeQuery}status=pending&limit=1`),
+        safe(`/api/payroll/payslips?${scopeQuery}limit=5`),
+        safe(`/api/performance?${scopeQuery}limit=1`),
+        safe(`/api/goals?${scopeQuery}limit=5`),
+        safe(`/api/training?${scopeQuery}limit=10`),
+        safe(`/api/timesheets?${scopeQuery}limit=5`),
+        safe(`/api/tickets?${scopeQuery}limit=5`),
+        safe(`/api/documents?${scopeQuery}limit=5`),
       ]);
 
     /* leave balance */

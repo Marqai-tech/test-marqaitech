@@ -10,6 +10,7 @@ import {
 import ModuleDashboardShell, { DashboardTabConfig } from '@/components/ModuleDashboardShell';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import { useCompanyContextStore } from '@/store/companyContextStore';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -136,6 +137,7 @@ const initialForm = { subject: '', description: '', category: 'hr', priority: 'm
 
 function HelpdeskContent() {
   const { user } = useAuthStore();
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -154,7 +156,7 @@ function HelpdeskContent() {
     try {
       setLoading(true);
       setError(null);
-      const res = await fetch('/api/tickets', { headers: getAuthHeaders() });
+      const res = await fetch(`/api/tickets?${scopeQuery}` , { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
         const ticketList = Array.isArray(data) ? data : (data.tickets || []);
@@ -186,12 +188,15 @@ function HelpdeskContent() {
       setLoading(false);
     }
   }, []);
+  const cid = effectiveCompanyId();
+  const scopeQuery = cid ? `companyId=${cid}&` : '';
+
 
   useEffect(() => { fetchTickets(); }, [fetchTickets]);
 
   const fetchViewingTicket = useCallback(async (id: string) => {
     try {
-      const res = await fetch(`/api/tickets/${id}`, { headers: getAuthHeaders() });
+      const res = await fetch(`/api/tickets/${id}?${scopeQuery}` , { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
         const ticket = data.ticket || data;
@@ -256,7 +261,7 @@ function HelpdeskContent() {
     setSubmitting(true);
     try {
       if (editingId) {
-        const res = await fetch(`/api/tickets/${editingId}`, {
+        const res = await fetch(`/api/tickets/${editingId}?${scopeQuery}` , {
           method: 'PUT',
           headers: getAuthHeaders(),
           body: JSON.stringify({ subject: form.subject, description: form.description, priority: form.priority }),
@@ -264,7 +269,7 @@ function HelpdeskContent() {
         if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || 'Failed to update'); }
         toast.success('Ticket updated successfully');
       } else {
-        const res = await fetch('/api/tickets', {
+        const res = await fetch(`/api/tickets?${scopeQuery}` , {
           method: 'POST',
           headers: getAuthHeaders(),
           body: JSON.stringify({
@@ -288,7 +293,7 @@ function HelpdeskContent() {
   const handleDelete = async (id: string) => {
     try {
       setDeleting(true);
-      const res = await fetch(`/api/tickets/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
+      const res = await fetch(`/api/tickets/${id}?${scopeQuery}` , { method: 'DELETE', headers: getAuthHeaders() });
       if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || 'Failed'); }
       toast.success('Ticket deleted successfully');
       setDeleteConfirmId(null);
@@ -301,7 +306,7 @@ function HelpdeskContent() {
   const handleAddComment = async () => {
     if (!comment.trim() || !viewingId) return;
     try {
-      const res = await fetch(`/api/tickets/${viewingId}/comments`, {
+      const res = await fetch(`/api/tickets/${viewingId}/comments?${scopeQuery}` , {
         method: 'POST', headers: getAuthHeaders(),
         body: JSON.stringify({ authorId: user?.id, authorName: user?.name, content: comment }),
       });
@@ -314,7 +319,7 @@ function HelpdeskContent() {
   const handleTicketAction = async (action: string) => {
     if (!viewingId) return;
     try {
-      const res = await fetch(`/api/tickets/${viewingId}`, {
+      const res = await fetch(`/api/tickets/${viewingId}?${scopeQuery}` , {
         method: 'PATCH', headers: getAuthHeaders(),
         body: JSON.stringify({ status: action }),
       });

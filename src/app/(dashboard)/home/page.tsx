@@ -602,10 +602,16 @@ function HRAdminHome({ firstName, greeting, today }: { firstName: string; greeti
 /* ============== MANAGER ============== */
 function ManagerHome({ firstName, greeting, today }: { firstName: string; greeting: string; today: string }) {
   const router = useRouter();
+  const { selectedCompanyId, hydrated, hydrate } = useCompanyContextStore();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({ teamSize: 0, presentToday: 0, onLeave: 0, pendingApprovals: 0 });
   const [teamAttendance, setTeamAttendance] = useState<{ day: string; present: number; absent: number }[]>([]);
   const [teamMembers, setTeamMembers] = useState<{ id: string; firstName: string; lastName: string; status: string; department?: { name: string } }[]>([]);
+
+  const scopeQuery = useMemo(() => {
+    if (!selectedCompanyId) return '';
+    return `&companyId=${encodeURIComponent(selectedCompanyId)}`;
+  }, [selectedCompanyId]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -619,9 +625,9 @@ function ManagerHome({ firstName, greeting, today }: { firstName: string; greeti
     };
 
     const [empData, attData, leaveData] = await Promise.all([
-      safe('/api/employees?limit=200&status=active'),
-      safe('/api/attendance?limit=30'),
-      safe('/api/leave?status=pending&limit=20'),
+      safe(`/api/employees?limit=200&status=active${scopeQuery}`),
+      safe(`/api/attendance?limit=30${scopeQuery}`),
+      safe(`/api/leave?status=pending&limit=20${scopeQuery}`),
     ]);
 
     const empRows = empData?.employees || empData?.data || [];
@@ -654,9 +660,12 @@ function ManagerHome({ firstName, greeting, today }: { firstName: string; greeti
     setTeamAttendance(last7);
 
     setLoading(false);
-  }, []);
+  }, [scopeQuery]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    if (!hydrated) { hydrate(); return; }
+    fetchData();
+  }, [hydrated, hydrate, fetchData]);
 
   const quickLinks = [
     { icon: <FiUsers className="w-5 h-5" />, label: 'My Team', href: '/employees', bg: 'from-emerald-400 to-green-500', shadow: 'shadow-green-500/25' },
@@ -749,10 +758,16 @@ function ManagerHome({ firstName, greeting, today }: { firstName: string; greeti
 /* ============== RECRUITER ============== */
 function RecruiterHome({ firstName, greeting, today }: { firstName: string; greeting: string; today: string }) {
   const router = useRouter();
+  const { selectedCompanyId, hydrated, hydrate } = useCompanyContextStore();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({ openPositions: 0, totalCandidates: 0, interviewsScheduled: 0, offersPending: 0 });
   const [recentCandidates, setRecentCandidates] = useState<{ id: string; name: string; position?: string; stage?: string; createdAt: string }[]>([]);
   const [pipeline, setPipeline] = useState<{ stage: string; count: number }[]>([]);
+
+  const scopeQuery = useMemo(() => {
+    if (!selectedCompanyId) return '';
+    return `&companyId=${encodeURIComponent(selectedCompanyId)}`;
+  }, [selectedCompanyId]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -766,9 +781,9 @@ function RecruiterHome({ firstName, greeting, today }: { firstName: string; gree
     };
 
     const [reqData, candData, interviewData] = await Promise.all([
-      safe('/api/requisitions?limit=1'),
-      safe('/api/candidates?limit=10'),
-      safe('/api/interviews?limit=1'),
+      safe(`/api/requisitions?limit=1${scopeQuery}`),
+      safe(`/api/candidates?limit=10${scopeQuery}`),
+      safe(`/api/interviews?limit=1${scopeQuery}`),
     ]);
 
     setStats({
@@ -797,9 +812,12 @@ function RecruiterHome({ firstName, greeting, today }: { firstName: string; gree
     setPipeline(stages.map((s) => ({ stage: s, count: stageCounts[s] || 0 })));
 
     setLoading(false);
-  }, []);
+  }, [scopeQuery]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    if (!hydrated) { hydrate(); return; }
+    fetchData();
+  }, [hydrated, hydrate, fetchData]);
 
   const quickLinks = [
     { icon: <FiBriefcase className="w-5 h-5" />, label: 'Requisitions', href: '/requisitions', bg: 'from-emerald-400 to-green-500', shadow: 'shadow-green-500/25' },
@@ -891,10 +909,16 @@ function RecruiterHome({ firstName, greeting, today }: { firstName: string; gree
 /* ============== FINANCE ============== */
 function FinanceHome({ firstName, greeting, today }: { firstName: string; greeting: string; today: string }) {
   const router = useRouter();
+  const { selectedCompanyId, hydrated, hydrate } = useCompanyContextStore();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({ pendingPayroll: 0, pendingExpenses: 0, totalDisbursed: 0, pendingInvoices: 0 });
   const [recentPayrolls, setRecentPayrolls] = useState<{ id: string; month: number; year: number; netSalary: number; status: string }[]>([]);
   const [pendingExpenses, setPendingExpenses] = useState<{ id: string; title: string; amount: number; employee?: { firstName: string; lastName: string }; status: string }[]>([]);
+
+  const scopeQuery = useMemo(() => {
+    if (!selectedCompanyId) return '';
+    return `&companyId=${encodeURIComponent(selectedCompanyId)}`;
+  }, [selectedCompanyId]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -908,8 +932,8 @@ function FinanceHome({ firstName, greeting, today }: { firstName: string; greeti
     };
 
     const [payrollData, expData] = await Promise.all([
-      safe('/api/payroll?limit=10'),
-      safe('/api/expenses?status=pending&limit=10'),
+      safe(`/api/payroll?limit=10${scopeQuery}`),
+      safe(`/api/expenses?status=pending&limit=10${scopeQuery}`),
     ]);
 
     const payrolls = payrollData?.payrolls || payrollData?.data || [];
@@ -925,9 +949,12 @@ function FinanceHome({ firstName, greeting, today }: { firstName: string; greeti
     setPendingExpenses(expRows.slice(0, 5));
 
     setLoading(false);
-  }, []);
+  }, [scopeQuery]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    if (!hydrated) { hydrate(); return; }
+    fetchData();
+  }, [hydrated, hydrate, fetchData]);
 
   const quickLinks = [
     { icon: <FiDollarSign className="w-5 h-5" />, label: 'Payroll', href: '/payroll/processing', bg: 'from-emerald-400 to-green-500', shadow: 'shadow-green-500/25' },
@@ -1023,9 +1050,15 @@ function FinanceHome({ firstName, greeting, today }: { firstName: string; greeti
 /* ============== IT ADMIN ============== */
 function ITAdminHome({ firstName, greeting, today }: { firstName: string; greeting: string; today: string }) {
   const router = useRouter();
+  const { selectedCompanyId, hydrated, hydrate } = useCompanyContextStore();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({ totalAssets: 0, assignedAssets: 0, openTickets: 0, resolvedTickets: 0 });
   const [recentTickets, setRecentTickets] = useState<{ id: string; ticketId: string; subject: string; status: string; priority: string; createdAt: string }[]>([]);
+
+  const scopeQuery = useMemo(() => {
+    if (!selectedCompanyId) return '';
+    return `&companyId=${encodeURIComponent(selectedCompanyId)}`;
+  }, [selectedCompanyId]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -1039,8 +1072,8 @@ function ITAdminHome({ firstName, greeting, today }: { firstName: string; greeti
     };
 
     const [assetData, ticketData] = await Promise.all([
-      safe('/api/assets?limit=200'),
-      safe('/api/tickets?limit=10'),
+      safe(`/api/assets?limit=200${scopeQuery}`),
+      safe(`/api/tickets?limit=10${scopeQuery}`),
     ]);
 
     const assets = assetData?.assets || assetData?.data || [];
@@ -1056,9 +1089,12 @@ function ITAdminHome({ firstName, greeting, today }: { firstName: string; greeti
     setRecentTickets(tickets.slice(0, 6));
 
     setLoading(false);
-  }, []);
+  }, [scopeQuery]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    if (!hydrated) { hydrate(); return; }
+    fetchData();
+  }, [hydrated, hydrate, fetchData]);
 
   const quickLinks = [
     { icon: <FiPackage className="w-5 h-5" />, label: 'Assets', href: '/assets', bg: 'from-emerald-400 to-green-500', shadow: 'shadow-green-500/25' },
@@ -1204,7 +1240,7 @@ function EmployeeHome({ firstName, greeting, today }: { firstName: string; greet
     // Announcements — fetch from API, NOT hardcoded
     // GOLDEN RULE: No dummy data on the super admin or any live page.
     // Only show announcements that actually exist in the database.
-    const announcementData = await safe('/api/announcements?limit=5');
+    const announcementData = await safe(`/api/announcements?limit=5${scopeQuery}`);
     const apiAnnouncements = announcementData?.announcements || announcementData?.data || [];
     if (apiAnnouncements.length > 0) {
       setAnnouncements(apiAnnouncements.map((a: { title: string; createdAt: string; type?: string }) => ({
