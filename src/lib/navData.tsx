@@ -15,6 +15,7 @@ import {
   FiHome, FiChevronLeft, FiChevronRight, FiChevronDown,
   FiLogOut, FiBell, FiZap, FiHardDrive, FiGitBranch,
   FiMoreHorizontal, FiArrowRight, FiPieChart, FiAward,
+  FiSliders,
 } from 'react-icons/fi';
 
 export interface NavItem {
@@ -244,8 +245,10 @@ export const navSections: NavSection[] = [
       // ── Settings ──
       { label: 'Settings', href: '#settings-divider', icon: <FiSettings className="w-3.5 h-3.5" />, moduleKey: 'leave', isDivider: true },
       { label: 'Leave Policy & Settings', href: '/leave/leave-policy', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'leave' },
-      { label: 'Leave Types', href: '/leave/types', icon: <FiLayers className="w-4 h-4" />, moduleKey: 'leave', isNew: true },
-      { label: 'Holiday Calendar', href: '/leave/holidays', icon: <FiCalendar className="w-4 h-4" />, moduleKey: 'leave', isNew: true },
+      { label: 'Policy Rules', href: '/leave/leave-policy?tab=rules', icon: <FiSliders className="w-4 h-4" />, moduleKey: 'leave', isNew: true },
+      { label: 'Leave Type Mapping', href: '/leave/leave-policy?tab=mapping', icon: <FiLayers className="w-4 h-4" />, moduleKey: 'leave', isNew: true },
+      { label: 'Leave Types', href: '/leave/types', icon: <FiLayers className="w-4 h-4" />, moduleKey: 'leave' },
+      { label: 'Holiday Calendar', href: '/leave/holidays', icon: <FiCalendar className="w-4 h-4" />, moduleKey: 'leave' },
 
       // ── Reports ──
       { label: 'Reports', href: '#reports-divider', icon: <FiFileText className="w-3.5 h-3.5" />, moduleKey: 'leave', isDivider: true },
@@ -292,8 +295,8 @@ export const navSections: NavSection[] = [
 
       // ── Settings ──
       { label: 'Settings', href: '#settings-divider', icon: <FiSettings className="w-3.5 h-3.5" />, moduleKey: 'attendance', isDivider: true },
-      { label: 'Attendance Settings', href: '/attendance/settings', icon: <FiSettings className="w-4 h-4" />, moduleKey: 'attendance' },
-      { label: 'Attendance Policy', href: '/attendance/attendance-policy', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'attendance' },
+      { label: 'Attendance Policy & Settings', href: '/attendance/settings', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'attendance' },
+      { label: 'Policy Rules', href: '/attendance/settings?tab=rules', icon: <FiSliders className="w-4 h-4" />, moduleKey: 'attendance', isNew: true },
 
       // ── Reports ──
       { label: 'Reports', href: '#reports-divider', icon: <FiFileText className="w-3.5 h-3.5" />, moduleKey: 'attendance', isDivider: true },

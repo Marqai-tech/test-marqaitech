@@ -712,7 +712,7 @@ export default function AttendancePage() {
             <QuickLink href="/attendance/geofence" icon={<FiMap className="w-4 h-4" />} label="Geofencing" sub="Office perimeters" color="emerald" />
             <QuickLink href="/attendance/regularize" icon={<FiAlertTriangle className="w-4 h-4" />} label="Regularize" sub="Missed punch fix" color="amber" />
             <QuickLink href="/attendance/overtime" icon={<FiClock className="w-4 h-4" />} label="Overtime" sub="OT + comp-off" color="rose" />
-            <QuickLink href="/attendance/policy-config" icon={<FiShield className="w-4 h-4" />} label="Policy Config" sub="Rounding + grace" color="violet" />
+            <QuickLink href="/attendance/settings?tab=config" icon={<FiShield className="w-4 h-4" />} label="Policy & Settings" sub="Config + rules" color="violet" />
           </div>
 
           {/* ── Module Tips & Workflow ── */}

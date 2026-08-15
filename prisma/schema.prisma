@@ -259,6 +259,8 @@ model Company {
   reportSchedules         ReportSchedule[]       @relation("ReportScheduleCompany")
   employeeMappings        EmployeeCompanyMapping[]
   attendancePolicyConfigs AttendancePolicyConfig[]
+  leavePolicyRules        LeavePolicyRule[]
+  attendancePolicyRules   AttendancePolicyRule[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -289,6 +291,8 @@ model Branch {
   geofences         Geofence[]
   biometricDevices  BiometricDevice[]
   employeeMappings  EmployeeCompanyMapping[]
+  leavePolicyRules      LeavePolicyRule[]
+  attendancePolicyRules AttendancePolicyRule[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -318,6 +322,8 @@ model Department {
   projects     Project[]
   requisitions Requisition[]
   employeeMappings EmployeeCompanyMapping[]
+  leavePolicyRules      LeavePolicyRule[]
+  attendancePolicyRules AttendancePolicyRule[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -5253,6 +5259,96 @@ model AttendancePolicyConfig {
   updatedAt   DateTime @updatedAt
 
   @@index([companyId])
+}
+
+// ── Leave Policy Rule (scoped by employee type, branch, department) ──
+// Defines which leave types and quotas apply to specific employee categories
+model LeavePolicyRule {
+  id              String @id @default(cuid())
+  name            String // e.g., "Full-Time Standard", "Contract Limited"
+  policyId        String? // optional link to a Policy document
+  companyId       String
+  company         Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  // Scope: who does this rule apply to?
+  employmentType  String @default("all") // all | full-time | part-time | contract | internship
+  branchId        String? // null = all branches
+  branch          Branch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  departmentId    String? // null = all departments
+  department      Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+
+  // Leave type allocations (JSON array of { leaveTypeId, quota, carryForward, maxCarryForward })
+  // e.g., [{ "leaveTypeId": "cl123", "quota": 12, "carryForward": true, "maxCarryForward": 5 }, ...]
+  leaveTypeAllocations String @default("[]")
+
+  // Policy-level settings
+  sandwichRuleEnabled   Boolean @default(true) // leave sandwiched between holidays/weekends counts as leave
+  proRataEnabled       Boolean @default(false) // pro-rata leave for mid-year joiners
+  probationRestriction Boolean @default(true) // restrict leave during probation
+  probationMonths      Int @default(6) // months of probation before full leave access
+  encashmentAllowed    Boolean @default(false) // can encash unused leave
+  carryForwardGlobal   Boolean @default(true) // global carry-forward toggle for this rule
+  maxCarryForwardDays  Int @default(5) // max days that can be carried forward
+
+  priority        Int @default(0) // higher = more specific, takes precedence
+  status          String @default("active") // active | inactive
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([employmentType])
+  @@index([branchId])
+}
+
+// ── Attendance Policy Rule (scoped by employee type, branch) ──
+// Defines attendance policy parameters for specific employee categories
+model AttendancePolicyRule {
+  id              String @id @default(cuid())
+  name            String // e.g., "General Shift Policy", "Night Shift Policy"
+  policyId        String? // optional link to a Policy document
+  companyId       String
+  company         Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  // Scope: who does this rule apply to?
+  employmentType  String @default("all") // all | full-time | part-time | contract | internship
+  branchId        String? // null = all branches
+  branch          Branch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  departmentId    String? // null = all departments
+  department      Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+
+  // Shift & timing overrides for this rule
+  shiftStartDefault     String @default("09:00")
+  shiftEndDefault       String @default("17:30")
+  breakDurationMinutes  Int @default(30)
+  lateGraceMinutes      Int @default(15)
+  earlyGraceMinutes     Int @default(10)
+
+  // Late mark policy for this rule
+  lateMarkAllowancePerMonth Int @default(4)
+  lateMarkHalfDayOnExceed   Boolean @default(true)
+  halfDayAfterMinutes       Int @default(21)
+  lateMarkNotApplicableOnTour Boolean @default(true)
+
+  // OT policy for this rule
+  autoOvertimeEnabled       Boolean @default(true)
+  overtimeThresholdMinutes  Int @default(480)
+
+  // Gate pass policy for this rule
+  gatePassMaxPerMonth       Int @default(1)
+  gatePassHalfDayOnExceed   Boolean @default(true)
+  gatePassHalfDayNextDay    Boolean @default(true)
+  gatePassEarlyHours        Int @default(1)
+
+  priority        Int @default(0) // higher = more specific, takes precedence
+  status          String @default("active") // active | inactive
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([employmentType])
+  @@index([branchId])
 }
 
 // ── Leave Encashment Request (REQ-LVE-07) ──
