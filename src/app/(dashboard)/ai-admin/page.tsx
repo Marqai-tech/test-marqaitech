@@ -180,11 +180,13 @@ export default function AIAdminPage() {
   const { user } = useAuthStore();
   const isAdmin = ['super_admin', 'tenant_admin'].includes(user?.role || '');
 
-  const [prompts, setPrompts] = useState(demoPrompts);
-  const [biasData] = useState(demoBias);
-  const [approvals, setApprovals] = useState(demoApprovals);
-  const [auditLogs] = useState(demoAuditLogs);
-  const [monitoring] = useState(demoMonitoring);
+  const [prompts, setPrompts] = useState<AIPrompt[]>([]);
+  const [biasData, setBiasData] = useState<BiasCategory[]>([]);
+  const [approvals, setApprovals] = useState<ApprovalItem[]>([]);
+  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
+  const [monitoring, setMonitoring] = useState<MonitoringStats>({
+    apiCalls: 0, tokensUsed: 0, avgResponseTime: 0, errorRate: 0, callsLastHour: 0, tokensLastHour: 0,
+  });
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState<'prompts' | 'bias' | 'approvals' | 'audit' | 'monitoring'>('prompts');
@@ -196,13 +198,53 @@ export default function AIAdminPage() {
 
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
-  /* Fetch */
+  /* Fetch LIVE data from /api/ai-admin */
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/ai-chat?limit=1', { headers: getAuthHeaders() });
-      if (!res.ok) { /* use demo data */ }
-    } catch { /* use demo data */ } finally { setLoading(false); }
+      const res = await fetch('/api/ai-admin', { headers: getAuthHeaders() });
+      if (res.ok) {
+        const data = await res.json();
+        const configs = data.configs || [];
+        const promptLogs = data.promptLogs || [];
+        const stats = data.stats || {};
+
+        // Map AIConfig records to AIPrompt format
+        const mappedPrompts: AIPrompt[] = configs.map((c: any) => ({
+          id: c.id,
+          name: c.name || 'Untitled',
+          model: c.model || 'gpt-4',
+          purpose: c.description || c.category || '',
+          status: c.isActive ? 'active' : 'inactive',
+          lastModified: c.updatedAt ? new Date(c.updatedAt).toISOString().split('T')[0] : '',
+          version: parseInt(c.version || '1'),
+        }));
+        setPrompts(mappedPrompts);
+
+        // Map prompt logs to audit entries
+        const mappedLogs: AuditLogEntry[] = promptLogs.map((l: any) => ({
+          id: l.id,
+          timestamp: l.createdAt ? new Date(l.createdAt).toISOString() : '',
+          user: l.userId || 'System',
+          model: l.model || 'unknown',
+          action: l.category || l.type || 'AI Call',
+          input: l.inputText ? l.inputText.slice(0, 60) : '—',
+          output: l.outputText ? l.outputText.slice(0, 60) : '—',
+          duration: l.latencyMs ? l.latencyMs / 1000 : 0,
+        }));
+        setAuditLogs(mappedLogs);
+
+        // Set monitoring stats from live data
+        setMonitoring({
+          apiCalls: stats.totalRequests24h || 0,
+          tokensUsed: stats.totalTokens24h || 0,
+          avgResponseTime: stats.avgLatency ? stats.avgLatency / 1000 : 0,
+          errorRate: stats.errorRate || 0,
+          callsLastHour: 0,
+          tokensLastHour: 0,
+        });
+      }
+    } catch { /* empty state on error */ } finally { setLoading(false); }
   }, []);
 
   useEffect(() => { queueMicrotask(() => fetchData()); }, [fetchData]);
@@ -237,19 +279,38 @@ export default function AIAdminPage() {
     try {
       setSubmitting(true);
       if (editingId) {
-        setPrompts(prev => prev.map(p => p.id === editingId ? { ...p, name: form.name, model: form.model, purpose: form.purpose, status: form.status, lastModified: new Date().toISOString().split('T')[0] } : p));
-        toast.success('Prompt updated');
+        // Update via API
+        const res = await fetch(`/api/ai-admin/${editingId}`, {
+          method: 'PATCH',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ name: form.name, model: form.model, description: form.purpose, isActive: form.status === 'active' }),
+        });
+        if (res.ok) {
+          toast.success('Prompt updated');
+          fetchData();
+        } else { toast.error('Failed to update prompt'); }
       } else {
-        setPrompts(prev => [{ id: Date.now().toString(), ...form, lastModified: new Date().toISOString().split('T')[0], version: 1 }, ...prev]);
-        toast.success('Prompt created');
+        // Create via API
+        const res = await fetch('/api/ai-admin', {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ name: form.name, type: 'prompt', category: 'general', content: form.purpose, model: form.model, isActive: form.status === 'active' }),
+        });
+        if (res.ok) {
+          toast.success('Prompt created');
+          fetchData();
+        } else { toast.error('Failed to create prompt'); }
       }
       handleCancelForm();
     } catch { toast.error('Operation failed'); } finally { setSubmitting(false); }
   };
 
-  const handleDelete = (id: string) => {
-    setPrompts(prev => prev.filter(p => p.id !== id));
-    toast.success('Prompt deleted');
+  const handleDelete = async (id: string) => {
+    try {
+      const res = await fetch(`/api/ai-admin/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
+      if (res.ok) { toast.success('Prompt deleted'); fetchData(); }
+      else { toast.error('Failed to delete'); }
+    } catch { toast.error('Failed to delete'); }
     setDeleteConfirmId(null);
   };
 

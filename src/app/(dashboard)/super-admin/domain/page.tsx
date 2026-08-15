@@ -8,6 +8,7 @@ import {
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { isClientLiveMode } from '@/lib/site-mode';
+import { isTenantHiddenClient, PLATFORM_PLACEHOLDER_NAME } from '@/lib/tenant-filter';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -58,7 +59,6 @@ const sslIconColor: Record<string, string> = {
 
 export default function DomainPage() {
   const { user } = useAuthStore();
-  const liveMode = isClientLiveMode();
   const [domains, setDomains] = useState<Domain[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -78,9 +78,10 @@ export default function DomainPage() {
       const data = await res.json();
       const tenants: TenantRecord[] = data.tenants || data || [];
 
-      const filtered = liveMode
-        ? tenants.filter((t: TenantRecord) => t.slug !== '3boxes-hrms-demo' && t.slug !== '3boxeshrms')
-        : tenants;
+      // ALWAYS filter out hidden tenants (platform placeholder, demo) — never show Marq AI Tech
+      const filtered = tenants.filter((t: TenantRecord) =>
+        !isTenantHiddenClient(t.slug) && !(t.name || '').includes(PLATFORM_PLACEHOLDER_NAME)
+      );
 
       const mapped: Domain[] = filtered.map((t: TenantRecord) => ({
         id: t.id,
@@ -100,7 +101,7 @@ export default function DomainPage() {
     } finally {
       setLoading(false);
     }
-  }, [liveMode]);
+  }, []);
 
   useEffect(() => { fetchDomains(); }, [fetchDomains]);
 
@@ -181,8 +182,8 @@ export default function DomainPage() {
       {!loading && domains.length === 0 && (
         <div className="thb-card p-12 text-center">
           <FiGlobe className="w-12 h-12 mx-auto mb-3 text-thb-text-muted opacity-40" />
-          <p className="text-lg font-medium text-thb-text-primary">{liveMode ? 'No live data' : 'No domains found'}</p>
-          <p className="text-sm text-thb-text-muted mt-1">{liveMode ? 'No tenants with custom domains exist yet.' : 'Add a domain to get started.'}</p>
+          <p className="text-lg font-medium text-thb-text-primary">No domains found</p>
+          <p className="text-sm text-thb-text-muted mt-1">No tenants with custom domains exist yet.</p>
         </div>
       )}
 

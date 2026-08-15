@@ -7,6 +7,7 @@ import {
 } from 'react-icons/fi';
 import { useAuthStore } from '@/store/authStore';
 import { isClientLiveMode } from '@/lib/site-mode';
+import { isTenantHiddenClient, PLATFORM_PLACEHOLDER_NAME } from '@/lib/tenant-filter';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 function getAuthHeaders() {
@@ -58,9 +59,10 @@ export default function TenantUsagePage() {
       const data = await res.json();
       const tenants = data.tenants || data || [];
 
-      const filtered = liveMode
-        ? tenants.filter((t: any) => t.slug !== '3boxes-hrms-demo' && t.slug !== '3boxeshrms')
-        : tenants;
+      // ALWAYS filter out hidden tenants (platform placeholder, demo) — never show Marq AI Tech
+      const filtered = tenants.filter((t: any) =>
+        !isTenantHiddenClient(t.slug) && !(t.name || '').includes(PLATFORM_PLACEHOLDER_NAME)
+      );
 
       const mapped: TenantUsage[] = filtered.map((t: any) => ({
         id: t.id,
@@ -79,7 +81,7 @@ export default function TenantUsagePage() {
     } finally {
       setLoading(false);
     }
-  }, [liveMode]);
+  }, []);
 
   useEffect(() => { fetchUsage(); }, [fetchUsage]);
 
@@ -123,8 +125,8 @@ export default function TenantUsagePage() {
       {!loading && usage.length === 0 && (
         <div className="thb-card p-12 text-center">
           <FiBarChart2 className="w-12 h-12 mx-auto mb-3 text-thb-text-muted opacity-40" />
-          <p className="text-lg font-medium text-thb-text-primary">{liveMode ? 'No live data' : 'No tenants found'}</p>
-          <p className="text-sm text-thb-text-muted mt-1">{liveMode ? 'No tenants with usage data exist yet.' : 'Usage metrics will appear when tenants are created.'}</p>
+          <p className="text-lg font-medium text-thb-text-primary">No tenants found</p>
+          <p className="text-sm text-thb-text-muted mt-1">Usage metrics will appear when tenants are created.</p>
         </div>
       )}
 

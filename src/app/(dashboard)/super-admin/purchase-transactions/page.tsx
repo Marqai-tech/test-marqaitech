@@ -7,7 +7,7 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
-import { isClientLiveMode } from '@/lib/site-mode';
+import { isTenantHiddenClient, PLATFORM_PLACEHOLDER_NAME } from '@/lib/tenant-filter';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 function getAuthHeaders() {
@@ -35,8 +35,7 @@ const statusBadge: Record<string, string> = {
 
 export default function PurchaseTransactionsPage() {
   const { user } = useAuthStore();
-  const liveMode = isClientLiveMode();
-  const currency = liveMode ? '₹' : '$';
+  const currency = isTenantHiddenClient('') ? '$' : '₹'; // always use INR for live
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>('');
@@ -51,9 +50,10 @@ export default function PurchaseTransactionsPage() {
       const data = await res.json();
       const subs = data.subscriptions || data || [];
 
-      const filtered = liveMode
-        ? subs.filter((s: any) => s.tenant?.slug !== '3boxes-hrms-demo' && s.tenant?.slug !== '3boxeshrms')
-        : subs;
+      // ALWAYS filter out hidden tenants — never show Marq AI Tech
+      const filtered = subs.filter((s: any) =>
+        !isTenantHiddenClient(s.tenant?.slug || '') && !(s.tenant?.name || '').includes(PLATFORM_PLACEHOLDER_NAME)
+      );
 
       const mapped: Transaction[] = filtered.map((sub: any) => ({
         id: sub.id || `TXN-${Math.random().toString(36).slice(2, 8)}`,
@@ -71,7 +71,7 @@ export default function PurchaseTransactionsPage() {
     } finally {
       setLoading(false);
     }
-  }, [liveMode]);
+  }, []);
 
   useEffect(() => { fetchTransactions(); }, [fetchTransactions]);
 

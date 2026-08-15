@@ -7,7 +7,7 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
-import { isClientLiveMode } from '@/lib/site-mode';
+import { isTenantHiddenClient, PLATFORM_PLACEHOLDER_NAME } from '@/lib/tenant-filter';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -47,7 +47,6 @@ const categoryIcons: Record<string, string> = {
 
 export default function TicketsPage() {
   const { user } = useAuthStore();
-  const liveMode = isClientLiveMode();
   const [tickets, setTickets] = useState<PlatformTicket[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('');
@@ -67,9 +66,10 @@ export default function TicketsPage() {
       const data = await res.json();
       const raw = data.tickets || data || [];
 
-      const filtered = liveMode
-        ? raw.filter((t: any) => t.tenant?.slug !== '3boxes-hrms-demo' && t.tenant?.slug !== '3boxeshrms')
-        : raw;
+      // ALWAYS filter out hidden tenants — never show Marq AI Tech
+      const filtered = raw.filter((t: any) =>
+        !isTenantHiddenClient(t.tenant?.slug || '') && !(t.tenant?.name || '').includes(PLATFORM_PLACEHOLDER_NAME)
+      );
 
       const mapped: PlatformTicket[] = filtered.map((t: any) => ({
         id: t.id || `PT-${Math.random().toString(36).slice(2, 8)}`,

@@ -8,6 +8,7 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import { isTenantHiddenClient, PLATFORM_PLACEHOLDER_NAME } from '@/lib/tenant-filter';
 
 // ─── Auth Headers ──────────────────────────────────────────
 const getAuthHeaders = () => {
@@ -157,7 +158,12 @@ export default function SuperAdminRBACPage() {
       const res = await fetch(`/api/rbac/roles?${params.toString()}`, { headers: getAuthHeaders(), cache: 'no-store' });
       if (res.ok) {
         const data = await res.json();
-        setRoles(data.roles || []);
+        // Filter out roles belonging to hidden tenants
+        const visibleRoles = (data.roles || []).filter((r: Role) => {
+          if (!r.tenant) return true; // Global roles always visible
+          return !isTenantHiddenClient(r.tenant.slug) && !(r.tenant.name || '').includes(PLATFORM_PLACEHOLDER_NAME);
+        });
+        setRoles(visibleRoles);
         if (data.needsSeed) {
           toast('RBAC tables not found. Click "Seed RBAC Data" to initialize.', { icon: '⚠️', duration: 5000 });
         }
@@ -225,7 +231,12 @@ export default function SuperAdminRBACPage() {
       const res = await fetch('/api/tenants?limit=100', { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
-        setTenants(Array.isArray(data) ? data : data.tenants || []);
+        const all = Array.isArray(data) ? data : data.tenants || [];
+        // ALWAYS filter out hidden tenants — never show Marq AI Tech or demo
+        const visible = all.filter((t: { slug: string; name?: string }) =>
+          !isTenantHiddenClient(t.slug) && !(t.name || '').includes(PLATFORM_PLACEHOLDER_NAME)
+        );
+        setTenants(visible);
       }
     } catch { /* ignore */ }
   }, []);

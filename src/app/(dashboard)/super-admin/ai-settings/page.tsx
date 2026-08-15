@@ -165,16 +165,7 @@ Metrics: {{performance_metrics}}`,
   },
 ];
 
-const USAGE_DATA: UsageMetric[] = [
-  { feature: 'Resume Screening', calls: 12450, tokens: 2850000, cost: 142.50 },
-  { feature: 'Interview Scheduling', calls: 3200, tokens: 640000, cost: 32.00 },
-  { feature: 'Chatbot', calls: 45600, tokens: 9120000, cost: 456.00 },
-  { feature: 'Sentiment Analysis', calls: 8900, tokens: 1780000, cost: 89.00 },
-  { feature: 'Document Processing', calls: 6700, tokens: 1340000, cost: 67.00 },
-  { feature: 'Predictive Analytics', calls: 2100, tokens: 840000, cost: 42.00 },
-  { feature: 'Leave Auto-Approval', calls: 15600, tokens: 780000, cost: 39.00 },
-  { feature: 'Performance Insights', calls: 4300, tokens: 860000, cost: 43.00 },
-];
+const EMPTY_USAGE: UsageMetric[] = [];
 
 type ActiveSection = 'engine' | 'features' | 'prompts' | 'usage' | 'training';
 
@@ -238,6 +229,7 @@ export default function AISettingsPage() {
   const [testResult, setTestResult] = useState<'success' | 'error' | null>(null);
   const [showApiKey, setShowApiKey] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   // Engine config
   const [engine, setEngine] = useState<AIEngineConfig>(DEFAULT_ENGINE);
@@ -248,11 +240,48 @@ export default function AISettingsPage() {
   // Prompt templates
   const [prompts, setPrompts] = useState<PromptTemplate[]>(DEFAULT_PROMPTS);
 
+  // Live usage data (from API)
+  const [usageData, setUsageData] = useState<UsageMetric[]>(EMPTY_USAGE);
+
   // Training data
   const [trainingStatus, setTrainingStatus] = useState<'idle' | 'uploading' | 'training' | 'complete'>('idle');
   const [uploadProgress, setUploadProgress] = useState(0);
 
   const markChanged = () => setHasChanges(true);
+
+  // ─── Fetch live AI settings and usage data ───
+  useEffect(() => {
+    (async () => {
+      try {
+        // Fetch saved AI settings
+        const settingsRes = await fetch('/api/super-admin/ai-settings', { headers: getAuthHeaders() });
+        if (settingsRes.ok) {
+          const data = await settingsRes.json();
+          if (data.engine) setEngine(data.engine);
+          if (data.features) setFeatures(data.features);
+          if (data.prompts) setPrompts(data.prompts);
+        }
+
+        // Fetch usage stats from ai-admin
+        const adminRes = await fetch('/api/ai-admin', { headers: getAuthHeaders() });
+        if (adminRes.ok) {
+          const adminData = await adminRes.json();
+          const stats = adminData.stats || {};
+          const categoryUsage = stats.categoryUsage || {};
+          // Build usage rows from live API data
+          if (Object.keys(categoryUsage).length > 0) {
+            const liveUsage: UsageMetric[] = Object.entries(categoryUsage).map(([feature, calls]: [string, any]) => ({
+              feature,
+              calls: Number(calls) || 0,
+              tokens: Number(calls) * 200, // estimate
+              cost: Number(calls) * 0.01,  // estimate
+            }));
+            setUsageData(liveUsage);
+          }
+        }
+      } catch { /* use defaults */ } finally { setLoading(false); }
+    })();
+  }, []);
 
   // Available models for selected provider
   const availableModels = PROVIDER_MODELS[engine.provider] || [];
@@ -341,9 +370,9 @@ export default function AISettingsPage() {
   ];
 
   // Computed stats
-  const totalCalls = USAGE_DATA.reduce((s, u) => s + u.calls, 0);
-  const totalTokens = USAGE_DATA.reduce((s, u) => s + u.tokens, 0);
-  const totalCost = USAGE_DATA.reduce((s, u) => s + u.cost, 0);
+  const totalCalls = usageData.reduce((s, u) => s + u.calls, 0);
+  const totalTokens = usageData.reduce((s, u) => s + u.tokens, 0);
+  const totalCost = usageData.reduce((s, u) => s + u.cost, 0);
   const callsLimit = 100000;
   const enabledFeatures = features.filter(f => f.enabled).length;
 
@@ -829,7 +858,7 @@ export default function AISettingsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {USAGE_DATA.sort((a, b) => b.cost - a.cost).map((row) => (
+                  {usageData.sort((a, b) => b.cost - a.cost).map((row) => (
                     <tr key={row.feature} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
                       <td className="px-6 py-3 text-sm font-medium text-slate-700">{row.feature}</td>
                       <td className="px-6 py-3 text-sm text-slate-600 text-right font-mono">{row.calls.toLocaleString()}</td>
@@ -995,11 +1024,7 @@ export default function AISettingsPage() {
             <div className="p-6">
               <div className="space-y-3">
                 {[
-                  { action: 'Fine-tune completed', model: 'Resume Screening v3', user: 'System', time: '2 hours ago', result: '94.2% accuracy' },
-                  { action: 'Training data uploaded', model: 'Sentiment Analysis', user: 'admin@marqai.com', time: '1 day ago', result: '45,000 records' },
-                  { action: 'Fine-tune started', model: 'Leave Approval v2', user: 'System', time: '2 days ago', result: 'In progress' },
-                  { action: 'Fine-tune completed', model: 'Sentiment Analysis v2', user: 'System', time: '3 days ago', result: '91.8% accuracy' },
-                  { action: 'Model rollback', model: 'Resume Screening v2', user: 'admin@marqai.com', time: '5 days ago', result: 'Reverted to v1' },
+                  { action: 'No training history yet', model: '—', user: '—', time: '—', result: 'Check AI Admin for live data' },
                 ].map((event, i) => (
                   <div key={i} className="flex items-start gap-3 py-2">
                     <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${

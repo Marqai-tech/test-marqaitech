@@ -8,6 +8,7 @@ import {
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { isClientLiveMode } from '@/lib/site-mode';
+import { isTenantHiddenClient, PLATFORM_PLACEHOLDER_NAME } from '@/lib/tenant-filter';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -69,12 +70,10 @@ export default function TenantConfigurationPage() {
       if (tenantsRes.ok) {
         const data = await tenantsRes.json();
         tenantList = data.tenants || [];
-        // Client-side safety net: filter hidden tenants
-        if (isLive) {
-          tenantList = tenantList.filter((t: Tenant) => !['3boxes-hrms-demo', '3boxeshrms'].includes(t.slug));
-        } else {
-          tenantList = tenantList.filter((t: Tenant) => t.slug !== 'marqaitechgroup');
-        }
+        // ALWAYS filter out hidden tenants — never show Marq AI Tech or demo
+        tenantList = tenantList.filter((t: Tenant) =>
+          !isTenantHiddenClient(t.slug) && !(t.name || '').includes(PLATFORM_PLACEHOLDER_NAME)
+        );
         setTenants(tenantList);
       }
 
@@ -174,7 +173,7 @@ export default function TenantConfigurationPage() {
       ) : configs.length === 0 ? (
         <div className="thb-card p-8 text-center text-thb-text-muted">
           <FiSettings className="w-8 h-8 mx-auto mb-2" />
-          <p className="text-sm">{isLive ? 'No live tenant configurations found' : 'No tenant configurations found'}</p>
+          <p className="text-sm">No tenant configurations found</p>
           <p className="text-xs mt-1">Tenant configurations are created automatically when tenants are set up.</p>
         </div>
       ) : (

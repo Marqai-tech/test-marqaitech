@@ -8,6 +8,7 @@ import {
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { isClientLiveMode } from '@/lib/site-mode';
+import { isTenantHiddenClient, PLATFORM_PLACEHOLDER_NAME } from '@/lib/tenant-filter';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -62,9 +63,10 @@ export default function TenantTicketsPage() {
       const data = await res.json();
       const raw = data.tickets || data || [];
 
-      const filtered = liveMode
-        ? raw.filter((t: any) => t.tenant?.slug !== '3boxes-hrms-demo' && t.tenant?.slug !== '3boxeshrms')
-        : raw;
+      // ALWAYS filter out hidden tenants — never show Marq AI Tech
+      const filtered = raw.filter((t: any) =>
+        !isTenantHiddenClient(t.tenant?.slug || '') && !(t.tenant?.name || '').includes(PLATFORM_PLACEHOLDER_NAME)
+      );
 
       const mapped: Ticket[] = filtered.map((t: any) => ({
         id: t.id || `TKT-${Math.random().toString(36).slice(2, 8)}`,
@@ -83,7 +85,7 @@ export default function TenantTicketsPage() {
     } finally {
       setLoading(false);
     }
-  }, [liveMode]);
+  }, []);
 
   useEffect(() => { fetchTickets(); }, [fetchTickets]);
 
@@ -173,8 +175,8 @@ export default function TenantTicketsPage() {
       {!loading && tickets.length === 0 && (
         <div className="thb-card p-12 text-center">
           <FiHeadphones className="w-12 h-12 mx-auto mb-3 text-thb-text-muted opacity-40" />
-          <p className="text-lg font-medium text-thb-text-primary">{liveMode ? 'No live data' : 'No tickets found'}</p>
-          <p className="text-sm text-thb-text-muted mt-1">{liveMode ? 'No support tickets exist yet.' : 'Create a ticket to get started.'}</p>
+          <p className="text-lg font-medium text-thb-text-primary">No tickets found</p>
+          <p className="text-sm text-thb-text-muted mt-1">No support tickets exist yet.</p>
         </div>
       )}
 
