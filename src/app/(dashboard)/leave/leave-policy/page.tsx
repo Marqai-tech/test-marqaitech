@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, Suspense } from 'react'
 import {
   FiFileText, FiPlus, FiSearch, FiEye, FiEdit2, FiTrash2, FiX, FiAlertTriangle,
   FiSettings, FiSave, FiToggleLeft, FiToggleRight, FiCalendar, FiBookOpen,
   FiLayers, FiLink, FiChevronDown, FiRefreshCw, FiTrash, FiCheck
 } from 'react-icons/fi'
+import { useSearchParams, useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import { useCompanyData, apiFetch, fmtDate, getStatusBadge } from '@/components/company/useCompanyData'
 import { PolicyRecord, BranchRecord, DepartmentRecord } from '@/components/company/useCompanyData'
@@ -111,14 +112,27 @@ const TABS: { key: TabKey; label: string; icon: React.ReactNode }[] = [
   { key: 'config', label: 'Global Config', icon: <FiSettings className="w-4 h-4" /> },
 ]
 
-export default function LeavePolicyPage() {
+function LeavePolicyPageContent() {
   const { user } = useAuthStore();
   const { policies, branches, departments, loading, isAdmin, fetchPolicies, fetchBranches, fetchDepartments, selectedCompanyId } = useCompanyData()
   const companyId = useCompanyContextStore(s => s.effectiveCompanyId())
   const isRoleAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'admin';
+  const searchParams = useSearchParams()
+  const router = useRouter()
 
-  // ── Tab state ──
-  const [activeTab, setActiveTab] = useState<TabKey>('documents')
+  // ── Tab state (synced with URL) ──
+  const tabFromUrl = searchParams.get('tab') as TabKey | null
+  const validTabs: TabKey[] = ['documents', 'rules', 'mapping', 'config']
+  const defaultTab = (tabFromUrl && validTabs.includes(tabFromUrl)) ? tabFromUrl : 'documents'
+  const [activeTab, setActiveTab] = useState<TabKey>(defaultTab)
+
+  // Sync tab with URL when searchParams change
+  useEffect(() => {
+    const t = searchParams.get('tab') as TabKey | null
+    if (t && validTabs.includes(t) && t !== activeTab) {
+      setActiveTab(t)
+    }
+  }, [searchParams])
 
   // ── Policy Documents state ──
   const [search, setSearch] = useState('')
@@ -535,7 +549,7 @@ export default function LeavePolicyPage() {
         {TABS.map(tab => (
           <button
             key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
+            onClick={() => { setActiveTab(tab.key); router.replace(`/leave/leave-policy?tab=${tab.key}`) }}
             className={`px-5 py-3 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${
               activeTab === tab.key
                 ? 'border-teal-500 text-teal-600'
@@ -1460,5 +1474,13 @@ function AddLeaveTypeDropdown({
         </>
       )}
     </div>
+  )
+}
+
+export default function LeavePolicyPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center py-20"><div className="animate-spin w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full" /></div>}>
+      <LeavePolicyPageContent />
+    </Suspense>
   )
 }

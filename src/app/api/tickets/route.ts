@@ -10,7 +10,7 @@ function corsHeaders() {
   };
 }
 
-async function generateTicketId(): Promise<string> {
+async function generateTicketId(db: Awaited<ReturnType<typeof getDb>>): Promise<string> {
   const lastTicket = await db.ticket.findFirst({
     orderBy: { createdAt: 'desc' },
     select: { ticketId: true },
@@ -162,7 +162,7 @@ export async function POST(request: Request) {
     const effectiveRequesterId = requesterId || (decoded.userId as string);
     const effectiveRequesterName = requesterName || (decoded.email as string) || 'Unknown';
 
-    const ticketId = await generateTicketId();
+    const ticketId = await generateTicketId(db);
 
     // Calculate SLA deadline from category if not provided
     let slaDeadlineDate: Date | null = null;

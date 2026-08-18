@@ -211,7 +211,12 @@ export default function SuperAdminRBACPage() {
       const res = await fetch(`/api/rbac/user-roles?${params.toString()}`, { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
-        let userList = data.users || [];
+        let userList: UserWithRoles[] = data.users || [];
+        // Filter out users belonging to hidden/demo tenants
+        userList = userList.filter((u: UserWithRoles) => {
+          if (!u.tenant) return true;
+          return !isTenantHiddenClient(u.tenant.slug) && !(u.tenant.name || '').includes(PLATFORM_PLACEHOLDER_NAME);
+        });
         if (userCompanyFilter) {
           userList = userList.filter((u: UserWithRoles) =>
             u.roleAssignments.some((ra) => ra.companyId === userCompanyFilter || ra.companyId === null)

@@ -7,6 +7,7 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import { isClientLiveMode } from '@/lib/site-mode';
 import { isTenantHiddenClient, PLATFORM_PLACEHOLDER_NAME } from '@/lib/tenant-filter';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -35,7 +36,8 @@ const statusBadge: Record<string, string> = {
 
 export default function PurchaseTransactionsPage() {
   const { user } = useAuthStore();
-  const currency = isTenantHiddenClient('') ? '$' : '₹'; // always use INR for live
+  const liveMode = isClientLiveMode();
+  const currency = liveMode ? '₹' : '$';
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>('');

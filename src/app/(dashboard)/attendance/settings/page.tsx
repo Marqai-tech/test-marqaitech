@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import {
   FiSettings, FiSave, FiRefreshCw, FiMonitor, FiMapPin, FiCamera, FiClock,
   FiFileText, FiPlus, FiSearch, FiEye, FiEdit2, FiTrash2, FiX, FiAlertTriangle,
@@ -114,13 +115,25 @@ const inputCls = 'w-full px-3 py-2 border border-thb-border rounded-lg text-sm f
 const selectCls = 'w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 bg-white';
 
 // ─── Main Page ──────────────────────────────────────────────────────
-export default function AttendanceSettingsPage() {
+function AttendanceSettingsContent() {
   const { user } = useAuthStore();
   const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
   const companyId = useCompanyContextStore(s => s.effectiveCompanyId());
   const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
+  const searchParams = useSearchParams()
+  const router = useRouter()
 
-  const [activeTab, setActiveTab] = useState<TabKey>('documents');
+  const tabFromUrl = searchParams.get('tab') as TabKey | null
+  const validTabs: TabKey[] = ['documents', 'rules', 'config']
+  const defaultTab = (tabFromUrl && validTabs.includes(tabFromUrl)) ? tabFromUrl : 'documents'
+  const [activeTab, setActiveTab] = useState<TabKey>(defaultTab);
+
+  useEffect(() => {
+    const t = searchParams.get('tab') as TabKey | null
+    if (t && validTabs.includes(t) && t !== activeTab) {
+      setActiveTab(t)
+    }
+  }, [searchParams])
 
   if (!isAdmin) {
     return (
@@ -149,7 +162,7 @@ export default function AttendanceSettingsPage() {
         {TABS.map(tab => (
           <button
             key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
+            onClick={() => { setActiveTab(tab.key); router.replace(`/attendance/settings?tab=${tab.key}`) }}
             className={`flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
               activeTab === tab.key
                 ? 'bg-white text-teal-700 shadow-sm'
@@ -168,6 +181,14 @@ export default function AttendanceSettingsPage() {
       {activeTab === 'config' && <GlobalConfigTab companyId={companyId} effectiveCompanyId={effectiveCompanyId} />}
     </div>
   );
+}
+
+export default function AttendanceSettingsPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center py-20"><div className="animate-spin w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full" /></div>}>
+      <AttendanceSettingsContent />
+    </Suspense>
+  )
 }
 
 // ═══════════════════════════════════════════════════════════════════

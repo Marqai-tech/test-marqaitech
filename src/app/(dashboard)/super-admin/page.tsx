@@ -825,7 +825,7 @@ export default function SuperAdminPage() {
                 <div className="thb-card p-5">
                   <div className="flex items-start justify-between">
                     <div>
-                      <p className="text-xs font-medium text-thb-text-muted">Total Subscribers</p>
+                      <p className="text-xs font-medium text-thb-text-muted">Total Tenants</p>
                       <p className="text-2xl font-bold text-thb-text-primary mt-1">{dashboard.totalTenants}</p>
                       <div className="flex gap-1 mt-1">
                         <span className="thb-badge thb-badge-success text-[10px]">{dashboard.activeTenants} active</span>

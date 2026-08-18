@@ -5,12 +5,12 @@ import Link from 'next/link';
 import { useCompanyData } from '@/components/company/useCompanyData';
 import {
   FiBriefcase, FiGrid, FiDatabase, FiSettings, FiFileText,
-  FiHome, FiMapPin, FiAward, FiLayers, FiClock, FiCalendar,
+  FiHome, FiMapPin, FiAward, FiLayers,
   FiArrowRight
 } from 'react-icons/fi';
 
 function CompanyDashboardContent() {
-  const { companies, branches, departments, designations, shifts, holidays, policies, loading } = useCompanyData();
+  const { companies, branches, departments, designations, loading } = useCompanyData();
 
   const stats = [
     { label: 'Companies', value: companies.length, icon: <FiHome className="w-4 h-4" />, color: 'text-emerald-500 bg-emerald-50', href: '/company/companies' },
@@ -18,9 +18,6 @@ function CompanyDashboardContent() {
     { label: 'Departments', value: departments.length, icon: <FiBriefcase className="w-4 h-4" />, color: 'text-emerald-500 bg-emerald-50', href: '/company/departments' },
     { label: 'Designations', value: designations.length, icon: <FiAward className="w-4 h-4" />, color: 'text-teal-500 bg-teal-50', href: '/company/designations' },
     { label: 'Grades', value: [...new Set(designations.map(d => d.level))].length, icon: <FiLayers className="w-4 h-4" />, color: 'text-teal-500 bg-teal-50', href: '/company/grades' },
-    { label: 'Shifts', value: shifts.length, icon: <FiClock className="w-4 h-4" />, color: 'text-amber-500 bg-amber-50', href: '/attendance/shifts' },
-    { label: 'Holidays', value: holidays.length, icon: <FiCalendar className="w-4 h-4" />, color: 'text-red-500 bg-red-50', href: '/attendance/holidays' },
-    { label: 'Policies', value: policies.length, icon: <FiFileText className="w-4 h-4" />, color: 'text-teal-500 bg-teal-50', href: '/leave/leave-policy' },
   ];
 
   const masterLinks = [
@@ -29,9 +26,6 @@ function CompanyDashboardContent() {
     { title: 'Departments', desc: 'Define functional departments within the organization', href: '/company/departments', icon: <FiBriefcase className="w-5 h-5" />, color: 'from-cyan-500 to-teal-600', count: departments.length },
     { title: 'Designations', desc: 'Create job titles with grade levels and salary ranges', href: '/company/designations', icon: <FiAward className="w-5 h-5" />, color: 'from-teal-500 to-teal-600', count: designations.length },
     { title: 'Grades', desc: 'View grades derived from designation levels', href: '/company/grades', icon: <FiLayers className="w-5 h-5" />, color: 'from-teal-500 to-pink-600', count: [...new Set(designations.map(d => d.level))].length },
-    { title: 'Shifts', desc: 'Configure work shift timings for attendance tracking', href: '/attendance/shifts', icon: <FiClock className="w-5 h-5" />, color: 'from-amber-500 to-orange-600', count: shifts.length },
-    { title: 'Holidays', desc: 'Add public, festival, and company holidays for the year', href: '/attendance/holidays', icon: <FiCalendar className="w-5 h-5" />, color: 'from-red-500 to-rose-600', count: holidays.length },
-    { title: 'Policies', desc: 'Create HR, leave, attendance, and other company policies', href: '/leave/leave-policy', icon: <FiFileText className="w-5 h-5" />, color: 'from-emerald-500 to-teal-600', count: policies.length },
   ];
 
   const featureLinks = [
@@ -55,8 +49,8 @@ function CompanyDashboardContent() {
 
       {/* Quick Stats */}
       {isLoading ? (
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
-          {Array.from({ length: 8 }).map((_, i) => (
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
+          {Array.from({ length: 5 }).map((_, i) => (
             <div key={i} className="bg-white rounded-xl p-4 border border-slate-100 shadow-sm animate-pulse">
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-lg bg-slate-100" />
@@ -69,7 +63,7 @@ function CompanyDashboardContent() {
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
           {stats.map((stat) => (
             <Link key={stat.label} href={stat.href} className="bg-white rounded-xl p-4 border border-slate-100 shadow-sm hover:shadow-md hover:border-emerald-200 transition-all group">
               <div className="flex items-center gap-3">
@@ -92,7 +86,7 @@ function CompanyDashboardContent() {
           <FiDatabase className="w-5 h-5 text-emerald-500" />
           <h2 className="text-lg font-bold text-thb-text-primary">Company Masters</h2>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           {masterLinks.map((link) => (
             <Link
               key={link.href}

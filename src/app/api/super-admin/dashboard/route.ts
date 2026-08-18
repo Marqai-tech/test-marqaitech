@@ -67,12 +67,6 @@ export async function GET(request: Request) {
     for (const tenant of tenants) {
       if (!tenant.slug) continue;
       try {
-        const tenantDbRecord = await platformDb.tenantDatabase.findFirst({
-          where: { tenant: { slug: tenant.slug }, isActive: true },
-          select: { id: true },
-        });
-        if (!tenantDbRecord) continue;
-
         const tenantDb = await getDbForTenant(tenant.slug);
         const [groupCount, companyCount, employeeCount] = await Promise.all([
           tenantDb.companyGroup.count(),

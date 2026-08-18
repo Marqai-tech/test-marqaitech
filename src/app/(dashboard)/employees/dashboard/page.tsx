@@ -116,18 +116,12 @@ export default function EmployeeDashboardPage() {
       const statsRes = await fetch(`/api/employees?limit=1&page=1${cid ? `&companyId=${cid}` : ''}`, { headers });
       if (statsRes.ok) {
         const statsData = await statsRes.json();
-        const employees = statsData.employees || [];
-        const total = statsData.pagination?.total || employees.length;
+        const total = statsData.pagination?.total || 0;
 
-        // Calculate stats from employee data
-        const active = employees.filter((e: any) => e.status === 'active').length;
-        const onLeave = employees.filter((e: any) => e.status === 'on_leave').length;
-        const inactive = employees.filter((e: any) => e.status === 'inactive' || e.status === 'terminated').length;
-
-        // Fetch all employees for department distribution
+        // Fetch all employees for detailed stats (use pagination total for count)
         const allRes = await fetch(`/api/employees?limit=500&page=1${cid ? `&companyId=${cid}` : ''}`, { headers });
         const allData = await allRes.ok ? await allRes.json() : { employees: [] };
-        const allEmps = allData.employees || employees;
+        const allEmps = allData.employees || [];
 
         // Department distribution
         const deptMap = new Map<string, number>();
@@ -171,7 +165,7 @@ export default function EmployeeDashboardPage() {
         const inactiveCount = allEmps.filter((e: any) => e.status !== 'active' && e.status !== 'on_leave').length;
 
         setStats({
-          totalEmployees: allEmps.length || total,
+          totalEmployees: total,
           activeEmployees: activeCount,
           onLeaveEmployees: leaveCount,
           inactiveEmployees: inactiveCount,
@@ -226,8 +220,8 @@ export default function EmployeeDashboardPage() {
           });
         setRecentUpdates(updates.length > 0 ? updates : generateSampleUpdates());
 
-        // Generate headcount trend (sample if no historical data)
-        setHeadcountTrend(generateSampleTrend(allEmps.length || total));
+        // Generate headcount trend (only from real data, no random/fake)
+        setHeadcountTrend(generateHeadcountTrend(allEmps, total));
       }
     } catch (err) {
       console.error('Dashboard fetch error:', err);
@@ -262,15 +256,55 @@ export default function EmployeeDashboardPage() {
     ];
   }
 
-  function generateSampleTrend(currentTotal: number): HeadcountTrend[] {
+  function generateHeadcountTrend(emps: unknown[], totalCount: number): HeadcountTrend[] {
+    // Build a real trend from employee joining dates if available
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const now = new Date();
-    return months.slice(0, now.getMonth() + 1).map((m, i) => ({
-      month: m,
-      headcount: Math.max(1, Math.round(currentTotal * (0.85 + (i * 0.012)))),
-      joins: Math.round(Math.random() * 5) + 1,
-      exits: Math.round(Math.random() * 2),
-    }));
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    // Count joins per month for the current year
+    const joinsByMonth: Record<number, number> = {};
+    const exitsByMonth: Record<number, number> = {};
+    (emps as any[]).forEach((emp: any) => {
+      if (emp.dateOfJoining) {
+        const d = new Date(emp.dateOfJoining);
+        if (d.getFullYear() === currentYear) {
+          joinsByMonth[d.getMonth()] = (joinsByMonth[d.getMonth()] || 0) + 1;
+        }
+      }
+      if ((emp.status === 'terminated' || emp.status === 'resigned') && emp.updatedAt) {
+        const d = new Date(emp.updatedAt);
+        if (d.getFullYear() === currentYear) {
+          exitsByMonth[d.getMonth()] = (exitsByMonth[d.getMonth()] || 0) + 1;
+        }
+      }
+    });
+
+    // Build headcount trend cumulatively
+    let runningHeadcount = totalCount;
+    // Back-calculate: subtract joins added in future months (relative to current)
+    for (let m = currentMonth + 1; m < 12; m++) {
+      runningHeadcount -= (joinsByMonth[m] || 0);
+      runningHeadcount += (exitsByMonth[m] || 0);
+    }
+    // Ensure non-negative
+    runningHeadcount = Math.max(0, runningHeadcount);
+
+    const trend: HeadcountTrend[] = [];
+    for (let m = 0; m <= currentMonth; m++) {
+      const joins = joinsByMonth[m] || 0;
+      const exits = exitsByMonth[m] || 0;
+      runningHeadcount += joins - exits;
+      runningHeadcount = Math.max(0, runningHeadcount);
+      trend.push({
+        month: months[m],
+        headcount: runningHeadcount,
+        joins,
+        exits,
+      });
+    }
+    return trend;
   }
 
   /* ── Lifecycle metrics ── */
