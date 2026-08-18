@@ -236,7 +236,6 @@ export const navSections: NavSection[] = [
       { label: 'Apply Leave', href: '/leave/apply', icon: <FiCalendar className="w-4 h-4" />, moduleKey: 'leave', isNew: true },
       { label: 'Apply Leave by HR', href: '/leave/apply-by-hr', icon: <FiUserPlus className="w-4 h-4" />, moduleKey: 'leave', isNew: true },
       { label: 'Leave Encashment', href: '/leave/encashment', icon: <FiDollarSign className="w-4 h-4" />, moduleKey: 'leave' },
-      { label: 'Restricted Holiday', href: '/leave/optional-holidays', icon: <FiStar className="w-4 h-4" />, moduleKey: 'leave' },
 
       // ── Leave Balance ──
       { label: 'Leave Balance', href: '#balance-divider', icon: <FiBarChart2 className="w-3.5 h-3.5" />, moduleKey: 'leave', isDivider: true },
@@ -248,7 +247,6 @@ export const navSections: NavSection[] = [
       { label: 'Policy Rules', href: '/leave/leave-policy?tab=rules', icon: <FiSliders className="w-4 h-4" />, moduleKey: 'leave', isNew: true },
       { label: 'Leave Type Mapping', href: '/leave/leave-policy?tab=mapping', icon: <FiLayers className="w-4 h-4" />, moduleKey: 'leave', isNew: true },
       { label: 'Leave Types', href: '/leave/types', icon: <FiLayers className="w-4 h-4" />, moduleKey: 'leave' },
-      { label: 'Holiday Calendar', href: '/leave/holidays', icon: <FiCalendar className="w-4 h-4" />, moduleKey: 'leave' },
 
       // ── Reports ──
       { label: 'Reports', href: '#reports-divider', icon: <FiFileText className="w-3.5 h-3.5" />, moduleKey: 'leave', isDivider: true },

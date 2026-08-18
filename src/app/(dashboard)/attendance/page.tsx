@@ -851,6 +851,7 @@ export default function AttendancePage() {
                   ))}
                   {calendarDays.map((day, i) => {
                     if (!day.isCurrentMonth) return <div key={`pad-${i}`} className="aspect-square" />;
+                    const today = new Date();
                     const isToday = day.date === today.getDate() && selectedMonth.month === today.getMonth() && selectedMonth.year === today.getFullYear();
                     return (
                       <div
