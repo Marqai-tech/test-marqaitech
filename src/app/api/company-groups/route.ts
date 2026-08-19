@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb, getDbForTenantById } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { checkTenantStatusOrBlock } from '@/lib/tenant-guard';
+import { getServerHiddenSlugs } from '@/lib/tenant-filter';
 
 function corsHeaders() {
   return {
@@ -160,11 +161,16 @@ export async function GET(request: Request) {
     // one default group. This fixes the "shows empty" issue for legacy
     // tenants. We resolve the list of tenant IDs that will be queried, then
     // ensure each has a default group before fetching.
+    //
+    // IMPORTANT: Always exclude hidden tenants (Marq AI Tech Pvt Ltd placeholder
+    // + demo tenant) from this list — we don't want to auto-create groups for them.
+    const hiddenSlugs = getServerHiddenSlugs(request);
+    const hiddenTenantExcludeFilter = { slug: { notIn: hiddenSlugs } };
     if (role === 'super_admin' && !requestedTenantId) {
-      // Super admin viewing all tenants — ensure default groups for every tenant
+      // Super admin viewing all tenants — ensure default groups for every VISIBLE tenant
       const allTenantIds = await safe(
         'tenant.findMany(ids)',
-        () => getPlatformDb().tenant.findMany({ select: { id: true } }),
+        () => getPlatformDb().tenant.findMany({ where: hiddenTenantExcludeFilter, select: { id: true } }),
         [],
       );
       await ensureDefaultGroupsForTenants(allTenantIds.map((t) => t.id));
@@ -233,7 +239,16 @@ export async function GET(request: Request) {
     }
 
     // Compute aggregate employee count per group (sum of employees across all companies)
-    const enriched = groups.map((g) => {
+    // FILTER OUT hidden tenants (Marq AI Tech Pvt Ltd placeholder, demo tenant)
+    // so they don't appear in the group companies list.
+    const enriched = groups
+      .filter((g) => {
+        // Exclude groups belonging to hidden tenants
+        const slug = g.tenant?.slug;
+        if (!slug) return false; // Exclude orphan groups (no tenant)
+        return !hiddenSlugs.includes(slug);
+      })
+      .map((g) => {
       const companiesWithCounts = g.companies.map((c) => ({
         ...c,
         _count: {
@@ -261,7 +276,6 @@ export async function GET(request: Request) {
         companies: companiesWithCounts,
       };
     });
-
     return NextResponse.json({ groups: enriched }, { headers: corsHeaders() });
   } catch (error) {
     console.error('GET /api/company-groups error:', error);

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
+import { getServerHiddenSlugs, PLATFORM_PLACEHOLDER_NAME } from '@/lib/tenant-filter';
 
 function corsHeaders() {
   return {
@@ -55,6 +56,17 @@ export async function GET(request: Request) {
 
     const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(decoded.role as string);
 
+    // ─── Filter out hidden tenants (Marq AI Tech Pvt Ltd placeholder + demo) ───
+    // For super_admin viewing all tickets, exclude tickets belonging to hidden tenants
+    // AND exclude orphan tickets (no tenant info) which are likely dummy/seed data.
+    const hiddenSlugs = getServerHiddenSlugs(request);
+    const hiddenTenants = await getPlatformDb().tenant.findMany({
+      where: { slug: { in: hiddenSlugs } },
+      select: { id: true, name: true },
+    });
+    const hiddenTenantIds = hiddenTenants.map(t => t.id);
+    const hiddenTenantNames = hiddenTenants.map(t => t.name);
+
     const where: Record<string, unknown> = {};
 
     // For non-admin users, only show their own tickets by default
@@ -108,16 +120,32 @@ export async function GET(request: Request) {
     }
 
     // Transform tickets to include a string category field for backward compatibility
-    const transformedTickets = tickets.map((ticket: Record<string, unknown>) => {
-      const t = ticket as { category?: { name?: string; type?: string }; _count?: { comments?: number }; requesterType?: string; [key: string]: unknown };
-      const { category, _count, ...rest } = t;
-      return {
-        ...rest,
-        category: (category as { name?: string; type?: string })?.name || (category as { name?: string; type?: string })?.type || rest.requesterType || 'general',
-        categoryDetails: category,
-        commentCount: ( _count as { comments?: number })?.comments || 0,
-      };
-    });
+    // FILTER OUT tickets that look like dummy/seed data:
+    // - Tickets with requesterName matching hidden tenant names (e.g., "Marq AI Tech Pvt Ltd")
+    // - Orphan tickets with no real requester info (placeholder seed data)
+    const transformedTickets = tickets
+      .map((ticket: Record<string, unknown>) => {
+        const t = ticket as { category?: { name?: string; type?: string }; _count?: { comments?: number }; requesterType?: string; requesterName?: string; subject?: string; [key: string]: unknown };
+        const { category, _count, ...rest } = t;
+        return {
+          ...rest,
+          category: (category as { name?: string; type?: string })?.name || (category as { name?: string; type?: string })?.type || rest.requesterType || 'general',
+          categoryDetails: category,
+          commentCount: ( _count as { comments?: number })?.comments || 0,
+        };
+      })
+      .filter((t: Record<string, unknown>) => {
+        // Exclude tickets whose requesterName matches a hidden tenant name
+        const requesterName = String(t.requesterName || '');
+        if (hiddenTenantNames.some(name => requesterName.includes(name))) return false;
+        // Exclude dummy/placeholder tickets with placeholder subjects
+        const subject = String(t.subject || '').toLowerCase();
+        if (subject.includes('test ticket') || subject.includes('dummy') || subject.includes('sample')) return false;
+        return true;
+      });
+
+    // Recalculate total after filtering
+    const filteredTotal = transformedTickets.length;
 
     return NextResponse.json(
       { tickets: transformedTickets, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } },

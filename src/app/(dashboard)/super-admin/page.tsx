@@ -15,6 +15,7 @@ import { BarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, R
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
 import { isClientLiveMode } from '@/lib/site-mode';
+import { isTenantHiddenClient, PLATFORM_PLACEHOLDER_NAME } from '@/lib/tenant-filter';
 import SrsBanner from '@/components/SrsBanner';
 
 function getAuthHeaders() {
@@ -235,7 +236,11 @@ export default function SuperAdminPage() {
       const res = await fetch(`/api/tenants?${params.toString()}`, { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
-        setTenants(Array.isArray(data) ? data : data.tenants || []);
+        const all = Array.isArray(data) ? data : data.tenants || [];
+        // Defense-in-depth: filter out hidden tenants on the client side too
+        setTenants(all.filter((t: Tenant) =>
+          !isTenantHiddenClient(t.slug) && !(t.name || '').includes(PLATFORM_PLACEHOLDER_NAME)
+        ));
       }
     } catch { toast.error('Failed to load tenants'); }
     finally { setTenantsLoading(false); }
@@ -452,7 +457,11 @@ export default function SuperAdminPage() {
       const res = await fetch(url, { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
-        setGroups(data.groups || []);
+        const allGroups = data.groups || [];
+        // Defense-in-depth: filter out groups belonging to hidden tenants
+        setGroups(allGroups.filter((g: CompanyGroupRow) =>
+          !isTenantHiddenClient(g.tenantSlug || '') && !(g.tenantName || '').includes(PLATFORM_PLACEHOLDER_NAME)
+        ));
       } else {
         setGroups([]);
       }

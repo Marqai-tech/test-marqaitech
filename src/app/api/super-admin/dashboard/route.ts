@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getPlatformDb, getDbForTenant } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
-import { isLiveMode, isDemoTenant } from '@/lib/site-mode';
+import { getServerHiddenSlugs } from '@/lib/tenant-filter';
 
 function corsHeaders() {
   return {
@@ -33,12 +33,11 @@ export async function GET(request: Request) {
     }
 
     const platformDb = getPlatformDb();
-    const liveMode = isLiveMode(request);
+    const hiddenSlugs = getServerHiddenSlugs(request);
 
-    // On LIVE mode, exclude the demo and placeholder tenants
-    const tenantFilter = liveMode
-      ? { slug: { notIn: ['3boxes-hrms-demo', '3boxeshrms'] } }
-      : {};
+    // ALWAYS exclude hidden tenants (Marq AI Tech Pvt Ltd placeholder + demo)
+    // regardless of mode detection — foolproof via tenant-filter.ts
+    const tenantFilter = { slug: { notIn: hiddenSlugs } };
 
     // ─── Tenant counts by status ───
     const [totalTenants, activeTenants, suspendedTenants, inactiveTenants] = await Promise.all([
@@ -82,10 +81,17 @@ export async function GET(request: Request) {
       }
     }
 
-    // ─── Revenue from active subscriptions (INR-only in live mode) ───
+    // ─── Revenue from active subscriptions (exclude hidden tenants) ───
+    // Get list of hidden tenant IDs to filter subscriptions
+    const hiddenTenants = await platformDb.tenant.findMany({
+      where: { slug: { in: hiddenSlugs } },
+      select: { id: true },
+    });
+    const hiddenTenantIds = hiddenTenants.map(t => t.id);
+
     const subscriptionFilter: Record<string, unknown> = { status: 'active' };
-    if (liveMode) {
-      subscriptionFilter.currency = 'INR';
+    if (hiddenTenantIds.length > 0) {
+      subscriptionFilter.tenantId = { notIn: hiddenTenantIds };
     }
     const activeSubscriptions = await platformDb.subscription.findMany({
       where: subscriptionFilter,
@@ -163,7 +169,7 @@ export async function GET(request: Request) {
     let recentTransactions: { id: string; company: string; amount: string; status: string; date: string; currency: string }[] = [];
     try {
       const recentSubs = await platformDb.subscription.findMany({
-        where: liveMode ? { currency: 'INR' } : {},
+        where: hiddenTenantIds.length > 0 ? { tenantId: { notIn: hiddenTenantIds } } : {},
         take: 6,
         orderBy: { createdAt: 'desc' },
         select: {
@@ -190,7 +196,7 @@ export async function GET(request: Request) {
     // ─── Recently Registered (from TrialRegistration) ───
     let recentlyRegistered: { id: string; name: string; plan: string; date: string }[] = [];
     try {
-      const trialFilter = liveMode ? { currency: 'INR' } : {};
+      const trialFilter = hiddenTenantIds.length > 0 ? { tenantId: { notIn: hiddenTenantIds } } : {};
       const recentTrials = await platformDb.trialRegistration.findMany({
         where: trialFilter,
         take: 5,
@@ -222,7 +228,7 @@ export async function GET(request: Request) {
         where: {
           status: { in: ['active', 'expired'] },
           endDate: { lte: thirtyDaysFromNow },
-          ...(liveMode ? { currency: 'INR' } : {}),
+          ...(hiddenTenantIds.length > 0 ? { tenantId: { notIn: hiddenTenantIds } } : {}),
         },
         take: 5,
         orderBy: { endDate: 'asc' },
@@ -257,9 +263,9 @@ export async function GET(request: Request) {
       },
     });
 
-    // ─── Currency info ───
-    const currencySymbol = liveMode ? '₹' : '$';
-    const currencyCode = liveMode ? 'INR' : 'USD';
+    // ─── Currency info (always INR for live site) ───
+    const currencySymbol = '₹';
+    const currencyCode = 'INR';
 
     return NextResponse.json({
       totalTenants,

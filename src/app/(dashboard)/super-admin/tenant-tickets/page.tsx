@@ -64,9 +64,23 @@ export default function TenantTicketsPage() {
       const raw = data.tickets || data || [];
 
       // ALWAYS filter out hidden tenants — never show Marq AI Tech
-      const filtered = raw.filter((t: any) =>
-        !isTenantHiddenClient(t.tenant?.slug || '') && !(t.tenant?.name || '').includes(PLATFORM_PLACEHOLDER_NAME)
-      );
+      // Also exclude orphan tickets (no tenant info) and dummy/placeholder data
+      const filtered = raw.filter((t: any) => {
+        // Exclude if tenant slug is hidden
+        if (t.tenant?.slug && isTenantHiddenClient(t.tenant.slug)) return false;
+        // Exclude if tenant name matches placeholder
+        if ((t.tenant?.name || '').includes(PLATFORM_PLACEHOLDER_NAME)) return false;
+        // Exclude orphan tickets with no tenant info (likely dummy/seed data)
+        if (!t.tenant && (!t.tenantName || t.tenantName === 'Unknown')) {
+          // Also check requesterName for hidden tenant names
+          const requesterName = String(t.requesterName || '');
+          if (requesterName.includes(PLATFORM_PLACEHOLDER_NAME)) return false;
+          // Exclude obvious dummy subjects
+          const subject = String(t.subject || '').toLowerCase();
+          if (subject.includes('test ticket') || subject.includes('dummy') || subject.includes('sample')) return false;
+        }
+        return true;
+      });
 
       const mapped: Ticket[] = filtered.map((t: any) => ({
         id: t.id || `TKT-${Math.random().toString(36).slice(2, 8)}`,
