@@ -8,7 +8,7 @@ import {
 } from 'react-icons/fi';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore, isHiddenTenant } from '@/store/companyContextStore';
-import { isTenantHiddenClient, LIVE_HIDDEN_SLUGS, PLATFORM_PLACEHOLDER_NAME } from '@/lib/tenant-filter';
+import { isTenantHiddenClient, isClientLiveSite, LIVE_HIDDEN_SLUGS, PLATFORM_PLACEHOLDER_NAME } from '@/lib/tenant-filter';
 
 /**
  * CompanySwitcher
@@ -48,18 +48,18 @@ export default function CompanySwitcher() {
 
   // ─── GOLDEN RULE: ULTIMATE DEFENSIVE FILTER — NEVER render hidden tenants ───
   // This is the FINAL backstop. It uses THREE independent checks:
-  //   1. HARDCODED slug/name check — works even during SSR when window is undefined
+  //   1. HARDCODED slug/name check — MODE-AWARE: only hide demo/placeholder on LIVE
   //   2. tenant-filter.ts (isTenantHiddenClient) — checks window.location.hostname DIRECTLY
   //   3. isHiddenTenant from store — combines hostname + site-mode detection
-  // Even if EVERY other defense layer fails (API, store, localStorage, SSR),
-  // this filter ensures the user NEVER sees "Marq AI Tech Pvt Ltd" on
-  // 3boxeshrms.com. This is HARDCODED and CANNOT be bypassed.
-  const _HARDCODED_HIDDEN_SLUGS = ['3boxes-hrms-demo', '3boxeshrms'];
-  const _HARDCODED_HIDDEN_NAME = 'Marq AI Tech Pvt Ltd';
+  // On the DEMO link, the demo tenant (3boxes-hrms-demo) and the placeholder
+  // tenant (3boxeshrms / Marq AI Tech Pvt Ltd) ARE the dummy data that SHOULD
+  // be shown in the switcher — so we only apply the hardcoded filter on LIVE.
+  const _HARDCODED_HIDDEN_SLUGS = isClientLiveSite() ? LIVE_HIDDEN_SLUGS : [];
+  const _HARDCODED_HIDDEN_NAME = isClientLiveSite() ? PLATFORM_PLACEHOLDER_NAME : '';
   const _isHardcodedHidden = (t: { slug?: string; name?: string } | null) =>
     !t ? false :
     _HARDCODED_HIDDEN_SLUGS.includes(t.slug || '') ||
-    (t.name || '').includes(_HARDCODED_HIDDEN_NAME);
+    (_HARDCODED_HIDDEN_NAME.length > 0 && (t.name || '').includes(_HARDCODED_HIDDEN_NAME));
   const safeAvailableTenants = availableTenants.filter(t =>
     !_isHardcodedHidden(t) && !isTenantHiddenClient(t.slug) && !isHiddenTenant(t.slug)
   );

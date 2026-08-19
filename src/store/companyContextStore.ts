@@ -3,7 +3,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { getClientSiteMode } from '@/lib/site-mode';
-import { isTenantHiddenClient, getClientHiddenSlugs, LIVE_HIDDEN_SLUGS, DEMO_HIDDEN_SLUGS } from '@/lib/tenant-filter';
+import { isTenantHiddenClient, getClientHiddenSlugs, isClientLiveSite, LIVE_HIDDEN_SLUGS, DEMO_HIDDEN_SLUGS, PLATFORM_PLACEHOLDER_NAME } from '@/lib/tenant-filter';
 
 // ─── Hidden Tenant Slugs (GOLDEN RULE) ────────────────────────────
 // PRIMARY: tenant-filter.ts (FOOLPROOF hostname-based detection)
@@ -194,17 +194,19 @@ export const useCompanyContextStore = create<CompanyContextState>()(
 
           // ─── CLIENT-SIDE SAFETY NET: Filter tenants based on site mode ───
           // GOLDEN RULE: On the LIVE site, NEVER show dummy/placeholder tenants.
-          // Even if the API filter fails (e.g., isLiveMode detection issue on
-          // Vercel), we enforce the same rules on the client side so the
-          // company switcher never shows phantom tenants.
+          // On the DEMO site, the demo tenant (3boxes-hrms-demo) and the
+          // placeholder tenant (3boxeshrms / Marq AI Tech Pvt Ltd) ARE the
+          // dummy data that SHOULD be shown — so we only hide them on LIVE.
           // NUCLEAR: Also hardcode-check slug and name — works even during SSR.
           const hiddenSlugs = getHiddenSlugs();
-          const _HARDCODED_HIDDEN = ['3boxes-hrms-demo', '3boxeshrms'];
-          const _HARDCODED_HIDDEN_NAME = 'Marq AI Tech Pvt Ltd';
+          const _HARDCODED_HIDDEN = isClientLiveSite()
+            ? LIVE_HIDDEN_SLUGS                       // ['3boxes-hrms-demo', '3boxeshrms'] — hide on live
+            : [];                                    // on demo, hide nothing extra (demo's hidden slug is 'marqaitechgroup')
+          const _HARDCODED_HIDDEN_NAME = isClientLiveSite() ? PLATFORM_PLACEHOLDER_NAME : '';
           const _isHardcodedHidden = (t: { slug?: string; name?: string } | null) =>
             !t ? false :
             _HARDCODED_HIDDEN.includes(t.slug || '') ||
-            (t.name || '').includes(_HARDCODED_HIDDEN_NAME);
+            (_HARDCODED_HIDDEN_NAME.length > 0 && (t.name || '').includes(_HARDCODED_HIDDEN_NAME));
           if (data.availableTenants) {
             data.availableTenants = data.availableTenants.filter(
               (t: TenantOption) => !hiddenSlugs.includes(t.slug) && !_isHardcodedHidden(t)
@@ -518,7 +520,7 @@ export const useCompanyContextStore = create<CompanyContextState>()(
       },
     }),
     {
-      name: 'tb_company_ctx_v2', // v2: forces fresh localStorage — old v1 data with hidden tenants is ignored
+      name: 'tb_company_ctx_v3', // v3: mode-aware filter — v2 had a bug that wiped demo tenants on demo link
       storage: createJSONStorage(() => localStorage),
       // Persist the user's selection AND role — role is needed so the
       // CompanySwitcher can render the correct label/button immediately on
@@ -546,12 +548,15 @@ export const useCompanyContextStore = create<CompanyContextState>()(
           if (!persisted) return;
           const hidden = getHiddenSlugs();
           // NUCLEAR: Also hardcode-check — works even if getHiddenSlugs() fails
-          const _HARDCODED_HIDDEN = ['3boxes-hrms-demo', '3boxeshrms'];
-          const _HARDCODED_HIDDEN_NAME = 'Marq AI Tech Pvt Ltd';
+          // MODE-AWARE: On live, hide demo/placeholder tenants. On demo, show them.
+          const _HARDCODED_HIDDEN = isClientLiveSite()
+            ? LIVE_HIDDEN_SLUGS
+            : [];
+          const _HARDCODED_HIDDEN_NAME = isClientLiveSite() ? PLATFORM_PLACEHOLDER_NAME : '';
           const _isHardcodedHidden = (t: { slug?: string; name?: string } | null) =>
             !t ? false :
             _HARDCODED_HIDDEN.includes(t.slug || '') ||
-            (t.name || '').includes(_HARDCODED_HIDDEN_NAME);
+            (_HARDCODED_HIDDEN_NAME.length > 0 && (t.name || '').includes(_HARDCODED_HIDDEN_NAME));
           // If persisted tenant points to a hidden slug, null it out
           if (persisted.tenant && persisted.tenant.slug && (hidden.includes(persisted.tenant.slug) || _isHardcodedHidden(persisted.tenant))) {
             console.warn(`[companyCtx] Scrubbing hidden tenant "${persisted.tenant.slug}" from localStorage on rehydration`);
