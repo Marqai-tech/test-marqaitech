@@ -29,7 +29,11 @@ const LIVE_DOMAINS = [
 ];
 
 // ─── Hidden tenant slugs ────────────────────────────────────────────
-export const LIVE_HIDDEN_SLUGS = ['3boxes-hrms-demo', '3boxeshrms'];
+// LIVE_HIDDEN_SLUGS includes all known placeholder/demo tenants:
+//   - '3boxes-hrms-demo' (demo/showcase tenant)
+//   - '3boxeshrms' (platform placeholder "Marq AI Tech Pvt Ltd")
+//   - '3boxes-corp' (older seed tenant, also named "Marq AI Tech Pvt Ltd")
+export const LIVE_HIDDEN_SLUGS = ['3boxes-hrms-demo', '3boxeshrms', '3boxes-corp'];
 export const DEMO_HIDDEN_SLUGS = ['marqaitechgroup'];
 
 // ─── The "Marq AI Tech Pvt Ltd" tenant — the specific leak we're fixing

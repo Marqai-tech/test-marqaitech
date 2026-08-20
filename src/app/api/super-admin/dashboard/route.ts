@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getPlatformDb, getDbForTenant } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
-import { getServerHiddenSlugs } from '@/lib/tenant-filter';
+import { getServerHiddenSlugs, PLATFORM_PLACEHOLDER_NAME } from '@/lib/tenant-filter';
 
 function corsHeaders() {
   return {
@@ -36,8 +36,15 @@ export async function GET(request: Request) {
     const hiddenSlugs = getServerHiddenSlugs(request);
 
     // ALWAYS exclude hidden tenants (Marq AI Tech Pvt Ltd placeholder + demo)
-    // regardless of mode detection — foolproof via tenant-filter.ts
-    const tenantFilter = { slug: { notIn: hiddenSlugs } };
+    // regardless of mode detection — foolproof via tenant-filter.ts.
+    // Also exclude by NAME — catches any stray tenant (e.g., '3boxes-corp')
+    // that was created with the placeholder name but a different slug.
+    const tenantFilter = {
+      AND: [
+        { slug: { notIn: hiddenSlugs } },
+        { name: { not: { contains: PLATFORM_PLACEHOLDER_NAME } } },
+      ],
+    };
 
     // ─── Tenant counts by status ───
     const [totalTenants, activeTenants, suspendedTenants, inactiveTenants] = await Promise.all([

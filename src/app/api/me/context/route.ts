@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb, getDbForTenantById } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { isLiveMode } from '@/lib/site-mode';
-import { isServerLiveSite, getServerHiddenSlugs, LIVE_HIDDEN_SLUGS as FOOLPROOF_LIVE_HIDDEN, DEMO_HIDDEN_SLUGS as FOOLPROOF_DEMO_HIDDEN } from '@/lib/tenant-filter';
+import { isServerLiveSite, getServerHiddenSlugs, LIVE_HIDDEN_SLUGS as FOOLPROOF_LIVE_HIDDEN, DEMO_HIDDEN_SLUGS as FOOLPROOF_DEMO_HIDDEN, PLATFORM_PLACEHOLDER_NAME } from '@/lib/tenant-filter';
 
 function corsHeaders() {
   return {
@@ -246,7 +246,12 @@ export async function GET(request: Request) {
       const foolproofSlugs = getServerHiddenSlugs(request);
       const siteModeSlugs = siteMode === 'live' ? ['3boxes-hrms-demo', '3boxeshrms'] : ['marqaitechgroup'];
       const allHiddenSlugs = [...new Set([...foolproofSlugs, ...siteModeSlugs])];
-      const liveTenantFilter = { slug: { notIn: allHiddenSlugs } };
+      const liveTenantFilter = {
+        AND: [
+          { slug: { notIn: allHiddenSlugs } },
+          { name: { not: { contains: PLATFORM_PLACEHOLDER_NAME } } },
+        ],
+      };
       availableTenants = await safe(
         'tenant.findMany(all)',
         () => getPlatformDb().tenant.findMany({
@@ -648,8 +653,9 @@ export async function GET(request: Request) {
     }
 
     // 2. Filter availableTenants one more time (should already be filtered, but just in case)
+    // Also filter by NAME — catches stray tenants with the placeholder name.
     const finalAvailableTenants = availableTenants.filter(
-      (t) => !hiddenSlugsFinal.includes(t.slug)
+      (t) => !hiddenSlugsFinal.includes(t.slug) && !(t.name || '').includes(PLATFORM_PLACEHOLDER_NAME)
     );
 
     // 3. Filter availableCompanyGroups — remove any that belong to hidden tenants

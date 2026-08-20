@@ -3,7 +3,7 @@ import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders, hashPassword } from '@/lib/auth';
 import { ensureSchemaSynced } from '@/lib/schema-sync';
 import { isLiveMode } from '@/lib/site-mode';
-import { getServerHiddenSlugs, LIVE_HIDDEN_SLUGS, DEMO_HIDDEN_SLUGS } from '@/lib/tenant-filter';
+import { getServerHiddenSlugs, LIVE_HIDDEN_SLUGS, DEMO_HIDDEN_SLUGS, PLATFORM_PLACEHOLDER_NAME } from '@/lib/tenant-filter';
 
 // ─── Hidden Tenant Slugs (GOLDEN RULE — FOOLPROOF) ──────────────────
 function getHiddenSlugsForRequest(request: Request): string[] {
@@ -59,6 +59,9 @@ export async function GET(request: Request) {
     // then ALSO check isLiveMode() as SECONDARY. Union both.
     const hiddenSlugs = getHiddenSlugsForRequest(request);
     where.slug = { notIn: hiddenSlugs };
+    // Also exclude tenants whose NAME matches the placeholder name
+    // (catches stray tenants like '3boxes-corp' created by older seed scripts)
+    where.name = { not: { contains: PLATFORM_PLACEHOLDER_NAME } };
     if (status) where.status = status;
     if (search) {
       where.OR = [
