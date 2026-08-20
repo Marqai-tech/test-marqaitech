@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { ensureSchemaSynced } from '@/lib/schema-sync';
+import { isSuperAdminWithoutScope } from '@/lib/superAdminGuard';
 
 async function safeQuery<T>(fn: () => Promise<T>): Promise<T | null> {
   try { return await fn(); } catch { return null; }
@@ -51,6 +52,20 @@ export async function GET(request: Request) {
     }
 
     const db = await getDb(request);
+
+    const { searchParams } = new URL(request.url);
+    const companyId = searchParams.get('companyId');
+
+    // ─── GOLDEN RULE: No dummy/seed data on LIVE for super_admin ───
+    if (isSuperAdminWithoutScope(decoded, companyId)) {
+      return NextResponse.json({
+        hiringSummary: { totalOpen: 0, totalApplications: 0, totalInterviews: 0, totalOffers: 0, totalHires: 0, totalRequisitions: 0 },
+        timeToHire: [],
+        sourceAnalytics: [],
+        offerAcceptance: [],
+        message: 'Select a company from the switcher to view recruitment reports.',
+      }, { headers: corsHeaders() });
+    }
 
     const now = new Date();
     const sixMonthsAgo = new Date(now.getTime() - 180 * 86400000);

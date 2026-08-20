@@ -13,6 +13,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { withSchemaSync } from '@/lib/schema-sync';
+import { isSuperAdminWithoutScope } from '@/lib/superAdminGuard';
 
 async function safeQuery<T>(fn: () => Promise<T>): Promise<T | null> {
   try { return await fn(); } catch { return null; }
@@ -59,6 +60,20 @@ export async function GET(request: NextRequest) {
 
     const user = await platformDb.user.findUnique({ where: { id: decoded.userId as string } });
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404, headers: corsHeaders() });
+
+    // ─── GOLDEN RULE: No dummy/seed data on LIVE for super_admin ───
+    const { searchParams } = new URL(request.url);
+    const companyId = searchParams.get('companyId');
+    if (isSuperAdminWithoutScope(decoded, companyId)) {
+      return NextResponse.json({
+        revenueByType: [],
+        monthlyStarts: [],
+        budgetVsActual: [],
+        resourceUtilization: [],
+        summaryStats: { totalProjects: 0, activeProjects: 0, completedProjects: 0, totalBudget: 0, avgProgress: 0 },
+        message: 'Select a company from the switcher to view project reports.',
+      }, { headers: corsHeaders() });
+    }
 
     // ── 1. Fetch all projects ──
     const projects = (await safeQuery(() => db.project.findMany({

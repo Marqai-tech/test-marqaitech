@@ -1,5 +1,6 @@
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
+import { isSuperAdminWithoutScope } from '@/lib/superAdminGuard';
 import { NextRequest } from 'next/server';
 
 const corsHeaders = {
@@ -21,8 +22,14 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const employeeId = searchParams.get('employeeId');
+    const companyId = searchParams.get('companyId');
     const month = searchParams.get('month');
     const year = searchParams.get('year');
+
+    // ─── GOLDEN RULE: No dummy/seed data on LIVE for super_admin ───
+    if (isSuperAdminWithoutScope(decoded, companyId)) {
+      return Response.json({ data: [] }, { headers: corsHeaders });
+    }
 
     const where: Record<string, unknown> = {
       status: { in: ['paid', 'processed'] },

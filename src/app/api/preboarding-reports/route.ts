@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { ensureSchemaSynced } from '@/lib/schema-sync';
+import { isSuperAdminWithoutScope } from '@/lib/superAdminGuard';
 
 async function safeQuery<T>(fn: () => Promise<T>): Promise<T | null> {
   try { return await fn(); } catch { return null; }
@@ -32,6 +33,16 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const reportType = searchParams.get('type') || 'summary';
+    const companyId = searchParams.get('companyId');
+
+    // ─── GOLDEN RULE: No dummy/seed data on LIVE for super_admin ───
+    if (isSuperAdminWithoutScope(decoded, companyId)) {
+      return NextResponse.json({
+        summary: { total: 0, active: 0, joined: 0, pending: 0 },
+        byStage: [],
+        message: 'Select a company from the switcher to view preboarding reports.',
+      }, { headers: corsHeaders() });
+    }
 
     // Fetch all candidates for aggregation
     const candidates = (await safeQuery(() => db.preboardingCandidate.findMany({

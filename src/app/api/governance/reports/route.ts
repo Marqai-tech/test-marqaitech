@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { withSchemaSync } from '@/lib/schema-sync';
+import { isSuperAdminWithoutScope } from '@/lib/superAdminGuard';
 
 function corsHeaders() {
   return {
@@ -42,6 +43,19 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const reportType = searchParams.get('type') || 'all';
+    const companyId = searchParams.get('companyId');
+
+    // ─── GOLDEN RULE: No dummy/seed data on LIVE for super_admin ───
+    if (isSuperAdminWithoutScope(decoded, companyId)) {
+      return NextResponse.json({
+        totalWorkflowDefs: 0,
+        activeWorkflowDefs: 0,
+        totalInstances: 0,
+        instancesByStatus: [],
+        recentExecutions: [],
+        message: 'Select a company from the switcher to view governance reports.',
+      }, { headers: corsHeaders() });
+    }
 
     // ── Workflow Execution Stats ──
     const [

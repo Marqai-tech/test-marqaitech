@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { ensureSchemaSynced } from '@/lib/schema-sync';
+import { isSuperAdminWithoutScope } from '@/lib/superAdminGuard';
 
 function corsHeaders() {
   return {
@@ -78,6 +79,31 @@ export async function GET(request: Request) {
 
     // Ensure the JobBoardPosting table exists in production
     await ensureSchemaSynced();
+
+    const { searchParams } = new URL(request.url);
+    const companyId = searchParams.get('companyId');
+
+    // ─── GOLDEN RULE: No dummy/seed data on LIVE for super_admin ───
+    if (isSuperAdminWithoutScope(decoded, companyId)) {
+      return NextResponse.json({
+        totalJobPostings: 0,
+        activeJobs: 0,
+        totalApplications: 0,
+        pendingApplications: 0,
+        interviewsScheduled: 0,
+        offersExtended: 0,
+        offersAccepted: 0,
+        hiresThisMonth: 0,
+        openPositions: 0,
+        funnelConversion: 0,
+        avgTimeToHire: 0,
+        costPerHire: 0,
+        sourceBreakdown: [],
+        monthlyTrend: [],
+        departmentBreakdown: [],
+        message: 'Select a company from the switcher to view recruitment analytics.',
+      }, { headers: corsHeaders() });
+    }
 
     const now = new Date();
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 86400000);

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
+import { isSuperAdminWithoutScope } from '@/lib/superAdminGuard';
 
 function corsHeaders() {
   return {
@@ -36,6 +37,14 @@ export async function GET(request: Request) {
     const status = searchParams.get('status');
     const projectType = searchParams.get('projectType');
     const search = searchParams.get('search');
+
+    // ─── GOLDEN RULE: No dummy/seed data on LIVE for super_admin ───
+    if (isSuperAdminWithoutScope(decoded, companyId)) {
+      return NextResponse.json({
+        projects: [],
+        pagination: { page, limit, total: 0, totalPages: 0 },
+      }, { headers: corsHeaders() });
+    }
 
     const where: Record<string, unknown> = {};
     if (companyId) where.companyId = companyId;

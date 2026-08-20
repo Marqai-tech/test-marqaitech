@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { ensureSchemaSynced, withSchemaSync } from '@/lib/schema-sync';
+import { isSuperAdminWithoutScope } from '@/lib/superAdminGuard';
 
 function corsHeaders() {
   return {
@@ -42,6 +43,15 @@ export async function GET(request: Request) {
     const limit = parseInt(searchParams.get('limit') || '50');
     const status = searchParams.get('status');
     const search = searchParams.get('search');
+    const companyId = searchParams.get('companyId');
+
+    // ─── GOLDEN RULE: No dummy/seed data on LIVE for super_admin ───
+    if (isSuperAdminWithoutScope(decoded, companyId)) {
+      return NextResponse.json({
+        candidates: [],
+        pagination: { page, limit, total: 0, totalPages: 0 },
+      }, { headers: corsHeaders() });
+    }
 
     const where: Record<string, unknown> = {};
     if (status) where.status = status;

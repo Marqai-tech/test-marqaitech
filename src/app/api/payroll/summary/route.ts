@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
+import { isSuperAdminWithoutScope } from '@/lib/superAdminGuard';
 
 function corsHeaders() {
   return {
@@ -39,6 +40,26 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const companyId = searchParams.get('companyId');
     const effectiveCompanyId = companyId && companyId.trim() !== '' ? companyId : null;
+
+    // ─── GOLDEN RULE: No dummy/seed data on LIVE for super_admin ───
+    if (isSuperAdminWithoutScope(decoded, effectiveCompanyId)) {
+      return NextResponse.json({
+        totalEmployees: 0,
+        activeCTCTemplates: 0,
+        pendingPayrollRuns: 0,
+        openComplianceItems: 0,
+        componentsCount: 0,
+        statutoryCount: 0,
+        taxSlabsCount: 0,
+        paymentMethodsCount: 0,
+        inputsCount: 0,
+        validationsCount: 0,
+        payslipsCount: 0,
+        payrollRuns: [],
+        complianceFilingsCount: 0,
+        message: 'Select a company from the switcher to view payroll data.',
+      }, { headers: corsHeaders() });
+    }
 
     // Run all queries in parallel, each safely wrapped
     const [

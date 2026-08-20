@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { withSchemaSync } from '@/lib/schema-sync';
+import { isSuperAdminWithoutScope } from '@/lib/superAdminGuard';
 
 function corsHeaders() {
   return {
@@ -36,6 +37,24 @@ export async function GET(request: Request) {
     const decoded = await verifyToken(token);
     if (!decoded) {
       return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
+    }
+
+    // ─── GOLDEN RULE: No dummy/seed data on LIVE for super_admin ───
+    const { searchParams } = new URL(request.url);
+    const companyId = searchParams.get('companyId');
+    if (isSuperAdminWithoutScope(decoded, companyId)) {
+      return NextResponse.json({
+        activeWorkflows: 0,
+        policyDocs: 0,
+        pendingInstances: 0,
+        recentInstances: [],
+        auditLogCount: 0,
+        notificationCount: 0,
+        totalInstances: 0,
+        completedInstances: 0,
+        policyCategories: [],
+        message: 'Select a company from the switcher to view governance data.',
+      }, { headers: corsHeaders() });
     }
 
     const db = await getDb(request);
