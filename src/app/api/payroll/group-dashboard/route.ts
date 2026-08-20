@@ -44,6 +44,27 @@ export async function GET(request: NextRequest) {
     });
     if (!user) return Response.json({ error: 'User not found' }, { status: 404, headers: corsHeaders });
 
+    // ─── GOLDEN RULE: Group payroll dashboard is a tenant-admin feature ───
+    // Super_admin has no tenant context, so we return an empty state instead
+    // of querying the platform DB (which would return seed/dummy data).
+    if (user.role === 'super_admin' || !user.tenantId) {
+      return Response.json({
+        data: {
+          tenant: null,
+          period: periodParam || null,
+          perCompany: [],
+          groupTotal: { gross: 0, net: 0, employerContrib: 0, currency: 'INR' },
+          pendingApprovals: 0,
+          openLockRequests: 0,
+          openAnomalies: 0,
+          companyCount: 0,
+          runsExecuted: 0,
+          runsMissing: 0,
+          message: 'Group payroll dashboard is available for tenant admins. Select a tenant context to view group payroll data.',
+        },
+      }, { headers: corsHeaders });
+    }
+
     const tenant = await getPlatformDb().tenant.findUnique({
       where: { id: user.tenantId },
       select: { id: true, name: true, baseCurrency: true, currency: true },

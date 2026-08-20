@@ -56,9 +56,18 @@ export async function GET(request: Request) {
 
     const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(decoded.role as string);
 
+    // ─── GOLDEN RULE: No dummy/seed data on LIVE for super_admin ───
+    // The Ticket model has no tenantId, so for super_admin on the platform DB,
+    // we'd see orphan/seed tickets. Return empty for super_admin with no
+    // specific requester filter — they should view tickets per-tenant instead.
+    if (decoded.role === 'super_admin' && !requesterId && !assignedAgentId) {
+      return NextResponse.json(
+        { tickets: [], pagination: { page, limit, total: 0, totalPages: 0 } },
+        { headers: corsHeaders() }
+      );
+    }
+
     // ─── Filter out hidden tenants (Marq AI Tech Pvt Ltd placeholder + demo) ───
-    // For super_admin viewing all tickets, exclude tickets belonging to hidden tenants
-    // AND exclude orphan tickets (no tenant info) which are likely dummy/seed data.
     const hiddenSlugs = getServerHiddenSlugs(request);
     const hiddenTenants = await getPlatformDb().tenant.findMany({
       where: { slug: { in: hiddenSlugs } },
@@ -148,7 +157,7 @@ export async function GET(request: Request) {
     const filteredTotal = transformedTickets.length;
 
     return NextResponse.json(
-      { tickets: transformedTickets, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } },
+      { tickets: transformedTickets, pagination: { page, limit, total: filteredTotal, totalPages: Math.ceil(filteredTotal / limit) } },
       { headers: corsHeaders() }
     );
   } catch (error) {

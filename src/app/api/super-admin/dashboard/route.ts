@@ -57,15 +57,24 @@ export async function GET(request: Request) {
     let totalCompanies = 0;
     let totalEmployees = 0;
 
-    // FIX: Only aggregate from per-tenant databases, NOT from platformDb.
-    // Previously, platformDb counts were added first, then tenant DB counts
-    // were added on top — causing double-counting for any tenant whose
-    // getDbForTenant() falls back to platformDb (e.g., tenants without a
-    // dedicated TenantDatabase record). Now we ONLY count from tenant DBs
-    // that have an active TenantDatabase record.
+    // FIX: Only aggregate from per-tenant databases that have a dedicated
+    // TenantDatabase record. Tenants WITHOUT a dedicated DB (including the
+    // hidden placeholder "3boxeshrms" / "3boxes-hrms-demo") fall back to
+    // platformDb when queried via getDbForTenant — which would re-count the
+    // shared seed rows for every such tenant, inflating totals. We skip those.
     for (const tenant of tenants) {
       if (!tenant.slug) continue;
       try {
+        // Only count if this tenant has a dedicated TenantDatabase record
+        const tenantDbRecord = await platformDb.tenantDatabase.findFirst({
+          where: { tenant: { slug: tenant.slug }, isActive: true },
+          select: { id: true },
+        });
+        if (!tenantDbRecord) {
+          console.log(`[SuperAdmin Dashboard] Skipping tenant "${tenant.slug}" — no dedicated DB (would re-count shared platform rows)`);
+          continue;
+        }
+
         const tenantDb = await getDbForTenant(tenant.slug);
         const [groupCount, companyCount, employeeCount] = await Promise.all([
           tenantDb.companyGroup.count(),

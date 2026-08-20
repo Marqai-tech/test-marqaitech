@@ -44,6 +44,17 @@ export async function GET(request: NextRequest) {
     const month = parseInt(searchParams.get('month') || String(new Date().getMonth() + 1));
     const year = parseInt(searchParams.get('year') || String(new Date().getFullYear()));
 
+    // ─── GOLDEN RULE: No dummy/seed data on LIVE for super_admin ───
+    // When super_admin has NO company selected, getDb() returns the platform
+    // DB which may contain seed/demo payroll data. Return empty metrics.
+    if (decoded.role === 'super_admin' && !effectiveCompanyId) {
+      return Response.json({
+        ...defaultResponse,
+        currentPeriod: `${year}-${String(month).padStart(2, '0')}`,
+        message: 'Select a company from the switcher to view payroll data.',
+      }, { headers: corsHeaders });
+    }
+
     const currentPeriod = `${year}-${String(month).padStart(2, '0')}`;
 
     // 1. Current month payroll run metrics

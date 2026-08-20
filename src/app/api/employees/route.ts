@@ -63,6 +63,20 @@ export async function GET(request: Request) {
     const userId = scopeResult?.userId;
     const scope = scopeResult?.scope || 'all';
 
+    // ─── GOLDEN RULE: No dummy/seed data on LIVE for super_admin ───
+    // When super_admin has NO tenant or company selected, getDb() returns the
+    // platform DB which contains seed/demo data. Return empty instead of
+    // leaking that data. Super admin must select a tenant/company in the
+    // CompanySwitcher to see real employee data.
+    if (userRole === 'super_admin' && !scopeResult?.companyId && !tenantId) {
+      return NextResponse.json({
+        employees: [],
+        pagination: { page, limit, total: 0, totalPages: 0 },
+        dataScope: 'all',
+        message: 'Select a tenant or company from the switcher to view employees.',
+      }, { headers: corsHeaders() });
+    }
+
     // Try database query
     try {
       const where: Record<string, unknown> = {};

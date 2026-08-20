@@ -8,7 +8,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import {
   FiRefreshCw, FiDollarSign, FiAlertTriangle, FiLock, FiActivity,
-  FiGlobe, FiTrendingUp, FiCheckCircle,
+  FiGlobe, FiTrendingUp, FiCheckCircle, FiGrid,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useCompanyContextStore } from '@/store/companyContextStore';
@@ -219,7 +219,11 @@ export default function GroupPayrollDashboardPage() {
       ) : loading ? (
         <div className="thb-card p-12 text-center text-thb-text-secondary">Loading…</div>
       ) : (
-        <div className="thb-card p-12 text-center text-thb-text-secondary">Failed to load group data</div>
+        <div className="thb-card p-12 text-center text-thb-text-secondary">
+          <FiGrid className="w-10 h-10 mx-auto mb-3 text-slate-300" />
+          <p className="font-medium text-thb-text-primary">No group payroll data</p>
+          <p className="text-sm mt-1">Select a tenant or company from the switcher to view group payroll data.</p>
+        </div>
       )}
 
       {/* Statutory Filing Oversight (Red/Amber/Green) */}
