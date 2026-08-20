@@ -13,6 +13,7 @@ import {
   FiTrash2,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import { isClientDemoMode } from '@/lib/site-mode';
 import { useAuthStore } from '@/store/authStore';
 import ModuleTips from '@/components/ModuleTips';
 import ModuleWorkflow from '@/components/ModuleWorkflow';
@@ -67,7 +68,7 @@ function getReadinessBadge(readiness: string) {
 }
 
 /* ── Demo Data ── */
-const demoCandidates: SuccessorCandidate[] = [
+const demoCandidates: SuccessorCandidate[] = isClientDemoMode() ? [
   { id: '1', name: 'Aarav Sharma', currentRole: 'Senior Developer', performance: 'High', potential: 'High', readiness: 'Ready Now', skillsGap: 'Strategic planning (15%)', developmentNeeds: 'Executive leadership program', department: 'Engineering' },
   { id: '2', name: 'Priya Patel', currentRole: 'Lead Designer', performance: 'High', potential: 'Medium', readiness: '1-2 Years', skillsGap: 'Budget management (30%)', developmentNeeds: 'Financial acumen training', department: 'Design' },
   { id: '3', name: 'Rahul Verma', currentRole: 'Product Manager', performance: 'Medium', potential: 'High', readiness: '1-2 Years', skillsGap: 'Stakeholder management (20%)', developmentNeeds: 'Cross-functional leadership', department: 'Product' },
@@ -77,16 +78,16 @@ const demoCandidates: SuccessorCandidate[] = [
   { id: '7', name: 'Arjun Nair', currentRole: 'Tech Lead', performance: 'Low', potential: 'Medium', readiness: '3+ Years', skillsGap: 'Technical depth (35%)', developmentNeeds: 'Advanced architecture certification', department: 'Engineering' },
   { id: '8', name: 'Kavya Iyer', currentRole: 'Sales Manager', performance: 'High', potential: 'Medium', readiness: '1-2 Years', skillsGap: 'P&L management (25%)', developmentNeeds: 'Finance for non-finance managers', department: 'Sales' },
   { id: '9', name: 'Deepak Gupta', currentRole: 'Finance Analyst', performance: 'Low', potential: 'High', readiness: '1-2 Years', skillsGap: 'Communication skills (20%)', developmentNeeds: 'Executive presentation skills', department: 'Finance' },
-];
+] : [];
 
-const demoPositions: KeyPosition[] = [
+const demoPositions: KeyPosition[] = isClientDemoMode() ? [
   { id: '1', title: 'VP of Engineering', incumbent: 'Current VP', department: 'Engineering', successors: ['Aarav Sharma', 'Vikram Singh'], riskLevel: 'Critical', impact: 'Critical - Core technical leadership' },
   { id: '2', title: 'Head of Design', incumbent: 'Current Head', department: 'Design', successors: ['Priya Patel'], riskLevel: 'High', impact: 'High - Brand and UX ownership' },
   { id: '3', title: 'Director of Product', incumbent: 'Current Director', department: 'Product', successors: ['Rahul Verma', 'Kavya Iyer'], riskLevel: 'Medium', impact: 'Medium - Product roadmap impact' },
   { id: '4', title: 'Head of Analytics', incumbent: 'Current Head', department: 'Analytics', successors: ['Sneha Reddy'], riskLevel: 'High', impact: 'High - Data-driven decisions' },
   { id: '5', title: 'HR Director', incumbent: 'Current Director', department: 'HR', successors: ['Meera Joshi'], riskLevel: 'Medium', impact: 'Medium - People operations' },
   { id: '6', title: 'Sales Director', incumbent: 'Current Director', department: 'Sales', successors: ['Kavya Iyer'], riskLevel: 'Low', impact: 'Low - Revenue continuity' },
-];
+] : [];
 
 const initialForm = {
   name: '',

@@ -5,6 +5,7 @@ import {
   FiPlus, FiX, FiClock, FiUser, FiBriefcase,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import { isClientDemoMode } from '@/lib/site-mode';
 import { useAuthStore } from '@/store/authStore';
 
 /* ── Helpers ── */
@@ -54,7 +55,7 @@ const defaultTask = {
 };
 
 /* ── Demo fallback data ── */
-const DEMO_TASKS: Task[] = [
+const DEMO_TASKS: Task[] = isClientDemoMode() ? [
   { id: 'd1', name: 'Design homepage layout', projectId: 'p1', priority: 'high', status: 'in_progress', estimatedHours: 16, plannedEnd: '2026-03-15', projectName: 'Website Redesign', assigneeName: 'Alice K.' },
   { id: 'd2', name: 'Setup CI/CD pipeline', projectId: 'p1', priority: 'critical', status: 'todo', estimatedHours: 8, plannedEnd: '2026-03-12', projectName: 'Website Redesign', assigneeName: 'Bob M.' },
   { id: 'd3', name: 'API authentication module', projectId: 'p2', priority: 'high', status: 'review', estimatedHours: 24, plannedEnd: '2026-03-10', projectName: 'Mobile App', assigneeName: 'Carol S.' },
@@ -63,13 +64,13 @@ const DEMO_TASKS: Task[] = [
   { id: 'd6', name: 'Sprint retrospective notes', projectId: 'p1', priority: 'low', status: 'done', estimatedHours: 2, plannedEnd: '2026-03-08', projectName: 'Website Redesign' },
   { id: 'd7', name: 'Performance optimization', projectId: 'p3', priority: 'medium', status: 'in_progress', estimatedHours: 16, plannedEnd: '2026-03-18', projectName: 'Backend API', assigneeName: 'Frank L.' },
   { id: 'd8', name: 'User acceptance testing', projectId: 'p2', priority: 'high', status: 'todo', estimatedHours: 10, plannedEnd: '2026-03-22', projectName: 'Mobile App', assigneeName: 'Grace P.' },
-];
+] : [];
 
-const DEMO_PROJECTS: ProjectOption[] = [
+const DEMO_PROJECTS: ProjectOption[] = isClientDemoMode() ? [
   { id: 'p1', name: 'Website Redesign' },
   { id: 'p2', name: 'Mobile App' },
   { id: 'p3', name: 'Backend API' },
-];
+] : [];
 
 export default function TasksPage() {
   const { user } = useAuthStore();

@@ -7,6 +7,7 @@ import {
 } from 'react-icons/fi';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import toast from 'react-hot-toast';
+import { isClientDemoMode } from '@/lib/site-mode';
 import { useAuthStore } from '@/store/authStore';
 
 /* ================================================================
@@ -49,6 +50,7 @@ const EMPTY_FORM: Omit<Software, 'id'> = {
 };
 
 function getDemoSoftware(): Software[] {
+  if (!isClientDemoMode()) return [];
   const now = new Date();
   return [
     { id: '1', name: 'Microsoft 365 Business', vendor: 'Microsoft', licenseType: 'subscription', seats: 250, usedSeats: 218, expiryDate: new Date(now.getFullYear(), now.getMonth() + 6, 15).toISOString().slice(0, 10), status: 'active' },

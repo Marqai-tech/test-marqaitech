@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import toast from 'react-hot-toast';
+import { isClientDemoMode } from '@/lib/site-mode';
 import { useAuthStore } from '@/store/authStore';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
@@ -55,7 +56,7 @@ interface TimelineProject {
 const STATUSES = ['draft', 'active', 'on_hold', 'completed', 'cancelled'];
 
 /* ── Demo Data ── */
-const DEMO_TIMELINE: TimelineProject[] = [
+const DEMO_TIMELINE: TimelineProject[] = isClientDemoMode() ? [
   { id: '1', name: 'Website Redesign', startDate: '2026-01-15', endDate: '2026-06-30', progress: 45, status: 'active', projectType: 'client', budgetAmount: 120000 },
   { id: '2', name: 'Mobile App Development', startDate: '2026-02-01', endDate: '2026-08-15', progress: 30, status: 'active', projectType: 'client', budgetAmount: 200000 },
   { id: '3', name: 'Internal HRMS Upgrade', startDate: '2026-03-01', endDate: '2026-05-31', progress: 15, status: 'active', projectType: 'internal', budgetAmount: 50000 },
@@ -64,7 +65,7 @@ const DEMO_TIMELINE: TimelineProject[] = [
   { id: '6', name: 'Legacy System Migration', startDate: '2025-10-01', endDate: '2026-03-31', progress: 85, status: 'active', projectType: 'internal', budgetAmount: 150000 },
   { id: '7', name: 'Data Analytics Platform', startDate: '2025-11-15', endDate: '2026-02-28', progress: 100, status: 'completed', projectType: 'client', budgetAmount: 175000 },
   { id: '8', name: 'Security Audit Framework', startDate: '2026-02-15', endDate: '2026-04-30', progress: 60, status: 'on_hold', projectType: 'r_and_d', budgetAmount: 45000 },
-];
+] : [];
 
 export default function TimelinePage() {
   const { user } = useAuthStore();

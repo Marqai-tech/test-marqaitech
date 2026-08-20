@@ -7,6 +7,7 @@ import {
   FiChevronDown, FiCheck, FiCircle,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import { isClientDemoMode } from '@/lib/site-mode';
 import { useAuthStore } from '@/store/authStore';
 import { useAutoSeedDemo } from '@/hooks/useAutoSeedDemo';
 
@@ -30,14 +31,14 @@ interface Activity {
   createdBy: string;
 }
 
-const DEMO_ACTIVITIES: Activity[] = [
+const DEMO_ACTIVITIES: Activity[] = isClientDemoMode() ? [
   { id: 1, type: 'call', title: 'Discovery call with Rajesh Kumar', description: 'Discussed SaaS platform requirements and pricing expectations.', contact: 'Rajesh Kumar', deal: 'Enterprise SaaS Platform', date: '2025-07-01', time: '10:30 AM', duration: '32 min', status: 'completed', outcome: 'Positive — scheduling follow-up demo', createdBy: 'Arjun Mehta' },
   { id: 2, type: 'email', title: 'Revised proposal sent to DataCore', description: 'Sent updated proposal with revised pricing tiers.', contact: 'Sneha Iyer', deal: 'Cloud Migration Project', date: '2025-07-01', time: '2:15 PM', duration: '', status: 'completed', outcome: 'Awaiting response', createdBy: 'Sneha Iyer' },
   { id: 3, type: 'meeting', title: 'Product demo for GreenLeaf Corp.', description: 'Conducted live product demo for manufacturing use cases.', contact: 'Vikram Patel', deal: 'Digital Transformation', date: '2025-06-30', time: '11:00 AM', duration: '1 hr', status: 'completed', outcome: 'Very engaged — moving to negotiation', createdBy: 'Vikram Patel' },
   { id: 4, type: 'task', title: 'Prepare competitive analysis for MegaSoft', description: 'Research competitor pricing and feature comparisons.', contact: 'Priya Sharma', deal: 'Analytics Platform', date: '2025-07-02', time: '', duration: '', status: 'pending', outcome: '', createdBy: 'Priya Sharma' },
   { id: 5, type: 'note', title: 'Key requirements noted from BuildRight call', description: 'They need custom reporting module and API integrations.', contact: 'Amit Desai', deal: 'CRM Implementation', date: '2025-06-29', time: '', duration: '', status: 'completed', outcome: '', createdBy: 'Arjun Mehta' },
   { id: 7, type: 'meeting', title: 'Quarterly business review with BuildRight', description: 'Q2 performance review and Q3 planning session.', contact: 'Amit Desai', deal: 'CRM Implementation', date: '2025-07-03', time: '2:00 PM', duration: '1.5 hr', status: 'scheduled', outcome: '', createdBy: 'Arjun Mehta' },
-];
+] : [];
 
 const ACTIVITY_TYPES = [
   { key: 'call', label: 'Call', icon: FiPhone, color: 'text-green-500', bg: 'bg-green-50', border: 'border-green-200' },

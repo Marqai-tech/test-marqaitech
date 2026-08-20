@@ -7,6 +7,7 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import { isClientDemoMode } from '@/lib/site-mode';
 
 /* ================================================================
    Device Management – 3Boxes HRMS IT Admin
@@ -55,6 +56,7 @@ const EMPTY_DEVICE: Omit<Device, 'id'> = {
 };
 
 function getDemoDevices(): Device[] {
+  if (!isClientDemoMode()) return [];
   return [
     { id: '1', name: 'ThinkPad X1 Carbon', type: 'laptop', serialNumber: 'TP-X1C-2024-001', assignedTo: 'Arun Kumar', status: 'assigned', purchaseDate: '2024-01-15', warrantyEnd: '2027-01-15', os: 'Windows 11 Pro', ram: '16GB', storage: '512GB SSD' },
     { id: '2', name: 'MacBook Pro 16"', type: 'laptop', serialNumber: 'MBP-16-2024-045', assignedTo: 'Priya Sharma', status: 'assigned', purchaseDate: '2024-03-10', warrantyEnd: '2027-03-10', os: 'macOS Sonoma', ram: '32GB', storage: '1TB SSD' },

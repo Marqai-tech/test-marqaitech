@@ -27,6 +27,7 @@ import {
 } from 'react-icons/fi';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
+import { isClientDemoMode } from '@/lib/site-mode';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
 import SrsBanner from '@/components/SrsBanner';
@@ -128,14 +129,14 @@ function formatCurrency(amount: number, currency = 'INR') {
 }
 
 /* ── Demo data for workflows (kept as demo since workflow engine isn't built yet) ── */
-const demoWorkflows: WorkflowConfig[] = [
+const demoWorkflows: WorkflowConfig[] = isClientDemoMode() ? [
   { id: '1', name: 'Leave Approval', type: 'approval', enabled: true, trigger: 'Leave request submitted', lastRun: '2026-03-03 09:00 AM' },
   { id: '2', name: 'Onboarding Flow', type: 'onboarding', enabled: true, trigger: 'New employee added', lastRun: '2026-03-01 11:30 AM' },
   { id: '3', name: 'Expense Approval', type: 'approval', enabled: true, trigger: 'Expense claim submitted', lastRun: '2026-03-02 02:15 PM' },
   { id: '4', name: 'Performance Review Cycle', type: 'review', enabled: false, trigger: 'Review cycle start date', lastRun: '2025-12-15 09:00 AM' },
   { id: '5', name: 'Probation Completion', type: 'notification', enabled: true, trigger: 'Probation period end date', lastRun: '2026-02-28 08:00 AM' },
   { id: '6', name: 'Asset Return on Exit', type: 'offboarding', enabled: true, trigger: 'Employee separation initiated', lastRun: '2026-02-20 03:45 PM' },
-];
+] : [];
 
 /* ── Component ── */
 export default function TenantAdminPage() {

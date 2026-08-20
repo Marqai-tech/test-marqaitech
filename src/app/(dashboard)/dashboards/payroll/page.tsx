@@ -457,8 +457,9 @@ function PayrollContent() {
       else if (s === 'REVIEW') counts.Review++;
       else counts.Draft++;
     });
-    // Ensure at least demo values
-    if (counts.Processed + counts.Review + counts.Draft === 0) {
+    // Ensure at least demo values — DEMO ONLY (GOLDEN RULE: no dummy data on live)
+    const isDemoMode = getClientSiteMode() !== 'live';
+    if (isDemoMode && counts.Processed + counts.Review + counts.Draft === 0) {
       counts.Processed = 3;
       counts.Review = 1;
       counts.Draft = 1;
@@ -469,7 +470,10 @@ function PayrollContent() {
   // Cost distribution (derived from current metrics)
   const costDistributionData = (() => {
     const m = data?.metrics;
+    const isDemoMode = getClientSiteMode() !== 'live';
     if (!m || m.totalGrossPay === 0) {
+      // On LIVE, show empty array instead of fake values
+      if (!isDemoMode) return [];
       return [
         { name: 'Basic', value: 85_00_000 },
         { name: 'HRA', value: 38_00_000 },
@@ -492,13 +496,13 @@ function PayrollContent() {
   const pendingApprovals = data?.metrics?.pendingApprovals ?? 0;
   const activeHolds = data?.metrics?.activeHolds ?? 0;
 
-  // Upcoming filing deadlines
-  const filingDeadlines = [
+  // Upcoming filing deadlines — DEMO ONLY (on live, show empty until real config API exists)
+  const filingDeadlines = getClientSiteMode() !== 'live' ? [
     { title: 'TDS Return Q1', due: '2026-07-31', status: 'AMBER' },
     { title: 'PF Monthly Return', due: '2026-07-15', status: 'RED' },
     { title: 'ESI Half-Yearly', due: '2026-08-11', status: 'GREEN' },
     { title: 'Professional Tax', due: '2026-07-31', status: 'AMBER' },
-  ];
+  ] : [];
 
   /* ─── Quick actions ─── */
   const quickActions = [

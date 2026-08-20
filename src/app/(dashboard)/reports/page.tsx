@@ -13,6 +13,7 @@ import {
   FiTool, FiClipboard, FiMonitor,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import { isClientDemoMode } from '@/lib/site-mode';
 import { sanitizeSearch } from '@/lib/validators';
 import { useAuthStore } from '@/store/authStore';
 import ModuleTips from '@/components/ModuleTips';
@@ -467,10 +468,16 @@ export default function ReportsPage() {
       setAiInsights(insights);
       toast.success(`${report.name} analysis complete`);
     } catch {
-      // Fallback mock insights
-      const insights = getMockAIInsights(report.id);
-      setAiInsights(insights);
-      toast.success(`${report.name} analysis complete (demo data)`);
+      // Fallback mock insights — DEMO ONLY (GOLDEN RULE: no dummy data on live)
+      if (isClientDemoMode()) {
+        const insights = getMockAIInsights(report.id);
+        setAiInsights(insights);
+        toast.success(`${report.name} analysis complete (demo data)`);
+      } else {
+        // On LIVE, show empty state instead of fake insights
+        setAiInsights([]);
+        toast.error(`${report.name} analysis failed. Please try again.`);
+      }
     } finally {
       setAiLoading(false);
     }
@@ -545,7 +552,7 @@ export default function ReportsPage() {
         ];
       }
       default:
-        return getMockAIInsights(reportId);
+        return isClientDemoMode() ? getMockAIInsights(reportId) : [];
     }
   };
 

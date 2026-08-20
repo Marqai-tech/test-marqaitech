@@ -15,22 +15,23 @@ import {
 } from 'recharts';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import { isClientDemoMode } from '@/lib/site-mode';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
   return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
 }
 
-// ── Demo Data ──
-const dealPipelineData = [
+// ── Demo Data (LIVE shows empty — GOLDEN RULE: no dummy data on live) ──
+const dealPipelineData = isClientDemoMode() ? [
   { stage: 'Qualification', value: 450000, count: 8 },
   { stage: 'Proposal', value: 680000, count: 12 },
   { stage: 'Negotiation', value: 920000, count: 6 },
   { stage: 'Closed Won', value: 1250000, count: 15 },
   { stage: 'Closed Lost', value: 380000, count: 7 },
-];
+] : [];
 
-const monthlyRevenueData = [
+const monthlyRevenueData = isClientDemoMode() ? [
   { month: 'Jan', revenue: 125000, target: 150000 },
   { month: 'Feb', revenue: 148000, target: 150000 },
   { month: 'Mar', revenue: 172000, target: 160000 },
@@ -43,18 +44,18 @@ const monthlyRevenueData = [
   { month: 'Oct', revenue: 285000, target: 270000 },
   { month: 'Nov', revenue: 310000, target: 290000 },
   { month: 'Dec', revenue: 340000, target: 300000 },
-];
+] : [];
 
-const leadSourceData = [
+const leadSourceData = isClientDemoMode() ? [
   { name: 'Website', value: 35, color: '#3b82f6' },
   { name: 'Referral', value: 25, color: '#10b981' },
   { name: 'LinkedIn', value: 20, color: '#8b5cf6' },
   { name: 'Events', value: 12, color: '#f59e0b' },
   { name: 'Cold Call', value: 5, color: '#ef4444' },
   { name: 'Other', value: 3, color: '#64748b' },
-];
+] : [];
 
-const leadStatusData = [
+const leadStatusData = isClientDemoMode() ? [
   { status: 'New', count: 45 },
   { status: 'Contacted', count: 32 },
   { status: 'Qualified', count: 28 },
@@ -62,7 +63,7 @@ const leadStatusData = [
   { status: 'Negotiation', count: 12 },
   { status: 'Won', count: 25 },
   { status: 'Lost', count: 15 },
-];
+] : [];
 
 // ── Demo Data removed — data comes from API only ──
 const demoContacts: Array<{ id: string; name: string; company: string; email: string; phone: string; type: string; status: string; lastContact: string; dealValue: number }> = [];
@@ -213,14 +214,14 @@ function CRMContent() {
 
       {/* Stats Row */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        {[
+        {(isClientDemoMode() ? [
           { label: 'Total Contacts', value: '248', icon: <FiUsers className="w-5 h-5" />, color: 'text-green-600', bg: 'bg-green-50', trend: '+12' },
           { label: 'Active Deals', value: '34', icon: <FiBriefcase className="w-5 h-5" />, color: 'text-teal-600', bg: 'bg-teal-50', trend: '+5' },
           { label: 'Pipeline Value', value: '₹38.5L', icon: <FiDollarSign className="w-5 h-5" />, color: 'text-emerald-600', bg: 'bg-emerald-50', trend: '+8.2%' },
           { label: 'Won This Month', value: '8', icon: <FiCheckCircle className="w-5 h-5" />, color: 'text-emerald-600', bg: 'bg-emerald-50', trend: '+3' },
           { label: 'Lost This Month', value: '3', icon: <FiX className="w-5 h-5" />, color: 'text-red-600', bg: 'bg-red-50', trend: '-1' },
           { label: 'Win Rate', value: '72%', icon: <FiTrendingUp className="w-5 h-5" />, color: 'text-teal-600', bg: 'bg-teal-50', trend: '+4%' },
-        ].map((stat) => (
+        ] : []).map((stat) => (
           <div key={stat.label} className="thb-card p-4">
             <div className="flex items-center justify-between mb-2">
               <div className={`p-2 rounded-lg ${stat.bg} ${stat.color}`}>{stat.icon}</div>

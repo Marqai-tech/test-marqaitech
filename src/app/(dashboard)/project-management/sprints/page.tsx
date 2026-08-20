@@ -6,6 +6,7 @@ import {
   FiPlay, FiCheckCircle, FiEdit2, FiTrendingUp,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import { isClientDemoMode } from '@/lib/site-mode';
 import { useAuthStore } from '@/store/authStore';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -38,14 +39,14 @@ interface Sprint {
 const SPRINT_STATUSES = ['planning', 'active', 'completed'];
 
 /* ── Demo Data ── */
-const DEMO_SPRINTS: Sprint[] = [
+const DEMO_SPRINTS: Sprint[] = isClientDemoMode() ? [
   { id: 's1', name: 'Sprint 12', startDate: '2026-03-02', endDate: '2026-03-15', status: 'active', goal: 'Complete user dashboard and reporting module', taskCount: 14, completedTasks: 8, totalPoints: 42, completedPoints: 28 },
   { id: 's2', name: 'Sprint 11', startDate: '2026-02-16', endDate: '2026-03-01', status: 'completed', goal: 'API integration and performance optimization', taskCount: 12, completedTasks: 12, totalPoints: 36, completedPoints: 36 },
   { id: 's3', name: 'Sprint 13', startDate: '2026-03-16', endDate: '2026-03-29', status: 'planning', goal: 'Mobile app beta release and bug fixes', taskCount: 10, completedTasks: 0, totalPoints: 30, completedPoints: 0 },
   { id: 's4', name: 'Sprint 10', startDate: '2026-02-02', endDate: '2026-02-15', status: 'completed', goal: 'Authentication overhaul and security audit', taskCount: 11, completedTasks: 10, totalPoints: 33, completedPoints: 30 },
-];
+] : [];
 
-const BURNDOWN_DATA = [
+const BURNDOWN_DATA = isClientDemoMode() ? [
   { day: 'Day 1', ideal: 42, actual: 42 },
   { day: 'Day 2', ideal: 39, actual: 40 },
   { day: 'Day 3', ideal: 36, actual: 37 },
@@ -56,7 +57,7 @@ const BURNDOWN_DATA = [
   { day: 'Day 8', ideal: 21, actual: 22 },
   { day: 'Day 9', ideal: 18, actual: 18 },
   { day: 'Day 10', ideal: 15, actual: 14 },
-];
+] : [];
 
 const defaultForm = { name: '', startDate: '', endDate: '', status: 'planning' as const, goal: '' };
 

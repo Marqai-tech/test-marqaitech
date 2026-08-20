@@ -6,6 +6,7 @@ import {
   FiPhone, FiBriefcase, FiCheck, FiFilter, FiEye, FiChevronDown,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import { isClientDemoMode } from '@/lib/site-mode';
 import { validateEmail, validatePhone, phoneInputFilter } from '@/lib/validators';
 import { useAuthStore } from '@/store/authStore';
 import { useAutoSeedDemo } from '@/hooks/useAutoSeedDemo';
@@ -31,14 +32,14 @@ interface Contact {
   totalDealValue?: number;
 }
 
-const DEMO_CONTACTS: Contact[] = [
+const DEMO_CONTACTS: Contact[] = isClientDemoMode() ? [
   { id: 1, firstName: 'Rajesh', lastName: 'Kumar', email: 'rajesh@techvista.com', phone: '+91 98765 43210', company: 'TechVista Solutions', title: 'CTO', type: 'Customer', status: 'Active', source: 'website', lastContact: '2 hours ago', dealCount: 4, totalDealValue: 8200000 },
   { id: 2, firstName: 'Sneha', lastName: 'Iyer', email: 'sneha@datacore.com', phone: '+91 87654 32109', company: 'DataCore Inc.', title: 'VP Engineering', type: 'Lead', status: 'Active', source: 'referral', lastContact: '4 hours ago', dealCount: 2, totalDealValue: 4500000 },
   { id: 3, firstName: 'Vikram', lastName: 'Patel', email: 'vikram@greenleaf.com', phone: '+91 76543 21098', company: 'GreenLeaf Corp.', title: 'Director of IT', type: 'Customer', status: 'Active', source: 'social', lastContact: 'Yesterday', dealCount: 6, totalDealValue: 15000000 },
   { id: 4, firstName: 'Priya', lastName: 'Sharma', email: 'priya@megasoft.com', phone: '+91 65432 10987', company: 'MegaSoft Ltd.', title: 'Head of Operations', type: 'Lead', status: 'Active', source: 'website', lastContact: '2 days ago', dealCount: 1, totalDealValue: 1900000 },
   { id: 5, firstName: 'Amit', lastName: 'Desai', email: 'amit@buildright.com', phone: '+91 54321 09876', company: 'BuildRight Inc.', title: 'CEO', type: 'Partner', status: 'Active', source: 'referral', lastContact: '3 days ago', dealCount: 3, totalDealValue: 6500000 },
   { id: 6, firstName: 'Kavita', lastName: 'Nair', email: 'kavita@skyhigh.com', phone: '+91 43210 98765', company: 'SkyHigh Tech', title: 'Procurement Head', type: 'Vendor', status: 'Inactive', source: 'other', lastContact: '1 week ago', dealCount: 0, totalDealValue: 0 },
-];
+] : [];
 
 const emptyForm = { firstName: '', lastName: '', email: '', phone: '', company: '', title: '', type: 'Lead', status: 'Active', source: 'website' };
 

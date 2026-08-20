@@ -14,14 +14,15 @@ import {
 import toast from 'react-hot-toast';
 import ModuleDashboardShell, { DashboardTabConfig } from '@/components/ModuleDashboardShell';
 import { useAuthStore } from '@/store/authStore';
+import { isClientDemoMode } from '@/lib/site-mode';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
   return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
 }
 
-// ── Demo Data ──
-const revenueExpenseData = [
+// ── Demo Data (LIVE shows empty — GOLDEN RULE: no dummy data on live) ──
+const revenueExpenseData = isClientDemoMode() ? [
   { month: 'Jan', revenue: 185000, expenses: 142000 },
   { month: 'Feb', revenue: 198000, expenses: 138000 },
   { month: 'Mar', revenue: 210000, expenses: 155000 },
@@ -34,26 +35,26 @@ const revenueExpenseData = [
   { month: 'Oct', revenue: 285000, expenses: 180000 },
   { month: 'Nov', revenue: 290000, expenses: 175000 },
   { month: 'Dec', revenue: 310000, expenses: 185000 },
-];
+] : [];
 
-const accountBalanceData = [
+const accountBalanceData = isClientDemoMode() ? [
   { name: 'Assets', value: 1250000, color: '#3b82f6' },
   { name: 'Liabilities', value: 450000, color: '#ef4444' },
   { name: 'Equity', value: 380000, color: '#8b5cf6' },
   { name: 'Revenue', value: 850000, color: '#10b981' },
   { name: 'Expenses', value: 620000, color: '#f59e0b' },
-];
+] : [];
 
-const budgetVsActualData = [
+const budgetVsActualData = isClientDemoMode() ? [
   { category: 'Salaries', budget: 500000, actual: 485000 },
   { category: 'Operations', budget: 200000, actual: 215000 },
   { category: 'Marketing', budget: 150000, actual: 132000 },
   { category: 'IT', budget: 120000, actual: 118000 },
   { category: 'Travel', budget: 80000, actual: 92000 },
   { category: 'Utilities', budget: 60000, actual: 58000 },
-];
+] : [];
 
-const recentTransactions = [
+const recentTransactions = isClientDemoMode() ? [
   { id: 'TXN001', date: '2026-06-30', account: 'Cash', description: 'Client Payment - ABC Corp', debit: 75000, credit: 0, status: 'posted' },
   { id: 'TXN002', date: '2026-06-30', account: 'Revenue', description: 'Service Revenue - Q2', debit: 0, credit: 75000, status: 'posted' },
   { id: 'TXN003', date: '2026-06-29', account: 'Bank', description: 'Salary Disbursement', debit: 0, credit: 450000, status: 'posted' },
@@ -62,9 +63,9 @@ const recentTransactions = [
   { id: 'TXN006', date: '2026-06-28', account: 'Cash', description: 'Petty Cash Reimbursement', debit: 0, credit: 3500, status: 'draft' },
   { id: 'TXN007', date: '2026-06-27', account: 'Rent Expense', description: 'Office Rent - July', debit: 85000, credit: 0, status: 'posted' },
   { id: 'TXN008', date: '2026-06-27', account: 'Bank', description: 'Rent Payment', debit: 0, credit: 85000, status: 'posted' },
-];
+] : [];
 
-const chartOfAccounts = [
+const chartOfAccounts = isClientDemoMode() ? [
   { code: '1000', name: 'Cash', type: 'Asset', balance: 245000, status: 'active' },
   { code: '1100', name: 'Bank - HDFC', type: 'Asset', balance: 890000, status: 'active' },
   { code: '1200', name: 'Accounts Receivable', type: 'Asset', balance: 345000, status: 'active' },
@@ -80,24 +81,24 @@ const chartOfAccounts = [
   { code: '5000', name: 'Salaries Expense', type: 'Expense', balance: 450000, status: 'active' },
   { code: '5100', name: 'Rent Expense', type: 'Expense', balance: 85000, status: 'active' },
   { code: '5200', name: 'Utilities Expense', type: 'Expense', balance: 58000, status: 'active' },
-];
+] : [];
 
-const journalEntries = [
+const journalEntries = isClientDemoMode() ? [
   { id: 'JE001', date: '2026-06-30', description: 'Client Payment Received', debitTotal: 75000, creditTotal: 75000, status: 'posted' },
   { id: 'JE002', date: '2026-06-29', description: 'Payroll Disbursement', debitTotal: 450000, creditTotal: 450000, status: 'posted' },
   { id: 'JE003', date: '2026-06-28', description: 'Office Supplies Purchase', debitTotal: 3500, creditTotal: 3500, status: 'draft' },
   { id: 'JE004', date: '2026-06-27', description: 'Rent Payment', debitTotal: 85000, creditTotal: 85000, status: 'posted' },
   { id: 'JE005', date: '2026-06-26', description: 'Equipment Depreciation', debitTotal: 12000, creditTotal: 12000, status: 'posted' },
   { id: 'JE006', date: '2026-06-25', description: 'Tax Provision', debitTotal: 45000, creditTotal: 45000, status: 'draft' },
-];
+] : [];
 
-const ledgerEntries = [
+const ledgerEntries = isClientDemoMode() ? [
   { date: '2026-06-30', particulars: 'Client Payment - ABC Corp', debit: 75000, credit: 0, balance: 245000 },
   { date: '2026-06-29', particulars: 'Salary Disbursement', debit: 0, credit: 450000, balance: 170000 },
   { date: '2026-06-28', particulars: 'Petty Cash Reimbursement', debit: 0, credit: 3500, balance: 620000 },
   { date: '2026-06-27', particulars: 'Rent Payment', debit: 0, credit: 85000, balance: 623500 },
   { date: '2026-06-26', particulars: 'Transfer from Bank', debit: 500000, credit: 0, balance: 708500 },
-];
+] : [];
 
 type TabKey = 'overview' | 'chart-of-accounts' | 'journal-entries' | 'general-ledger' | 'financial-statements';
 
@@ -218,20 +219,21 @@ function AccountsContent() {
     return journalEntries.filter(je => je.description.toLowerCase().includes(searchTerm.toLowerCase()));
   }, [searchTerm]);
 
-  const netProfit = revenueExpenseData[revenueExpenseData.length - 1].revenue - revenueExpenseData[revenueExpenseData.length - 1].expenses;
+  const lastEntry = revenueExpenseData[revenueExpenseData.length - 1];
+  const netProfit = lastEntry ? lastEntry.revenue - lastEntry.expenses : 0;
 
   return (
     <div className="space-y-6">
       {/* Stats Row */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        {[
+        {(isClientDemoMode() ? [
           { label: 'Total Revenue', value: '₹31.0L', icon: <FiTrendingUp className="w-5 h-5" />, color: 'text-emerald-600', bg: 'bg-emerald-50', trend: '+8.2%' },
           { label: 'Total Expenses', value: '₹18.5L', icon: <FiTrendingDown className="w-5 h-5" />, color: 'text-red-600', bg: 'bg-red-50', trend: '+3.1%' },
           { label: 'Net Profit', value: `₹${(netProfit / 100000).toFixed(1)}L`, icon: <FiDollarSign className="w-5 h-5" />, color: 'text-green-600', bg: 'bg-green-50', trend: '+12.5%' },
           { label: 'Pending Invoices', value: '12', icon: <FiFileText className="w-5 h-5" />, color: 'text-amber-600', bg: 'bg-amber-50', trend: '-2' },
           { label: 'Overdue Amount', value: '₹4.2L', icon: <FiAlertCircle className="w-5 h-5" />, color: 'text-red-600', bg: 'bg-red-50', trend: '+1' },
           { label: 'Cash Balance', value: '₹11.4L', icon: <FiCreditCard className="w-5 h-5" />, color: 'text-teal-600', bg: 'bg-teal-50', trend: '+5.3%' },
-        ].map((stat) => (
+        ] : []).map((stat) => (
           <div key={stat.label} className="thb-card p-4">
             <div className="flex items-center justify-between mb-2">
               <div className={`p-2 rounded-lg ${stat.bg} ${stat.color}`}>{stat.icon}</div>

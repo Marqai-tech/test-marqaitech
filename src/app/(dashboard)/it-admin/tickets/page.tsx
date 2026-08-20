@@ -7,6 +7,7 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import { isClientDemoMode } from '@/lib/site-mode';
 
 /* ================================================================
    IT Support Tickets – 3Boxes HRMS IT Admin
@@ -64,6 +65,7 @@ const EMPTY_FORM: Omit<Ticket, 'id'> = {
 };
 
 function getDemoTickets(): Ticket[] {
+  if (!isClientDemoMode()) return [];
   return [
     { id: 'TKT-1024', subject: 'VPN connection dropping intermittently for remote team', category: 'network', priority: 'critical', status: 'in_progress', requester: 'Rahul Verma', assignee: 'Raj K.', createdDate: new Date(Date.now() - 7200000).toISOString().slice(0, 10) },
     { id: 'TKT-1025', subject: 'Email server latency affecting all BLR office users', category: 'network', priority: 'high', status: 'open', requester: 'Sneha Iyer', assignee: 'Anita S.', createdDate: new Date(Date.now() - 14400000).toISOString().slice(0, 10) },

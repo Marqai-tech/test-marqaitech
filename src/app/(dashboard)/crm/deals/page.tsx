@@ -7,6 +7,7 @@ import {
 } from 'react-icons/fi';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import toast from 'react-hot-toast';
+import { isClientDemoMode } from '@/lib/site-mode';
 import { useAuthStore } from '@/store/authStore';
 import { useAutoSeedDemo } from '@/hooks/useAutoSeedDemo';
 
@@ -28,7 +29,7 @@ interface Deal {
   description?: string;
 }
 
-const DEMO_DEALS: Deal[] = [
+const DEMO_DEALS: Deal[] = isClientDemoMode() ? [
   { id: 1, name: 'Enterprise SaaS Platform', contact: 'Rajesh Kumar', company: 'TechVista Solutions', value: 4200000, stage: 'Negotiation', probability: 85, closeDate: '2025-07-15', owner: 'Arjun Mehta' },
   { id: 2, name: 'Cloud Migration Project', contact: 'Sneha Iyer', company: 'DataCore Inc.', value: 2800000, stage: 'Proposal', probability: 60, closeDate: '2025-08-01', owner: 'Sneha Iyer' },
   { id: 3, name: 'Digital Transformation', contact: 'Vikram Patel', company: 'GreenLeaf Corp.', value: 3500000, stage: 'Negotiation', probability: 75, closeDate: '2025-07-20', owner: 'Vikram Patel' },
@@ -36,7 +37,7 @@ const DEMO_DEALS: Deal[] = [
   { id: 5, name: 'CRM Implementation', contact: 'Amit Desai', company: 'BuildRight Inc.', value: 1200000, stage: 'Proposal', probability: 55, closeDate: '2025-08-15', owner: 'Arjun Mehta' },
   { id: 8, name: 'Data Warehouse', contact: 'Nisha Patel', company: 'InfoBase Analytics', value: 3100000, stage: 'Closed Won', probability: 100, closeDate: '2025-06-20', owner: 'Arjun Mehta' },
   { id: 9, name: 'Security Audit', contact: 'Kiran Joshi', company: 'SafeNet', value: 680000, stage: 'Closed Lost', probability: 0, closeDate: '2025-06-10', owner: 'Sneha Iyer' },
-];
+] : [];
 
 const STAGES = ['Qualification', 'Proposal', 'Negotiation', 'Closed Won', 'Closed Lost'];
 const STAGE_COLORS: Record<string, string> = {

@@ -19,6 +19,7 @@ import {
 } from 'react-icons/fi';
 import ModuleDashboardShell, { DashboardTabConfig } from '@/components/ModuleDashboardShell';
 import toast from 'react-hot-toast';
+import { isClientDemoMode } from '@/lib/site-mode';
 import { useAuthStore } from '@/store/authStore';
 import ModuleTips from '@/components/ModuleTips';
 import ModuleWorkflow from '@/components/ModuleWorkflow';
@@ -140,14 +141,14 @@ const preboardingWorkflowSteps = [
 ];
 
 /* ── Demo Data ── */
-const demoCandidates: PreboardingCandidate[] = [
+const demoCandidates: PreboardingCandidate[] = isClientDemoMode() ? [
   { id: '1', name: 'Aarav Sharma', email: 'aarav@demo.com', position: 'Senior Developer', stage: 'Day 1 Ready', startDate: '2026-03-10', documents: DOC_TYPES.map(t => ({ type: t, status: 'verified' as const })), bgv: { vendor: 'Sterling', status: 'completed', submittedDate: '2026-02-20', completedDate: '2026-03-01', notes: 'Clear' }, hrVerified: true },
   { id: '2', name: 'Priya Patel', email: 'priya@demo.com', position: 'UX Designer', stage: 'Background Verification', startDate: '2026-03-15', documents: DOC_TYPES.map((t, i) => ({ type: t, status: (i < 4 ? 'verified' : 'pending') as 'verified' | 'pending' })), bgv: { vendor: 'First Advantage', status: 'in_progress', submittedDate: '2026-03-01', completedDate: null, notes: 'Awaiting employment verification' }, hrVerified: false },
   { id: '3', name: 'Rahul Verma', email: 'rahul@demo.com', position: 'Product Manager', stage: 'Document Collection', startDate: '2026-03-20', documents: DOC_TYPES.map((t, i) => ({ type: t, status: (i < 2 ? 'uploaded' : 'pending') as 'uploaded' | 'pending' })), bgv: null, hrVerified: false },
   { id: '4', name: 'Sneha Reddy', email: 'sneha@demo.com', position: 'Data Analyst', stage: 'IT Setup', startDate: '2026-03-12', documents: DOC_TYPES.map(t => ({ type: t, status: 'verified' as const })), bgv: { vendor: 'Sterling', status: 'completed', submittedDate: '2026-02-25', completedDate: '2026-03-05', notes: 'Clear' }, hrVerified: true },
   { id: '5', name: 'Vikram Singh', email: 'vikram@demo.com', position: 'DevOps Engineer', stage: 'Offer Accepted', startDate: '2026-04-01', documents: DOC_TYPES.map(t => ({ type: t, status: 'pending' as const })), bgv: null, hrVerified: false },
   { id: '6', name: 'Meera Joshi', email: 'meera@demo.com', position: 'HR Executive', stage: 'Orientation Scheduled', startDate: '2026-03-08', documents: DOC_TYPES.map(t => ({ type: t, status: 'verified' as const })), bgv: { vendor: 'HireRight', status: 'completed', submittedDate: '2026-02-15', completedDate: '2026-02-28', notes: 'Clear' }, hrVerified: true },
-];
+] : [];
 
 const initialForm = {
   name: '',

@@ -13,6 +13,7 @@ import toast from 'react-hot-toast';
 import { sanitizeSearch } from '@/lib/validators';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
+import { isClientDemoMode } from '@/lib/site-mode';
 
 /* ── Types ── */
 interface LeaveRequest {
@@ -165,12 +166,37 @@ function LeavePageContent() {
           });
         });
         if (ltMap.size === 0) {
-          setLeaveTypes([
-            { id: 'lt_cl', name: 'Casual Leave', code: 'CL', defaultDays: 12, isPaid: true },
-            { id: 'lt_sl', name: 'Sick Leave', code: 'SL', defaultDays: 10, isPaid: true },
-            { id: 'lt_pl', name: 'Privileged Leave', code: 'PL', defaultDays: 15, isPaid: true },
-            { id: 'lt_ml', name: 'Maternity Leave', code: 'ML', defaultDays: 180, isPaid: true },
-          ]);
+          // GOLDEN RULE: No dummy data on LIVE site.
+          // On DEMO link only, show sample leave types so the UI isn't empty.
+          // On LIVE, fetch real leave types from /api/leave-types (scoped to company).
+          if (isClientDemoMode()) {
+            setLeaveTypes([
+              { id: 'lt_cl', name: 'Casual Leave', code: 'CL', defaultDays: 12, isPaid: true },
+              { id: 'lt_sl', name: 'Sick Leave', code: 'SL', defaultDays: 10, isPaid: true },
+              { id: 'lt_pl', name: 'Privileged Leave', code: 'PL', defaultDays: 15, isPaid: true },
+              { id: 'lt_ml', name: 'Maternity Leave', code: 'ML', defaultDays: 180, isPaid: true },
+            ]);
+          } else {
+            // LIVE: fetch real leave types from the API
+            try {
+              const ltRes = await fetch(`/api/leave-types?limit=50${cid ? `&companyId=${cid}` : ''}`, { headers });
+              if (ltRes.ok) {
+                const ltData = await ltRes.json();
+                const realTypes = (ltData.leaveTypes || ltData.data || []).map((lt: any) => ({
+                  id: lt.id,
+                  name: lt.name,
+                  code: lt.code,
+                  defaultDays: lt.defaultDays || 0,
+                  isPaid: lt.isPaid ?? true,
+                }));
+                setLeaveTypes(realTypes);
+              } else {
+                setLeaveTypes([]);
+              }
+            } catch {
+              setLeaveTypes([]);
+            }
+          }
         } else {
           setLeaveTypes(Array.from(ltMap.values()));
         }

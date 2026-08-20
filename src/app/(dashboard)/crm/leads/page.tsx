@@ -6,6 +6,7 @@ import {
   FiPhone, FiFilter, FiTrendingUp, FiChevronDown, FiUser,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import { isClientDemoMode } from '@/lib/site-mode';
 import { validateEmail, validatePhone, phoneInputFilter } from '@/lib/validators';
 import { useAuthStore } from '@/store/authStore';
 import { useAutoSeedDemo } from '@/hooks/useAutoSeedDemo';
@@ -31,14 +32,14 @@ interface Lead {
   notes?: string;
 }
 
-const DEMO_LEADS: Lead[] = [
+const DEMO_LEADS: Lead[] = isClientDemoMode() ? [
   { id: 1, firstName: 'Arun', lastName: 'Mehta', email: 'arun@zenith.com', phone: '+91 99001 22334', company: 'Zenith Corp.', source: 'Website', status: 'New', score: 82, temperature: 'Hot', assignedTo: 'Arjun Mehta', estimatedValue: 2500000 },
   { id: 2, firstName: 'Deepa', lastName: 'Reddy', email: 'deepa@pinnacle.com', phone: '+91 88112 33445', company: 'Pinnacle Systems', source: 'Referral', status: 'Contacted', score: 71, temperature: 'Hot', assignedTo: 'Vikram Patel', estimatedValue: 1800000 },
   { id: 3, firstName: 'Suresh', lastName: 'Menon', email: 'suresh@apex.com', phone: '+91 77223 44556', company: 'Apex Industries', source: 'Social', status: 'Qualified', score: 65, temperature: 'Warm', assignedTo: 'Priya Sharma', estimatedValue: 3200000 },
   { id: 4, firstName: 'Ritu', lastName: 'Bhat', email: 'ritu@novatech.com', phone: '+91 66334 55667', company: 'NovaTech', source: 'Website', status: 'Contacted', score: 48, temperature: 'Warm', assignedTo: 'Arjun Mehta', estimatedValue: 950000 },
   { id: 5, firstName: 'Kiran', lastName: 'Joshi', email: 'kiran@orion.com', phone: '+91 55445 66778', company: 'Orion Labs', source: 'Other', status: 'Lost', score: 25, temperature: 'Cold', assignedTo: 'Sneha Iyer', estimatedValue: 0 },
   { id: 9, firstName: 'Ravi', lastName: 'Kumar', email: 'ravi@innovate.com', phone: '+91 44556 77889', company: 'Innovate Solutions', source: 'Referral', status: 'Qualified', score: 95, temperature: 'Hot', assignedTo: 'Vikram Patel', estimatedValue: 3500000 },
-];
+] : [];
 
 const STATUSES = ['New', 'Contacted', 'Qualified', 'Lost'];
 const SOURCES = ['Website', 'Referral', 'Social', 'Other'];

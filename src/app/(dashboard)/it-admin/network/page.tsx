@@ -6,6 +6,7 @@ import {
   FiPlus, FiX, FiEdit2, FiMapPin, FiClock, FiActivity,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import { isClientDemoMode } from '@/lib/site-mode';
 import { useAuthStore } from '@/store/authStore';
 
 /* ================================================================
@@ -52,6 +53,7 @@ const EMPTY_FORM: Omit<NetworkDevice, 'id'> = {
 };
 
 function getDemoNetworkDevices(): NetworkDevice[] {
+  if (!isClientDemoMode()) return [];
   return [
     { id: '1', name: 'Core Router R1', type: 'router', ip: '10.0.0.1', status: 'online', location: 'Server Room A', uptime: '142d 7h' },
     { id: '2', name: 'Core Router R2', type: 'router', ip: '10.0.0.2', status: 'online', location: 'Server Room B', uptime: '142d 7h' },

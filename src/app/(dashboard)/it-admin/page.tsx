@@ -14,11 +14,18 @@ import {
   ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid, Legend,
 } from 'recharts';
 import toast from 'react-hot-toast';
+import { isClientDemoMode } from '@/lib/site-mode';
 
 /* ================================================================
    IT Admin Dashboard Hub – 3Boxes HRMS
    SmartHR-style IT admin overview with tab navigation
    ================================================================ */
+
+// GOLDEN RULE: No dummy data on LIVE site. All getDemo* functions return
+// empty arrays on LIVE so the dashboard shows empty states instead of fake data.
+function showDemoData(): boolean {
+  return isClientDemoMode();
+}
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -168,6 +175,7 @@ interface RecentActivity {
 /* ---------- demo data generators ---------- */
 
 function getDemoStats(): ITStat[] {
+  if (!showDemoData()) return [];
   return [
     { label: 'Active Devices', value: 1247, sub: '148 new this month', icon: <FiMonitor className="w-5 h-5" />, color: COLORS.blue, bgColor: 'bg-green-50', trend: 12.4, trendLabel: 'vs last month' },
     { label: 'Security Alerts', value: 23, sub: '4 critical pending', icon: <FiShield className="w-5 h-5" />, color: COLORS.rose, bgColor: 'bg-rose-50', trend: -8.2, trendLabel: 'vs last week' },
@@ -179,6 +187,7 @@ function getDemoStats(): ITStat[] {
 }
 
 function getDemoSystemHealth(): SystemHealthPoint[] {
+  if (!showDemoData()) return [];
   const hours = [];
   for (let i = 23; i >= 0; i--) {
     const h = new Date();
@@ -195,6 +204,7 @@ function getDemoSystemHealth(): SystemHealthPoint[] {
 }
 
 function getDemoTicketsByCategory(): TicketCategoryPoint[] {
+  if (!showDemoData()) return [];
   return [
     { category: 'Network', count: 18 },
     { category: 'Hardware', count: 14 },
@@ -206,6 +216,7 @@ function getDemoTicketsByCategory(): TicketCategoryPoint[] {
 }
 
 function getDemoDeviceDist(): DeviceDistPoint[] {
+  if (!showDemoData()) return [];
   return [
     { name: 'Online', value: 980 },
     { name: 'Offline', value: 145 },
@@ -215,6 +226,7 @@ function getDemoDeviceDist(): DeviceDistPoint[] {
 }
 
 function getDemoSecurityAlerts(): SecurityAlert[] {
+  if (!showDemoData()) return [];
   return [
     { id: '1', severity: 'CRITICAL', description: 'Unauthorized access attempt detected on DB server prod-db-03 from IP 203.45.67.89', timestamp: new Date(Date.now() - 900000).toISOString() },
     { id: '2', severity: 'HIGH', description: 'SSL certificate expiring in 5 days for auth.3boxestech.com', timestamp: new Date(Date.now() - 3600000).toISOString() },
@@ -225,6 +237,7 @@ function getDemoSecurityAlerts(): SecurityAlert[] {
 }
 
 function getDemoActiveTickets(): ActiveTicket[] {
+  if (!showDemoData()) return [];
   return [
     { id: '1', ticketNo: 'TKT-1024', subject: 'VPN connection dropping intermittently for remote team', priority: 'Critical', assignedTo: 'Raj K.', status: 'In Progress', created: '2h ago' },
     { id: '2', ticketNo: 'TKT-1025', subject: 'Email server latency affecting all users in BLR office', priority: 'High', assignedTo: 'Anita S.', status: 'Open', created: '4h ago' },
@@ -235,6 +248,7 @@ function getDemoActiveTickets(): ActiveTicket[] {
 }
 
 function getDemoDeviceList(): DeviceItem[] {
+  if (!showDemoData()) return [];
   return [
     { id: '1', name: 'WKST-001', type: 'Desktop', os: 'Windows 11 Pro', user: 'Arun Kumar', status: 'Online', lastSeen: '2 min ago', ip: '192.168.1.101' },
     { id: '2', name: 'LPT-045', type: 'Laptop', os: 'macOS Sonoma', user: 'Priya Sharma', status: 'Online', lastSeen: '5 min ago', ip: '192.168.1.142' },
@@ -246,6 +260,7 @@ function getDemoDeviceList(): DeviceItem[] {
 }
 
 function getDemoSoftwareList(): SoftwareItem[] {
+  if (!showDemoData()) return [];
   return [
     { id: '1', name: 'Microsoft 365 Business', version: 'Latest', totalLicenses: 500, usedLicenses: 467, expiry: '2026-03-15', status: 'Licensed' },
     { id: '2', name: 'Adobe Creative Cloud', version: '2024', totalLicenses: 50, usedLicenses: 48, expiry: '2025-12-31', status: 'Expiring Soon' },
@@ -257,6 +272,7 @@ function getDemoSoftwareList(): SoftwareItem[] {
 }
 
 function getDemoNetworkStats(): NetworkStat[] {
+  if (!showDemoData()) return [];
   return [
     { id: '1', label: 'Bandwidth', value: '847 Mbps', icon: <FiWifi className="w-5 h-5" />, color: COLORS.blue, bgColor: 'bg-green-50' },
     { id: '2', label: 'Active Connections', value: '1,284', icon: <FiServer className="w-5 h-5" />, color: COLORS.emerald, bgColor: 'bg-emerald-50' },
@@ -266,6 +282,7 @@ function getDemoNetworkStats(): NetworkStat[] {
 }
 
 function getDemoRecentActivities(): RecentActivity[] {
+  if (!showDemoData()) return [];
   return [
     { id: '1', description: 'New device WKST-0150 registered for Deepak M.', timestamp: new Date(Date.now() - 1200000).toISOString(), type: 'device', icon: <FiMonitor className="w-4 h-4" /> },
     { id: '2', description: 'Security scan completed — 2 vulnerabilities found', timestamp: new Date(Date.now() - 3600000).toISOString(), type: 'security', icon: <FiShield className="w-4 h-4" /> },
