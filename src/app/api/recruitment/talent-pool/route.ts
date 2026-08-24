@@ -19,6 +19,7 @@
 import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
+import { isSuperAdminWithoutScope } from '@/lib/superAdminGuard';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -175,6 +176,11 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const companyId = url.searchParams.get('companyId');
     const search = url.searchParams.get('search');
+
+    // ─── GOLDEN RULE: No dummy/seed data on LIVE for super_admin ───
+    if (isSuperAdminWithoutScope(decoded, companyId)) {
+      return NextResponse.json({ candidates: [], total: 0 }, { headers: CORS });
+    }
 
     // Build where clause
     // If super_admin, no tenant filter; otherwise scope to caller's tenant

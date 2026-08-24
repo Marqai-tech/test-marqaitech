@@ -21,6 +21,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
+import { isSuperAdminWithoutScope } from '@/lib/superAdminGuard';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -109,6 +110,12 @@ export async function GET(request: NextRequest) {
     const jobPostingId = url.searchParams.get('jobPostingId') || '';
     const q = (url.searchParams.get('q') || '').trim().toLowerCase();
     const limit = Math.min(parseInt(url.searchParams.get('limit') || '100', 10), 500);
+    const companyId = url.searchParams.get('companyId');
+
+    // ─── GOLDEN RULE: No dummy/seed data on LIVE for super_admin ───
+    if (isSuperAdminWithoutScope(decoded, companyId)) {
+      return NextResponse.json({ candidates: [], total: 0 }, { headers: CORS });
+    }
 
     const requiredSkills = skillsParam
       .split(',')

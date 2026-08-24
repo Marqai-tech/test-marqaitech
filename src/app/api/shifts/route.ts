@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getCompanyFilter, getAuthInfo } from '@/lib/companyScope';
+import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
+import { isSuperAdminWithoutScope } from '@/lib/superAdminGuard';
 
 function corsHeaders() {
   return {
@@ -27,6 +29,18 @@ export async function GET(req: NextRequest) {
     const page = parseInt(url.searchParams.get('page') || '1');
     const limit = parseInt(url.searchParams.get('limit') || '20');
     const skip = (page - 1) * limit;
+
+    // ─── GOLDEN RULE: No dummy/seed data on LIVE for super_admin ───
+    // Super_admin with no company selected would see ALL shifts across all
+    // tenants (appears as duplicates). Return empty instead.
+    const token = getTokenFromHeaders(req);
+    const decoded = token ? await verifyToken(token) : null;
+    if (decoded && isSuperAdminWithoutScope(decoded, url.searchParams.get('companyId'))) {
+      return NextResponse.json({
+        data: [],
+        pagination: { page, limit, total: 0, totalPages: 0 },
+      }, { headers: corsHeaders() });
+    }
 
     // getCompanyFilter() already reads ?companyId= from the URL for admins
     // (via resolveCompanyScope), so no manual queryCompanyId handling needed.

@@ -60,9 +60,11 @@ export async function GET(request: Request) {
     if (isSuperAdminWithoutScope(decoded, companyId)) {
       return NextResponse.json({
         hiringSummary: { totalOpen: 0, totalApplications: 0, totalInterviews: 0, totalOffers: 0, totalHires: 0, totalRequisitions: 0 },
+        overall: { totalOpenPositions: 0, totalApplications: 0, totalOffersMade: 0, totalHired: 0, hiringRate: 0, timeToFillAvg: 0, timeToHireAvg: 0, openRequisitions: 0 },
         timeToHire: [],
         sourceAnalytics: [],
         offerAcceptance: [],
+        monthlyTrend: [],
         message: 'Select a company from the switcher to view recruitment reports.',
       }, { headers: corsHeaders() });
     }

@@ -28,6 +28,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
+import { isSuperAdminWithoutScope } from '@/lib/superAdminGuard';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -63,6 +64,24 @@ export async function GET(request: NextRequest) {
     const url = new URL(request.url);
     const days = parseInt(url.searchParams.get('days') || '90', 10);
     const sinceDate = new Date(Date.now() - days * 86400000);
+    const companyId = url.searchParams.get('companyId');
+
+    // ─── GOLDEN RULE: No dummy/seed data on LIVE for super_admin ───
+    if (isSuperAdminWithoutScope(decoded, companyId)) {
+      return NextResponse.json({
+        summary: { totalCandidates: 0, totalApplications: 0, conversionRate: 0, resumeUploadRate: 0, parseSuccessRate: 0 },
+        registrationsOverTime: [],
+        applicationsOverTime: [],
+        funnel: { applied: 0, screening: 0, interview: 0, offered: 0, hired: 0, rejected: 0 },
+        byCompany: [],
+        byDepartment: [],
+        byJobPosting: [],
+        bySource: [],
+        resumeStats: { total: 0, parsed: 0, failed: 0, avgConfidence: 0 },
+        topSkills: [],
+        message: 'Select a company from the switcher to view candidate flow.',
+      }, { headers: CORS });
+    }
 
     // Fetch all applications in the window with related data
     const applications = await db.jobApplication.findMany({

@@ -151,12 +151,11 @@ export function useCompanyData() {
     if (!hydrated) hydrate()
   }, [hydrated, hydrate])
 
-  useEffect(() => {
-    fetchCompanies(); fetchBranches(); fetchDepartments(); fetchDesignations(); fetchShifts(); fetchHolidays(); fetchPolicies()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  // Re-fetch ALL data when company selection changes (core of company-based filtering)
+  // Fetch all data when company selection changes (also fires on mount).
+  // NOTE: Previously there were TWO useEffects — one on [] and one on
+  // [selectedTenantId, selectedGroupId, selectedCompanyId] — causing a
+  // double fetch on mount. The second useEffect already fires on mount,
+  // so the first was redundant and has been removed.
   useEffect(() => {
     fetchCompanies(); fetchBranches(); fetchDepartments(); fetchDesignations(); fetchShifts(); fetchHolidays(); fetchPolicies()
     // eslint-disable-next-line react-hooks/exhaustive-deps
