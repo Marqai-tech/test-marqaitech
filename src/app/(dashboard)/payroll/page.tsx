@@ -537,8 +537,21 @@ export default function PayrollManagementPage() {
 
       if (res.ok) {
         const data = await res.json();
-        setStats(data.stats);
-        setWorkflowData(data.workflow);
+        setStats(data.stats || { totalEmployees: 0, activeCTCTemplates: 0, pendingPayrollRuns: 0, openComplianceItems: 0 });
+        setWorkflowData(data.workflow || {
+          hasComponents: false,
+          hasStatutory: false,
+          hasCTCTemplates: false,
+          hasTaxSlabs: false,
+          hasPaymentMethods: false,
+          hasInputs: false,
+          hasValidations: false,
+          hasPayrollRuns: false,
+          hasApprovedRuns: false,
+          hasPayslips: false,
+          hasCompliance: false,
+          hasClosedRuns: false,
+        });
       } else {
         toast.error('Failed to load payroll summary');
         setStats({ totalEmployees: 0, activeCTCTemplates: 0, pendingPayrollRuns: 0, openComplianceItems: 0 });

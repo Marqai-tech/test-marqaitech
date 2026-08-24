@@ -44,19 +44,27 @@ export async function GET(request: Request) {
     // ─── GOLDEN RULE: No dummy/seed data on LIVE for super_admin ───
     if (isSuperAdminWithoutScope(decoded, effectiveCompanyId)) {
       return NextResponse.json({
-        totalEmployees: 0,
-        activeCTCTemplates: 0,
-        pendingPayrollRuns: 0,
-        openComplianceItems: 0,
-        componentsCount: 0,
-        statutoryCount: 0,
-        taxSlabsCount: 0,
-        paymentMethodsCount: 0,
-        inputsCount: 0,
-        validationsCount: 0,
-        payslipsCount: 0,
+        stats: {
+          totalEmployees: 0,
+          activeCTCTemplates: 0,
+          pendingPayrollRuns: 0,
+          openComplianceItems: 0,
+        },
+        workflow: {
+          hasComponents: false,
+          hasStatutory: false,
+          hasCTCTemplates: false,
+          hasTaxSlabs: false,
+          hasPaymentMethods: false,
+          hasInputs: false,
+          hasValidations: false,
+          hasPayrollRuns: false,
+          hasApprovedRuns: false,
+          hasPayslips: false,
+          hasCompliance: false,
+          hasClosedRuns: false,
+        },
         payrollRuns: [],
-        complianceFilingsCount: 0,
         message: 'Select a company from the switcher to view payroll data.',
       }, { headers: corsHeaders() });
     }
