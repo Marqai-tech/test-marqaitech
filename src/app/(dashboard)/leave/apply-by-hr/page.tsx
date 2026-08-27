@@ -59,7 +59,8 @@ interface LeaveRequest {
 
 export default function ApplyLeaveByHRPage() {
   const { user } = useAuthStore();
-  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
+  const scopeQuery = useCompanyContextStore(s => s.scopeQuery);
+  const selectedTenantId = useCompanyContextStore(s => s.selectedTenantId);
 
   // Employee search & selection
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -89,8 +90,8 @@ export default function ApplyLeaveByHRPage() {
   const fetchEmployees = useCallback(async (search = '') => {
     setLoadingEmployees(true);
     try {
-      const cid = effectiveCompanyId();
-      const r = await fetch(`/api/employees?limit=50&search=${encodeURIComponent(search)}${cid ? `&companyId=${cid}` : ''}`, { headers: getAuthHeaders() });
+      const sq = scopeQuery();
+      const r = await fetch(`/api/employees?limit=50&search=${encodeURIComponent(search)}${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'Failed');
       setEmployees(d.employees || []);
@@ -99,7 +100,7 @@ export default function ApplyLeaveByHRPage() {
     } finally {
       setLoadingEmployees(false);
     }
-  }, []);
+  }, [scopeQuery, selectedTenantId]);
 
   useEffect(() => { fetchEmployees(); }, [fetchEmployees]);
 

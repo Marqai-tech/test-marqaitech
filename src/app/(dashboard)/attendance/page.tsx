@@ -177,7 +177,8 @@ function calculateBreakDuration(checkIn: string | null | undefined, checkOut: st
 export default function AttendancePage() {
   const { user } = useAuthStore();
   const isAdmin = user?.role === 'super_admin' || user?.role === 'admin' || user?.role === 'hr';
-  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
+  const scopeQuery = useCompanyContextStore(s => s.scopeQuery);
+  const selectedTenantId = useCompanyContextStore(s => s.selectedTenantId);
 
   /* ── Active tab ── */
   const [activeTab, setActiveTab] = useState<'admin' | 'self'>(isAdmin ? 'admin' : 'self');
@@ -212,9 +213,8 @@ export default function AttendancePage() {
         date: selectedDate,
         limit: '200',
       });
-      const adminCid = effectiveCompanyId();
-      if (adminCid) params.set('companyId', adminCid);
-      const res = await fetch(`/api/attendance?${params.toString()}`, { headers: getAuthHeaders() });
+      const sq = scopeQuery();
+      const res = await fetch(`/api/attendance?${params.toString()}${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
         const fetched = data.attendance || [];
@@ -228,7 +228,7 @@ export default function AttendancePage() {
     } finally {
       setAdminLoading(false);
     }
-  }, [selectedDate]);
+  }, [selectedDate, scopeQuery, selectedTenantId]);
 
   /* ── Find current user's employee record ── */
   const fetchEmployee = useCallback(async () => {
@@ -245,8 +245,8 @@ export default function AttendancePage() {
         return;
       }
       // Fallback: fetch from API and match by email or userId
-      const empCid = effectiveCompanyId();
-      const res = await fetch(`/api/employees?limit=500${empCid ? `&companyId=${empCid}` : ''}`, { headers: getAuthHeaders() });
+      const sq = scopeQuery();
+      const res = await fetch(`/api/employees?limit=500${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
         const myEmp = data.employees?.find((e: { email: string; userId?: string }) =>
@@ -257,7 +257,7 @@ export default function AttendancePage() {
     } catch (err) {
       console.error('fetchEmployee error:', err);
     }
-  }, [user?.email, user?.id, user?.employee]);
+  }, [user?.email, user?.id, user?.employee, scopeQuery, selectedTenantId]);
 
   /* ── Fetch self attendance ── */
   const fetchAttendance = useCallback(async () => {

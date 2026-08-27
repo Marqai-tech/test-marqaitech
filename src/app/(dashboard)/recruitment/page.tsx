@@ -291,7 +291,8 @@ const initialAppForm = {
 export default function RecruitmentPage() {
   const { user } = useAuthStore();
   const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
-  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
+  const scopeQuery = useCompanyContextStore(s => s.scopeQuery);
+  const selectedTenantId = useCompanyContextStore(s => s.selectedTenantId);
 
   const [activeTab, setActiveTab] = useState<'jobs' | 'candidates' | 'analytics'>('jobs');
   const [jobPostings, setJobPostings] = useState<JobPosting[]>([]);
@@ -418,9 +419,9 @@ export default function RecruitmentPage() {
     try {
       setLoading(true);
       const headers = getAuthHeaders();
-      const recCid = effectiveCompanyId();
+      const sq = scopeQuery();
       const [jobsRes] = await Promise.allSettled([
-        fetch(`/api/recruitment?limit=50${recCid ? `&companyId=${recCid}` : ''}`, { headers }),
+        fetch(`/api/recruitment?limit=50${sq ? `&${sq}` : ''}`, { headers }),
       ]);
 
       if (jobsRes.status === 'fulfilled' && jobsRes.value.ok) {
@@ -463,7 +464,7 @@ export default function RecruitmentPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [scopeQuery, selectedTenantId]);
 
   useEffect(() => { queueMicrotask(() => fetchData()); }, [fetchData]);
 
@@ -471,8 +472,8 @@ export default function RecruitmentPage() {
   useEffect(() => {
     queueMicrotask(async () => {
       try {
-        const deptCid = effectiveCompanyId();
-        const deptRes = await fetch(`/api/employees?limit=500${deptCid ? `&companyId=${deptCid}` : ''}`, { headers: getAuthHeaders() });
+        const sq = scopeQuery();
+        const deptRes = await fetch(`/api/employees?limit=500${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
         if (deptRes.ok) {
           const data = await deptRes.json();
           const deptMap = new Map<string, Department>();
@@ -483,7 +484,7 @@ export default function RecruitmentPage() {
         }
       } catch { /* ignore */ }
     });
-  }, []);
+  }, [scopeQuery, selectedTenantId]);
 
   /* Open Job Form - Add */
   const handleOpenAddJobForm = () => {

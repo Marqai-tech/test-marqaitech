@@ -26,8 +26,10 @@ const TH = ({ children }: { children: React.ReactNode }) => <th className="text-
 const TD = ({ children, className = '' }: { children: React.ReactNode; className?: string }) => <td className={`px-4 py-3 text-sm text-thb-text-secondary border-b border-thb-border/50 ${className}`}>{children}</td>
 
 export default function ShiftsPage() {
-  const { shifts, loading, isAdmin, fetchShifts, selectedCompanyId } = useCompanyData()
+  const { shifts, loading, isAdmin, fetchShifts } = useCompanyData()
   const companyId = useCompanyContextStore(s => s.effectiveCompanyId())
+  const scopeQuery = useCompanyContextStore(s => s.scopeQuery)
+  const selectedTenantId = useCompanyContextStore(s => s.selectedTenantId)
 
   const [search, setSearch] = useState('')
   const [showForm, setShowForm] = useState(false)
@@ -86,7 +88,8 @@ export default function ShiftsPage() {
       const body: Record<string, unknown> = { ...form, companyId, breakDuration: Number(form.breakDuration) || 60, graceTime: Number(form.graceTime) || 15 }
       if (isEdit) body.id = editingId
       if (!companyId) { toast.error('Company ID is required'); setSubmitting(false); return }
-      const cidParam = selectedCompanyId ? `?companyId=${selectedCompanyId}` : ''
+      const sq = scopeQuery()
+      const cidParam = sq ? `?${sq}` : ''
       await apiFetch(`/api/shifts${cidParam}`, { method: isEdit ? 'PUT' : 'POST', body: JSON.stringify(body) })
       toast.success(`Shift ${isEdit ? 'updated' : 'created'} successfully`)
       handleCancelForm()
@@ -98,7 +101,8 @@ export default function ShiftsPage() {
   const handleDelete = async () => {
     setDeleting(true)
     try {
-      const cidParam = selectedCompanyId ? `&companyId=${selectedCompanyId}` : ''
+      const sq = scopeQuery()
+      const cidParam = sq ? `&${sq}` : ''
       await apiFetch(`/api/shifts?id=${deleteConfirmId}${cidParam}`, { method: 'DELETE' })
       toast.success('Deleted successfully')
       fetchShifts()

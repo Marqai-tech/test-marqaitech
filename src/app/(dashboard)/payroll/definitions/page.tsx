@@ -117,7 +117,9 @@ const emptyForm = {
 export default function PayrollDefinitionsPage() {
   const { user } = useAuthStore();
   const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'admin';
-  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId());
+  const scopeQuery = useCompanyContextStore(s => s.scopeQuery);
+  const selectedTenantId = useCompanyContextStore(s => s.selectedTenantId);
   const availableCompanies = useCompanyContextStore(s => s.availableCompanies);
 
   const [definitions, setDefinitions] = useState<PayrollDefinition[]>([]);
@@ -147,9 +149,9 @@ export default function PayrollDefinitionsPage() {
       if (statusFilter) params.set('status', statusFilter);
       if (countryFilter) params.set('countryCode', countryFilter);
       if (frequencyFilter) params.set('payFrequency', frequencyFilter);
-      if (effectiveCompanyId) params.set('companyId', effectiveCompanyId);
+      const sq = scopeQuery();
       const qs = params.toString();
-      const url = `/api/payroll/definitions${qs ? `?${qs}` : ''}`;
+      const url = `/api/payroll/definitions${qs ? `?${qs}${sq ? `&${sq}` : ''}` : (sq ? `?${sq}` : '')}`;
       const res = await fetch(url, { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
@@ -160,7 +162,7 @@ export default function PayrollDefinitionsPage() {
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, countryFilter, frequencyFilter, effectiveCompanyId]);
+  }, [statusFilter, countryFilter, frequencyFilter, effectiveCompanyId, scopeQuery, selectedTenantId]);
 
   useEffect(() => { queueMicrotask(() => fetchData()); }, [fetchData]);
 

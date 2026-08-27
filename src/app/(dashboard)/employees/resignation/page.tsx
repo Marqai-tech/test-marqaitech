@@ -77,7 +77,8 @@ const initialForm = {
 export default function ResignationPage() {
   const router = useRouter();
   const { user } = useAuthStore();
-  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
+  const scopeQuery = useCompanyContextStore(s => s.scopeQuery);
+  const selectedTenantId = useCompanyContextStore(s => s.selectedTenantId);
 
   const [form, setForm] = useState({
     ...initialForm,
@@ -107,8 +108,8 @@ export default function ResignationPage() {
   const fetchRecords = useCallback(async () => {
     setLoading(true);
     try {
-      const cid = effectiveCompanyId();
-      const res = await fetch(`/api/employees/resignation?limit=50${cid ? `&companyId=${cid}` : ''}`, { headers: getAuthHeaders() });
+      const sq = scopeQuery();
+      const res = await fetch(`/api/employees/resignation?limit=50${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to load');
       setRecords(data.resignations || data.data || []);
@@ -117,7 +118,7 @@ export default function ResignationPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [scopeQuery, selectedTenantId]);
 
   useEffect(() => { fetchRecords(); }, [fetchRecords]);
 

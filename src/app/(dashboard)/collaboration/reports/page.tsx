@@ -69,7 +69,7 @@ function formatTime(dateStr: string): string {
 }
 
 export default function CollaborationReportsPage() {
-  const effectiveCompanyId = useCompanyContextStore((s) => s.effectiveCompanyId);
+  const scopeQuery = useCompanyContextStore((s) => s.scopeQuery);
   const [activeReport, setActiveReport] = useState<ReportType>('chat-activity');
   const [loading, setLoading] = useState(true);
   const [chatActivity, setChatActivity] = useState<ChatActivityReport | null>(null);
@@ -79,7 +79,8 @@ export default function CollaborationReportsPage() {
   const fetchReport = useCallback(async (type: ReportType) => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/collaboration/reports?type=${type}&period=30d`, { headers: getAuthHeaders() });
+      const sq = scopeQuery();
+      const res = await fetch(`/api/collaboration/reports?type=${type}&period=30d${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
       if (!res.ok) throw new Error('Failed to fetch report');
       const data = await res.json();
       const report = data.report;
@@ -91,11 +92,11 @@ export default function CollaborationReportsPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [scopeQuery]);
 
   useEffect(() => {
     fetchReport(activeReport);
-  }, [activeReport, effectiveCompanyId, fetchReport]);
+  }, [activeReport, scopeQuery, fetchReport]);
 
   const handleExport = () => {
     let data: any = null;

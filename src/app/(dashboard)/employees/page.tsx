@@ -286,7 +286,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
   const editIdFromUrl = searchParams.get('editId');
   const { user } = useAuthStore();
   const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
-  const { effectiveCompanyId, selectedTenantId, availableCompanies } = useCompanyContextStore();
+  const { effectiveCompanyId, selectedTenantId, availableCompanies, scopeQuery } = useCompanyContextStore();
   const scopeCompanyId = effectiveCompanyId();
   const scopeTenantId = user?.role === 'super_admin' ? selectedTenantId : undefined;
 
@@ -528,10 +528,9 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
       if (search) params.set('search', search);
       if (filterDept) params.set('departmentId', filterDept);
       if (filterStatus) params.set('status', filterStatus);
-      if (scopeCompanyId) params.set('companyId', scopeCompanyId);
-      else if (scopeTenantId) params.set('tenantId', scopeTenantId);
+      const sq = scopeQuery();
 
-      const res = await fetch(`/api/employees?${params}`, { headers: getAuthHeaders() });
+      const res = await fetch(`/api/employees?${params.toString()}${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
       if (!res.ok) throw new Error('Failed to fetch');
       const data = await res.json();
       const fetched = data.employees || [];
@@ -549,15 +548,14 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
     } finally {
       setLoading(false);
     }
-  }, [search, filterDept, filterStatus, scopeCompanyId, scopeTenantId]);
+  }, [search, filterDept, filterStatus, scopeCompanyId, scopeTenantId, scopeQuery]);
 
   /* Fetch all employees for stats */
   const fetchAllEmployees = useCallback(async () => {
     try {
       const params = new URLSearchParams({ limit: '500' });
-      if (scopeCompanyId) params.set('companyId', scopeCompanyId);
-      else if (scopeTenantId) params.set('tenantId', scopeTenantId);
-      const res = await fetch(`/api/employees?${params}`, { headers: getAuthHeaders() });
+      const sq = scopeQuery();
+      const res = await fetch(`/api/employees?${params.toString()}${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
         const fetched = data.employees || [];
@@ -572,13 +570,17 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
     } catch {
       setAllEmployees([]);
     }
-  }, [scopeCompanyId, scopeTenantId]);
+  }, [scopeCompanyId, scopeTenantId, scopeQuery]);
 
   /* Fetch dropdown data */
   const fetchDropdowns = useCallback(async (companyId?: string) => {
     try {
       const headers = getAuthHeaders();
-      const companyParam = companyId ? `&companyId=${companyId}` : '';
+      const sq = scopeQuery();
+      // If a specific companyId is passed (e.g. from form), use it AND tenantId from scopeQuery
+      const sqParams = new URLSearchParams(sq);
+      if (companyId) sqParams.set('companyId', companyId);
+      const companyParam = sqParams.toString() ? `&${sqParams.toString()}` : '';
 
       // Fetch departments, designations, and branches from their own APIs
       const [deptRes, desigRes, branchRes] = await Promise.allSettled([
@@ -612,7 +614,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
     } catch (err) {
       console.error('Failed to fetch dropdown data', err);
     }
-  }, []);
+  }, [scopeQuery]);
 
   useEffect(() => {
     queueMicrotask(() => fetchEmployees(1));

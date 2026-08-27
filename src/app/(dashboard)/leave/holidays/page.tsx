@@ -28,7 +28,8 @@ function getDayName(d: string) {
 
 export default function HolidaysPage() {
   useAuthStore();
-  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
+  const scopeQuery = useCompanyContextStore(s => s.scopeQuery);
+  const selectedTenantId = useCompanyContextStore(s => s.selectedTenantId);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
   const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [loading, setLoading] = useState(true);
@@ -36,10 +37,9 @@ export default function HolidaysPage() {
   const fetchHolidays = useCallback(async () => {
     setLoading(true);
     try {
-      const cid = effectiveCompanyId();
+      const sq = scopeQuery();
       const params = new URLSearchParams({ year: selectedYear });
-      if (cid) params.set('companyId', cid);
-      const r = await fetch(`/api/holidays?${params.toString()}`, { headers: getAuthHeaders() });
+      const r = await fetch(`/api/holidays?${params.toString()}${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
       if (!r.ok) throw new Error('Failed to load holidays');
       const d = await r.json();
       const list = d.holidays || [];
@@ -55,7 +55,7 @@ export default function HolidaysPage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedYear]);
+  }, [selectedYear, scopeQuery, selectedTenantId]);
 
   useEffect(() => { fetchHolidays(); }, [fetchHolidays]);
 

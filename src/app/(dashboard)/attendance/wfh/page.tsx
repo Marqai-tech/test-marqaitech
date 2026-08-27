@@ -80,7 +80,8 @@ function calcWorkingDays(start: string, end: string): number {
 
 export default function WfhPage() {
   const { user } = useAuthStore();
-  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
+  const scopeQuery = useCompanyContextStore(s => s.scopeQuery);
+  const selectedTenantId = useCompanyContextStore(s => s.selectedTenantId);
   const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
 
   const [items, setItems] = useState<WfhRequest[]>([]);
@@ -107,8 +108,8 @@ export default function WfhPage() {
   const fetchItems = useCallback(async () => {
     setLoading(true);
     try {
-      const cid = effectiveCompanyId();
-      const r = await fetch(`/api/attendance/wfh?limit=100${cid ? `&companyId=${cid}` : ''}`, { headers: getAuthHeaders() });
+      const sq = scopeQuery();
+      const r = await fetch(`/api/attendance/wfh?limit=100${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'Failed to load');
       setItems(d.requests || d.data || []);
@@ -118,7 +119,7 @@ export default function WfhPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [scopeQuery, selectedTenantId]);
 
   useEffect(() => { fetchItems(); }, [fetchItems]);
 

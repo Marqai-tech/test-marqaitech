@@ -160,7 +160,9 @@ function CategoryCard({
 }
 
 export default function PayrollValidationsPage() {
-  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId());
+  const scopeQuery = useCompanyContextStore(s => s.scopeQuery);
+  const selectedTenantId = useCompanyContextStore(s => s.selectedTenantId);
   const availableCompanies = useCompanyContextStore(s => s.availableCompanies);
   const [validations, setValidations] = useState<ValidationRecord[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -171,7 +173,7 @@ export default function PayrollValidationsPage() {
   // Sync selected company with global company switcher on hydration
   useEffect(() => {
     if (effectiveCompanyId) setSelectedCompanyId(prev => prev || effectiveCompanyId);
-  }, [effectiveCompanyId]);
+  }, [effectiveCompanyId, scopeQuery, selectedTenantId]);
   const [selectedValidation, setSelectedValidation] = useState<ValidationRecord | null>(null);
   const [, setLoadingDetail] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -201,8 +203,9 @@ export default function PayrollValidationsPage() {
       const cid = selectedCompanyId || effectiveCompanyId;
       const params = new URLSearchParams();
       if (cid) params.set('companyId', cid);
+      const sq = scopeQuery();
       const qs = params.toString();
-      const res = await fetch(`/api/payroll/validations${qs ? `?${qs}` : ''}`, { headers: getAuthHeaders() });
+      const res = await fetch(`/api/payroll/validations${qs ? `?${qs}${sq ? `&${sq}` : ''}` : (sq ? `?${sq}` : '')}`, { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
         setValidations(Array.isArray(data) ? data : data.data || []);
@@ -212,7 +215,7 @@ export default function PayrollValidationsPage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedCompanyId, effectiveCompanyId]);
+  }, [selectedCompanyId, effectiveCompanyId, scopeQuery, selectedTenantId]);
 
   useEffect(() => {
     queueMicrotask(() => {

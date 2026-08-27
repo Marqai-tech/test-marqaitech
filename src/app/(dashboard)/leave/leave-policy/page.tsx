@@ -114,8 +114,10 @@ const TABS: { key: TabKey; label: string; icon: React.ReactNode }[] = [
 
 function LeavePolicyPageContent() {
   const { user } = useAuthStore();
-  const { policies, branches, departments, loading, isAdmin, fetchPolicies, fetchBranches, fetchDepartments, selectedCompanyId } = useCompanyData()
+  const { policies, branches, departments, loading, isAdmin, fetchPolicies, fetchBranches, fetchDepartments } = useCompanyData()
   const companyId = useCompanyContextStore(s => s.effectiveCompanyId())
+  const scopeQuery = useCompanyContextStore(s => s.scopeQuery)
+  const selectedTenantId = useCompanyContextStore(s => s.selectedTenantId)
   const isRoleAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'admin';
   const searchParams = useSearchParams()
   const router = useRouter()
@@ -205,32 +207,29 @@ function LeavePolicyPageContent() {
   const fetchRules = useCallback(async () => {
     setRulesLoading(true)
     try {
-      const params = new URLSearchParams()
-      if (selectedCompanyId) params.set('companyId', selectedCompanyId)
-      const qs = params.toString()
-      const res = await apiFetch<{ data: LeavePolicyRule[] }>(`/api/leave-policy-rules${qs ? `?${qs}` : ''}`)
+      const sq = scopeQuery()
+      const res = await apiFetch<{ data: LeavePolicyRule[] }>(`/api/leave-policy-rules${sq ? `?${sq}` : ''}`)
       setRules(res.data || [])
     } catch {
       toast.error('Failed to load policy rules')
     } finally {
       setRulesLoading(false)
     }
-  }, [selectedCompanyId])
+  }, [scopeQuery, selectedTenantId])
 
   // ── Fetch Leave Types ──
   const fetchLeaveTypes = useCallback(async () => {
     setLeaveTypesLoading(true)
     try {
-      const params = new URLSearchParams()
-      if (selectedCompanyId) params.set('companyId', selectedCompanyId)
-      const res = await apiFetch<{ data: LeaveType[] }>(`/api/leave-types${params.toString() ? `?${params.toString()}` : ''}`)
+      const sq = scopeQuery()
+      const res = await apiFetch<{ data: LeaveType[] }>(`/api/leave-types${sq ? `?${sq}` : ''}`)
       setLeaveTypes(res.data || [])
     } catch {
       toast.error('Failed to load leave types')
     } finally {
       setLeaveTypesLoading(false)
     }
-  }, [selectedCompanyId])
+  }, [scopeQuery, selectedTenantId])
 
   // ── Initial data fetch ──
   useEffect(() => {
@@ -290,7 +289,8 @@ function LeavePolicyPageContent() {
       const body: Record<string, unknown> = { ...form, companyId, category: POLICY_CATEGORY }
       if (isEdit) body.id = editingId
       if (!companyId) { toast.error('Company ID is required'); setSubmitting(false); return }
-      const cidParam = selectedCompanyId ? `?companyId=${selectedCompanyId}` : ''
+      const sq = scopeQuery()
+      const cidParam = sq ? `?${sq}` : ''
       await apiFetch(`/api/policies${cidParam}`, { method: isEdit ? 'PUT' : 'POST', body: JSON.stringify(body) })
       toast.success(`Policy ${isEdit ? 'updated' : 'created'} successfully`)
       handleCancelForm()
@@ -302,7 +302,8 @@ function LeavePolicyPageContent() {
   const handleDelete = async () => {
     setDeleting(true)
     try {
-      const cidParam = selectedCompanyId ? `&companyId=${selectedCompanyId}` : ''
+      const sq = scopeQuery()
+      const cidParam = sq ? `&${sq}` : ''
       await apiFetch(`/api/policies?id=${deleteConfirmId}${cidParam}`, { method: 'DELETE' })
       toast.success('Deleted successfully')
       fetchPolicies()
@@ -374,7 +375,7 @@ function LeavePolicyPageContent() {
       const isEdit = !!editingRuleId
       const body: Record<string, unknown> = {
         ...ruleForm,
-        companyId: companyId || selectedCompanyId,
+        companyId: companyId || '',
         policyId: ruleForm.policyId || null,
         branchId: ruleForm.branchId || null,
         departmentId: ruleForm.departmentId || null,

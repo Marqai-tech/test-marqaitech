@@ -207,7 +207,7 @@ const defaultCustomFields: CustomField[] = [
 
 export default function EmployeeSettingsPage() {
   const { user } = useAuthStore()
-  const { effectiveCompanyId, availableCompanies, refreshContext } = useCompanyContextStore()
+  const { effectiveCompanyId, availableCompanies, refreshContext, scopeQuery, selectedTenantId } = useCompanyContextStore()
   const scopeCompanyId = effectiveCompanyId()
   const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'admin'
 
@@ -300,8 +300,8 @@ export default function EmployeeSettingsPage() {
       const params = new URLSearchParams()
       if (search) params.set('search', search)
       if (filterDept) params.set('departmentId', filterDept)
-      if (scopeCompanyId) params.set('companyId', scopeCompanyId)
-      const res = await fetch(`/api/employees/credentials?${params.toString()}`, { headers: getAuthHeaders() })
+      const sq = scopeQuery()
+      const res = await fetch(`/api/employees/credentials?${params.toString()}${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() })
       if (res.ok) {
         const data = await res.json()
         setEmployees(data.employees || [])
@@ -318,14 +318,14 @@ export default function EmployeeSettingsPage() {
     } finally {
       setLoading(false)
     }
-  }, [search, filterDept, scopeCompanyId])
+  }, [search, filterDept, scopeCompanyId, scopeQuery, selectedTenantId])
 
   const fetchDepartments = useCallback(async (companyId?: string) => {
     try {
-      const params = new URLSearchParams()
-      if (companyId) params.set('companyId', companyId)
-      else if (scopeCompanyId) params.set('companyId', scopeCompanyId)
-      const url = `/api/departments${params.toString() ? '?' + params.toString() : ''}`
+      const sq = scopeQuery()
+      const sqParams = new URLSearchParams(sq)
+      if (companyId) sqParams.set('companyId', companyId)
+      const url = `/api/departments${sqParams.toString() ? '?' + sqParams.toString() : ''}`
       const res = await fetch(url, { headers: getAuthHeaders() })
       if (res.ok) {
         const data = await res.json()
@@ -333,14 +333,14 @@ export default function EmployeeSettingsPage() {
         setDepartments(list.map((d: { id: string; name: string }) => ({ id: d.id, name: d.name })))
       }
     } catch { /* ignore */ }
-  }, [scopeCompanyId])
+  }, [scopeQuery, selectedTenantId])
 
   const fetchDesignations = useCallback(async (companyId?: string) => {
     try {
-      const params = new URLSearchParams()
-      if (companyId) params.set('companyId', companyId)
-      else if (scopeCompanyId) params.set('companyId', scopeCompanyId)
-      const url = `/api/designations${params.toString() ? '?' + params.toString() : ''}`
+      const sq = scopeQuery()
+      const sqParams = new URLSearchParams(sq)
+      if (companyId) sqParams.set('companyId', companyId)
+      const url = `/api/designations${sqParams.toString() ? '?' + sqParams.toString() : ''}`
       const res = await fetch(url, { headers: getAuthHeaders() })
       if (res.ok) {
         const data = await res.json()
@@ -348,14 +348,14 @@ export default function EmployeeSettingsPage() {
         setDesignations(list.map((d: { id: string; title: string }) => ({ id: d.id, title: d.title })))
       }
     } catch { /* ignore */ }
-  }, [scopeCompanyId])
+  }, [scopeQuery, selectedTenantId])
 
   const fetchBranches = useCallback(async (companyId?: string) => {
     try {
-      const params = new URLSearchParams()
-      if (companyId) params.set('companyId', companyId)
-      else if (scopeCompanyId) params.set('companyId', scopeCompanyId)
-      const url = `/api/branches${params.toString() ? '?' + params.toString() : ''}`
+      const sq = scopeQuery()
+      const sqParams = new URLSearchParams(sq)
+      if (companyId) sqParams.set('companyId', companyId)
+      const url = `/api/branches${sqParams.toString() ? '?' + sqParams.toString() : ''}`
       const res = await fetch(url, { headers: getAuthHeaders() })
       if (res.ok) {
         const data = await res.json()
@@ -363,7 +363,7 @@ export default function EmployeeSettingsPage() {
         setBranches(list.map((b: { id: string; name: string }) => ({ id: b.id, name: b.name })))
       }
     } catch { /* ignore */ }
-  }, [scopeCompanyId])
+  }, [scopeCompanyId, selectedTenantId])
 
   useEffect(() => { fetchEmployees() }, [fetchEmployees])
   useEffect(() => { fetchDepartments() }, [fetchDepartments])

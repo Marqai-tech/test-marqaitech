@@ -77,7 +77,8 @@ export default function RejoinPage() {
   const { user } = useAuthStore();
   const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
   const { departments, designations, selectedCompanyId } = useCompanyData();
-  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
+  const scopeQuery = useCompanyContextStore(s => s.scopeQuery);
+  const selectedTenantId = useCompanyContextStore(s => s.selectedTenantId);
 
   // Derive dropdown options from API data (company-scoped)
   const DEPARTMENTS = departments.map(d => ({ value: d.id, label: d.name }));
@@ -86,15 +87,15 @@ export default function RejoinPage() {
   // Fetch resigned/terminated employees for dropdown
   const [resignedEmployees, setResignedEmployees] = useState<Array<{ id: string; employeeId: string; firstName: string; lastName: string; department?: { id: string; name: string } | null; designation?: { id: string; title: string } | null; status: string }>>([]);
   useEffect(() => {
-    const cid = effectiveCompanyId();
-    fetch(`/api/employees?limit=500${cid ? `&companyId=${cid}` : ''}`, { headers: getAuthHeaders() })
+    const sq = scopeQuery();
+    fetch(`/api/employees?limit=500${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() })
       .then(r => r.ok ? r.json() : { employees: [] })
       .then(d => {
         const allEmps = d.employees || [];
         setResignedEmployees(allEmps.filter((e: { status: string }) => e.status === 'resigned' || e.status === 'terminated' || e.status === 'inactive'));
       })
       .catch(() => setResignedEmployees([]));
-  }, [selectedCompanyId]);
+  }, [selectedCompanyId, scopeQuery, selectedTenantId]);
 
   const [form, setForm] = useState(initialForm);
   const [submitting, setSubmitting] = useState(false);
@@ -125,8 +126,8 @@ export default function RejoinPage() {
     setLoading(true);
     try {
       const params = new URLSearchParams([['limit', '50']]);
-      if (selectedCompanyId) params.set('companyId', selectedCompanyId);
-      const res = await fetch(`/api/employees/rejoin?${params}`, { headers: getAuthHeaders() });
+      const sq = scopeQuery();
+      const res = await fetch(`/api/employees/rejoin?${params.toString()}${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to load');
       setRecords(data.rejoins || data.data || []);
@@ -135,7 +136,7 @@ export default function RejoinPage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedCompanyId]);
+  }, [selectedCompanyId, scopeQuery, selectedTenantId]);
 
   useEffect(() => { fetchRecords(); }, [fetchRecords]);
 

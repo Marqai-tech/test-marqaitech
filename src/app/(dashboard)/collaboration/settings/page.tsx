@@ -48,7 +48,7 @@ function labelToDays(label: string): number {
 
 export default function CollaborationSettingsPage() {
   const { user } = useAuthStore();
-  const effectiveCompanyId = useCompanyContextStore((s) => s.effectiveCompanyId);
+  const scopeQuery = useCompanyContextStore((s) => s.scopeQuery);
   const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
 
   const [loading, setLoading] = useState(true);
@@ -74,7 +74,8 @@ export default function CollaborationSettingsPage() {
   const fetchSettings = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/collaboration/settings', { headers: getAuthHeaders() });
+      const sq = scopeQuery();
+      const res = await fetch(`/api/collaboration/settings${sq ? `?${sq}` : ''}`, { headers: getAuthHeaders() });
       if (!res.ok) throw new Error('Failed to fetch settings');
       const data = await res.json();
       const s: CollaborationSettings = data.settings;
@@ -101,7 +102,7 @@ export default function CollaborationSettingsPage() {
   useEffect(() => {
     fetchSettings();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [effectiveCompanyId]);
+  }, [scopeQuery]);
 
   const handleRefresh = () => {
     fetchSettings();

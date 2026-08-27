@@ -36,7 +36,8 @@ interface LeaveTypeWithEncashment {
 
 export default function LeaveEncashmentPage() {
   const { user } = useAuthStore();
-  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
+  const scopeQuery = useCompanyContextStore(s => s.scopeQuery);
+  const selectedTenantId = useCompanyContextStore(s => s.selectedTenantId);
   const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
 
   const [items, setItems] = useState<EncashmentRequest[]>([]);
@@ -50,8 +51,8 @@ export default function LeaveEncashmentPage() {
   const fetchItems = useCallback(async () => {
     setLoading(true);
     try {
-      const cid = effectiveCompanyId();
-      const r = await fetch(`/api/leave/encashment?limit=100${cid ? `&companyId=${cid}` : ''}`, { headers: getAuthHeaders() });
+      const sq = scopeQuery();
+      const r = await fetch(`/api/leave/encashment?limit=100${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'Failed');
       setItems(d.encashmentRequests || []);
@@ -60,18 +61,18 @@ export default function LeaveEncashmentPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [scopeQuery, selectedTenantId]);
 
   const fetchLeaveTypes = useCallback(async () => {
     try {
-      const cid = effectiveCompanyId();
-      const r = await fetch(`/api/leave-types${cid ? `?companyId=${cid}` : ''}`, { headers: getAuthHeaders() });
+      const sq = scopeQuery();
+      const r = await fetch(`/api/leave-types${sq ? `?${sq}` : ''}`, { headers: getAuthHeaders() });
       const d = await r.json();
       // d may be an array or { leaveTypes: [] }
       const list = Array.isArray(d) ? d : (d.leaveTypes || []);
       setLeaveTypes(list);
     } catch { /* ignore */ }
-  }, []);
+  }, [scopeQuery, selectedTenantId]);
 
   useEffect(() => { fetchItems(); fetchLeaveTypes(); }, [fetchItems, fetchLeaveTypes]);
 

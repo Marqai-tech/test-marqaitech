@@ -89,7 +89,8 @@ export default function ProbationPage() {
   const router = useRouter();
   const { user } = useAuthStore();
   const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
-  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
+  const scopeQuery = useCompanyContextStore(s => s.scopeQuery);
+  const selectedTenantId = useCompanyContextStore(s => s.selectedTenantId);
 
   const [form, setForm] = useState(initialForm);
   const [submitting, setSubmitting] = useState(false);
@@ -102,12 +103,12 @@ export default function ProbationPage() {
 
   const [employeeList, setEmployeeList] = useState<Array<{ id: string; employeeId: string; firstName: string; lastName: string; department?: { id: string; name: string } | null; designation?: { id: string; title: string } | null }>>([]);
   useEffect(() => {
-    const cid = effectiveCompanyId();
-    fetch(`/api/employees?limit=500${cid ? `&companyId=${cid}` : ''}`, { headers: getAuthHeaders() })
+    const sq = scopeQuery();
+    fetch(`/api/employees?limit=500${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() })
       .then(r => r.ok ? r.json() : { employees: [] })
       .then(d => setEmployeeList(d.employees || []))
       .catch(() => setEmployeeList([]));
-  }, []);
+  }, [scopeQuery, selectedTenantId]);
 
   const handleEmployeeSelect = (employeeId: string) => {
     updateField('employeeId', employeeId);
@@ -151,8 +152,8 @@ export default function ProbationPage() {
   const fetchRecords = useCallback(async () => {
     setLoading(true);
     try {
-      const cid = effectiveCompanyId();
-      const res = await fetch(`/api/employees/probation?limit=50${cid ? `&companyId=${cid}` : ''}`, { headers: getAuthHeaders() });
+      const sq = scopeQuery();
+      const res = await fetch(`/api/employees/probation?limit=50${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to load');
       setRecords(data.probations || data.data || []);
@@ -161,7 +162,7 @@ export default function ProbationPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [scopeQuery, selectedTenantId]);
 
   useEffect(() => { fetchRecords(); }, [fetchRecords]);
 

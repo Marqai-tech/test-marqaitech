@@ -87,7 +87,8 @@ function AddLeaveTypeDialog({ open, onClose, onAdd }: { open: boolean; onClose: 
 
 export default function LeaveTypesPage() {
   const { user } = useAuthStore();
-  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
+  const scopeQuery = useCompanyContextStore(s => s.scopeQuery);
+  const selectedTenantId = useCompanyContextStore(s => s.selectedTenantId);
   const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'admin';
   const [leaveTypes, setLeaveTypes] = useState<LeaveTypeItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -96,8 +97,8 @@ export default function LeaveTypesPage() {
   const fetchLeaveTypes = useCallback(async () => {
     setLoading(true);
     try {
-      const cid = effectiveCompanyId();
-      const r = await fetch(`/api/leave-types${cid ? `?companyId=${cid}` : ''}`, { headers: getAuthHeaders() });
+      const sq = scopeQuery();
+      const r = await fetch(`/api/leave-types${sq ? `?${sq}` : ''}`, { headers: getAuthHeaders() });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'Failed to load leave types');
       const list = Array.isArray(d) ? d : (d.leaveTypes || []);
@@ -116,7 +117,7 @@ export default function LeaveTypesPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [scopeQuery, selectedTenantId]);
 
   useEffect(() => { fetchLeaveTypes(); }, [fetchLeaveTypes]);
 

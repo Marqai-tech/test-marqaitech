@@ -43,7 +43,7 @@ interface CallLog {
 
 export default function CallsPage() {
   const { user } = useAuthStore();
-  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
+  const scopeQuery = useCompanyContextStore(s => s.scopeQuery);
 
   const [calls, setCalls] = useState<CallLog[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -74,8 +74,8 @@ export default function CallsPage() {
   const fetchEmployees = useCallback(async (search = '') => {
     setLoadingContacts(true);
     try {
-      const cid = effectiveCompanyId();
-      const r = await fetch(`/api/employees?limit=50&search=${encodeURIComponent(search)}${cid ? `&companyId=${cid}` : ''}`, { headers: getAuthHeaders() });
+      const sq = scopeQuery();
+      const r = await fetch(`/api/employees?limit=50&search=${encodeURIComponent(search)}${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'Failed');
       setEmployees(d.employees || []);
@@ -84,7 +84,7 @@ export default function CallsPage() {
     } finally {
       setLoadingContacts(false);
     }
-  }, []);
+  }, [scopeQuery]);
 
   useEffect(() => { fetchCalls(); }, [fetchCalls]);
 

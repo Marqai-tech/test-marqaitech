@@ -107,7 +107,8 @@ function LeavePageContent() {
   const router = useRouter();
   const { user } = useAuthStore();
   const isAdmin = ['super_admin', 'tenant_admin', 'admin', 'hr_admin'].includes(user?.role || '');
-  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
+  const scopeQuery = useCompanyContextStore(s => s.scopeQuery);
+  const selectedTenantId = useCompanyContextStore(s => s.selectedTenantId);
 
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
   const [leaveBalances, setLeaveBalances] = useState<LeaveBalance[]>([]);
@@ -141,13 +142,13 @@ function LeavePageContent() {
     try {
       setLoading(true);
       const headers = getAuthHeaders();
-      const cid = effectiveCompanyId();
-      const leaveRes = await fetch(`/api/leave?limit=100${cid ? `&companyId=${cid}` : ''}`, { headers });
+      const sq = scopeQuery();
+      const leaveRes = await fetch(`/api/leave?limit=100${sq ? `&${sq}` : ''}`, { headers });
       if (leaveRes.ok) {
         const data = await leaveRes.json();
         setLeaveRequests(data.leaveRequests || []);
       }
-      const empRes = await fetch(`/api/employees?limit=500${cid ? `&companyId=${cid}` : ''}`, { headers });
+      const empRes = await fetch(`/api/employees?limit=500${sq ? `&${sq}` : ''}`, { headers });
       if (empRes.ok) {
         const empData = await empRes.json();
         const myEmp = empData.employees?.find((e: { email: string }) => e.email === user?.email);
@@ -179,7 +180,7 @@ function LeavePageContent() {
           } else {
             // LIVE: fetch real leave types from the API
             try {
-              const ltRes = await fetch(`/api/leave-types?limit=50${cid ? `&companyId=${cid}` : ''}`, { headers });
+              const ltRes = await fetch(`/api/leave-types?limit=50${sq ? `&${sq}` : ''}`, { headers });
               if (ltRes.ok) {
                 const ltData = await ltRes.json();
                 const realTypes = (ltData.leaveTypes || ltData.data || []).map((lt: any) => ({
@@ -207,15 +208,15 @@ function LeavePageContent() {
     } finally {
       setLoading(false);
     }
-  }, [user?.email]);
+  }, [user?.email, scopeQuery, selectedTenantId]);
 
   useEffect(() => { queueMicrotask(() => fetchData()); }, [fetchData]);
 
   /* Holiday overlay */
   useEffect(() => {
     if (showForm) {
-      const holidayCid = effectiveCompanyId();
-      fetch(`/api/holidays${holidayCid ? `?companyId=${holidayCid}` : ''}`, { headers: getAuthHeaders() })
+      const sq = scopeQuery();
+      fetch(`/api/holidays${sq ? `?${sq}` : ''}`, { headers: getAuthHeaders() })
         .then(r => r.json())
         .then(d => {
           const list = Array.isArray(d) ? d : (d.holidays || d.data || []);
@@ -223,7 +224,7 @@ function LeavePageContent() {
         })
         .catch(() => { /* non-fatal */ });
     }
-  }, [showForm]);
+  }, [showForm, scopeQuery, selectedTenantId]);
 
   /* AI collaborative check */
   useEffect(() => {
@@ -233,8 +234,8 @@ function LeavePageContent() {
     }
     setAiWarningLoading(true);
     const ctrl = new AbortController();
-    const collabCid = effectiveCompanyId();
-    fetch(`/api/leave/collaborative-check${collabCid ? `?companyId=${collabCid}` : ''}`, {
+    const sq = scopeQuery();
+    fetch(`/api/leave/collaborative-check${sq ? `?${sq}` : ''}`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify({ employeeId: employee.id, startDate: form.startDate, endDate: form.endDate }),
@@ -245,7 +246,7 @@ function LeavePageContent() {
       .catch(() => setAiWarning(null))
       .finally(() => setAiWarningLoading(false));
     return () => ctrl.abort();
-  }, [employee?.id, form.startDate, form.endDate]);
+  }, [employee?.id, form.startDate, form.endDate, scopeQuery, selectedTenantId]);
 
   /* Actions */
   const handleOpenApplyForm = () => {

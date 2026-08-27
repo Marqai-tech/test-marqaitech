@@ -27,7 +27,8 @@ interface Branch { id: string; name: string; city: string | null }
 
 export default function GeofencePage() {
   const { user } = useAuthStore();
-  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
+  const scopeQuery = useCompanyContextStore(s => s.scopeQuery);
+  const selectedTenantId = useCompanyContextStore(s => s.selectedTenantId);
   const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
 
   const [items, setItems] = useState<Geofence[]>([]);
@@ -48,8 +49,8 @@ export default function GeofencePage() {
   const fetchItems = useCallback(async () => {
     setLoading(true);
     try {
-      const cid = effectiveCompanyId();
-      const r = await fetch(`/api/attendance/geofence?limit=100${cid ? `&companyId=${cid}` : ''}`, { headers: getAuthHeaders() });
+      const sq = scopeQuery();
+      const r = await fetch(`/api/attendance/geofence?limit=100${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'Failed');
       setItems(d.geofences || []);
@@ -58,16 +59,16 @@ export default function GeofencePage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [scopeQuery, selectedTenantId]);
 
   const fetchBranches = useCallback(async () => {
     try {
-      const cid = effectiveCompanyId();
-      const r = await fetch(`/api/branches?limit=100${cid ? `&companyId=${cid}` : ''}`, { headers: getAuthHeaders() });
+      const sq = scopeQuery();
+      const r = await fetch(`/api/branches?limit=100${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
       const d = await r.json();
       setBranches(d.branches || []);
     } catch { /* ignore */ }
-  }, []);
+  }, [scopeQuery, selectedTenantId]);
 
   useEffect(() => { fetchItems(); if (isAdmin) fetchBranches(); }, [fetchItems, fetchBranches, isAdmin]);
 

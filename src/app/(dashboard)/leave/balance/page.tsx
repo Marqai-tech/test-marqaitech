@@ -58,7 +58,8 @@ const BALANCE_COLORS = [
 
 export default function LeaveBalancePage() {
   useAuthStore();
-  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
+  const scopeQuery = useCompanyContextStore(s => s.scopeQuery);
+  const selectedTenantId = useCompanyContextStore(s => s.selectedTenantId);
 
   const [balances, setBalances] = useState<LeaveBalance[]>([]);
   const [history, setHistory] = useState<LeaveHistory[]>([]);
@@ -67,9 +68,9 @@ export default function LeaveBalancePage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const cid = effectiveCompanyId();
+      const sq = scopeQuery();
       // Fetch leave balances
-      const balRes = await fetch(`/api/leave/balance${cid ? `?companyId=${cid}` : ''}`, { headers: getAuthHeaders() });
+      const balRes = await fetch(`/api/leave/balance${sq ? `?${sq}` : ''}`, { headers: getAuthHeaders() });
       if (balRes.ok) {
         const balData = await balRes.json();
         const rawBalances = balData.balances || balData.leaveBalances || [];
@@ -92,9 +93,9 @@ export default function LeaveBalancePage() {
     }
 
     try {
-      const cid = effectiveCompanyId();
+      const sq = scopeQuery();
       // Fetch recent leave history
-      const histRes = await fetch(`/api/leave?limit=5&status=all${cid ? `&companyId=${cid}` : ''}`, { headers: getAuthHeaders() });
+      const histRes = await fetch(`/api/leave?limit=5&status=all${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
       if (histRes.ok) {
         const histData = await histRes.json();
         const rawHistory = histData.leaves || histData.applications || [];
@@ -113,7 +114,7 @@ export default function LeaveBalancePage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [scopeQuery, selectedTenantId]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 

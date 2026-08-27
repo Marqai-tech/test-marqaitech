@@ -29,7 +29,8 @@ interface Election {
 
 export default function OptionalHolidaysPage() {
   const { user } = useAuthStore();
-  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
+  const scopeQuery = useCompanyContextStore(s => s.scopeQuery);
+  const selectedTenantId = useCompanyContextStore(s => s.selectedTenantId);
   const [data, setData] = useState<{
     optionalHolidays: OptionalHoliday[];
     elections: Election[];
@@ -42,8 +43,8 @@ export default function OptionalHolidaysPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const cid = effectiveCompanyId();
-      const r = await fetch(`/api/holiday-elections${cid ? `?companyId=${cid}` : ''}`, { headers: getAuthHeaders() });
+      const sq = scopeQuery();
+      const r = await fetch(`/api/holiday-elections${sq ? `?${sq}` : ''}`, { headers: getAuthHeaders() });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'Failed');
       // Defensive: ensure all expected fields exist (older API versions may omit them)
@@ -59,7 +60,7 @@ export default function OptionalHolidaysPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [scopeQuery, selectedTenantId]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 

@@ -117,8 +117,9 @@ const selectCls = 'w-full px-3 py-2 border border-thb-border rounded-lg text-sm 
 // ─── Main Page ──────────────────────────────────────────────────────
 function AttendanceSettingsContent() {
   const { user } = useAuthStore();
-  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
+  const scopeQuery = useCompanyContextStore(s => s.scopeQuery);
   const companyId = useCompanyContextStore(s => s.effectiveCompanyId());
+  const selectedTenantId = useCompanyContextStore(s => s.selectedTenantId);
   const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
   const searchParams = useSearchParams()
   const router = useRouter()
@@ -177,8 +178,8 @@ function AttendanceSettingsContent() {
 
       {/* Tab Content */}
       {activeTab === 'documents' && <PolicyDocumentsTab />}
-      {activeTab === 'rules' && <PolicyRulesTab companyId={companyId} effectiveCompanyId={effectiveCompanyId} />}
-      {activeTab === 'config' && <GlobalConfigTab companyId={companyId} effectiveCompanyId={effectiveCompanyId} />}
+      {activeTab === 'rules' && <PolicyRulesTab companyId={companyId} scopeQuery={scopeQuery} />}
+      {activeTab === 'config' && <GlobalConfigTab companyId={companyId} scopeQuery={scopeQuery} />}
     </div>
   );
 }
@@ -195,8 +196,10 @@ export default function AttendanceSettingsPage() {
 //  TAB 1: Policy Documents
 // ═══════════════════════════════════════════════════════════════════
 function PolicyDocumentsTab() {
-  const { policies, loading, isAdmin, fetchPolicies, selectedCompanyId } = useCompanyData();
+  const { policies, loading, isAdmin, fetchPolicies } = useCompanyData();
   const companyId = useCompanyContextStore(s => s.effectiveCompanyId());
+  const scopeQuery = useCompanyContextStore(s => s.scopeQuery);
+  const selectedTenantId = useCompanyContextStore(s => s.selectedTenantId);
 
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
@@ -253,7 +256,8 @@ function PolicyDocumentsTab() {
       const body: Record<string, unknown> = { ...form, companyId, category: POLICY_CATEGORY };
       if (isEdit) body.id = editingId;
       if (!companyId) { toast.error('Company ID is required'); setSubmitting(false); return; }
-      const cidParam = selectedCompanyId ? `?companyId=${selectedCompanyId}` : '';
+      const sq = scopeQuery();
+      const cidParam = sq ? `?${sq}` : '';
       await apiFetch(`/api/policies${cidParam}`, { method: isEdit ? 'PUT' : 'POST', body: JSON.stringify(body) });
       toast.success(`Policy ${isEdit ? 'updated' : 'created'} successfully`);
       handleCancelForm();
@@ -265,7 +269,8 @@ function PolicyDocumentsTab() {
   const handleDelete = async () => {
     setDeleting(true);
     try {
-      const cidParam = selectedCompanyId ? `&companyId=${selectedCompanyId}` : '';
+      const sq = scopeQuery();
+      const cidParam = sq ? `&${sq}` : '';
       await apiFetch(`/api/policies?id=${deleteConfirmId}${cidParam}`, { method: 'DELETE' });
       toast.success('Deleted successfully');
       fetchPolicies();
@@ -419,7 +424,7 @@ function PolicyDocumentsTab() {
 // ═══════════════════════════════════════════════════════════════════
 //  TAB 2: Policy Rules
 // ═══════════════════════════════════════════════════════════════════
-function PolicyRulesTab({ companyId, effectiveCompanyId }: { companyId: string; effectiveCompanyId: () => string }) {
+function PolicyRulesTab({ companyId, scopeQuery }: { companyId: string; scopeQuery: () => string }) {
   const { policies, branches, departments, fetchPolicies, fetchBranches, fetchDepartments } = useCompanyData();
 
   const [rules, setRules] = useState<AttendancePolicyRule[]>([]);
@@ -445,8 +450,8 @@ function PolicyRulesTab({ companyId, effectiveCompanyId }: { companyId: string; 
   const fetchRules = async () => {
     setLoadingRules(true);
     try {
-      const cid = effectiveCompanyId();
-      const res = await fetch(`/api/attendance-policy-rules${cid ? `?companyId=${cid}` : ''}`, { headers: getAuthHeaders() });
+      const sq = scopeQuery();
+      const res = await fetch(`/api/attendance-policy-rules${sq ? `?${sq}` : ''}`, { headers: getAuthHeaders() });
       const d = await res.json();
       if (!res.ok) throw new Error(d.error || 'Failed');
       setRules(d.data || []);
@@ -786,7 +791,7 @@ function PolicyRulesTab({ companyId, effectiveCompanyId }: { companyId: string; 
 // ═══════════════════════════════════════════════════════════════════
 //  TAB 3: Global Config (identical to existing settings page)
 // ═══════════════════════════════════════════════════════════════════
-function GlobalConfigTab({ companyId, effectiveCompanyId }: { companyId: string; effectiveCompanyId: () => string }) {
+function GlobalConfigTab({ companyId, scopeQuery }: { companyId: string; scopeQuery: () => string }) {
   const { user } = useAuthStore();
   const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
 
@@ -806,8 +811,8 @@ function GlobalConfigTab({ companyId, effectiveCompanyId }: { companyId: string;
   const fetchConfig = async () => {
     setLoading(true);
     try {
-      const cid = effectiveCompanyId();
-      const r = await fetch(`/api/attendance-policy-config${cid ? `?companyId=${cid}` : ''}`, { headers: getAuthHeaders() });
+      const sq = scopeQuery();
+      const r = await fetch(`/api/attendance-policy-config${sq ? `?${sq}` : ''}`, { headers: getAuthHeaders() });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'Failed');
       setConfig(d.config);

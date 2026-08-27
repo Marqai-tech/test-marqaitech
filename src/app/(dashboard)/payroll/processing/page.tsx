@@ -170,7 +170,9 @@ function DetailItem({ label, value, badge }: { label: string; value: string | nu
 export default function PayrollProcessingPage() {
   const { user } = useAuthStore();
   const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'admin';
-  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId());
+  const scopeQuery = useCompanyContextStore(s => s.scopeQuery);
+  const selectedTenantId = useCompanyContextStore(s => s.selectedTenantId);
   const availableCompanies = useCompanyContextStore(s => s.availableCompanies);
 
   // --- State ---
@@ -197,7 +199,7 @@ export default function PayrollProcessingPage() {
   // Sync company filter with global company switcher on hydration
   useEffect(() => {
     if (effectiveCompanyId) setCompanyFilter(prev => prev || effectiveCompanyId);
-  }, [effectiveCompanyId]);
+  }, [effectiveCompanyId, selectedTenantId]);
 
   // Form state
   const [form, setForm] = useState({ ...emptyForm });
@@ -228,8 +230,9 @@ export default function PayrollProcessingPage() {
       if (payrollPeriodFilter) params.set('payrollPeriod', payrollPeriodFilter);
       const cid = companyFilter || effectiveCompanyId;
       if (cid) params.set('companyId', cid);
+      const sq = scopeQuery();
       const qs = params.toString();
-      const url = `/api/payroll/runs${qs ? `?${qs}` : ''}`;
+      const url = `/api/payroll/runs${qs ? `?${qs}${sq ? `&${sq}` : ''}` : (sq ? `?${sq}` : '')}`;
       const res = await fetch(url, { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
@@ -244,7 +247,7 @@ export default function PayrollProcessingPage() {
     } finally {
       setLoading(false);
     }
-  }, [runStatusFilter, payrollPeriodFilter, companyFilter, effectiveCompanyId]);
+  }, [runStatusFilter, payrollPeriodFilter, companyFilter, effectiveCompanyId, scopeQuery, selectedTenantId]);
 
   useEffect(() => {
     queueMicrotask(() => {

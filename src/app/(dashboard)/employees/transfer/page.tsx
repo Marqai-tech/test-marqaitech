@@ -76,7 +76,8 @@ export default function TransferPage() {
   const { user } = useAuthStore();
   const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
   const { departments, designations, branches, selectedCompanyId } = useCompanyData();
-  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
+  const scopeQuery = useCompanyContextStore(s => s.scopeQuery);
+  const selectedTenantId = useCompanyContextStore(s => s.selectedTenantId);
 
   // Derive dropdown options from API data (company-scoped)
   const DEPARTMENTS = departments.map(d => ({ value: d.id, label: d.name }));
@@ -86,12 +87,12 @@ export default function TransferPage() {
   // Fetch employees for dropdown
   const [employeeList, setEmployeeList] = useState<Array<{ id: string; employeeId: string; firstName: string; lastName: string; department?: { id: string; name: string } | null; designation?: { id: string; title: string } | null; branch?: { id: string; name: string } | null }>>([]);
   useEffect(() => {
-    const cid = effectiveCompanyId();
-    fetch(`/api/employees?limit=500${cid ? `&companyId=${cid}` : ''}`, { headers: getAuthHeaders() })
+    const sq = scopeQuery();
+    fetch(`/api/employees?limit=500${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() })
       .then(r => r.ok ? r.json() : { employees: [] })
       .then(d => setEmployeeList(d.employees || []))
       .catch(() => setEmployeeList([]));
-  }, [selectedCompanyId]);
+  }, [selectedCompanyId, scopeQuery, selectedTenantId]);
 
   const [form, setForm] = useState(initialForm);
   const [submitting, setSubmitting] = useState(false);
@@ -106,8 +107,8 @@ export default function TransferPage() {
     setLoading(true);
     try {
       const params = new URLSearchParams([['limit', '50']]);
-      if (selectedCompanyId) params.set('companyId', selectedCompanyId);
-      const res = await fetch(`/api/employees/transfer?${params}`, { headers: getAuthHeaders() });
+      const sq = scopeQuery();
+      const res = await fetch(`/api/employees/transfer?${params.toString()}${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to load');
       setRecords(data.transfers || data.data || []);
@@ -116,7 +117,7 @@ export default function TransferPage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedCompanyId]);
+  }, [selectedCompanyId, scopeQuery, selectedTenantId]);
 
   useEffect(() => { fetchRecords(); }, [fetchRecords]);
 

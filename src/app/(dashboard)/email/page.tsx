@@ -216,6 +216,8 @@ const getFileIcon = (type: string) => {
 export default function EmailPage() {
   const { user } = useAuthStore();
   const effectiveCompanyId = useCompanyContextStore((s) => s.effectiveCompanyId);
+  const scopeQuery = useCompanyContextStore((s) => s.scopeQuery);
+  const selectedTenantId = useCompanyContextStore((s) => s.selectedTenantId);
 
   const [emails, setEmails] = useState<Email[]>([]);
   const [loading, setLoading] = useState(true);
@@ -239,12 +241,11 @@ export default function EmailPage() {
   const fetchEmails = useCallback(async () => {
     setLoading(true);
     try {
-      const cid = effectiveCompanyId();
+      const sq = scopeQuery();
       const folder = selectedFolder === 'starred' ? 'inbox' : selectedFolder;
       const params = new URLSearchParams({ folder, page: '1', limit: '50' });
       if (searchQuery) params.set('search', searchQuery);
-      if (cid) params.set('companyId', cid);
-      const r = await fetch(`/api/email?${params}`, { headers: getAuthHeaders() });
+      const r = await fetch(`/api/email?${params.toString()}${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'Failed to load emails');
       const mapped = (d.emails || []).map(mapApiEmail);
@@ -260,7 +261,7 @@ export default function EmailPage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedFolder, searchQuery, effectiveCompanyId]);
+  }, [selectedFolder, searchQuery, effectiveCompanyId, scopeQuery, selectedTenantId]);
 
   useEffect(() => { fetchEmails(); }, [fetchEmails]);
 
@@ -365,7 +366,7 @@ export default function EmailPage() {
     } finally {
       setSending(false);
     }
-  }, [composeTo, composeCC, composeSubject, composeBody, effectiveCompanyId, fetchEmails]);
+  }, [composeTo, composeCC, composeSubject, composeBody, effectiveCompanyId, fetchEmails, scopeQuery, selectedTenantId]);
 
   const markAsRead = useCallback(async (id: string) => {
     const email = emails.find((e) => e.id === id);

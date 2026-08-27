@@ -347,7 +347,7 @@ function TaskRow({ task, onToggleComplete, onDelete, onChangePriority, openActio
 /* ══════════════ Main Component ══════════════ */
 export default function TodoPage() {
   const { user } = useAuthStore();
-  const { effectiveCompanyId } = useCompanyContextStore();
+  const { effectiveCompanyId, scopeQuery, selectedTenantId } = useCompanyContextStore();
 
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
@@ -380,9 +380,8 @@ export default function TodoPage() {
       if (activeTab !== 'All') params.set('status', activeTab);
       if (priorityFilter !== 'All') params.set('priority', priorityFilter);
       if (categoryFilter !== 'All') params.set('category', categoryFilter);
-      const cid = effectiveCompanyId();
-      if (cid) params.set('companyId', cid);
-      const query = params.toString() ? `?${params.toString()}` : '';
+      const sq = scopeQuery();
+      const query = params.toString() ? `?${params.toString()}${sq ? `&${sq}` : ''}` : (sq ? `?${sq}` : '');
       const res = await fetch(`/api/todo${query}`, { headers: getAuthHeaders() });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to load tasks');
@@ -393,14 +392,14 @@ export default function TodoPage() {
     } finally {
       setLoading(false);
     }
-  }, [activeTab, priorityFilter, categoryFilter, effectiveCompanyId]);
+  }, [activeTab, priorityFilter, categoryFilter, effectiveCompanyId, scopeQuery, selectedTenantId]);
 
   /* ── Fetch Employees for Assignee Dropdown ── */
   const fetchEmployees = useCallback(async () => {
     setLoadingEmployees(true);
     try {
-      const cid = effectiveCompanyId();
-      const res = await fetch(`/api/employees?limit=50${cid ? `&companyId=${cid}` : ''}`, { headers: getAuthHeaders() });
+      const sq = scopeQuery();
+      const res = await fetch(`/api/employees?limit=50${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed');
       setEmployees(data.employees || []);
@@ -409,7 +408,7 @@ export default function TodoPage() {
     } finally {
       setLoadingEmployees(false);
     }
-  }, [effectiveCompanyId]);
+  }, [effectiveCompanyId, scopeQuery, selectedTenantId]);
 
   /* ── Initial fetch ── */
   useEffect(() => { fetchTasks(); }, [fetchTasks]);
@@ -576,7 +575,7 @@ export default function TodoPage() {
     setShowAddModal(false);
     setEditingTaskId(null);
     setNewTask({ title: '', description: '', priority: 'Medium', category: 'HR', dueDate: '', assignedTo: '', assignedToId: '' });
-  }, [newTask, editingTaskId, effectiveCompanyId, fetchTasks]);
+  }, [newTask, editingTaskId, effectiveCompanyId, fetchTasks, scopeQuery, selectedTenantId]);
 
   return (
     <div className="space-y-6 animate-fade-in">

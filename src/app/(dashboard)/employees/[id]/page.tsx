@@ -44,7 +44,8 @@ function getAuthHeaders() {
 // ─── Employee Policies Tab Component ───
 function EmployeePoliciesTab({ employeeId }: { employeeId: string }) {
   const { user } = useAuthStore();
-  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
+  const scopeQuery = useCompanyContextStore(s => s.scopeQuery);
+  const selectedTenantId = useCompanyContextStore(s => s.selectedTenantId);
   const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'admin';
   const [policies, setPolicies] = useState<{ leave?: Record<string, unknown>; attendance?: Record<string, unknown>; travel?: Record<string, unknown>; salaryStructure?: Record<string, unknown>; leavePolicyId?: string | null; attendancePolicyId?: string | null; travelPolicyId?: string | null; salaryStructureId?: string | null } | null>(null);
   const [leavePolicies, setLeavePolicies] = useState<Array<{ id: string; title: string; version: string; effectiveDate?: string | null }>>([]);
@@ -54,8 +55,8 @@ function EmployeePoliciesTab({ employeeId }: { employeeId: string }) {
   const [saving, setSaving] = useState<string | null>(null);
 
   const fetchPolicies = useCallback(async () => {
-    const cid = effectiveCompanyId();
-    const sq = cid ? `companyId=${cid}&` : '';
+    const sqBase = scopeQuery();
+    const sq = sqBase ? `${sqBase}&` : '';
     try {
       const [polRes, lpRes, apRes, tpRes, ssRes] = await Promise.allSettled([
         fetch(`/api/employees/${employeeId}/policies?${sq}`, { headers: getAuthHeaders() }),
@@ -70,7 +71,7 @@ function EmployeePoliciesTab({ employeeId }: { employeeId: string }) {
       if (tpRes.status === 'fulfilled' && tpRes.value.ok) { const d = await tpRes.value.json(); setTravelPolicies((d.policies || d.data || [])); }
       if (ssRes.status === 'fulfilled' && ssRes.value.ok) { const d = await ssRes.value.json(); setSalaryStructures((d.salaryStructures || d.data || [])); }
     } catch { /* silently */ }
-  }, [employeeId]);
+  }, [employeeId, scopeQuery, selectedTenantId]);
 
   useEffect(() => { queueMicrotask(() => fetchPolicies()); }, [fetchPolicies]);
 
@@ -263,7 +264,8 @@ export default function EmployeeDetailPage() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
-  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
+  const scopeQuery = useCompanyContextStore(s => s.scopeQuery);
+  const selectedTenantId = useCompanyContextStore(s => s.selectedTenantId);
 
   const [employee, setEmployee] = useState<EmployeeData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -320,8 +322,8 @@ export default function EmployeeDetailPage() {
 
   const fetchRelatedData = useCallback(async () => {
     if (!employee) return;
-    const cid = effectiveCompanyId();
-    const sq = cid ? `companyId=${cid}&` : '';
+    const sqBase = scopeQuery();
+    const sq = sqBase ? `${sqBase}&` : '';
     try {
       const headers = getAuthHeaders();
       const [attRes, payRes, leaveRes] = await Promise.allSettled([
@@ -344,7 +346,7 @@ export default function EmployeeDetailPage() {
     } catch (err) {
       console.error(err);
     }
-  }, [employee]);
+  }, [employee, scopeQuery, selectedTenantId]);
 
   useEffect(() => {
     queueMicrotask(() => fetchEmployee());

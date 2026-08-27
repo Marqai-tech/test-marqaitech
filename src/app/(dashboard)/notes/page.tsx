@@ -133,7 +133,7 @@ function formatDateRelative(dateStr: string): string {
 // ── Main Component ─────────────────────────────────────────────────────
 export default function NotesPage() {
   const { user } = useAuthStore();
-  const { effectiveCompanyId } = useCompanyContextStore();
+  const { effectiveCompanyId, scopeQuery, selectedTenantId } = useCompanyContextStore();
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -154,9 +154,8 @@ export default function NotesPage() {
     setLoading(true);
     try {
       const params = new URLSearchParams();
-      const cid = effectiveCompanyId();
-      if (cid) params.set('companyId', cid);
-      const res = await fetch(`/api/notes?${params.toString()}`, { headers: getAuthHeaders() });
+      const sq = scopeQuery();
+      const res = await fetch(`/api/notes?${params.toString()}${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
       if (!res.ok) throw new Error('Failed to fetch notes');
       const data = await res.json();
       const apiNotes: ApiNote[] = data.notes || data || [];
@@ -167,7 +166,7 @@ export default function NotesPage() {
     } finally {
       setLoading(false);
     }
-  }, [effectiveCompanyId]);
+  }, [effectiveCompanyId, scopeQuery, selectedTenantId]);
 
   useEffect(() => {
     fetchNotes();
@@ -308,7 +307,7 @@ export default function NotesPage() {
       }
       setShowAddModal(false);
     },
-    [effectiveCompanyId, fetchNotes]
+    [effectiveCompanyId, fetchNotes, scopeQuery, selectedTenantId]
   );
 
   const handleCloseEditor = useCallback(() => {

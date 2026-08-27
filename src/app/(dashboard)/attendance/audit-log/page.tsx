@@ -26,7 +26,8 @@ interface AuditLog {
 
 export default function AuditLogPage() {
   const { user } = useAuthStore();
-  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
+  const scopeQuery = useCompanyContextStore(s => s.scopeQuery);
+  const selectedTenantId = useCompanyContextStore(s => s.selectedTenantId);
   const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
 
   const [items, setItems] = useState<AuditLog[]>([]);
@@ -39,9 +40,8 @@ export default function AuditLogPage() {
     try {
       const params = new URLSearchParams({ limit: '200' });
       if (filterAction) params.set('action', filterAction);
-      const cid = effectiveCompanyId();
-      if (cid) params.set('companyId', cid);
-      const r = await fetch(`/api/attendance/audit-log?${params.toString()}`, { headers: getAuthHeaders() });
+      const sq = scopeQuery();
+      const r = await fetch(`/api/attendance/audit-log?${params.toString()}${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'Failed');
       setItems(d.auditLogs || []);
@@ -50,7 +50,7 @@ export default function AuditLogPage() {
     } finally {
       setLoading(false);
     }
-  }, [filterAction]);
+  }, [filterAction, scopeQuery, selectedTenantId]);
 
   useEffect(() => { if (isAdmin) fetchItems(); }, [fetchItems, isAdmin]);
 

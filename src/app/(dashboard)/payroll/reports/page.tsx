@@ -117,7 +117,9 @@ function MiniBarChart({ data, label, color = 'blue' }: { data: { label: string; 
 }
 
 export default function PayrollReportsPage() {
-  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId());
+  const scopeQuery = useCompanyContextStore(s => s.scopeQuery);
+  const selectedTenantId = useCompanyContextStore(s => s.selectedTenantId);
   const availableCompanies = useCompanyContextStore(s => s.availableCompanies);
   const [activeTab, setActiveTab] = useState<ReportTab>('register');
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -152,7 +154,7 @@ export default function PayrollReportsPage() {
       setStatutoryCompanyId(prev => prev || effectiveCompanyId);
       setDashboardCompanyId(prev => prev || effectiveCompanyId);
     }
-  }, [effectiveCompanyId]);
+  }, [effectiveCompanyId, scopeQuery, selectedTenantId]);
 
   const [dashboardMetrics, setDashboardMetrics] = useState<DashboardMetrics | null>(null);
   const [monthlyTrend, setMonthlyTrend] = useState<MonthlyTrend[]>([]);
@@ -192,8 +194,9 @@ export default function PayrollReportsPage() {
       const rcid = registerCompanyId || effectiveCompanyId;
       if (rcid) params.set('companyId', rcid);
       if (registerDepartmentId) params.set('departmentId', registerDepartmentId);
+      const sq = scopeQuery();
 
-      const res = await fetch(`/api/payroll/reports/salary-register?${params}`, { headers: getAuthHeaders() });
+      const res = await fetch(`/api/payroll/reports/salary-register?${params.toString()}${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
       if (!res.ok) {
         let errorMsg = 'Failed to load salary register';
         try { const d = await res.json(); errorMsg = d.error || errorMsg; } catch { /* non-JSON response */ }
@@ -220,8 +223,9 @@ export default function PayrollReportsPage() {
       });
       const scid = statutoryCompanyId || effectiveCompanyId;
       if (scid) params.set('companyId', scid);
+      const sq = scopeQuery();
 
-      const res = await fetch(`/api/payroll/reports/statutory?${params}`, { headers: getAuthHeaders() });
+      const res = await fetch(`/api/payroll/reports/statutory?${params.toString()}${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
       if (!res.ok) {
         let errorMsg = 'Failed to load statutory report';
         try { const d = await res.json(); errorMsg = d.error || errorMsg; } catch { /* non-JSON response */ }
@@ -253,8 +257,9 @@ export default function PayrollReportsPage() {
       const params = new URLSearchParams();
       const dcid = dashboardCompanyId || effectiveCompanyId;
       if (dcid) params.set('companyId', dcid);
+      const sq = scopeQuery();
 
-      const res = await fetch(`/api/payroll/dashboard?${params}`, { headers: getAuthHeaders() });
+      const res = await fetch(`/api/payroll/dashboard?${params.toString()}${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
       if (!res.ok) {
         let errorMsg = 'Failed to load dashboard';
         try { const d = await res.json(); errorMsg = d.error || errorMsg; } catch { /* non-JSON response */ }

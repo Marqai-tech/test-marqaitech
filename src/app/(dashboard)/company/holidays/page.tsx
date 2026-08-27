@@ -34,8 +34,11 @@ const typeMap: Record<string, string> = {
 }
 
 export default function HolidaysPage() {
-  const { holidays, loading, isAdmin, fetchHolidays, selectedCompanyId } = useCompanyData()
+  const { holidays, loading, isAdmin, fetchHolidays } = useCompanyData()
   const companyId = useCompanyContextStore(s => s.effectiveCompanyId())
+  const scopeQuery = useCompanyContextStore(s => s.scopeQuery)
+  const selectedTenantId = useCompanyContextStore(s => s.selectedTenantId)
+  void selectedTenantId; // ensures re-fetch when tenant changes (URL built via scopeQuery)
 
   const [search, setSearch] = useState('')
   const [showForm, setShowForm] = useState(false)
@@ -87,7 +90,8 @@ export default function HolidaysPage() {
       const body: Record<string, unknown> = { ...form, companyId }
       if (isEdit) body.id = editingId
       if (!companyId) { toast.error('Company ID is required'); setSubmitting(false); return }
-      const cidParam = selectedCompanyId ? `?companyId=${selectedCompanyId}` : ''
+      const sq = scopeQuery()
+      const cidParam = sq ? `?${sq}` : ''
       await apiFetch(`/api/holidays${cidParam}`, { method: isEdit ? 'PUT' : 'POST', body: JSON.stringify(body) })
       toast.success(`Holiday ${isEdit ? 'updated' : 'created'} successfully`)
       handleCancelForm()
@@ -99,7 +103,8 @@ export default function HolidaysPage() {
   const handleDelete = async () => {
     setDeleting(true)
     try {
-      const cidParam = selectedCompanyId ? `&companyId=${selectedCompanyId}` : ''
+      const sq = scopeQuery()
+      const cidParam = sq ? `&${sq}` : ''
       await apiFetch(`/api/holidays?id=${deleteConfirmId}${cidParam}`, { method: 'DELETE' })
       toast.success('Deleted successfully')
       fetchHolidays()

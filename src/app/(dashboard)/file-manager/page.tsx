@@ -213,6 +213,8 @@ export default function FileManagerPage() {
   // Auth & Context
   const { user } = useAuthStore();
   const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
+  const scopeQuery = useCompanyContextStore(s => s.scopeQuery);
+  const selectedTenantId = useCompanyContextStore(s => s.selectedTenantId);
 
   // State
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
@@ -305,10 +307,10 @@ export default function FileManagerPage() {
     setLoading(true);
     try {
       const drive = driveType || (activeDrive === 'my' ? 'personal' : activeDrive);
-      const cid = effectiveCompanyId();
+      const sq = scopeQuery();
       let url = `/api/collaboration/files?driveType=${drive}`;
       if (parentId !== undefined) url += `&parentId=${parentId ?? 'null'}`;
-      if (drive === 'company' && cid) url += `&companyId=${cid}`;
+      if (drive === 'company' && sq) url += `&${sq}`;
       const r = await fetch(url, { headers: getAuthHeaders() });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'Failed to fetch files');
@@ -321,7 +323,7 @@ export default function FileManagerPage() {
     } finally {
       setLoading(false);
     }
-  }, [activeDrive, effectiveCompanyId]);
+  }, [activeDrive, effectiveCompanyId, scopeQuery, selectedTenantId]);
 
   useEffect(() => {
     fetchFiles();
