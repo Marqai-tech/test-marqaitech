@@ -68,10 +68,12 @@ export async function GET(request: Request) {
     // When super_admin has NO tenant or company selected, instead of returning
     // empty, aggregate employee counts across ALL visible tenant DBs so the
     // dashboard shows real cross-tenant totals.
+    console.log('[employees] DEBUG:', { userRole, hasCompanyId: !!scopeResult?.companyId, tenantId, isLive: isServerLiveSite(request), scopeResult: scopeResult ? { role: scopeResult.role, companyId: scopeResult.companyId, scope: scopeResult.scope } : null });
     if (userRole === 'super_admin' && !scopeResult?.companyId && !tenantId && isServerLiveSite(request)) {
       try {
         const { getServerHiddenSlugs, PLATFORM_PLACEHOLDER_NAME } = await import('@/lib/tenant-filter');
         const hiddenSlugs = getServerHiddenSlugs(request);
+        console.log('[employees] Aggregation path: hiddenSlugs=', hiddenSlugs);
         const visibleTenants = await getPlatformDb().tenant.findMany({
           where: {
             AND: [
@@ -82,6 +84,7 @@ export async function GET(request: Request) {
           },
           select: { id: true, slug: true, name: true },
         });
+        console.log('[employees] Visible tenants:', visibleTenants.map(t => ({ id: t.id, slug: t.slug, name: t.name })));
 
         let totalEmployees = 0;
         let activeEmployees = 0;
@@ -100,6 +103,7 @@ export async function GET(request: Request) {
               where: { tenant: { slug: tenant.slug }, isActive: true },
               select: { id: true },
             });
+            console.log(`[employees] Tenant "${tenant.slug}": hasDedicatedDb=`, !!hasDedicatedDb);
 
             // If no dedicated DB (shared mode), filter by company IDs belonging to this tenant
             // Employee has companyId -> Company -> CompanyGroup -> Tenant
@@ -108,24 +112,28 @@ export async function GET(request: Request) {
               // Find all company groups for this tenant
               const groups = await tenantDb.companyGroup.findMany({
                 where: { tenantId: tenant.id },
-                select: { id: true },
+                select: { id: true, name: true },
               });
               const groupIds = groups.map(g => g.id);
+              console.log(`[employees] Tenant "${tenant.slug}": groups=`, groups.map(g => ({ id: g.id, name: g.name })));
               if (groupIds.length > 0) {
                 // Find all companies in those groups
                 const companies = await tenantDb.company.findMany({
                   where: { companyGroupId: { in: groupIds } },
-                  select: { id: true },
+                  select: { id: true, name: true },
                 });
                 const companyIds = companies.map(c => c.id);
+                console.log(`[employees] Tenant "${tenant.slug}": companies=`, companies.map(c => ({ id: c.id, name: c.name })));
                 if (companyIds.length > 0) {
                   empFilter = { companyId: { in: companyIds } };
                 } else {
                   // No companies for this tenant — skip
+                  console.log(`[employees] Tenant "${tenant.slug}": no companies, skipping`);
                   continue;
                 }
               } else {
                 // No groups — skip this tenant
+                console.log(`[employees] Tenant "${tenant.slug}": no groups, skipping`);
                 continue;
               }
             }
@@ -145,10 +153,13 @@ export async function GET(request: Request) {
             inactiveEmployees += tenantEmps.filter((e: any) => e.status !== 'active' && e.status !== 'on_leave').length;
             // Add tenant info to each employee for display
             employees.push(...tenantEmps.map((e: any) => ({ ...e, tenantName: tenant.name, tenantSlug: tenant.slug })));
+            console.log(`[employees] Tenant "${tenant.slug}": found ${tenantEmps.length} employees`);
           } catch (e) {
             console.error(`[employees] Failed to aggregate for tenant ${tenant.slug}:`, e);
           }
         }
+
+        console.log('[employees] Aggregation complete:', { totalEmployees, activeEmployees, onLeaveEmployees, inactiveEmployees, totalRecords: employees.length });
 
         return NextResponse.json({
           employees: employees.slice((page - 1) * limit, page * limit),
