@@ -65,11 +65,11 @@ export async function GET(request: Request) {
     const scope = scopeResult?.scope || 'all';
 
     // ─── GOLDEN RULE: No dummy/seed data on LIVE for super_admin ───
-    // When super_admin has NO tenant or company selected, instead of returning
-    // empty, aggregate employee counts across ALL visible tenant DBs so the
-    // dashboard shows real cross-tenant totals.
+    // When super_admin has NO tenant or company selected, aggregate employee
+    // counts across ALL visible tenant DBs so the dashboard shows real
+    // cross-tenant totals. This applies on BOTH live and demo sites.
     console.log('[employees] DEBUG:', { userRole, hasCompanyId: !!scopeResult?.companyId, tenantId, isLive: isServerLiveSite(request), scopeResult: scopeResult ? { role: scopeResult.role, companyId: scopeResult.companyId, scope: scopeResult.scope } : null });
-    if (userRole === 'super_admin' && !scopeResult?.companyId && !tenantId && isServerLiveSite(request)) {
+    if (userRole === 'super_admin' && !scopeResult?.companyId && !tenantId) {
       try {
         const { getServerHiddenSlugs, PLATFORM_PLACEHOLDER_NAME } = await import('@/lib/tenant-filter');
         const hiddenSlugs = getServerHiddenSlugs(request);
