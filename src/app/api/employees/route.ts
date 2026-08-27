@@ -91,6 +91,7 @@ export async function GET(request: Request) {
         let onLeaveEmployees = 0;
         let inactiveEmployees = 0;
         const employees: any[] = [];
+        const tenantDebug: any[] = [];
 
         for (const tenant of visibleTenants) {
           if (!tenant.slug) continue;
@@ -154,8 +155,10 @@ export async function GET(request: Request) {
             // Add tenant info to each employee for display
             employees.push(...tenantEmps.map((e: any) => ({ ...e, tenantName: tenant.name, tenantSlug: tenant.slug })));
             console.log(`[employees] Tenant "${tenant.slug}": found ${tenantEmps.length} employees`);
+            tenantDebug.push({ slug: tenant.slug, name: tenant.name, hasDedicatedDb: !!hasDedicatedDb, empCount: tenantEmps.length, filter: empFilter });
           } catch (e) {
             console.error(`[employees] Failed to aggregate for tenant ${tenant.slug}:`, e);
+            tenantDebug.push({ slug: tenant.slug, name: tenant.name, error: String(e) });
           }
         }
 
@@ -166,6 +169,7 @@ export async function GET(request: Request) {
           pagination: { page, limit, total: employees.length, totalPages: Math.ceil(employees.length / limit) },
           dataScope: 'all-tenants',
           aggregateStats: { totalEmployees, activeEmployees, onLeaveEmployees, inactiveEmployees },
+          _debug: { visibleTenantCount: visibleTenants.length, tenants: tenantDebug },
         }, { headers: corsHeaders() });
       } catch (aggError) {
         console.error('[employees] Aggregation error:', aggError);
