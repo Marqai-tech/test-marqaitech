@@ -92,14 +92,46 @@ export async function GET(request: Request) {
         for (const tenant of visibleTenants) {
           if (!tenant.slug) continue;
           try {
-            const tenantDbRecord = await getPlatformDb().tenantDatabase.findFirst({
+            // Use getDbForTenant which handles both dedicated DBs and
+            // platform-DB-with-tenantId-filtering fallback
+            const tenantDb = await getDbForTenant(tenant.slug);
+            // Check if this tenant has a dedicated DB or is using platform DB (shared mode)
+            const hasDedicatedDb = await getPlatformDb().tenantDatabase.findFirst({
               where: { tenant: { slug: tenant.slug }, isActive: true },
               select: { id: true },
             });
-            if (!tenantDbRecord) continue;
 
-            const tenantDb = await getDbForTenant(tenant.slug);
+            // If no dedicated DB (shared mode), filter by company IDs belonging to this tenant
+            // Employee has companyId -> Company -> CompanyGroup -> Tenant
+            let empFilter: Record<string, unknown> = {};
+            if (!hasDedicatedDb) {
+              // Find all company groups for this tenant
+              const groups = await tenantDb.companyGroup.findMany({
+                where: { tenantId: tenant.id },
+                select: { id: true },
+              });
+              const groupIds = groups.map(g => g.id);
+              if (groupIds.length > 0) {
+                // Find all companies in those groups
+                const companies = await tenantDb.company.findMany({
+                  where: { companyGroupId: { in: groupIds } },
+                  select: { id: true },
+                });
+                const companyIds = companies.map(c => c.id);
+                if (companyIds.length > 0) {
+                  empFilter = { companyId: { in: companyIds } };
+                } else {
+                  // No companies for this tenant — skip
+                  continue;
+                }
+              } else {
+                // No groups — skip this tenant
+                continue;
+              }
+            }
+
             const tenantEmps = await tenantDb.employee.findMany({
+              where: empFilter,
               include: {
                 department: { select: { id: true, name: true } },
                 designation: { select: { id: true, title: true } },
