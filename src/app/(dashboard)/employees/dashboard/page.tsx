@@ -92,6 +92,13 @@ export default function EmployeeDashboardPage() {
   const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
 
   const [stats, setStats] = useState<EmployeeStats | null>(null);
+  const [lifecycleCounts, setLifecycleCounts] = useState({
+    onProbation: 0,
+    transfers: 0,
+    resignations: 0,
+    terminations: 0,
+    rejoins: 0,
+  });
   const [departments, setDepartments] = useState<DepartmentDist[]>([]);
   const [recentUpdates, setRecentUpdates] = useState<RecentUpdate[]>([]);
   const [headcountTrend, setHeadcountTrend] = useState<HeadcountTrend[]>([]);
@@ -164,6 +171,47 @@ export default function EmployeeDashboardPage() {
         const leaveCount = allEmps.filter((e: any) => e.status === 'on_leave').length;
         const inactiveCount = allEmps.filter((e: any) => e.status !== 'active' && e.status !== 'on_leave').length;
 
+        // ─── Compute lifecycle counts from employee data ───
+        const PROBATION_PERIOD_DAYS = 90; // standard probation period
+        const onProbationCount = (allEmps as any[]).filter((e: any) => {
+          if (e.status !== 'active' || !e.dateOfJoining) return false;
+          const joinDate = new Date(e.dateOfJoining);
+          const daysSinceJoin = Math.floor((now.getTime() - joinDate.getTime()) / (1000 * 60 * 60 * 24));
+          return daysSinceJoin <= PROBATION_PERIOD_DAYS;
+        }).length;
+
+        const resignationsCount = (allEmps as any[]).filter((e: any) => e.status === 'resigned').length;
+        const terminationsCount = (allEmps as any[]).filter((e: any) => e.status === 'terminated').length;
+
+        // Transfers & Rejoins: these don't have dedicated DB models yet,
+        // so fetch counts from the respective APIs
+        let transfersCount = 0;
+        let rejoinsCount = 0;
+        try {
+          const [transferRes, rejoinRes] = await Promise.all([
+            fetch(`/api/employees/transfer?limit=1${cid ? `&companyId=${cid}` : ''}`, { headers }),
+            fetch(`/api/employees/rejoin?limit=1${cid ? `&companyId=${cid}` : ''}`, { headers }),
+          ]);
+          if (transferRes.ok) {
+            const transferData = await transferRes.json();
+            transfersCount = transferData.pagination?.total || transferData.transfers?.length || 0;
+          }
+          if (rejoinRes.ok) {
+            const rejoinData = await rejoinRes.json();
+            rejoinsCount = rejoinData.pagination?.total || rejoinData.rejoins?.length || 0;
+          }
+        } catch {
+          // Lifecycle APIs may be stubs — keep 0
+        }
+
+        setLifecycleCounts({
+          onProbation: onProbationCount,
+          transfers: transfersCount,
+          resignations: resignationsCount,
+          terminations: terminationsCount,
+          rejoins: rejoinsCount,
+        });
+
         setStats({
           totalEmployees: total,
           activeEmployees: activeCount,
@@ -230,6 +278,7 @@ export default function EmployeeDashboardPage() {
       setDepartments(getSampleDepartments());
       setRecentUpdates([]);
       setHeadcountTrend([]);
+      setLifecycleCounts({ onProbation: 0, transfers: 0, resignations: 0, terminations: 0, rejoins: 0 });
     } finally {
       setLoading(false);
     }
@@ -310,16 +359,16 @@ export default function EmployeeDashboardPage() {
   /* ── Lifecycle metrics ── */
   const lifecycleMetrics: LifecycleMetric[] = useMemo(() => {
     const base: LifecycleMetric[] = [
-      { label: 'On Probation', count: 0, icon: FiClock, color: 'text-amber-600', bgColor: 'bg-amber-50', route: '/employees/probation' },
-      { label: 'Transfers', count: 0, icon: FiRefreshCw, color: 'text-green-600', bgColor: 'bg-green-50', route: '/employees/transfer' },
-      { label: 'Resignations', count: 0, icon: FiFileText, color: 'text-red-600', bgColor: 'bg-red-50', route: '/employees/resignation' },
-      { label: 'Terminations', count: 0, icon: FiUserX, color: 'text-orange-600', bgColor: 'bg-orange-50', route: '/employees/termination' },
+      { label: 'On Probation', count: lifecycleCounts.onProbation, icon: FiClock, color: 'text-amber-600', bgColor: 'bg-amber-50', route: '/employees/probation' },
+      { label: 'Transfers', count: lifecycleCounts.transfers, icon: FiRefreshCw, color: 'text-green-600', bgColor: 'bg-green-50', route: '/employees/transfer' },
+      { label: 'Resignations', count: lifecycleCounts.resignations, icon: FiFileText, color: 'text-red-600', bgColor: 'bg-red-50', route: '/employees/resignation' },
+      { label: 'Terminations', count: lifecycleCounts.terminations, icon: FiUserX, color: 'text-orange-600', bgColor: 'bg-orange-50', route: '/employees/termination' },
     ];
     if (isAdmin) {
-      base.push({ label: 'Rejoin Cases', count: 0, icon: FiUserCheck, color: 'text-emerald-600', bgColor: 'bg-emerald-50', route: '/employees/rejoin' });
+      base.push({ label: 'Rejoin Cases', count: lifecycleCounts.rejoins, icon: FiUserCheck, color: 'text-emerald-600', bgColor: 'bg-emerald-50', route: '/employees/rejoin' });
     }
     return base;
-  }, [isAdmin]);
+  }, [isAdmin, lifecycleCounts]);
 
   /* ── Update type styling ── */
   const updateTypeConfig: Record<string, { icon: React.ComponentType<{ className?: string }>; color: string; bgColor: string }> = {
