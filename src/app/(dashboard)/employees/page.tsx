@@ -352,13 +352,34 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
       { field: 'employeeId', label: 'Employee ID' },
     ],
     address: [
+      { field: 'addressLine1', label: 'Address Line 1' },
       { field: 'city', label: 'City' },
+      { field: 'state', label: 'State' },
+      { field: 'zipCode', label: 'ZIP Code' },
     ],
     employment: [
       { field: 'departmentId', label: 'Department' },
       { field: 'designationId', label: 'Designation' },
       { field: 'dateOfJoining', label: 'Date of Joining' },
     ],
+    bank: [
+      { field: 'bankName', label: 'Bank Name' },
+      { field: 'bankAccountNo', label: 'Bank Account Number' },
+      { field: 'bankIfscCode', label: 'IFSC Code' },
+    ],
+    statutory: [
+      { field: 'panNumber', label: 'PAN' },
+    ],
+    emergency: [
+      { field: 'emergencyContactName', label: 'Emergency Contact Name' },
+      { field: 'emergencyContactPhone', label: 'Emergency Contact Phone' },
+    ],
+    health: [
+      { field: 'bloodGroup', label: 'Blood Group' },
+    ],
+    overseas: [],
+    experience: [],
+    policies: [],
   };
 
   // Per-step format validation (runs on Next, not just on final submit)
@@ -383,10 +404,16 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
       { field: 'pfUAN', label: 'UAN', validate: validateUAN },
       { field: 'pfNumber', label: 'PF Number', validate: validatePFNumber },
       { field: 'esiNumber', label: 'ESI Number', validate: validateESINumber },
+      { field: 'panNumber', label: 'PAN', validate: validatePAN },
     ],
     emergency: [
+      { field: 'emergencyContactName', label: 'Emergency Contact Name', validate: (v) => validateName(v, 'Emergency Contact Name') },
       { field: 'emergencyContactPhone', label: 'Emergency Contact Phone', validate: validatePhone },
     ],
+    health: [],
+    overseas: [],
+    experience: [],
+    policies: [],
   };
 
   /** Validate current step and advance to next if valid */

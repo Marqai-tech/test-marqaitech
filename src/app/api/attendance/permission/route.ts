@@ -46,14 +46,23 @@ export async function POST(request: Request) {
   const body = await parseBody(request);
   if (!body) return fail('Invalid JSON');
   try {
-    const emp = await findEmployeeByEmail(user.email);
-    if (!emp) return fail('Employee record not found', 404);
+    const emp = await findEmployeeByEmail(user.email, db);
+    if (!emp) return fail('Employee record not found. Please ensure your user account is linked to an employee record.', 404);
 
     const date = new Date(body.date as string);
     const startTime = new Date(body.startTime as string);
     const endTime = new Date(body.endTime as string);
     const reason = (body.reason as string) || '';
-    if (!startTime || !endTime || !reason) return fail('Missing required fields');
+
+    // ─── Validate inputs ───
+    if (isNaN(date.getTime())) return fail('Invalid date format');
+    if (isNaN(startTime.getTime())) return fail('Invalid start time format');
+    if (isNaN(endTime.getTime())) return fail('Invalid end time format');
+    if (!reason) return fail('Reason is required');
+    if (startTime >= endTime) return fail('End time must be after start time');
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (date < today) return fail('Permission date cannot be in the past');
 
     // Calculate hours in increments of 15 min (REQ-PERM-01)
     const ms = endTime.getTime() - startTime.getTime();

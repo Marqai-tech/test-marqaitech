@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
-import { getCompanyFilter, getAuthInfo } from '@/lib/companyScope';
+import { getCompanyFilter, getAuthInfo, resolveCompanyScope } from '@/lib/companyScope';
 
 function corsHeaders() {
   return {
@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Name and date are required' }, { status: 400, headers: corsHeaders() });
     }
 
-    // Resolve companyId: from body, or from user's scope
+    // Resolve companyId: from body, from user's scope, or from ownCompanyId
     let resolvedCompanyId = companyId;
     if (!resolvedCompanyId) {
       const companyFilter = await getCompanyFilter(req);
@@ -81,15 +81,48 @@ export async function POST(req: NextRequest) {
         resolvedCompanyId = companyFilter.companyId as string;
       }
     }
+    // Fallback: use the caller's own company
+    if (!resolvedCompanyId) {
+      const scope = await resolveCompanyScope(req);
+      if (scope?.ownCompanyId) {
+        resolvedCompanyId = scope.ownCompanyId;
+      }
+    }
 
     if (!resolvedCompanyId) {
-      return NextResponse.json({ error: 'companyId is required' }, { status: 400, headers: corsHeaders() });
+      return NextResponse.json({ error: 'Company ID is required. Please select a company from the switcher.' }, { status: 400, headers: corsHeaders() });
+    }
+
+    // ─── Validate date ───
+    const holidayDate = new Date(date);
+    if (isNaN(holidayDate.getTime())) {
+      return NextResponse.json({ error: 'Invalid date format' }, { status: 400, headers: corsHeaders() });
+    }
+    // Past date validation (allow dates up to today)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (holidayDate < today) {
+      return NextResponse.json({ error: 'Holiday date cannot be in the past' }, { status: 400, headers: corsHeaders() });
+    }
+    // Duplicate date check for the same company
+    const existingHoliday = await db.holiday.findFirst({
+      where: {
+        date: holidayDate,
+        companyId: resolvedCompanyId,
+      },
+      select: { id: true, name: true },
+    });
+    if (existingHoliday) {
+      return NextResponse.json(
+        { error: `A holiday (${existingHoliday.name}) already exists on this date for the selected company` },
+        { status: 409, headers: corsHeaders() }
+      );
     }
 
     const holiday = await db.holiday.create({
       data: {
         name,
-        date: new Date(date),
+        date: holidayDate,
         type: type || 'public',
         country: country || 'India',
         description,

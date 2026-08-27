@@ -68,11 +68,26 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { employeeId, resignationDate, reason, noticePeriodDays } = body;
+    let { employeeId, resignationDate, reason, noticePeriodDays } = body;
+
+    // If employeeId is missing, try to look it up from the JWT userId
+    if (!employeeId && decodedUserId) {
+      try {
+        const emp = await db.employee.findFirst({
+          where: { userId: decodedUserId },
+          select: { id: true },
+        });
+        if (emp) {
+          employeeId = emp.id;
+        }
+      } catch {
+        // ignore lookup errors
+      }
+    }
 
     if (!employeeId) {
       return NextResponse.json(
-        { error: 'Employee ID is required' },
+        { error: 'Employee ID is required. Please ensure your user account is linked to an employee record.' },
         { status: 400, headers: corsHeaders() }
       );
     }

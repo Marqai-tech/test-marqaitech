@@ -108,13 +108,13 @@ export default function ApplyLeaveByHRPage() {
     setLoadingLeaveData(true);
     try {
       const [typesRes, balanceRes, requestsRes] = await Promise.all([
-        fetch('/api/leave/types', { headers: getAuthHeaders() }),
+        fetch('/api/leave-types', { headers: getAuthHeaders() }),
         fetch(`/api/leave/balance?employeeId=${employeeId}`, { headers: getAuthHeaders() }),
         fetch(`/api/leave?employeeId=${employeeId}&limit=5`, { headers: getAuthHeaders() }),
       ]);
 
       const typesData = await typesRes.json();
-      if (typesRes.ok) setLeaveTypes(typesData.leaveTypes || []);
+      if (typesRes.ok) setLeaveTypes(typesData.leaveTypes || typesData.data || []);
 
       const balanceData = await balanceRes.json();
       if (balanceRes.ok) setLeaveBalances(balanceData.balances || []);

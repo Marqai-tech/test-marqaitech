@@ -68,11 +68,38 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { employeeId, rejoinDate, departmentId, designationId, remarks } = body;
+    let { employeeId, rejoinDate, departmentId, designationId, remarks } = body;
+    // Also accept previousEmployeeId as fallback from frontend
+    if (!employeeId && body.previousEmployeeId) {
+      employeeId = body.previousEmployeeId;
+    }
+    if (!employeeId && body.departmentId === undefined && body.designationId === undefined) {
+      // Try alternate field names from frontend
+      if (body.newDepartment) departmentId = body.newDepartment;
+      if (body.newDesignation) designationId = body.newDesignation;
+    } else {
+      if (body.newDepartment) departmentId = body.newDepartment;
+      if (body.newDesignation) designationId = body.newDesignation;
+    }
+
+    // If employeeId is missing, try to look it up from the JWT userId
+    if (!employeeId && decodedUserId) {
+      try {
+        const emp = await db.employee.findFirst({
+          where: { userId: decodedUserId },
+          select: { id: true },
+        });
+        if (emp) {
+          employeeId = emp.id;
+        }
+      } catch {
+        // ignore lookup errors
+      }
+    }
 
     if (!employeeId) {
       return NextResponse.json(
-        { error: 'Employee ID is required' },
+        { error: 'Employee ID is required. Please ensure your user account is linked to an employee record.' },
         { status: 400, headers: corsHeaders() }
       );
     }

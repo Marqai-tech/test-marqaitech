@@ -45,8 +45,8 @@ export async function POST(request: Request) {
   const body = await parseBody(request);
   if (!body) return fail('Invalid JSON');
   try {
-    const emp = await findEmployeeByEmail(user.email);
-    if (!emp) return fail('Employee record not found', 404);
+    const emp = await findEmployeeByEmail(user.email, db);
+    if (!emp) return fail('Employee record not found. Please ensure your user account is linked to an employee record.', 404);
 
     const date = new Date(body.date as string);
     const punchType = body.punchType as string;
@@ -54,6 +54,14 @@ export async function POST(request: Request) {
     const reason = (body.reason as string) || '';
     if (!punchType || !['check_in', 'check_out'].includes(punchType)) return fail('Invalid punchType');
     if (!reason) return fail('Reason is required');
+
+    // ─── Validate dates ───
+    if (isNaN(date.getTime())) return fail('Invalid date format');
+    if (isNaN(requestedTime.getTime())) return fail('Invalid requested time format');
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (date > today) return fail('Cannot regularize a future date');
+    if (requestedTime > new Date()) return fail('Requested time cannot be in the future');
 
     // REQ-REG-03: detect weekend/holiday
     const day = date.getDay();

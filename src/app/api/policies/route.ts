@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
-import { getCompanyFilter, getAuthInfo } from '@/lib/companyScope';
+import { getCompanyFilter, getAuthInfo, resolveCompanyScope } from '@/lib/companyScope';
 
 function corsHeaders() {
   return {
@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Title, category, and description are required' }, { status: 400, headers: corsHeaders() });
     }
 
-    // Resolve companyId: from body, or from user's scope
+    // Resolve companyId: from body, from user's scope, or from ownCompanyId
     let resolvedCompanyId = companyId;
     if (!resolvedCompanyId) {
       const companyFilter = await getCompanyFilter(req);
@@ -77,9 +77,16 @@ export async function POST(req: NextRequest) {
         resolvedCompanyId = companyFilter.companyId as string;
       }
     }
+    // Fallback: use the caller's own company (for admins without a selection)
+    if (!resolvedCompanyId) {
+      const scope = await resolveCompanyScope(req);
+      if (scope?.ownCompanyId) {
+        resolvedCompanyId = scope.ownCompanyId;
+      }
+    }
 
     if (!resolvedCompanyId) {
-      return NextResponse.json({ error: 'companyId is required' }, { status: 400, headers: corsHeaders() });
+      return NextResponse.json({ error: 'Company ID is required. Please select a company from the switcher.' }, { status: 400, headers: corsHeaders() });
     }
 
     const policy = await db.policy.create({

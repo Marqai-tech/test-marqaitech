@@ -140,6 +140,7 @@ export default function ResignationPage() {
     setSubmitting(true);
     try {
       const body: Record<string, unknown> = {
+        employeeId: user?.employee?.id || null,
         employeeName: form.employeeName,
         employeeCode: form.employeeCode,
         department: form.department,

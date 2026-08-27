@@ -9,6 +9,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
+import { getDb } from '@/lib/tenant-db';
 
 export const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -42,10 +43,15 @@ export async function requireUser(request: Request): Promise<{
   return { user: decoded as unknown as Record<string, any>, response: null };
 }
 
-/** Find the employee record matching the authenticated user's email. */
-export async function findEmployeeByEmail(email: string | undefined | null) {
+/**
+ * Find the employee record matching the authenticated user's email.
+ * Uses the tenant-scoped DB (via getDb) so it works correctly in multi-tenant
+ * setups. Falls back to platform prisma if db is not provided (backward compat).
+ */
+export async function findEmployeeByEmail(email: string | undefined | null, db?: any) {
   if (!email) return null;
-  return prisma.employee.findFirst({
+  const client = db || prisma;
+  return client.employee.findFirst({
     where: { email },
     select: {
       id: true,

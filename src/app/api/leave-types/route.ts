@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
-import { getCompanyFilter, getAuthInfo } from '@/lib/companyScope';
+import { getCompanyFilter, getAuthInfo, resolveCompanyScope } from '@/lib/companyScope';
 
 function corsHeaders() {
   return {
@@ -51,7 +51,24 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Name and code are required' }, { status: 400, headers: corsHeaders() });
     }
 
-    // Resolve companyId: from body, or from user's scope
+    // ─── Validate name format (letters and spaces only, 2-50 chars) ───
+    if (!/^[A-Za-z][A-Za-z\s'-]{1,49}$/.test(name)) {
+      return NextResponse.json({ error: 'Name must be 2–50 characters and contain only letters, spaces, hyphens, or apostrophes' }, { status: 400, headers: corsHeaders() });
+    }
+
+    // ─── Validate code format (2-10 uppercase letters) ───
+    const upperCode = code.toUpperCase();
+    if (!/^[A-Z]{2,10}$/.test(upperCode)) {
+      return NextResponse.json({ error: 'Code must be 2–10 uppercase letters (A–Z) only' }, { status: 400, headers: corsHeaders() });
+    }
+
+    // ─── Validate defaultDays ───
+    const dd = Number(defaultDays ?? 0);
+    if (isNaN(dd) || dd < 0 || dd > 366) {
+      return NextResponse.json({ error: 'Annual quota (defaultDays) must be a number between 0 and 366' }, { status: 400, headers: corsHeaders() });
+    }
+
+    // Resolve companyId: from body, from user's scope, or from ownCompanyId
     let resolvedCompanyId = companyId;
     if (!resolvedCompanyId) {
       const companyFilter = await getCompanyFilter(req);
@@ -59,17 +76,41 @@ export async function POST(req: NextRequest) {
         resolvedCompanyId = companyFilter.companyId as string;
       }
     }
+    if (!resolvedCompanyId) {
+      const scope = await resolveCompanyScope(req);
+      if (scope?.ownCompanyId) {
+        resolvedCompanyId = scope.ownCompanyId;
+      }
+    }
 
     if (!resolvedCompanyId) {
-      return NextResponse.json({ error: 'companyId is required' }, { status: 400, headers: corsHeaders() });
+      return NextResponse.json({ error: 'Company ID is required. Please select a company from the switcher.' }, { status: 400, headers: corsHeaders() });
+    }
+
+    // ─── Check for duplicate code within the same company ───
+    const existingByCode = await db.leaveType.findFirst({
+      where: { code: upperCode, companyId: resolvedCompanyId },
+      select: { id: true, name: true },
+    });
+    if (existingByCode) {
+      return NextResponse.json({ error: `A leave type with code "${upperCode}" already exists for this company` }, { status: 409, headers: corsHeaders() });
+    }
+
+    // ─── Check for duplicate name within the same company ───
+    const existingByName = await db.leaveType.findFirst({
+      where: { name: { equals: name, mode: 'insensitive' }, companyId: resolvedCompanyId },
+      select: { id: true, code: true },
+    });
+    if (existingByName) {
+      return NextResponse.json({ error: `A leave type with name "${name}" already exists for this company` }, { status: 409, headers: corsHeaders() });
     }
 
     const leaveType = await db.leaveType.create({
       data: {
         name,
-        code: code.toUpperCase(),
+        code: upperCode,
         description: description || null,
-        defaultDays: defaultDays ?? 0,
+        defaultDays: dd,
         isPaid: isPaid ?? true,
         carryForward: carryForward ?? false,
         maxCarryForward: maxCarryForward ?? 0,

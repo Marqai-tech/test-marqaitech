@@ -155,8 +155,11 @@ export default function RejoinPage() {
     setSubmitting(true);
     try {
       const body: Record<string, unknown> = {
+        employeeId: form.previousEmployeeId,
         previousEmployeeId: form.previousEmployeeId,
         rejoinDate: form.rejoinDate,
+        departmentId: form.newDepartment,
+        designationId: form.newDesignation,
         newDepartment: form.newDepartment,
         newDesignation: form.newDesignation,
         newEmployeeCode: form.newEmployeeCode.trim() || null,
