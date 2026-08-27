@@ -86,11 +86,8 @@ export async function GET(request: Request) {
         console.log('[employees] Aggregation path: hiddenSlugs=', hiddenSlugs);
         const visibleTenants = await getPlatformDb().tenant.findMany({
           where: {
-            AND: [
-              { slug: { notIn: hiddenSlugs } },
-              { slug: { not: null } },
-              { name: { not: { contains: PLATFORM_PLACEHOLDER_NAME } } },
-            ],
+            slug: { notIn: hiddenSlugs },
+            NOT: { name: { contains: PLATFORM_PLACEHOLDER_NAME } },
           },
           select: { id: true, slug: true, name: true },
         });

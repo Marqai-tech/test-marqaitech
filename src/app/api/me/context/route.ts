@@ -247,10 +247,8 @@ export async function GET(request: Request) {
       const siteModeSlugs = siteMode === 'live' ? ['3boxes-hrms-demo', '3boxeshrms'] : ['marqaitechgroup'];
       const allHiddenSlugs = [...new Set([...foolproofSlugs, ...siteModeSlugs])];
       const liveTenantFilter = {
-        AND: [
-          { slug: { notIn: allHiddenSlugs } },
-          { name: { not: { contains: PLATFORM_PLACEHOLDER_NAME } } },
-        ],
+        slug: { notIn: allHiddenSlugs },
+        NOT: { name: { contains: PLATFORM_PLACEHOLDER_NAME } },
       };
       availableTenants = await safe(
         'tenant.findMany(all)',

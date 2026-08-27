@@ -40,10 +40,8 @@ export async function GET(request: Request) {
     // Also exclude by NAME — catches any stray tenant (e.g., '3boxes-corp')
     // that was created with the placeholder name but a different slug.
     const tenantFilter = {
-      AND: [
-        { slug: { notIn: hiddenSlugs } },
-        { name: { not: { contains: PLATFORM_PLACEHOLDER_NAME } } },
-      ],
+      slug: { notIn: hiddenSlugs },
+      NOT: { name: { contains: PLATFORM_PLACEHOLDER_NAME } },
     };
 
     // ─── Tenant counts by status ───

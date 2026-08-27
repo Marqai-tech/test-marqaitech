@@ -61,7 +61,8 @@ export async function GET(request: Request) {
     where.slug = { notIn: hiddenSlugs };
     // Also exclude tenants whose NAME matches the placeholder name
     // (catches stray tenants like '3boxes-corp' created by older seed scripts)
-    where.name = { not: { contains: PLATFORM_PLACEHOLDER_NAME } };
+    // Use NOT at top level instead of not: { contains: ... } which Prisma doesn't support
+    where.NOT = { name: { contains: PLATFORM_PLACEHOLDER_NAME } };
     if (status) where.status = status;
     if (search) {
       where.OR = [
