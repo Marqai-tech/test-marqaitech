@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const companyId = searchParams.get('companyId');
     const tenantId = searchParams.get('tenantId');
-    if (isSuperAdminWithoutScope(decoded, companyId, tenantId)) {
+    if (isSuperAdminWithoutScope(decoded, companyId, tenantId, request)) {
       return NextResponse.json({
         revenueByType: [],
         monthlyStarts: [],

@@ -1,6 +1,7 @@
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { NextRequest } from 'next/server';
+import { isServerLiveSite } from '@/lib/tenant-filter';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -48,7 +49,7 @@ export async function GET(request: NextRequest) {
     // ─── GOLDEN RULE: No dummy/seed data on LIVE for super_admin ───
     // When super_admin has NO company or tenant selected, getDb() returns
     // the platform DB which may contain seed/demo payroll data.
-    if (decoded.role === 'super_admin' && !effectiveCompanyId && !tenantId) {
+    if (decoded.role === 'super_admin' && !effectiveCompanyId && !tenantId && isServerLiveSite(request)) {
       return Response.json({
         ...defaultResponse,
         currentPeriod: `${year}-${String(month).padStart(2, '0')}`,

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
-import { getServerHiddenSlugs, PLATFORM_PLACEHOLDER_NAME } from '@/lib/tenant-filter';
+import { getServerHiddenSlugs, PLATFORM_PLACEHOLDER_NAME, isServerLiveSite } from '@/lib/tenant-filter';
 
 function corsHeaders() {
   return {
@@ -61,7 +61,7 @@ export async function GET(request: Request) {
     // The Ticket model has no tenantId, so for super_admin on the platform DB,
     // we'd see orphan/seed tickets. Return empty for super_admin with no
     // specific requester/tenant filter.
-    if (decoded.role === 'super_admin' && !requesterId && !assignedAgentId && !tenantIdParam) {
+    if (decoded.role === 'super_admin' && !requesterId && !assignedAgentId && !tenantIdParam && isServerLiveSite(request)) {
       return NextResponse.json(
         { tickets: [], pagination: { page, limit, total: 0, totalPages: 0 } },
         { headers: corsHeaders() }

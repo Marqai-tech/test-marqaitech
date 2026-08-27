@@ -43,7 +43,7 @@ export async function GET(request: Request) {
     const effectiveCompanyId = companyId && companyId.trim() !== '' ? companyId : null;
 
     // ─── GOLDEN RULE: No dummy/seed data on LIVE for super_admin ───
-    if (isSuperAdminWithoutScope(decoded, effectiveCompanyId, tenantId)) {
+    if (isSuperAdminWithoutScope(decoded, effectiveCompanyId, tenantId, request)) {
       return NextResponse.json({
         stats: {
           totalEmployees: 0,

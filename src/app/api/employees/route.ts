@@ -4,6 +4,7 @@ import { verifyToken, getTokenFromHeaders, hashPassword } from '@/lib/auth';
 import { getDataScope } from '@/lib/roleAccess';
 import { getEmployeeCompanyFilter, getCompanyFilter, getAuthInfo, resolveCompanyScope } from '@/lib/companyScope';
 import { checkTenantStatusOrBlock } from '@/lib/tenant-guard';
+import { isServerLiveSite } from '@/lib/tenant-filter';
 import { validateEmail, validatePhone, validateAadhaar, validatePAN, validateIFSC, validateBankAccount } from '@/lib/validators';
 
 function generateRandomPassword(length = 12): string {
@@ -68,7 +69,7 @@ export async function GET(request: Request) {
     // platform DB which contains seed/demo data. Return empty instead of
     // leaking that data. Super admin must select a tenant/company in the
     // CompanySwitcher to see real employee data.
-    if (userRole === 'super_admin' && !scopeResult?.companyId && !tenantId) {
+    if (userRole === 'super_admin' && !scopeResult?.companyId && !tenantId && isServerLiveSite(request)) {
       return NextResponse.json({
         employees: [],
         pagination: { page, limit, total: 0, totalPages: 0 },

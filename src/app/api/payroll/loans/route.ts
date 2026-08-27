@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
     const tenantId = searchParams.get('tenantId');
 
     // ─── GOLDEN RULE: No dummy/seed data on LIVE for super_admin ───
-    if (isSuperAdminWithoutScope(decoded, companyId, tenantId)) {
+    if (isSuperAdminWithoutScope(decoded, companyId, tenantId, request)) {
       return Response.json({ data: [] }, { headers: corsHeaders });
     }
 

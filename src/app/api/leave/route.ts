@@ -3,6 +3,7 @@ import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { resolveCompanyScope } from '@/lib/companyScope';
 import { createNotification } from '@/lib/notifications';
 import { buildContext, evaluateLeaveAutoApproval } from '@/lib/auto-approval-engine';
+import { isServerLiveSite } from '@/lib/tenant-filter';
 
 function corsHeaders() {
   return {
@@ -37,7 +38,7 @@ export async function GET(request: Request) {
     // ─── GOLDEN RULE: No dummy/seed data on LIVE for super_admin ───
     // When super_admin has NO company or tenant selected, getDb() returns
     // the platform DB which may contain seed/demo leave requests.
-    if (scope.role === 'super_admin' && !scope.companyId && !tenantId) {
+    if (scope.role === 'super_admin' && !scope.companyId && !tenantId && isServerLiveSite(request)) {
       return NextResponse.json(
         { leaveRequests: [], pagination: { page, limit, total: 0, totalPages: 0 } },
         { headers: corsHeaders() }

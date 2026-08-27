@@ -77,7 +77,7 @@ export async function GET(request: Request) {
     const tenantId = searchParams.get('tenantId');
 
     // ─── GOLDEN RULE: No dummy/seed data on LIVE for super_admin ───
-    if (isSuperAdminWithoutScope(decoded, companyId, tenantId)) {
+    if (isSuperAdminWithoutScope(decoded, companyId, tenantId, request)) {
       return NextResponse.json({
         jobPostings: [],
         pagination: { page, limit, total: 0, totalPages: 0 },

@@ -43,7 +43,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const companyId = searchParams.get('companyId');
     const tenantId = searchParams.get('tenantId');
-    if (isSuperAdminWithoutScope(decoded, companyId, tenantId)) {
+    if (isSuperAdminWithoutScope(decoded, companyId, tenantId, request)) {
       return NextResponse.json({
         activeWorkflows: 0,
         policyDocs: 0,

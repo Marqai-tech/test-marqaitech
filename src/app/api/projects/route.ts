@@ -40,7 +40,7 @@ export async function GET(request: Request) {
     const search = searchParams.get('search');
 
     // ─── GOLDEN RULE: No dummy/seed data on LIVE for super_admin ───
-    if (isSuperAdminWithoutScope(decoded, companyId, tenantId)) {
+    if (isSuperAdminWithoutScope(decoded, companyId, tenantId, request)) {
       return NextResponse.json({
         projects: [],
         pagination: { page, limit, total: 0, totalPages: 0 },
