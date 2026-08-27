@@ -5,6 +5,7 @@ import { getDataScope } from '@/lib/roleAccess';
 import { getEmployeeCompanyFilter, getCompanyFilter, getAuthInfo, resolveCompanyScope } from '@/lib/companyScope';
 import { checkTenantStatusOrBlock } from '@/lib/tenant-guard';
 import { isServerLiveSite } from '@/lib/tenant-filter';
+// Note: isServerLiveSite is used later for the manual guard on normal queries
 import { validateEmail, validatePhone, validateAadhaar, validatePAN, validateIFSC, validateBankAccount } from '@/lib/validators';
 
 function generateRandomPassword(length = 12): string {
@@ -64,12 +65,29 @@ export async function GET(request: Request) {
     const userId = scopeResult?.userId;
     const scope = scopeResult?.scope || 'all';
 
-    // ─── GOLDEN RULE: No dummy/seed data on LIVE for super_admin ───
+    // ─── Also decode JWT directly as fallback (in case resolveCompanyScope fails) ───
+    let jwtRole = userRole;
+    let jwtUserId = userId;
+    try {
+      const token = getTokenFromHeaders(request);
+      if (token) {
+        const decoded = await verifyToken(token);
+        if (decoded) {
+          jwtRole = (decoded.role as string) || userRole;
+          jwtUserId = (decoded.userId as string) || userId;
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    // ─── GOLDEN RULE: Aggregation for super_admin without scope ───
     // When super_admin has NO tenant or company selected, aggregate employee
     // counts across ALL visible tenant DBs so the dashboard shows real
-    // cross-tenant totals. This applies on BOTH live and demo sites.
-    console.log('[employees] DEBUG:', { userRole, hasCompanyId: !!scopeResult?.companyId, tenantId, isLive: isServerLiveSite(request), scopeResult: scopeResult ? { role: scopeResult.role, companyId: scopeResult.companyId, scope: scopeResult.scope } : null });
-    if (userRole === 'super_admin' && !scopeResult?.companyId && !tenantId) {
+    // cross-tenant totals. Use jwtRole (from JWT) as fallback in case
+    // resolveCompanyScope failed.
+    console.log('[employees] DEBUG:', { userRole, jwtRole, hasCompanyId: !!scopeResult?.companyId, tenantId, scopeResultNull: scopeResult === null });
+    if (jwtRole === 'super_admin' && !scopeResult?.companyId && !tenantId) {
       try {
         const { getServerHiddenSlugs, PLATFORM_PLACEHOLDER_NAME } = await import('@/lib/tenant-filter');
         const hiddenSlugs = getServerHiddenSlugs(request);
