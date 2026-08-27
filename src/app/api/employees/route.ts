@@ -70,15 +70,10 @@ export async function GET(request: Request) {
       // ignore
     }
 
-    // Add debug header to ALL responses so we can trace what's happening
-    const debugHeader = { 'X-Debug-Role': jwtRole, 'X-Debug-CompanyId': queryCompanyId || 'null', 'X-Debug-TenantId': tenantId || 'null' };
-    const enhancedCors = { ...corsHeaders(), ...debugHeader };
-
     // ─── GOLDEN RULE: Aggregation for super_admin without scope ───
     // When super_admin has NO tenant or company selected, aggregate employee
     // counts across ALL visible tenant DBs so the dashboard shows real
     // cross-tenant totals.
-    console.log('[employees] DEBUG:', { jwtRole, queryCompanyId, tenantId });
     if (jwtRole === 'super_admin' && !queryCompanyId && !tenantId) {
       try {
         const { getServerHiddenSlugs, PLATFORM_PLACEHOLDER_NAME } = await import('@/lib/tenant-filter');
@@ -176,16 +171,16 @@ export async function GET(request: Request) {
           pagination: { page, limit, total: employees.length, totalPages: Math.ceil(employees.length / limit) },
           dataScope: 'all-tenants',
           aggregateStats: { totalEmployees, activeEmployees, onLeaveEmployees, inactiveEmployees },
-          _debug: { visibleTenantCount: visibleTenants.length, tenants: tenantDebug, jwtRole, queryCompanyId, tenantId },
-        }, { headers: enhancedCors });
+          _debug: { visibleTenantCount: visibleTenants.length, tenants: tenantDebug },
+        }, { headers: corsHeaders() });
       } catch (aggError) {
         console.error('[employees] Aggregation error:', aggError);
         return NextResponse.json({
           employees: [],
           pagination: { page, limit, total: 0, totalPages: 0 },
           dataScope: 'all',
-          _debug: { error: String(aggError), jwtRole, queryCompanyId, tenantId },
-        }, { headers: enhancedCors });
+          _debug: { error: String(aggError) },
+        }, { headers: corsHeaders() });
       }
     }
 
@@ -292,9 +287,8 @@ export async function GET(request: Request) {
               totalPages: Math.ceil(total / limit),
             },
             dataScope: isAuthed ? scope : 'all',
-            _debug: { path: 'normal-with-results', jwtRole, queryCompanyId, tenantId, isAuthed, scope },
           },
-          { headers: enhancedCors }
+          { headers: corsHeaders() }
         );
       }
       // DB returned 0 results — return empty list (no demo fallback)
@@ -303,9 +297,8 @@ export async function GET(request: Request) {
           employees: [],
           pagination: { page, limit, total: 0, totalPages: 0 },
           dataScope: isAuthed ? scope : 'all',
-          _debug: { path: 'normal-empty', jwtRole, queryCompanyId, tenantId, isAuthed, scope },
         },
-        { headers: enhancedCors }
+        { headers: corsHeaders() }
       );
     } catch (dbError) {
       console.error('DB employees query failed:', dbError);
