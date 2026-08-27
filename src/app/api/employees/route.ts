@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getDb, getPlatformDb } from '@/lib/tenant-db';
+import { getDb, getPlatformDb, getDbForTenant } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders, hashPassword } from '@/lib/auth';
 import { getDataScope } from '@/lib/roleAccess';
 import { getEmployeeCompanyFilter, getCompanyFilter, getAuthInfo, resolveCompanyScope } from '@/lib/companyScope';
@@ -65,17 +65,73 @@ export async function GET(request: Request) {
     const scope = scopeResult?.scope || 'all';
 
     // ─── GOLDEN RULE: No dummy/seed data on LIVE for super_admin ───
-    // When super_admin has NO tenant or company selected, getDb() returns the
-    // platform DB which contains seed/demo data. Return empty instead of
-    // leaking that data. Super admin must select a tenant/company in the
-    // CompanySwitcher to see real employee data.
+    // When super_admin has NO tenant or company selected, instead of returning
+    // empty, aggregate employee counts across ALL visible tenant DBs so the
+    // dashboard shows real cross-tenant totals.
     if (userRole === 'super_admin' && !scopeResult?.companyId && !tenantId && isServerLiveSite(request)) {
-      return NextResponse.json({
-        employees: [],
-        pagination: { page, limit, total: 0, totalPages: 0 },
-        dataScope: 'all',
-        message: 'Select a tenant or company from the switcher to view employees.',
-      }, { headers: corsHeaders() });
+      try {
+        const { getServerHiddenSlugs, PLATFORM_PLACEHOLDER_NAME } = await import('@/lib/tenant-filter');
+        const hiddenSlugs = getServerHiddenSlugs(request);
+        const visibleTenants = await getPlatformDb().tenant.findMany({
+          where: {
+            AND: [
+              { slug: { notIn: hiddenSlugs } },
+              { slug: { not: null } },
+              { name: { not: { contains: PLATFORM_PLACEHOLDER_NAME } } },
+            ],
+          },
+          select: { id: true, slug: true, name: true },
+        });
+
+        let totalEmployees = 0;
+        let activeEmployees = 0;
+        let onLeaveEmployees = 0;
+        let inactiveEmployees = 0;
+        const employees: any[] = [];
+
+        for (const tenant of visibleTenants) {
+          if (!tenant.slug) continue;
+          try {
+            const tenantDbRecord = await getPlatformDb().tenantDatabase.findFirst({
+              where: { tenant: { slug: tenant.slug }, isActive: true },
+              select: { id: true },
+            });
+            if (!tenantDbRecord) continue;
+
+            const tenantDb = await getDbForTenant(tenant.slug);
+            const tenantEmps = await tenantDb.employee.findMany({
+              include: {
+                department: { select: { id: true, name: true } },
+                designation: { select: { id: true, title: true } },
+                branch: { select: { id: true, name: true } },
+              },
+              take: 500,
+            });
+            totalEmployees += tenantEmps.length;
+            activeEmployees += tenantEmps.filter((e: any) => e.status === 'active').length;
+            onLeaveEmployees += tenantEmps.filter((e: any) => e.status === 'on_leave').length;
+            inactiveEmployees += tenantEmps.filter((e: any) => e.status !== 'active' && e.status !== 'on_leave').length;
+            // Add tenant info to each employee for display
+            employees.push(...tenantEmps.map((e: any) => ({ ...e, tenantName: tenant.name, tenantSlug: tenant.slug })));
+          } catch (e) {
+            console.error(`[employees] Failed to aggregate for tenant ${tenant.slug}:`, e);
+          }
+        }
+
+        return NextResponse.json({
+          employees: employees.slice((page - 1) * limit, page * limit),
+          pagination: { page, limit, total: employees.length, totalPages: Math.ceil(employees.length / limit) },
+          dataScope: 'all-tenants',
+          aggregateStats: { totalEmployees, activeEmployees, onLeaveEmployees, inactiveEmployees },
+        }, { headers: corsHeaders() });
+      } catch (aggError) {
+        console.error('[employees] Aggregation error:', aggError);
+        return NextResponse.json({
+          employees: [],
+          pagination: { page, limit, total: 0, totalPages: 0 },
+          dataScope: 'all',
+        }, { headers: corsHeaders() });
+      }
     }
 
     // Try database query
