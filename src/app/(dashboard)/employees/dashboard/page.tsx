@@ -120,9 +120,12 @@ export default function EmployeeDashboardPage() {
 
       // Fetch employee stats
       const cid = effectiveCompanyId();
+      console.log('[emp-dashboard] DEBUG:', { cid, userRole: user?.role, hasUser: !!user });
       const statsRes = await fetch(`/api/employees?limit=1&page=1${cid ? `&companyId=${cid}` : ''}`, { headers });
+      console.log('[emp-dashboard] statsRes status:', statsRes.status);
       if (statsRes.ok) {
         const statsData = await statsRes.json();
+        console.log('[emp-dashboard] statsData:', { total: statsData.pagination?.total, dataScope: statsData.dataScope, aggregateStats: statsData.aggregateStats, empCount: statsData.employees?.length });
         const total = statsData.pagination?.total || 0;
 
         // Fetch all employees for detailed stats (use pagination total for count)
