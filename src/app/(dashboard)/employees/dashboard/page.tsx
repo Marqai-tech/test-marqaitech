@@ -90,6 +90,7 @@ export default function EmployeeDashboardPage() {
   const { user, hasPermission, canAccessModule } = useAuthStore();
   const userRole = user?.role || 'employee';
   const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
+  const selectedTenantId = useCompanyContextStore(s => s.selectedTenantId);
 
   const [stats, setStats] = useState<EmployeeStats | null>(null);
   const [lifecycleCounts, setLifecycleCounts] = useState({
@@ -119,14 +120,24 @@ export default function EmployeeDashboardPage() {
       const headers = getAuthHeaders();
 
       // Fetch employee stats
+      // When super_admin selects a company, also send tenantId so the API
+      // resolves the correct tenant DB (employees live in the tenant DB,
+      // not the platform DB).
       const cid = effectiveCompanyId();
-      const statsRes = await fetch(`/api/employees?limit=1&page=1${cid ? `&companyId=${cid}` : ''}`, { headers });
+      const tid = selectedTenantId;
+      const scopeParams = new URLSearchParams();
+      if (cid) scopeParams.set('companyId', cid);
+      if (tid) scopeParams.set('tenantId', tid);
+      const scopeQs = scopeParams.toString();
+      const scopeQuery = scopeQs ? `&${scopeQs}` : '';
+
+      const statsRes = await fetch(`/api/employees?limit=1&page=1${scopeQuery}`, { headers });
       if (statsRes.ok) {
         const statsData = await statsRes.json();
         const total = statsData.pagination?.total || 0;
 
         // Fetch all employees for detailed stats (use pagination total for count)
-        const allRes = await fetch(`/api/employees?limit=500&page=1${cid ? `&companyId=${cid}` : ''}`, { headers });
+        const allRes = await fetch(`/api/employees?limit=500&page=1${scopeQuery}`, { headers });
         const allData = await allRes.ok ? await allRes.json() : { employees: [] };
         const allEmps = allData.employees || [];
 
@@ -189,8 +200,8 @@ export default function EmployeeDashboardPage() {
         let rejoinsCount = 0;
         try {
           const [transferRes, rejoinRes] = await Promise.all([
-            fetch(`/api/employees/transfer?limit=1${cid ? `&companyId=${cid}` : ''}`, { headers }),
-            fetch(`/api/employees/rejoin?limit=1${cid ? `&companyId=${cid}` : ''}`, { headers }),
+            fetch(`/api/employees/transfer?limit=1${scopeQuery}`, { headers }),
+            fetch(`/api/employees/rejoin?limit=1${scopeQuery}`, { headers }),
           ]);
           if (transferRes.ok) {
             const transferData = await transferRes.json();
@@ -282,7 +293,7 @@ export default function EmployeeDashboardPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [effectiveCompanyId, selectedTenantId]);
 
   useEffect(() => { fetchDashboardData(); }, [fetchDashboardData]);
 
