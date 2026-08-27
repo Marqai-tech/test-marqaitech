@@ -50,31 +50,20 @@ export async function GET(request: Request) {
     // Tenant scope — only meaningful for super_admin (tenant_admin is already
     // scoped to their own tenantId in the JWT).
     const tenantId = searchParams.get('tenantId');
+    const queryCompanyId = searchParams.get('companyId');
 
-    // ─── Resolve company scope via utility ───
-    // resolveCompanyScope() handles:
-    //  - JWT auth
-    //  - Reading ?companyId= from the URL (CompanySwitcher) for admins
-    //  - Enforcing own-company for non-admins
-    // Returns null if auth fails entirely.
-    const scopeResult = await resolveCompanyScope(request);
-
-    // Allow unauthenticated (demo mode) access with 'all' scope
-    const isAuthed = scopeResult !== null;
-    const userRole = scopeResult?.role || 'employee';
-    const userId = scopeResult?.userId;
-    const scope = scopeResult?.scope || 'all';
-
-    // ─── Also decode JWT directly as fallback (in case resolveCompanyScope fails) ───
-    let jwtRole = userRole;
-    let jwtUserId = userId;
+    // ─── Decode JWT FIRST (before resolveCompanyScope) ───
+    // This is the most reliable way to get the user's role — resolveCompanyScope
+    // can fail if the employee lookup query throws.
+    let jwtRole = 'employee';
+    let jwtUserId: string | undefined;
     try {
       const token = getTokenFromHeaders(request);
       if (token) {
         const decoded = await verifyToken(token);
         if (decoded) {
-          jwtRole = (decoded.role as string) || userRole;
-          jwtUserId = (decoded.userId as string) || userId;
+          jwtRole = (decoded.role as string) || 'employee';
+          jwtUserId = decoded.userId as string;
         }
       }
     } catch {
@@ -84,10 +73,9 @@ export async function GET(request: Request) {
     // ─── GOLDEN RULE: Aggregation for super_admin without scope ───
     // When super_admin has NO tenant or company selected, aggregate employee
     // counts across ALL visible tenant DBs so the dashboard shows real
-    // cross-tenant totals. Use jwtRole (from JWT) as fallback in case
-    // resolveCompanyScope failed.
-    console.log('[employees] DEBUG:', { userRole, jwtRole, hasCompanyId: !!scopeResult?.companyId, tenantId, scopeResultNull: scopeResult === null });
-    if (jwtRole === 'super_admin' && !scopeResult?.companyId && !tenantId) {
+    // cross-tenant totals.
+    console.log('[employees] DEBUG:', { jwtRole, queryCompanyId, tenantId });
+    if (jwtRole === 'super_admin' && !queryCompanyId && !tenantId) {
       try {
         const { getServerHiddenSlugs, PLATFORM_PLACEHOLDER_NAME } = await import('@/lib/tenant-filter');
         const hiddenSlugs = getServerHiddenSlugs(request);
@@ -198,6 +186,13 @@ export async function GET(request: Request) {
         }, { headers: corsHeaders() });
       }
     }
+
+    // ─── Resolve company scope (for the normal query path) ───
+    const scopeResult = await resolveCompanyScope(request);
+    const isAuthed = scopeResult !== null;
+    const userRole = scopeResult?.role || jwtRole;
+    const userId = scopeResult?.userId || jwtUserId;
+    const scope = scopeResult?.scope || 'all';
 
     // Try database query
     try {
