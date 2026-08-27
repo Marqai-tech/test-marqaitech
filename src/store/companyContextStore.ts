@@ -131,6 +131,14 @@ interface CompanyContextState {
   canSwitch: (userRole?: string) => boolean;
   selectedTenant: () => TenantOption | null;
   selectedCompanyGroup: () => CompanyGroupOption | null;
+  /**
+   * Builds a URL query string with the appropriate scope parameters.
+   * For super_admin: sends tenantId (so getDb resolves the tenant DB) +
+   *   companyId when a specific company is selected.
+   * For tenant_admin: sends companyId when a specific company is selected.
+   * Returns '' when no scope is selected.
+   */
+  scopeQuery: () => string;
 }
 
 function getAuthHeaders() {
@@ -517,6 +525,27 @@ export const useCompanyContextStore = create<CompanyContextState>()(
         const c = s.availableCompanies.find((x) => x.id === s.selectedCompanyId);
         if (!c) return null;
         return s.availableCompanyGroups.find((g) => g.id === c.companyGroupId) || null;
+      },
+
+      scopeQuery: () => {
+        const s = get();
+        const r = (s.role || 'employee').toLowerCase();
+        const params = new URLSearchParams();
+        if (r === 'super_admin') {
+          // Super_admin needs tenantId so getDb() resolves the correct
+          // tenant DB. When a specific company is also selected, send both.
+          if (s.selectedTenantId) {
+            params.set('tenantId', s.selectedTenantId);
+          }
+          if (s.selectedCompanyId) {
+            params.set('companyId', s.selectedCompanyId);
+          }
+        } else if (r === 'tenant_admin') {
+          if (s.selectedCompanyId) {
+            params.set('companyId', s.selectedCompanyId);
+          }
+        }
+        return params.toString();
       },
     }),
     {

@@ -53,14 +53,15 @@ export async function GET(request: Request) {
     const categoryId = searchParams.get('categoryId');
     const requesterId = searchParams.get('requesterId');
     const assignedAgentId = searchParams.get('assignedAgentId');
+    const tenantIdParam = searchParams.get('tenantId');
 
     const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(decoded.role as string);
 
     // ─── GOLDEN RULE: No dummy/seed data on LIVE for super_admin ───
     // The Ticket model has no tenantId, so for super_admin on the platform DB,
     // we'd see orphan/seed tickets. Return empty for super_admin with no
-    // specific requester filter — they should view tickets per-tenant instead.
-    if (decoded.role === 'super_admin' && !requesterId && !assignedAgentId) {
+    // specific requester/tenant filter.
+    if (decoded.role === 'super_admin' && !requesterId && !assignedAgentId && !tenantIdParam) {
       return NextResponse.json(
         { tickets: [], pagination: { page, limit, total: 0, totalPages: 0 } },
         { headers: corsHeaders() }

@@ -154,6 +154,28 @@ export async function getDb(request?: Request | null): Promise<PrismaClient> {
         // Token invalid or expired — no tenant context
       }
     }
+
+    // 4. Try ?tenantId= query param (super_admin company switcher)
+    // When super_admin selects a tenant/company in the switcher, the frontend
+    // sends tenantId so we can resolve the correct tenant DB instead of
+    // falling back to the platform DB (which has no real tenant data).
+    if (!tenantSlug) {
+      try {
+        const url = new URL(request.url)
+        const queryTenantId = url.searchParams.get('tenantId')
+        if (queryTenantId) {
+          const tenant = await platformDb.tenant.findUnique({
+            where: { id: queryTenantId },
+            select: { slug: true },
+          })
+          if (tenant?.slug) {
+            tenantSlug = tenant.slug
+          }
+        }
+      } catch {
+        // URL parsing failed — no tenant context
+      }
+    }
   }
 
   // No tenant context — return platform DB (super_admin / unauthenticated)

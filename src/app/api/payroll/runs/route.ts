@@ -24,9 +24,10 @@ export async function GET(request: NextRequest) {
     const runStatus = searchParams.get('runStatus');
     const payrollPeriod = searchParams.get('payrollPeriod');
     const companyId = searchParams.get('companyId');
+    const tenantId = searchParams.get('tenantId');
 
     // ─── GOLDEN RULE: No dummy/seed data on LIVE for super_admin ───
-    if (isSuperAdminWithoutScope(decoded, companyId)) {
+    if (isSuperAdminWithoutScope(decoded, companyId, tenantId)) {
       return Response.json({ data: [] }, { headers: corsHeaders });
     }
 

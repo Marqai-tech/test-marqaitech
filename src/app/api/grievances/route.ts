@@ -29,9 +29,10 @@ export async function GET(request: Request) {
     const status = searchParams.get('status');
     const priority = searchParams.get('priority');
     const companyId = searchParams.get('companyId');
+    const tenantId = searchParams.get('tenantId');
 
     // ─── GOLDEN RULE: No dummy/seed data on LIVE for super_admin ───
-    if (isSuperAdminWithoutScope(decoded, companyId)) {
+    if (isSuperAdminWithoutScope(decoded, companyId, tenantId)) {
       return NextResponse.json({
         grievances: [],
         pagination: { page, limit, total: 0, totalPages: 0 },

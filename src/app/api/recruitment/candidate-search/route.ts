@@ -111,9 +111,10 @@ export async function GET(request: NextRequest) {
     const q = (url.searchParams.get('q') || '').trim().toLowerCase();
     const limit = Math.min(parseInt(url.searchParams.get('limit') || '100', 10), 500);
     const companyId = url.searchParams.get('companyId');
+    const tenantId = url.searchParams.get('tenantId');
 
     // ─── GOLDEN RULE: No dummy/seed data on LIVE for super_admin ───
-    if (isSuperAdminWithoutScope(decoded, companyId)) {
+    if (isSuperAdminWithoutScope(decoded, companyId, tenantId)) {
       return NextResponse.json({ candidates: [], total: 0 }, { headers: CORS });
     }
 

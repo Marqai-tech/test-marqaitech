@@ -25,9 +25,10 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status');
     const loanType = searchParams.get('loanType');
     const companyId = searchParams.get('companyId');
+    const tenantId = searchParams.get('tenantId');
 
     // ─── GOLDEN RULE: No dummy/seed data on LIVE for super_admin ───
-    if (isSuperAdminWithoutScope(decoded, companyId)) {
+    if (isSuperAdminWithoutScope(decoded, companyId, tenantId)) {
       return Response.json({ data: [] }, { headers: corsHeaders });
     }
 

@@ -34,9 +34,10 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const reportType = searchParams.get('type') || 'summary';
     const companyId = searchParams.get('companyId');
+    const tenantId = searchParams.get('tenantId');
 
     // ─── GOLDEN RULE: No dummy/seed data on LIVE for super_admin ───
-    if (isSuperAdminWithoutScope(decoded, companyId)) {
+    if (isSuperAdminWithoutScope(decoded, companyId, tenantId)) {
       return NextResponse.json({
         summary: { total: 0, active: 0, joined: 0, pending: 0 },
         byStage: [],

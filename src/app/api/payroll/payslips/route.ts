@@ -23,11 +23,12 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const employeeId = searchParams.get('employeeId');
     const companyId = searchParams.get('companyId');
+    const tenantId = searchParams.get('tenantId');
     const month = searchParams.get('month');
     const year = searchParams.get('year');
 
     // ─── GOLDEN RULE: No dummy/seed data on LIVE for super_admin ───
-    if (isSuperAdminWithoutScope(decoded, companyId)) {
+    if (isSuperAdminWithoutScope(decoded, companyId, tenantId)) {
       return Response.json({ data: [] }, { headers: corsHeaders });
     }
 

@@ -50,13 +50,14 @@ export async function GET(request: Request) {
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '20');
     const companyId = searchParams.get('companyId');
+    const tenantId = searchParams.get('tenantId');
     const departmentId = searchParams.get('departmentId');
     const approvalStatus = searchParams.get('approvalStatus');
     const status = searchParams.get('status');
     const priority = searchParams.get('priority');
 
     // ─── GOLDEN RULE: No dummy/seed data on LIVE for super_admin ───
-    if (isSuperAdminWithoutScope(decoded, companyId)) {
+    if (isSuperAdminWithoutScope(decoded, companyId, tenantId)) {
       return NextResponse.json({
         requisitions: [],
         pagination: { page, limit, total: 0, totalPages: 0 },

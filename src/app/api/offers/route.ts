@@ -35,9 +35,10 @@ export async function GET(request: Request) {
     const candidateId = searchParams.get('candidateId');
     const jobPostingId = searchParams.get('jobPostingId');
     const companyId = searchParams.get('companyId');
+    const tenantId = searchParams.get('tenantId');
 
     // ─── GOLDEN RULE: No dummy/seed data on LIVE for super_admin ───
-    if (isSuperAdminWithoutScope(decoded, companyId)) {
+    if (isSuperAdminWithoutScope(decoded, companyId, tenantId)) {
       return NextResponse.json({
         offers: [],
         pagination: { page, limit, total: 0, totalPages: 0 },

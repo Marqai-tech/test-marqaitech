@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
     // tenants (appears as duplicates). Return empty instead.
     const token = getTokenFromHeaders(req);
     const decoded = token ? await verifyToken(token) : null;
-    if (decoded && isSuperAdminWithoutScope(decoded, url.searchParams.get('companyId'))) {
+    if (decoded && isSuperAdminWithoutScope(decoded, url.searchParams.get('companyId'), url.searchParams.get('tenantId'))) {
       return NextResponse.json({
         data: [],
         pagination: { page, limit, total: 0, totalPages: 0 },

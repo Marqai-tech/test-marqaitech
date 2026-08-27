@@ -32,11 +32,12 @@ export async function GET(request: Request) {
     const limit = parseInt(searchParams.get('limit') || '20');
     const status = searchParams.get('status');
     const employeeId = searchParams.get('employeeId');
+    const tenantId = searchParams.get('tenantId');
 
     // ─── GOLDEN RULE: No dummy/seed data on LIVE for super_admin ───
-    // When super_admin has NO company selected, getDb() returns the platform
-    // DB which may contain seed/demo leave requests. Return empty instead.
-    if (scope.role === 'super_admin' && !scope.companyId) {
+    // When super_admin has NO company or tenant selected, getDb() returns
+    // the platform DB which may contain seed/demo leave requests.
+    if (scope.role === 'super_admin' && !scope.companyId && !tenantId) {
       return NextResponse.json(
         { leaveRequests: [], pagination: { page, limit, total: 0, totalPages: 0 } },
         { headers: corsHeaders() }
