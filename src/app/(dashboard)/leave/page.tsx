@@ -7,7 +7,7 @@ import {
   FiMessageSquare, FiAlertCircle, FiGrid, FiFileText,
   FiShield, FiSearch, FiUserCheck, FiUserX, FiUserPlus,
   FiChevronRight, FiEdit2, FiTrash2, FiDownload,
-  FiUser, FiRefreshCw, FiFilter,
+  FiUser, FiRefreshCw, FiFilter, FiDatabase,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { sanitizeSearch } from '@/lib/validators';
@@ -119,6 +119,26 @@ function LeavePageContent() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(initialForm);
   const [submitting, setSubmitting] = useState(false);
+  const [seeding, setSeeding] = useState(false);
+
+  const handleSeedData = async () => {
+    try {
+      setSeeding(true);
+      const res = await fetch('/api/admin/seed-demo-data', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ module: 'leave' }),
+      });
+      if (!res.ok) throw new Error('Failed');
+      const data = await res.json();
+      toast.success(data.message || 'Leave demo data seeded');
+      fetchData();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to seed');
+    } finally {
+      setSeeding(false);
+    }
+  };
 
   const [actionRowId, setActionRowId] = useState<string | null>(null);
   const [actionType, setActionType] = useState<'approved' | 'rejected' | null>(null);
@@ -483,6 +503,10 @@ function LeavePageContent() {
               <FiDownload className="w-3.5 h-3.5" /> PDF
             </button>
           </div>
+          <button onClick={handleSeedData} disabled={seeding} className="inline-flex items-center gap-2 px-3 py-2 text-xs font-medium text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100 disabled:opacity-50 transition-colors">
+            {seeding ? <FiRefreshCw className="w-3.5 h-3.5 animate-spin" /> : <FiDatabase className="w-3.5 h-3.5" />}
+            {seeding ? 'Seeding...' : 'Seed Sample Data'}
+          </button>
           <button onClick={handleOpenApplyForm} className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium text-sm shadow-sm transition-colors">
             <FiPlus className="w-4 h-4" />
             Add Leave

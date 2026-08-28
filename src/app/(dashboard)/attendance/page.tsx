@@ -24,6 +24,7 @@ import {
   FiFilter,
   FiGrid,
   FiRefreshCw,
+  FiDatabase,
 } from 'react-icons/fi';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
@@ -195,6 +196,25 @@ export default function AttendancePage() {
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [loading, setLoading] = useState(true);
   const [checkingIn, setCheckingIn] = useState(false);
+  const [seeding, setSeeding] = useState(false);
+
+  const handleSeedData = async () => {
+    try {
+      setSeeding(true);
+      const res = await fetch('/api/admin/seed-demo-data', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ module: 'attendance' }),
+      });
+      if (!res.ok) throw new Error('Failed');
+      const data = await res.json();
+      toast.success(data.message || 'Attendance demo data seeded');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to seed');
+    } finally {
+      setSeeding(false);
+    }
+  };
   const [checkingOut, setCheckingOut] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const now = new Date();
@@ -432,6 +452,10 @@ export default function AttendancePage() {
           <p className="text-thb-text-secondary mt-1">Track & manage employee attendance</p>
         </div>
         <div className="flex items-center gap-2">
+          <button onClick={handleSeedData} disabled={seeding} className="inline-flex items-center gap-2 px-3 py-2 text-xs font-medium text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100 disabled:opacity-50 transition-colors">
+            {seeding ? <FiRefreshCw className="w-3.5 h-3.5 animate-spin" /> : <FiDatabase className="w-3.5 h-3.5" />}
+            {seeding ? 'Seeding...' : 'Seed Sample Data'}
+          </button>
           {/* Check In / Out buttons — always available */}
           <button
             onClick={handleCheckIn}

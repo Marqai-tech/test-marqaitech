@@ -511,6 +511,7 @@ export default function PayrollManagementPage() {
     openComplianceItems: 0,
   });
   const [loadingStats, setLoadingStats] = useState(true);
+  const [seeding, setSeeding] = useState(false);
   const [workflowData, setWorkflowData] = useState<WorkflowData>({
     hasComponents: false,
     hasStatutory: false,
@@ -600,6 +601,26 @@ export default function PayrollManagementPage() {
     queueMicrotask(() => fetchStats());
   }, [fetchStats]);
 
+  /* Seed demo data */
+  const handleSeedData = async () => {
+    try {
+      setSeeding(true);
+      const res = await fetch('/api/admin/seed-demo-data', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ module: 'payroll' }),
+      });
+      if (!res.ok) throw new Error('Failed to seed');
+      const data = await res.json();
+      toast.success(data.message || 'Demo data seeded successfully');
+      fetchStats();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to seed data');
+    } finally {
+      setSeeding(false);
+    }
+  };
+
   /* Navigation handler */
   const handleNavigate = useCallback(
     (route: string) => {
@@ -661,10 +682,18 @@ export default function PayrollManagementPage() {
   return (
     <div className="space-y-6">
       {/* Header — concise; the persistent sub-nav (layout.tsx) shows the title bar */}
-      <div>
+      <div className="flex items-center justify-between">
         <p className="text-thb-text-secondary text-sm">
-          Configure salary structures, process payroll, and manage compliance. Use the sub-menu above to navigate between payroll modules.
+          Configure salary structures, process payroll, and manage compliance.
         </p>
+        <button
+          onClick={handleSeedData}
+          disabled={seeding}
+          className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100 disabled:opacity-50 transition-colors"
+        >
+          {seeding ? <FiRefreshCw className="w-3.5 h-3.5 animate-spin" /> : <FiDatabase className="w-3.5 h-3.5" />}
+          {seeding ? 'Seeding...' : 'Seed Sample Data'}
+        </button>
       </div>
 
       {/* Module Intro — minimized by default with hover preview */}
