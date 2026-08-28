@@ -5,6 +5,7 @@ import {
   FiPercent, FiDollarSign, FiTrendingDown, FiTrendingUp,
   FiArrowRight, FiInfo, FiCheck,
   FiShield, FiFileText, FiUsers, FiAlertCircle,
+  FiSearch, FiSave, FiChevronDown,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
@@ -185,6 +186,17 @@ export default function CTCCalculatorPage() {
   const [calculating, setCalculating] = useState(false);
   const [showBreakdown, setShowBreakdown] = useState<'earnings' | 'employer' | 'deductions' | null>('earnings');
 
+  // Apply to employees state
+  const [applyMode, setApplyMode] = useState<'single' | 'bulk'>('single');
+  const [employeeSearch, setEmployeeSearch] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([]);
+  const [bulkFilter, setBulkFilter] = useState<'department' | 'designation' | 'branch' | 'grade'>('department');
+  const [bulkFilterValue, setBulkFilterValue] = useState('');
+  const [filterOptions, setFilterOptions] = useState<any[]>([]);
+  const [applying, setApplying] = useState(false);
+  const [showApplySection, setShowApplySection] = useState(false);
+
   // Templates
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loadingTemplates, setLoadingTemplates] = useState(false);
@@ -267,6 +279,120 @@ export default function CTCCalculatorPage() {
   // Auto-calculate on Enter key
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') calculateCTC();
+  };
+
+  // ─── Search employees for single apply ───
+  const searchEmployees = useCallback(async (query: string) => {
+    if (!query || query.length < 2) { setSearchResults([]); return; }
+    try {
+      const sq = scopeQuery();
+      const res = await fetch(`/api/employees?limit=20&search=${encodeURIComponent(query)}${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
+      if (res.ok) {
+        const data = await res.json();
+        setSearchResults(data.employees || []);
+      }
+    } catch { /* ignore */ }
+  }, [scopeQuery]);
+
+  // ─── Fetch filter options for bulk apply ───
+  const fetchFilterOptions = useCallback(async (filterType: string) => {
+    try {
+      const sq = scopeQuery();
+      let url = '';
+      if (filterType === 'department') url = `/api/departments?limit=100${sq ? `&${sq}` : ''}`;
+      else if (filterType === 'designation') url = `/api/designations?limit=100${sq ? `&${sq}` : ''}`;
+      else if (filterType === 'branch') url = `/api/branches?limit=100${sq ? `&${sq}` : ''}`;
+      else { setFilterOptions([]); return; }
+      const res = await fetch(url, { headers: getAuthHeaders() });
+      if (res.ok) {
+        const data = await res.json();
+        setFilterOptions(data.data || data.departments || data.designations || data.branches || []);
+      }
+    } catch { /* ignore */ }
+  }, [scopeQuery]);
+
+  // ─── Fetch employees by bulk filter ───
+  const fetchBulkEmployees = useCallback(async () => {
+    if (!bulkFilterValue) { setSearchResults([]); return; }
+    try {
+      const sq = scopeQuery();
+      const param = bulkFilter === 'department' ? 'departmentId' : bulkFilter === 'designation' ? 'designationId' : 'branchId';
+      const res = await fetch(`/api/employees?limit=500&${param}=${bulkFilterValue}${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
+      if (res.ok) {
+        const data = await res.json();
+        setSearchResults(data.employees || []);
+        setSelectedEmployeeIds((data.employees || []).map((e: any) => e.id));
+      }
+    } catch { /* ignore */ }
+  }, [bulkFilter, bulkFilterValue, scopeQuery]);
+
+  // ─── Apply CTC structure to selected employees ───
+  const handleApplyToEmployees = async () => {
+    if (selectedEmployeeIds.length === 0) {
+      toast.error('Please select at least one employee');
+      return;
+    }
+    if (!result) {
+      toast.error('Please calculate CTC first');
+      return;
+    }
+    setApplying(true);
+    try {
+      const sq = scopeQuery();
+      let successCount = 0;
+      let failCount = 0;
+
+      // Get monthly values from the result
+      const earningsArr = normalizeComponents(result.earnings as Record<string, { annual: number; monthly: number; pctOfCTC: string }>, IND_EARNING_LABELS);
+      const deductionsArr = normalizeComponents(result.deductions as Record<string, { annual: number; monthly: number; pctOfCTC: string }>, IND_DEDUCTION_LABELS);
+
+      const getMonthly = (arr: ComponentBreakdown[], name: string) => {
+        const item = arr.find(e => e.name.toLowerCase().includes(name.toLowerCase()));
+        return item ? item.monthly : 0;
+      };
+
+      for (const empId of selectedEmployeeIds) {
+        try {
+          const res = await fetch('/api/payroll/salary-settings', {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({
+              employeeId: empId,
+              ctcAnnual: result.ctcAnnual,
+              ctcMonthly: result.ctcMonthly,
+              basicSalary: getMonthly(earningsArr, 'basic'),
+              hra: getMonthly(earningsArr, 'hra'),
+              specialAllowance: getMonthly(earningsArr, 'special'),
+              conveyanceAllowance: getMonthly(earningsArr, 'conveyance'),
+              medicalAllowance: getMonthly(earningsArr, 'medical'),
+              pfDeduction: getMonthly(deductionsArr, 'pf'),
+              professionalTax: getMonthly(deductionsArr, 'professional'),
+              tdsDeduction: getMonthly(deductionsArr, 'tds'),
+              grossSalary: result.grossSalary.monthly,
+              netSalary: result.netTakeHome.monthly,
+              currency: result.currency,
+            }),
+          });
+          if (res.ok) successCount++;
+          else failCount++;
+        } catch {
+          failCount++;
+        }
+      }
+
+      if (successCount > 0) {
+        toast.success(`Salary structure applied to ${successCount} employee(s)${failCount > 0 ? ` (${failCount} failed)` : ''}`);
+        setShowApplySection(false);
+        setSelectedEmployeeIds([]);
+        setSearchResults([]);
+      } else {
+        toast.error('Failed to apply salary structure to any employee');
+      }
+    } catch (e) {
+      toast.error('Failed to apply salary structure');
+    } finally {
+      setApplying(false);
+    }
   };
 
   // Normalized result components
@@ -1029,35 +1155,154 @@ export default function CTCCalculatorPage() {
               </div>
 
               {/* ─── Apply to Employee Section ─── */}
-              {isAdmin && (
+              {isAdmin && result && (
                 <div className="thb-card border-l-4 border-l-amber-500">
                   <div className="p-5">
-                    <h3 className="text-sm font-semibold text-thb-text-primary mb-2 flex items-center gap-2">
-                      <FiUsers className="w-4 h-4 text-amber-500" />
-                      Apply This Structure to an Employee
-                    </h3>
-                    <p className="text-xs text-thb-text-secondary mb-3">
-                      Use this CTC breakdown to create or update an employee&apos;s salary structure. The component amounts will be
-                      saved as the employee&apos;s payroll configuration.
-                    </p>
-                    <div className="flex gap-2">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-sm font-semibold text-thb-text-primary flex items-center gap-2">
+                        <FiUsers className="w-4 h-4 text-amber-500" />
+                        Apply CTC Structure to Employee(s)
+                      </h3>
                       <button
-                        onClick={() => {
-                          toast.success('CTC structure copied! Go to Employees to apply this structure.');
-                        }}
-                        className="px-4 py-2 rounded-lg bg-amber-500 text-white text-xs font-medium hover:bg-amber-600 transition-colors flex items-center gap-1.5"
+                        onClick={() => setShowApplySection(!showApplySection)}
+                        className="text-xs text-amber-600 hover:text-amber-700 font-medium"
                       >
-                        <FiCheck className="w-3.5 h-3.5" />
-                        Copy Structure
+                        {showApplySection ? 'Cancel' : 'Apply Now'}
                       </button>
-                      <a
-                        href="/employees"
-                        className="px-4 py-2 rounded-lg border border-thb-border text-xs font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors flex items-center gap-1.5"
-                      >
-                        Go to Employees
-                        <FiArrowRight className="w-3.5 h-3.5" />
-                      </a>
                     </div>
+
+                    {showApplySection ? (
+                      <div className="space-y-4">
+                        {/* Mode toggle */}
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => { setApplyMode('single'); setSearchResults([]); setSelectedEmployeeIds([]); }}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-medium ${applyMode === 'single' ? 'bg-amber-500 text-white' : 'bg-slate-100 text-thb-text-secondary'}`}
+                          >
+                            Single Employee
+                          </button>
+                          <button
+                            onClick={() => { setApplyMode('bulk'); setSearchResults([]); setSelectedEmployeeIds([]); }}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-medium ${applyMode === 'bulk' ? 'bg-amber-500 text-white' : 'bg-slate-100 text-thb-text-secondary'}`}
+                          >
+                            Bulk by Department/Designation/Branch
+                          </button>
+                        </div>
+
+                        {applyMode === 'single' ? (
+                          /* Single employee search */
+                          <div>
+                            <div className="relative">
+                              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
+                              <input
+                                type="text"
+                                value={employeeSearch}
+                                onChange={e => { setEmployeeSearch(e.target.value); searchEmployees(e.target.value); }}
+                                placeholder="Search by name, email, or employee ID..."
+                                className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+                              />
+                            </div>
+                            {searchResults.length > 0 && (
+                              <div className="mt-2 max-h-60 overflow-y-auto border border-thb-border rounded-lg">
+                                {searchResults.map(emp => (
+                                  <label key={emp.id} className="flex items-center gap-3 px-3 py-2 hover:bg-slate-50 cursor-pointer border-b border-slate-50 last:border-0">
+                                    <input
+                                      type="checkbox"
+                                      checked={selectedEmployeeIds.includes(emp.id)}
+                                      onChange={() => {
+                                        setSelectedEmployeeIds(prev =>
+                                          prev.includes(emp.id) ? prev.filter(id => id !== emp.id) : [...prev, emp.id]
+                                        );
+                                      }}
+                                      className="w-4 h-4 rounded"
+                                    />
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-sm font-medium text-thb-text-primary truncate">{emp.firstName} {emp.lastName}</p>
+                                      <p className="text-xs text-thb-text-muted">{emp.email} · {emp.employeeId}</p>
+                                    </div>
+                                    <span className="text-xs text-thb-text-muted">{emp.department?.name || 'N/A'}</span>
+                                  </label>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          /* Bulk filter */
+                          <div className="space-y-3">
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Filter By</label>
+                                <select
+                                  value={bulkFilter}
+                                  onChange={e => { setBulkFilter(e.target.value as any); setBulkFilterValue(''); setFilterOptions([]); setSearchResults([]); fetchFilterOptions(e.target.value); }}
+                                  className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm bg-white"
+                                >
+                                  <option value="department">Department</option>
+                                  <option value="designation">Designation</option>
+                                  <option value="branch">Branch</option>
+                                </select>
+                              </div>
+                              <div>
+                                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Select {bulkFilter}</label>
+                                <select
+                                  value={bulkFilterValue}
+                                  onChange={e => { setBulkFilterValue(e.target.value); }}
+                                  className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm bg-white"
+                                >
+                                  <option value="">— Select —</option>
+                                  {filterOptions.map((opt: any) => (
+                                    <option key={opt.id} value={opt.id}>{opt.name || opt.title}</option>
+                                  ))}
+                                </select>
+                              </div>
+                            </div>
+                            {bulkFilterValue && (
+                              <button
+                                onClick={fetchBulkEmployees}
+                                className="px-3 py-1.5 rounded-lg bg-slate-100 text-thb-text-secondary text-xs font-medium hover:bg-slate-200"
+                              >
+                                Fetch Employees
+                              </button>
+                            )}
+                            {searchResults.length > 0 && (
+                              <div className="text-xs text-thb-text-muted">
+                                {searchResults.length} employees found · {selectedEmployeeIds.length} selected
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Selected employees list */}
+                        {selectedEmployeeIds.length > 0 && (
+                          <div className="bg-amber-50 rounded-lg p-3">
+                            <p className="text-xs font-medium text-amber-800 mb-2">{selectedEmployeeIds.length} employee(s) selected</p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {selectedEmployeeIds.slice(0, 5).map(id => {
+                                const emp = searchResults.find(e => e.id === id);
+                                return <span key={id} className="text-xs bg-white px-2 py-0.5 rounded border border-amber-200">{emp ? `${emp.firstName} ${emp.lastName}` : id.slice(0, 8)}</span>;
+                              })}
+                              {selectedEmployeeIds.length > 5 && <span className="text-xs text-amber-600">+{selectedEmployeeIds.length - 5} more</span>}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Apply button */}
+                        <div className="flex gap-2">
+                          <button
+                            onClick={handleApplyToEmployees}
+                            disabled={applying || selectedEmployeeIds.length === 0}
+                            className="px-4 py-2.5 rounded-lg bg-amber-500 text-white text-sm font-medium hover:bg-amber-600 disabled:opacity-50 transition-colors flex items-center gap-2"
+                          >
+                            {applying ? <><FiSave className="w-4 h-4 animate-spin" /> Applying...</> : <><FiCheck className="w-4 h-4" /> Apply Structure to {selectedEmployeeIds.length} Employee(s)</>}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-thb-text-secondary">
+                        Apply this CTC breakdown ({formatCurrency(result.ctcAnnual, currency)}/yr) to one or multiple employees.
+                        The salary components will be saved as each employee's payroll configuration.
+                      </p>
+                    )}
                   </div>
                 </div>
               )}
