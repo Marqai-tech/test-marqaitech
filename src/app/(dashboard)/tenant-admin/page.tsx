@@ -984,9 +984,9 @@ export default function TenantAdminPage() {
                     className="inline-flex items-center gap-2 px-4 py-2.5 bg-red-500 text-white rounded-lg font-medium text-sm hover:bg-red-600 disabled:opacity-50 transition-colors shadow-sm"
                   >
                     {resettingEmployees ? (
-                      <><FiRefreshCw className="w-4 h-4 animate-spin" /> Deleting...</>
+                      <span className="inline-flex items-center gap-2"><FiRefreshCw className="w-4 h-4 animate-spin" /> Deleting...</span>
                     ) : (
-                      <><FiTrash2 className="w-4 h-4" /> Yes, Delete All Employees
+                      <span className="inline-flex items-center gap-2"><FiTrash2 className="w-4 h-4" /> Yes, Delete All Employees</span>
                     )}
                   </button>
                   <button
