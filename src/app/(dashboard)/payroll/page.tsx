@@ -33,6 +33,7 @@ import {
   FiGlobe,
   FiUserCheck,
   FiCpu,
+  FiRefreshCw,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
