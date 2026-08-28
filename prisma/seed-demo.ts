@@ -348,7 +348,7 @@ async function main() {
     prisma.user.create({ data: { email: 'mgr6@3boxeshrms.com', password: pwHash, name: 'Kavitha Raman', role: 'manager', status: 'active', tenantId: tenant.id } }),
   ]);
 
-  // Employees
+  // Employees — 25 per company × 3 companies = 75 regular employees
   const EMPLOYEE_NAMES = [
     { first: 'Amit', last: 'Verma' }, { first: 'Bharathi', last: 'Krishnan' }, { first: 'Chandra', last: 'Shekhar' },
     { first: 'Divya', last: 'Prasad' }, { first: 'Eshwar', last: 'Rao' }, { first: 'Fatima', last: 'Begum' },
@@ -360,6 +360,22 @@ async function main() {
     { first: 'Vasundhara', last: 'Das' }, { first: 'Wasim', last: 'Akram' }, { first: 'Xena', last: 'Fernandes' },
     { first: 'Yogesh', last: 'Pandey' }, { first: 'Zeenat', last: 'Bano' }, { first: 'Anil', last: 'Kapoor' },
     { first: 'Bhanu', last: 'Pratap' }, { first: 'Chitra', last: 'Venkatesh' }, { first: 'Dinesh', last: 'Kumar' },
+    { first: 'Esha', last: 'Agarwal' }, { first: 'Farhan', last: 'Malik' }, { first: 'Gita', last: 'Pillai' },
+    { first: 'Hemant', last: 'Joshi' }, { first: 'Indira', last: 'Nair' }, { first: 'Javed', last: 'Sheikh' },
+    { first: 'Kavya', last: 'Reddy' }, { first: 'Lokesh', last: 'Bhat' }, { first: 'Meena', last: 'Shetty' },
+    { first: 'Naveen', last: 'Chandra' }, { first: 'Omana', last: 'Menon' }, { first: 'Prakash', last: 'Naidu' },
+    { first: 'Qamar', last: 'Siddiqui' }, { first: 'Ramesh', last: 'Iyer' }, { first: 'Sneha', last: 'Desai' },
+    { first: 'Tarun', last: 'Saxena' }, { first: 'Uma', last: 'Shankar' }, { first: 'Vinod', last: 'Khanna' },
+    { first: 'Waheeda', last: 'Rehman' }, { first: 'Yash', last: 'Bhatia' }, { first: 'Zara', last: 'Khan' },
+    { first: 'Aditya', last: 'Varma' }, { first: 'Bhavya', last: 'Nair' }, { first: 'Chetan', last: 'Bhagat' },
+    { first: 'Deepa', last: 'Menon' }, { first: 'Emran', last: 'Kazi' }, { first: 'Faisal', last: 'Ahmed' },
+    { first: 'Gauri', last: 'Deshpande' }, { first: 'Harsh', last: 'Vardhan' }, { first: 'Ila', last: 'Arora' },
+    { first: 'Jaspreet', last: 'Singh' }, { first: 'Kunal', last: 'Roy' }, { first: 'Leela', last: 'Rao' },
+    { first: 'Mohan', last: 'Lal' }, { first: 'Nisha', last: 'Patel' }, { first: 'Omar', last: 'Sheikh' },
+    { first: 'Pooja', last: 'Bhat' }, { first: 'Qutub', last: 'Khan' }, { first: 'Rahul', last: 'Sharma' },
+    { first: 'Sahil', last: 'Kapoor' }, { first: 'Tanya', last: 'Jain' }, { first: 'Umar', last: 'Farooque' },
+    { first: 'Vikram', last: 'Bhatnagar' }, { first: 'Wahid', last: 'Ali' }, { first: 'Yuvraj', last: 'Singh' },
+    { first: 'Zoya', last: 'Akhtar' }, { first: 'Aarav', last: 'Patil' }, { first: 'Bela', last: 'Shah' },
   ];
 
   const employeeUsers = [];
@@ -370,7 +386,7 @@ async function main() {
       await prisma.user.create({ data: { email, password: pwHash, name: `${name.first} ${name.last}`, role: 'employee', status: 'active', tenantId: tenant.id } })
     );
   }
-  console.log(`  ✓ Created ${2 + 3 + 6 + EMPLOYEE_NAMES.length} users across all roles`);
+  console.log(`  ✓ Created ${2 + 3 + 6 + EMPLOYEE_NAMES.length} users across all roles (${EMPLOYEE_NAMES.length} regular employees)`);
 
   // ── 13. EMPLOYEES ──
   console.log('\n📋 Creating Employees...');
@@ -449,7 +465,7 @@ async function main() {
     managerEmps.push(emp);
   }
 
-  // Regular employees (30 across 3 companies)
+  // Regular employees (75 across 3 companies — 25 per company)
   const regularEmps = [];
   for (let i = 0; i < EMPLOYEE_NAMES.length; i++) {
     const name = EMPLOYEE_NAMES[i];
@@ -1926,7 +1942,7 @@ async function main() {
   console.log('  │ Employee 2       │ bharathi.krishnan@3boxeshrms.com│ MarqAI@2026   │');
   console.log('  └──────────────────┴───────────────────────────────┴─────────────────┘');
   console.log('\n  💡 All roles use the same password: MarqAI@2026');
-  console.log('  💡 30+ employees, 3 companies, 8 projects, 12 job postings');
+  console.log('  💡 75+ employees, 3 companies, 8 projects, 12 job postings');
   console.log('  💡 Full attendance, leave, payroll, recruitment, and training data');
   console.log('\n✅ COMPREHENSIVE DEMO SEEDING COMPLETED SUCCESSFULLY!');
 }
