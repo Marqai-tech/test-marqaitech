@@ -84,68 +84,74 @@ export function useCompanyData() {
     try {
       const params = new URLSearchParams([['limit', '100']])
       if (selectedCompanyId) params.set('companyId', selectedCompanyId)
+      if (isSuperAdmin && selectedTenantId) params.set('tenantId', selectedTenantId)
       const res = await apiFetch<{ data: BranchRecord[] }>(`/api/branches?${params}`)
       setBranches(res.data || [])
     } catch { toast.error('Failed to load branches') }
     finally { setLoading(l => ({ ...l, branches: false })) }
-  }, [selectedCompanyId])
+  }, [selectedCompanyId, isSuperAdmin, selectedTenantId])
 
   const fetchDepartments = useCallback(async () => {
     setLoading(l => ({ ...l, departments: true }))
     try {
       const params = new URLSearchParams([['limit', '100']])
       if (selectedCompanyId) params.set('companyId', selectedCompanyId)
+      if (isSuperAdmin && selectedTenantId) params.set('tenantId', selectedTenantId)
       const res = await apiFetch<{ data: DepartmentRecord[] }>(`/api/departments?${params}`)
       setDepartments(res.data || [])
     } catch { toast.error('Failed to load departments') }
     finally { setLoading(l => ({ ...l, departments: false })) }
-  }, [selectedCompanyId])
+  }, [selectedCompanyId, isSuperAdmin, selectedTenantId])
 
   const fetchDesignations = useCallback(async () => {
     setLoading(l => ({ ...l, designations: true }))
     try {
       const params = new URLSearchParams([['limit', '100']])
       if (selectedCompanyId) params.set('companyId', selectedCompanyId)
+      if (isSuperAdmin && selectedTenantId) params.set('tenantId', selectedTenantId)
       const res = await apiFetch<{ data: DesignationRecord[] }>(`/api/designations?${params}`)
       setDesignations(res.data || [])
     } catch { toast.error('Failed to load designations') }
     finally { setLoading(l => ({ ...l, designations: false })) }
-  }, [selectedCompanyId])
+  }, [selectedCompanyId, isSuperAdmin, selectedTenantId])
 
   const fetchShifts = useCallback(async () => {
     setLoading(l => ({ ...l, shifts: true }))
     try {
       const params = new URLSearchParams([['limit', '100']])
       if (selectedCompanyId) params.set('companyId', selectedCompanyId)
+      if (isSuperAdmin && selectedTenantId) params.set('tenantId', selectedTenantId)
       const res = await apiFetch<{ data: ShiftRecord[] }>(`/api/shifts?${params}`)
       setShifts((res.data || []).map((s: Record<string, unknown>) => ({
         ...s, breakDuration: (s as Record<string, unknown>).breakDuration || (s as Record<string, unknown>).breakMinutes || 60, graceTime: (s as Record<string, unknown>).graceTime || 15,
       })) as ShiftRecord[])
     } catch { toast.error('Failed to load shifts') }
     finally { setLoading(l => ({ ...l, shifts: false })) }
-  }, [selectedCompanyId])
+  }, [selectedCompanyId, isSuperAdmin, selectedTenantId])
 
   const fetchHolidays = useCallback(async () => {
     setLoading(l => ({ ...l, holidays: true }))
     try {
       const params = new URLSearchParams([['limit', '100']])
       if (selectedCompanyId) params.set('companyId', selectedCompanyId)
+      if (isSuperAdmin && selectedTenantId) params.set('tenantId', selectedTenantId)
       const res = await apiFetch<{ data: HolidayRecord[] }>(`/api/holidays?${params}`)
       setHolidays(res.data || [])
     } catch { toast.error('Failed to load holidays') }
     finally { setLoading(l => ({ ...l, holidays: false })) }
-  }, [selectedCompanyId])
+  }, [selectedCompanyId, isSuperAdmin, selectedTenantId])
 
   const fetchPolicies = useCallback(async () => {
     setLoading(l => ({ ...l, policies: true }))
     try {
       const params = new URLSearchParams([['limit', '100']])
       if (selectedCompanyId) params.set('companyId', selectedCompanyId)
+      if (isSuperAdmin && selectedTenantId) params.set('tenantId', selectedTenantId)
       const res = await apiFetch<{ data: PolicyRecord[] }>(`/api/policies?${params}`)
       setPolicies(res.data || [])
     } catch { toast.error('Failed to load policies') }
     finally { setLoading(l => ({ ...l, policies: false })) }
-  }, [selectedCompanyId])
+  }, [selectedCompanyId, isSuperAdmin, selectedTenantId])
 
   useEffect(() => {
     if (!hydrated) hydrate()
