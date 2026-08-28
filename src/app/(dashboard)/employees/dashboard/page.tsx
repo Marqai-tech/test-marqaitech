@@ -91,6 +91,7 @@ export default function EmployeeDashboardPage() {
   const userRole = user?.role || 'employee';
   const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
   const selectedTenantId = useCompanyContextStore(s => s.selectedTenantId);
+  const selectedCompanyId = useCompanyContextStore(s => s.selectedCompanyId);
 
   const [stats, setStats] = useState<EmployeeStats | null>(null);
   const [lifecycleCounts, setLifecycleCounts] = useState({
@@ -114,7 +115,7 @@ export default function EmployeeDashboardPage() {
   const canViewFullDetails = isManager;
 
   /* ── Data Fetching ── */
-  const cidValue = effectiveCompanyId();
+  const cidValue = selectedCompanyId;
   const tidValue = selectedTenantId;
   const fetchDashboardData = useCallback(async () => {
     setLoading(true);
