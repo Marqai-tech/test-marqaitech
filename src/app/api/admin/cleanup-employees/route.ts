@@ -14,7 +14,7 @@ export async function OPTIONS() {
 
 export async function POST(request: Request) {
   try {
-    // Verify super_admin auth
+    // Verify auth — allow both super_admin and tenant_admin
     const token = getTokenFromHeaders(request);
     if (!token) {
       return NextResponse.json({ error: 'No token' }, { status: 401 });
@@ -23,8 +23,8 @@ export async function POST(request: Request) {
     if (!decoded) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
-    if (decoded.role !== 'super_admin') {
-      return NextResponse.json({ error: 'Only super admin can run cleanup' }, { status: 403 });
+    if (!['super_admin', 'tenant_admin', 'admin'].includes(decoded.role as string)) {
+      return NextResponse.json({ error: 'Only admins can run cleanup' }, { status: 403 });
     }
 
     const body = await request.json();
