@@ -102,6 +102,22 @@ function TableWrapper({ title, icon, count, children }: { title: string; icon: R
 const TH = ({ children }: { children: React.ReactNode }) => <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider border-b border-thb-border bg-slate-50/50">{children}</th>
 const TD = ({ children, className = '' }: { children: React.ReactNode; className?: string }) => <td className={`px-4 py-3 text-sm text-thb-text-secondary border-b border-thb-border/50 ${className}`}>{children}</td>
 
+/* ── Toggle component ── */
+function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: () => void }) {
+  return (
+    <div className="flex items-center gap-2">
+      <button
+        type="button"
+        onClick={onChange}
+        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${checked ? 'bg-teal-500' : 'bg-slate-200'}`}
+      >
+        <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${checked ? 'translate-x-6' : 'translate-x-1'}`} />
+      </button>
+      <span className="text-xs font-medium text-thb-text-secondary">{label}</span>
+    </div>
+  )
+}
+
 /* ── Tab definitions ── */
 type TabKey = 'documents' | 'rules'
 
