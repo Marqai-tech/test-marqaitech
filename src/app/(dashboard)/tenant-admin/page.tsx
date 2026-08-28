@@ -24,6 +24,7 @@ import {
   FiBriefcase,
   FiDollarSign,
   FiMessageSquare,
+  FiAlertTriangle,
 } from 'react-icons/fi';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
@@ -156,6 +157,8 @@ export default function TenantAdminPage() {
     name: '', domain: '', country: '', currency: 'INR', timezone: 'UTC', logo: '',
   });
   const [savingSettings, setSavingSettings] = useState(false);
+  const [resettingEmployees, setResettingEmployees] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   const [workflows, setWorkflows] = useState<WorkflowConfig[]>(demoWorkflows);
 
@@ -307,6 +310,35 @@ export default function TenantAdminPage() {
       toast.error(e instanceof Error ? e.message : 'Failed to save settings');
     } finally {
       setSavingSettings(false);
+    }
+  };
+
+  /* Reset Employee Data — deletes all employees except the admin user */
+  const handleResetEmployees = async () => {
+    if (!tenantInfo?.slug) {
+      toast.error('Tenant info not loaded yet');
+      return;
+    }
+    try {
+      setResettingEmployees(true);
+      const res = await fetch('/api/admin/cleanup-employees', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ tenantSlug: tenantInfo.slug }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.error || 'Failed to reset employee data');
+      }
+      const data = await res.json();
+      toast.success(`Deleted ${data.deleted} employees. Kept: ${data.keptEmployee || 'admin user'}.`);
+      setShowResetConfirm(false);
+      // Refresh groups to update employee counts
+      fetchGroups();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to reset employee data');
+    } finally {
+      setResettingEmployees(false);
     }
   };
 
@@ -906,6 +938,67 @@ export default function TenantAdminPage() {
                 </p>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ DANGER ZONE — Reset Employee Data ═══ */}
+      {activeTab === 'settings' && (
+        <div className="thb-card border-2 border-red-200 p-6 mt-4">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center">
+              <FiAlertTriangle className="w-5 h-5 text-red-500" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-thb-text-primary">Danger Zone</h3>
+              <p className="text-sm text-thb-text-secondary">Reset employee data for this tenant</p>
+            </div>
+          </div>
+
+          <div className="bg-red-50/50 border border-red-100 rounded-lg p-4 mb-4">
+            <p className="text-sm text-red-700 font-medium mb-2">Reset Employee Data</p>
+            <p className="text-xs text-red-600 mb-3">
+              This will permanently delete <strong>all employees</strong> from this tenant except the admin user
+              (your account). All related data — leave requests, attendance, payroll, documents, etc. — will also be
+              deleted. This action <strong>cannot be undone</strong>.
+            </p>
+
+            {!showResetConfirm ? (
+              <button
+                onClick={() => setShowResetConfirm(true)}
+                className="inline-flex items-center gap-2 px-4 py-2.5 bg-red-500 text-white rounded-lg font-medium text-sm hover:bg-red-600 transition-colors shadow-sm"
+              >
+                <FiTrash2 className="w-4 h-4" />
+                Reset Employee Data
+              </button>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-sm font-medium text-red-700">
+                  <FiAlertTriangle className="w-4 h-4" />
+                  Are you sure? This will delete all employees except your admin account.
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleResetEmployees}
+                    disabled={resettingEmployees}
+                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-red-500 text-white rounded-lg font-medium text-sm hover:bg-red-600 disabled:opacity-50 transition-colors shadow-sm"
+                  >
+                    {resettingEmployees ? (
+                      <><FiRefreshCw className="w-4 h-4 animate-spin" /> Deleting...</>
+                    ) : (
+                      <><FiTrash2 className="w-4 h-4" /> Yes, Delete All Employees
+                    )}
+                  </button>
+                  <button
+                    onClick={() => setShowResetConfirm(false)}
+                    disabled={resettingEmployees}
+                    className="inline-flex items-center gap-2 px-4 py-2.5 border border-thb-border rounded-lg font-medium text-sm text-thb-text-secondary hover:bg-slate-50 disabled:opacity-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
