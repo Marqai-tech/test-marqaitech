@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb, getPlatformDb } from '@/lib/tenant-db';
+import { getDb, getPlatformDb, getDbForTenant } from '@/lib/tenant-db';
 import { getCompanyFilter, getAuthInfo } from '@/lib/companyScope';
 import { checkTenantStatusOrBlock } from '@/lib/tenant-guard';
+import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
   return {
@@ -16,14 +17,51 @@ export async function OPTIONS() {
 }
 
 export async function GET(req: NextRequest) {
-  const db = await getDb(req);
   try {
+    const url = new URL(req.url);
+    const tenantId = url.searchParams.get('tenantId');
+    const queryCompanyId = url.searchParams.get('companyId');
+
+    // ─── For super_admin, resolve the correct tenant DB ───
+    let db = await getDb(req);
+
+    let jwtRole = 'employee';
+    try {
+      const token = getTokenFromHeaders(req);
+      if (token) {
+        const decoded = await verifyToken(token);
+        if (decoded) jwtRole = (decoded.role as string) || 'employee';
+      }
+    } catch {}
+
+    if (jwtRole === 'super_admin') {
+      if (tenantId) {
+        const tenant = await getPlatformDb().tenant.findUnique({
+          where: { id: tenantId },
+          select: { slug: true },
+        });
+        if (tenant?.slug) {
+          db = await getDbForTenant(tenant.slug);
+        }
+      } else if (queryCompanyId) {
+        let company = await db.company.findUnique({ where: { id: queryCompanyId }, select: { companyGroupId: true } }).catch(() => null);
+        if (!company) company = await getPlatformDb().company.findUnique({ where: { id: queryCompanyId }, select: { companyGroupId: true } }).catch(() => null);
+        if (company?.companyGroupId) {
+          let group = await db.companyGroup.findUnique({ where: { id: company.companyGroupId }, select: { tenantId: true } }).catch(() => null);
+          if (!group) group = await getPlatformDb().companyGroup.findUnique({ where: { id: company.companyGroupId }, select: { tenantId: true } }).catch(() => null);
+          if (group?.tenantId) {
+            const tenant = await getPlatformDb().tenant.findUnique({ where: { id: group.tenantId }, select: { slug: true } });
+            if (tenant?.slug) db = await getDbForTenant(tenant.slug);
+          }
+        }
+      }
+    }
+
     const companyFilter = await getCompanyFilter(req);
     if (companyFilter === null) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
     }
 
-    const url = new URL(req.url);
     const page = parseInt(url.searchParams.get('page') || '1');
     const limit = parseInt(url.searchParams.get('limit') || '100');
 

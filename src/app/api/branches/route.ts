@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCompanyFilter, getAuthInfo } from '@/lib/companyScope';
-import { getDb, getPlatformDb } from '@/lib/tenant-db';
+import { getDb, getPlatformDb, getDbForTenant } from '@/lib/tenant-db';
+import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { validateEmail, validatePhone } from '@/lib/validators';
 
 function corsHeaders() {
@@ -16,18 +17,56 @@ export async function OPTIONS() {
 }
 
 export async function GET(req: NextRequest) {
-  const db = await getDb(req);
   try {
+    const url = new URL(req.url);
+    const tenantId = url.searchParams.get('tenantId');
+    const queryCompanyId = url.searchParams.get('companyId');
+
+    // ─── For super_admin, resolve the correct tenant DB ───
+    let db = await getDb(req);
+
+    // If getDb returned platformDb (super_admin without tenantId in JWT),
+    // try resolving tenant DB from query params
+    let jwtRole = 'employee';
+    try {
+      const token = getTokenFromHeaders(req);
+      if (token) {
+        const decoded = await verifyToken(token);
+        if (decoded) jwtRole = (decoded.role as string) || 'employee';
+      }
+    } catch {}
+
+    if (jwtRole === 'super_admin') {
+      // If tenantId is in URL, resolve tenant DB from it
+      if (tenantId) {
+        const tenant = await getPlatformDb().tenant.findUnique({
+          where: { id: tenantId },
+          select: { slug: true },
+        });
+        if (tenant?.slug) {
+          db = await getDbForTenant(tenant.slug);
+        }
+      }
+      // If companyId is set but no tenantId, resolve from company
+      else if (queryCompanyId) {
+        let company = await db.company.findUnique({ where: { id: queryCompanyId }, select: { companyGroupId: true } }).catch(() => null);
+        if (!company) company = await getPlatformDb().company.findUnique({ where: { id: queryCompanyId }, select: { companyGroupId: true } }).catch(() => null);
+        if (company?.companyGroupId) {
+          let group = await db.companyGroup.findUnique({ where: { id: company.companyGroupId }, select: { tenantId: true } }).catch(() => null);
+          if (!group) group = await getPlatformDb().companyGroup.findUnique({ where: { id: company.companyGroupId }, select: { tenantId: true } }).catch(() => null);
+          if (group?.tenantId) {
+            const tenant = await getPlatformDb().tenant.findUnique({ where: { id: group.tenantId }, select: { slug: true } });
+            if (tenant?.slug) db = await getDbForTenant(tenant.slug);
+          }
+        }
+      }
+    }
+
     // ─── Company-scoped data visibility ───
-    // Use getCompanyFilter to enforce that non-admins only see their own company's branches.
-    // Admins with a specific company selected in the CompanySwitcher see that company's branches.
-    // Admins with no company selected see all branches.
     const companyFilter = await getCompanyFilter(req);
     if (companyFilter === null) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
     }
-
-    const url = new URL(req.url);
     const page = parseInt(url.searchParams.get('page') || '1');
     const limit = parseInt(url.searchParams.get('limit') || '100');
     const search = url.searchParams.get('search');
