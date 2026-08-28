@@ -103,13 +103,11 @@ const TH = ({ children }: { children: React.ReactNode }) => <th className="text-
 const TD = ({ children, className = '' }: { children: React.ReactNode; className?: string }) => <td className={`px-4 py-3 text-sm text-thb-text-secondary border-b border-thb-border/50 ${className}`}>{children}</td>
 
 /* ── Tab definitions ── */
-type TabKey = 'documents' | 'rules' | 'mapping' | 'config'
+type TabKey = 'documents' | 'rules'
 
 const TABS: { key: TabKey; label: string; icon: React.ReactNode }[] = [
   { key: 'documents', label: 'Policy Documents', icon: <FiFileText className="w-4 h-4" /> },
-  { key: 'rules', label: 'Policy Rules', icon: <FiBookOpen className="w-4 h-4" /> },
-  { key: 'mapping', label: 'Leave Type Mapping', icon: <FiLink className="w-4 h-4" /> },
-  { key: 'config', label: 'Global Config', icon: <FiSettings className="w-4 h-4" /> },
+  { key: 'rules', label: 'Policy Rules & Leave Type Configuration', icon: <FiBookOpen className="w-4 h-4" /> },
 ]
 
 function LeavePolicyPageContent() {
@@ -124,7 +122,7 @@ function LeavePolicyPageContent() {
 
   // ── Tab state (synced with URL) ──
   const tabFromUrl = searchParams.get('tab') as TabKey | null
-  const validTabs: TabKey[] = ['documents', 'rules', 'mapping', 'config']
+  const validTabs: TabKey[] = ['documents', 'rules']
   const defaultTab = (tabFromUrl && validTabs.includes(tabFromUrl)) ? tabFromUrl : 'documents'
   const [activeTab, setActiveTab] = useState<TabKey>(defaultTab)
 
@@ -159,6 +157,7 @@ function LeavePolicyPageContent() {
     branchId: '',
     departmentId: '',
     priority: 0,
+    // Global config fields merged into the rule
     sandwichRuleEnabled: true,
     proRataEnabled: false,
     probationRestriction: true,
@@ -166,6 +165,9 @@ function LeavePolicyPageContent() {
     encashmentAllowed: false,
     carryForwardGlobal: true,
     maxCarryForwardDays: 5,
+    minAdvanceNotice: 3,
+    // Leave type allocations (mapping merged into the rule)
+    leaveTypeAllocations: [] as LeaveTypeAllocation[],
     status: 'active',
   })
   const [ruleSubmitting, setRuleSubmitting] = useState(false)
@@ -331,6 +333,8 @@ function LeavePolicyPageContent() {
     encashmentAllowed: false,
     carryForwardGlobal: true,
     maxCarryForwardDays: 5,
+    minAdvanceNotice: 3,
+    leaveTypeAllocations: [] as LeaveTypeAllocation[],
     status: 'active',
   })
 
@@ -342,6 +346,13 @@ function LeavePolicyPageContent() {
 
   const openEditRule = (rule: LeavePolicyRule) => {
     setEditingRuleId(rule.id)
+    // Parse existing leave type allocations from JSON
+    let existingAllocations: LeaveTypeAllocation[] = [];
+    try {
+      if (rule.leaveTypeAllocations) {
+        existingAllocations = JSON.parse(rule.leaveTypeAllocations);
+      }
+    } catch { /* ignore parse errors */ }
     setRuleForm({
       name: rule.name,
       policyId: rule.policyId || '',
@@ -356,6 +367,8 @@ function LeavePolicyPageContent() {
       encashmentAllowed: rule.encashmentAllowed,
       carryForwardGlobal: rule.carryForwardGlobal,
       maxCarryForwardDays: rule.maxCarryForwardDays,
+      minAdvanceNotice: 3,
+      leaveTypeAllocations: existingAllocations,
       status: rule.status,
     })
     setShowRuleForm(true)
@@ -379,16 +392,10 @@ function LeavePolicyPageContent() {
         policyId: ruleForm.policyId || null,
         branchId: ruleForm.branchId || null,
         departmentId: ruleForm.departmentId || null,
+        // Save leave type allocations as JSON string (includes mapping + global config)
+        leaveTypeAllocations: JSON.stringify(ruleForm.leaveTypeAllocations || []),
       }
       if (isEdit) body.id = editingRuleId
-
-      // For edit, keep existing allocations; for new, start empty
-      if (isEdit) {
-        const existingRule = rules.find(r => r.id === editingRuleId)
-        body.leaveTypeAllocations = existingRule?.leaveTypeAllocations || '[]'
-      } else {
-        body.leaveTypeAllocations = '[]'
-      }
 
       await apiFetch('/api/leave-policy-rules', {
         method: isEdit ? 'PUT' : 'POST',
@@ -528,18 +535,6 @@ function LeavePolicyPageContent() {
           {activeTab === 'rules' && isRoleAdmin && (
             <button onClick={openAddRule} className="inline-flex items-center gap-2 px-4 py-2.5 bg-teal-500 text-white rounded-lg hover:bg-teal-600 font-medium text-sm shadow-sm shadow-teal-500/25 transition-colors">
               <FiPlus className="w-4 h-4" /> Add Rule
-            </button>
-          )}
-          {activeTab === 'mapping' && isRoleAdmin && (
-            <button onClick={handleSaveMapping} disabled={mappingSaving || !selectedRuleId} className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50 transition-colors">
-              <FiSave className="w-4 h-4" />
-              {mappingSaving ? 'Saving...' : 'Save Mapping'}
-            </button>
-          )}
-          {activeTab === 'config' && isRoleAdmin && (
-            <button onClick={handleSaveConfig} disabled={saving} className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50 transition-colors">
-              <FiSave className="w-4 h-4" />
-              {saving ? 'Saving...' : 'Save Config'}
             </button>
           )}
         </div>
@@ -899,6 +894,110 @@ function LeavePolicyPageContent() {
                     </div>
                   </div>
 
+                  {/* ── Global Configuration ── */}
+                  <div className="space-y-4 pt-4 border-t border-thb-border">
+                    <h3 className="text-sm font-semibold text-thb-text-primary flex items-center gap-2">
+                      <FiSettings className="w-4 h-4 text-teal-500" /> Global Configuration
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <Toggle label="Carry Forward Enabled" checked={ruleForm.carryForwardGlobal} onChange={() => setRuleForm({ ...ruleForm, carryForwardGlobal: !ruleForm.carryForwardGlobal })} />
+                      <div>
+                        <label className="block text-xs font-medium text-thb-text-secondary mb-1">Max Carry Forward Days</label>
+                        <input type="number" min={0} value={ruleForm.maxCarryForwardDays} onChange={e => setRuleForm({ ...ruleForm, maxCarryForwardDays: parseInt(e.target.value) || 0 })} className={inputClass} />
+                      </div>
+                      <Toggle label="Pro-Rata for Joining" checked={ruleForm.proRataEnabled} onChange={() => setRuleForm({ ...ruleForm, proRataEnabled: !ruleForm.proRataEnabled })} />
+                      <Toggle label="Sandwich Rule" checked={ruleForm.sandwichRuleEnabled} onChange={() => setRuleForm({ ...ruleForm, sandwichRuleEnabled: !ruleForm.sandwichRuleEnabled })} />
+                      <div>
+                        <label className="block text-xs font-medium text-thb-text-secondary mb-1">Min Advance Notice (days)</label>
+                        <input type="number" min={0} value={ruleForm.minAdvanceNotice} onChange={e => setRuleForm({ ...ruleForm, minAdvanceNotice: parseInt(e.target.value) || 0 })} className={inputClass} />
+                      </div>
+                      <Toggle label="Encashment Allowed" checked={ruleForm.encashmentAllowed} onChange={() => setRuleForm({ ...ruleForm, encashmentAllowed: !ruleForm.encashmentAllowed })} />
+                      <Toggle label="Probation Restriction" checked={ruleForm.probationRestriction} onChange={() => setRuleForm({ ...ruleForm, probationRestriction: !ruleForm.probationRestriction })} />
+                      <div>
+                        <label className="block text-xs font-medium text-thb-text-secondary mb-1">Probation Period (months)</label>
+                        <input type="number" min={0} value={ruleForm.probationMonths} onChange={e => setRuleForm({ ...ruleForm, probationMonths: parseInt(e.target.value) || 0 })} className={inputClass} />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* ── Leave Type Allocation (Mapping) ── */}
+                  <div className="space-y-4 pt-4 border-t border-thb-border">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-semibold text-thb-text-primary flex items-center gap-2">
+                        <FiLink className="w-4 h-4 text-teal-500" /> Leave Type Allocation
+                      </h3>
+                      <span className="text-xs text-thb-text-muted">Map leave types to this rule with their quotas</span>
+                    </div>
+                    {leaveTypesLoading ? (
+                      <div className="flex items-center gap-2 text-sm text-thb-text-muted"><FiRefreshCw className="w-4 h-4 animate-spin" /> Loading leave types...</div>
+                    ) : leaveTypes.length === 0 ? (
+                      <div className="text-sm text-thb-text-muted bg-slate-50 rounded-lg p-4">No leave types configured. Create leave types first in Settings → Leave Types.</div>
+                    ) : (
+                      <div className="space-y-2">
+                        {ruleForm.leaveTypeAllocations.map((alloc, idx) => (
+                          <div key={idx} className="flex items-center gap-3 bg-slate-50 rounded-lg p-3">
+                            <div className="flex-1">
+                              <p className="text-sm font-medium text-thb-text-primary">{alloc.leaveTypeName}</p>
+                              <p className="text-xs text-thb-text-muted">{alloc.leaveTypeId}</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <label className="text-xs text-thb-text-muted">Quota:</label>
+                              <input type="number" min={0} value={alloc.quota} onChange={e => {
+                                const newAllocs = [...ruleForm.leaveTypeAllocations];
+                                newAllocs[idx] = { ...alloc, quota: parseInt(e.target.value) || 0 };
+                                setRuleForm({ ...ruleForm, leaveTypeAllocations: newAllocs });
+                              }} className="w-20 px-2 py-1 rounded border border-thb-border text-sm" />
+                            </div>
+                            <Toggle label="CF" checked={alloc.carryForward} onChange={() => {
+                              const newAllocs = [...ruleForm.leaveTypeAllocations];
+                              newAllocs[idx] = { ...alloc, carryForward: !alloc.carryForward };
+                              setRuleForm({ ...ruleForm, leaveTypeAllocations: newAllocs });
+                            }} />
+                            <div>
+                              <label className="text-xs text-thb-text-muted">Max CF:</label>
+                              <input type="number" min={0} value={alloc.maxCarryForward} onChange={e => {
+                                const newAllocs = [...ruleForm.leaveTypeAllocations];
+                                newAllocs[idx] = { ...alloc, maxCarryForward: parseInt(e.target.value) || 0 };
+                                setRuleForm({ ...ruleForm, leaveTypeAllocations: newAllocs });
+                              }} className="w-16 px-2 py-1 rounded border border-thb-border text-sm" />
+                            </div>
+                            <button type="button" onClick={() => {
+                              setRuleForm({ ...ruleForm, leaveTypeAllocations: ruleForm.leaveTypeAllocations.filter((_, i) => i !== idx) });
+                            }} className="p-1.5 rounded-lg text-red-500 hover:bg-red-50"><FiX className="w-4 h-4" /></button>
+                          </div>
+                        ))}
+                        {/* Add leave type dropdown */}
+                        <div className="relative">
+                          <select
+                            value=""
+                            onChange={e => {
+                              if (!e.target.value) return;
+                              const lt = leaveTypes.find(l => l.id === e.target.value);
+                              if (lt && !ruleForm.leaveTypeAllocations.some(a => a.leaveTypeId === lt.id)) {
+                                setRuleForm({
+                                  ...ruleForm,
+                                  leaveTypeAllocations: [...ruleForm.leaveTypeAllocations, {
+                                    leaveTypeId: lt.id,
+                                    leaveTypeName: lt.name,
+                                    quota: lt.defaultDays || 0,
+                                    carryForward: false,
+                                    maxCarryForward: 0,
+                                  }],
+                                });
+                              }
+                            }}
+                            className={selectClass}
+                          >
+                            <option value="">+ Add leave type to this rule...</option>
+                            {leaveTypes.filter(lt => !ruleForm.leaveTypeAllocations.some(a => a.leaveTypeId === lt.id)).map(lt => (
+                              <option key={lt.id} value={lt.id}>{lt.name} ({lt.code}) — {lt.defaultDays} days/year</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
                   {/* Actions */}
                   <div className="flex items-center justify-end gap-3 pt-4 border-t border-thb-border">
                     <button type="button" onClick={handleCancelRuleForm} className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
@@ -1018,462 +1117,8 @@ function LeavePolicyPageContent() {
         </>
       )}
 
-      {/* ═══════════════════════════════════════════════════════ */}
-      {/* TAB 3: Leave Type Mapping                               */}
-      {/* ═══════════════════════════════════════════════════════ */}
-      {activeTab === 'mapping' && (
-        <div className="space-y-6">
-          {/* Rule Selector */}
-          <div className="thb-card p-5">
-            <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4">
-              <div className="flex-1 w-full">
-                <label className="block text-sm font-medium text-thb-text-primary mb-1.5">Select Policy Rule</label>
-                <select
-                  value={selectedRuleId}
-                  onChange={e => setSelectedRuleId(e.target.value)}
-                  className={selectClass}
-                >
-                  <option value="">— Choose a rule to map leave types —</option>
-                  {rules.filter(r => r.status === 'active').map(rule => (
-                    <option key={rule.id} value={rule.id}>
-                      {rule.name} ({formatEmploymentType(rule.employmentType)} • {rule.branch?.name || 'All branches'} • {rule.department?.name || 'All depts'})
-                    </option>
-                  ))}
-                </select>
-              </div>
-              {selectedRuleId && (
-                <div className="flex items-center gap-2 text-sm text-thb-text-secondary">
-                  <FiLayers className="w-4 h-4 text-teal-500" />
-                  <span>{allocations.length} leave type{allocations.length !== 1 ? 's' : ''} mapped</span>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Rule Info */}
-          {selectedRuleId && (() => {
-            const selectedRule = rules.find(r => r.id === selectedRuleId)
-            if (!selectedRule) return null
-            const linkedPolicy = categoryPolicies.find(p => p.id === selectedRule.policyId)
-            return (
-              <div className="thb-card border-l-4 border-l-teal-500 p-4">
-                <div className="flex flex-wrap gap-4 text-sm">
-                  <div>
-                    <span className="text-thb-text-muted">Rule:</span>{' '}
-                    <span className="font-medium text-thb-text-primary">{selectedRule.name}</span>
-                  </div>
-                  <div>
-                    <span className="text-thb-text-muted">Applies to:</span>{' '}
-                    <span className="font-medium text-thb-text-primary">{formatEmploymentType(selectedRule.employmentType)}</span>
-                  </div>
-                  <div>
-                    <span className="text-thb-text-muted">Branch:</span>{' '}
-                    <span className="font-medium text-thb-text-primary">{selectedRule.branch?.name || 'All'}</span>
-                  </div>
-                  <div>
-                    <span className="text-thb-text-muted">Department:</span>{' '}
-                    <span className="font-medium text-thb-text-primary">{selectedRule.department?.name || 'All'}</span>
-                  </div>
-                  {linkedPolicy && (
-                    <div>
-                      <span className="text-thb-text-muted">Policy:</span>{' '}
-                      <span className="font-medium text-thb-text-primary">{linkedPolicy.title}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )
-          })()}
-
-          {/* Mapping Table */}
-          {selectedRuleId ? (
-            <div className="thb-card overflow-hidden">
-              <div className="px-4 py-3 border-b border-thb-border bg-slate-50/50 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <FiLink className="w-4 h-4 text-teal-500" />
-                  <h3 className="text-sm font-semibold text-thb-text-primary">Leave Type Allocations</h3>
-                  <span className="text-xs text-thb-text-muted">({allocations.length})</span>
-                </div>
-                {isRoleAdmin && (
-                  <div className="relative">
-                    <AddLeaveTypeDropdown
-                      leaveTypes={leaveTypes}
-                      existingIds={allocations.map(a => a.leaveTypeId)}
-                      onAdd={addAllocation}
-                    />
-                  </div>
-                )}
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr>
-                      <TH>Leave Type</TH>
-                      <TH>Annual Quota (Days)</TH>
-                      <TH>Carry Forward</TH>
-                      <TH>Max Carry Forward</TH>
-                      {isRoleAdmin && <TH className="text-right">Actions</TH>}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {allocations.length === 0 ? (
-                      <tr>
-                        <td colSpan={isRoleAdmin ? 5 : 4} className="px-4 py-12 text-center">
-                          <FiLayers className="w-10 h-10 text-thb-text-muted mx-auto mb-3" />
-                          <p className="text-thb-text-secondary font-medium">No leave types mapped yet</p>
-                          <p className="text-xs text-thb-text-muted mt-1">Click &quot;Add Leave Type&quot; to map leave types to this rule</p>
-                        </td>
-                      </tr>
-                    ) : allocations.map(alloc => (
-                      <tr key={alloc.leaveTypeId} className="hover:bg-slate-50/50 transition-colors">
-                        <TD className="font-medium text-thb-text-primary">
-                          <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-lg bg-teal-50 flex items-center justify-center">
-                              <FiCalendar className="w-4 h-4 text-teal-500" />
-                            </div>
-                            {alloc.leaveTypeName}
-                          </div>
-                        </TD>
-                        <TD>
-                          {isRoleAdmin ? (
-                            <input
-                              type="number"
-                              value={alloc.quota}
-                              onChange={e => updateAllocation(alloc.leaveTypeId, 'quota', Math.max(0, Number(e.target.value)))}
-                              min={0}
-                              className="w-24 px-2 py-1.5 border border-thb-border rounded-lg text-sm text-thb-text-primary focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400"
-                            />
-                          ) : (
-                            <span className="font-medium">{alloc.quota}</span>
-                          )}
-                        </TD>
-                        <TD>
-                          {isRoleAdmin ? (
-                            <button
-                              onClick={() => updateAllocation(alloc.leaveTypeId, 'carryForward', !alloc.carryForward)}
-                              className="flex items-center gap-1.5 text-sm"
-                            >
-                              {alloc.carryForward
-                                ? <><FiToggleRight className="w-5 h-5 text-green-500" /><span className="text-green-600 font-medium text-xs">Yes</span></>
-                                : <><FiToggleLeft className="w-5 h-5 text-slate-400" /><span className="text-slate-400 font-medium text-xs">No</span></>
-                              }
-                            </button>
-                          ) : (
-                            <span className={alloc.carryForward ? 'text-green-600 font-medium' : 'text-slate-400'}>{alloc.carryForward ? 'Yes' : 'No'}</span>
-                          )}
-                        </TD>
-                        <TD>
-                          {alloc.carryForward ? (
-                            isRoleAdmin ? (
-                              <input
-                                type="number"
-                                value={alloc.maxCarryForward}
-                                onChange={e => updateAllocation(alloc.leaveTypeId, 'maxCarryForward', Math.max(0, Number(e.target.value)))}
-                                min={0}
-                                className="w-24 px-2 py-1.5 border border-thb-border rounded-lg text-sm text-thb-text-primary focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400"
-                              />
-                            ) : (
-                              <span className="font-medium">{alloc.maxCarryForward}</span>
-                            )
-                          ) : (
-                            <span className="text-thb-text-muted">—</span>
-                          )}
-                        </TD>
-                        {isRoleAdmin && (
-                          <TD className="text-right">
-                            <button
-                              onClick={() => removeAllocation(alloc.leaveTypeId)}
-                              className="p-1.5 rounded-lg text-thb-text-muted hover:text-red-500 hover:bg-red-50 transition-colors"
-                              title="Remove"
-                            >
-                              <FiTrash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </TD>
-                        )}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              {/* Save bar */}
-              {allocations.length > 0 && isRoleAdmin && (
-                <div className="px-4 py-3 border-t border-thb-border bg-slate-50/50 flex items-center justify-end">
-                  <button
-                    onClick={handleSaveMapping}
-                    disabled={mappingSaving}
-                    className="inline-flex items-center gap-2 px-5 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50 transition-colors"
-                  >
-                    <FiSave className="w-4 h-4" />
-                    {mappingSaving ? 'Saving...' : 'Save Mapping'}
-                  </button>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="thb-card p-12 text-center">
-              <FiLink className="w-12 h-12 text-thb-text-muted mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-thb-text-primary mb-2">Select a Policy Rule</h3>
-              <p className="text-sm text-thb-text-secondary max-w-md mx-auto">
-                Choose a policy rule above to view and manage its leave type mappings. Each rule defines which leave types apply and their quotas for a specific group of employees.
-              </p>
-            </div>
-          )}
-
-          {/* Available Leave Types Reference */}
-          {selectedRuleId && (
-            <div className="thb-card overflow-hidden">
-              <div className="px-4 py-3 border-b border-thb-border bg-slate-50/50 flex items-center gap-2">
-                <FiLayers className="w-4 h-4 text-emerald-500" />
-                <h3 className="text-sm font-semibold text-thb-text-primary">Available Leave Types</h3>
-                <span className="text-xs text-thb-text-muted">({leaveTypes.length} total)</span>
-              </div>
-              {leaveTypesLoading ? (
-                <div className="flex items-center justify-center py-8"><FiSettings className="w-6 h-6 animate-spin text-teal-400" /></div>
-              ) : leaveTypes.length === 0 ? (
-                <div className="px-4 py-8 text-center">
-                  <p className="text-sm text-thb-text-secondary">No leave types configured. Create leave types first.</p>
-                </div>
-              ) : (
-                <div className="p-4">
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-                    {leaveTypes.map(lt => {
-                      const isMapped = allocations.some(a => a.leaveTypeId === lt.id)
-                      return (
-                        <div
-                          key={lt.id}
-                          className={`p-3 rounded-lg border text-center transition-colors ${
-                            isMapped
-                              ? 'border-teal-200 bg-teal-50/50'
-                              : 'border-thb-border bg-white hover:border-teal-300 hover:bg-teal-50/30'
-                          }`}
-                        >
-                          <div className="flex items-center justify-center mb-1.5">
-                            {isMapped ? (
-                              <FiCheck className="w-4 h-4 text-teal-500" />
-                            ) : (
-                              <FiPlus className="w-4 h-4 text-slate-400" />
-                            )}
-                          </div>
-                          <p className="text-xs font-semibold text-thb-text-primary truncate">{lt.name}</p>
-                          <p className="text-xs text-thb-text-muted">{lt.code} • {lt.defaultDays}d</p>
-                          {!isMapped && isRoleAdmin && (
-                            <button
-                              onClick={() => addAllocation(lt)}
-                              className="mt-2 px-2 py-1 text-xs font-medium rounded-md bg-teal-500 text-white hover:bg-teal-600 transition-colors"
-                            >
-                              Add
-                            </button>
-                          )}
-                          {isMapped && (
-                            <span className="mt-2 inline-block px-2 py-1 text-xs font-medium rounded-md bg-teal-100 text-teal-700">Mapped</span>
-                          )}
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ═══════════════════════════════════════════════════════ */}
-      {/* TAB 4: Global Config                                    */}
-      {/* ═══════════════════════════════════════════════════════ */}
-      {activeTab === 'config' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Leave Policy Defaults */}
-          <div className="thb-card overflow-hidden">
-            <div className="px-5 py-4 border-b border-thb-border bg-slate-50">
-              <div className="flex items-center gap-2">
-                <FiCalendar className="w-4 h-4 text-emerald-600" />
-                <h3 className="font-semibold text-thb-text-primary">Leave Policy Defaults</h3>
-              </div>
-              <p className="text-xs text-thb-text-muted mt-0.5">Default leave allocation per year for new employees</p>
-            </div>
-            <div className="p-5 space-y-5">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-thb-text-primary mb-1.5">Casual Leave / Year</label>
-                  <input type="number" value={casualLeavePerYear} onChange={(e) => setCasualLeavePerYear(Number(e.target.value))} min={0} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm text-thb-text-primary focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500" />
-                  <p className="text-xs text-thb-text-muted mt-1">Number of casual leaves per year</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-thb-text-primary mb-1.5">Sick Leave / Year</label>
-                  <input type="number" value={sickLeavePerYear} onChange={(e) => setSickLeavePerYear(Number(e.target.value))} min={0} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm text-thb-text-primary focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500" />
-                  <p className="text-xs text-thb-text-muted mt-1">Number of sick leaves per year</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-thb-text-primary mb-1.5">Earned Leave / Year</label>
-                  <input type="number" value={earnedLeavePerYear} onChange={(e) => setEarnedLeavePerYear(Number(e.target.value))} min={0} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm text-thb-text-primary focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500" />
-                  <p className="text-xs text-thb-text-muted mt-1">Number of earned/privilege leaves per year</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-thb-text-primary mb-1.5">Probation Leave Quota</label>
-                  <input type="number" value={probationLeaveQuota} onChange={(e) => setProbationLeaveQuota(Number(e.target.value))} min={0} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm text-thb-text-primary focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500" />
-                  <p className="text-xs text-thb-text-muted mt-1">Leave quota during probation period</p>
-                </div>
-              </div>
-              {/* Leave Encashment */}
-              <div className="flex items-center justify-between pt-4 border-t border-thb-border">
-                <div>
-                  <p className="text-sm font-medium text-thb-text-primary">Leave Encashment</p>
-                  <p className="text-xs text-thb-text-muted mt-0.5">Allow employees to encash unused leaves at the end of the year</p>
-                </div>
-                <button onClick={() => setLeaveEncashment(!leaveEncashment)} className="flex items-center gap-2 text-sm">
-                  {leaveEncashment ? (
-                    <><FiToggleRight className="w-6 h-6 text-emerald-500" /><span className="text-emerald-600 font-medium">Enabled</span></>
-                  ) : (
-                    <><FiToggleLeft className="w-6 h-6 text-slate-400" /><span className="text-slate-400 font-medium">Disabled</span></>
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Accrual & Carry Forward */}
-          <div className="thb-card overflow-hidden">
-            <div className="px-5 py-4 border-b border-thb-border bg-slate-50">
-              <h3 className="font-semibold text-thb-text-primary">Accrual & Carry Forward</h3>
-              <p className="text-xs text-thb-text-muted mt-0.5">Configure how leaves accrue and carry over</p>
-            </div>
-            <div className="p-5 space-y-5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-thb-text-primary">Carry Forward</p>
-                  <p className="text-xs text-thb-text-muted mt-0.5">Allow unused leaves to carry forward to next year</p>
-                </div>
-                <button onClick={() => setCarryForward(!carryForward)} className="flex items-center gap-2 text-sm">
-                  {carryForward ? (
-                    <><FiToggleRight className="w-6 h-6 text-green-500" /><span className="text-green-600 font-medium">Enabled</span></>
-                  ) : (
-                    <><FiToggleLeft className="w-6 h-6 text-slate-400" /><span className="text-slate-400 font-medium">Disabled</span></>
-                  )}
-                </button>
-              </div>
-              {carryForward && (
-                <div className="pl-4 border-l-2 border-green-200">
-                  <label className="block text-sm font-medium text-thb-text-primary mb-1.5">Max Carry Forward Days</label>
-                  <input type="number" value={maxCarryForward} onChange={(e) => setMaxCarryForward(Number(e.target.value))} min={0} className="w-full max-w-[200px] px-3 py-2 border border-thb-border rounded-lg text-sm text-thb-text-primary focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500" />
-                  <p className="text-xs text-thb-text-muted mt-1">Maximum number of leave days that can be carried forward</p>
-                </div>
-              )}
-              <div className="flex items-center justify-between pt-4 border-t border-thb-border">
-                <div>
-                  <p className="text-sm font-medium text-thb-text-primary">Pro-rate on Joining</p>
-                  <p className="text-xs text-thb-text-muted mt-0.5">Calculate leave quota proportionally based on joining date</p>
-                </div>
-                <button onClick={() => setProRateJoining(!proRateJoining)} className="flex items-center gap-2 text-sm">
-                  {proRateJoining ? (
-                    <><FiToggleRight className="w-6 h-6 text-green-500" /><span className="text-green-600 font-medium">Enabled</span></>
-                  ) : (
-                    <><FiToggleLeft className="w-6 h-6 text-slate-400" /><span className="text-slate-400 font-medium">Disabled</span></>
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Leave Rules */}
-          <div className="thb-card overflow-hidden lg:col-span-2">
-            <div className="px-5 py-4 border-b border-thb-border bg-slate-50">
-              <h3 className="font-semibold text-thb-text-primary">Leave Rules</h3>
-              <p className="text-xs text-thb-text-muted mt-0.5">Define leave application rules and restrictions</p>
-            </div>
-            <div className="p-5">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-thb-text-primary">Sandwich Rule</p>
-                    <p className="text-xs text-thb-text-muted mt-0.5">Count weekends/holidays between leave dates as leave days</p>
-                  </div>
-                  <button onClick={() => setSandwichRule(!sandwichRule)} className="flex items-center gap-2 text-sm">
-                    {sandwichRule ? (
-                      <><FiToggleRight className="w-6 h-6 text-amber-500" /><span className="text-amber-600 font-medium">On</span></>
-                    ) : (
-                      <><FiToggleLeft className="w-6 h-6 text-slate-400" /><span className="text-slate-400 font-medium">Off</span></>
-                    )}
-                  </button>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-thb-text-primary mb-1.5">Min Advance Notice (Days)</label>
-                  <input type="number" value={minAdvanceNotice} onChange={(e) => setMinAdvanceNotice(Number(e.target.value))} min={0} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm text-thb-text-primary focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500" />
-                  <p className="text-xs text-thb-text-muted mt-1">Minimum days before leave start date that application must be submitted</p>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-thb-text-primary">Probation Restriction</p>
-                    <p className="text-xs text-thb-text-muted mt-0.5">Restrict leave usage during probation period</p>
-                  </div>
-                  <button onClick={() => setProbationRestriction(!probationRestriction)} className="flex items-center gap-2 text-sm">
-                    {probationRestriction ? (
-                      <><FiToggleRight className="w-6 h-6 text-green-500" /><span className="text-green-600 font-medium">On</span></>
-                    ) : (
-                      <><FiToggleLeft className="w-6 h-6 text-slate-400" /><span className="text-slate-400 font-medium">Off</span></>
-                    )}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-/* ── Add Leave Type Dropdown Component ── */
-function AddLeaveTypeDropdown({
-  leaveTypes,
-  existingIds,
-  onAdd,
-}: {
-  leaveTypes: LeaveType[];
-  existingIds: string[];
-  onAdd: (lt: LeaveType) => void;
-}) {
-  const [open, setOpen] = useState(false)
-  const available = leaveTypes.filter(lt => !existingIds.includes(lt.id))
-
-  return (
-    <div className="relative">
-      <button
-        onClick={() => setOpen(!open)}
-        className="inline-flex items-center gap-2 px-3 py-2 bg-teal-500 text-white rounded-lg text-sm font-medium hover:bg-teal-600 transition-colors"
-      >
-        <FiPlus className="w-4 h-4" /> Add Leave Type
-        <FiChevronDown className="w-3 h-3" />
-      </button>
-      {open && (
-        <>
-          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-full mt-2 z-20 w-64 max-h-72 overflow-y-auto bg-white rounded-lg shadow-lg border border-thb-border">
-            <div className="px-3 py-2 border-b border-thb-border bg-slate-50">
-              <p className="text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">
-                Available Leave Types ({available.length})
-              </p>
-            </div>
-            {available.length === 0 ? (
-              <div className="px-3 py-4 text-center">
-                <p className="text-xs text-thb-text-muted">All leave types already mapped</p>
-              </div>
-            ) : available.map(lt => (
-              <button
-                key={lt.id}
-                onClick={() => { onAdd(lt); setOpen(false) }}
-                className="w-full px-3 py-2.5 text-left hover:bg-teal-50 transition-colors flex items-center justify-between group"
-              >
-                <div>
-                  <p className="text-sm font-medium text-thb-text-primary">{lt.name}</p>
-                  <p className="text-xs text-thb-text-muted">{lt.code} • {lt.defaultDays} days/year</p>
-                </div>
-                <FiPlus className="w-4 h-4 text-slate-400 group-hover:text-teal-500" />
-              </button>
-            ))}
-          </div>
-        </>
-      )}
+      {/* Note: Leave Type Mapping and Global Config are now merged into the Policy Rules tab */}
+      {/* (previously separate tabs — now consolidated per user request) */}
     </div>
   )
 }
