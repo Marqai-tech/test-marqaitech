@@ -100,7 +100,6 @@ export default function EmployeeDashboardPage() {
     terminations: 0,
     rejoins: 0,
   });
-  const [debugInfo, setDebugInfo] = useState<any>(null);
   const [departments, setDepartments] = useState<DepartmentDist[]>([]);
   const [recentUpdates, setRecentUpdates] = useState<RecentUpdate[]>([]);
   const [headcountTrend, setHeadcountTrend] = useState<HeadcountTrend[]>([]);
@@ -137,12 +136,6 @@ export default function EmployeeDashboardPage() {
       const statsRes = await fetch(`/api/employees?limit=1&page=1${scopeQuery}`, { headers });
       if (statsRes.ok) {
         const statsData = await statsRes.json();
-        setDebugInfo({
-          cid, tid, scopeQuery,
-          total: statsData.pagination?.total,
-          dataScope: statsData.dataScope,
-          debug: statsData._debug,
-        });
         const total = statsData.pagination?.total || 0;
 
         // Fetch all employees for detailed stats (use pagination total for count)
@@ -420,13 +413,6 @@ export default function EmployeeDashboardPage() {
 
   return (
     <div className="space-y-6">
-      {/* ── DEBUG BANNER ── */}
-      {debugInfo && (
-        <div className="thb-card p-4 bg-amber-50 border-amber-200 text-xs font-mono">
-          <p className="font-bold text-amber-800 mb-2">DEBUG:</p>
-          <pre className="whitespace-pre-wrap text-amber-900">{JSON.stringify(debugInfo, null, 2)}</pre>
-        </div>
-      )}
       {/* ── Header ── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
