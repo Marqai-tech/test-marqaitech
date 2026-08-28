@@ -81,12 +81,11 @@ interface AttendancePolicyRule {
 }
 
 // ─── Tab types ──────────────────────────────────────────────────────
-type TabKey = 'documents' | 'rules' | 'config';
+type TabKey = 'documents' | 'rules';
 
 const TABS: { key: TabKey; label: string; icon: React.ReactNode }[] = [
   { key: 'documents', label: 'Policy Documents', icon: <FiBookOpen className="w-4 h-4" /> },
-  { key: 'rules', label: 'Policy Rules', icon: <FiList className="w-4 h-4" /> },
-  { key: 'config', label: 'Global Config', icon: <FiSliders className="w-4 h-4" /> },
+  { key: 'rules', label: 'Policy Rules & Configuration', icon: <FiList className="w-4 h-4" /> },
 ];
 
 const EMPLOYMENT_TYPES = [
@@ -125,7 +124,7 @@ function AttendanceSettingsContent() {
   const router = useRouter()
 
   const tabFromUrl = searchParams.get('tab') as TabKey | null
-  const validTabs: TabKey[] = ['documents', 'rules', 'config']
+  const validTabs: TabKey[] = ['documents', 'rules']
   const defaultTab = (tabFromUrl && validTabs.includes(tabFromUrl)) ? tabFromUrl : 'documents'
   const [activeTab, setActiveTab] = useState<TabKey>(defaultTab);
 
@@ -179,7 +178,6 @@ function AttendanceSettingsContent() {
       {/* Tab Content */}
       {activeTab === 'documents' && <PolicyDocumentsTab />}
       {activeTab === 'rules' && <PolicyRulesTab companyId={companyId} scopeQuery={scopeQuery} />}
-      {activeTab === 'config' && <GlobalConfigTab companyId={companyId} scopeQuery={scopeQuery} />}
     </div>
   );
 }
@@ -699,6 +697,77 @@ function PolicyRulesTab({ companyId, scopeQuery }: { companyId: string; scopeQue
                 </div>
               </div>
 
+              {/* ── Global Attendance Configuration (merged from Global Config tab) ── */}
+              <div className="space-y-4 pt-4 border-t border-thb-border">
+                <h3 className="text-sm font-semibold text-thb-text-primary flex items-center gap-2">
+                  <FiSliders className="w-4 h-4 text-teal-500" /> Attendance Configuration
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-thb-text-secondary mb-1">Late Grace (minutes)</label>
+                    <input type="number" min={0} value={form.lateGraceMinutes} onChange={e => setForm({ ...form, lateGraceMinutes: Number(e.target.value) })} className={inputCls} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-thb-text-secondary mb-1">Early Grace (minutes)</label>
+                    <input type="number" min={0} value={form.earlyGraceMinutes} onChange={e => setForm({ ...form, earlyGraceMinutes: Number(e.target.value) })} className={inputCls} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-thb-text-secondary mb-1">Half Day After (minutes late)</label>
+                    <input type="number" min={0} value={form.halfDayAfterMinutes} onChange={e => setForm({ ...form, halfDayAfterMinutes: Number(e.target.value) })} className={inputCls} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-thb-text-secondary mb-1">Late Mark Allowance (per month)</label>
+                    <input type="number" min={0} value={form.lateMarkAllowancePerMonth} onChange={e => setForm({ ...form, lateMarkAllowancePerMonth: Number(e.target.value) })} className={inputCls} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-thb-text-secondary mb-1">Overtime Threshold (minutes)</label>
+                    <input type="number" min={0} value={form.overtimeThresholdMinutes} onChange={e => setForm({ ...form, overtimeThresholdMinutes: Number(e.target.value) })} className={inputCls} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-thb-text-secondary mb-1">Gate Pass Max (per month)</label>
+                    <input type="number" min={0} value={form.gatePassMaxPerMonth} onChange={e => setForm({ ...form, gatePassMaxPerMonth: Number(e.target.value) })} className={inputCls} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-thb-text-secondary mb-1">Break Duration (minutes)</label>
+                    <input type="number" min={0} value={form.breakDurationMinutes} onChange={e => setForm({ ...form, breakDurationMinutes: Number(e.target.value) })} className={inputCls} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-thb-text-secondary mb-1">Gate Pass Early Hours</label>
+                    <input type="number" min={0} value={form.gatePassEarlyHours} onChange={e => setForm({ ...form, gatePassEarlyHours: Number(e.target.value) })} className={inputCls} />
+                  </div>
+                  <div className="flex items-center gap-2 pt-5">
+                    <button type="button" onClick={() => setForm({ ...form, lateMarkHalfDayOnExceed: !form.lateMarkHalfDayOnExceed })} className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${form.lateMarkHalfDayOnExceed ? 'bg-teal-500' : 'bg-slate-200'}`}>
+                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${form.lateMarkHalfDayOnExceed ? 'translate-x-6' : 'translate-x-1'}`} />
+                    </button>
+                    <span className="text-xs font-medium text-thb-text-secondary">Half Day on Late Exceed</span>
+                  </div>
+                  <div className="flex items-center gap-2 pt-5">
+                    <button type="button" onClick={() => setForm({ ...form, autoOvertimeEnabled: !form.autoOvertimeEnabled })} className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${form.autoOvertimeEnabled ? 'bg-teal-500' : 'bg-slate-200'}`}>
+                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${form.autoOvertimeEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                    </button>
+                    <span className="text-xs font-medium text-thb-text-secondary">Auto Overtime</span>
+                  </div>
+                  <div className="flex items-center gap-2 pt-5">
+                    <button type="button" onClick={() => setForm({ ...form, gatePassHalfDayOnExceed: !form.gatePassHalfDayOnExceed })} className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${form.gatePassHalfDayOnExceed ? 'bg-teal-500' : 'bg-slate-200'}`}>
+                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${form.gatePassHalfDayOnExceed ? 'translate-x-6' : 'translate-x-1'}`} />
+                    </button>
+                    <span className="text-xs font-medium text-thb-text-secondary">Gate Pass Half Day on Exceed</span>
+                  </div>
+                  <div className="flex items-center gap-2 pt-5">
+                    <button type="button" onClick={() => setForm({ ...form, lateMarkNotApplicableOnTour: !form.lateMarkNotApplicableOnTour })} className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${form.lateMarkNotApplicableOnTour ? 'bg-teal-500' : 'bg-slate-200'}`}>
+                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${form.lateMarkNotApplicableOnTour ? 'translate-x-6' : 'translate-x-1'}`} />
+                    </button>
+                    <span className="text-xs font-medium text-thb-text-secondary">Late Mark N/A on Tour</span>
+                  </div>
+                  <div className="flex items-center gap-2 pt-5">
+                    <button type="button" onClick={() => setForm({ ...form, gatePassHalfDayNextDay: !form.gatePassHalfDayNextDay })} className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${form.gatePassHalfDayNextDay ? 'bg-teal-500' : 'bg-slate-200'}`}>
+                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${form.gatePassHalfDayNextDay ? 'translate-x-6' : 'translate-x-1'}`} />
+                    </button>
+                    <span className="text-xs font-medium text-thb-text-secondary">Gate Pass Half Day Next Day</span>
+                  </div>
+                </div>
+              </div>
+
               {/* Form Actions */}
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-thb-border">
                 <button type="button" onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
@@ -784,395 +853,6 @@ function PolicyRulesTab({ companyId, scopeQuery }: { companyId: string; scopeQue
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════════
-//  TAB 3: Global Config (identical to existing settings page)
-// ═══════════════════════════════════════════════════════════════════
-function GlobalConfigTab({ companyId, scopeQuery }: { companyId: string; scopeQuery: () => string }) {
-  const { user } = useAuthStore();
-  const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
-
-  // Attendance Tracking Settings (moved from Company Settings)
-  const [enableBiometric, setEnableBiometric] = useState(false);
-  const [enableGeoFencing, setEnableGeoFencing] = useState(true);
-  const [enableSelfieAttendance, setEnableSelfieAttendance] = useState(false);
-  const [lateGraceMinutes, setLateGraceMinutes] = useState(15);
-  const [halfDayThreshold, setHalfDayThreshold] = useState(4);
-  const [markAbsentAfter, setMarkAbsentAfter] = useState(2);
-
-  // Policy Config (from AttendancePolicyConfig API)
-  const [config, setConfig] = useState<PolicyConfig | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-
-  const fetchConfig = async () => {
-    setLoading(true);
-    try {
-      const sq = scopeQuery();
-      const r = await fetch(`/api/attendance-policy-config${sq ? `?${sq}` : ''}`, { headers: getAuthHeaders() });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.error || 'Failed');
-      setConfig(d.config);
-    } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : 'Failed to load policy config');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { fetchConfig(); }, []);
-
-  const handleSave = async () => {
-    setSaving(true);
-    try {
-      if (config) {
-        const r = await fetch('/api/attendance-policy-config', {
-          method: 'PUT',
-          headers: getAuthHeaders(),
-          body: JSON.stringify(config),
-        });
-        const d = await r.json();
-        if (!r.ok) throw new Error(d.error || 'Failed');
-        setConfig(d.config);
-      }
-      toast.success('Attendance settings saved successfully');
-    } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : 'Failed to save');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  if (!isAdmin) {
-    return (
-      <div className="text-center py-12">
-        <FiSettings className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-        <p className="text-slate-500">Attendance settings are restricted to HR admins.</p>
-      </div>
-    );
-  }
-
-  if (loading || !config) return <div className="text-center py-12 text-slate-400">Loading...</div>;
-
-  const update = (k: keyof PolicyConfig, v: unknown) => setConfig({ ...config, [k]: v });
-
-  return (
-    <div className="space-y-6">
-      {/* Save Button Row */}
-      <div className="flex items-center justify-end">
-        <button onClick={handleSave} disabled={saving} className="inline-flex items-center gap-2 px-4 py-2.5 bg-teal-600 text-white rounded-lg text-sm font-medium hover:bg-teal-700 disabled:opacity-50 transition-colors">
-          {saving ? <FiRefreshCw className="w-4 h-4 animate-spin" /> : <FiSave className="w-4 h-4" />}
-          Save Settings
-        </button>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Attendance Tracking */}
-        <div className="thb-card overflow-hidden">
-          <div className="px-5 py-4 border-b border-thb-border bg-slate-50">
-            <div className="flex items-center gap-2">
-              <FiMonitor className="w-4 h-4 text-teal-600" />
-              <h3 className="font-semibold text-thb-text-primary">Attendance Tracking</h3>
-            </div>
-            <p className="text-xs text-thb-text-muted mt-0.5">Check-in methods and tracking rules</p>
-          </div>
-          <div className="p-5 space-y-5">
-            {/* Biometric */}
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-thb-text-primary">Biometric Attendance</p>
-                <p className="text-xs text-thb-text-muted mt-0.5">Use biometric devices for attendance</p>
-              </div>
-              <button onClick={() => setEnableBiometric(!enableBiometric)} className="flex items-center gap-2 text-sm">
-                {enableBiometric ? (
-                  <><FiMonitor className="w-5 h-5 text-teal-500" /><span className="text-teal-600 font-medium">On</span></>
-                ) : (
-                  <span className="text-slate-400 font-medium">Off</span>
-                )}
-              </button>
-            </div>
-
-            {/* Geo-Fencing */}
-            <div className="flex items-center justify-between pt-4 border-t border-thb-border">
-              <div className="flex items-center gap-2">
-                <FiMapPin className="w-4 h-4 text-slate-400" />
-                <div>
-                  <p className="text-sm font-medium text-thb-text-primary">Geo-Fencing</p>
-                  <p className="text-xs text-thb-text-muted mt-0.5">Restrict check-in to office location radius</p>
-                </div>
-              </div>
-              <button onClick={() => setEnableGeoFencing(!enableGeoFencing)} className="flex items-center gap-2 text-sm">
-                {enableGeoFencing ? (
-                  <><FiMapPin className="w-5 h-5 text-emerald-500" /><span className="text-emerald-600 font-medium">On</span></>
-                ) : (
-                  <span className="text-slate-400 font-medium">Off</span>
-                )}
-              </button>
-            </div>
-
-            {/* Selfie Attendance */}
-            <div className="flex items-center justify-between pt-4 border-t border-thb-border">
-              <div className="flex items-center gap-2">
-                <FiCamera className="w-4 h-4 text-slate-400" />
-                <div>
-                  <p className="text-sm font-medium text-thb-text-primary">Selfie Attendance</p>
-                  <p className="text-xs text-thb-text-muted mt-0.5">Require selfie during check-in/check-out</p>
-                </div>
-              </div>
-              <button onClick={() => setEnableSelfieAttendance(!enableSelfieAttendance)} className="flex items-center gap-2 text-sm">
-                {enableSelfieAttendance ? (
-                  <><FiCamera className="w-5 h-5 text-green-500" /><span className="text-green-600 font-medium">On</span></>
-                ) : (
-                  <span className="text-slate-400 font-medium">Off</span>
-                )}
-              </button>
-            </div>
-
-            {/* Grace Period */}
-            <div className="pt-4 border-t border-thb-border">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-thb-text-primary mb-1.5">Late Grace (min)</label>
-                  <input type="number" value={lateGraceMinutes} onChange={e => setLateGraceMinutes(Number(e.target.value))} min={0} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-thb-text-primary mb-1.5">Half Day (hrs)</label>
-                  <input type="number" value={halfDayThreshold} onChange={e => setHalfDayThreshold(Number(e.target.value))} min={0} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-thb-text-primary mb-1.5">Absent After (late days)</label>
-                  <input type="number" value={markAbsentAfter} onChange={e => setMarkAbsentAfter(Number(e.target.value))} min={0} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20" />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Policy Config */}
-        <div className="thb-card overflow-hidden">
-          <div className="px-5 py-4 border-b border-thb-border bg-slate-50">
-            <div className="flex items-center gap-2">
-              <FiClock className="w-4 h-4 text-emerald-600" />
-              <h3 className="font-semibold text-thb-text-primary">Attendance Policy</h3>
-            </div>
-            <p className="text-xs text-thb-text-muted mt-0.5">Rounding rules, grace periods, overtime and auto-approval</p>
-          </div>
-          <div className="p-5 space-y-5">
-            {/* Policy Name */}
-            <div>
-              <label className="block text-sm font-medium text-thb-text-primary mb-1.5">Policy Name</label>
-              <input type="text" value={config.name} onChange={e => update('name', e.target.value)} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20" />
-            </div>
-
-            {/* Rounding */}
-            <div className="pt-4 border-t border-thb-border">
-              <h4 className="text-xs font-semibold text-thb-text-muted uppercase tracking-wider mb-3">Time Rounding</h4>
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-sm font-medium text-thb-text-primary">Round Clock Times</p>
-                <Toggle checked={config.roundEnabled} onChange={() => update('roundEnabled', !config.roundEnabled)} />
-              </div>
-              {config.roundEnabled && (
-                <div className="grid grid-cols-2 gap-3 pl-4 border-l-2 border-teal-200">
-                  <div>
-                    <label className="block text-xs text-thb-text-muted mb-1">Minutes</label>
-                    <select value={config.roundMinutes} onChange={e => update('roundMinutes', Number(e.target.value))} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm">
-                      <option value={5}>5 min</option>
-                      <option value={10}>10 min</option>
-                      <option value={15}>15 min</option>
-                      <option value={30}>30 min</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs text-thb-text-muted mb-1">Direction</label>
-                    <select value={config.roundDirection} onChange={e => update('roundDirection', e.target.value)} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm">
-                      <option value="nearest">Nearest</option>
-                      <option value="up">Up</option>
-                      <option value="down">Down</option>
-                    </select>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Grace Periods */}
-            <div className="pt-4 border-t border-thb-border">
-              <h4 className="text-xs font-semibold text-thb-text-muted uppercase tracking-wider mb-3">Grace Periods</h4>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs text-thb-text-muted mb-1">Late Grace (min)</label>
-                  <input type="number" value={config.lateGraceMinutes} onChange={e => update('lateGraceMinutes', Number(e.target.value))} min={0} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm" />
-                </div>
-                <div>
-                  <label className="block text-xs text-thb-text-muted mb-1">Early Grace (min)</label>
-                  <input type="number" value={config.earlyGraceMinutes} onChange={e => update('earlyGraceMinutes', Number(e.target.value))} min={0} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm" />
-                </div>
-              </div>
-            </div>
-
-            {/* Overtime */}
-            <div className="pt-4 border-t border-thb-border">
-              <h4 className="text-xs font-semibold text-thb-text-muted uppercase tracking-wider mb-3">Overtime</h4>
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-sm font-medium text-thb-text-primary">Auto Overtime Detection</p>
-                <Toggle checked={config.autoOvertimeEnabled} onChange={() => update('autoOvertimeEnabled', !config.autoOvertimeEnabled)} />
-              </div>
-              {config.autoOvertimeEnabled && (
-                <div className="pl-4 border-l-2 border-teal-200">
-                  <label className="block text-xs text-thb-text-muted mb-1">OT Threshold (min)</label>
-                  <input type="number" value={config.overtimeThresholdMinutes} onChange={e => update('overtimeThresholdMinutes', Number(e.target.value))} min={0} className="w-full max-w-[200px] px-3 py-2 border border-thb-border rounded-lg text-sm" />
-                  <p className="text-xs text-thb-text-muted mt-1">Minutes after standard hours before OT kicks in</p>
-                </div>
-              )}
-            </div>
-
-            {/* Auto-Approval */}
-            <div className="pt-4 border-t border-thb-border">
-              <h4 className="text-xs font-semibold text-thb-text-muted uppercase tracking-wider mb-3">Auto-Approval</h4>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs text-thb-text-muted mb-1">Permission (min)</label>
-                  <input type="number" value={config.autoApprovePermissionMinutes} onChange={e => update('autoApprovePermissionMinutes', Number(e.target.value))} min={0} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm" />
-                </div>
-                <div>
-                  <label className="block text-xs text-thb-text-muted mb-1">Min Attendance %</label>
-                  <input type="number" value={config.autoApproveMinAttendancePct} onChange={e => update('autoApproveMinAttendancePct', Number(e.target.value))} min={0} max={100} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm" />
-                </div>
-              </div>
-            </div>
-
-            {/* WFH Monitoring */}
-            <div className="pt-4 border-t border-thb-border">
-              <h4 className="text-xs font-semibold text-thb-text-muted uppercase tracking-wider mb-3">WFH Monitoring</h4>
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-sm font-medium text-thb-text-primary">Activity Monitoring</p>
-                <Toggle checked={config.wfhActivityMonitoringEnabled} onChange={() => update('wfhActivityMonitoringEnabled', !config.wfhActivityMonitoringEnabled)} />
-              </div>
-              {config.wfhActivityMonitoringEnabled && (
-                <div className="pl-4 border-l-2 border-teal-200">
-                  <label className="block text-xs text-thb-text-muted mb-1">Inactivity Threshold (hrs)</label>
-                  <input type="number" value={config.wfhInactivityThresholdHours} onChange={e => update('wfhInactivityThresholdHours', Number(e.target.value))} min={1} className="w-full max-w-[200px] px-3 py-2 border border-thb-border rounded-lg text-sm" />
-                </div>
-              )}
-            </div>
-
-            {/* Late Coming Policy */}
-            <div className="pt-4 border-t border-thb-border">
-              <h4 className="text-xs font-semibold text-thb-text-muted uppercase tracking-wider mb-3">Late Coming Policy</h4>
-              <div className="grid grid-cols-2 gap-3 mb-3">
-                <div>
-                  <label className="block text-xs text-thb-text-muted mb-1">Late Mark Allowance / Month</label>
-                  <input type="number" value={config.lateMarkAllowancePerMonth} onChange={e => update('lateMarkAllowancePerMonth', Number(e.target.value))} min={0} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm" />
-                  <p className="text-[10px] text-thb-text-muted mt-1">Times late allowed per month before penalty</p>
-                </div>
-                <div>
-                  <label className="block text-xs text-thb-text-muted mb-1">Half Day After (min)</label>
-                  <input type="number" value={config.halfDayAfterMinutes} onChange={e => update('halfDayAfterMinutes', Number(e.target.value))} min={0} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm" />
-                  <p className="text-[10px] text-thb-text-muted mt-1">Minutes after shift start = half day (e.g., 81 = 09:21)</p>
-                </div>
-              </div>
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-sm font-medium text-thb-text-primary">Half Day on Exceeding Allowance</p>
-                <Toggle checked={config.lateMarkHalfDayOnExceed} onChange={() => update('lateMarkHalfDayOnExceed', !config.lateMarkHalfDayOnExceed)} />
-              </div>
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-thb-text-primary">Late Mark Not Applicable on Tour/OD</p>
-                <Toggle checked={config.lateMarkNotApplicableOnTour} onChange={() => update('lateMarkNotApplicableOnTour', !config.lateMarkNotApplicableOnTour)} />
-              </div>
-            </div>
-
-            {/* Shift Defaults */}
-            <div className="pt-4 border-t border-thb-border">
-              <h4 className="text-xs font-semibold text-thb-text-muted uppercase tracking-wider mb-3">Shift Defaults</h4>
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-xs text-thb-text-muted mb-1">Shift Start</label>
-                  <input type="time" value={config.shiftStartDefault} onChange={e => update('shiftStartDefault', e.target.value)} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm" />
-                </div>
-                <div>
-                  <label className="block text-xs text-thb-text-muted mb-1">Shift End</label>
-                  <input type="time" value={config.shiftEndDefault} onChange={e => update('shiftEndDefault', e.target.value)} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm" />
-                </div>
-                <div>
-                  <label className="block text-xs text-thb-text-muted mb-1">Break (min)</label>
-                  <input type="number" value={config.breakDurationMinutes} onChange={e => update('breakDurationMinutes', Number(e.target.value))} min={0} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm" />
-                </div>
-              </div>
-            </div>
-
-            {/* Gate Pass Policy */}
-            <div className="pt-4 border-t border-thb-border">
-              <h4 className="text-xs font-semibold text-thb-text-muted uppercase tracking-wider mb-3">Gate Pass / Permission</h4>
-              <div className="grid grid-cols-2 gap-3 mb-3">
-                <div>
-                  <label className="block text-xs text-thb-text-muted mb-1">Max Gate Passes / Month</label>
-                  <input type="number" value={config.gatePassMaxPerMonth} onChange={e => update('gatePassMaxPerMonth', Number(e.target.value))} min={0} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm" />
-                  <p className="text-[10px] text-thb-text-muted mt-1">0 = unlimited</p>
-                </div>
-                <div>
-                  <label className="block text-xs text-thb-text-muted mb-1">Early Departure (hrs)</label>
-                  <input type="number" value={config.gatePassEarlyHours} onChange={e => update('gatePassEarlyHours', Number(e.target.value))} min={0} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm" />
-                  <p className="text-[10px] text-thb-text-muted mt-1">Both punch = full day if within this limit</p>
-                </div>
-              </div>
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-sm font-medium text-thb-text-primary">Half Day on 2nd Gate Pass</p>
-                <Toggle checked={config.gatePassHalfDayOnExceed} onChange={() => update('gatePassHalfDayOnExceed', !config.gatePassHalfDayOnExceed)} />
-              </div>
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-thb-text-primary">Half Day Gate Pass → Next Day Half Day</p>
-                <Toggle checked={config.gatePassHalfDayNextDay} onChange={() => update('gatePassHalfDayNextDay', !config.gatePassHalfDayNextDay)} />
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Canteen Policy */}
-      <div className="thb-card overflow-hidden">
-        <div className="px-5 py-4 border-b border-thb-border bg-slate-50">
-          <div className="flex items-center gap-2">
-            <FiSettings className="w-4 h-4 text-amber-600" />
-            <h3 className="font-semibold text-thb-text-primary">Canteen Policy (Attendance-Based)</h3>
-          </div>
-          <p className="text-xs text-thb-text-muted mt-0.5">Canteen module linked to attendance — free meals based on shift and OT</p>
-        </div>
-        <div className="p-5 space-y-4">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-thb-text-primary">Canteen Module Enabled</p>
-            <Toggle checked={config.canteenEnabled} onChange={() => update('canteenEnabled', !config.canteenEnabled)} />
-          </div>
-          {config.canteenEnabled && (
-            <div className="space-y-3 pl-4 border-l-2 border-amber-200">
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-thb-text-primary">Free for General Shift (Lunch)</p>
-                <button
-                  onClick={() => update('canteenFreeForGeneralShift', !config.canteenFreeForGeneralShift)}
-                  className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${config.canteenFreeForGeneralShift ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}`}
-                >
-                  {config.canteenFreeForGeneralShift ? 'Free' : 'Chargeable'}
-                </button>
-              </div>
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-thb-text-primary">Free for Night Shift (Dinner)</p>
-                <button
-                  onClick={() => update('canteenFreeForNightShift', !config.canteenFreeForNightShift)}
-                  className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${config.canteenFreeForNightShift ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}`}
-                >
-                  {config.canteenFreeForNightShift ? 'Free' : 'Chargeable'}
-                </button>
-              </div>
-              <div>
-                <label className="block text-xs text-thb-text-muted mb-1">OT Free Threshold (hrs)</label>
-                <input type="number" value={config.canteenOtfreeThresholdHours} onChange={e => update('canteenOtfreeThresholdHours', Number(e.target.value))} min={0} className="w-full max-w-[200px] px-3 py-2 border border-thb-border rounded-lg text-sm" />
-                <p className="text-[10px] text-thb-text-muted mt-1">OT above this = free dinner; below = Rs.37 deduction</p>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
     </div>
   );
 }
