@@ -367,9 +367,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
       { field: 'bankAccountNo', label: 'Bank Account Number' },
       { field: 'bankIfscCode', label: 'IFSC Code' },
     ],
-    statutory: [
-      { field: 'panNumber', label: 'PAN' },
-    ],
+    statutory: [],
     emergency: [
       { field: 'emergencyContactName', label: 'Emergency Contact Name' },
       { field: 'emergencyContactPhone', label: 'Emergency Contact Phone' },
