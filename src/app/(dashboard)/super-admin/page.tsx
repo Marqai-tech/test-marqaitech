@@ -8,7 +8,7 @@ import {
   FiActivity, FiClock, FiFileText,
   FiChevronLeft, FiChevronRight as FiChevronRightIcon,
   FiCheck, FiCalendar, FiDatabase, FiChevronDown, FiInfo,
-  FiTrendingUp, FiMail, FiBriefcase,
+  FiTrendingUp, FiMail, FiBriefcase, FiAlertTriangle, FiDownload,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { BarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -162,6 +162,10 @@ export default function SuperAdminPage() {
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [plansLoading, setPlansLoading] = useState(true);
   const [showPlanForm, setShowPlanForm] = useState(false);
+
+  // Reset & Backup state
+  const [resettingTenantEmployees, setResettingTenantEmployees] = useState<string | null>(null);
+  const [backingUpTenant, setBackingUpTenant] = useState<string | null>(null);
   const [editingPlanId, setEditingPlanId] = useState<string | null>(null);
   const [deletePlanConfirmId, setDeletePlanConfirmId] = useState<string | null>(null);
   const [deletingPlan, setDeletingPlan] = useState(false);
@@ -443,6 +447,51 @@ export default function SuperAdminPage() {
       toast.success(`Tenant ${newStatus === 'active' ? 'activated' : 'suspended'}`);
       fetchTenants();
     } catch { toast.error('Action failed'); }
+  };
+
+  // ─── Reset Tenant Employees ────────────────────────────
+  const handleResetTenantEmployees = async (slug: string, name: string) => {
+    if (!confirm(`Are you sure you want to delete ALL employees from "${name}" except the admin user? This cannot be undone.`)) return;
+    try {
+      setResettingTenantEmployees(slug);
+      const res = await fetch('/api/admin/cleanup-employees', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ tenantSlug: slug }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.error || 'Failed');
+      }
+      const data = await res.json();
+      toast.success(`Deleted ${data.deleted} employees from ${name}. Kept: ${data.keptEmployee || 'admin'}.`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to reset employees');
+    } finally {
+      setResettingTenantEmployees(null);
+    }
+  };
+
+  // ─── Backup Tenant Database ────────────────────────────
+  const handleBackupTenantDB = async (slug: string, name: string) => {
+    try {
+      setBackingUpTenant(slug);
+      const res = await fetch('/api/admin/backup-tenant', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ tenantSlug: slug }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.error || 'Failed');
+      }
+      const data = await res.json();
+      toast.success(`Backup completed for ${name}. Tables: ${data.tables?.length || 0}, Records: ${data.totalRecords || 0}`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to backup database');
+    } finally {
+      setBackingUpTenant(null);
+    }
   };
 
   // ─── Company Group Handlers ───────────────────────────
@@ -1399,6 +1448,8 @@ export default function SuperAdminPage() {
                         <div className="ml-auto flex items-center gap-1">
                           <button onClick={() => handleViewTenant(t.id)} className="p-1.5 text-thb-text-muted hover:text-green-600 hover:bg-green-50 rounded-lg" title="View"><FiEye className="w-3.5 h-3.5" /></button>
                           <button onClick={() => handleEditTenant(t)} className="p-1.5 text-thb-text-muted hover:text-green-600 hover:bg-green-50 rounded-lg" title="Edit"><FiEdit2 className="w-3.5 h-3.5" /></button>
+                          <button onClick={() => handleResetTenantEmployees(t.slug, t.name)} disabled={resettingTenantEmployees === t.slug} className="p-1.5 text-thb-text-muted hover:text-red-600 hover:bg-red-50 rounded-lg disabled:opacity-50" title="Reset Employees"><FiAlertTriangle className="w-3.5 h-3.5" /></button>
+                          <button onClick={() => handleBackupTenantDB(t.slug, t.name)} disabled={backingUpTenant === t.slug} className="p-1.5 text-thb-text-muted hover:text-blue-600 hover:bg-blue-50 rounded-lg disabled:opacity-50" title="Backup Database">{backingUpTenant === t.slug ? <FiRefreshCw className="w-3.5 h-3.5 animate-spin" /> : <FiDownload className="w-3.5 h-3.5" />}</button>
                           <button onClick={() => setDeleteConfirmId(t.id)} className="p-1.5 text-thb-text-muted hover:text-red-600 hover:bg-red-50 rounded-lg" title="Delete"><FiTrash2 className="w-3.5 h-3.5" /></button>
                           {t.status === 'active' ? (
                             <button onClick={() => handleTenantStatusChange(t.id, 'suspended')} className="px-2.5 py-1 text-[11px] font-medium text-amber-700 bg-amber-50 rounded-lg hover:bg-amber-100">Suspend</button>
