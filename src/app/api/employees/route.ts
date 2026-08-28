@@ -82,14 +82,12 @@ export async function GET(request: Request) {
         // Determine which tenants to aggregate from
         let visibleTenants: { id: string; slug: string; name: string }[];
         if (tenantId) {
-          // Specific tenant selected — aggregate from just that one
           const tenant = await getPlatformDb().tenant.findUnique({
             where: { id: tenantId },
             select: { id: true, slug: true, name: true },
           });
           visibleTenants = tenant ? [tenant] : [];
         } else {
-          // No tenant selected — aggregate across ALL visible tenants
           visibleTenants = await getPlatformDb().tenant.findMany({
             where: {
               slug: { notIn: hiddenSlugs },
@@ -203,6 +201,37 @@ export async function GET(request: Request) {
     const userId = scopeResult?.userId || jwtUserId;
     const scope = scopeResult?.scope || 'all';
 
+    // ─── For super_admin with companyId but no tenantId, resolve tenant DB from company ───
+    // The company belongs to a CompanyGroup which belongs to a Tenant.
+    // We need the tenant DB because employees live there, not in platform DB.
+    let queryDb = db;
+    if (jwtRole === 'super_admin' && queryCompanyId && !tenantId) {
+      try {
+        // Look up the company's group, then the group's tenant
+        const company = await getPlatformDb().company.findUnique({
+          where: { id: queryCompanyId },
+          select: { companyGroupId: true },
+        });
+        if (company?.companyGroupId) {
+          const group = await getPlatformDb().companyGroup.findUnique({
+            where: { id: company.companyGroupId },
+            select: { tenantId: true },
+          });
+          if (group?.tenantId) {
+            const tenant = await getPlatformDb().tenant.findUnique({
+              where: { id: group.tenantId },
+              select: { slug: true },
+            });
+            if (tenant?.slug) {
+              queryDb = await getDbForTenant(tenant.slug);
+            }
+          }
+        }
+      } catch {
+        // ignore — fall back to db (platform DB)
+      }
+    }
+
     // Try database query
     try {
       const where: Record<string, unknown> = {};
@@ -274,7 +303,7 @@ export async function GET(request: Request) {
       }
 
       const [employees, total] = await Promise.all([
-        db.employee.findMany({
+        queryDb.employee.findMany({
           where,
           include: {
             department: true,
@@ -288,7 +317,7 @@ export async function GET(request: Request) {
           skip: (page - 1) * limit,
           take: limit,
         }),
-        db.employee.count({ where }),
+        queryDb.employee.count({ where }),
       ]);
 
       if (employees.length > 0 || total > 0) {
