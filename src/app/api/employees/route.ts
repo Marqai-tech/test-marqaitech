@@ -201,34 +201,52 @@ export async function GET(request: Request) {
     const userId = scopeResult?.userId || jwtUserId;
     const scope = scopeResult?.scope || 'all';
 
-    // ─── For super_admin with companyId but no tenantId, resolve tenant DB from company ───
+    // ─── For super_admin with companyId, resolve tenant DB from company ───
     // The company belongs to a CompanyGroup which belongs to a Tenant.
     // We need the tenant DB because employees live there, not in platform DB.
+    // Try db first (might already be tenant DB if tenantId was sent),
+    // then fall back to platform DB lookup.
     let queryDb = db;
-    if (jwtRole === 'super_admin' && queryCompanyId && !tenantId) {
-      try {
-        // Look up the company's group, then the group's tenant
-        const company = await getPlatformDb().company.findUnique({
+    if (jwtRole === 'super_admin' && queryCompanyId) {
+      // Check if db already has the company (it's the tenant DB)
+      let company = await db.company.findUnique({
+        where: { id: queryCompanyId },
+        select: { companyGroupId: true },
+      }).catch(() => null);
+
+      // If not found in db, try platform DB
+      if (!company) {
+        company = await getPlatformDb().company.findUnique({
           where: { id: queryCompanyId },
           select: { companyGroupId: true },
-        });
-        if (company?.companyGroupId) {
-          const group = await getPlatformDb().companyGroup.findUnique({
+        }).catch(() => null);
+      }
+
+      if (company?.companyGroupId) {
+        // Find the group's tenant — try db first, then platform DB
+        let group = await db.companyGroup.findUnique({
+          where: { id: company.companyGroupId },
+          select: { tenantId: true },
+        }).catch(() => null);
+
+        if (!group) {
+          group = await getPlatformDb().companyGroup.findUnique({
             where: { id: company.companyGroupId },
             select: { tenantId: true },
+          }).catch(() => null);
+        }
+
+        if (group?.tenantId) {
+          // Only switch to tenant DB if we're not already on it
+          // Check if db is already the tenant DB by seeing if it has the tenant
+          const tenant = await getPlatformDb().tenant.findUnique({
+            where: { id: group.tenantId },
+            select: { slug: true },
           });
-          if (group?.tenantId) {
-            const tenant = await getPlatformDb().tenant.findUnique({
-              where: { id: group.tenantId },
-              select: { slug: true },
-            });
-            if (tenant?.slug) {
-              queryDb = await getDbForTenant(tenant.slug);
-            }
+          if (tenant?.slug) {
+            queryDb = await getDbForTenant(tenant.slug);
           }
         }
-      } catch {
-        // ignore — fall back to db (platform DB)
       }
     }
 
