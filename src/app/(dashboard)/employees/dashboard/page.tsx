@@ -114,6 +114,8 @@ export default function EmployeeDashboardPage() {
   const canViewFullDetails = isManager;
 
   /* ── Data Fetching ── */
+  const cidValue = effectiveCompanyId();
+  const tidValue = selectedTenantId;
   const fetchDashboardData = useCallback(async () => {
     setLoading(true);
     try {
@@ -123,8 +125,8 @@ export default function EmployeeDashboardPage() {
       // When super_admin selects a company, also send tenantId so the API
       // resolves the correct tenant DB (employees live in the tenant DB,
       // not the platform DB).
-      const cid = effectiveCompanyId();
-      const tid = selectedTenantId;
+      const cid = cidValue;
+      const tid = tidValue;
       const scopeParams = new URLSearchParams();
       if (cid) scopeParams.set('companyId', cid);
       if (tid) scopeParams.set('tenantId', tid);
@@ -293,7 +295,7 @@ export default function EmployeeDashboardPage() {
     } finally {
       setLoading(false);
     }
-  }, [effectiveCompanyId, selectedTenantId]);
+  }, [cidValue, tidValue]);
 
   useEffect(() => { fetchDashboardData(); }, [fetchDashboardData]);
 
