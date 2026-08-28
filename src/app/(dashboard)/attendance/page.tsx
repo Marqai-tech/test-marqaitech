@@ -33,6 +33,7 @@ import { useAuthStore } from '@/store/authStore';
 import ModuleTips from '@/components/ModuleTips';
 import ModuleWorkflow from '@/components/ModuleWorkflow';
 import { useCompanyContextStore } from '@/store/companyContextStore';
+import { isClientDemoMode } from '@/lib/site-mode';
 
 /* ── Attendance Tips ── */
 const attendanceTips = [
@@ -452,10 +453,12 @@ export default function AttendancePage() {
           <p className="text-thb-text-secondary mt-1">Track & manage employee attendance</p>
         </div>
         <div className="flex items-center gap-2">
+          {isClientDemoMode() && (
           <button onClick={handleSeedData} disabled={seeding} className="inline-flex items-center gap-2 px-3 py-2 text-xs font-medium text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100 disabled:opacity-50 transition-colors">
             {seeding ? <FiRefreshCw className="w-3.5 h-3.5 animate-spin" /> : <FiDatabase className="w-3.5 h-3.5" />}
             {seeding ? 'Seeding...' : 'Seed Sample Data'}
           </button>
+          )}
           {/* Check In / Out buttons — always available */}
           <button
             onClick={handleCheckIn}

@@ -503,10 +503,12 @@ function LeavePageContent() {
               <FiDownload className="w-3.5 h-3.5" /> PDF
             </button>
           </div>
+          {isClientDemoMode() && (
           <button onClick={handleSeedData} disabled={seeding} className="inline-flex items-center gap-2 px-3 py-2 text-xs font-medium text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100 disabled:opacity-50 transition-colors">
             {seeding ? <FiRefreshCw className="w-3.5 h-3.5 animate-spin" /> : <FiDatabase className="w-3.5 h-3.5" />}
             {seeding ? 'Seeding...' : 'Seed Sample Data'}
           </button>
+          )}
           <button onClick={handleOpenApplyForm} className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium text-sm shadow-sm transition-colors">
             <FiPlus className="w-4 h-4" />
             Add Leave

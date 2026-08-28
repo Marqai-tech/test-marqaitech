@@ -39,6 +39,7 @@ import { useAuthStore } from '@/store/authStore';
 import ModuleTips from '@/components/ModuleTips';
 import ModuleIntro from '@/components/ModuleIntro';
 import { useCompanyContextStore } from '@/store/companyContextStore';
+import { isClientDemoMode } from '@/lib/site-mode';
 
 /* ── Helpers ── */
 function getAuthHeaders() {
@@ -686,6 +687,7 @@ export default function PayrollManagementPage() {
         <p className="text-thb-text-secondary text-sm">
           Configure salary structures, process payroll, and manage compliance.
         </p>
+        {isClientDemoMode() && (
         <button
           onClick={handleSeedData}
           disabled={seeding}
@@ -694,6 +696,7 @@ export default function PayrollManagementPage() {
           {seeding ? <FiRefreshCw className="w-3.5 h-3.5 animate-spin" /> : <FiDatabase className="w-3.5 h-3.5" />}
           {seeding ? 'Seeding...' : 'Seed Sample Data'}
         </button>
+        )}
       </div>
 
       {/* Module Intro — minimized by default with hover preview */}
