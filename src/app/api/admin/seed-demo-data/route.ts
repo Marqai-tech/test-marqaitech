@@ -43,62 +43,158 @@ export async function POST(request: Request) {
     results.push(`Company: ${company.name}, Employees: ${employees.length}`);
 
     if (module === 'payroll') {
-      // ── Payroll Components ──
+      // ── 1. Payroll Components (Indian standard) ──
       if ((await db.payrollComponent.count()) === 0) {
         const comps = [
-          { name: 'Basic', code: 'BASIC', type: 'earning', calculationType: 'percentage_of_ctc', value: 40, isActive: true },
-          { name: 'HRA', code: 'HRA', type: 'earning', calculationType: 'percentage_of_basic', value: 50, isActive: true },
+          // Earnings
+          { name: 'Basic Salary', code: 'BASIC', type: 'earning', calculationType: 'percentage_of_ctc', value: 40, isActive: true },
+          { name: 'House Rent Allowance', code: 'HRA', type: 'earning', calculationType: 'percentage_of_basic', value: 50, isActive: true },
           { name: 'Special Allowance', code: 'SA', type: 'earning', calculationType: 'fixed', value: 0, isActive: true },
-          { name: 'Conveyance', code: 'CA', type: 'earning', calculationType: 'fixed', value: 19200, isActive: true },
-          { name: 'Medical', code: 'MA', type: 'earning', calculationType: 'fixed', value: 15000, isActive: true },
-          { name: 'PF', code: 'PF', type: 'deduction', calculationType: 'percentage_of_basic', value: 12, isActive: true },
-          { name: 'PT', code: 'PT', type: 'deduction', calculationType: 'fixed', value: 2400, isActive: true },
+          { name: 'Conveyance Allowance', code: 'CA', type: 'earning', calculationType: 'fixed', value: 19200, isActive: true },
+          { name: 'Medical Allowance', code: 'MA', type: 'earning', calculationType: 'fixed', value: 15000, isActive: true },
+          { name: 'Leave Travel Allowance', code: 'LTA', type: 'earning', calculationType: 'fixed', value: 25000, isActive: true },
+          { name: 'Children Education Allowance', code: 'CEA', type: 'earning', calculationType: 'fixed', value: 12000, isActive: true },
+          { name: 'Vehicle Allowance', code: 'VA', type: 'earning', calculationType: 'fixed', value: 18000, isActive: true },
+          { name: 'Food Allowance', code: 'FA', type: 'earning', calculationType: 'fixed', value: 26400, isActive: true },
+          { name: 'Performance Bonus', code: 'PB', type: 'earning', calculationType: 'fixed', value: 0, isActive: true },
+          // Deductions
+          { name: 'Provident Fund', code: 'PF', type: 'deduction', calculationType: 'percentage_of_basic', value: 12, isActive: true },
+          { name: 'Professional Tax', code: 'PT', type: 'deduction', calculationType: 'fixed', value: 2400, isActive: true },
           { name: 'TDS', code: 'TDS', type: 'deduction', calculationType: 'fixed', value: 0, isActive: true },
+          { name: 'ESI', code: 'ESI', type: 'deduction', calculationType: 'percentage_of_gross', value: 0.75, isActive: true },
+          { name: 'Labour Welfare Fund', code: 'LWF', type: 'deduction', calculationType: 'fixed', value: 1200, isActive: true },
         ];
         for (const c of comps) await db.payrollComponent.create({ data: { ...c, companyId } }).catch(() => {});
-        results.push(`Created ${comps.length} payroll components`);
+        results.push(`Created ${comps.length} payroll components (Indian standard)`);
       }
-      // ── Statutory ──
+
+      // ── 2. Statutory Components (Indian standard) ──
       if ((await db.statutoryComponent.count()) === 0) {
         await db.statutoryComponent.createMany({ data: [
-          { name: 'PF', type: 'pf', employeeShare: 12, employerShare: 12, isActive: true, companyId },
-          { name: 'ESI', type: 'esi', employeeShare: 0.75, employerShare: 3.25, isActive: true, companyId },
-          { name: 'PT', type: 'pt', employeeShare: 200, employerShare: 0, isActive: true, companyId },
+          { name: 'Provident Fund (PF)', type: 'pf', employeeShare: 12, employerShare: 12, isActive: true, companyId },
+          { name: 'Employees State Insurance (ESI)', type: 'esi', employeeShare: 0.75, employerShare: 3.25, isActive: true, companyId },
+          { name: 'Professional Tax (PT)', type: 'pt', employeeShare: 200, employerShare: 0, isActive: true, companyId },
+          { name: 'Labour Welfare Fund (LWF)', type: 'lwf', employeeShare: 100, employerShare: 200, isActive: true, companyId },
+          { name: 'TDS - Income Tax', type: 'tds', employeeShare: 0, employerShare: 0, isActive: true, companyId },
         ]}).catch(() => {});
-        results.push('Created 3 statutory components');
+        results.push('Created 5 statutory components (Indian standard)');
       }
-      // ── CTC Templates ──
+
+      // ── 3. CTC Templates with component mappings ──
       if ((await db.cTCTemplate.count()) === 0) {
-        await db.cTCTemplate.createMany({ data: [
-          { name: 'Standard CTC', description: 'Standard structure', status: 'ACTIVE', companyId },
-          { name: 'Senior CTC', description: 'Senior structure', status: 'ACTIVE', companyId },
-          { name: 'Intern CTC', description: 'Intern stipend', status: 'ACTIVE', companyId },
-        ]}).catch(() => {});
-        results.push('Created 3 CTC templates');
+        // Indian Standard CTC Template
+        const stdCTC = await db.cTCTemplate.create({ data: { name: 'Indian Standard CTC', description: 'Standard Indian CTC structure: Basic 40%, HRA 50% of Basic, PF 12%, PT, TDS', status: 'ACTIVE', companyId } }).catch(() => null as any);
+        if (stdCTC) {
+          const comps = await db.payrollComponent.findMany({ select: { id: true, code: true } });
+          const compMap = new Map(comps.map(c => [c.code, c.id]));
+          const mappings = [
+            { componentId: compMap.get('BASIC'), sortOrder: 1, percentage: 40, calculationBasis: 'percentage_of_ctc' },
+            { componentId: compMap.get('HRA'), sortOrder: 2, percentage: 50, calculationBasis: 'percentage_of_basic' },
+            { componentId: compMap.get('SA'), sortOrder: 3, percentage: 0, calculationBasis: 'balancing' },
+            { componentId: compMap.get('CA'), sortOrder: 4, percentage: 0, calculationBasis: 'fixed' },
+            { componentId: compMap.get('MA'), sortOrder: 5, percentage: 0, calculationBasis: 'fixed' },
+            { componentId: compMap.get('LTA'), sortOrder: 6, percentage: 0, calculationBasis: 'fixed' },
+            { componentId: compMap.get('PF'), sortOrder: 7, percentage: 12, calculationBasis: 'percentage_of_basic' },
+            { componentId: compMap.get('PT'), sortOrder: 8, percentage: 0, calculationBasis: 'fixed' },
+            { componentId: compMap.get('TDS'), sortOrder: 9, percentage: 0, calculationBasis: 'tax_slab' },
+          ].filter(m => m.componentId);
+          for (const m of mappings) {
+            await db.cTCComponentMapping.create({ data: { templateId: stdCTC.id, ...m } }).catch(() => {});
+          }
+        }
+
+        // Senior Management CTC Template
+        await db.cTCTemplate.create({ data: { name: 'Senior Management CTC', description: 'CTC for senior management: Basic 50%, HRA 50% of Basic, higher allowances', status: 'ACTIVE', companyId } }).catch(() => {});
+
+        // Intern CTC Template
+        await db.cTCTemplate.create({ data: { name: 'Intern Stipend', description: 'Fixed stipend structure for interns', status: 'ACTIVE', companyId } }).catch(() => {});
+
+        results.push('Created 3 CTC templates (Indian Standard with 9 component mappings)');
       }
-      // ── Tax Slabs ──
+
+      // ── 4. Tax Slabs (Indian standard - both regimes) ──
       if ((await db.taxSlabTable.count()) === 0) {
-        const tt = await db.taxSlabTable.create({ data: { name: 'FY 2025-26 New Regime', description: 'New tax regime', isActive: true, companyId } }).catch(() => null as any);
-        if (tt) {
+        // New Tax Regime FY 2025-26
+        const newRegime = await db.taxSlabTable.create({ data: { name: 'FY 2025-26 New Tax Regime', description: 'New tax regime with standard deduction ₹75,000', isActive: true, companyId } }).catch(() => null as any);
+        if (newRegime) {
           await db.taxSlabRateLine.createMany({ data: [
-            { tableId: tt.id, fromAmount: 0, toAmount: 300000, rate: 0, sortOrder: 1 },
-            { tableId: tt.id, fromAmount: 300000, toAmount: 600000, rate: 5, sortOrder: 2 },
-            { tableId: tt.id, fromAmount: 600000, toAmount: 900000, rate: 10, sortOrder: 3 },
-            { tableId: tt.id, fromAmount: 900000, toAmount: 1200000, rate: 15, sortOrder: 4 },
-            { tableId: tt.id, fromAmount: 1200000, toAmount: 1500000, rate: 20, sortOrder: 5 },
-            { tableId: tt.id, fromAmount: 1500000, toAmount: 99999999, rate: 30, sortOrder: 6 },
+            { tableId: newRegime.id, fromAmount: 0, toAmount: 300000, rate: 0, sortOrder: 1 },
+            { tableId: newRegime.id, fromAmount: 300000, toAmount: 700000, rate: 5, sortOrder: 2 },
+            { tableId: newRegime.id, fromAmount: 700000, toAmount: 1000000, rate: 10, sortOrder: 3 },
+            { tableId: newRegime.id, fromAmount: 1000000, toAmount: 1200000, rate: 15, sortOrder: 4 },
+            { tableId: newRegime.id, fromAmount: 1200000, toAmount: 1500000, rate: 20, sortOrder: 5 },
+            { tableId: newRegime.id, fromAmount: 1500000, toAmount: 99999999, rate: 30, sortOrder: 6 },
           ]}).catch(() => {});
-          results.push('Created tax slab table with 6 slabs');
         }
-      }
-      // ── Payment Methods ──
-      if ((await db.employeePaymentMethod.count()) === 0 && employees.length > 0) {
-        for (const emp of employees.slice(0, 20)) {
-          await db.employeePaymentMethod.create({ data: { employeeId: emp.id, bankName: pick(['HDFC', 'ICICI', 'SBI', 'Axis']), accountNumber: String(Math.floor(Math.random() * 9e9) + 1e9), ifscCode: pick(['HDFC0001234', 'ICIC0005678', 'SBIN0009012']), accountType: 'savings', status: 'active' } }).catch(() => {});
+
+        // Old Tax Regime FY 2025-26
+        const oldRegime = await db.taxSlabTable.create({ data: { name: 'FY 2025-26 Old Tax Regime', description: 'Old tax regime with deductions (80C, 80D, HRA, etc.)', isActive: true, companyId } }).catch(() => null as any);
+        if (oldRegime) {
+          await db.taxSlabRateLine.createMany({ data: [
+            { tableId: oldRegime.id, fromAmount: 0, toAmount: 250000, rate: 0, sortOrder: 1 },
+            { tableId: oldRegime.id, fromAmount: 250000, toAmount: 500000, rate: 5, sortOrder: 2 },
+            { tableId: oldRegime.id, fromAmount: 500000, toAmount: 1000000, rate: 20, sortOrder: 3 },
+            { tableId: oldRegime.id, fromAmount: 1000000, toAmount: 99999999, rate: 30, sortOrder: 4 },
+          ]}).catch(() => {});
         }
-        results.push(`Created 20 payment methods`);
+        results.push('Created 2 tax slab tables (New + Old regime) with 10 slabs');
       }
-      // ── Payroll Runs ──
+
+      // ── 5. Currency Configuration ──
+      if ((await db.currencyConfig.count()) === 0) {
+        await db.currencyConfig.createMany({ data: [
+          { code: 'INR', name: 'Indian Rupee', symbol: '₹', isActive: true, isBase: true, companyId },
+          { code: 'USD', name: 'US Dollar', symbol: '$', isActive: true, isBase: false, companyId },
+          { code: 'EUR', name: 'Euro', symbol: '€', isActive: true, isBase: false, companyId },
+          { code: 'GBP', name: 'British Pound', symbol: '£', isActive: true, isBase: false, companyId },
+          { code: 'AED', name: 'UAE Dirham', symbol: 'د.إ', isActive: true, isBase: false, companyId },
+          { code: 'SGD', name: 'Singapore Dollar', symbol: 'S$', isActive: true, isBase: false, companyId },
+        ]}).catch(() => {});
+        results.push('Created 6 currency configs (INR base + 5 foreign)');
+      }
+
+      // ── 6. Exchange Rates ──
+      if ((await db.exchangeRate.count()) === 0) {
+        const now = new Date();
+        await db.exchangeRate.createMany({ data: [
+          { fromCurrency: 'USD', toCurrency: 'INR', exchangeRate: 83.50, rateDate: now, isActive: true },
+          { fromCurrency: 'EUR', toCurrency: 'INR', exchangeRate: 90.25, rateDate: now, isActive: true },
+          { fromCurrency: 'GBP', toCurrency: 'INR', exchangeRate: 105.75, rateDate: now, isActive: true },
+          { fromCurrency: 'AED', toCurrency: 'INR', exchangeRate: 22.75, rateDate: now, isActive: true },
+          { fromCurrency: 'SGD', toCurrency: 'INR', exchangeRate: 62.10, rateDate: now, isActive: true },
+          { fromCurrency: 'INR', toCurrency: 'USD', exchangeRate: 0.0120, rateDate: now, isActive: true },
+          { fromCurrency: 'INR', toCurrency: 'EUR', exchangeRate: 0.0111, rateDate: now, isActive: true },
+        ]}).catch(() => {});
+        results.push('Created 7 exchange rates');
+      }
+
+      // ── 7. Dimension Definitions ──
+      if ((await db.dimensionDefinition.count()) === 0) {
+        await db.dimensionDefinition.createMany({ data: [
+          { name: 'Department', code: 'DEPT', description: 'Cost center by department', isActive: true, companyId },
+          { name: 'Location', code: 'LOC', description: 'Cost center by office location/branch', isActive: true, companyId },
+          { name: 'Project', code: 'PROJ', description: 'Cost center by project', isActive: true, companyId },
+          { name: 'Cost Center', code: 'CC', description: 'General cost center allocation', isActive: true, companyId },
+          { name: 'Business Unit', code: 'BU', description: 'Business unit level allocation', isActive: true, companyId },
+        ]}).catch(() => {});
+        results.push('Created 5 dimension definitions');
+      }
+
+      // ── 8. Payroll Definition (sample for one company) ──
+      if ((await db.payrollDefinition.count()) === 0) {
+        await db.payrollDefinition.create({ data: {
+          name: 'Monthly Payroll - Standard',
+          description: 'Standard monthly payroll cycle for all Indian employees',
+          companyId,
+          payCycle: 'monthly',
+          payDay: 5,
+          currency: 'INR',
+          status: 'active',
+        }}).catch(() => {});
+        results.push('Created 1 payroll definition (Monthly Standard)');
+      }
+
+      // ── 9. Payroll Runs ──
       if ((await db.payrollRun.count()) === 0) {
         const now = new Date();
         for (const [m, st] of [[5,'CLOSED'],[6,'CLOSED'],[7,'APPROVED'],[8,'PROCESSING']] as const) {
@@ -107,7 +203,8 @@ export async function POST(request: Request) {
         }
         results.push('Created 4 payroll runs');
       }
-      // ── Payslips ──
+
+      // ── 10. Payslips ──
       if ((await db.payroll.count()) === 0 && employees.length > 0) {
         const now = new Date();
         for (const emp of employees.slice(0, 30)) {
@@ -117,14 +214,16 @@ export async function POST(request: Request) {
         }
         results.push(`Created 30 payslips`);
       }
-      // ── Loans ──
+
+      // ── 11. Loans ──
       if ((await db.loan.count()) === 0 && employees.length > 0) {
         for (const emp of employees.slice(0, 8)) {
           await db.loan.create({ data: { employeeId: emp.id, loanType: pick(['personal','vehicle','home','education']), amount: pick([50000,100000,150000,200000]), interestRate: pick([8.5,9.0,10.5]), tenureMonths: pick([12,24,36,48]), status: pick(['approved','active','pending']) } }).catch(() => {});
         }
         results.push('Created 8 loans');
       }
-      // ── Overtime ──
+
+      // ── 12. Overtime ──
       if ((await db.overtimeRecord.count()) === 0 && employees.length > 0) {
         for (const emp of employees.slice(0, 15)) {
           const h = pick([2,3,4,5,6,8]);
@@ -132,7 +231,8 @@ export async function POST(request: Request) {
         }
         results.push('Created 15 overtime records');
       }
-      // ── Compliance ──
+
+      // ── 13. Compliance Filings ──
       if ((await db.complianceFiling.count()) === 0) {
         const now = new Date();
         await db.complianceFiling.createMany({ data: [
