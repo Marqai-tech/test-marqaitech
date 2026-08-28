@@ -100,9 +100,10 @@ export async function GET(request: Request) {
     }
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404, headers: corsHeaders() });
 
-    const userRole = user.role;
+    const userRole = user.role || jwtRole;
     const userId = user.id;
-    const scope = getDataScope(userRole);
+    const effectiveRole = userRole || jwtRole;
+    const effectiveScope = getDataScope(effectiveRole);
 
     // Build where clause — SAME approach as /api/employees (which works)
     const where: Record<string, unknown> = {};
@@ -124,9 +125,6 @@ export async function GET(request: Request) {
     }
 
     // ─── Tenant scope filter (super_admin only, when no companyId) ───
-    // Employee has no `company` relation — only a bare companyId field.
-    // To filter by tenant, we need to first find all companies under that tenant,
-    // then filter employees by those company IDs.
     if (!companyId && tenantId && effectiveRole === 'super_admin') {
       const tenantGroups = await db.companyGroup.findMany({
         where: { tenantId },
@@ -151,9 +149,6 @@ export async function GET(request: Request) {
     }
 
     // ─── Data scope filtering ───
-    // For super_admin: use jwtRole (from JWT) which is more reliable
-    const effectiveRole = userRole || jwtRole;
-    const effectiveScope = getDataScope(effectiveRole);
     if (effectiveScope === 'self' && userId) {
       where.userId = userId;
     } else if (effectiveScope === 'team' && userId) {
