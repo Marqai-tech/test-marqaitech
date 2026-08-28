@@ -3,6 +3,7 @@ import { getDb, getPlatformDb, getDbForTenant } from '@/lib/tenant-db';
 import { getDesignationCompanyFilter, getAuthInfo, getCompanyFilter } from '@/lib/companyScope';
 import { checkTenantStatusOrBlock } from '@/lib/tenant-guard';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
+import { isServerLiveSite } from '@/lib/tenant-filter';
 
 function corsHeaders() {
   return {
@@ -22,9 +23,6 @@ export async function GET(req: NextRequest) {
     const tenantId = url.searchParams.get('tenantId');
     const queryCompanyId = url.searchParams.get('companyId');
 
-    // ─── For super_admin, resolve the correct tenant DB ───
-    let db = await getDb(req);
-
     let jwtRole = 'employee';
     try {
       const token = getTokenFromHeaders(req);
@@ -33,6 +31,14 @@ export async function GET(req: NextRequest) {
         if (decoded) jwtRole = (decoded.role as string) || 'employee';
       }
     } catch {}
+
+    // ─── GOLDEN RULE: Super_admin without tenant/company on LIVE = empty ───
+    if (jwtRole === 'super_admin' && !tenantId && !queryCompanyId && isServerLiveSite(req)) {
+      return NextResponse.json({ data: [], pagination: { page: 1, limit: 100, total: 0, totalPages: 0 } }, { headers: corsHeaders() });
+    }
+
+    // ─── For super_admin, resolve the correct tenant DB ───
+    let db = await getDb(req);
 
     if (jwtRole === 'super_admin') {
       if (tenantId) {

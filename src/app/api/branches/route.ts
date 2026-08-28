@@ -3,6 +3,7 @@ import { getCompanyFilter, getAuthInfo } from '@/lib/companyScope';
 import { getDb, getPlatformDb, getDbForTenant } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { validateEmail, validatePhone } from '@/lib/validators';
+import { isServerLiveSite } from '@/lib/tenant-filter';
 
 function corsHeaders() {
   return {
@@ -22,11 +23,7 @@ export async function GET(req: NextRequest) {
     const tenantId = url.searchParams.get('tenantId');
     const queryCompanyId = url.searchParams.get('companyId');
 
-    // ─── For super_admin, resolve the correct tenant DB ───
-    let db = await getDb(req);
-
-    // If getDb returned platformDb (super_admin without tenantId in JWT),
-    // try resolving tenant DB from query params
+    // Decode JWT to get role
     let jwtRole = 'employee';
     try {
       const token = getTokenFromHeaders(req);
@@ -36,8 +33,15 @@ export async function GET(req: NextRequest) {
       }
     } catch {}
 
+    // ─── GOLDEN RULE: Super_admin without tenant/company on LIVE = empty ───
+    if (jwtRole === 'super_admin' && !tenantId && !queryCompanyId && isServerLiveSite(req)) {
+      return NextResponse.json({ data: [], pagination: { page: 1, limit: 100, total: 0, totalPages: 0 } }, { headers: corsHeaders() });
+    }
+
+    // ─── Resolve tenant DB ───
+    let db = await getDb(req);
+
     if (jwtRole === 'super_admin') {
-      // If tenantId is in URL, resolve tenant DB from it
       if (tenantId) {
         const tenant = await getPlatformDb().tenant.findUnique({
           where: { id: tenantId },
@@ -46,9 +50,7 @@ export async function GET(req: NextRequest) {
         if (tenant?.slug) {
           db = await getDbForTenant(tenant.slug);
         }
-      }
-      // If companyId is set but no tenantId, resolve from company
-      else if (queryCompanyId) {
+      } else if (queryCompanyId) {
         let company = await db.company.findUnique({ where: { id: queryCompanyId }, select: { companyGroupId: true } }).catch(() => null);
         if (!company) company = await getPlatformDb().company.findUnique({ where: { id: queryCompanyId }, select: { companyGroupId: true } }).catch(() => null);
         if (company?.companyGroupId) {
