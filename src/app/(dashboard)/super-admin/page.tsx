@@ -115,7 +115,7 @@ const planTypeLabel: Record<string, string> = {
 export default function SuperAdminPage() {
   const { user } = useAuthStore();
   const { hydrate: hydrateContext } = useCompanyContextStore();
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'tenants' | 'groups' | 'plans' | 'audit'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'tenants' | 'groups' | 'plans' | 'audit' | 'backups'>('dashboard');
 
   // Dashboard state
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
@@ -166,6 +166,8 @@ export default function SuperAdminPage() {
   // Reset & Backup state
   const [resettingTenantEmployees, setResettingTenantEmployees] = useState<string | null>(null);
   const [backingUpTenant, setBackingUpTenant] = useState<string | null>(null);
+  const [backups, setBackups] = useState<any[]>([]);
+  const [backupsLoading, setBackupsLoading] = useState(false);
   const [editingPlanId, setEditingPlanId] = useState<string | null>(null);
   const [deletePlanConfirmId, setDeletePlanConfirmId] = useState<string | null>(null);
   const [deletingPlan, setDeletingPlan] = useState(false);
@@ -330,6 +332,26 @@ export default function SuperAdminPage() {
     if (activeTab === 'audit') queueMicrotask(() => fetchAuditLogs());
   }, [activeTab, auditPage, auditAction, auditModule, auditStartDate, auditEndDate]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Fetch backup records
+  const fetchBackups = useCallback(async () => {
+    try {
+      setBackupsLoading(true);
+      const res = await fetch('/api/admin/backup-tenant', { headers: getAuthHeaders() });
+      if (res.ok) {
+        const data = await res.json();
+        setBackups(data.backups || []);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setBackupsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'backups') queueMicrotask(() => fetchBackups());
+  }, [activeTab, fetchBackups]);
+
   // Scroll to view/form panel
   useEffect(() => {
     if (viewingTenantId || viewingPlanId) {
@@ -486,7 +508,9 @@ export default function SuperAdminPage() {
         throw new Error(d.error || 'Failed');
       }
       const data = await res.json();
-      toast.success(`Backup completed for ${name}. Tables: ${data.tables?.length || 0}, Records: ${data.totalRecords || 0}`);
+      toast.success(`Backup completed for ${name}. ${data.totalRecords || 0} records saved to repository.`);
+      // Refresh backup list if we're on the backups tab
+      fetchBackups();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to backup database');
     } finally {
@@ -733,6 +757,7 @@ export default function SuperAdminPage() {
     { key: 'groups' as const, label: 'Group Companies', icon: <FiLayers className="w-4 h-4" /> },
     { key: 'plans' as const, label: 'Subscription Plans', icon: <FiCreditCard className="w-4 h-4" /> },
     { key: 'audit' as const, label: 'Audit Logs', icon: <FiFileText className="w-4 h-4" /> },
+    { key: 'backups' as const, label: 'Backup Repository', icon: <FiDatabase className="w-4 h-4" /> },
   ];
 
   // ─── Input/Select helpers ───────────────────────────────
@@ -2206,6 +2231,95 @@ export default function SuperAdminPage() {
               </div>
             </form>
           </div>
+        </div>
+      )}
+
+      {/* ═══ TAB: BACKUP REPOSITORY ═══ */}
+      {activeTab === 'backups' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-bold text-thb-text-primary flex items-center gap-2">
+                <FiDatabase className="w-5 h-5 text-blue-500" /> Backup Repository
+              </h2>
+              <p className="text-sm text-thb-text-secondary mt-0.5">View all database backups taken across tenants</p>
+            </div>
+            <button onClick={() => fetchBackups()} className="inline-flex items-center gap-2 px-3 py-2 border border-thb-border rounded-lg hover:bg-slate-50 text-sm">
+              <FiRefreshCw className={`w-4 h-4 ${backupsLoading ? 'animate-spin' : ''}`} /> Refresh
+            </button>
+          </div>
+
+          {backupsLoading ? (
+            <div className="thb-card p-12 text-center">
+              <FiRefreshCw className="w-8 h-8 mx-auto mb-3 text-thb-text-muted animate-spin" />
+              <p className="text-thb-text-muted">Loading backups...</p>
+            </div>
+          ) : backups.length === 0 ? (
+            <div className="thb-card p-12 text-center">
+              <FiDatabase className="w-12 h-12 mx-auto mb-3 text-thb-text-muted opacity-40" />
+              <p className="text-lg font-medium text-thb-text-primary">No backups yet</p>
+              <p className="text-sm text-thb-text-muted mt-1">Go to the Tenants tab and click the "Backup" button to create a backup.</p>
+            </div>
+          ) : (
+            <div className="thb-card overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-xs text-thb-text-muted border-b border-thb-border bg-slate-50">
+                      <th className="px-4 py-3 font-semibold">Date & Time</th>
+                      <th className="px-4 py-3 font-semibold">Tenant</th>
+                      <th className="px-4 py-3 font-semibold">Triggered By</th>
+                      <th className="px-4 py-3 font-semibold">Tables</th>
+                      <th className="px-4 py-3 font-semibold">Records</th>
+                      <th className="px-4 py-3 font-semibold">Size (est.)</th>
+                      <th className="px-4 py-3 font-semibold">Storage Location</th>
+                      <th className="px-4 py-3 font-semibold">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {backups.map((b: any) => (
+                      <tr key={b.id} className="border-b border-slate-50 hover:bg-slate-50/50">
+                        <td className="px-4 py-3 text-thb-text-secondary">
+                          {new Date(b.createdAt).toLocaleString('en', { dateStyle: 'medium', timeStyle: 'short' })}
+                        </td>
+                        <td className="px-4 py-3 font-medium text-thb-text-primary">
+                          {b.tenant?.name || 'Unknown'}
+                          <span className="block text-xs text-thb-text-muted">{b.tenant?.slug}</span>
+                        </td>
+                        <td className="px-4 py-3 text-thb-text-secondary text-xs">{b.triggeredByName}</td>
+                        <td className="px-4 py-3 text-center">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 text-xs font-medium">{b.totalTables}</span>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 text-xs font-medium">{b.totalRecords}</span>
+                        </td>
+                        <td className="px-4 py-3 text-thb-text-secondary text-xs">
+                          {b.fileSizeBytes ? `${(b.fileSizeBytes / 1024).toFixed(0)} KB` : '—'}
+                        </td>
+                        <td className="px-4 py-3 text-thb-text-secondary text-xs">
+                          <span className="inline-flex items-center gap-1">
+                            <FiDatabase className="w-3 h-3 text-thb-text-muted" />
+                            {b.storageLocation || 'N/A'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`thb-badge ${b.status === 'completed' ? 'thb-badge-success' : 'thb-badge-warning'}`}>
+                            {b.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="px-4 py-3 bg-slate-50 border-t border-thb-border flex items-center justify-between">
+                <span className="text-xs text-thb-text-muted">{backups.length} backup record(s)</span>
+                <span className="text-xs text-thb-text-muted">
+                  Total records backed up: {backups.reduce((sum: number, b: any) => sum + (b.totalRecords || 0), 0).toLocaleString()}
+                </span>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

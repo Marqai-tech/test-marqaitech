@@ -80,6 +80,7 @@ model Tenant {
   trialRegistrations  TrialRegistration[]
   tenantDatabase      TenantDatabase?
   configuration       TenantConfiguration?
+  backupRecords       BackupRecord[]
 }
 
 // ============ PER-TENANT DATABASE ISOLATION ============
@@ -117,6 +118,37 @@ model TenantDatabase {
 
   @@index([tenantId])
   @@index([isActive])
+}
+
+// ============ BACKUP RECORDS ============
+
+model BackupRecord {
+  id            String   @id @default(cuid())
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // Who triggered the backup
+  triggeredBy   String   // user ID
+  triggeredByName String  // user name/email for display
+
+  // Backup details
+  backupType    String   @default("manual") // manual, scheduled
+  status        String   @default("completed") // completed, failed, in_progress
+
+  // Summary stats
+  totalTables   Int      @default(0)
+  totalRecords  Int      @default(0)
+  tableDetails  String?  // JSON string of [{table, count}]
+
+  // Storage info
+  storageLocation String? // e.g., "Neon branch", "S3 bucket", "local"
+  fileSizeBytes  Int?     // estimated size
+  backupNotes   String?  // any notes
+
+  createdAt     DateTime @default(now())
+
+  @@index([tenantId])
+  @@index([createdAt])
 }
 
 // ============ SRS REQ-SA-05: FEATURE FLAGS ============
