@@ -204,7 +204,37 @@ export async function POST(request: Request) {
         results.push('Created 4 payroll runs');
       }
 
-      // ── 10. Payslips ──
+      // ── 10. Salary Structure for admin employee ──
+      if ((await db.salaryStructure.count()) === 0 && employees.length > 0) {
+        // Find the admin employee (first employee or one with userId)
+        const adminEmp = employees[0];
+        const ctc = adminEmp.salary || 1000000;
+        const monthlyGross = Math.round(ctc / 12);
+        const basic = Math.round(monthlyGross * 0.4);
+        const hra = Math.round(basic * 0.5);
+        const sa = monthlyGross - basic - hra - 1600 - 1250 - 2000; // balancing figure
+        const pf = Math.round(basic * 0.12);
+        const pt = 200;
+        const tds = Math.round(monthlyGross * 0.05);
+        await db.salaryStructure.create({ data: {
+          name: `${adminEmp.firstName} ${adminEmp.lastName} - Salary Structure`,
+          employeeId: adminEmp.id,
+          companyId: adminEmp.companyId || companyId,
+          ctc,
+          basicSalary: basic,
+          hra,
+          specialAllowance: sa > 0 ? sa : 0,
+          conveyanceAllowance: 1600,
+          medicalAllowance: 1250,
+          pfDeduction: pf,
+          professionalTax: pt,
+          tdsDeduction: tds,
+          status: 'active',
+        }}).catch(() => {});
+        results.push('Created salary structure for admin employee');
+      }
+
+      // ── 11. Payslips ──
       if ((await db.payroll.count()) === 0 && employees.length > 0) {
         const now = new Date();
         for (const emp of employees.slice(0, 30)) {
