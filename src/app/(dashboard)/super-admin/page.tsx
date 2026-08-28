@@ -1445,11 +1445,17 @@ export default function SuperAdminPage() {
                         <span className="text-xs text-thb-text-muted">{new Date(t.createdAt).toLocaleDateString()}</span>
                         <span className="text-slate-200">·</span>
                         <span className="text-xs text-thb-text-muted">{t._count?.users || 0} users</span>
-                        <div className="ml-auto flex items-center gap-1">
+                        <div className="ml-auto flex items-center gap-2 flex-wrap">
                           <button onClick={() => handleViewTenant(t.id)} className="p-1.5 text-thb-text-muted hover:text-green-600 hover:bg-green-50 rounded-lg" title="View"><FiEye className="w-3.5 h-3.5" /></button>
                           <button onClick={() => handleEditTenant(t)} className="p-1.5 text-thb-text-muted hover:text-green-600 hover:bg-green-50 rounded-lg" title="Edit"><FiEdit2 className="w-3.5 h-3.5" /></button>
-                          <button onClick={() => handleResetTenantEmployees(t.slug, t.name)} disabled={resettingTenantEmployees === t.slug} className="p-1.5 text-thb-text-muted hover:text-red-600 hover:bg-red-50 rounded-lg disabled:opacity-50" title="Reset Employees"><FiAlertTriangle className="w-3.5 h-3.5" /></button>
-                          <button onClick={() => handleBackupTenantDB(t.slug, t.name)} disabled={backingUpTenant === t.slug} className="p-1.5 text-thb-text-muted hover:text-blue-600 hover:bg-blue-50 rounded-lg disabled:opacity-50" title="Backup Database">{backingUpTenant === t.slug ? <FiRefreshCw className="w-3.5 h-3.5 animate-spin" /> : <FiDownload className="w-3.5 h-3.5" />}</button>
+                          <button onClick={() => handleResetTenantEmployees(t.slug, t.name)} disabled={resettingTenantEmployees === t.slug} className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-red-700 bg-red-50 rounded-lg hover:bg-red-100 disabled:opacity-50" title="Delete all employees except admin">
+                            {resettingTenantEmployees === t.slug ? <FiRefreshCw className="w-3 h-3 animate-spin" /> : <FiAlertTriangle className="w-3 h-3" />}
+                            Reset
+                          </button>
+                          <button onClick={() => handleBackupTenantDB(t.slug, t.name)} disabled={backingUpTenant === t.slug} className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100 disabled:opacity-50" title="Backup tenant database">
+                            {backingUpTenant === t.slug ? <FiRefreshCw className="w-3 h-3 animate-spin" /> : <FiDownload className="w-3 h-3" />}
+                            Backup
+                          </button>
                           <button onClick={() => setDeleteConfirmId(t.id)} className="p-1.5 text-thb-text-muted hover:text-red-600 hover:bg-red-50 rounded-lg" title="Delete"><FiTrash2 className="w-3.5 h-3.5" /></button>
                           {t.status === 'active' ? (
                             <button onClick={() => handleTenantStatusChange(t.id, 'suspended')} className="px-2.5 py-1 text-[11px] font-medium text-amber-700 bg-amber-50 rounded-lg hover:bg-amber-100">Suspend</button>
