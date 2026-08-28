@@ -352,7 +352,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
       { field: 'employeeId', label: 'Employee ID' },
     ],
     address: [
-      { field: 'addressLine1', label: 'Address Line 1' },
+      { field: 'address', label: 'Address Line 1' },
       { field: 'city', label: 'City' },
       { field: 'state', label: 'State' },
       { field: 'zipCode', label: 'ZIP Code' },
