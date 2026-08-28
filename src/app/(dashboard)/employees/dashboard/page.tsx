@@ -100,7 +100,7 @@ export default function EmployeeDashboardPage() {
     terminations: 0,
     rejoins: 0,
   });
-  const [debugInfo, setDebugInfo] = useState<any>({ cid: cidValue, tid: tidValue });
+  const [debugInfo, setDebugInfo] = useState<any>(null);
   const [departments, setDepartments] = useState<DepartmentDist[]>([]);
   const [recentUpdates, setRecentUpdates] = useState<RecentUpdate[]>([]);
   const [headcountTrend, setHeadcountTrend] = useState<HeadcountTrend[]>([]);
