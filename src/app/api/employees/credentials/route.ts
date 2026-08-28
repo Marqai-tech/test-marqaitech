@@ -86,11 +86,18 @@ export async function GET(request: Request) {
       }
     }
 
-    // Get user info
-    const user = await db.user.findUnique({
+    // Get user info — try resolved db first, then platform DB
+    let user = await db.user.findUnique({
       where: { id: decoded.userId as string },
       select: { id: true, role: true, tenantId: true },
-    });
+    }).catch(() => null);
+    if (!user) {
+      // If not found in tenant DB (might be super_admin in platform DB), try platform DB
+      user = await getPlatformDb().user.findUnique({
+        where: { id: decoded.userId as string },
+        select: { id: true, role: true, tenantId: true },
+      });
+    }
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404, headers: corsHeaders() });
 
     const userRole = user.role;
@@ -120,7 +127,7 @@ export async function GET(request: Request) {
     // Employee has no `company` relation — only a bare companyId field.
     // To filter by tenant, we need to first find all companies under that tenant,
     // then filter employees by those company IDs.
-    if (!companyId && tenantId && userRole === 'super_admin') {
+    if (!companyId && tenantId && effectiveRole === 'super_admin') {
       const tenantGroups = await db.companyGroup.findMany({
         where: { tenantId },
         select: { id: true },
@@ -144,10 +151,12 @@ export async function GET(request: Request) {
     }
 
     // ─── Data scope filtering ───
-    // This matches /api/employees: scope='self' → own employee, scope='team' → own dept, scope='all' → no filter
-    if (scope === 'self' && userId) {
+    // For super_admin: use jwtRole (from JWT) which is more reliable
+    const effectiveRole = userRole || jwtRole;
+    const effectiveScope = getDataScope(effectiveRole);
+    if (effectiveScope === 'self' && userId) {
       where.userId = userId;
-    } else if (scope === 'team' && userId) {
+    } else if (effectiveScope === 'team' && userId) {
       const ownEmp = await db.employee.findFirst({
         where: { userId, status: 'active' },
         select: { departmentId: true },
@@ -159,7 +168,7 @@ export async function GET(request: Request) {
     // scope === 'all' → no additional tenant/company filtering (tenant_admin, admin, super_admin)
 
     console.log('[Credentials GET] where:', JSON.stringify(where, null, 2));
-    console.log('[Credentials GET] userRole:', userRole, 'scope:', scope, 'tenantId:', user.tenantId, 'companyId:', companyId);
+    console.log('[Credentials GET] jwtRole:', jwtRole, 'effectiveRole:', effectiveRole, 'scope:', effectiveScope, 'tenantId:', tenantId, 'companyId:', companyId);
 
     const [employees, total] = await Promise.all([
       db.employee.findMany({
