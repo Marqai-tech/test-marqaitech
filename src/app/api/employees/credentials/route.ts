@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
-import { getDb, getPlatformDb } from '@/lib/tenant-db';
+import { getDb, getPlatformDb, getDbForTenant } from '@/lib/tenant-db';
 import { hashPassword, getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { getDataScope } from '@/lib/roleAccess';
+import { isServerLiveSite } from '@/lib/tenant-filter';
 
 function corsHeaders() {
   return {
@@ -40,14 +41,7 @@ function generateRandomPassword(length = 12): string {
 
 /** GET — list all employees with their login credential status */
 export async function GET(request: Request) {
-  const db = await getDb(request);
   try {
-    const token = getTokenFromHeaders(request);
-    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
-
-    const decoded = await verifyToken(token);
-    if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401, headers: corsHeaders() });
-
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search') || '';
     const departmentId = searchParams.get('departmentId') || '';
@@ -55,6 +49,42 @@ export async function GET(request: Request) {
     const tenantId = searchParams.get('tenantId') || '';
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '50');
+
+    const token = getTokenFromHeaders(request);
+    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
+
+    const decoded = await verifyToken(token);
+    if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401, headers: corsHeaders() });
+
+    // ─── Resolve the correct tenant DB ───
+    let db = await getDb(request);
+
+    // Decode JWT role
+    const jwtRole = (decoded.role as string) || 'employee';
+
+    // For super_admin, resolve tenant DB from tenantId or companyId query param
+    if (jwtRole === 'super_admin') {
+      if (tenantId) {
+        const tenant = await getPlatformDb().tenant.findUnique({
+          where: { id: tenantId },
+          select: { slug: true },
+        });
+        if (tenant?.slug) {
+          db = await getDbForTenant(tenant.slug);
+        }
+      } else if (companyId) {
+        let company = await db.company.findUnique({ where: { id: companyId }, select: { companyGroupId: true } }).catch(() => null);
+        if (!company) company = await getPlatformDb().company.findUnique({ where: { id: companyId }, select: { companyGroupId: true } }).catch(() => null);
+        if (company?.companyGroupId) {
+          let group = await db.companyGroup.findUnique({ where: { id: company.companyGroupId }, select: { tenantId: true } }).catch(() => null);
+          if (!group) group = await getPlatformDb().companyGroup.findUnique({ where: { id: company.companyGroupId }, select: { tenantId: true } }).catch(() => null);
+          if (group?.tenantId) {
+            const tenant = await getPlatformDb().tenant.findUnique({ where: { id: group.tenantId }, select: { slug: true } });
+            if (tenant?.slug) db = await getDbForTenant(tenant.slug);
+          }
+        }
+      }
+    }
 
     // Get user info
     const user = await db.user.findUnique({
