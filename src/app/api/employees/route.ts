@@ -70,22 +70,34 @@ export async function GET(request: Request) {
       // ignore
     }
 
-    // ─── GOLDEN RULE: Aggregation for super_admin without scope ───
-    // When super_admin has NO tenant or company selected, aggregate employee
-    // counts across ALL visible tenant DBs so the dashboard shows real
-    // cross-tenant totals.
-    if (jwtRole === 'super_admin' && !queryCompanyId && !tenantId) {
+    // ─── GOLDEN RULE: Aggregation for super_admin without a company selected ───
+    // When super_admin has NO company selected (companyId is null), aggregate
+    // employee counts. If tenantId is provided, aggregate from that specific
+    // tenant DB. If tenantId is also null, aggregate across ALL visible tenants.
+    if (jwtRole === 'super_admin' && !queryCompanyId) {
       try {
         const { getServerHiddenSlugs, PLATFORM_PLACEHOLDER_NAME } = await import('@/lib/tenant-filter');
         const hiddenSlugs = getServerHiddenSlugs(request);
-        console.log('[employees] Aggregation path: hiddenSlugs=', hiddenSlugs);
-        const visibleTenants = await getPlatformDb().tenant.findMany({
-          where: {
-            slug: { notIn: hiddenSlugs },
-            NOT: { name: { contains: PLATFORM_PLACEHOLDER_NAME } },
-          },
-          select: { id: true, slug: true, name: true },
-        });
+
+        // Determine which tenants to aggregate from
+        let visibleTenants: { id: string; slug: string; name: string }[];
+        if (tenantId) {
+          // Specific tenant selected — aggregate from just that one
+          const tenant = await getPlatformDb().tenant.findUnique({
+            where: { id: tenantId },
+            select: { id: true, slug: true, name: true },
+          });
+          visibleTenants = tenant ? [tenant] : [];
+        } else {
+          // No tenant selected — aggregate across ALL visible tenants
+          visibleTenants = await getPlatformDb().tenant.findMany({
+            where: {
+              slug: { notIn: hiddenSlugs },
+              NOT: { name: { contains: PLATFORM_PLACEHOLDER_NAME } },
+            },
+            select: { id: true, slug: true, name: true },
+          });
+        }
         console.log('[employees] Visible tenants:', visibleTenants.map(t => ({ id: t.id, slug: t.slug, name: t.name })));
 
         let totalEmployees = 0;

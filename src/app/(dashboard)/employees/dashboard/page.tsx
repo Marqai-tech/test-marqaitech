@@ -100,7 +100,6 @@ export default function EmployeeDashboardPage() {
     terminations: 0,
     rejoins: 0,
   });
-  const [debugInfo, setDebugInfo] = useState<any>(null);
   const [departments, setDepartments] = useState<DepartmentDist[]>([]);
   const [recentUpdates, setRecentUpdates] = useState<RecentUpdate[]>([]);
   const [headcountTrend, setHeadcountTrend] = useState<HeadcountTrend[]>([]);
@@ -133,13 +132,8 @@ export default function EmployeeDashboardPage() {
       const scopeQuery = scopeQs ? `&${scopeQs}` : '';
 
       const statsRes = await fetch(`/api/employees?limit=1&page=1${scopeQuery}`, { headers });
-      // Debug: always set debugInfo regardless of response status
       if (statsRes.ok) {
         const statsData = await statsRes.json();
-        setDebugInfo({
-          cid, tid, scopeQuery, total: statsData.pagination?.total, dataScope: statsData.dataScope,
-          debug: statsData._debug,
-        });
         const total = statsData.pagination?.total || 0;
 
         // Fetch all employees for detailed stats (use pagination total for count)
@@ -287,19 +281,9 @@ export default function EmployeeDashboardPage() {
 
         // Generate headcount trend (only from real data, no random/fake)
         setHeadcountTrend(generateHeadcountTrend(allEmps, total));
-      } else {
-        // API returned non-OK status
-        const errorText = await statsRes.text().catch(() => 'N/A');
-        setDebugInfo({
-          cid, tid, scopeQuery,
-          status: statsRes.status,
-          statusText: statsRes.statusText,
-          error: errorText.substring(0, 500),
-        });
       }
     } catch (err) {
       console.error('Dashboard fetch error:', err);
-      setDebugInfo({ error: String(err), cid: effectiveCompanyId(), tid: selectedTenantId });
       // GOLDEN RULE: On error, show zeros/empty — NOT fake data
       setStats(getSampleStats());
       setDepartments(getSampleDepartments());
@@ -411,13 +395,6 @@ export default function EmployeeDashboardPage() {
   if (loading) {
     return (
       <div className="space-y-6 animate-pulse">
-        {/* ── DEBUG BANNER (temporary — shown during loading too) ── */}
-        {debugInfo && (
-          <div className="thb-card p-4 bg-amber-50 border-amber-200 text-xs font-mono animate-none">
-            <p className="font-bold text-amber-800 mb-2">DEBUG (during loading):</p>
-            <pre className="whitespace-pre-wrap text-amber-900">{JSON.stringify(debugInfo, null, 2)}</pre>
-          </div>
-        )}
         <div className="h-8 bg-slate-200 rounded w-64" />
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {[1, 2, 3, 4].map(i => (
@@ -434,13 +411,6 @@ export default function EmployeeDashboardPage() {
 
   return (
     <div className="space-y-6">
-      {/* ── DEBUG BANNER (temporary) ── */}
-      {debugInfo && (
-        <div className="thb-card p-4 bg-amber-50 border-amber-200 text-xs font-mono">
-          <p className="font-bold text-amber-800 mb-2">DEBUG:</p>
-          <pre className="whitespace-pre-wrap text-amber-900">{JSON.stringify(debugInfo, null, 2)}</pre>
-        </div>
-      )}
       {/* ── Header ── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
