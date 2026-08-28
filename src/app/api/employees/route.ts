@@ -223,8 +223,11 @@ export async function GET(request: Request) {
       //   - A specific ID when an admin selected a company in CompanySwitcher,
       //     or when a non-admin is scoped to their own company.
       //   - null when an admin has no company selected (sees all).
-      if (scopeResult?.companyId) {
-        where.companyId = scopeResult.companyId;
+      // FALLBACK: If resolveCompanyScope failed (returned null), use queryCompanyId
+      // from the URL params directly so the company filter still works.
+      const effectiveCompanyIdFilter = scopeResult?.companyId || queryCompanyId;
+      if (effectiveCompanyIdFilter) {
+        where.companyId = effectiveCompanyIdFilter;
       }
 
       // ─── Tenant scope filter (super_admin only) ───
