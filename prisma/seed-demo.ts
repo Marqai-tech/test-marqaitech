@@ -171,6 +171,23 @@ async function main() {
   });
   console.log(`  ✓ Tenant: ${tenant.name} (${tenant.id})`);
 
+  // ── 2b. Register the demo tenant DB (so getDbForTenant finds it) ──
+  // The seed script writes to the same DB it connects to. We register
+  // this DB as the tenant's dedicated DB so that runtime getDbForTenant()
+  // resolves to this DB instead of falling back to the platform DB.
+  await prisma.tenantDatabase.upsert({
+    where: { tenantId: tenant.id },
+    update: { isActive: true },
+    create: {
+      tenantId: tenant.id,
+      connectionString: connectionString!,
+      directUrl: connectionString,
+      databaseName: 'demo_db',
+      isActive: true,
+    },
+  });
+  console.log(`  ✓ Registered TenantDatabase for demo tenant`);
+
   // ── 3. COMPANY GROUP ──
   const companyGroup = await prisma.companyGroup.create({
     data: { name: '3 Boxes Enterprise Group', tenantId: tenant.id },
