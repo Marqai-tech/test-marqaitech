@@ -1,6 +1,7 @@
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { isSuperAdminWithoutScope } from '@/lib/superAdminGuard';
+import { resolveCompanyScope } from '@/lib/companyScope';
 import { NextRequest } from 'next/server';
 
 const corsHeaders = {
@@ -32,10 +33,35 @@ export async function GET(request: NextRequest) {
       return Response.json({ data: [] }, { headers: corsHeaders });
     }
 
+    // ─── Resolve scope (employee = own, manager = own + reports, admin = all/company) ───
+    const scope = await resolveCompanyScope(request);
+    if (!scope) return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
+
     const where: Record<string, unknown> = {
       status: { in: ['paid', 'processed'] },
     };
-    if (employeeId) where.employeeId = employeeId;
+
+    // Apply data-scope filtering
+    if (scope.scope === 'self' && scope.ownEmployeeId) {
+      // Employee: only their own payslips
+      where.employeeId = scope.ownEmployeeId;
+    } else if (scope.scope === 'team' && scope.visibleEmployeeIds.length > 0) {
+      // Manager: own + direct reports' payslips
+      where.employeeId = { in: scope.visibleEmployeeIds };
+    } else if (scope.scope === 'all' && scope.companyId) {
+      // Admin with company selected
+      where.employee = { companyId: scope.companyId };
+    }
+    // 'all' without companyId → no filter (sees all)
+
+    // Allow employeeId override for admins/managers explicitly viewing one employee
+    if (employeeId && scope.scope !== 'self') {
+      // For managers, validate the requested employeeId is in their visible list
+      if (scope.scope === 'team' && !scope.visibleEmployeeIds.includes(employeeId)) {
+        return Response.json({ error: 'Access denied: not your direct report' }, { status: 403, headers: corsHeaders });
+      }
+      where.employeeId = employeeId;
+    }
     if (month) where.month = parseInt(month);
     if (year) where.year = parseInt(year);
 

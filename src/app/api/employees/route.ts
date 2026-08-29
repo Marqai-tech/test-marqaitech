@@ -306,14 +306,48 @@ export async function GET(request: Request) {
       // ─── Self / team / admin scope enforcement ───
       if (isAuthed) {
         if (scope === 'self' && userId) {
+          // Employee: only see their own employee record
           where.userId = userId;
         } else if (scope === 'team' && userId) {
+          // Manager: see own + direct reports (resolved via reportingManagerId + DottedLineManager)
           const ownEmp = await db.employee.findFirst({
             where: { userId, status: 'active' },
-            select: { departmentId: true },
+            select: { id: true },
           });
           if (ownEmp) {
-            where.departmentId = ownEmp.departmentId;
+            // 1. Direct reports via Employee.reportingManagerId
+            const directReports = await db.employee.findMany({
+              where: { reportingManagerId: ownEmp.id, status: 'active' },
+              select: { id: true },
+            });
+            const directIds = directReports.map(e => e.id);
+
+            // 2. Dotted-line reports via DottedLineManager (if table exists)
+            let dottedIds: string[] = [];
+            try {
+              const dotted = await (db as any).dottedLineManager?.findMany({
+                where: {
+                  managerId: ownEmp.id,
+                  OR: [{ endDate: null }, { endDate: { gt: new Date() } }],
+                },
+                select: { employeeId: true },
+              });
+              if (Array.isArray(dotted)) {
+                dottedIds = dotted.map((d: { employeeId: string }) => d.employeeId);
+              }
+            } catch { /* DottedLineManager table might not exist */ }
+
+            // Combine: own ID + direct + dotted (deduplicated)
+            const visibleIds = Array.from(new Set([ownEmp.id, ...directIds, ...dottedIds]));
+            if (visibleIds.length > 0) {
+              where.id = { in: visibleIds };
+            } else {
+              // No reportees — fall back to own record only
+              where.id = ownEmp.id;
+            }
+          } else {
+            // No employee record — return nothing
+            where.id = '__never__';
           }
         } else if (userRole === 'admin') {
           where.user = { role: { not: 'super_admin' } };

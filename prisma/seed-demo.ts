@@ -540,6 +540,9 @@ async function main() {
     const companyBranches = branches.filter(b => b.companyId === company.id);
     const name = managerUsers[i].name.split(' ');
 
+    // Managers report to the HR admin of their company
+    const hrAdminEmpForCompany = hrAdminEmps[i % hrAdminEmps.length];
+
     const emp = await prisma.employee.create({
       data: {
         employeeId: `EMP-${company.code}-MGR${String(i + 1).padStart(3, '0')}`,
@@ -548,6 +551,7 @@ async function main() {
         userId: managerUsers[i].id,
         departmentId: dept.id, designationId: desg.id,
         branchId: companyBranches[0].id, companyId: company.id,
+        reportingManagerId: hrAdminEmpForCompany?.id || null,
         dateOfJoining: randDate(new Date('2019-01-01'), new Date('2022-06-30')),
         dateOfBirth: randDate(new Date('1975-01-01'), new Date('1990-12-31')),
         gender: i % 2 === 0 ? 'male' : 'female', nationality: 'Indian',
@@ -567,6 +571,7 @@ async function main() {
   }
 
   // Regular employees (75 across 3 companies — 25 per company)
+  // Each regular employee reports to a manager in their company
   const regularEmps = [];
   for (let i = 0; i < EMPLOYEE_NAMES.length; i++) {
     const name = EMPLOYEE_NAMES[i];
@@ -579,6 +584,11 @@ async function main() {
     const companyBranches = branches.filter(b => b.companyId === company.id);
     const branch = companyBranches[i % companyBranches.length];
 
+    // Assign a manager from the same company — managers are at indices [0,1] for TCG, [2,3] for MPI, [4,5] for HFS
+    const companyManagerIndices = companyIdx === 0 ? [0, 1] : companyIdx === 1 ? [2, 3] : [4, 5];
+    const managerIdx = companyManagerIndices[i % companyManagerIndices.length];
+    const manager = managerEmps[managerIdx];
+
     const emp = await prisma.employee.create({
       data: {
         employeeId: `EMP-${company.code}-${String(i + 1).padStart(3, '0')}`,
@@ -587,6 +597,7 @@ async function main() {
         userId: employeeUsers[i].id,
         departmentId: dept.id, designationId: desg.id,
         branchId: branch.id, companyId: company.id,
+        reportingManagerId: manager?.id || null,
         dateOfJoining: randDate(new Date('2020-01-01'), new Date('2025-06-30')),
         dateOfBirth: randDate(new Date('1985-01-01'), new Date('2000-12-31')),
         gender: i % 3 === 0 ? 'female' : 'male', nationality: 'Indian',

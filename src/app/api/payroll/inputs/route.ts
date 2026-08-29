@@ -1,5 +1,6 @@
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
+import { resolveCompanyScope } from '@/lib/companyScope';
 import { NextRequest } from 'next/server';
 
 const corsHeaders = {
@@ -25,8 +26,32 @@ export async function GET(request: NextRequest) {
     const approvalStatus = searchParams.get('approvalStatus');
     const payrollRunId = searchParams.get('payrollRunId');
 
+    // ─── Resolve scope (employee = own, manager = own + reports, admin = all/company) ───
+    const scope = await resolveCompanyScope(request);
+    if (!scope) return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
+
     const where: Record<string, unknown> = {};
-    if (employeeId) where.employeeId = employeeId;
+
+    // Apply data-scope filtering (unless employeeId override is allowed for admins/managers)
+    if (scope.scope === 'self' && scope.ownEmployeeId) {
+      // Employee: only their own payroll inputs
+      where.employeeId = scope.ownEmployeeId;
+    } else if (scope.scope === 'team' && scope.visibleEmployeeIds.length > 0) {
+      // Manager: own + direct reports' payroll inputs
+      where.employeeId = { in: scope.visibleEmployeeIds };
+    } else if (scope.scope === 'all' && scope.companyId) {
+      // Admin with company selected
+      where.employee = { companyId: scope.companyId };
+    }
+
+    // Allow employeeId override for admins/managers
+    if (employeeId && scope.scope !== 'self') {
+      // For managers, validate the requested employeeId is in their visible list
+      if (scope.scope === 'team' && !scope.visibleEmployeeIds.includes(employeeId)) {
+        return Response.json({ error: 'Access denied: not your direct report' }, { status: 403, headers: corsHeaders });
+      }
+      where.employeeId = employeeId;
+    }
     if (inputType) where.inputType = inputType;
     if (approvalStatus) where.approvalStatus = approvalStatus;
     if (payrollRunId) where.payrollRunId = payrollRunId;

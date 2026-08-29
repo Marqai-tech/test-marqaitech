@@ -1,9 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
+import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
+import { resolveCompanyScope } from '@/lib/companyScope';
 
 export async function GET(req: NextRequest) {
   const db = await getDb(req);
   try {
+    // ─── Auth + scope resolution ───
+    const token = getTokenFromHeaders(req);
+    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const decoded = await verifyToken(token);
+    if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+
     const url = new URL(req.url);
     const status = url.searchParams.get('status');
     const employeeId = url.searchParams.get('employeeId');
@@ -15,11 +23,37 @@ export async function GET(req: NextRequest) {
     const limit = parseInt(url.searchParams.get('limit') || '20');
     const skip = (page - 1) * limit;
 
+    // Resolve scope: employee=own, manager=own+reports, admin=all/company
+    const scope = await resolveCompanyScope(req);
+    if (!scope) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     const where: Record<string, unknown> = {};
-    if (employeeId) where.employeeId = employeeId;
+
+    // Apply data-scope filtering
+    if (scope.scope === 'self' && scope.ownEmployeeId) {
+      // Employee: only their own leaves
+      where.employeeId = scope.ownEmployeeId;
+    } else if (scope.scope === 'team' && scope.visibleEmployeeIds.length > 0) {
+      // Manager: own + direct reports' leaves
+      where.employeeId = { in: scope.visibleEmployeeIds };
+    } else if (scope.scope === 'all' && companyId) {
+      // Admin with company selected (companyId from query)
+      where.employee = { companyId };
+    } else if (scope.scope === 'all' && scope.companyId) {
+      // Admin with company selected via scope (from CompanySwitcher)
+      where.employee = { companyId: scope.companyId };
+    }
+    // 'all' without companyId → no filter (sees all)
+
+    // Allow employeeId override for admins/managers (with validation for managers)
+    if (employeeId && scope.scope !== 'self') {
+      if (scope.scope === 'team' && !scope.visibleEmployeeIds.includes(employeeId)) {
+        return NextResponse.json({ error: 'Access denied: not your direct report' }, { status: 403 });
+      }
+      where.employeeId = employeeId;
+    }
     if (status) where.status = status;
     if (type) where.type = type;
-    if (companyId) where.employee = { companyId };
     if (startDate || endDate) {
       where.startDate = {};
       if (startDate) (where.startDate as Record<string, unknown>).gte = new Date(startDate);
@@ -60,24 +94,10 @@ export async function GET(req: NextRequest) {
     });
   } catch (error) {
     console.error('Leaves GET error:', error);
-    // Demo data fallback when database is unavailable
-    const demoLeaves = [
-      { id: 'leave-1', type: 'casual', startDate: '2025-05-20', endDate: '2025-05-21', totalDays: 2, reason: 'Personal work', status: 'approved', employeeId: 'demo-1', approverId: 'demo-2', approverComment: 'Approved', createdAt: '2025-05-18', employee: { id: 'demo-1', firstName: 'Rajesh', lastName: 'Kumar', employeeId: 'EMP001', avatar: null, department: { name: 'Engineering' } }, approver: { id: 'demo-2', firstName: 'Priya', lastName: 'Sharma' }, workflowInstance: null },
-      { id: 'leave-2', type: 'sick', startDate: '2025-05-15', endDate: '2025-05-16', totalDays: 2, reason: 'Not feeling well', status: 'approved', employeeId: 'demo-3', approverId: 'demo-2', approverComment: 'Get well soon', createdAt: '2025-05-14', employee: { id: 'demo-3', firstName: 'Amit', lastName: 'Patel', employeeId: 'EMP003', avatar: null, department: { name: 'Design' } }, approver: { id: 'demo-2', firstName: 'Priya', lastName: 'Sharma' }, workflowInstance: null },
-      { id: 'leave-3', type: 'paid', startDate: '2025-06-01', endDate: '2025-06-05', totalDays: 5, reason: 'Family vacation', status: 'pending', employeeId: 'demo-6', approverId: null, approverComment: null, createdAt: '2025-05-25', employee: { id: 'demo-6', firstName: 'Ananya', lastName: 'Gupta', employeeId: 'EMP006', avatar: null, department: { name: 'Marketing' } }, approver: null, workflowInstance: null },
-      { id: 'leave-4', type: 'casual', startDate: '2025-05-28', endDate: '2025-05-28', totalDays: 1, reason: 'Doctor appointment', status: 'pending', employeeId: 'demo-4', approverId: null, approverComment: null, createdAt: '2025-05-26', employee: { id: 'demo-4', firstName: 'Sneha', lastName: 'Reddy', employeeId: 'EMP004', avatar: null, department: { name: 'Finance' } }, approver: null, workflowInstance: null },
-      { id: 'leave-5', type: 'sick', startDate: '2025-05-10', endDate: '2025-05-10', totalDays: 1, reason: 'Migraine', status: 'rejected', employeeId: 'demo-8', approverId: 'demo-9', approverComment: 'Critical project deadline', createdAt: '2025-05-09', employee: { id: 'demo-8', firstName: 'Deepa', lastName: 'Iyer', employeeId: 'EMP008', avatar: null, department: { name: 'Sales' } }, approver: { id: 'demo-9', firstName: 'Arjun', lastName: 'Menon' }, workflowInstance: null },
-      { id: 'leave-6', type: 'paid', startDate: '2025-04-14', endDate: '2025-04-18', totalDays: 5, reason: 'Annual family trip', status: 'approved', employeeId: 'demo-9', approverId: 'demo-2', approverComment: 'Enjoy your trip', createdAt: '2025-04-01', employee: { id: 'demo-9', firstName: 'Arjun', lastName: 'Menon', employeeId: 'EMP009', avatar: null, department: { name: 'Operations' } }, approver: { id: 'demo-2', firstName: 'Priya', lastName: 'Sharma' }, workflowInstance: null },
-      { id: 'leave-7', type: 'casual', startDate: '2025-06-10', endDate: '2025-06-11', totalDays: 2, reason: 'Home relocation', status: 'pending', employeeId: 'demo-5', approverId: null, approverComment: null, createdAt: '2025-06-01', employee: { id: 'demo-5', firstName: 'Vikram', lastName: 'Singh', employeeId: 'EMP005', avatar: null, department: { name: 'Engineering' } }, approver: null, workflowInstance: null },
-    ];
-    let filtered = demoLeaves;
-    if (status) filtered = filtered.filter(l => l.status === status);
-    if (type) filtered = filtered.filter(l => l.type === type);
-    if (employeeId) filtered = filtered.filter(l => l.employeeId === employeeId);
-    return NextResponse.json({
-      data: filtered,
-      pagination: { page, limit, total: filtered.length, totalPages: 1 },
-    });
+    return NextResponse.json(
+      { error: 'Failed to fetch leaves', details: error instanceof Error ? error.message : 'Unknown' },
+      { status: 500 }
+    );
   }
 }
 

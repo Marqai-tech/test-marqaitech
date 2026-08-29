@@ -442,6 +442,14 @@ model Employee {
   branch         Branch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
   companyId      String?
 
+  // ─── REQ-EMP-04: Solid-line reporting manager ───
+  // This is the primary manager who approves leave/attendance/timesheet requests.
+  // DottedLineManager table handles secondary/dotted/project/functional managers.
+  // This field is nullable so existing employees without a manager still work.
+  reportingManagerId String?
+  reportingManager   Employee? @relation("EmployeeReportsTo", fields: [reportingManagerId], references: [id], onDelete: SetNull)
+  directReports       Employee[] @relation("EmployeeReportsTo")
+
   dateOfJoining  DateTime
   dateOfBirth    DateTime?
   gender         String?
@@ -600,6 +608,7 @@ model Employee {
   @@index([departmentId])
   @@index([designationId])
   @@index([status])
+  @@index([reportingManagerId])
 }
 
 model Dependent {
