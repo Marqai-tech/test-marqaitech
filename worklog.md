@@ -215,3 +215,30 @@ Stage Summary:
 - 4 API routes now use foolproof tenant-filter.ts detection
 - Attendance API returns defaults instead of 500 when table missing in tenant DB
 - Leave policy and settings merged into tabbed UI
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix duplicates in demo link credentials page + password reset not working
+
+Work Log:
+- Diagnosed ROOT CAUSE #1: PUT handler in /api/employees/credentials didn't have tenant DB resolution logic (only used getDb(request)). This caused password resets to write to the wrong DB on the demo link.
+- Diagnosed ROOT CAUSE #2: Login flow checks platform DB FIRST (Phase 1) then tenant DB (Phase 2). When a user exists in BOTH DBs, login uses platform DB password. But the password reset was only updating ONE DB, so login kept failing.
+- Diagnosed ROOT CAUSE #3: Employee.email is NOT unique in the schema, so re-seeding the demo DB leaves duplicate Employee rows with the same email.
+- Diagnosed ROOT CAUSE #4: prisma/seed-demo.ts cleanup only deleted users by tenantId, missing orphaned users from previous runs (where tenantId changed).
+- Fixed PUT handler: added full tenant DB resolution (?tenantId=, ?companyId=, x-tenant-slug header)
+- Fixed PUT + POST handlers: now sync passwords to BOTH tenant DB AND platform DB (by userId AND by email as fallback)
+- Fixed GET handler: dedupe employees by email at the API layer
+- Created /api/admin/purge-duplicates endpoint (one-click cleanup)
+- Updated seed-demo.ts cleanup to catch orphaned records by email pattern
+- Added 'Purge Dups' button to super-admin page (per tenant row)
+- Added 'Purge Duplicates' button to /employees/settings (Login Credentials tab)
+- Fixed pre-existing bug: unescaped apostrophe in 'Xavier D'Souza' on line 923 of seed-demo.ts
+- Build succeeded, committed and pushed to main
+
+Stage Summary:
+- Demo link credentials page no longer shows duplicate employees (deduped at API layer)
+- Password reset now correctly updates both platform DB and tenant DB user records
+- One-click 'Purge Duplicates' button available on both super-admin and employee settings pages
+- Seed script is now safe to re-run without leaving orphaned records
+- After deployment, user should click 'Purge Duplicates' once to clean up existing duplicates
