@@ -179,6 +179,8 @@ export const navSections: NavSection[] = [
 
   // ─── 3. EMPLOYEE MODULE ───
   // Dashboard / Lifecycle / Transactions → sidebar sub-sections
+  // Employee role: only My Profile + Resignation (self-service)
+  // Manager role: + Team view + Org Chart + Probation review
   {
     key: 'employee',
     label: 'Employee',
@@ -192,34 +194,39 @@ export const navSections: NavSection[] = [
       { label: 'Settings', key: 'settings', icon: <FiSettings className="w-4 h-4" />, isNew: true },
     ],
     items: [
-      { label: 'Employee Dashboard', href: '/employees/dashboard', icon: <FiGrid className="w-4 h-4" />, moduleKey: 'employees', isNew: true },
-      { label: 'Employee List', href: '/employees', icon: <FiUsers className="w-4 h-4" />, moduleKey: 'employees' },
+      // Self-service: visible to all roles (employee, manager, admin, etc.)
+      { label: 'My Dashboard', href: '/employees/dashboard', icon: <FiGrid className="w-4 h-4" />, moduleKey: 'employees', roles: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'], isNew: true },
+      { label: 'My Profile', href: '/employees?view=self', icon: <FiUser className="w-4 h-4" />, moduleKey: 'employees', roles: ['employee', 'manager'] },
+      { label: 'Employee List', href: '/employees', icon: <FiUsers className="w-4 h-4" />, moduleKey: 'employees', roles: ['super_admin', 'tenant_admin', 'admin', 'manager'] },
 
       // ── Lifecycle ──
-      { label: 'Lifecycle', href: '#lifecycle-divider', icon: <FiRefreshCw className="w-3.5 h-3.5" />, moduleKey: 'employees', isDivider: true },
-      { label: 'Add Employee', href: '/employees/add', icon: <FiUserPlus className="w-4 h-4" />, moduleKey: 'employees', isNew: true },
-      { label: 'Probation', href: '/employees/probation', icon: <FiClock className="w-4 h-4" />, moduleKey: 'employees', isNew: true },
-      { label: 'Transfer', href: '/employees/transfer', icon: <FiRefreshCw className="w-4 h-4" />, moduleKey: 'employees', isNew: true },
-      { label: 'Resignation', href: '/employees/resignation', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'employees', isNew: true },
-      { label: 'Termination', href: '/employees/termination', icon: <FiAlertCircle className="w-4 h-4" />, moduleKey: 'employees', isNew: true },
-      { label: 'Rejoin Employee', href: '/employees/rejoin', icon: <FiUserCheck className="w-4 h-4" />, moduleKey: 'employees', isNew: true },
+      // Admin-only: full lifecycle actions
+      { label: 'Lifecycle', href: '#lifecycle-divider', icon: <FiRefreshCw className="w-3.5 h-3.5" />, moduleKey: 'employees', roles: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'], isDivider: true },
+      { label: 'Add Employee', href: '/employees/add', icon: <FiUserPlus className="w-4 h-4" />, moduleKey: 'employees', roles: ['super_admin', 'tenant_admin', 'admin'], isNew: true },
+      { label: 'Probation', href: '/employees/probation', icon: <FiClock className="w-4 h-4" />, moduleKey: 'employees', roles: ['super_admin', 'tenant_admin', 'admin', 'manager'], isNew: true },
+      { label: 'Transfer', href: '/employees/transfer', icon: <FiRefreshCw className="w-4 h-4" />, moduleKey: 'employees', roles: ['super_admin', 'tenant_admin', 'admin'], isNew: true },
+      // Employee can apply for resignation (self-service)
+      { label: 'Apply Resignation', href: '/employees/resignation', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'employees', roles: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'], isNew: true },
+      { label: 'Termination', href: '/employees/termination', icon: <FiAlertCircle className="w-4 h-4" />, moduleKey: 'employees', roles: ['super_admin', 'tenant_admin', 'admin'], isNew: true },
+      { label: 'Rejoin Employee', href: '/employees/rejoin', icon: <FiUserCheck className="w-4 h-4" />, moduleKey: 'employees', roles: ['super_admin', 'tenant_admin', 'admin'], isNew: true },
 
       // ── Structure ──
-      { label: 'Structure', href: '#structure-divider', icon: <FiLayers className="w-3.5 h-3.5" />, moduleKey: 'employees', isDivider: true },
-      { label: 'Org Chart', href: '/org-chart', icon: <FiLayers className="w-4 h-4" />, moduleKey: 'employees', isNew: true },
+      { label: 'Structure', href: '#structure-divider', icon: <FiLayers className="w-3.5 h-3.5" />, moduleKey: 'employees', roles: ['super_admin', 'tenant_admin', 'admin', 'manager'], isDivider: true },
+      { label: 'Org Chart', href: '/org-chart', icon: <FiLayers className="w-4 h-4" />, moduleKey: 'employees', roles: ['super_admin', 'tenant_admin', 'admin', 'manager'], isNew: true },
 
       // ── Settings ──
-      { label: 'Settings', href: '#settings-divider', icon: <FiSettings className="w-3.5 h-3.5" />, moduleKey: 'employees', isDivider: true },
-      { label: 'Employee Settings', href: '/employees/settings', icon: <FiSettings className="w-4 h-4" />, moduleKey: 'employees', isNew: true },
+      { label: 'Settings', href: '#settings-divider', icon: <FiSettings className="w-3.5 h-3.5" />, moduleKey: 'employees', roles: ['super_admin', 'tenant_admin', 'admin'], isDivider: true },
+      { label: 'Employee Settings', href: '/employees/settings', icon: <FiSettings className="w-4 h-4" />, moduleKey: 'employees', roles: ['super_admin', 'tenant_admin', 'admin'], isNew: true },
 
       // ── Reports ──
-      { label: 'Reports', href: '#reports-divider', icon: <FiFileText className="w-3.5 h-3.5" />, moduleKey: 'employees', isDivider: true },
-      { label: 'Employee Reports', href: '/employees/reports', icon: <FiBarChart2 className="w-4 h-4" />, moduleKey: 'employees', isNew: true },
+      { label: 'Reports', href: '#reports-divider', icon: <FiFileText className="w-3.5 h-3.5" />, moduleKey: 'employees', roles: ['super_admin', 'tenant_admin', 'admin', 'manager'], isDivider: true },
+      { label: 'Employee Reports', href: '/employees/reports', icon: <FiBarChart2 className="w-4 h-4" />, moduleKey: 'employees', roles: ['super_admin', 'tenant_admin', 'admin', 'manager'], isNew: true },
     ],
   },
 
   // ─── 4. LEAVE MODULE ───
-  // Settings (Policy Config) / Reports → dashboardTabs
+  // Employee: Apply Leave, My Leave Balance, View Leave Applications (self-service)
+  // Manager: + Approve Leave, Team Leave Reports
   {
     key: 'leave',
     label: 'Leave',
@@ -232,30 +239,33 @@ export const navSections: NavSection[] = [
       { label: 'Reports', key: 'reports', icon: <FiFileText className="w-4 h-4" />, isNew: true },
     ],
     items: [
-      { label: 'Leave Dashboard', href: '/leave', icon: <FiGrid className="w-4 h-4" />, moduleKey: 'leave', isNew: true },
-      { label: 'Apply Leave', href: '/leave/apply', icon: <FiCalendar className="w-4 h-4" />, moduleKey: 'leave', isNew: true },
-      { label: 'Apply Leave by HR', href: '/leave/apply-by-hr', icon: <FiUserPlus className="w-4 h-4" />, moduleKey: 'leave', isNew: true },
-      { label: 'Leave Encashment', href: '/leave/encashment', icon: <FiDollarSign className="w-4 h-4" />, moduleKey: 'leave' },
+      // Self-service: employee can apply for leave and view their own balance/applications
+      { label: 'Leave Dashboard', href: '/leave', icon: <FiGrid className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'], isNew: true },
+      { label: 'Apply Leave', href: '/leave/apply', icon: <FiCalendar className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'], isNew: true },
+      // HR-only: Apply leave on behalf of employees
+      { label: 'Apply Leave by HR', href: '/leave/apply-by-hr', icon: <FiUserPlus className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin'], isNew: true },
+      { label: 'Leave Encashment', href: '/leave/encashment', icon: <FiDollarSign className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'] },
 
       // ── Leave Balance ──
-      { label: 'Leave Balance', href: '#balance-divider', icon: <FiBarChart2 className="w-3.5 h-3.5" />, moduleKey: 'leave', isDivider: true },
-      { label: 'My Leave Balance', href: '/leave/balance', icon: <FiPieChart className="w-4 h-4" />, moduleKey: 'leave', isNew: true },
+      { label: 'Leave Balance', href: '#balance-divider', icon: <FiBarChart2 className="w-3.5 h-3.5" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'], isDivider: true },
+      { label: 'My Leave Balance', href: '/leave/balance', icon: <FiPieChart className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'], isNew: true },
 
-      // ── Settings ──
-      { label: 'Settings', href: '#settings-divider', icon: <FiSettings className="w-3.5 h-3.5" />, moduleKey: 'leave', isDivider: true },
-      { label: 'Leave Policy & Settings', href: '/leave/leave-policy', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'leave' },
-      { label: 'Policy Rules', href: '/leave/leave-policy?tab=rules', icon: <FiSliders className="w-4 h-4" />, moduleKey: 'leave', isNew: true },
-      { label: 'Leave Type Mapping', href: '/leave/leave-policy?tab=mapping', icon: <FiLayers className="w-4 h-4" />, moduleKey: 'leave', isNew: true },
-      { label: 'Leave Types', href: '/leave/types', icon: <FiLayers className="w-4 h-4" />, moduleKey: 'leave' },
+      // ── Settings (admin-only) ──
+      { label: 'Settings', href: '#settings-divider', icon: <FiSettings className="w-3.5 h-3.5" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin'], isDivider: true },
+      { label: 'Leave Policy & Settings', href: '/leave/leave-policy', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin'] },
+      { label: 'Policy Rules', href: '/leave/leave-policy?tab=rules', icon: <FiSliders className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin'], isNew: true },
+      { label: 'Leave Type Mapping', href: '/leave/leave-policy?tab=mapping', icon: <FiLayers className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin'], isNew: true },
+      { label: 'Leave Types', href: '/leave/types', icon: <FiLayers className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin'] },
 
       // ── Reports ──
-      { label: 'Reports', href: '#reports-divider', icon: <FiFileText className="w-3.5 h-3.5" />, moduleKey: 'leave', isDivider: true },
-      { label: 'Leave Reports', href: '/leave/reports', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'leave', isNew: true },
+      { label: 'Reports', href: '#reports-divider', icon: <FiFileText className="w-3.5 h-3.5" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin', 'manager'], isDivider: true },
+      { label: 'Leave Reports', href: '/leave/reports', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin', 'manager'], isNew: true },
     ],
   },
 
   // ─── 5. ATTENDANCE MODULE ───
-  // Settings / Reports → dashboardTabs
+  // Employee: Apply Regularization, Apply WFH, Hourly Permission, Gatepass, Overtime, Comp-Off (self-service)
+  // Manager: + Team view, Shifts, Holidays
   {
     key: 'attendance',
     label: 'Attendance',
@@ -268,44 +278,48 @@ export const navSections: NavSection[] = [
       { label: 'Reports', key: 'reports', icon: <FiFileText className="w-4 h-4" />, isNew: true },
     ],
     items: [
-      { label: 'Attendance Dashboard', href: '/attendance', icon: <FiGrid className="w-4 h-4" />, moduleKey: 'attendance', isNew: true },
+      // Self-service dashboard: visible to all
+      { label: 'Attendance Dashboard', href: '/attendance', icon: <FiGrid className="w-4 h-4" />, moduleKey: 'attendance', roles: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'], isNew: true },
 
-      // ── Requests ──
-      { label: 'Requests', href: '#requests-divider', icon: <FiClock className="w-3.5 h-3.5" />, moduleKey: 'attendance', isDivider: true },
-      { label: 'Apply Attendance by HR', href: '/attendance/apply-by-hr', icon: <FiUserPlus className="w-4 h-4" />, moduleKey: 'attendance', isNew: true },
-      { label: 'Apply Regularization', href: '/attendance/regularize', icon: <FiRefreshCw className="w-4 h-4" />, moduleKey: 'attendance' },
-      { label: 'Apply WFH', href: '/attendance/wfh', icon: <FiHome className="w-4 h-4" />, moduleKey: 'attendance', isNew: true },
-      { label: 'Hourly Permission', href: '/attendance/permission', icon: <FiClock className="w-4 h-4" />, moduleKey: 'attendance' },
-      { label: 'Gatepass', href: '/attendance/gatepass', icon: <FiShield className="w-4 h-4" />, moduleKey: 'attendance' },
-      { label: 'Overtime Requests', href: '/attendance/overtime', icon: <FiClock className="w-4 h-4" />, moduleKey: 'attendance' },
-      { label: 'Comp-Off Balance', href: '/attendance/comp-off', icon: <FiGift className="w-4 h-4" />, moduleKey: 'attendance' },
+      // ── Requests (self-service) ──
+      { label: 'Requests', href: '#requests-divider', icon: <FiClock className="w-3.5 h-3.5" />, moduleKey: 'attendance', roles: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'], isDivider: true },
+      // HR-only: Apply attendance on behalf
+      { label: 'Apply Attendance by HR', href: '/attendance/apply-by-hr', icon: <FiUserPlus className="w-4 h-4" />, moduleKey: 'attendance', roles: ['super_admin', 'tenant_admin', 'admin'], isNew: true },
+      // Employee self-service: regularize attendance, WFH, permissions, gatepass, overtime
+      { label: 'Apply Regularization', href: '/attendance/regularize', icon: <FiRefreshCw className="w-4 h-4" />, moduleKey: 'attendance', roles: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'] },
+      { label: 'Apply WFH', href: '/attendance/wfh', icon: <FiHome className="w-4 h-4" />, moduleKey: 'attendance', roles: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'], isNew: true },
+      { label: 'Hourly Permission', href: '/attendance/permission', icon: <FiClock className="w-4 h-4" />, moduleKey: 'attendance', roles: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'] },
+      { label: 'Gatepass', href: '/attendance/gatepass', icon: <FiShield className="w-4 h-4" />, moduleKey: 'attendance', roles: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'] },
+      { label: 'Overtime Requests', href: '/attendance/overtime', icon: <FiClock className="w-4 h-4" />, moduleKey: 'attendance', roles: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'] },
+      { label: 'Comp-Off Balance', href: '/attendance/comp-off', icon: <FiGift className="w-4 h-4" />, moduleKey: 'attendance', roles: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'] },
 
-      // ── Masters ──
-      { label: 'Masters', href: '#masters-divider', icon: <FiDatabase className="w-3.5 h-3.5" />, moduleKey: 'attendance', isDivider: true },
-      { label: 'Shifts', href: '/attendance/shifts', icon: <FiWatch className="w-4 h-4" />, moduleKey: 'attendance' },
-      { label: 'Holiday Master', href: '/attendance/holidays', icon: <FiCalendar className="w-4 h-4" />, moduleKey: 'attendance' },
+      // ── Masters (admin/manager only) ──
+      { label: 'Masters', href: '#masters-divider', icon: <FiDatabase className="w-3.5 h-3.5" />, moduleKey: 'attendance', roles: ['super_admin', 'tenant_admin', 'admin', 'manager'], isDivider: true },
+      { label: 'Shifts', href: '/attendance/shifts', icon: <FiWatch className="w-4 h-4" />, moduleKey: 'attendance', roles: ['super_admin', 'tenant_admin', 'admin', 'manager'] },
+      { label: 'Holiday Master', href: '/attendance/holidays', icon: <FiCalendar className="w-4 h-4" />, moduleKey: 'attendance', roles: ['super_admin', 'tenant_admin', 'admin', 'manager'] },
 
-      // ── Configuration ──
-      { label: 'Configuration', href: '#config-divider', icon: <FiSettings className="w-3.5 h-3.5" />, moduleKey: 'attendance', isDivider: true },
-      { label: 'Geofences', href: '/attendance/geofence', icon: <FiMapPin className="w-4 h-4" />, moduleKey: 'attendance' },
-      { label: 'Biometric Devices', href: '/attendance/biometric', icon: <FiMonitor className="w-4 h-4" />, moduleKey: 'attendance' },
-      { label: 'Muster Roll', href: '/attendance/muster-roll', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'attendance', isNew: true },
+      // ── Configuration (admin only) ──
+      { label: 'Configuration', href: '#config-divider', icon: <FiSettings className="w-3.5 h-3.5" />, moduleKey: 'attendance', roles: ['super_admin', 'tenant_admin', 'admin'], isDivider: true },
+      { label: 'Geofences', href: '/attendance/geofence', icon: <FiMapPin className="w-4 h-4" />, moduleKey: 'attendance', roles: ['super_admin', 'tenant_admin', 'admin'] },
+      { label: 'Biometric Devices', href: '/attendance/biometric', icon: <FiMonitor className="w-4 h-4" />, moduleKey: 'attendance', roles: ['super_admin', 'tenant_admin', 'admin'] },
+      { label: 'Muster Roll', href: '/attendance/muster-roll', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'attendance', roles: ['super_admin', 'tenant_admin', 'admin'], isNew: true },
 
-      // ── Settings ──
-      { label: 'Settings', href: '#settings-divider', icon: <FiSettings className="w-3.5 h-3.5" />, moduleKey: 'attendance', isDivider: true },
-      { label: 'Attendance Policy & Settings', href: '/attendance/settings', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'attendance' },
-      { label: 'Policy Rules', href: '/attendance/settings?tab=rules', icon: <FiSliders className="w-4 h-4" />, moduleKey: 'attendance', isNew: true },
+      // ── Settings (admin only) ──
+      { label: 'Settings', href: '#settings-divider', icon: <FiSettings className="w-3.5 h-3.5" />, moduleKey: 'attendance', roles: ['super_admin', 'tenant_admin', 'admin'], isDivider: true },
+      { label: 'Attendance Policy & Settings', href: '/attendance/settings', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'attendance', roles: ['super_admin', 'tenant_admin', 'admin'] },
+      { label: 'Policy Rules', href: '/attendance/settings?tab=rules', icon: <FiSliders className="w-4 h-4" />, moduleKey: 'attendance', roles: ['super_admin', 'tenant_admin', 'admin'], isNew: true },
 
-      // ── Reports ──
-      { label: 'Reports', href: '#reports-divider', icon: <FiFileText className="w-3.5 h-3.5" />, moduleKey: 'attendance', isDivider: true },
-      { label: 'Burnout Analytics', href: '/attendance/burnout', icon: <FiActivity className="w-4 h-4" />, moduleKey: 'attendance' },
-      { label: 'Audit Trail', href: '/attendance/audit-log', icon: <FiLock className="w-4 h-4" />, moduleKey: 'attendance' },
-      { label: 'Attendance Reports', href: '/attendance/reports', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'attendance', isNew: true },
+      // ── Reports (admin/manager only) ──
+      { label: 'Reports', href: '#reports-divider', icon: <FiFileText className="w-3.5 h-3.5" />, moduleKey: 'attendance', roles: ['super_admin', 'tenant_admin', 'admin', 'manager'], isDivider: true },
+      { label: 'Burnout Analytics', href: '/attendance/burnout', icon: <FiActivity className="w-4 h-4" />, moduleKey: 'attendance', roles: ['super_admin', 'tenant_admin', 'admin', 'manager'] },
+      { label: 'Audit Trail', href: '/attendance/audit-log', icon: <FiLock className="w-4 h-4" />, moduleKey: 'attendance', roles: ['super_admin', 'tenant_admin', 'admin'] },
+      { label: 'Attendance Reports', href: '/attendance/reports', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'attendance', roles: ['super_admin', 'tenant_admin', 'admin', 'manager'], isNew: true },
     ],
   },
 
   // ─── 6. PAYROLL MODULE ───
-  // Group Dashboard / Masters / Transactions / Reports as sidebar sub-sections with dividers
+  // Employee: Payslips (self-service), Tax Declaration
+  // Manager: + Team Payslip view, Approvals
   {
     key: 'payroll',
     label: 'Payroll',
@@ -318,40 +332,43 @@ export const navSections: NavSection[] = [
       { label: 'Settings', key: 'settings', icon: <FiSettings className="w-4 h-4" />, isNew: true },
     ],
     items: [
-      { label: 'Group Dashboard', href: '/payroll/group-dashboard', icon: <FiGlobe className="w-4 h-4" />, moduleKey: 'payroll', isNew: true },
-      { label: 'Payroll Dashboard', href: '/payroll', icon: <FiGrid className="w-4 h-4" />, moduleKey: 'payroll', isNew: true },
+      // Employee: My Payslips only (self-service)
+      { label: 'My Payslips', href: '/payroll/payslips', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'payroll', roles: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'] },
 
-      // ── Payroll Masters (per FCI HRMS manual) ──
-      { label: 'Payroll Masters', href: '#masters-divider', icon: <FiDatabase className="w-3.5 h-3.5" />, moduleKey: 'payroll', isDivider: true },
-      { label: 'Salary Type Master', href: '/payroll/definitions', icon: <FiDatabase className="w-4 h-4" />, moduleKey: 'payroll' },
-      { label: 'Paycode Master', href: '/payroll/components', icon: <FiDatabase className="w-4 h-4" />, moduleKey: 'payroll' },
-      { label: 'Salary Structure Master', href: '/payroll/ctc-templates', icon: <FiLayers className="w-4 h-4" />, moduleKey: 'payroll' },
-      { label: 'Cost Center Master', href: '/payroll/dimensions', icon: <FiGrid className="w-4 h-4" />, moduleKey: 'payroll' },
-      { label: 'CTC Calculator', href: '/payroll/ctc-calculator', icon: <FiPercent className="w-4 h-4" />, moduleKey: 'payroll' },
-      { label: 'Statutory Components', href: '/payroll/statutory', icon: <FiShield className="w-4 h-4" />, moduleKey: 'payroll' },
-      { label: 'Income Tax Slabs', href: '/payroll/tax-slabs', icon: <FiBarChart2 className="w-4 h-4" />, moduleKey: 'payroll' },
-      { label: 'Gratuity', href: '/payroll/gratuity', icon: <FiDollarSign className="w-4 h-4" />, moduleKey: 'payroll' },
-      { label: 'Currency & FX', href: '/payroll/currency', icon: <FiGlobe className="w-4 h-4" />, moduleKey: 'payroll' },
+      // Admin/Manager: Group dashboard
+      { label: 'Group Dashboard', href: '/payroll/group-dashboard', icon: <FiGlobe className="w-4 h-4" />, moduleKey: 'payroll', roles: ['super_admin', 'tenant_admin', 'admin'], isNew: true },
+      { label: 'Payroll Dashboard', href: '/payroll', icon: <FiGrid className="w-4 h-4" />, moduleKey: 'payroll', roles: ['super_admin', 'tenant_admin', 'admin'], isNew: true },
 
-      // ── Payroll Transactions (per FCI HRMS manual) ──
-      { label: 'Payroll Transactions', href: '#transactions-divider', icon: <FiEdit3 className="w-3.5 h-3.5" />, moduleKey: 'payroll', isDivider: true },
-      { label: 'Employee Salary Type', href: '/payroll/salary-settings', icon: <FiEdit3 className="w-4 h-4" />, moduleKey: 'payroll' },
-      { label: 'Adhoc Transaction', href: '/payroll/inputs', icon: <FiEdit3 className="w-4 h-4" />, moduleKey: 'payroll' },
-      { label: 'Advance Request', href: '/payroll/loans', icon: <FiDollarSign className="w-4 h-4" />, moduleKey: 'payroll' },
-      { label: 'Salary Arrears', href: '/payroll/holds', icon: <FiLock className="w-4 h-4" />, moduleKey: 'payroll' },
-      { label: 'Payroll Readiness', href: '/payroll/validations', icon: <FiCheckSquare className="w-4 h-4" />, moduleKey: 'payroll' },
-      { label: 'Payroll Processing', href: '/payroll/processing', icon: <FiPlayCircle className="w-4 h-4" />, moduleKey: 'payroll' },
-      { label: 'Payroll Authorization', href: '/payroll/approvals', icon: <FiUserCheck className="w-4 h-4" />, moduleKey: 'payroll' },
-      { label: 'Overtime', href: '/payroll/overtime', icon: <FiActivity className="w-4 h-4" />, moduleKey: 'payroll' },
-      { label: 'F&F Settlement', href: '/payroll/fnf', icon: <FiTruck className="w-4 h-4" />, moduleKey: 'payroll' },
-      { label: 'Bank File Generation', href: '/payroll/bank-files', icon: <FiFile className="w-4 h-4" />, moduleKey: 'payroll' },
-      { label: 'Payslips', href: '/payroll/payslips', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'payroll' },
-      { label: 'Cross-Border Secondment', href: '/payroll/secondment', icon: <FiGlobe className="w-4 h-4" />, moduleKey: 'payroll', isNew: true },
-      { label: 'AI Insights', href: '/payroll/ai-insights', icon: <FiCpu className="w-4 h-4" />, moduleKey: 'payroll', isNew: true },
+      // ── Payroll Masters (admin only) ──
+      { label: 'Payroll Masters', href: '#masters-divider', icon: <FiDatabase className="w-3.5 h-3.5" />, moduleKey: 'payroll', roles: ['super_admin', 'tenant_admin', 'admin'], isDivider: true },
+      { label: 'Salary Type Master', href: '/payroll/definitions', icon: <FiDatabase className="w-4 h-4" />, moduleKey: 'payroll', roles: ['super_admin', 'tenant_admin', 'admin'] },
+      { label: 'Paycode Master', href: '/payroll/components', icon: <FiDatabase className="w-4 h-4" />, moduleKey: 'payroll', roles: ['super_admin', 'tenant_admin', 'admin'] },
+      { label: 'Salary Structure Master', href: '/payroll/ctc-templates', icon: <FiLayers className="w-4 h-4" />, moduleKey: 'payroll', roles: ['super_admin', 'tenant_admin', 'admin'] },
+      { label: 'Cost Center Master', href: '/payroll/dimensions', icon: <FiGrid className="w-4 h-4" />, moduleKey: 'payroll', roles: ['super_admin', 'tenant_admin', 'admin'] },
+      { label: 'CTC Calculator', href: '/payroll/ctc-calculator', icon: <FiPercent className="w-4 h-4" />, moduleKey: 'payroll', roles: ['super_admin', 'tenant_admin', 'admin'] },
+      { label: 'Statutory Components', href: '/payroll/statutory', icon: <FiShield className="w-4 h-4" />, moduleKey: 'payroll', roles: ['super_admin', 'tenant_admin', 'admin'] },
+      { label: 'Income Tax Slabs', href: '/payroll/tax-slabs', icon: <FiBarChart2 className="w-4 h-4" />, moduleKey: 'payroll', roles: ['super_admin', 'tenant_admin', 'admin'] },
+      { label: 'Gratuity', href: '/payroll/gratuity', icon: <FiDollarSign className="w-4 h-4" />, moduleKey: 'payroll', roles: ['super_admin', 'tenant_admin', 'admin'] },
+      { label: 'Currency & FX', href: '/payroll/currency', icon: <FiGlobe className="w-4 h-4" />, moduleKey: 'payroll', roles: ['super_admin', 'tenant_admin', 'admin'] },
 
-      // ── Reports ──
-      { label: 'Payroll Reports', href: '#reports-divider', icon: <FiFileText className="w-3.5 h-3.5" />, moduleKey: 'payroll', isDivider: true },
-      { label: 'Reports & Dashboard', href: '/payroll/reports', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'payroll' },
+      // ── Payroll Transactions ──
+      { label: 'Payroll Transactions', href: '#transactions-divider', icon: <FiEdit3 className="w-3.5 h-3.5" />, moduleKey: 'payroll', roles: ['super_admin', 'tenant_admin', 'admin', 'manager'], isDivider: true },
+      { label: 'Employee Salary Type', href: '/payroll/salary-settings', icon: <FiEdit3 className="w-4 h-4" />, moduleKey: 'payroll', roles: ['super_admin', 'tenant_admin', 'admin'] },
+      { label: 'Adhoc Transaction', href: '/payroll/inputs', icon: <FiEdit3 className="w-4 h-4" />, moduleKey: 'payroll', roles: ['super_admin', 'tenant_admin', 'admin', 'manager'] },
+      { label: 'Advance Request', href: '/payroll/loans', icon: <FiDollarSign className="w-4 h-4" />, moduleKey: 'payroll', roles: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'] },
+      { label: 'Salary Arrears', href: '/payroll/holds', icon: <FiLock className="w-4 h-4" />, moduleKey: 'payroll', roles: ['super_admin', 'tenant_admin', 'admin'] },
+      { label: 'Payroll Readiness', href: '/payroll/validations', icon: <FiCheckSquare className="w-4 h-4" />, moduleKey: 'payroll', roles: ['super_admin', 'tenant_admin', 'admin'] },
+      { label: 'Payroll Processing', href: '/payroll/processing', icon: <FiPlayCircle className="w-4 h-4" />, moduleKey: 'payroll', roles: ['super_admin', 'tenant_admin', 'admin'] },
+      { label: 'Payroll Authorization', href: '/payroll/approvals', icon: <FiUserCheck className="w-4 h-4" />, moduleKey: 'payroll', roles: ['super_admin', 'tenant_admin', 'admin', 'manager'] },
+      { label: 'Overtime', href: '/payroll/overtime', icon: <FiActivity className="w-4 h-4" />, moduleKey: 'payroll', roles: ['super_admin', 'tenant_admin', 'admin', 'manager'] },
+      { label: 'F&F Settlement', href: '/payroll/fnf', icon: <FiTruck className="w-4 h-4" />, moduleKey: 'payroll', roles: ['super_admin', 'tenant_admin', 'admin'] },
+      { label: 'Bank File Generation', href: '/payroll/bank-files', icon: <FiFile className="w-4 h-4" />, moduleKey: 'payroll', roles: ['super_admin', 'tenant_admin', 'admin'] },
+      { label: 'Cross-Border Secondment', href: '/payroll/secondment', icon: <FiGlobe className="w-4 h-4" />, moduleKey: 'payroll', roles: ['super_admin', 'tenant_admin', 'admin'], isNew: true },
+      { label: 'AI Insights', href: '/payroll/ai-insights', icon: <FiCpu className="w-4 h-4" />, moduleKey: 'payroll', roles: ['super_admin', 'tenant_admin', 'admin'], isNew: true },
+
+      // ── Reports (admin/manager only) ──
+      { label: 'Payroll Reports', href: '#reports-divider', icon: <FiFileText className="w-3.5 h-3.5" />, moduleKey: 'payroll', roles: ['super_admin', 'tenant_admin', 'admin', 'manager'], isDivider: true },
+      { label: 'Reports & Dashboard', href: '/payroll/reports', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'payroll', roles: ['super_admin', 'tenant_admin', 'admin', 'manager'] },
     ],
   },
 

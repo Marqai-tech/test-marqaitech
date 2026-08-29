@@ -384,6 +384,7 @@ export default function ModuleStrip({ currentModuleKey, onModuleSelect }: Module
   const userRole = user?.role || 'admin';
 
   // Filter sections based on user role
+  // Per-item role filtering: must pass BOTH module-level AND per-item role checks
   const filteredGroups = useMemo(() => {
     return MODULE_GROUPS.map(group => ({
       ...group,
@@ -391,8 +392,19 @@ export default function ModuleStrip({ currentModuleKey, onModuleSelect }: Module
         .map(section => ({
           ...section,
           items: section.items.filter(item => {
-            if (item.moduleKey) return canRoleAccessModule(userRole, item.moduleKey);
-            return !item.roles || item.roles.includes(userRole);
+            // 1. Module-level check
+            if (item.moduleKey && !canRoleAccessModule(userRole, item.moduleKey)) {
+              return false;
+            }
+            // 2. Per-item role check (granular)
+            if (item.roles && !item.roles.includes(userRole)) {
+              return false;
+            }
+            // 3. No moduleKey and no roles → admin-only for safety
+            if (!item.moduleKey && !item.roles) {
+              return ['super_admin', 'tenant_admin', 'admin'].includes(userRole);
+            }
+            return true;
           }),
         }))
         .filter(section => section.items.length > 0),

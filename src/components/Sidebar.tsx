@@ -58,6 +58,10 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false, cur
   }, [tenantId, tenantSlug, fetchModules]);
 
   // Filter sections based on user role AND tenant module whitelist
+  // Per-item role filtering:
+  //   - If item.roles is set, the user's role must be in the list
+  //   - If item.moduleKey is set, the role must pass canRoleAccessModule
+  //   - Both checks must pass for the item to be visible
   const filteredSections = useMemo(() => {
     return navSections
       .filter((section) => isModuleEnabledForTenant(tenantSlug, section.key))
@@ -65,19 +69,35 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false, cur
         ...section,
         items: section.items.filter(
           (item) => {
-            if (item.moduleKey) return canRoleAccessModule(userRole, item.moduleKey);
-            return !item.roles || item.roles.includes(userRole);
+            // 1. Module-level check (sidebar visibility for the whole module)
+            if (item.moduleKey && !canRoleAccessModule(userRole, item.moduleKey)) {
+              return false;
+            }
+            // 2. Per-item role check (granular — e.g., 'employee' can see 'Apply Leave'
+            //    but not 'Leave Policy & Settings' even though both are moduleKey='leave')
+            if (item.roles && !item.roles.includes(userRole)) {
+              return false;
+            }
+            // 3. No moduleKey and no roles → default to admin-only for safety
+            if (!item.moduleKey && !item.roles) {
+              return ['super_admin', 'tenant_admin', 'admin'].includes(userRole);
+            }
+            return true;
           }
         ),
       }))
       .filter((section) => section.items.length > 0);
   }, [userRole, tenantSlug]);
 
-  // Filter pinned items based on role
+  // Filter pinned items based on role (same logic as above)
   const visiblePinnedItems = useMemo(() => {
     return PINNED_ITEMS.filter((item) => {
-      if (item.moduleKey) return canRoleAccessModule(userRole, item.moduleKey);
-      return !item.roles || item.roles.includes(userRole);
+      if (item.moduleKey && !canRoleAccessModule(userRole, item.moduleKey)) return false;
+      if (item.roles && !item.roles.includes(userRole)) return false;
+      if (!item.moduleKey && !item.roles) {
+        return ['super_admin', 'tenant_admin', 'admin'].includes(userRole);
+      }
+      return true;
     });
   }, [userRole]);
 
