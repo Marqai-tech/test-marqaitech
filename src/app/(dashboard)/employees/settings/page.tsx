@@ -230,6 +230,9 @@ export default function EmployeeSettingsPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [selectAll, setSelectAll] = useState(false)
 
+  // Purge duplicates (one-click fix for duplicate employee rows + password sync)
+  const [purgingDuplicates, setPurgingDuplicates] = useState(false)
+
   // Password actions
   const [showPasswordModal, setShowPasswordModal] = useState(false)
   const [passwordModalMode, setPasswordModalMode] = useState<'single' | 'selected' | 'all'>('single')
@@ -319,6 +322,30 @@ export default function EmployeeSettingsPage() {
       setLoading(false)
     }
   }, [search, filterDept, scopeCompanyId, scopeQuery, selectedTenantId])
+
+  /* Purge duplicate employees and sync user passwords across DBs */
+  const handlePurgeDuplicates = async () => {
+    if (!confirm('Purge duplicate employee records and sync user passwords?\n\nThis will:\n• Delete duplicate employee rows (keeping the one with a login account)\n• Sync passwords from tenant DB → platform DB so login works correctly\n\nThis is safe and idempotent.')) return
+    setPurgingDuplicates(true)
+    try {
+      const sq = scopeQuery()
+      const url = `/api/admin/purge-duplicates${sq ? `?${sq}` : ''}`
+      const res = await fetch(url, { method: 'POST', headers: getAuthHeaders() })
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}))
+        throw new Error(d.error || 'Failed to purge duplicates')
+      }
+      const data = await res.json()
+      const s = data.summary || {}
+      toast.success(`Purge complete: deleted ${s.duplicateEmployeesDeleted || 0} duplicates, synced ${s.duplicateUsersSynced || 0} users.`)
+      // Refresh the list to reflect the deduped state
+      fetchEmployees()
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to purge duplicates')
+    } finally {
+      setPurgingDuplicates(false)
+    }
+  }
 
   const fetchDepartments = useCallback(async (companyId?: string) => {
     try {
@@ -986,6 +1013,15 @@ export default function EmployeeSettingsPage() {
               <option value="active">Account Active</option>
               <option value="inactive">Account Inactive</option>
             </select>
+            <button
+              onClick={handlePurgeDuplicates}
+              disabled={purgingDuplicates}
+              className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-lg border border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100 text-xs font-medium transition-colors disabled:opacity-50"
+              title="Delete duplicate employee records and sync user passwords across DBs. Use this if you see duplicate rows in this list, or if password reset doesn't work."
+            >
+              {purgingDuplicates ? <FiRefreshCw className="w-3.5 h-3.5 animate-spin" /> : <FiFilter className="w-3.5 h-3.5" />}
+              Purge Duplicates
+            </button>
           </div>
 
           {/* Bulk Actions Bar */}

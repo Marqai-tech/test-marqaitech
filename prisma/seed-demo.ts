@@ -75,43 +75,67 @@ async function main() {
     const tenantUsers = await prisma.user.findMany({ where: { tenantId: existingTenant.id }, select: { id: true } });
     const allUserIds = tenantUsers.map(u => u.id);
 
+    // ─── ALSO: catch orphaned records from previous seed runs ───
+    // If a previous seed run was interrupted, OR the tenant was deleted and
+    // recreated (giving it a NEW tenantId), users/employees from the OLD run
+    // would still exist with the same emails but a STALE tenantId. We collect
+    // these orphans by email pattern so they get cleaned up too.
+    const DEMO_EMAIL_PATTERN = { email: { contains: '@3boxeshrms.com' } };
+    const orphanedUsers = await prisma.user.findMany({
+      where: DEMO_EMAIL_PATTERN,
+      select: { id: true, email: true },
+    });
+    const orphanedUserIds = orphanedUsers.map(u => u.id);
+    const orphanedEmployees = await prisma.employee.findMany({
+      where: DEMO_EMAIL_PATTERN,
+      select: { id: true, userId: true },
+    });
+    const orphanedEmployeeIds = orphanedEmployees.map(e => e.id);
+    const orphanedEmployeeUserIds = orphanedEmployees.filter(e => e.userId).map(e => e.userId!);
+
+    // Merge orphaned IDs into the main cleanup arrays
+    const allCleanupUserIds = [...new Set([...allUserIds, ...orphanedUserIds, ...orphanedEmployeeUserIds])];
+    const allCleanupEmployeeIds = [...new Set([...employeeIds, ...orphanedEmployeeIds])];
+
+    console.log(`  Found ${allCleanupEmployeeIds.length} employees (incl. ${orphanedEmployeeIds.length} orphans) and ${allCleanupUserIds.length} users (incl. ${orphanedUserIds.length} orphans) to delete`);
+
     // Delete in safe order (most dependent first)
     const deleteOps = [
-      () => prisma.payrollTransactionLine.deleteMany({ where: { employeeId: { in: employeeIds } } }),
-      () => prisma.payrollInput.deleteMany({ where: { employeeId: { in: employeeIds } } }),
+      () => prisma.payrollTransactionLine.deleteMany({ where: { employeeId: { in: allCleanupEmployeeIds } } }),
+      () => prisma.payrollInput.deleteMany({ where: { employeeId: { in: allCleanupEmployeeIds } } }),
       () => prisma.payrollRun.deleteMany({ where: { companyId: { in: companyIds } } }),
-      () => prisma.attendance.deleteMany({ where: { employeeId: { in: employeeIds } } }),
-      () => prisma.leaveRequest.deleteMany({ where: { employeeId: { in: employeeIds } } }),
-      () => prisma.leaveBalance.deleteMany({ where: { employeeId: { in: employeeIds } } }),
-      () => prisma.expenseClaim.deleteMany({ where: { employeeId: { in: employeeIds } } }),
-      () => prisma.travelRequest.deleteMany({ where: { employeeId: { in: employeeIds } } }),
-      () => prisma.timesheet.deleteMany({ where: { employeeId: { in: employeeIds } } }),
-      () => prisma.assetAssignment.deleteMany({ where: { employeeId: { in: employeeIds } } }),
-      () => prisma.document.deleteMany({ where: { employeeId: { in: employeeIds } } }),
-      () => prisma.dependent.deleteMany({ where: { employeeId: { in: employeeIds } } }),
-      () => prisma.qualification.deleteMany({ where: { employeeId: { in: employeeIds } } }),
-      () => (prisma as any).experience?.deleteMany?.({ where: { employeeId: { in: employeeIds } } }),
-      () => (prisma as any).employeeSkill?.deleteMany?.({ where: { employeeId: { in: employeeIds } } }),
-      () => prisma.employeeCompanyMapping.deleteMany({ where: { employeeId: { in: employeeIds } } }),
-      () => prisma.performanceReview.deleteMany({ where: { employeeId: { in: employeeIds } } }),
-      () => prisma.goal.deleteMany({ where: { employeeId: { in: employeeIds } } }),
-      () => prisma.feedback.deleteMany({ where: { employeeId: { in: employeeIds } } }),
-      () => prisma.recognition.deleteMany({ where: { employeeId: { in: employeeIds } } }),
-      () => prisma.ticket.deleteMany({ where: { employeeId: { in: employeeIds } } }),
-      () => prisma.loan.deleteMany({ where: { employeeId: { in: employeeIds } } }),
-      () => prisma.trainingEnrollment.deleteMany({ where: { employeeId: { in: employeeIds } } }),
-      () => prisma.overtimeRecord.deleteMany({ where: { employeeId: { in: employeeIds } } }),
+      () => prisma.attendance.deleteMany({ where: { employeeId: { in: allCleanupEmployeeIds } } }),
+      () => prisma.leaveRequest.deleteMany({ where: { employeeId: { in: allCleanupEmployeeIds } } }),
+      () => prisma.leaveBalance.deleteMany({ where: { employeeId: { in: allCleanupEmployeeIds } } }),
+      () => prisma.expenseClaim.deleteMany({ where: { employeeId: { in: allCleanupEmployeeIds } } }),
+      () => prisma.travelRequest.deleteMany({ where: { employeeId: { in: allCleanupEmployeeIds } } }),
+      () => prisma.timesheet.deleteMany({ where: { employeeId: { in: allCleanupEmployeeIds } } }),
+      () => prisma.assetAssignment.deleteMany({ where: { employeeId: { in: allCleanupEmployeeIds } } }),
+      () => prisma.document.deleteMany({ where: { employeeId: { in: allCleanupEmployeeIds } } }),
+      () => prisma.dependent.deleteMany({ where: { employeeId: { in: allCleanupEmployeeIds } } }),
+      () => prisma.qualification.deleteMany({ where: { employeeId: { in: allCleanupEmployeeIds } } }),
+      () => (prisma as any).experience?.deleteMany?.({ where: { employeeId: { in: allCleanupEmployeeIds } } }),
+      () => (prisma as any).employeeSkill?.deleteMany?.({ where: { employeeId: { in: allCleanupEmployeeIds } } }),
+      () => prisma.employeeCompanyMapping.deleteMany({ where: { employeeId: { in: allCleanupEmployeeIds } } }),
+      () => prisma.performanceReview.deleteMany({ where: { employeeId: { in: allCleanupEmployeeIds } } }),
+      () => prisma.goal.deleteMany({ where: { employeeId: { in: allCleanupEmployeeIds } } }),
+      () => prisma.feedback.deleteMany({ where: { employeeId: { in: allCleanupEmployeeIds } } }),
+      () => prisma.recognition.deleteMany({ where: { employeeId: { in: allCleanupEmployeeIds } } }),
+      () => prisma.ticket.deleteMany({ where: { employeeId: { in: allCleanupEmployeeIds } } }),
+      () => prisma.loan.deleteMany({ where: { employeeId: { in: allCleanupEmployeeIds } } }),
+      () => prisma.trainingEnrollment.deleteMany({ where: { employeeId: { in: allCleanupEmployeeIds } } }),
+      () => prisma.overtimeRecord.deleteMany({ where: { employeeId: { in: allCleanupEmployeeIds } } }),
       () => prisma.notification.deleteMany({ where: { tenantId: existingTenant.id } }),
       () => prisma.announcement.deleteMany({ where: { tenantId: existingTenant.id } }),
-      () => prisma.auditLog.deleteMany({ where: { userId: { in: allUserIds } } }),
-      () => prisma.loginActivity.deleteMany({ where: { userId: { in: allUserIds } } }),
+      () => prisma.auditLog.deleteMany({ where: { userId: { in: allCleanupUserIds } } }),
+      () => prisma.loginActivity.deleteMany({ where: { userId: { in: allCleanupUserIds } } }),
       () => prisma.interview.deleteMany({}),
       () => prisma.jobApplication.deleteMany({}),
       () => prisma.jobPosting.deleteMany({ where: { departmentId: { in: departmentIds } } }),
       () => prisma.requisition.deleteMany({ where: { departmentId: { in: departmentIds } } }),
       () => prisma.offer.deleteMany({}),
-      () => prisma.referral.deleteMany({ where: { employeeId: { in: employeeIds } } }),
-      () => prisma.projectMember.deleteMany({ where: { employeeId: { in: employeeIds } } }),
+      () => prisma.referral.deleteMany({ where: { employeeId: { in: allCleanupEmployeeIds } } }),
+      () => prisma.projectMember.deleteMany({ where: { employeeId: { in: allCleanupEmployeeIds } } }),
       () => prisma.projectAllocation.deleteMany({}),
       () => prisma.projectTask.deleteMany({}),
       () => prisma.projectMilestone.deleteMany({}),
@@ -126,11 +150,14 @@ async function main() {
       () => prisma.course.deleteMany({}),
       () => prisma.salaryStructure.deleteMany({ where: { companyId: { in: companyIds } } }),
       () => prisma.salaryComponent.deleteMany({}),
-      () => prisma.employee.deleteMany({ where: { companyId: { in: companyIds } } }),
-      () => prisma.userRoleAssignment.deleteMany({ where: { userId: { in: allUserIds } } }),
+      () => prisma.employee.deleteMany({ where: { id: { in: allCleanupEmployeeIds } } }),
+      () => prisma.userRoleAssignment.deleteMany({ where: { userId: { in: allCleanupUserIds } } }),
       () => prisma.rolePermission.deleteMany({ where: { role: { tenantId: existingTenant.id } } }),
       () => prisma.role.deleteMany({ where: { tenantId: existingTenant.id } }),
-      () => prisma.user.deleteMany({ where: { tenantId: existingTenant.id } }),
+      // KEY FIX: delete ALL users (incl. orphans) by ID, not just by tenantId
+      () => prisma.user.deleteMany({ where: { id: { in: allCleanupUserIds } } }),
+      // Also delete the TenantDatabase record so re-seed creates fresh
+      () => prisma.tenantDatabase.deleteMany({ where: { tenantId: existingTenant.id } }).catch(() => {}),
       () => prisma.shift.deleteMany({ where: { companyId: { in: companyIds } } }),
       () => prisma.holiday.deleteMany({ where: { companyId: { in: companyIds } } }),
       () => prisma.policy.deleteMany({ where: { companyId: { in: companyIds } } }),
@@ -147,7 +174,64 @@ async function main() {
     for (const op of deleteOps) {
       try { await op(); } catch (e) { /* skip if table doesn't exist or no records */ }
     }
-    console.log('  ✓ Existing demo data cleaned');
+    console.log('  ✓ Existing demo data cleaned (including orphans)');
+  } else {
+    // ─── No existing tenant — still clean up orphaned users/employees by email ───
+    console.log('  No existing demo tenant — cleaning up orphaned demo records by email pattern...');
+    const DEMO_EMAIL_PATTERN = { email: { contains: '@3boxeshrms.com' } };
+    const orphanedUsers = await prisma.user.findMany({
+      where: DEMO_EMAIL_PATTERN,
+      select: { id: true },
+    });
+    const orphanedEmployees = await prisma.employee.findMany({
+      where: DEMO_EMAIL_PATTERN,
+      select: { id: true, userId: true },
+    });
+    const orphanedEmployeeIds = orphanedEmployees.map(e => e.id);
+    const allOrphanedUserIds = [
+      ...orphanedUsers.map(u => u.id),
+      ...orphanedEmployees.filter(e => e.userId).map(e => e.userId!),
+    ];
+
+    if (orphanedEmployeeIds.length > 0 || allOrphanedUserIds.length > 0) {
+      console.log(`  Cleaning ${orphanedEmployeeIds.length} orphaned employees and ${allOrphanedUserIds.length} orphaned users...`);
+      const orphanDeleteOps = [
+        () => prisma.payrollTransactionLine.deleteMany({ where: { employeeId: { in: orphanedEmployeeIds } } }).catch(() => {}),
+        () => prisma.payrollInput.deleteMany({ where: { employeeId: { in: orphanedEmployeeIds } } }).catch(() => {}),
+        () => prisma.attendance.deleteMany({ where: { employeeId: { in: orphanedEmployeeIds } } }).catch(() => {}),
+        () => prisma.leaveRequest.deleteMany({ where: { employeeId: { in: orphanedEmployeeIds } } }).catch(() => {}),
+        () => prisma.leaveBalance.deleteMany({ where: { employeeId: { in: orphanedEmployeeIds } } }).catch(() => {}),
+        () => prisma.expenseClaim.deleteMany({ where: { employeeId: { in: orphanedEmployeeIds } } }).catch(() => {}),
+        () => prisma.travelRequest.deleteMany({ where: { employeeId: { in: orphanedEmployeeIds } } }).catch(() => {}),
+        () => prisma.timesheet.deleteMany({ where: { employeeId: { in: orphanedEmployeeIds } } }).catch(() => {}),
+        () => prisma.assetAssignment.deleteMany({ where: { employeeId: { in: orphanedEmployeeIds } } }).catch(() => {}),
+        () => prisma.document.deleteMany({ where: { employeeId: { in: orphanedEmployeeIds } } }).catch(() => {}),
+        () => prisma.dependent.deleteMany({ where: { employeeId: { in: orphanedEmployeeIds } } }).catch(() => {}),
+        () => prisma.qualification.deleteMany({ where: { employeeId: { in: orphanedEmployeeIds } } }).catch(() => {}),
+        () => (prisma as any).experience?.deleteMany?.({ where: { employeeId: { in: orphanedEmployeeIds } } }).catch(() => {}),
+        () => (prisma as any).employeeSkill?.deleteMany?.({ where: { employeeId: { in: orphanedEmployeeIds } } }).catch(() => {}),
+        () => prisma.employeeCompanyMapping.deleteMany({ where: { employeeId: { in: orphanedEmployeeIds } } }).catch(() => {}),
+        () => prisma.performanceReview.deleteMany({ where: { employeeId: { in: orphanedEmployeeIds } } }).catch(() => {}),
+        () => prisma.goal.deleteMany({ where: { employeeId: { in: orphanedEmployeeIds } } }).catch(() => {}),
+        () => prisma.feedback.deleteMany({ where: { employeeId: { in: orphanedEmployeeIds } } }).catch(() => {}),
+        () => prisma.recognition.deleteMany({ where: { employeeId: { in: orphanedEmployeeIds } } }).catch(() => {}),
+        () => prisma.ticket.deleteMany({ where: { employeeId: { in: orphanedEmployeeIds } } }).catch(() => {}),
+        () => prisma.loan.deleteMany({ where: { employeeId: { in: orphanedEmployeeIds } } }).catch(() => {}),
+        () => prisma.trainingEnrollment.deleteMany({ where: { employeeId: { in: orphanedEmployeeIds } } }).catch(() => {}),
+        () => prisma.overtimeRecord.deleteMany({ where: { employeeId: { in: orphanedEmployeeIds } } }).catch(() => {}),
+        () => prisma.auditLog.deleteMany({ where: { userId: { in: allOrphanedUserIds } } }).catch(() => {}),
+        () => prisma.loginActivity.deleteMany({ where: { userId: { in: allOrphanedUserIds } } }).catch(() => {}),
+        () => prisma.referral.deleteMany({ where: { employeeId: { in: orphanedEmployeeIds } } }).catch(() => {}),
+        () => prisma.projectMember.deleteMany({ where: { employeeId: { in: orphanedEmployeeIds } } }).catch(() => {}),
+        () => prisma.employee.deleteMany({ where: { id: { in: orphanedEmployeeIds } } }).catch(() => {}),
+        () => prisma.userRoleAssignment.deleteMany({ where: { userId: { in: allOrphanedUserIds } } }).catch(() => {}),
+        () => prisma.user.deleteMany({ where: { id: { in: allOrphanedUserIds } } }).catch(() => {}),
+      ];
+      for (const op of orphanDeleteOps) {
+        try { await op(); } catch (e) { /* skip */ }
+      }
+    }
+    console.log('  ✓ Orphaned records cleaned');
   }
 
   // ── 2. TENANT ──
@@ -836,7 +920,7 @@ async function main() {
     'Farah Khan', 'Gopal Subramaniam', 'Hema Malini', 'Indira Gandhi', 'Jawahar Nehru',
     'Kamal Hassan', 'Latha Rajinikanth', 'Mohan Lal', 'Nagma Shetty', 'Omar Abdullah',
     'Priyanka Chopra', 'Quadir Ahmed', 'Rashmika Mandanna', 'Samantha Ruth', 'Tarun Kumar',
-    'Uttara Baokar', 'Vijay Sethupathi', 'Waheeda Rehman', 'Xavier D'Souza', 'Yash Raj',
+    'Uttara Baokar', 'Vijay Sethupathi', 'Waheeda Rehman', 'Xavier D\u2019Souza', 'Yash Raj',
   ];
 
   const APPLICATION_STATUSES = ['applied', 'screening', 'interview', 'interview', 'offered', 'hired', 'rejected'];

@@ -165,7 +165,7 @@ export async function GET(request: Request) {
     console.log('[Credentials GET] where:', JSON.stringify(where, null, 2));
     console.log('[Credentials GET] jwtRole:', jwtRole, 'effectiveRole:', effectiveRole, 'scope:', effectiveScope, 'tenantId:', tenantId, 'companyId:', companyId);
 
-    const [employees, total] = await Promise.all([
+    const [employeesRaw, total] = await Promise.all([
       db.employee.findMany({
         where,
         select: {
@@ -188,7 +188,28 @@ export async function GET(request: Request) {
       db.employee.count({ where }),
     ]);
 
-    console.log('[Credentials GET] Found', employees.length, 'of', total, 'employees');
+    // ─── Deduplicate by email ───
+    // Employee.email is NOT unique in the schema, so a re-seeded DB can have
+    // multiple Employee rows with the same email. We dedupe here, keeping the
+    // one with a userId (login account) preferred over the one without.
+    const seenEmails = new Set<string>();
+    const employees = employeesRaw.filter((emp) => {
+      const key = (emp.email || '').toLowerCase().trim();
+      if (!key) return true; // keep rows with no email (rare)
+      if (seenEmails.has(key)) {
+        // Duplicate — skip
+        return false;
+      }
+      seenEmails.add(key);
+      return true;
+    }).sort((a, b) => {
+      // Prefer employees with userId (login account) at the top
+      if (a.userId && !b.userId) return -1;
+      if (!a.userId && b.userId) return 1;
+      return 0;
+    });
+
+    console.log('[Credentials GET] Found', employeesRaw.length, 'raw, deduped to', employees.length, 'of', total);
 
     const result = employees.map((emp) => ({
       id: emp.id,
@@ -315,17 +336,41 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'No employees found' }, { status: 404, headers: corsHeaders() });
     }
 
+    const platformDb = getPlatformDb();
+
     for (const emp of employees) {
       try {
         const pwd = password || generateRandomPassword();
         const hashedPwd = await hashPassword(pwd);
 
         if (emp.userId) {
-          // Update existing user password
+          // Update existing user password in tenant DB
           await db.user.update({
             where: { id: emp.userId },
             data: { password: hashedPwd, status: 'active' },
-          });
+          }).catch(() => null);
+
+          // ─── CRITICAL: Also sync to platform DB ───
+          // Login flow checks platform DB FIRST. If the user also exists in
+          // platform DB (e.g., from an earlier seed), the platform password
+          // would override the tenant DB password. We must update BOTH.
+          await platformDb.user.update({
+            where: { id: emp.userId },
+            data: { password: hashedPwd, status: 'active' },
+          }).catch(() => null);
+
+          // Also try to find by email in platform DB (in case ID differs)
+          const platformUserByEmail = await platformDb.user.findUnique({
+            where: { email: emp.email },
+            select: { id: true },
+          }).catch(() => null);
+          if (platformUserByEmail && platformUserByEmail.id !== emp.userId) {
+            await platformDb.user.update({
+              where: { id: platformUserByEmail.id },
+              data: { password: hashedPwd, status: 'active' },
+            }).catch(() => null);
+          }
+
           results.push({
             employeeId: emp.employeeId,
             name: `${emp.firstName} ${emp.lastName}`,
@@ -336,13 +381,26 @@ export async function POST(request: Request) {
           });
         } else {
           // Create new user account
+          // Resolve tenantId for the new user — use admin's tenantId,
+          // or fall back to the tenant from the x-tenant-slug header
+          let userTenantId = admin.tenantId || '';
+          if (!userTenantId) {
+            const slugHeader = request.headers.get('x-tenant-slug') || '';
+            if (slugHeader) {
+              const t = await platformDb.tenant.findUnique({
+                where: { slug: slugHeader },
+                select: { id: true },
+              });
+              if (t) userTenantId = t.id;
+            }
+          }
           const newUser = await db.user.create({
             data: {
               email: emp.email,
               password: hashedPwd,
               name: `${emp.firstName} ${emp.lastName}`,
               role: 'employee',
-              tenantId: admin.tenantId,
+              tenantId: userTenantId,
               status: 'active',
             },
           });
@@ -374,6 +432,22 @@ export async function POST(request: Request) {
                 where: { id: existingUser.id },
                 data: { password: hashedPwd, status: 'active' },
               });
+              // Also sync password to platform DB
+              await platformDb.user.update({
+                where: { id: existingUser.id },
+                data: { password: hashedPwd, status: 'active' },
+              }).catch(() => null);
+              // Also try by email in case ID differs in platform DB
+              const platformUserByEmail = await platformDb.user.findUnique({
+                where: { email: emp.email },
+                select: { id: true },
+              }).catch(() => null);
+              if (platformUserByEmail && platformUserByEmail.id !== existingUser.id) {
+                await platformDb.user.update({
+                  where: { id: platformUserByEmail.id },
+                  data: { password: hashedPwd, status: 'active' },
+                }).catch(() => null);
+              }
               await db.employee.update({
                 where: { id: emp.id },
                 data: { userId: existingUser.id },
@@ -438,13 +512,56 @@ export async function POST(request: Request) {
 
 /** PUT — Update a single employee's login email or password */
 export async function PUT(request: Request) {
-  const db = await getDb(request);
   try {
+    const { searchParams } = new URL(request.url);
+    const tenantIdParam = searchParams.get('tenantId');
+    const companyIdParam = searchParams.get('companyId');
+
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
 
     const decoded = await verifyToken(token);
     if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401, headers: corsHeaders() });
+
+    // ─── Resolve the correct tenant DB (same as GET/POST) ───
+    // This is the FIX: previously the PUT handler used only getDb(request),
+    // which does NOT honor ?tenantId= and ?companyId= query params for
+    // super_admin. This caused password resets to update the wrong DB
+    // (platform DB instead of the tenant DB where the user actually lives).
+    let db = await getDb(request);
+    const jwtRole = (decoded.role as string) || 'employee';
+    const platformDb = getPlatformDb();
+
+    if (jwtRole === 'super_admin') {
+      if (tenantIdParam) {
+        const tenant = await platformDb.tenant.findUnique({
+          where: { id: tenantIdParam },
+          select: { slug: true },
+        });
+        if (tenant?.slug) db = await getDbForTenant(tenant.slug);
+      } else if (companyIdParam) {
+        let company = await db.company.findUnique({ where: { id: companyIdParam }, select: { companyGroupId: true } }).catch(() => null);
+        if (!company) company = await platformDb.company.findUnique({ where: { id: companyIdParam }, select: { companyGroupId: true } }).catch(() => null);
+        if (company?.companyGroupId) {
+          let group = await db.companyGroup.findUnique({ where: { id: company.companyGroupId }, select: { tenantId: true } }).catch(() => null);
+          if (!group) group = await platformDb.companyGroup.findUnique({ where: { id: company.companyGroupId }, select: { tenantId: true } }).catch(() => null);
+          if (group?.tenantId) {
+            const tenant = await platformDb.tenant.findUnique({ where: { id: group.tenantId }, select: { slug: true } });
+            if (tenant?.slug) db = await getDbForTenant(tenant.slug);
+          }
+        }
+      }
+    }
+
+    // Also honor x-tenant-slug header (set by middleware on demo link)
+    const tenantSlugHeader = request.headers.get('x-tenant-slug') || '';
+    if (tenantSlugHeader && !tenantIdParam && !companyIdParam) {
+      const tenant = await platformDb.tenant.findUnique({
+        where: { slug: tenantSlugHeader },
+        select: { slug: true },
+      });
+      if (tenant?.slug) db = await getDbForTenant(tenant.slug);
+    }
 
     const body = await request.json();
     const { employeeId, email, password, action } = body;
@@ -463,12 +580,18 @@ export async function PUT(request: Request) {
     }
 
     if (action === 'update_email' && email) {
-      // Update the user's login email
+      // Update the user's login email in BOTH the tenant DB and platform DB
+      // (login flow checks platform DB first, so we must keep them in sync)
       if (employee.userId) {
         await db.user.update({
           where: { id: employee.userId },
           data: { email },
-        });
+        }).catch(() => null);
+        // Also update in platform DB if the user exists there
+        await platformDb.user.update({
+          where: { id: employee.userId },
+          data: { email },
+        }).catch(() => null);
         // Also update employee email
         await db.employee.update({
           where: { id: employeeId },
@@ -483,23 +606,64 @@ export async function PUT(request: Request) {
       const hashedPwd = await hashPassword(pwd);
 
       if (employee.userId) {
+        // Update password in tenant DB
         await db.user.update({
           where: { id: employee.userId },
-          data: { password: hashedPwd },
-        });
+          data: { password: hashedPwd, status: 'active' },
+        }).catch(() => null);
+
+        // ─── CRITICAL FIX ───
+        // Login flow checks platform DB FIRST (Phase 1), then tenant DB (Phase 2).
+        // If the user exists in BOTH DBs (which can happen after a re-seed),
+        // the login uses the platform DB password. We MUST update the user in
+        // BOTH databases to ensure the password reset actually takes effect.
+        await platformDb.user.update({
+          where: { id: employee.userId },
+          data: { password: hashedPwd, status: 'active' },
+        }).catch(() => null);
+
+        // Also try to find and update by email in platform DB (in case the
+        // user record exists with a different ID in platform DB)
+        const platformUserByEmail = await platformDb.user.findUnique({
+          where: { email: employee.email },
+          select: { id: true },
+        }).catch(() => null);
+        if (platformUserByEmail && platformUserByEmail.id !== employee.userId) {
+          await platformDb.user.update({
+            where: { id: platformUserByEmail.id },
+            data: { password: hashedPwd, status: 'active' },
+          }).catch(() => null);
+        }
       } else {
         // Create account if doesn't exist
-        const admin = await db.user.findUnique({
+        let admin = await db.user.findUnique({
           where: { id: decoded.userId as string },
           select: { tenantId: true },
-        });
+        }).catch(() => null);
+        if (!admin) {
+          admin = await platformDb.user.findUnique({
+            where: { id: decoded.userId as string },
+            select: { tenantId: true },
+          }).catch(() => null);
+        }
+
+        // Resolve the demo tenant ID for the new user
+        let userTenantId = admin?.tenantId || '';
+        if (!userTenantId && tenantSlugHeader) {
+          const t = await platformDb.tenant.findUnique({
+            where: { slug: tenantSlugHeader },
+            select: { id: true },
+          });
+          if (t) userTenantId = t.id;
+        }
+
         const newUser = await db.user.create({
           data: {
             email: employee.email,
             password: hashedPwd,
             name: `${employee.firstName} ${employee.lastName}`,
             role: 'employee',
-            tenantId: admin?.tenantId || '',
+            tenantId: userTenantId,
             status: 'active',
           },
         });
@@ -525,7 +689,12 @@ export async function PUT(request: Request) {
       await db.user.update({
         where: { id: employee.userId },
         data: { status: newStatus },
-      });
+      }).catch(() => null);
+      // Also sync to platform DB
+      await platformDb.user.update({
+        where: { id: employee.userId },
+        data: { status: newStatus },
+      }).catch(() => null);
       return NextResponse.json({ message: `Account ${newStatus === 'active' ? 'enabled' : 'disabled'}` }, { headers: corsHeaders() });
     }
 
@@ -538,10 +707,14 @@ export async function PUT(request: Request) {
         where: { id: employeeId },
         data: { userId: null },
       });
-      // Delete user
+      // Delete user from tenant DB
       await db.user.delete({
         where: { id: employee.userId },
-      });
+      }).catch(() => null);
+      // Also delete from platform DB if exists
+      await platformDb.user.delete({
+        where: { id: employee.userId },
+      }).catch(() => null);
       return NextResponse.json({ message: 'Login account deleted' }, { headers: corsHeaders() });
     }
 

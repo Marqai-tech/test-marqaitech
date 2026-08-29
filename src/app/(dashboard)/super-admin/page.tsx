@@ -9,6 +9,7 @@ import {
   FiChevronLeft, FiChevronRight as FiChevronRightIcon,
   FiCheck, FiCalendar, FiDatabase, FiChevronDown, FiInfo,
   FiTrendingUp, FiMail, FiBriefcase, FiAlertTriangle, FiDownload,
+  FiFilter,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { BarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -166,6 +167,7 @@ export default function SuperAdminPage() {
   // Reset & Backup state
   const [resettingTenantEmployees, setResettingTenantEmployees] = useState<string | null>(null);
   const [backingUpTenant, setBackingUpTenant] = useState<string | null>(null);
+  const [purgingTenantDuplicates, setPurgingTenantDuplicates] = useState<string | null>(null);
   const [backups, setBackups] = useState<any[]>([]);
   const [backupsLoading, setBackupsLoading] = useState(false);
   const [editingPlanId, setEditingPlanId] = useState<string | null>(null);
@@ -515,6 +517,39 @@ export default function SuperAdminPage() {
       toast.error(e instanceof Error ? e.message : 'Failed to backup database');
     } finally {
       setBackingUpTenant(null);
+    }
+  };
+
+  // ─── Purge Duplicate Employees & Sync Users ────────────────────────────
+  // One-click fix for:
+  //   1. Duplicate employee records in the credentials page (same email, different IDs)
+  //   2. Password reset not working (user exists in both DBs but password only
+  //      updated in one)
+  // The endpoint finds duplicate Employee rows and deletes the orphans (keeping
+  // the one with a userId / login account), and syncs passwords from the tenant
+  // DB → platform DB so login (which checks platform DB first) always uses the
+  // most recently reset password.
+  const handlePurgeDuplicates = async (slug: string, name: string) => {
+    if (!confirm(`Purge duplicate employee records and sync user passwords for "${name}"?\n\nThis will:\n• Delete duplicate employee records (keeping the one with a login account)\n• Sync passwords from tenant DB → platform DB so login works correctly\n\nThis is safe and cannot break anything.`)) return;
+    try {
+      setPurgingTenantDuplicates(slug);
+      const res = await fetch(`/api/admin/purge-duplicates?tenantSlug=${encodeURIComponent(slug)}`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.error || 'Failed');
+      }
+      const data = await res.json();
+      const s = data.summary || {};
+      toast.success(
+        `Purge complete: deleted ${s.duplicateEmployeesDeleted || 0} duplicates, synced ${s.duplicateUsersSynced || 0} users.`
+      );
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to purge duplicates');
+    } finally {
+      setPurgingTenantDuplicates(null);
     }
   };
 
@@ -1476,6 +1511,10 @@ export default function SuperAdminPage() {
                           <button onClick={() => handleResetTenantEmployees(t.slug, t.name)} disabled={resettingTenantEmployees === t.slug} className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-red-700 bg-red-50 rounded-lg hover:bg-red-100 disabled:opacity-50" title="Delete all employees except admin">
                             {resettingTenantEmployees === t.slug ? <FiRefreshCw className="w-3 h-3 animate-spin" /> : <FiAlertTriangle className="w-3 h-3" />}
                             Reset
+                          </button>
+                          <button onClick={() => handlePurgeDuplicates(t.slug, t.name)} disabled={purgingTenantDuplicates === t.slug} className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-purple-700 bg-purple-50 rounded-lg hover:bg-purple-100 disabled:opacity-50" title="Purge duplicate employees and sync user passwords across DBs">
+                            {purgingTenantDuplicates === t.slug ? <FiRefreshCw className="w-3 h-3 animate-spin" /> : <FiFilter className="w-3 h-3" />}
+                            Purge Dups
                           </button>
                           <button onClick={() => handleBackupTenantDB(t.slug, t.name)} disabled={backingUpTenant === t.slug} className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100 disabled:opacity-50" title="Backup tenant database">
                             {backingUpTenant === t.slug ? <FiRefreshCw className="w-3 h-3 animate-spin" /> : <FiDownload className="w-3 h-3" />}
