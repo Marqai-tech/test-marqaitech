@@ -242,3 +242,32 @@ Stage Summary:
 - One-click 'Purge Duplicates' button available on both super-admin and employee settings pages
 - Seed script is now safe to re-run without leaving orphaned records
 - After deployment, user should click 'Purge Duplicates' once to clean up existing duplicates
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: Add employee/manager RBAC with self-service + team scoping across all modules
+
+Work Log:
+- Audited current RBAC: 'manager' and 'employee' were silently mapped to 'admin' via LEGACY_ROLE_MAP, giving them full admin access. getDataScope() never returned 'team'. No Employee.reportingManagerId field existed.
+- Added 'manager' (level 3) and 'employee' (level 4) as first-class roles in roleAccess.ts
+- Updated getDataScope(): 'manager' → 'team', 'employee' → 'self', others unchanged
+- Updated MODULE_ACCESS: added manager/employee to all self-service modules (dashboard, employees, attendance, leave, payroll, performance, training, etc.)
+- Removed 'manager → admin' and 'employee → admin' from LEGACY_ROLE_MAP
+- migrateRole() now defaults to 'employee' (least privilege) for unknown roles
+- Added Employee.reportingManagerId field + self-relation 'EmployeeReportsTo' to Prisma schema
+- Created src/lib/managerScope.ts: resolveManagerScope() returns visible employee IDs for a manager via reportingManagerId + DottedLineManager
+- Updated src/lib/companyScope.ts: resolveCompanyScope() now resolves 'team' scope, returns ownEmployeeId + visibleEmployeeIds; getEmployeeCompanyFilter() handles 'team' scope
+- Fixed /api/employees GET: 'team' scope uses reportingManagerId + DottedLineManager (was using departmentId — showed all dept members incorrectly)
+- Fixed /api/leaves GET (plural): added auth + scope filtering; removed demo data fallback that leaked fabricated records to any authed user
+- Fixed /api/payroll/payslips GET: added resolveCompanyScope — employee sees only own payslips, manager sees own + reports', admin sees all/company (was returning ALL payslips to any authed user — major PII leak)
+- Fixed /api/payroll/inputs GET: same fix as payslips (was returning ALL payroll inputs to any authed user)
+- Updated prisma/seed-demo.ts: managers now report to HR admins; regular employees report to managers in their company (TCG → MGR1/MGR2, MPI → MGR3/MGR4, HFS → MGR5/MGR6)
+- Build succeeded, committed and pushed to main
+
+Stage Summary:
+- Employee login: sees only their own records in employee/leave/attendance/payroll modules
+- Manager login: sees own + direct reports across all self-service modules
+- Admin/tenant_admin/super_admin: unchanged (full access)
+- Critical PII leak fixed: payslips/payroll-inputs no longer return all tenant data to any authed user
+- Demo seed now has proper reportingManagerId relationships so manager logins have real reportees to view
