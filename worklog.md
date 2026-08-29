@@ -271,3 +271,23 @@ Stage Summary:
 - Admin/tenant_admin/super_admin: unchanged (full access)
 - Critical PII leak fixed: payslips/payroll-inputs no longer return all tenant data to any authed user
 - Demo seed now has proper reportingManagerId relationships so manager logins have real reportees to view
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: Per-item role filtering for employee/manager self-service nav items
+
+Work Log:
+- Diagnosed issue: Sidebar filter used ONLY moduleKey check — any item with moduleKey was shown to anyone with module access. No per-item role filtering was happening.
+- Updated Sidebar.tsx, ModuleStrip.tsx, modules/page.tsx: filter now applies BOTH module-level check AND per-item role check. Items with neither moduleKey nor roles default to admin-only for safety.
+- Tagged every nav item in Employee/Leave/Attendance/Payroll modules with explicit 'roles' arrays:
+  • Employee self-service items (My Profile, Apply Leave, Apply Regularization, Apply WFH, Hourly Permission, Gatepass, Overtime, Comp-Off, My Payslips, Apply Resignation, Advance Request) → roles include 'employee' + 'manager'
+  • Manager-only items (Employee List, Probation, Org Chart, Shifts, Holidays, Reports, Approvals) → roles include 'manager' but not 'employee'
+  • Admin-only items (Add Employee, Leave Policy, Attendance Settings, Payroll Processing, Masters) → roles exclude 'manager' and 'employee'
+- Build succeeded, committed and pushed to main
+
+Stage Summary:
+- Employee login now sees only self-service options across all modules
+- Manager login sees self-service + team management options
+- Admin login unchanged (sees everything)
+- Test on demo link: login as amit.verma@3boxeshrms.com → Employee module shows only My Profile + Apply Resignation; Leave shows Apply Leave + My Leave Balance; Attendance shows Apply Regularization + Apply WFH + Hourly Permission + Gatepass + Overtime + Comp-Off; Payroll shows My Payslips + Advance Request
