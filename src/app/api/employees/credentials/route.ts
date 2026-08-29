@@ -216,16 +216,55 @@ export async function GET(request: Request) {
 
 /** POST — Create/reset passwords for single, multiple, or all employees */
 export async function POST(request: Request) {
-  const db = await getDb(request);
   try {
+    const { searchParams } = new URL(request.url);
+    const tenantIdParam = searchParams.get('tenantId');
+    const companyIdParam = searchParams.get('companyId');
+
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
 
     const decoded = await verifyToken(token);
     if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401, headers: corsHeaders() });
 
+    // ─── Resolve the correct tenant DB (same as GET) ───
+    let db = await getDb(request);
+    const jwtRole = (decoded.role as string) || 'employee';
+
+    if (jwtRole === 'super_admin') {
+      if (tenantIdParam) {
+        const tenant = await getPlatformDb().tenant.findUnique({
+          where: { id: tenantIdParam },
+          select: { slug: true },
+        });
+        if (tenant?.slug) db = await getDbForTenant(tenant.slug);
+      } else if (companyIdParam) {
+        let company = await db.company.findUnique({ where: { id: companyIdParam }, select: { companyGroupId: true } }).catch(() => null);
+        if (!company) company = await getPlatformDb().company.findUnique({ where: { id: companyIdParam }, select: { companyGroupId: true } }).catch(() => null);
+        if (company?.companyGroupId) {
+          let group = await db.companyGroup.findUnique({ where: { id: company.companyGroupId }, select: { tenantId: true } }).catch(() => null);
+          if (!group) group = await getPlatformDb().companyGroup.findUnique({ where: { id: company.companyGroupId }, select: { tenantId: true } }).catch(() => null);
+          if (group?.tenantId) {
+            const tenant = await getPlatformDb().tenant.findUnique({ where: { id: group.tenantId }, select: { slug: true } });
+            if (tenant?.slug) db = await getDbForTenant(tenant.slug);
+          }
+        }
+      }
+    }
+
+    // For demo link: tenantSlug from middleware x-tenant-slug header
+    const tenantSlugHeader = request.headers.get('x-tenant-slug') || '';
+    if (tenantSlugHeader && !tenantIdParam && !companyIdParam) {
+      // The middleware already resolved the demo tenant slug — use it
+      const tenant = await getPlatformDb().tenant.findUnique({
+        where: { slug: tenantSlugHeader },
+        select: { slug: true },
+      });
+      if (tenant?.slug) db = await getDbForTenant(tenant.slug);
+    }
+
     const body = await request.json();
-    const { mode, employeeIds, password, tenantId } = body;
+    const { mode, employeeIds, password } = body;
 
     // Validate
     if (!mode || !['single', 'selected', 'all'].includes(mode)) {
@@ -238,11 +277,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'selected mode requires at least one employeeId' }, { status: 400, headers: corsHeaders() });
     }
 
-    // Get admin user
-    const admin = await db.user.findUnique({
+    // Get admin user — try resolved db, then platform DB
+    let admin = await db.user.findUnique({
       where: { id: decoded.userId as string },
       select: { id: true, role: true, tenantId: true },
-    });
+    }).catch(() => null);
+    if (!admin) {
+      admin = await getPlatformDb().user.findUnique({
+        where: { id: decoded.userId as string },
+        select: { id: true, role: true, tenantId: true },
+      });
+    }
     if (!admin) return NextResponse.json({ error: 'Admin not found' }, { status: 404, headers: corsHeaders() });
 
     // Build where clause — same approach as GET (matching /api/employees)
