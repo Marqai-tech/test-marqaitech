@@ -347,6 +347,35 @@ export default function EmployeeSettingsPage() {
     }
   }
 
+  /* Reset ALL user passwords in this tenant to a known value (default MarqAI@2026).
+     Use this when demo login credentials don't work — fixes both tenant DB and platform DB. */
+  const [resettingAllPasswords, setResettingAllPasswords] = useState(false)
+  const handleResetAllPasswords = async () => {
+    const pwd = prompt(`Reset ALL user passwords in this tenant to a known password?\n\nEnter the new password (or click OK to use default 'MarqAI@2026'):`, 'MarqAI@2026')
+    if (!pwd) return
+    setResettingAllPasswords(true)
+    try {
+      const sq = scopeQuery()
+      const url = `/api/admin/reset-demo-passwords${sq ? `?${sq}` : ''}`
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: pwd }),
+      })
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}))
+        throw new Error(d.error || 'Failed to reset passwords')
+      }
+      const data = await res.json()
+      const s = data.summary || {}
+      toast.success(`Reset ${s.tenantDbUpdated || 0} users. Password: '${s.password}'. You can now login.`)
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to reset passwords')
+    } finally {
+      setResettingAllPasswords(false)
+    }
+  }
+
   const fetchDepartments = useCallback(async (companyId?: string) => {
     try {
       const sq = scopeQuery()
@@ -1021,6 +1050,15 @@ export default function EmployeeSettingsPage() {
             >
               {purgingDuplicates ? <FiRefreshCw className="w-3.5 h-3.5 animate-spin" /> : <FiFilter className="w-3.5 h-3.5" />}
               Purge Duplicates
+            </button>
+            <button
+              onClick={handleResetAllPasswords}
+              disabled={resettingAllPasswords}
+              className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 text-xs font-medium transition-colors disabled:opacity-50"
+              title="Reset ALL user passwords to 'MarqAI@2026' (tenant DB + platform DB). Use this when login credentials don't work."
+            >
+              {resettingAllPasswords ? <FiRefreshCw className="w-3.5 h-3.5 animate-spin" /> : <FiKey className="w-3.5 h-3.5" />}
+              Reset All Passwords
             </button>
           </div>
 

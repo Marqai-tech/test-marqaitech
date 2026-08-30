@@ -870,9 +870,9 @@ export const navSections: NavSection[] = [
 
 // ─── Pinned items always visible at the top of the sidebar ───
 export const PINNED_ITEMS: NavItem[] = [
-  { label: 'Home', href: '/home', icon: <FiHome className="w-5 h-5" /> },
+  { label: 'Home', href: '/home', icon: <FiHome className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'] },
   { label: 'Dashboard', href: '/dashboard', icon: <FiGrid className="w-5 h-5" />, moduleKey: 'dashboard' },
-  { label: 'Modules', href: '/modules', icon: <FiGrid className="w-5 h-5" /> },
+  { label: 'Modules', href: '/modules', icon: <FiGrid className="w-5 h-5" />, roles: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'] },
 ];
 
 // Routes where no module is auto-selected in the sidebar
