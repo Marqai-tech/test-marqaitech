@@ -291,3 +291,22 @@ Stage Summary:
 - Manager login sees self-service + team management options
 - Admin login unchanged (sees everything)
 - Test on demo link: login as amit.verma@3boxeshrms.com → Employee module shows only My Profile + Apply Resignation; Leave shows Apply Leave + My Leave Balance; Attendance shows Apply Regularization + Apply WFH + Hourly Permission + Gatepass + Overtime + Comp-Off; Payroll shows My Payslips + Advance Request
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix employee creation failure on tenant link (marqaitechgroup.3boxeshrms.com)
+
+Work Log:
+- Diagnosed root cause: Employee.reportingManagerId column was added to Prisma schema in commit c9c0aab0 but was NOT being created on the production DB at runtime. Vercel can't run `prisma db push` interactively, so the schema-sync scripts must add new columns explicitly.
+- Updated scripts/_init-table-fixes.js: added `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "reportingManagerId" TEXT`
+- Updated scripts/schema-sync.js: added `CREATE INDEX Employee_reportingManagerId_idx` and FK constraint `Employee_reportingManagerId_fkey` (self-relation with ON DELETE SET NULL)
+- Updated src/app/api/db-push/route.ts: added the same ALTER/INDEX/CONSTRAINT statements so the runtime DB-push endpoint (called on first page load after login) also fixes any DB that missed the build-time sync
+- Improved error handling in /api/employees POST: returns Prisma error code + details + user-friendly messages for P2002/P2003/P2014/P2009
+- Build succeeded, committed and pushed to main
+
+Stage Summary:
+- After Vercel deploys, the schema-sync runs at build time → adds the missing `reportingManagerId` column to the Employee table in the marqaitechgroup tenant DB
+- If schema-sync misses it for any reason, the db-push endpoint will fix it on first page load after login
+- Employee creation on marqaitechgroup.3boxeshrms.com/employees will work after deploy
+- Better error messages will help diagnose any future failures
