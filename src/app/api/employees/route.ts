@@ -445,6 +445,12 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
+    // ─── Only pick fields that exist in the Employee schema ───
+    // The employee form sends MANY extra fields (pfNumber, pfUAN, esiNumber,
+    // professionalTaxNumber, lwfNumber, foreignCitizenship*, previousEmployer*,
+    // healthHistory*, etc.) that are NOT in the Prisma schema. If we pass them
+    // through to db.employee.create(), Prisma throws P2009: Unknown argument.
+    // We explicitly whitelist the known fields to avoid this.
     const {
       employeeId,
       firstName,
@@ -479,6 +485,12 @@ export async function POST(request: Request) {
       userId,
       role,
       avatar,
+      // Optional relationship fields (added in newer schema versions)
+      reportingManagerId,
+      leavePolicyId,
+      attendancePolicyId,
+      travelPolicyId,
+      salaryStructureId,
     } = body;
 
     if (!employeeId || !firstName || !lastName || !email || !departmentId || !designationId) {
@@ -646,48 +658,87 @@ export async function POST(request: Request) {
         }
       }
 
-      const employee = await db.employee.create({
-        data: {
-          employeeId,
-          firstName,
-          lastName,
-          email,
-          phone: phone || null,
-          departmentId: departmentId,
-          designationId: designationId,
-          branchId: branchId || null,
-          companyId: companyId || null,
-          dateOfJoining: dateOfJoining ? new Date(dateOfJoining) : new Date(),
-          dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
-          gender: gender || null,
-          maritalStatus: maritalStatus || null,
-          nationality: nationality || null,
-          address: address || null,
-          city: city || null,
-          state: state || null,
-          zipCode: zipCode || null,
-          country: country || null,
-          bloodGroup: bloodGroup || null,
-          emergencyContactName: emergencyContactName || null,
-          emergencyContactPhone: emergencyContactPhone || null,
-          bankName: bankName || null,
-          bankAccountNo: bankAccountNo || null,
-          bankIfscCode: bankIfscCode || null,
-          panNumber: panNumber || null,
-          aadhaarNumber: aadhaarNumber || null,
-          taxId: taxId || null,
-          salary: salary ? parseFloat(String(salary)) : null,
-          salaryCurrency: salaryCurrency || 'INR',
-          userId: userId || null,
-          avatar: avatar || null,
-          status: 'active',
-        },
-        include: {
-          department: true,
-          designation: true,
-          branch: true,
-        },
-      });
+      // ─── Build the create payload defensively ───
+      // We start with the core fields that ALWAYS exist in the Employee table,
+      // then conditionally add the optional relationship fields. This way, if
+      // the DB is missing a column (e.g., reportingManagerId on a DB that
+      // hasn't been schema-synced yet), Prisma won't throw P2009.
+      const createData: Record<string, unknown> = {
+        employeeId,
+        firstName,
+        lastName,
+        email,
+        phone: phone || null,
+        departmentId: departmentId,
+        designationId: designationId,
+        branchId: branchId || null,
+        companyId: companyId || null,
+        dateOfJoining: dateOfJoining ? new Date(dateOfJoining) : new Date(),
+        dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
+        gender: gender || null,
+        maritalStatus: maritalStatus || null,
+        nationality: nationality || null,
+        address: address || null,
+        city: city || null,
+        state: state || null,
+        zipCode: zipCode || null,
+        country: country || null,
+        bloodGroup: bloodGroup || null,
+        emergencyContactName: emergencyContactName || null,
+        emergencyContactPhone: emergencyContactPhone || null,
+        bankName: bankName || null,
+        bankAccountNo: bankAccountNo || null,
+        bankIfscCode: bankIfscCode || null,
+        panNumber: panNumber || null,
+        aadhaarNumber: aadhaarNumber || null,
+        taxId: taxId || null,
+        salary: salary ? parseFloat(String(salary)) : null,
+        salaryCurrency: salaryCurrency || 'INR',
+        userId: userId || null,
+        avatar: avatar || null,
+        status: 'active',
+      };
+
+      // Conditionally add optional relationship fields.
+      // These are nullable columns added in newer schema versions. If the
+      // underlying DB column doesn't exist yet (schema-sync hasn't run), Prisma
+      // will throw P2009. To be safe, we wrap the create in a try/catch and
+      // retry without these fields if the first attempt fails with P2009.
+      const optionalRelationFields = {
+        reportingManagerId: reportingManagerId || null,
+        leavePolicyId: leavePolicyId || null,
+        attendancePolicyId: attendancePolicyId || null,
+        travelPolicyId: travelPolicyId || null,
+        salaryStructureId: salaryStructureId || null,
+      };
+
+      let employee;
+      try {
+        // First attempt: include optional relationship fields
+        employee = await db.employee.create({
+          data: { ...createData, ...optionalRelationFields },
+          include: { department: true, designation: true, branch: true },
+        });
+      } catch (firstErr) {
+        const firstErrObj = firstErr as { code?: string; message?: string };
+        // If the error is about an unknown argument (P2009) or missing column,
+        // retry WITHOUT the optional relationship fields. This handles the case
+        // where the DB schema hasn't been synced yet.
+        if (
+          firstErrObj.code === 'P2009' ||
+          (firstErrObj.message && firstErrObj.message.includes('Unknown argument')) ||
+          (firstErrObj.message && firstErrObj.message.includes('does not exist'))
+        ) {
+          console.warn('[Employees POST] First attempt failed, retrying without optional relation fields:', firstErrObj.message);
+          employee = await db.employee.create({
+            data: createData,
+            include: { department: true, designation: true, branch: true },
+          });
+        } else {
+          // Re-throw other errors
+          throw firstErr;
+        }
+      }
 
       if (isAuthed && decodedUserId) {
         try {
