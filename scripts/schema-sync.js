@@ -83,6 +83,20 @@ async function main() {
     `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "attendancePolicyId" TEXT`,
     `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "travelPolicyId" TEXT`,
     `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "salaryStructureId" TEXT`,
+    // ─── Solid-line reporting manager (self-relation 'EmployeeReportsTo') ───
+    `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "reportingManagerId" TEXT`,
+    // ─── Comprehensive Employee column sync (fixes P2022 "column does not exist") ───
+    `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "avatar" TEXT`,
+    `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "maritalStatus" TEXT`,
+    `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "nationality" TEXT`,
+    `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "address" TEXT`,
+    `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "city" TEXT`,
+    `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "state" TEXT`,
+    `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "zipCode" TEXT`,
+    `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "country" TEXT`,
+    `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "status" TEXT NOT NULL DEFAULT 'active'`,
+    `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT NOW()`,
+    `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT NOW()`,
     // Drop the old NOT NULL "designation" text column if it exists (replaced by designationId FK)
     // — we keep it as nullable to avoid breaking old rows
     `ALTER TABLE "Employee" ALTER COLUMN "designation" DROP NOT NULL`,

@@ -1096,9 +1096,24 @@ export async function POST() {
       // Company: per-company employee strength barrier + planned strength (informational)
       `ALTER TABLE "Company" ADD COLUMN IF NOT EXISTS "maxEmployees" INTEGER`,
       `ALTER TABLE "Company" ADD COLUMN IF NOT EXISTS "plannedEmployeeCount" INTEGER`,
-      // ─── Employee.reportingManagerId (solid-line manager) ───
-      // Added to support manager → reportee relationship. Nullable so existing
-      // employees without a manager still work. Self-relation via "EmployeeReportsTo".
+
+      // ─── Employee table — ensure ALL columns from Prisma schema exist ───
+      // This is the CRITICAL fix for P2022 "column does not exist" errors.
+      // We add every column the Prisma client expects, with IF NOT EXISTS so
+      // re-runs are safe. Nullable columns use plain ADD COLUMN; NOT NULL
+      // columns use DEFAULT so existing rows get populated.
+      `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "avatar" TEXT`,
+      `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "maritalStatus" TEXT`,
+      `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "nationality" TEXT`,
+      `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "address" TEXT`,
+      `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "city" TEXT`,
+      `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "state" TEXT`,
+      `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "zipCode" TEXT`,
+      `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "country" TEXT`,
+      `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "status" TEXT NOT NULL DEFAULT 'active'`,
+      `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT NOW()`,
+      `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT NOW()`,
+      // reportingManagerId (solid-line manager self-relation)
       `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "reportingManagerId" TEXT`,
       // Index for faster reportee lookups
       `CREATE INDEX IF NOT EXISTS "Employee_reportingManagerId_idx" ON "Employee"("reportingManagerId")`,

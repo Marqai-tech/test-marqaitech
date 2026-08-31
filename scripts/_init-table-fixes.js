@@ -49,6 +49,20 @@ module.exports = [
   // Nullable so existing employees without a manager still work. The FK
   // is created separately below (cannot be done in the same ALTER statement).
   `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "reportingManagerId" TEXT`,
+  // ─── Comprehensive column sync — ensure ALL Employee columns exist ───
+  // This fixes P2022 "column does not exist" errors when the Prisma client
+  // expects a column that the actual DB table doesn't have.
+  `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "avatar" TEXT`,
+  `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "maritalStatus" TEXT`,
+  `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "nationality" TEXT`,
+  `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "address" TEXT`,
+  `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "city" TEXT`,
+  `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "state" TEXT`,
+  `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "zipCode" TEXT`,
+  `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "country" TEXT`,
+  `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "status" TEXT NOT NULL DEFAULT 'active'`,
+  `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT NOW()`,
+  `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT NOW()`,
   `ALTER TABLE "Interview" ADD COLUMN IF NOT EXISTS "jobApplicationId" TEXT`,
   `ALTER TABLE "Interview" ADD COLUMN IF NOT EXISTS "date" TIMESTAMP(3)`,
   `ALTER TABLE "Interview" ADD COLUMN IF NOT EXISTS "time" TEXT`,
