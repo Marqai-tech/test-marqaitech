@@ -1364,6 +1364,12 @@ async function main() {
 
   // Foreign key constraints — applied separately using DROP + ADD pattern.
   const fkStatements = [
+    // ─── Employee.reportingManagerId self-FK (solid-line manager) ───
+    // A manager must be an Employee. ON DELETE SET NULL so deleting a manager
+    // doesn't cascade-delete their direct reports.
+    `ALTER TABLE "Employee" DROP CONSTRAINT IF EXISTS "Employee_reportingManagerId_fkey"`,
+    `ALTER TABLE "Employee" ADD CONSTRAINT "Employee_reportingManagerId_fkey" FOREIGN KEY ("reportingManagerId") REFERENCES "Employee"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
+
     // Interview.jobApplicationId → JobApplication.id (the Interview table in
     // 0_init had `jobId` → JobPosting; the current Prisma schema uses
     // `jobApplicationId` → JobApplication. We add the new FK without dropping
@@ -2484,6 +2490,10 @@ async function main() {
 
     `ALTER TABLE "CompanyPolicy" DROP CONSTRAINT IF EXISTS "CompanyPolicy_companyId_fkey"`,
     `ALTER TABLE "CompanyPolicy" ADD CONSTRAINT "CompanyPolicy_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+
+    // ─── Employee.reportingManagerId self-FK (solid-line manager relation) ───
+    // Index for fast reportee lookups
+    `CREATE INDEX IF NOT EXISTS "Employee_reportingManagerId_idx" ON "Employee"("reportingManagerId")`,
   ];
 
   let applied = 0;

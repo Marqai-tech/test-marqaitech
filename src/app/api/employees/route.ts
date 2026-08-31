@@ -826,15 +826,46 @@ export async function POST(request: Request) {
       );
     } catch (dbError) {
       console.error('DB create employee failed:', dbError);
+      // Return detailed error for debugging — include Prisma error code if available
+      const errObj = dbError as { code?: string; message?: string; meta?: unknown };
+      const isPrismaError = errObj && typeof errObj === 'object' && 'code' in errObj;
+      const errorMessage = errObj?.message || 'Failed to create employee. Please try again.';
+      // Known Prisma error codes
+      // P2002 = unique constraint violation
+      // P2003 = foreign key constraint violation
+      // P2014 = invalid relation
+      // P2009 = validation error
+      let userFriendlyError = 'Failed to create employee. Please try again.';
+      if (isPrismaError) {
+        if (errObj.code === 'P2002') {
+          // Unique constraint — extract field name from meta.target if present
+          const meta = errObj.meta as { target?: string[] } | undefined;
+          const targetFields = meta?.target?.join(', ') || 'unknown field';
+          userFriendlyError = `A record with this ${targetFields} already exists.`;
+        } else if (errObj.code === 'P2003') {
+          // Foreign key — likely Department/Designation/Branch doesn't exist in this tenant DB
+          const meta = errObj.meta as { field_name?: string } | undefined;
+          const fieldName = meta?.field_name || 'a related record';
+          userFriendlyError = `Invalid ${fieldName}. The selected Department/Designation/Branch may not exist in this tenant database. Please refresh the form and select valid options.`;
+        } else if (errObj.code === 'P2014') {
+          userFriendlyError = 'Invalid relation. Please check the form data and try again.';
+        } else if (errObj.code === 'P2009') {
+          userFriendlyError = 'Validation error. Please check all required fields.';
+        }
+      }
       return NextResponse.json(
-        { error: 'Failed to create employee. Please try again.' },
+        {
+          error: userFriendlyError,
+          details: errorMessage,
+          code: errObj?.code,
+        },
         { status: 500, headers: corsHeaders() }
       );
     }
   } catch (error) {
     console.error('Create employee error:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown' },
       { status: 500, headers: corsHeaders() }
     );
   }

@@ -45,6 +45,10 @@ module.exports = [
   `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "attendancePolicyId" TEXT`,
   `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "travelPolicyId" TEXT`,
   `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "salaryStructureId" TEXT`,
+  // ─── Solid-line reporting manager (self-relation 'EmployeeReportsTo') ───
+  // Nullable so existing employees without a manager still work. The FK
+  // is created separately below (cannot be done in the same ALTER statement).
+  `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "reportingManagerId" TEXT`,
   `ALTER TABLE "Interview" ADD COLUMN IF NOT EXISTS "jobApplicationId" TEXT`,
   `ALTER TABLE "Interview" ADD COLUMN IF NOT EXISTS "date" TIMESTAMP(3)`,
   `ALTER TABLE "Interview" ADD COLUMN IF NOT EXISTS "time" TEXT`,

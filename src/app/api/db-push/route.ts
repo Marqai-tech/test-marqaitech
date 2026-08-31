@@ -1096,6 +1096,16 @@ export async function POST() {
       // Company: per-company employee strength barrier + planned strength (informational)
       `ALTER TABLE "Company" ADD COLUMN IF NOT EXISTS "maxEmployees" INTEGER`,
       `ALTER TABLE "Company" ADD COLUMN IF NOT EXISTS "plannedEmployeeCount" INTEGER`,
+      // ─── Employee.reportingManagerId (solid-line manager) ───
+      // Added to support manager → reportee relationship. Nullable so existing
+      // employees without a manager still work. Self-relation via "EmployeeReportsTo".
+      `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "reportingManagerId" TEXT`,
+      // Index for faster reportee lookups
+      `CREATE INDEX IF NOT EXISTS "Employee_reportingManagerId_idx" ON "Employee"("reportingManagerId")`,
+      // Self-FK constraint (a manager must be an Employee). Use ON DELETE SET NULL
+      // so deleting a manager doesn't cascade-delete their reports.
+      `ALTER TABLE "Employee" DROP CONSTRAINT IF EXISTS "Employee_reportingManagerId_fkey"`,
+      `ALTER TABLE "Employee" ADD CONSTRAINT "Employee_reportingManagerId_fkey" FOREIGN KEY ("reportingManagerId") REFERENCES "Employee"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
     ];
 
     let altersExecuted = 0;
