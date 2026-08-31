@@ -876,47 +876,78 @@ export async function POST(request: Request) {
         { status: 201, headers: corsHeaders() }
       );
     } catch (dbError) {
-      console.error('DB create employee failed:', dbError);
-      // Return detailed error for debugging — include Prisma error code if available
-      const errObj = dbError as { code?: string; message?: string; meta?: unknown };
-      const isPrismaError = errObj && typeof errObj === 'object' && 'code' in errObj;
-      const errorMessage = errObj?.message || 'Failed to create employee. Please try again.';
-      // Known Prisma error codes
-      // P2002 = unique constraint violation
-      // P2003 = foreign key constraint violation
-      // P2014 = invalid relation
-      // P2009 = validation error
-      let userFriendlyError = 'Failed to create employee. Please try again.';
-      if (isPrismaError) {
-        if (errObj.code === 'P2002') {
-          // Unique constraint — extract field name from meta.target if present
-          const meta = errObj.meta as { target?: string[] } | undefined;
-          const targetFields = meta?.target?.join(', ') || 'unknown field';
-          userFriendlyError = `A record with this ${targetFields} already exists.`;
-        } else if (errObj.code === 'P2003') {
-          // Foreign key — likely Department/Designation/Branch doesn't exist in this tenant DB
-          const meta = errObj.meta as { field_name?: string } | undefined;
-          const fieldName = meta?.field_name || 'a related record';
-          userFriendlyError = `Invalid ${fieldName}. The selected Department/Designation/Branch may not exist in this tenant database. Please refresh the form and select valid options.`;
-        } else if (errObj.code === 'P2014') {
-          userFriendlyError = 'Invalid relation. Please check the form data and try again.';
-        } else if (errObj.code === 'P2009') {
-          userFriendlyError = 'Validation error. Please check all required fields.';
-        }
+      console.error('[Employees POST] DB create employee failed:', JSON.stringify(dbError, Object.getOwnPropertyNames(dbError)));
+
+      // ─── Return DETAILED error so the actual cause is visible ───
+      // Previously this returned a generic "Failed to create employee" which
+      // hid the real Prisma error. Now we always include the actual error
+      // message + code so the user (and we) can diagnose the issue.
+      const errObj = dbError as { code?: string; message?: string; meta?: unknown; stack?: string };
+      const prismaCode = errObj?.code;
+      const rawMessage = errObj?.message || 'Unknown error';
+
+      // Build a user-friendly message for known Prisma codes, but ALWAYS
+      // append the raw message so the actual cause is visible.
+      let userFriendlyError = 'Failed to create employee.';
+
+      if (prismaCode === 'P2002') {
+        // Unique constraint violation
+        const meta = errObj?.meta as { target?: string[] } | undefined;
+        const targetFields = meta?.target?.join(', ') || 'unknown field';
+        userFriendlyError = `A record with this ${targetFields} already exists. Please use a different value.`;
+      } else if (prismaCode === 'P2003') {
+        // Foreign key constraint violation — the selected Department/Designation/Branch
+        // doesn't exist in this tenant DB
+        const meta = errObj?.meta as { field_name?: string } | undefined;
+        const fieldName = meta?.field_name || 'a related record';
+        userFriendlyError = `Invalid "${fieldName}". The selected Department/Designation/Branch does not exist in this tenant database. Please refresh the page and select valid options from the dropdown.`;
+      } else if (prismaCode === 'P2014') {
+        userFriendlyError = 'Invalid relation in the form data.';
+      } else if (prismaCode === 'P2009') {
+        userFriendlyError = 'Validation error: a field in the form is not recognized by the database.';
+      } else if (prismaCode === 'P2010') {
+        userFriendlyError = 'Database query error (P2010).';
+      } else if (prismaCode === 'P2016') {
+        userFriendlyError = 'Query interpretation error (P2016).';
+      } else if (prismaCode === 'P2017') {
+        userFriendlyError = 'Record not found (P2017).';
+      } else if (prismaCode === 'P2021') {
+        userFriendlyError = 'Foreign key constraint failed (P2021).';
+      } else if (prismaCode === 'P2025') {
+        userFriendlyError = 'Related record not found (P2025). The selected Department/Designation/Branch may not exist.';
+      } else if (rawMessage.includes('Unknown argument')) {
+        // Prisma client validation — a field in the create payload doesn't exist in the schema
+        userFriendlyError = 'Form contains a field the database does not recognize.';
+      } else if (rawMessage.includes('does not exist')) {
+        // PostgreSQL error — a column doesn't exist in the DB table
+        userFriendlyError = 'A required database column is missing. The database schema may need to be synced.';
+      } else if (rawMessage.includes('null value') && rawMessage.includes('violates not-null constraint')) {
+        // NOT NULL constraint violation
+        userFriendlyError = 'A required field is missing. Please fill in all required fields marked with *.';
       }
+
+      // ─── ALWAYS append the raw Prisma message so the actual cause is visible ───
+      // This is critical for debugging — the user can copy-paste this to us.
+      const fullError = `${userFriendlyError} [Details: ${rawMessage}${prismaCode ? ` (Code: ${prismaCode})` : ''}]`;
+
       return NextResponse.json(
         {
-          error: userFriendlyError,
-          details: errorMessage,
-          code: errObj?.code,
+          error: fullError,
+          userMessage: userFriendlyError,
+          details: rawMessage,
+          code: prismaCode,
+          meta: errObj?.meta,
         },
         { status: 500, headers: corsHeaders() }
       );
     }
   } catch (error) {
-    console.error('Create employee error:', error);
+    console.error('[Employees POST] Create employee error:', error);
     return NextResponse.json(
-      { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown' },
+      {
+        error: `Internal server error. [Details: ${error instanceof Error ? error.message : 'Unknown'}]`,
+        details: error instanceof Error ? error.message : 'Unknown',
+      },
       { status: 500, headers: corsHeaders() }
     );
   }

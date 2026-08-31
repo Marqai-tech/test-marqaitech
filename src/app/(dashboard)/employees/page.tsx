@@ -966,7 +966,12 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
           headers: getAuthHeaders(),
           body: JSON.stringify(payload),
         });
-        if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Create failed'); }
+        if (!res.ok) {
+          const d = await res.json().catch(() => ({ error: 'Create failed' }));
+          // Show the FULL error message (includes Prisma code + details for debugging)
+          const errorMsg = d.error || d.details || 'Create failed';
+          throw new Error(errorMsg);
+        }
         toast.success('Employee created successfully');
       }
       handleCancelForm();
@@ -974,7 +979,10 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
       fetchDropdowns();
       fetchAllEmployees();
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Operation failed');
+      // Show error for 10 seconds so the user can read the full message
+      const msg = err instanceof Error ? err.message : 'Operation failed';
+      toast.error(msg, { duration: 10000 });
+      console.error('[Employee Form] Submit error:', msg);
     } finally {
       setSubmitting(false);
     }
