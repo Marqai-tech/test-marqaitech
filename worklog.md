@@ -328,3 +328,26 @@ Stage Summary:
 - Extra form fields (pfUAN, esiNumber, etc.) are silently ignored by the API
 - Defensive retry ensures the create works even if the reportingManagerId column is missing from the DB
 - After deploy, test: visit marqaitechgroup.3boxeshrms.com/employees → Add Employee → fill form → should succeed
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: Expose full Prisma error in employee create — user still seeing generic message
+
+Work Log:
+- Previous fix (whitelist + defensive retry) didn't resolve the issue — user still seeing "Failed to create employee. Please try again."
+- Root cause: the error is a Prisma code NOT in our known list (P2002/P2003/P2014/P2009), so it fell through to the generic fallback message which hid the real cause.
+- Updated /api/employees POST error handler:
+  • ALWAYS append the raw Prisma error message to the response: "Failed to create employee. [Details: <raw Prisma message> (Code: P20XX)]"
+  • Added more Prisma codes: P2010, P2016, P2017, P2021, P2025
+  • Added PostgreSQL-specific checks: "Unknown argument", "does not exist", "null value violates not-null constraint"
+  • Server-side console.error now uses JSON.stringify with Object.getOwnPropertyNames to capture non-enumerable Prisma properties
+- Updated frontend /employees/page.tsx:
+  • Toast now reads d.error OR d.details (fallback) so full Prisma message is shown
+  • Toast duration increased to 10 seconds so user can read/copy it
+  • Added console.error for browser devtools debugging
+- Build succeeded, committed and pushed to main
+
+Stage Summary:
+- After deploy, the user will see the EXACT Prisma error in the toast (e.g., "Invalid departmentId_fkey. [Details: Foreign key constraint failed (Code: P2003)]")
+- Share that message and we can fix the root cause immediately
