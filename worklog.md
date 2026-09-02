@@ -351,3 +351,19 @@ Work Log:
 Stage Summary:
 - After deploy, the user will see the EXACT Prisma error in the toast (e.g., "Invalid departmentId_fkey. [Details: Foreign key constraint failed (Code: P2003)]")
 - Share that message and we can fix the root cause immediately
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix credentials page not showing employees on tenant link
+
+Work Log:
+- Diagnosed: /api/employees/credentials GET had no inline schema-sync, so on the marqaitechgroup tenant DB (missing several Employee + User columns), the findMany query was throwing P2022 silently. The generic catch block returned a 500 error, and the frontend silently swallowed the error → empty list shown to user.
+- Added inline schema-sync to credentials GET: 29 Employee column ALTERs + 8 User column ALTERs (avatar, tenantId, role, status, lastLogin, lastLogout, createdAt, updatedAt) at the start of the handler. Non-fatal: if sync fails, the request continues.
+- Wrapped findMany in try/catch with detailed error response: 'Failed to fetch employee credentials. [Details: <raw Prisma message> (Code: P20XX)]'
+- Updated frontend /employees/settings to show a toast with the actual error message (10s duration) instead of silently logging to console
+- Build succeeded, committed and pushed to main
+
+Stage Summary:
+- After deploy, credentials page on marqaitechgroup.3boxeshrms.com will run inline schema-sync first → add missing Employee + User columns → findMany succeeds → display all employees
+- If it still fails, the toast will show the exact Prisma error message so we can diagnose
