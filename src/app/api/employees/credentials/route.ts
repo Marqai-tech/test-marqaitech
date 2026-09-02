@@ -59,6 +59,61 @@ export async function GET(request: Request) {
     // ─── Resolve the correct tenant DB ───
     let db = await getDb(request);
 
+    // ─── Inline schema-sync: ensure ALL Employee + User columns exist (fixes P2022) ───
+    // The credentials route does employee.findMany with user: { select: { role, status,
+    // lastLogin } }. If ANY of those columns are missing from the DB, the query fails
+    // silently and returns no employees. We add them here to be safe.
+    try {
+      const syncStatements = [
+        // Employee columns
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "avatar" TEXT`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "maritalStatus" TEXT`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "nationality" TEXT`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "address" TEXT`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "city" TEXT`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "state" TEXT`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "zipCode" TEXT`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "country" TEXT`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "status" TEXT NOT NULL DEFAULT 'active'`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT NOW()`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT NOW()`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "reportingManagerId" TEXT`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "designationId" TEXT`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "dateOfJoining" TIMESTAMP(3)`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "bloodGroup" TEXT`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "emergencyContactName" TEXT`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "emergencyContactPhone" TEXT`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "bankName" TEXT`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "bankAccountNo" TEXT`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "bankIfscCode" TEXT`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "panNumber" TEXT`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "aadhaarNumber" TEXT`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "taxId" TEXT`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "salary" DOUBLE PRECISION`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "salaryCurrency" TEXT NOT NULL DEFAULT 'INR'`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "leavePolicyId" TEXT`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "attendancePolicyId" TEXT`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "travelPolicyId" TEXT`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "salaryStructureId" TEXT`,
+        // User columns (the credentials route selects role, status, lastLogin)
+        `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "avatar" TEXT`,
+        `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "tenantId" TEXT`,
+        `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "role" TEXT NOT NULL DEFAULT 'employee'`,
+        `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "status" TEXT NOT NULL DEFAULT 'active'`,
+        `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "lastLogin" TIMESTAMP(3)`,
+        `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "lastLogout" TIMESTAMP(3)`,
+        `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT NOW()`,
+        `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT NOW()`,
+      ];
+      for (const sql of syncStatements) {
+        try {
+          await db.$executeRawUnsafe(sql);
+        } catch { /* column already exists — safe to ignore */ }
+      }
+    } catch (syncErr) {
+      console.warn('[Credentials GET] Inline schema-sync failed (non-fatal):', syncErr);
+    }
+
     // Decode JWT role
     const jwtRole = (decoded.role as string) || 'employee';
 
@@ -165,28 +220,46 @@ export async function GET(request: Request) {
     console.log('[Credentials GET] where:', JSON.stringify(where, null, 2));
     console.log('[Credentials GET] jwtRole:', jwtRole, 'effectiveRole:', effectiveRole, 'scope:', effectiveScope, 'tenantId:', tenantId, 'companyId:', companyId);
 
-    const [employeesRaw, total] = await Promise.all([
-      db.employee.findMany({
-        where,
-        select: {
-          id: true,
-          employeeId: true,
-          firstName: true,
-          lastName: true,
-          email: true,
-          phone: true,
-          status: true,
-          department: { select: { name: true } },
-          designation: { select: { title: true } },
-          userId: true,
-          user: { select: { id: true, email: true, status: true, lastLogin: true, role: true } },
-        },
-        orderBy: { firstName: 'asc' },
-        skip: (page - 1) * limit,
-        take: limit,
-      }),
-      db.employee.count({ where }),
-    ]);
+    // Wrap the findMany in a try/catch so we can surface the actual Prisma error
+    // instead of silently returning an empty list. Previously, if the query
+    // failed (e.g., P2022 column missing), the catch block returned a generic
+    // 500 error and the frontend showed "no employees".
+    let employeesRaw: any[] = [];
+    let total = 0;
+    try {
+      [employeesRaw, total] = await Promise.all([
+        db.employee.findMany({
+          where,
+          select: {
+            id: true,
+            employeeId: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            phone: true,
+            status: true,
+            department: { select: { name: true } },
+            designation: { select: { title: true } },
+            userId: true,
+            user: { select: { id: true, email: true, status: true, lastLogin: true, role: true } },
+          },
+          orderBy: { firstName: 'asc' },
+          skip: (page - 1) * limit,
+          take: limit,
+        }),
+        db.employee.count({ where }),
+      ]);
+    } catch (queryErr) {
+      const errObj = queryErr as { code?: string; message?: string };
+      console.error('[Credentials GET] findMany failed:', JSON.stringify(errObj, Object.getOwnPropertyNames(errObj)));
+      // Return the detailed error so the frontend can display it
+      return NextResponse.json({
+        error: `Failed to fetch employee credentials. [Details: ${errObj.message || 'Unknown'} (Code: ${errObj.code || 'N/A'})]`,
+        details: errObj.message,
+        code: errObj.code,
+        _debug: { where, effectiveRole, effectiveScope },
+      }, { status: 500, headers: corsHeaders() });
+    }
 
     // ─── Deduplicate by email ───
     // Employee.email is NOT unique in the schema, so a re-seeded DB can have

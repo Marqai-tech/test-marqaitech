@@ -311,13 +311,17 @@ export default function EmployeeSettingsPage() {
       } else {
         const errorData = await res.json().catch(() => ({}))
         console.error('[Employee Settings] Fetch credentials failed:', res.status, errorData)
-        // If unauthorized, the token might be expired — don't silently fail
+        // Show the actual error to the user so they can see what's wrong
         if (res.status === 401) {
           toast.error('Session expired. Please log in again.')
+        } else if (errorData.error) {
+          // Display the detailed Prisma error message from the API
+          toast.error(`Error loading credentials: ${errorData.error}`, { duration: 10000 })
         }
       }
     } catch (err) {
       console.error('Fetch error:', err)
+      toast.error('Network error while loading credentials')
     } finally {
       setLoading(false)
     }
