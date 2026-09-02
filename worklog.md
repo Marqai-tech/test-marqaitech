@@ -385,3 +385,23 @@ Stage Summary:
   - Sidebar shows all admin items (Employee List, Add Employee, Leave Policy, Attendance Settings, Payroll Processing, etc.)
   - Credentials page shows ALL employees in the tenant DB (not just self)
   - All API routes that use getDataScope() now return 'all' for legacy roles
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix probation review comments not getting saved
+
+Work Log:
+- Diagnosed root cause: /api/employees/probation was a STUB. The old code literally said 'No database model for probation yet — return success'. The POST handler returned a fake success message WITHOUT saving anything to the DB. The GET handler returned an empty list. So when the user submitted a probation review with comments, the toast said 'success' but nothing was actually persisted.
+- Rewrote /api/employees/probation to use the PerformanceReview table:
+  • POST: Creates a PerformanceReview record with reviewCycle='Probation'. Serializes the full probation form data as JSON in the 'comments' field. Maps decision → status (confirm=completed, extend=in_progress, terminate=rejected). Sets reviewerId to the logged-in user. Creates an audit log entry.
+  • GET: Queries PerformanceReview where reviewCycle='Probation'. Parses the JSON from comments and maps it back to the probation shape expected by the UI.
+- Both handlers run inline schema-sync (CREATE TABLE IF NOT EXISTS PerformanceReview) to ensure the table exists on tenant DBs.
+- Both handlers return detailed error messages if the Prisma query fails.
+- Build succeeded, committed and pushed to main
+
+Stage Summary:
+- After deploy, probation reviews on marqaitechgroup.3boxeshrms.com/employees/probation will:
+  1. Actually save to the PerformanceReview table
+  2. Show up in the review list below the form
+  3. Persist reviewComments, performanceRating, decision, etc.
