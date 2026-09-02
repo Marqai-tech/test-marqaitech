@@ -13,7 +13,7 @@ import WelcomeGreeting from '@/components/WelcomeGreeting';
 import OnboardingWalkthrough from '@/components/OnboardingWalkthrough';
 import SafeRender from '@/components/SafeRender';
 import { useSessionTimeout } from '@/hooks/useSessionTimeout';
-import { canRoleAccessModule } from '@/lib/roleAccess';
+import { canRoleAccessModule, LEGACY_ROLE_MAP } from '@/lib/roleAccess';
 import toast from 'react-hot-toast';
 import {
   FiUsers, FiBriefcase, FiClock, FiMenu,
@@ -54,7 +54,13 @@ export default function DashboardLayout({
   const userRole = user?.role || 'admin';
 
   // Filter sections based on user role
-  // Per-item role filtering: must pass BOTH module-level AND per-item role checks
+  // Per-item role filtering: must pass BOTH module-level AND per-item role checks.
+  // Also handles legacy roles via LEGACY_ROLE_MAP (e.g., 'company_hr_admin' → 'admin').
+  const effectiveRoles = useMemo(() => {
+    const migrated = LEGACY_ROLE_MAP[userRole] || userRole;
+    return Array.from(new Set([userRole, migrated])).filter(Boolean);
+  }, [userRole]);
+
   const filteredSections = useMemo(() => {
     return navSections
       .map((section) => ({
@@ -65,18 +71,19 @@ export default function DashboardLayout({
             return false;
           }
           // 2. Per-item role check (granular)
-          if (item.roles && !item.roles.includes(userRole)) {
-            return false;
+          if (item.roles) {
+            const hasRole = effectiveRoles.some(r => item.roles!.includes(r));
+            if (!hasRole) return false;
           }
           // 3. No moduleKey and no roles → admin-only for safety
           if (!item.moduleKey && !item.roles) {
-            return ['super_admin', 'tenant_admin', 'admin'].includes(userRole);
+            return effectiveRoles.some(r => ['super_admin', 'tenant_admin', 'admin'].includes(r));
           }
           return true;
         }),
       }))
       .filter((section) => section.items.length > 0);
-  }, [userRole]);
+  }, [userRole, effectiveRoles]);
 
   // Auto-detect current module from pathname
   const autoDetectedModuleKey = useMemo(() => {

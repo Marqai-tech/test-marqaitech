@@ -226,11 +226,27 @@ export function isModuleEnabledForTenant(tenantSlug: string, moduleKey: string):
 /**
  * Check if a role can access a module.
  * Super admin always returns true.
+ *
+ * IMPORTANT: Also handles legacy role names. If the role isn't directly in
+ * the MODULE_ACCESS list, we check the LEGACY_ROLE_MAP migration target.
+ * For example, 'company_hr_admin' maps to 'admin', so it inherits the
+ * admin's module access.
  */
 export function canRoleAccessModule(role: string, moduleKey: string): boolean {
+  if (!role) return false;
   if (role === 'super_admin') return true;
+
+  // Direct check
   const allowed = MODULE_ACCESS[moduleKey];
-  return allowed ? allowed.includes(role) : false;
+  if (allowed && allowed.includes(role)) return true;
+
+  // Legacy role fallback: check the migrated role
+  const migratedRole = LEGACY_ROLE_MAP[role];
+  if (migratedRole && migratedRole !== role) {
+    if (allowed && allowed.includes(migratedRole)) return true;
+  }
+
+  return false;
 }
 
 /**
@@ -238,10 +254,32 @@ export function canRoleAccessModule(role: string, moduleKey: string): boolean {
  * - 'all': Full access to all records
  * - 'team': Access to own + direct reports (managers)
  * - 'self': Access to own records only (employees)
+ *
+ * IMPORTANT: This function also handles LEGACY role names that exist in older
+ * database rows. Legacy roles like 'company_hr_admin', 'hr_admin',
+ * 'finance_admin', 'it_admin', 'hrhead', 'recruitmenthead' are mapped to
+ * 'admin' scope ('all') so they retain full company-level access. Without
+ * this, a user created with role 'company_hr_admin' would get 'self' scope
+ * and only see their own employee record.
  */
 export function getDataScope(role: string): 'all' | 'team' | 'self' {
-  if (['super_admin', 'tenant_admin', 'admin'].includes(role)) return 'all';
-  if (role === 'manager') return 'team';
+  if (!role) return 'self';
+
+  // Normalize: lowercase the role for comparison
+  const r = role.toLowerCase();
+
+  // 'all' scope — full access (includes legacy admin-equivalent roles)
+  if ([
+    'super_admin', 'tenant_admin', 'admin',
+    // Legacy admin-equivalent roles (mapped to 'admin' via LEGACY_ROLE_MAP)
+    'company_hr_admin', 'hr_admin', 'finance_admin', 'finance',
+    'it_admin', 'hrhead', 'recruitmenthead',
+  ].includes(r)) return 'all';
+
+  // 'team' scope — manager + direct reports
+  if (r === 'manager') return 'team';
+
+  // Everyone else (employee, recruiter, candidate, etc.) → self only
   return 'self';
 }
 

@@ -10,7 +10,7 @@ import {
 } from 'react-icons/fi';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore, isHiddenTenant } from '@/store/companyContextStore';
-import { canRoleAccessModule, isModuleEnabledForTenant } from '@/lib/roleAccess';
+import { canRoleAccessModule, isModuleEnabledForTenant, LEGACY_ROLE_MAP } from '@/lib/roleAccess';
 import { navSections, PINNED_ITEMS, PICKER_ROUTES } from '@/lib/navData';
 import type { NavItem, NavSection } from '@/lib/navData';
 import { useTenantModuleStore } from '@/store/tenantModuleStore';
@@ -62,6 +62,16 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false, cur
   //   - If item.roles is set, the user's role must be in the list
   //   - If item.moduleKey is set, the role must pass canRoleAccessModule
   //   - Both checks must pass for the item to be visible
+  //
+  // IMPORTANT: Also check the LEGACY_ROLE_MAP migration target. A user with
+  // role 'company_hr_admin' (legacy) maps to 'admin', so they should see
+  // items tagged with roles: ['admin', ...].
+  const effectiveRoles = useMemo(() => {
+    const migrated = LEGACY_ROLE_MAP[userRole] || userRole;
+    // Unique list: [original role, migrated role] (deduped)
+    return Array.from(new Set([userRole, migrated])).filter(Boolean);
+  }, [userRole]);
+
   const filteredSections = useMemo(() => {
     return navSections
       .filter((section) => isModuleEnabledForTenant(tenantSlug, section.key))
@@ -75,31 +85,36 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false, cur
             }
             // 2. Per-item role check (granular — e.g., 'employee' can see 'Apply Leave'
             //    but not 'Leave Policy & Settings' even though both are moduleKey='leave')
-            if (item.roles && !item.roles.includes(userRole)) {
-              return false;
+            if (item.roles) {
+              // Check if ANY of the user's effective roles (original + migrated) is in item.roles
+              const hasRole = effectiveRoles.some(r => item.roles!.includes(r));
+              if (!hasRole) return false;
             }
             // 3. No moduleKey and no roles → default to admin-only for safety
             if (!item.moduleKey && !item.roles) {
-              return ['super_admin', 'tenant_admin', 'admin'].includes(userRole);
+              return effectiveRoles.some(r => ['super_admin', 'tenant_admin', 'admin'].includes(r));
             }
             return true;
           }
         ),
       }))
       .filter((section) => section.items.length > 0);
-  }, [userRole, tenantSlug]);
+  }, [userRole, tenantSlug, effectiveRoles]);
 
   // Filter pinned items based on role (same logic as above)
   const visiblePinnedItems = useMemo(() => {
     return PINNED_ITEMS.filter((item) => {
       if (item.moduleKey && !canRoleAccessModule(userRole, item.moduleKey)) return false;
-      if (item.roles && !item.roles.includes(userRole)) return false;
+      if (item.roles) {
+        const hasRole = effectiveRoles.some(r => item.roles!.includes(r));
+        if (!hasRole) return false;
+      }
       if (!item.moduleKey && !item.roles) {
-        return ['super_admin', 'tenant_admin', 'admin'].includes(userRole);
+        return effectiveRoles.some(r => ['super_admin', 'tenant_admin', 'admin'].includes(r));
       }
       return true;
     });
-  }, [userRole]);
+  }, [userRole, effectiveRoles]);
 
   // Find the current section
   const currentSection = currentModuleKey

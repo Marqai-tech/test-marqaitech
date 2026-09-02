@@ -9,7 +9,7 @@ import {
 } from 'react-icons/fi';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
-import { canRoleAccessModule, isModuleEnabledForTenant } from '@/lib/roleAccess';
+import { canRoleAccessModule, isModuleEnabledForTenant, LEGACY_ROLE_MAP } from '@/lib/roleAccess';
 import { sanitizeSearch } from '@/lib/validators';
 import { navSections, MODULE_GROUPS } from '@/lib/navData';
 import type { NavSection, ModuleGroup, DashboardTab } from '@/lib/navData';
@@ -33,7 +33,13 @@ export default function ModulesPage() {
   }, [tenantId, tenantSlug, fetchModules]);
 
   // Filter sections based on role AND tenant module whitelist
-  // Per-item role filtering: must pass BOTH module-level AND per-item role checks
+  // Per-item role filtering: must pass BOTH module-level AND per-item role checks.
+  // Also handles legacy roles via LEGACY_ROLE_MAP (e.g., 'company_hr_admin' → 'admin').
+  const effectiveRoles = useMemo(() => {
+    const migrated = LEGACY_ROLE_MAP[userRole] || userRole;
+    return Array.from(new Set([userRole, migrated])).filter(Boolean);
+  }, [userRole]);
+
   const filteredGroups = useMemo(() => {
     return MODULE_GROUPS.map(group => ({
       ...group,
@@ -47,19 +53,20 @@ export default function ModulesPage() {
               return false;
             }
             // 2. Per-item role check
-            if (item.roles && !item.roles.includes(userRole)) {
-              return false;
+            if (item.roles) {
+              const hasRole = effectiveRoles.some(r => item.roles!.includes(r));
+              if (!hasRole) return false;
             }
             // 3. No moduleKey and no roles → admin-only for safety
             if (!item.moduleKey && !item.roles) {
-              return ['super_admin', 'tenant_admin', 'admin'].includes(userRole);
+              return effectiveRoles.some(r => ['super_admin', 'tenant_admin', 'admin'].includes(r));
             }
             return true;
           }),
         }))
         .filter(section => section.items.length > 0),
     })).filter(group => group.sections.length > 0);
-  }, [userRole, tenantSlug]);
+  }, [userRole, tenantSlug, effectiveRoles]);
 
   // Filter by search
   const searchFilteredGroups = useMemo(() => {
