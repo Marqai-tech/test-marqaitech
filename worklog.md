@@ -367,3 +367,21 @@ Work Log:
 Stage Summary:
 - After deploy, credentials page on marqaitechgroup.3boxeshrms.com will run inline schema-sync first → add missing Employee + User columns → findMany succeeds → display all employees
 - If it still fails, the toast will show the exact Prisma error message so we can diagnose
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix credentials page showing only one employee — legacy role handling
+
+Work Log:
+- Diagnosed root cause: The marqai seed creates users with role 'company_hr_admin' (legacy role name). The new getDataScope() only returned 'all' for 'super_admin', 'tenant_admin', 'admin' — NOT for 'company_hr_admin'. So a company_hr_admin user got scope='self' → where.userId = userId → only saw their OWN employee record on the credentials page.
+- Fixed roleAccess.ts getDataScope(): now handles legacy role names ('company_hr_admin', 'hr_admin', 'finance_admin', 'finance', 'it_admin', 'hrhead', 'recruitmenthead') — all return 'all' (same as 'admin'). Case-insensitive comparison.
+- Fixed roleAccess.ts canRoleAccessModule(): also checks the LEGACY_ROLE_MAP migration target. A 'company_hr_admin' user can now access modules tagged with roles: ['admin', ...].
+- Updated Sidebar.tsx, layout.tsx, ModuleStrip.tsx, modules/page.tsx: all four filter components now compute 'effectiveRoles' = [originalRole, migratedRole] (deduped). Per-item role check uses effectiveRoles.some(r => item.roles.includes(r)). This means a company_hr_admin user is treated as BOTH company_hr_admin AND admin for nav visibility.
+- Build succeeded, committed and pushed to main
+
+Stage Summary:
+- After deploy, login as admin@marqaitechgroup.com (or any company_hr_admin user) on marqaitechgroup.3boxeshrms.com:
+  - Sidebar shows all admin items (Employee List, Add Employee, Leave Policy, Attendance Settings, Payroll Processing, etc.)
+  - Credentials page shows ALL employees in the tenant DB (not just self)
+  - All API routes that use getDataScope() now return 'all' for legacy roles
