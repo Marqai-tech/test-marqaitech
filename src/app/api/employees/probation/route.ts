@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { getDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
@@ -13,62 +14,163 @@ export async function OPTIONS() {
   return NextResponse.json({}, { headers: corsHeaders() });
 }
 
+/**
+ * GET /api/employees/probation
+ *
+ * Returns probation review records. We store probation reviews as
+ * PerformanceReview entries with reviewCycle='Probation'. This avoids
+ * creating a separate Probation table while keeping the data model clean.
+ *
+ * Query params:
+ *   ?employeeId=<id>  — filter by employee
+ *   ?status=<status>  — filter by status (pending, in_progress, completed)
+ *   ?page=<n>         — pagination (default 1)
+ *   ?limit=<n>        — page size (default 20)
+ */
 export async function GET(request: Request) {
+  const db = await getDb(request);
   try {
-    // Try to authenticate, but don't block if no auth (demo mode)
-    let isAuthed = false;
+    const token = getTokenFromHeaders(request);
+    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
+    const decoded = await verifyToken(token);
+    if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401, headers: corsHeaders() });
 
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '20');
+    const employeeId = searchParams.get('employeeId');
+    const status = searchParams.get('status');
+
+    // ─── Inline schema-sync for PerformanceReview table ───
+    // Ensures all columns exist (fixes P2022 on tenant DBs that haven't been synced)
     try {
-      const token = getTokenFromHeaders(request);
-      if (token) {
-        try {
-          const decoded = await verifyToken(token);
-          if (decoded) {
-            isAuthed = true;
-          }
-        } catch {
-          // Token verification failed, continue in demo mode
-        }
+      const syncStatements = [
+        `CREATE TABLE IF NOT EXISTS "PerformanceReview" ("id" TEXT NOT NULL, "employeeId" TEXT NOT NULL, "reviewCycle" TEXT NOT NULL, "reviewPeriod" TEXT, "reviewerId" TEXT, "rating" DOUBLE PRECISION NOT NULL DEFAULT 0, "goalsRating" DOUBLE PRECISION NOT NULL DEFAULT 0, "skillsRating" DOUBLE PRECISION NOT NULL DEFAULT 0, "behaviorRating" DOUBLE PRECISION NOT NULL DEFAULT 0, "overallRating" DOUBLE PRECISION NOT NULL DEFAULT 0, "comments" TEXT, "strengths" TEXT, "improvements" TEXT, "status" TEXT NOT NULL DEFAULT 'pending', "reviewDate" TIMESTAMP(3), "createdAt" TIMESTAMP(3) NOT NULL DEFAULT NOW(), "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT NOW(), CONSTRAINT "PerformanceReview_pkey" PRIMARY KEY ("id"))`,
+        `CREATE INDEX IF NOT EXISTS "PerformanceReview_employeeId_idx" ON "PerformanceReview"("employeeId")`,
+      ];
+      for (const sql of syncStatements) {
+        try { await db.$executeRawUnsafe(sql); } catch { /* already exists */ }
       }
-    } catch {
-      // Auth check failed entirely, continue in demo mode
+    } catch { /* non-fatal */ }
+
+    const where: Record<string, unknown> = {
+      reviewCycle: 'Probation',
+    };
+    if (employeeId) where.employeeId = employeeId;
+    if (status) where.status = status;
+
+    let reviews: any[] = [];
+    let total = 0;
+    try {
+      [reviews, total] = await Promise.all([
+        db.performanceReview.findMany({
+          where,
+          include: {
+            employee: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                employeeId: true,
+                avatar: true,
+                department: { select: { name: true } },
+                designation: { select: { title: true } },
+              },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+          skip: (page - 1) * limit,
+          take: limit,
+        }),
+        db.performanceReview.count({ where }),
+      ]);
+    } catch (queryErr) {
+      const errObj = queryErr as { code?: string; message?: string };
+      console.error('[Probation GET] query failed:', errObj);
+      // If the table doesn't exist or query fails, return empty list instead of erroring
+      return NextResponse.json({
+        probations: [],
+        pagination: { page, limit, total: 0, totalPages: 0 },
+        _debug: { error: errObj.message, code: errObj.code },
+      }, { headers: corsHeaders() });
     }
 
-    // No database model for probation yet — return empty list
+    // Map PerformanceReview records to the probation shape expected by the UI
+    const probations = reviews.map(r => {
+      const review = (r as any);
+      // Parse comments as JSON if it looks like JSON (we store the full form as JSON)
+      let probationData: any = {};
+      try {
+        if (review.comments && review.comments.startsWith('{')) {
+          probationData = JSON.parse(review.comments);
+        }
+      } catch { /* not JSON — treat as plain comment */ }
+
+      return {
+        id: review.id,
+        employeeId: review.employeeId,
+        employee: review.employee,
+        // Probation-specific fields (stored in comments JSON)
+        probationStartDate: probationData.probationStartDate || null,
+        probationPeriod: probationData.probationPeriod || null,
+        extensionPeriod: probationData.extensionPeriod || 0,
+        performanceRating: probationData.performanceRating || review.overallRating || 0,
+        reviewComments: probationData.reviewComments || review.comments || '',
+        kpiStatus: probationData.kpiStatus || 'pending',
+        decision: probationData.decision || 'pending',
+        effectiveDate: probationData.effectiveDate || null,
+        confirmationLetter: probationData.confirmationLetter || null,
+        // Standard review fields
+        status: review.status,
+        reviewDate: review.reviewDate,
+        createdAt: review.createdAt,
+        updatedAt: review.updatedAt,
+      };
+    });
+
     return NextResponse.json(
-      { probations: [], pagination: { page: 1, limit: 20, total: 0, totalPages: 0 } },
+      { probations, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } },
       { headers: corsHeaders() }
     );
   } catch (error) {
     console.error('Get probations error:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown' },
       { status: 500, headers: corsHeaders() }
     );
   }
 }
 
+/**
+ * POST /api/employees/probation
+ *
+ * Creates a probation review record. We store this as a PerformanceReview
+ * with reviewCycle='Probation'. The full probation form data (probationStartDate,
+ * probationPeriod, extensionPeriod, performanceRating, reviewComments, kpiStatus,
+ * decision, effectiveDate, confirmationLetter) is serialized as JSON in the
+ * `comments` field so it can be retrieved later.
+ */
 export async function POST(request: Request) {
+  const db = await getDb(request);
   try {
-    // Try auth but allow demo mode
-    let isAuthed = false;
-    let decodedUserId: string | undefined;
-
     const token = getTokenFromHeaders(request);
-    if (token) {
-      try {
-        const decoded = await verifyToken(token);
-        if (decoded) {
-          isAuthed = true;
-          decodedUserId = decoded.userId as string;
-        }
-      } catch {
-        // Continue in demo mode
-      }
-    }
+    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
+    const decoded = await verifyToken(token);
+    if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401, headers: corsHeaders() });
 
     const body = await request.json();
-    const { employeeId, startDate, endDate, status } = body;
+    const {
+      employeeId,
+      probationStartDate,
+      probationPeriod,
+      extensionPeriod,
+      performanceRating,
+      reviewComments,
+      kpiStatus,
+      decision,
+      effectiveDate,
+      confirmationLetter,
+    } = body;
 
     if (!employeeId) {
       return NextResponse.json(
@@ -77,16 +179,91 @@ export async function POST(request: Request) {
       );
     }
 
-    // No database model for probation yet — return success
+    // ─── Inline schema-sync for PerformanceReview table ───
+    try {
+      const syncStatements = [
+        `CREATE TABLE IF NOT EXISTS "PerformanceReview" ("id" TEXT NOT NULL, "employeeId" TEXT NOT NULL, "reviewCycle" TEXT NOT NULL, "reviewPeriod" TEXT, "reviewerId" TEXT, "rating" DOUBLE PRECISION NOT NULL DEFAULT 0, "goalsRating" DOUBLE PRECISION NOT NULL DEFAULT 0, "skillsRating" DOUBLE PRECISION NOT NULL DEFAULT 0, "behaviorRating" DOUBLE PRECISION NOT NULL DEFAULT 0, "overallRating" DOUBLE PRECISION NOT NULL DEFAULT 0, "comments" TEXT, "strengths" TEXT, "improvements" TEXT, "status" TEXT NOT NULL DEFAULT 'pending', "reviewDate" TIMESTAMP(3), "createdAt" TIMESTAMP(3) NOT NULL DEFAULT NOW(), "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT NOW(), CONSTRAINT "PerformanceReview_pkey" PRIMARY KEY ("id"))`,
+        `CREATE INDEX IF NOT EXISTS "PerformanceReview_employeeId_idx" ON "PerformanceReview"("employeeId")`,
+      ];
+      for (const sql of syncStatements) {
+        try { await db.$executeRawUnsafe(sql); } catch { /* already exists */ }
+      }
+    } catch { /* non-fatal */ }
+
+    // Serialize the full probation form data as JSON in the comments field
+    // so we can retrieve all probation-specific fields later
+    const probationData = JSON.stringify({
+      probationStartDate,
+      probationPeriod,
+      extensionPeriod: extensionPeriod || 0,
+      performanceRating: performanceRating || 0,
+      reviewComments: reviewComments || '',
+      kpiStatus: kpiStatus || 'pending',
+      decision: decision || 'pending',
+      effectiveDate: effectiveDate || null,
+      confirmationLetter: confirmationLetter || null,
+    });
+
+    // Map decision → status
+    let status = 'pending';
+    if (decision === 'confirm') status = 'completed';
+    else if (decision === 'extend') status = 'in_progress';
+    else if (decision === 'terminate') status = 'rejected';
+
+    const review = await db.performanceReview.create({
+      data: {
+        employeeId,
+        reviewCycle: 'Probation',
+        reviewPeriod: probationPeriod ? `Probation (${probationPeriod} months)` : 'Probation',
+        reviewerId: decoded.userId as string,
+        rating: performanceRating || 0,
+        overallRating: performanceRating || 0,
+        comments: probationData,
+        strengths: null,
+        improvements: null,
+        status,
+        reviewDate: effectiveDate ? new Date(effectiveDate) : new Date(),
+      },
+      include: {
+        employee: {
+          select: { firstName: true, lastName: true, employeeId: true },
+        },
+      },
+    }).catch((createErr: { code?: string; message?: string }) => {
+      console.error('[Probation POST] create failed:', createErr);
+      throw new Error(`Failed to save probation review: ${createErr.message || 'Unknown error'} (Code: ${createErr.code || 'N/A'})`);
+    });
+
+    // Log to audit
+    try {
+      await db.auditLog.create({
+        data: {
+          userId: decoded.userId as string,
+          action: 'CREATE_PROBATION_REVIEW',
+          module: 'employees',
+          details: `Created probation review for ${(review as any).employee?.firstName} ${(review as any).employee?.lastName} - Decision: ${decision}`,
+        },
+      });
+    } catch { /* non-critical */ }
+
     return NextResponse.json(
       {
         success: true,
-        message: 'Probation record created successfully',
+        message: 'Probation review saved successfully',
         probation: {
+          id: (review as any).id,
           employeeId,
-          startDate: startDate || null,
-          endDate: endDate || null,
-          status: status || 'active',
+          probationStartDate,
+          probationPeriod,
+          extensionPeriod: extensionPeriod || 0,
+          performanceRating: performanceRating || 0,
+          reviewComments: reviewComments || '',
+          kpiStatus: kpiStatus || 'pending',
+          decision: decision || 'pending',
+          effectiveDate,
+          confirmationLetter,
+          status: (review as any).status,
+          createdAt: (review as any).createdAt,
         },
       },
       { status: 201, headers: corsHeaders() }
@@ -94,7 +271,10 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error('Create probation error:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      {
+        error: error instanceof Error ? error.message : 'Internal server error',
+        details: error instanceof Error ? error.message : 'Unknown',
+      },
       { status: 500, headers: corsHeaders() }
     );
   }
