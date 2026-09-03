@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb, getDbForTenant } from '@/lib/tenant-db';
-import { verifyToken, getTokenFromHeaders, hashPassword } from '@/lib/auth';
+import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { getDataScope } from '@/lib/roleAccess';
 import { getEmployeeCompanyFilter, getCompanyFilter, getAuthInfo, resolveCompanyScope } from '@/lib/companyScope';
 import { checkTenantStatusOrBlock } from '@/lib/tenant-guard';
@@ -844,121 +844,65 @@ export async function POST(request: Request) {
       }
 
       // ─── Role-based User account creation ───
-      // After the employee is created, also create (or update) a User account
-      // with the specified role so that role-based module access is applied.
-      // Wrapped in try/catch so a failure here does NOT fail the whole request.
-      try {
-        const effectiveRole = role || 'employee';
-
-        // Resolve tenantId from the authenticated admin user
-        let adminTenantId: string | undefined;
-        if (isAuthed && decodedUserId) {
-          const adminUser = await db.user.findUnique({
-            where: { id: decodedUserId },
-            select: { tenantId: true },
-          });
-          adminTenantId = adminUser?.tenantId;
-        }
-
-        if (adminTenantId) {
-          // Check if a User with this email already exists
-          const existingUser = await db.user.findUnique({
-            where: { email },
-          });
-
-          let userIdForEmployee: string;
-
-          if (existingUser) {
-            // Update existing user's role
-            await db.user.update({
-              where: { id: existingUser.id },
-              data: { role: effectiveRole },
-            });
-            userIdForEmployee = existingUser.id;
-          } else {
-            // Create a new User account
-            const randomPassword = generateRandomPassword();
-            const hashedPwd = await hashPassword(randomPassword);
-
-            const newUser = await db.user.create({
-              data: {
-                email,
-                name: `${firstName} ${lastName}`,
-                role: effectiveRole,
-                tenantId: adminTenantId,
-                password: hashedPwd,
-                status: 'active',
-              },
-            });
-            userIdForEmployee = newUser.id;
-          }
-
-          // Link the User to the Employee by setting userId
+      // IMPORTANT: We do NOT auto-create a User account here. The employee is
+      // created with userId = null. The admin must explicitly create login
+      // credentials via the "Login Credentials" tab (or invite the employee)
+      // to activate their login access. This ensures the "No Account" metric
+      // correctly reflects employees who haven't been given login access yet.
+      //
+      // The role is stored on the Employee record's `role` field (if provided)
+      // so it can be used when the admin later creates credentials via
+      // /api/employees/credentials POST.
+      //
+      // If the form explicitly passes a `userId` (e.g., linking an existing
+      // user), we honor that. But we don't create a new User automatically.
+      if (userId) {
+        // An explicit userId was provided — link the existing user to this employee
+        try {
           await db.employee.update({
             where: { id: employee.id },
-            data: { userId: userIdForEmployee },
+            data: { userId },
           });
-
-          // Create EmployeeCompanyMapping for the primary company (if companyId is provided)
-          const effectiveCompanyId = companyId || null;
-          if (effectiveCompanyId) {
-            try {
-              await db.employeeCompanyMapping.create({
-                data: {
-                  employeeId: employee.id,
-                  companyId: effectiveCompanyId,
-                  employeeCode: employeeId,
-                  departmentId: departmentId || null,
-                  designationId: designationId || null,
-                  branchId: branchId || null,
-                  isPrimary: true,
-                  status: 'active',
-                  dateOfJoining: dateOfJoining ? new Date(dateOfJoining) : new Date(),
-                },
-              });
-            } catch (mappingErr) {
-              console.error('Failed to create EmployeeCompanyMapping (non-critical):', mappingErr);
-            }
-          }
-
-          // Create UserRoleAssignment linking the user to the appropriate Role
-          try {
-            const roleRecord = await db.role.findFirst({
-              where: {
-                OR: [
-                  { key: effectiveRole },
-                  { name: { equals: effectiveRole, mode: 'insensitive' } },
-                ],
-              },
-            });
-
-            if (roleRecord) {
-              // Check if this assignment already exists to avoid unique constraint violation
-              const existingAssignment = await db.userRoleAssignment.findFirst({
-                where: {
-                  userId: userIdForEmployee,
-                  roleId: roleRecord.id,
-                  companyId: effectiveCompanyId || null,
-                },
-              });
-
-              if (!existingAssignment) {
-                await db.userRoleAssignment.create({
-                  data: {
-                    userId: userIdForEmployee,
-                    roleId: roleRecord.id,
-                    companyId: effectiveCompanyId || null,
-                    assignedBy: decodedUserId || null,
-                  },
-                });
-              }
-            }
-          } catch (roleAssignErr) {
-            console.error('Failed to create UserRoleAssignment (non-critical):', roleAssignErr);
-          }
+        } catch (linkErr) {
+          console.error('[Employees POST] Failed to link existing user to employee (non-critical):', linkErr);
         }
-      } catch (userCreationErr) {
-        console.error('Failed to create/update User account for employee (non-critical):', userCreationErr);
+      }
+
+      // Store the intended role on the employee record for later use when
+      // credentials are created. We use a separate field or audit log.
+      if (role && isAuthed && decodedUserId) {
+        try {
+          await db.auditLog.create({
+            data: {
+              userId: decodedUserId,
+              action: 'EMPLOYEE_ROLE_SET',
+              module: 'employees',
+              details: `Employee ${employee.employeeId} - ${firstName} ${lastName} intended role: ${role} (credentials not yet created)`,
+            },
+          });
+        } catch { /* non-critical */ }
+      }
+
+      // Create EmployeeCompanyMapping for the primary company (if companyId is provided)
+      const mappingCompanyId = companyId || null;
+      if (mappingCompanyId) {
+        try {
+          await db.employeeCompanyMapping.create({
+            data: {
+              employeeId: employee.id,
+              companyId: mappingCompanyId,
+              employeeCode: employeeId,
+              departmentId: departmentId || null,
+              designationId: designationId || null,
+              branchId: branchId || null,
+              isPrimary: true,
+              status: 'active',
+              dateOfJoining: dateOfJoining ? new Date(dateOfJoining) : new Date(),
+            },
+          });
+        } catch (mappingErr) {
+          console.error('Failed to create EmployeeCompanyMapping (non-critical):', mappingErr);
+        }
       }
 
       return NextResponse.json(
