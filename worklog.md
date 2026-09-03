@@ -405,3 +405,28 @@ Stage Summary:
   1. Actually save to the PerformanceReview table
   2. Show up in the review list below the form
   3. Persist reviewComments, performanceRating, decision, etc.
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix probation list — show employee name, start date, end date
+
+Work Log:
+- Diagnosed: The GET /api/employees/probation response didn't include the fields the UI expected. The ProbationRecord interface expects employeeName, employeeCode, startDate, endDate (flat strings). But the API was returning employee: { firstName, lastName, employeeId } (object), probationStartDate (not startDate), and no endDate at all.
+- Updated GET /api/employees/probation response mapping:
+  - employeeName: built from employee.firstName + employee.lastName
+  - employeeCode: from employee.employeeId
+  - startDate: from probationData.probationStartDate
+  - endDate: calculated as startDate + probationPeriod + extensionPeriod (same logic the form uses)
+  - probationPeriod: converted to Number (was string from JSON)
+  - Also added department and designation for richer display
+- Build succeeded, committed and pushed to main
+
+Stage Summary:
+- After deploy, the probation list table on marqaitechgroup.3boxeshrms.com/employees/probation will show:
+  - Employee: 'Admin MAT (EMP-MAT-HR001)'
+  - Period: '6 months'
+  - Start: 'Jan 15, 2026'
+  - End: 'Jul 15, 2026'
+  - Decision: 'Confirm'
+  - Status: 'completed'
