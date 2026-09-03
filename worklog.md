@@ -430,3 +430,25 @@ Stage Summary:
   - End: 'Jul 15, 2026'
   - Decision: 'Confirm'
   - Status: 'completed'
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix employee accounts auto-activated on creation — No Account metric wrong
+
+Work Log:
+- Diagnosed root cause: /api/employees POST automatically created a User account with status='active' and linked it to the employee immediately after creation. This meant every new employee had userId set → hasLoginAccount=true → the 'No Account' metric showed 0 even though login credentials hadn't been explicitly created/invited.
+- Removed auto User account creation from /api/employees POST:
+  - Employee is now created with userId = null (no linked User account)
+  - Admin must explicitly create credentials via /api/employees/credentials POST
+  - If form explicitly passes a userId (linking an existing user), we honor that
+  - Intended role is logged to audit trail for later use
+  - Removed unused hashPassword import and UserRoleAssignment creation
+  - Renamed second 'effectiveCompanyId' to 'mappingCompanyId' to fix build error
+- Build succeeded, committed and pushed to main
+
+Stage Summary:
+- After deploy, new employees show 'No Account' status in the credentials list
+- The 'No Account' metric correctly counts employees without login access
+- Admin can create credentials via 'Generate Passwords' or 'Reset Password' buttons
+- Only then does the employee's status change to 'Active' / 'Has Account'
