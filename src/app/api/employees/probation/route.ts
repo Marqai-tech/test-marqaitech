@@ -106,13 +106,37 @@ export async function GET(request: Request) {
         }
       } catch { /* not JSON — treat as plain comment */ }
 
+      // Build employee name from the included employee relation
+      const emp = review.employee || {};
+      const employeeName = `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || 'Unknown';
+      const employeeCode = emp.employeeId || '—';
+      const departmentName = emp.department?.name || '—';
+      const designationTitle = emp.designation?.title || '—';
+
+      // Calculate probation end date from start date + period + extension
+      let endDate: string | null = null;
+      const startDateStr = probationData.probationStartDate || null;
+      if (startDateStr && probationData.probationPeriod) {
+        try {
+          const start = new Date(startDateStr);
+          const end = new Date(start);
+          end.setMonth(end.getMonth() + Number(probationData.probationPeriod) + Number(probationData.extensionPeriod || 0));
+          endDate = end.toISOString();
+        } catch { /* invalid date */ }
+      }
+
       return {
         id: review.id,
         employeeId: review.employeeId,
         employee: review.employee,
+        // UI-expected fields ( ProbationRecord interface)
+        employeeName,
+        employeeCode,
+        startDate: startDateStr,
+        endDate,
+        probationPeriod: Number(probationData.probationPeriod) || 0,
         // Probation-specific fields (stored in comments JSON)
         probationStartDate: probationData.probationStartDate || null,
-        probationPeriod: probationData.probationPeriod || null,
         extensionPeriod: probationData.extensionPeriod || 0,
         performanceRating: probationData.performanceRating || review.overallRating || 0,
         reviewComments: probationData.reviewComments || review.comments || '',
@@ -120,6 +144,9 @@ export async function GET(request: Request) {
         decision: probationData.decision || 'pending',
         effectiveDate: probationData.effectiveDate || null,
         confirmationLetter: probationData.confirmationLetter || null,
+        // Extra fields for richer display
+        department: departmentName,
+        designation: designationTitle,
         // Standard review fields
         status: review.status,
         reviewDate: review.reviewDate,
