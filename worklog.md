@@ -476,3 +476,28 @@ TASK 2 — Red Asterisks on All Mandatory Fields:
 Stage Summary:
 - After deploy, login on marqaitechgroup.3boxeshrms.com will reject personal emails (gmail, yahoo, etc.) with a clear error message
 - All mandatory fields across all modules now show a red asterisk (*) next to the label
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: Rename Email → Official Email ID + add Personal Email ID field in Add Employee form
+
+Work Log:
+- Added Employee.personalEmail field to Prisma schema (String?, nullable)
+- Updated all schema-sync scripts (_init-table-fixes.js, schema-sync.js, db-push route) to add the personalEmail column
+- Updated inline schema-syncs in /api/employees GET+POST and /api/employees/credentials
+- Updated employee form:
+  - Renamed 'Email' label → 'Official Email ID' with red asterisk
+  - Added placeholder: 'e.g., yourname@company.com'
+  - Added helper text: 'Use company/official email only (no gmail, yahoo, etc.)'
+  - Added NEW 'Personal Email ID' field (optional, no asterisk)
+  - Added placeholder: 'e.g., yourname@gmail.com (optional)'
+  - Added helper text: 'Personal email for backup contact (optional)'
+  - Updated form state, edit handler, CSV export, validation labels
+- Updated /api/employees POST and PUT to accept personalEmail field
+- Build succeeded, committed and pushed to main
+
+Stage Summary:
+- After deploy, the Add Employee form will show:
+  - Official Email ID *  (required, official emails only — validated by validateOfficialEmail)
+  - Personal Email ID    (optional, for backup contact — accepts any email including gmail/yahoo)
