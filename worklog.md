@@ -501,3 +501,22 @@ Stage Summary:
 - After deploy, the Add Employee form will show:
   - Official Email ID *  (required, official emails only — validated by validateOfficialEmail)
   - Personal Email ID    (optional, for backup contact — accepts any email including gmail/yahoo)
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix updated email not showing in login credentials page
+
+Work Log:
+- Diagnosed root cause: When you edit an employee's email in the Add/Edit form, only Employee.email was updated. The linked User record's email (user.email) stayed as the OLD email. The credentials page showed 'loginEmail: user.email' which was stale.
+- Fixed /api/employees/[id] PUT handler: when email is updated, syncs it to the linked User account in BOTH the tenant DB and platform DB. Also finds and updates by OLD email in platform DB (in case the User record exists with a different ID).
+- Fixed /api/employees/credentials GET response: changed primary email display from 'user.email' to 'employee.email' (always current). Added 'emailMismatch' boolean flag.
+- Updated credentials page UI: renamed column 'Login Email' → 'Official Email', displays emp.email (updated), shows amber warning badge when emailMismatch is true.
+- Build succeeded, committed and pushed to main
+
+Stage Summary:
+- After deploy, editing an employee's Official Email ID and saving will:
+  1. Update Employee.email (as before)
+  2. Sync the new email to the linked User account (tenant DB + platform DB)
+  3. Show the UPDATED email in the Login Credentials tab
+  4. Login with the new email works immediately
