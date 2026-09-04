@@ -146,24 +146,24 @@ export default function OvertimeRequestPage() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Date *</label>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Date <span className="text-red-500 font-bold">*</span></label>
               <input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} className="3boxes-input w-full" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Start Time *</label>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Start Time <span className="text-red-500 font-bold">*</span></label>
               <input type="time" value={form.startTime} onChange={e => setForm({ ...form, startTime: e.target.value })} className="3boxes-input w-full" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">End Time *</label>
+              <label className="block text-xs font-medium text-slate-600 mb-1">End Time <span className="text-red-500 font-bold">*</span></label>
               <input type="time" value={form.endTime} onChange={e => setForm({ ...form, endTime: e.target.value })} className="3boxes-input w-full" />
             </div>
           </div>
           <div className="mt-4">
-            <label className="block text-xs font-medium text-slate-600 mb-1">Reason *</label>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Reason <span className="text-red-500 font-bold">*</span></label>
             <input type="text" value={form.reason} onChange={e => setForm({ ...form, reason: e.target.value })} className="3boxes-input w-full" placeholder="e.g. Production release support" />
           </div>
           <div className="mt-4">
-            <label className="block text-xs font-medium text-slate-600 mb-1">Payout Preference *</label>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Payout Preference <span className="text-red-500 font-bold">*</span></label>
             <div className="grid grid-cols-2 gap-3">
               <label className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer ${form.payoutPreference === 'payout' ? 'border-teal-500 bg-teal-50' : 'border-slate-200'}`}>
                 <input type="radio" checked={form.payoutPreference === 'payout'} onChange={() => setForm({ ...form, payoutPreference: 'payout' })} />

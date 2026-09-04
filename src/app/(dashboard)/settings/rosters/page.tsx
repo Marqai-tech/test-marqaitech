@@ -141,11 +141,11 @@ export default function RostersPage() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Name *</label>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Name <span className="text-red-500 font-bold">*</span></label>
               <input type="text" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="3boxes-input w-full" placeholder="e.g. Support Team A — Weekly Rotation" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Start Date *</label>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Start Date <span className="text-red-500 font-bold">*</span></label>
               <input type="date" value={form.startDate} onChange={e => setForm({ ...form, startDate: e.target.value })} className="3boxes-input w-full" />
             </div>
           </div>

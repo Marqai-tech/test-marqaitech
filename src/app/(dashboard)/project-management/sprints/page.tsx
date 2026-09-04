@@ -237,7 +237,7 @@ export default function SprintsPage() {
             </div>
             <div className="space-y-3">
               <div>
-                <label className="text-xs font-medium text-thb-text-secondary">Sprint Name *</label>
+                <label className="text-xs font-medium text-thb-text-secondary">Sprint Name <span className="text-red-500 font-bold">*</span></label>
                 <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
                   className="w-full mt-1 px-3 py-2 border border-thb-border rounded-lg text-sm" />
               </div>

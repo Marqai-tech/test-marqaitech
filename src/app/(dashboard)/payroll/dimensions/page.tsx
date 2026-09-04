@@ -377,11 +377,11 @@ export default function DimensionsPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Code *</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Code <span className="text-red-500 font-bold">*</span></label>
                 <input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase().replace(/\s+/g, '_') })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="e.g. DEPT, CC, PROJ" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Name *</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Name <span className="text-red-500 font-bold">*</span></label>
                 <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="e.g. Department, Cost Center" />
               </div>
               <div>

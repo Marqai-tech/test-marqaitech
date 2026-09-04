@@ -1422,18 +1422,18 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div>
-                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">First Name *</label>
+                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">First Name <span className="text-red-500 font-bold">*</span></label>
                       <input type="text" value={form.firstName} onChange={e => updateForm('firstName', onlyLetters(e.target.value))} required className={`w-full px-3 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 ${stepErrors.firstName ? 'border-red-400 bg-red-50' : 'border-thb-border'}`} />
                       {stepErrors.firstName && <p className="text-xs text-red-500 mt-1">{stepErrors.firstName}</p>}
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">Last Name *</label>
+                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">Last Name <span className="text-red-500 font-bold">*</span></label>
                       <input type="text" value={form.lastName} onChange={e => updateForm('lastName', onlyLetters(e.target.value))} required className={`w-full px-3 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 ${stepErrors.lastName ? 'border-red-400 bg-red-50' : 'border-thb-border'}`} />
                       {stepErrors.lastName && <p className="text-xs text-red-500 mt-1">{stepErrors.lastName}</p>}
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">
-                        Employee ID *
+                        Employee ID <span className="text-red-500 font-bold">*</span>
                         {getEmployeeCodeSettings().autoGeneration && !editingId && (
                           <span className="ml-1.5 text-[10px] font-normal text-green-500 bg-green-50 px-1.5 py-0.5 rounded">Auto-generated</span>
                         )}
@@ -1452,7 +1452,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">Email *</label>
+                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">Email <span className="text-red-500 font-bold">*</span></label>
                       <input type="email" value={form.email} onChange={e => updateForm('email', e.target.value)} required className={`w-full px-3 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 ${stepErrors.email ? 'border-red-400 bg-red-50' : 'border-thb-border'}`} />
                       {stepErrors.email && <p className="text-xs text-red-500 mt-1">{stepErrors.email}</p>}
                     </div>
@@ -1564,14 +1564,14 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                       )}
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">Department *</label>
+                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">Department <span className="text-red-500 font-bold">*</span></label>
                       <select value={form.departmentId} onChange={e => updateForm('departmentId', e.target.value)} required className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                         <option value="">Select Department</option>
                         {departments.map(d => <option key={d.id} value={d.id}>{d.name}{d.company ? ` (${d.company.name})` : ''}</option>)}
                       </select>
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">Designation *</label>
+                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">Designation <span className="text-red-500 font-bold">*</span></label>
                       <select value={form.designationId} onChange={e => updateForm('designationId', e.target.value)} required className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                         <option value="">Select Designation</option>
                         {designations.map(d => <option key={d.id} value={d.id}>{d.title}{d.department ? ` — ${d.department.name}` : ''}</option>)}
@@ -1639,7 +1639,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                       )}
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">Date of Joining *</label>
+                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">Date of Joining <span className="text-red-500 font-bold">*</span></label>
                       <input type="date" value={form.dateOfJoining} onChange={e => updateForm('dateOfJoining', e.target.value)} required className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                     </div>
                   </div>

@@ -540,7 +540,7 @@ function OnboardingContent() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Task *</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Task <span className="text-red-500 font-bold">*</span></label>
                 <input
                   type="text"
                   value={form.task}
@@ -550,7 +550,7 @@ function OnboardingContent() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Category *</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Category <span className="text-red-500 font-bold">*</span></label>
                 <select
                   value={form.category}
                   onChange={e => setForm(p => ({ ...p, category: e.target.value }))}

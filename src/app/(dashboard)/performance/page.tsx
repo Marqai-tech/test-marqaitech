@@ -478,7 +478,7 @@ function PerformanceContent() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Review Cycle *</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Review Cycle <span className="text-red-500 font-bold">*</span></label>
                 <input
                   type="text"
                   value={form.reviewCycle}

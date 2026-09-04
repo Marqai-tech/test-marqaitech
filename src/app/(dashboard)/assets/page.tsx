@@ -424,15 +424,15 @@ function AssetsContent() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Name *</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Name <span className="text-red-500 font-bold">*</span></label>
                 <input type="text" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="Asset name" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Asset Tag *</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Asset Tag <span className="text-red-500 font-bold">*</span></label>
                 <input type="text" value={form.assetTag} onChange={e => setForm(p => ({ ...p, assetTag: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="e.g. AST-001" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Category *</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Category <span className="text-red-500 font-bold">*</span></label>
                 <select value={form.category} onChange={e => setForm(p => ({ ...p, category: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                   {CATEGORIES.map(c => <option key={c} value={c}>{formatCategory(c)}</option>)}
                 </select>

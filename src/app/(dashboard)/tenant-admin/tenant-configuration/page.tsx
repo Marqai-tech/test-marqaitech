@@ -1013,7 +1013,7 @@ export default function TenantConfigurationPage() {
             </div>
             <div className="px-6 py-4 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Country *</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Country <span className="text-red-500 font-bold">*</span></label>
                 <select
                   value={newPolicy.countryCode}
                   onChange={(e) => setNewPolicy({ ...newPolicy, countryCode: e.target.value })}
@@ -1026,7 +1026,7 @@ export default function TenantConfigurationPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Policy Name *</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Policy Name <span className="text-red-500 font-bold">*</span></label>
                 <input
                   type="text"
                   value={newPolicy.policyName}
@@ -1062,7 +1062,7 @@ export default function TenantConfigurationPage() {
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Policy Content (JSON) *</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Policy Content (JSON) <span className="text-red-500 font-bold">*</span></label>
                 <textarea
                   value={newPolicy.policyContent}
                   onChange={(e) => setNewPolicy({ ...newPolicy, policyContent: e.target.value })}

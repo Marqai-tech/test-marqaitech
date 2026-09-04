@@ -258,14 +258,14 @@ export default function CompaniesPage() {
             </div>
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Name *</label><input type="text" value={form.name || ''} onChange={e => updateForm('name', e.target.value)} required className={inputClass} placeholder="Company name" /></div>
+                <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Name <span className="text-red-500 font-bold">*</span></label><input type="text" value={form.name || ''} onChange={e => updateForm('name', e.target.value)} required className={inputClass} placeholder="Company name" /></div>
                 <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Code</label><input type="text" value={form.code || ''} onChange={e => updateForm('code', e.target.value)} className={inputClass} placeholder="e.g. 3BOXES" /></div>
                 <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Currency</label><select value={form.currency || 'INR'} onChange={e => updateForm('currency', e.target.value)} className={inputClass}><option value="INR">INR (₹)</option><option value="USD">USD ($)</option><option value="EUR">EUR (€)</option></select></div>
               </div>
               {/* Group Company selector — required for tenant_admin */}
               {!isSuperAdmin && (
                 <div>
-                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Group Company *</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Group Company <span className="text-red-500 font-bold">*</span></label>
                   {availableCompanyGroups.length === 0 ? (
                     <div className="px-3 py-2.5 rounded-lg border border-amber-200 bg-amber-50 flex items-start gap-2 text-xs text-amber-900">
                       <FiAlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />

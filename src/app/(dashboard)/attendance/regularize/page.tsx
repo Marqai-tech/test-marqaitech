@@ -135,22 +135,22 @@ export default function RegularizePage() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Date *</label>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Date <span className="text-red-500 font-bold">*</span></label>
               <input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} className="3boxes-input w-full" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Punch Type *</label>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Punch Type <span className="text-red-500 font-bold">*</span></label>
               <select value={form.punchType} onChange={e => setForm({ ...form, punchType: e.target.value })} className="3boxes-input w-full">
                 <option value="check_in">Check-In (forgot to clock in)</option>
                 <option value="check_out">Check-Out (forgot to clock out)</option>
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Actual Time *</label>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Actual Time <span className="text-red-500 font-bold">*</span></label>
               <input type="time" value={form.requestedTime} onChange={e => setForm({ ...form, requestedTime: e.target.value })} className="3boxes-input w-full" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Reason *</label>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Reason <span className="text-red-500 font-bold">*</span></label>
               <input type="text" value={form.reason} onChange={e => setForm({ ...form, reason: e.target.value })} className="3boxes-input w-full" placeholder="e.g. Forgot to punch in after meeting" />
             </div>
           </div>

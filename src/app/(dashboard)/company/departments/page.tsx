@@ -175,9 +175,9 @@ export default function DepartmentsPage() {
             </div>
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Name *</label><input type="text" value={form.name || ''} onChange={e => updateForm('name', e.target.value)} required className={inputClass} placeholder="Department name" /></div>
+                <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Name <span className="text-red-500 font-bold">*</span></label><input type="text" value={form.name || ''} onChange={e => updateForm('name', e.target.value)} required className={inputClass} placeholder="Department name" /></div>
                 <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Code</label><input type="text" value={form.code || ''} onChange={e => updateForm('code', onlyAlphanumeric(e.target.value))} className={inputClass} placeholder="e.g. ENG" /></div>
-                <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Company *</label><select value={form.companyId || ''} onChange={e => updateForm('companyId', e.target.value)} required className={inputClass}><option value="">Select Company</option>{companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
+                <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Company <span className="text-red-500 font-bold">*</span></label><select value={form.companyId || ''} onChange={e => updateForm('companyId', e.target.value)} required className={inputClass}><option value="">Select Company</option>{companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
                 <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Status</label><select value={form.status || 'active'} onChange={e => updateForm('status', e.target.value)} className={inputClass}><option value="active">Active</option><option value="inactive">Inactive</option></select></div>
               </div>
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-thb-border">

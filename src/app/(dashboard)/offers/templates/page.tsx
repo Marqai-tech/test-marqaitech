@@ -345,9 +345,7 @@ export default function OfferTemplatesPage() {
               {/* Left: Form */}
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">
-                    Template Name *
-                  </label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Template Name <span className="text-red-500 font-bold">*</span></label>
                   <input
                     required
                     value={form.name}

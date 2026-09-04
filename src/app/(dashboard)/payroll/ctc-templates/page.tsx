@@ -596,7 +596,7 @@ export default function CTCTemplatesPage() {
             {/* Template Fields */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Template Name *</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Template Name <span className="text-red-500 font-bold">*</span></label>
                 <input
                   required
                   value={form.name}

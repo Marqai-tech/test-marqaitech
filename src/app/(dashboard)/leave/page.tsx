@@ -631,7 +631,7 @@ function LeavePageContent() {
           </div>
           <div className="p-5 space-y-4">
               <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">Leave Type *</label>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Leave Type <span className="text-red-500 font-bold">*</span></label>
                 <select value={form.leaveTypeId} onChange={e => setForm(p => ({ ...p, leaveTypeId: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                   <option value="">Select Leave Type</option>
                   {leaveTypes.map(lt => <option key={lt.id} value={lt.id}>{lt.name} ({lt.defaultDays} days)</option>)}
@@ -639,11 +639,11 @@ function LeavePageContent() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">From *</label>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">From <span className="text-red-500 font-bold">*</span></label>
                   <input type="date" value={form.startDate} onChange={e => setForm(p => ({ ...p, startDate: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">To *</label>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">To <span className="text-red-500 font-bold">*</span></label>
                   <input type="date" value={form.endDate} onChange={e => setForm(p => ({ ...p, endDate: e.target.value }))} min={form.startDate} className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                 </div>
               </div>

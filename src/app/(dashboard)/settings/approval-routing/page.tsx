@@ -146,11 +146,11 @@ export default function ApprovalRoutingPage() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Name *</label>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Name <span className="text-red-500 font-bold">*</span></label>
               <input type="text" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="3boxes-input w-full" placeholder="e.g. Project X → Manager B" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Request Type *</label>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Request Type <span className="text-red-500 font-bold">*</span></label>
               <select value={form.requestType} onChange={e => setForm({ ...form, requestType: e.target.value })} className="3boxes-input w-full">
                 <option value="leave">Leave</option>
                 <option value="overtime">Overtime</option>
@@ -164,7 +164,7 @@ export default function ApprovalRoutingPage() {
               <p className="text-xs text-slate-500 mt-1">If the employee is allocated to this project on the request date, route to the alternate manager.</p>
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Alternate Manager ID *</label>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Alternate Manager ID <span className="text-red-500 font-bold">*</span></label>
               <input type="text" value={form.alternateManagerId} onChange={e => setForm({ ...form, alternateManagerId: e.target.value })} className="3boxes-input w-full" placeholder="User ID of alternate manager" />
             </div>
             <div>

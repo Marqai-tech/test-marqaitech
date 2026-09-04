@@ -831,7 +831,7 @@ export default function PayrollProcessingPage() {
               <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Basic Information</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Legal Entity ID *</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Legal Entity ID <span className="text-red-500 font-bold">*</span></label>
                   <input
                     required
                     value={form.legalEntityId}
@@ -841,7 +841,7 @@ export default function PayrollProcessingPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Payroll Period *</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Payroll Period <span className="text-red-500 font-bold">*</span></label>
                   <input
                     required
                     type="month"
@@ -879,7 +879,7 @@ export default function PayrollProcessingPage() {
               <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Date Configuration</h3>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Period Start Date *</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Period Start Date <span className="text-red-500 font-bold">*</span></label>
                   <input
                     type="date"
                     required
@@ -889,7 +889,7 @@ export default function PayrollProcessingPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Period End Date *</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Period End Date <span className="text-red-500 font-bold">*</span></label>
                   <input
                     type="date"
                     required
@@ -899,7 +899,7 @@ export default function PayrollProcessingPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Pay Date *</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Pay Date <span className="text-red-500 font-bold">*</span></label>
                   <input
                     type="date"
                     required

@@ -1410,8 +1410,8 @@ export default function SuperAdminPage() {
               </div>
               <form onSubmit={handleSubmitTenant} className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <div><label className={labelCls}>Name *</label><input required value={tenantForm.name} onChange={(e) => setTenantForm({ ...tenantForm, name: e.target.value })} className={inputCls} placeholder="Tenant name" /></div>
-                  <div><label className={labelCls}>Slug *</label><input required value={tenantForm.slug} onChange={(e) => setTenantForm({ ...tenantForm, slug: e.target.value })} className={inputCls} placeholder="tenant-slug" /></div>
+                  <div><label className={labelCls}>Name <span className="text-red-500 font-bold">*</span></label><input required value={tenantForm.name} onChange={(e) => setTenantForm({ ...tenantForm, name: e.target.value })} className={inputCls} placeholder="Tenant name" /></div>
+                  <div><label className={labelCls}>Slug <span className="text-red-500 font-bold">*</span></label><input required value={tenantForm.slug} onChange={(e) => setTenantForm({ ...tenantForm, slug: e.target.value })} className={inputCls} placeholder="tenant-slug" /></div>
                   <div><label className={labelCls}>Domain</label><input value={tenantForm.domain} onChange={(e) => setTenantForm({ ...tenantForm, domain: e.target.value })} className={inputCls} placeholder="example.com" /></div>
                   <div><label className={labelCls}>Plan</label>
                     <select value={tenantForm.plan} onChange={(e) => setTenantForm({ ...tenantForm, plan: e.target.value })} className={selectCls}>
@@ -1465,9 +1465,9 @@ export default function SuperAdminPage() {
                   <div className="pt-4 border-t border-thb-border">
                     <h4 className="text-sm font-semibold text-thb-text-primary mb-3 flex items-center gap-2"><FiSettings className="w-4 h-4" /> Admin User</h4>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                      <div><label className={labelCls}>Admin Name *</label><input required value={tenantForm.adminName} onChange={(e) => setTenantForm({ ...tenantForm, adminName: e.target.value })} className={inputCls} placeholder="Admin name" /></div>
-                      <div><label className={labelCls}>Admin Email *</label><input required type="email" value={tenantForm.adminEmail} onChange={(e) => setTenantForm({ ...tenantForm, adminEmail: e.target.value })} className={inputCls} placeholder="admin@company.com" /></div>
-                      <div><label className={labelCls}>Admin Password *</label><input required type="password" value={tenantForm.adminPassword} onChange={(e) => setTenantForm({ ...tenantForm, adminPassword: e.target.value })} className={inputCls} placeholder="••••••••" /></div>
+                      <div><label className={labelCls}>Admin Name <span className="text-red-500 font-bold">*</span></label><input required value={tenantForm.adminName} onChange={(e) => setTenantForm({ ...tenantForm, adminName: e.target.value })} className={inputCls} placeholder="Admin name" /></div>
+                      <div><label className={labelCls}>Admin Email <span className="text-red-500 font-bold">*</span></label><input required type="email" value={tenantForm.adminEmail} onChange={(e) => setTenantForm({ ...tenantForm, adminEmail: e.target.value })} className={inputCls} placeholder="admin@company.com" /></div>
+                      <div><label className={labelCls}>Admin Password <span className="text-red-500 font-bold">*</span></label><input required type="password" value={tenantForm.adminPassword} onChange={(e) => setTenantForm({ ...tenantForm, adminPassword: e.target.value })} className={inputCls} placeholder="••••••••" /></div>
                     </div>
                   </div>
                 )}
@@ -1637,7 +1637,7 @@ export default function SuperAdminPage() {
               <form onSubmit={handleSubmitGroup} className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className={labelCls}>Tenant (group company&apos;s parent) *</label>
+                    <label className={labelCls}>Tenant (group company&apos;s parent) <span className="text-red-500 font-bold">*</span></label>
                     <select
                       value={groupForm.tenantId}
                       onChange={(e) => setGroupForm({ ...groupForm, tenantId: e.target.value })}
@@ -1653,7 +1653,7 @@ export default function SuperAdminPage() {
                     {editingGroupId && <p className="text-[11px] text-thb-text-muted mt-1">Tenant cannot be changed after creation.</p>}
                   </div>
                   <div>
-                    <label className={labelCls}>Group Company Name *</label>
+                    <label className={labelCls}>Group Company Name <span className="text-red-500 font-bold">*</span></label>
                     <input
                       value={groupForm.name}
                       onChange={(e) => setGroupForm({ ...groupForm, name: e.target.value })}
@@ -1929,8 +1929,8 @@ export default function SuperAdminPage() {
                 <div>
                   <h4 className="text-sm font-semibold text-thb-text-primary mb-3">Basic Info</h4>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div><label className={labelCls}>Name *</label><input required value={planForm.name} onChange={(e) => setPlanForm({ ...planForm, name: e.target.value })} className={inputCls} placeholder="Plan name" /></div>
-                    <div><label className={labelCls}>Plan Type *</label>
+                    <div><label className={labelCls}>Name <span className="text-red-500 font-bold">*</span></label><input required value={planForm.name} onChange={(e) => setPlanForm({ ...planForm, name: e.target.value })} className={inputCls} placeholder="Plan name" /></div>
+                    <div><label className={labelCls}>Plan Type <span className="text-red-500 font-bold">*</span></label>
                       <select required value={planForm.planType} onChange={(e) => setPlanForm({ ...planForm, planType: e.target.value })} className={selectCls}>
                         <option value="starter">Starter</option><option value="professional">Professional</option><option value="enterprise">Enterprise</option><option value="global_enterprise">Global Enterprise</option><option value="staffing">Staffing</option><option value="white_label">White Label</option>
                       </select>
@@ -2199,9 +2199,7 @@ export default function SuperAdminPage() {
               {/* Tenant (group company parent) dropdown */}
               <div>
                 <label className={labelCls}>
-                  <FiHome className="w-3 h-3 inline mr-1" />
-                  Group Company Parent (Tenant) *
-                </label>
+                  <FiHome className="w-3 h-3 inline mr-1" />Group Company Parent (Tenant) <span className="text-red-500 font-bold">*</span></label>
                 <select
                   value={applyForm.tenantId}
                   onChange={(e) => setApplyForm({ ...applyForm, tenantId: e.target.value })}
@@ -2251,9 +2249,7 @@ export default function SuperAdminPage() {
                 </div>
                 <div>
                   <label className={labelCls}>
-                    <FiCalendar className="w-3 h-3 inline mr-1" />
-                    Start Date *
-                  </label>
+                    <FiCalendar className="w-3 h-3 inline mr-1" />Start Date <span className="text-red-500 font-bold">*</span></label>
                   <input
                     type="date"
                     value={applyForm.startDate}
@@ -2264,9 +2260,7 @@ export default function SuperAdminPage() {
                 </div>
                 <div>
                   <label className={labelCls}>
-                    <FiCalendar className="w-3 h-3 inline mr-1" />
-                    End Date *
-                  </label>
+                    <FiCalendar className="w-3 h-3 inline mr-1" />End Date <span className="text-red-500 font-bold">*</span></label>
                   <input
                     type="date"
                     value={applyForm.endDate}

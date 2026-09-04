@@ -579,8 +579,8 @@ export default function SuperAdminRBACPage() {
               </div>
               <form onSubmit={handleSubmitRole} className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <div><label className={labelCls}>Name *</label><input required value={roleForm.name} onChange={(e) => setRoleForm({ ...roleForm, name: e.target.value })} className={inputCls} placeholder="Role name" /></div>
-                  <div><label className={labelCls}>Key *</label><input required value={roleForm.key} onChange={(e) => setRoleForm({ ...roleForm, key: e.target.value })} className={inputCls} placeholder="role_key" disabled={!!editingRoleId} /></div>
+                  <div><label className={labelCls}>Name <span className="text-red-500 font-bold">*</span></label><input required value={roleForm.name} onChange={(e) => setRoleForm({ ...roleForm, name: e.target.value })} className={inputCls} placeholder="Role name" /></div>
+                  <div><label className={labelCls}>Key <span className="text-red-500 font-bold">*</span></label><input required value={roleForm.key} onChange={(e) => setRoleForm({ ...roleForm, key: e.target.value })} className={inputCls} placeholder="role_key" disabled={!!editingRoleId} /></div>
                   <div><label className={labelCls}>Level</label>
                     <select value={roleForm.level} onChange={(e) => setRoleForm({ ...roleForm, level: parseInt(e.target.value) })} className={selectCls}>
                       {[0, 1, 2, 3, 4, 5].map((l) => <option key={l} value={l}>{levelLabel[l] || `Level ${l}`}</option>)}

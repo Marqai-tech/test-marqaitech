@@ -334,7 +334,7 @@ function PolicyDocumentsTab() {
             </div>
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Title *</label><input type="text" value={form.title || ''} onChange={e => updateForm('title', e.target.value)} required className={docInputCls} placeholder="Policy title" /></div>
+                <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Title <span className="text-red-500 font-bold">*</span></label><input type="text" value={form.title || ''} onChange={e => updateForm('title', e.target.value)} required className={docInputCls} placeholder="Policy title" /></div>
                 <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Version</label><input type="text" value={form.version || '1.0'} onChange={e => updateForm('version', e.target.value)} className={docInputCls} placeholder="1.0" /></div>
                 <div className="sm:col-span-2 lg:col-span-3"><label className="block text-xs font-medium text-thb-text-secondary mb-1">Description</label><input type="text" value={form.description || ''} onChange={e => updateForm('description', e.target.value)} className={docInputCls} placeholder="Brief description" /></div>
                 <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Effective Date</label><input type="date" value={form.effectiveDate || ''} onChange={e => updateForm('effectiveDate', e.target.value)} className={docInputCls} /></div>
@@ -545,7 +545,7 @@ function PolicyRulesTab({ companyId, scopeQuery }: { companyId: string; scopeQue
                 <h3 className="text-xs font-semibold text-thb-text-muted uppercase tracking-wider mb-3">Identity & Scope</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-xs font-medium text-thb-text-secondary mb-1">Rule Name *</label>
+                    <label className="block text-xs font-medium text-thb-text-secondary mb-1">Rule Name <span className="text-red-500 font-bold">*</span></label>
                     <input type="text" value={form.name} onChange={e => updateForm('name', e.target.value)} required className={inputCls} placeholder="e.g. Full-Time Office Rule" />
                   </div>
                   <div>

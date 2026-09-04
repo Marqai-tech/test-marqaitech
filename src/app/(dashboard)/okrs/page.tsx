@@ -607,7 +607,7 @@ export default function OKRCascadePage() {
             </div>
             <div className="p-5 space-y-4">
               <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">Objective *</label>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Objective <span className="text-red-500 font-bold">*</span></label>
                 <textarea
                   value={form.objective}
                   onChange={e => setForm({ ...form, objective: e.target.value })}
@@ -619,7 +619,7 @@ export default function OKRCascadePage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">Category *</label>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Category <span className="text-red-500 font-bold">*</span></label>
                   <select
                     value={form.category}
                     onChange={e => setForm({ ...form, category: e.target.value, companyId: '', projectId: '', ownerId: '' })}
@@ -651,7 +651,7 @@ export default function OKRCascadePage() {
               {/* Conditional owner field based on category */}
               {(form.category === 'company' || form.category === 'sub_company') && (
                 <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">Company *</label>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Company <span className="text-red-500 font-bold">*</span></label>
                   <select
                     value={form.companyId}
                     onChange={e => setForm({ ...form, companyId: e.target.value })}
@@ -666,7 +666,7 @@ export default function OKRCascadePage() {
               )}
               {form.category === 'project' && (
                 <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">Project *</label>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Project <span className="text-red-500 font-bold">*</span></label>
                   <select
                     value={form.projectId}
                     onChange={e => setForm({ ...form, projectId: e.target.value })}
@@ -681,7 +681,7 @@ export default function OKRCascadePage() {
               )}
               {form.category === 'individual' && (
                 <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">Owner (Employee) *</label>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Owner (Employee) <span className="text-red-500 font-bold">*</span></label>
                   <select
                     value={form.ownerId}
                     onChange={e => setForm({ ...form, ownerId: e.target.value })}

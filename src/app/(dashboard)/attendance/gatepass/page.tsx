@@ -147,7 +147,7 @@ export default function GatepassPage() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Type *</label>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Type <span className="text-red-500 font-bold">*</span></label>
               <select value={form.type} onChange={e => setForm({ ...form, type: e.target.value })} className="3boxes-input w-full">
                 <option value="early_departure">Early Departure</option>
                 <option value="late_arrival">Late Arrival</option>
@@ -156,14 +156,14 @@ export default function GatepassPage() {
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Requested At *</label>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Requested At <span className="text-red-500 font-bold">*</span></label>
               <input type="datetime-local" value={form.requestedAt} onChange={e => setForm({ ...form, requestedAt: e.target.value })} className="3boxes-input w-full" />
             </div>
           </div>
           {(form.type === 'visitor' || form.type === 'contractor') && (
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
               <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">Visitor Name *</label>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Visitor Name <span className="text-red-500 font-bold">*</span></label>
                 <input type="text" value={form.visitorName} onChange={e => setForm({ ...form, visitorName: e.target.value })} className="3boxes-input w-full" />
               </div>
               <div>
@@ -177,7 +177,7 @@ export default function GatepassPage() {
             </div>
           )}
           <div className="mt-4">
-            <label className="block text-xs font-medium text-slate-600 mb-1">Reason *</label>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Reason <span className="text-red-500 font-bold">*</span></label>
             <textarea rows={2} value={form.reason} onChange={e => setForm({ ...form, reason: e.target.value })} className="3boxes-input w-full" placeholder="Reason for gatepass" />
           </div>
           <div className="flex justify-end gap-2 mt-4">

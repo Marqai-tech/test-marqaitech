@@ -221,7 +221,7 @@ export default function TransferPage() {
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-medium text-thb-text-secondary mb-1">Employee *</label>
+            <label className="block text-xs font-medium text-thb-text-secondary mb-1">Employee <span className="text-red-500 font-bold">*</span></label>
             <select value={form.employeeId} onChange={e => handleEmployeeSelect(e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
               <option value="">Select Employee</option>
               {employeeList.map(e => <option key={e.id} value={e.id}>{e.employeeId} — {e.firstName} {e.lastName}</option>)}
@@ -250,28 +250,28 @@ export default function TransferPage() {
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <div>
-            <label className="block text-xs font-medium text-thb-text-secondary mb-1">New Department *</label>
+            <label className="block text-xs font-medium text-thb-text-secondary mb-1">New Department <span className="text-red-500 font-bold">*</span></label>
             <select value={form.newDepartment} onChange={e => updateField('newDepartment', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
               <option value="">Select Department</option>
               {DEPARTMENTS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
             </select>
           </div>
           <div>
-            <label className="block text-xs font-medium text-thb-text-secondary mb-1">New Designation *</label>
+            <label className="block text-xs font-medium text-thb-text-secondary mb-1">New Designation <span className="text-red-500 font-bold">*</span></label>
             <select value={form.newDesignation} onChange={e => updateField('newDesignation', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
               <option value="">Select Designation</option>
               {DESIGNATIONS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
             </select>
           </div>
           <div>
-            <label className="block text-xs font-medium text-thb-text-secondary mb-1 flex items-center gap-1"><FiMapPin className="w-3 h-3" /> New Location *</label>
+            <label className="block text-xs font-medium text-thb-text-secondary mb-1 flex items-center gap-1"><FiMapPin className="w-3 h-3" />New Location <span className="text-red-500 font-bold">*</span></label>
             <select value={form.newLocation} onChange={e => updateField('newLocation', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
               <option value="">Select Location</option>
               {LOCATIONS.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
             </select>
           </div>
           <div>
-            <label className="block text-xs font-medium text-thb-text-secondary mb-1 flex items-center gap-1"><FiCalendar className="w-3 h-3" /> Transfer Date *</label>
+            <label className="block text-xs font-medium text-thb-text-secondary mb-1 flex items-center gap-1"><FiCalendar className="w-3 h-3" />Transfer Date <span className="text-red-500 font-bold">*</span></label>
             <input type="date" value={form.transferDate} onChange={e => updateField('transferDate', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
           </div>
           <div>

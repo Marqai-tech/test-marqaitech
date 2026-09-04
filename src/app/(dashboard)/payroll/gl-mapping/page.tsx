@@ -328,11 +328,11 @@ export default function GLMappingPage() {
               <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Entity & Component</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Legal Entity ID *</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Legal Entity ID <span className="text-red-500 font-bold">*</span></label>
                   <input value={form.legalEntityId} onChange={(e) => setForm({ ...form, legalEntityId: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="e.g. LE-001" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Payroll Component *</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Payroll Component <span className="text-red-500 font-bold">*</span></label>
                   <select value={form.componentId} onChange={(e) => setForm({ ...form, componentId: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                     <option value="">Select Component</option>
                     {components.map(c => <option key={c.id} value={c.id}>{c.code} — {c.name}</option>)}
@@ -344,11 +344,11 @@ export default function GLMappingPage() {
               <h3 className="text-sm font-semibold text-thb-text-primary mb-3">GL Accounts</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Debit Account *</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Debit Account <span className="text-red-500 font-bold">*</span></label>
                   <input value={form.debitAccount} onChange={(e) => setForm({ ...form, debitAccount: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="e.g. GL-5001" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Credit Account *</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Credit Account <span className="text-red-500 font-bold">*</span></label>
                   <input value={form.creditAccount} onChange={(e) => setForm({ ...form, creditAccount: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="e.g. GL-2001" />
                 </div>
                 <div>

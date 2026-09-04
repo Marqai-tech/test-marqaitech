@@ -325,11 +325,11 @@ export default function SuccessionPage() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Name *</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Name <span className="text-red-500 font-bold">*</span></label>
                 <input type="text" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="Employee name" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Current Role *</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Current Role <span className="text-red-500 font-bold">*</span></label>
                 <input type="text" value={form.currentRole} onChange={e => setForm(p => ({ ...p, currentRole: e.target.value }))} placeholder="e.g., Senior Developer" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400" />
               </div>
               <div>

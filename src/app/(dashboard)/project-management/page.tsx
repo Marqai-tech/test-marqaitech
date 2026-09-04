@@ -911,7 +911,7 @@ function ProjectManagementContent() {
         </div>
         <div className="p-4 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Project Name *</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Project Name <span className="text-red-500 font-bold">*</span></label>
             <input type="text" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500" placeholder="Enter project name" />
           </div>
           <div className="grid grid-cols-2 gap-4">
@@ -977,11 +977,11 @@ function ProjectManagementContent() {
         </div>
         <div className="p-4 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Sprint Name *</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Sprint Name <span className="text-red-500 font-bold">*</span></label>
             <input type="text" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500" placeholder="e.g., Sprint 14 - Feature X" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Project *</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Project <span className="text-red-500 font-bold">*</span></label>
             <select className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20">
               <option>Select project</option>
               {projects.filter(p => p.status === 'active').map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -1020,7 +1020,7 @@ function ProjectManagementContent() {
         </div>
         <div className="p-4 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Task Title *</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Task Title <span className="text-red-500 font-bold">*</span></label>
             <input type="text" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500" placeholder="Enter task title" />
           </div>
           <div>

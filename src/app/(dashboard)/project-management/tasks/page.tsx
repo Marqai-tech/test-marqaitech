@@ -262,12 +262,12 @@ export default function TasksPage() {
             </div>
             <div className="space-y-3">
               <div>
-                <label className="text-xs font-medium text-thb-text-secondary">Task Name *</label>
+                <label className="text-xs font-medium text-thb-text-secondary">Task Name <span className="text-red-500 font-bold">*</span></label>
                 <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
                   className="w-full mt-1 px-3 py-2 border border-thb-border rounded-lg text-sm" />
               </div>
               <div>
-                <label className="text-xs font-medium text-thb-text-secondary">Project *</label>
+                <label className="text-xs font-medium text-thb-text-secondary">Project <span className="text-red-500 font-bold">*</span></label>
                 <select value={form.projectId} onChange={e => setForm({ ...form, projectId: e.target.value })}
                   className="w-full mt-1 px-3 py-2 border border-thb-border rounded-lg text-sm">
                   <option value="">Select project</option>

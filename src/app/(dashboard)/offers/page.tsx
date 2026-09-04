@@ -219,7 +219,7 @@ export default function OffersPage() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Candidate Name *</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Candidate Name <span className="text-red-500 font-bold">*</span></label>
                 <input required value={form.candidateName} onChange={(e) => setForm({ ...form, candidateName: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="Full name" />
               </div>
               <div>
@@ -227,7 +227,7 @@ export default function OffersPage() {
                 <input type="email" value={form.candidateEmail} onChange={(e) => setForm({ ...form, candidateEmail: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="email@example.com" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Position *</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Position <span className="text-red-500 font-bold">*</span></label>
                 <input required value={form.position} onChange={(e) => setForm({ ...form, position: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="Job title" />
               </div>
               <div>
@@ -235,7 +235,7 @@ export default function OffersPage() {
                 <input value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="Department" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Salary *</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Salary <span className="text-red-500 font-bold">*</span></label>
                 <input type="number" required value={form.offeredSalary} onChange={(e) => setForm({ ...form, offeredSalary: parseFloat(e.target.value) || 0 })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="0" />
               </div>
               <div>
@@ -247,7 +247,7 @@ export default function OffersPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Joining Date *</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Joining Date <span className="text-red-500 font-bold">*</span></label>
                 <input type="date" required value={form.joiningDate} onChange={(e) => setForm({ ...form, joiningDate: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
               </div>
               <div>

@@ -216,7 +216,7 @@ export default function RejoinPage() {
           Previous Employment
         </h2>
         <div>
-          <label className="block text-xs font-medium text-thb-text-secondary mb-1">Select Past Employee *</label>
+          <label className="block text-xs font-medium text-thb-text-secondary mb-1">Select Past Employee <span className="text-red-500 font-bold">*</span></label>
           <select value={form.previousEmployeeId} onChange={e => handlePreviousEmployeeSelect(e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 max-w-md">
             <option value="">Select Previously Employed</option>
             {resignedEmployees.map(e => <option key={e.id} value={e.id}>{e.employeeId} — {e.firstName} {e.lastName} ({e.status === 'resigned' ? 'Resigned' : 'Terminated'})</option>)}
@@ -242,18 +242,18 @@ export default function RejoinPage() {
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <div>
-            <label className="block text-xs font-medium text-thb-text-secondary mb-1 flex items-center gap-1"><FiCalendar className="w-3 h-3" /> Rejoin Date *</label>
+            <label className="block text-xs font-medium text-thb-text-secondary mb-1 flex items-center gap-1"><FiCalendar className="w-3 h-3" />Rejoin Date <span className="text-red-500 font-bold">*</span></label>
             <input type="date" value={form.rejoinDate} onChange={e => updateField('rejoinDate', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
           </div>
           <div>
-            <label className="block text-xs font-medium text-thb-text-secondary mb-1">New Department *</label>
+            <label className="block text-xs font-medium text-thb-text-secondary mb-1">New Department <span className="text-red-500 font-bold">*</span></label>
             <select value={form.newDepartment} onChange={e => updateField('newDepartment', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
               <option value="">Select Department</option>
               {DEPARTMENTS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
             </select>
           </div>
           <div>
-            <label className="block text-xs font-medium text-thb-text-secondary mb-1">New Designation *</label>
+            <label className="block text-xs font-medium text-thb-text-secondary mb-1">New Designation <span className="text-red-500 font-bold">*</span></label>
             <select value={form.newDesignation} onChange={e => updateField('newDesignation', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
               <option value="">Select Designation</option>
               {DESIGNATIONS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}

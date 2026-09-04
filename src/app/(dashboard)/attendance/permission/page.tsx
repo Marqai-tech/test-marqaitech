@@ -144,20 +144,20 @@ export default function PermissionPage() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Date *</label>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Date <span className="text-red-500 font-bold">*</span></label>
               <input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} className="3boxes-input w-full" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Start Time *</label>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Start Time <span className="text-red-500 font-bold">*</span></label>
               <input type="time" value={form.startTime} onChange={e => setForm({ ...form, startTime: e.target.value })} className="3boxes-input w-full" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">End Time *</label>
+              <label className="block text-xs font-medium text-slate-600 mb-1">End Time <span className="text-red-500 font-bold">*</span></label>
               <input type="time" value={form.endTime} onChange={e => setForm({ ...form, endTime: e.target.value })} className="3boxes-input w-full" />
             </div>
           </div>
           <div className="mt-4">
-            <label className="block text-xs font-medium text-slate-600 mb-1">Reason *</label>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Reason <span className="text-red-500 font-bold">*</span></label>
             <input type="text" value={form.reason} onChange={e => setForm({ ...form, reason: e.target.value })} className="3boxes-input w-full" placeholder="e.g. Bank visit, personal errand" />
           </div>
           {computedHours > 0 && (

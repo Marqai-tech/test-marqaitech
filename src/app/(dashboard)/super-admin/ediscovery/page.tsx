@@ -208,7 +208,7 @@ export default function EdiscoveryPage() {
             <h3 className="text-lg font-semibold text-thb-text-primary mb-4">Place Legal Hold</h3>
             <div className="space-y-3">
               <div>
-                <label className="text-xs font-medium text-thb-text-secondary">Tenant ID *</label>
+                <label className="text-xs font-medium text-thb-text-secondary">Tenant ID <span className="text-red-500 font-bold">*</span></label>
                 <input
                   type="text"
                   value={newHold.tenantId}
@@ -255,7 +255,7 @@ export default function EdiscoveryPage() {
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-thb-text-secondary">Reason *</label>
+                <label className="text-xs font-medium text-thb-text-secondary">Reason <span className="text-red-500 font-bold">*</span></label>
                 <textarea
                   value={newHold.reason}
                   onChange={(e) => setNewHold({ ...newHold, reason: e.target.value })}

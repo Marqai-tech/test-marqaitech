@@ -438,7 +438,7 @@ function TravelContent() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {!editingId && (
                 <div>
-                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Employee *</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Employee <span className="text-red-500 font-bold">*</span></label>
                   <select value={form.employeeId} onChange={e => setForm(p => ({ ...p, employeeId: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                     <option value="">Select Employee</option>
                     {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.firstName} {emp.lastName}</option>)}
@@ -446,23 +446,23 @@ function TravelContent() {
                 </div>
               )}
               <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Purpose *</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Purpose <span className="text-red-500 font-bold">*</span></label>
                 <input type="text" value={form.purpose} onChange={e => setForm(p => ({ ...p, purpose: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="Business purpose" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Destination *</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Destination <span className="text-red-500 font-bold">*</span></label>
                 <input type="text" value={form.destination} onChange={e => setForm(p => ({ ...p, destination: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="City, Country" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Start Date *</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Start Date <span className="text-red-500 font-bold">*</span></label>
                 <input type="date" value={form.startDate} onChange={e => setForm(p => ({ ...p, startDate: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">End Date *</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">End Date <span className="text-red-500 font-bold">*</span></label>
                 <input type="date" value={form.endDate} onChange={e => setForm(p => ({ ...p, endDate: e.target.value }))} min={form.startDate} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Travel Mode *</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Travel Mode <span className="text-red-500 font-bold">*</span></label>
                 <select value={form.travelMode} onChange={e => setForm(p => ({ ...p, travelMode: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                   {TRAVEL_MODES.map(m => <option key={m} value={m}>{m.charAt(0).toUpperCase() + m.slice(1)}</option>)}
                 </select>

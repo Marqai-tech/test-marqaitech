@@ -401,7 +401,7 @@ export default function GrievancesPage() {
                 </div>
               )}
               <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Type *</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Type <span className="text-red-500 font-bold">*</span></label>
                 <select value={form.type} onChange={e => setForm(p => ({ ...p, type: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                   <option value="harassment">Harassment</option>
                   <option value="discrimination">Discrimination</option>
@@ -412,7 +412,7 @@ export default function GrievancesPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Priority *</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Priority <span className="text-red-500 font-bold">*</span></label>
                 <select value={form.priority} onChange={e => setForm(p => ({ ...p, priority: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                   <option value="low">Low</option>
                   <option value="medium">Medium</option>
@@ -421,11 +421,11 @@ export default function GrievancesPage() {
                 </select>
               </div>
               <div className="sm:col-span-2 lg:col-span-3">
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Subject *</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Subject <span className="text-red-500 font-bold">*</span></label>
                 <input type="text" value={form.subject} onChange={e => setForm(p => ({ ...p, subject: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="Brief subject of the grievance" />
               </div>
               <div className="sm:col-span-2 lg:col-span-3">
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Description *</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Description <span className="text-red-500 font-bold">*</span></label>
                 <textarea rows={3} value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 resize-none" placeholder="Describe the grievance in detail..." />
               </div>
               <div>

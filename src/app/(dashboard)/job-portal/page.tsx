@@ -340,11 +340,11 @@ export default function JobPortalPage() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Full Name *</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Full Name <span className="text-red-500 font-bold">*</span></label>
                 <input value={applyForm.candidateName} onChange={e => setApplyForm(p => ({ ...p, candidateName: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="John Doe" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Email *</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Email <span className="text-red-500 font-bold">*</span></label>
                 <input type="email" value={applyForm.candidateEmail} onChange={e => setApplyForm(p => ({ ...p, candidateEmail: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="john@example.com" />
               </div>
               <div>

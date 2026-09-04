@@ -774,7 +774,7 @@ function DocsContent() {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-medium text-thb-text-secondary mb-1 block">Name *</label>
+                  <label className="text-xs font-medium text-thb-text-secondary mb-1 block">Name <span className="text-red-500 font-bold">*</span></label>
                   <input
                     value={categoryForm.name}
                     onChange={(e) => setCategoryForm(f => ({ ...f, name: e.target.value, slug: generateSlug(e.target.value) }))}
@@ -783,7 +783,7 @@ function DocsContent() {
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-thb-text-secondary mb-1 block">Slug *</label>
+                  <label className="text-xs font-medium text-thb-text-secondary mb-1 block">Slug <span className="text-red-500 font-bold">*</span></label>
                   <input
                     value={categoryForm.slug}
                     onChange={(e) => setCategoryForm(f => ({ ...f, slug: e.target.value }))}
@@ -851,7 +851,7 @@ function DocsContent() {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="md:col-span-2">
-                  <label className="text-xs font-medium text-thb-text-secondary mb-1 block">Title *</label>
+                  <label className="text-xs font-medium text-thb-text-secondary mb-1 block">Title <span className="text-red-500 font-bold">*</span></label>
                   <input
                     value={articleForm.title}
                     onChange={(e) => setArticleForm(f => ({ ...f, title: e.target.value, slug: editingArticle ? f.slug : generateSlug(e.target.value) }))}
@@ -860,7 +860,7 @@ function DocsContent() {
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-thb-text-secondary mb-1 block">Slug *</label>
+                  <label className="text-xs font-medium text-thb-text-secondary mb-1 block">Slug <span className="text-red-500 font-bold">*</span></label>
                   <input
                     value={articleForm.slug}
                     onChange={(e) => setArticleForm(f => ({ ...f, slug: e.target.value }))}
@@ -869,7 +869,7 @@ function DocsContent() {
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-thb-text-secondary mb-1 block">Category *</label>
+                  <label className="text-xs font-medium text-thb-text-secondary mb-1 block">Category <span className="text-red-500 font-bold">*</span></label>
                   <select
                     value={articleForm.categoryId}
                     onChange={(e) => setArticleForm(f => ({ ...f, categoryId: e.target.value }))}
@@ -917,7 +917,7 @@ function DocsContent() {
                   />
                 </div>
                 <div className="md:col-span-2">
-                  <label className="text-xs font-medium text-thb-text-secondary mb-1 block">Content (Markdown) *</label>
+                  <label className="text-xs font-medium text-thb-text-secondary mb-1 block">Content (Markdown) <span className="text-red-500 font-bold">*</span></label>
                   <textarea
                     value={articleForm.content}
                     onChange={(e) => setArticleForm(f => ({ ...f, content: e.target.value }))}

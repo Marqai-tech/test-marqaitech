@@ -369,7 +369,7 @@ export default function BankFilesPage() {
           <h3 className="text-sm font-semibold text-thb-text-primary mb-4">Generate New Bank File</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
             <div>
-              <label className="block text-xs font-medium text-thb-text-secondary mb-1">Payroll Run *</label>
+              <label className="block text-xs font-medium text-thb-text-secondary mb-1">Payroll Run <span className="text-red-500 font-bold">*</span></label>
               <select
                 value={formPayrollRunId}
                 onChange={(e) => setFormPayrollRunId(e.target.value)}

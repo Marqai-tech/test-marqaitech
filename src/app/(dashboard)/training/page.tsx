@@ -425,7 +425,7 @@ export default function TrainingPage() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Title *</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Title <span className="text-red-500 font-bold">*</span></label>
                 <input
                   type="text"
                   value={form.title}
@@ -435,7 +435,7 @@ export default function TrainingPage() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Category *</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Category <span className="text-red-500 font-bold">*</span></label>
                 <select
                   value={form.category}
                   onChange={e => setForm(p => ({ ...p, category: e.target.value }))}
@@ -459,7 +459,7 @@ export default function TrainingPage() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Start Date *</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Start Date <span className="text-red-500 font-bold">*</span></label>
                 <input
                   type="date"
                   value={form.startDate}
@@ -477,7 +477,7 @@ export default function TrainingPage() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Mode *</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Mode <span className="text-red-500 font-bold">*</span></label>
                 <select
                   value={form.mode}
                   onChange={e => setForm(p => ({ ...p, mode: e.target.value }))}

@@ -157,7 +157,7 @@ export default function GeofencePage() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Name *</label>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Name <span className="text-red-500 font-bold">*</span></label>
               <input type="text" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="3boxes-input w-full" placeholder="e.g. Bangalore HQ" />
             </div>
             <div>
@@ -168,11 +168,11 @@ export default function GeofencePage() {
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Center Latitude *</label>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Center Latitude <span className="text-red-500 font-bold">*</span></label>
               <input type="number" step="0.000001" value={form.centerLat} onChange={e => setForm({ ...form, centerLat: e.target.value })} className="3boxes-input w-full" placeholder="12.9716" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Center Longitude *</label>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Center Longitude <span className="text-red-500 font-bold">*</span></label>
               <input type="number" step="0.000001" value={form.centerLng} onChange={e => setForm({ ...form, centerLng: e.target.value })} className="3boxes-input w-full" placeholder="77.5946" />
             </div>
             <div>

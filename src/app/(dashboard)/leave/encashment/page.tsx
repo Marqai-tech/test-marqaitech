@@ -156,7 +156,7 @@ export default function LeaveEncashmentPage() {
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">Leave Type *</label>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Leave Type <span className="text-red-500 font-bold">*</span></label>
                   <select value={form.leaveTypeId} onChange={e => setForm({ ...form, leaveTypeId: e.target.value })} className="3boxes-input w-full">
                     <option value="">Select leave type...</option>
                     {eligibleTypes.map(lt => (
@@ -167,7 +167,7 @@ export default function LeaveEncashmentPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">Days *</label>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Days <span className="text-red-500 font-bold">*</span></label>
                   <input type="number" min="0.5" step="0.5" value={form.days} onChange={e => setForm({ ...form, days: Number(e.target.value) })} className="3boxes-input w-full" />
                 </div>
               </div>

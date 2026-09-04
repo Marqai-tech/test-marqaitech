@@ -254,13 +254,13 @@ export default function WfhPage() {
           <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Request Details</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Request Type *</label>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Request Type <span className="text-red-500 font-bold">*</span></label>
               <select value={form.requestType} onChange={e => setForm({ ...form, requestType: e.target.value })} className="3boxes-input w-full">
                 {REQUEST_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Start Date *</label>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Start Date <span className="text-red-500 font-bold">*</span></label>
               <input type="date" value={form.startDate} onChange={e => setForm({ ...form, startDate: e.target.value })} className="3boxes-input w-full" min={today} />
             </div>
             <div>
@@ -291,7 +291,7 @@ export default function WfhPage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Reason Category *</label>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Reason Category <span className="text-red-500 font-bold">*</span></label>
               <select value={form.reasonCategory} onChange={e => setForm({ ...form, reasonCategory: e.target.value })} className="3boxes-input w-full">
                 {REASON_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
               </select>

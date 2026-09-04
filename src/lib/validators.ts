@@ -436,7 +436,88 @@ export function validateRegistrationForm(form: {
   return errors;
 }
 
-// ─── ZIP / Postal Code ──────────────────────────────────────────────────
+// ─── Official Email Validation ──────────────────────────────────────────
+
+/**
+ * List of common personal email providers. Emails from these domains are
+ * considered "personal" and are NOT allowed for tenant users (admins,
+ * managers, employees). Only official/company email domains are allowed.
+ *
+ * Candidate logins are exempt — they CAN use personal emails.
+ */
+const PERSONAL_EMAIL_DOMAINS = [
+  // Google
+  'gmail.com', 'googlemail.com',
+  // Microsoft
+  'outlook.com', 'hotmail.com', 'live.com', 'msn.com', 'outlook.in', 'outlook.co.in',
+  // Yahoo
+  'yahoo.com', 'yahoo.in', 'yahoo.co.in', 'yahoo.co.uk',
+  // Apple
+  'icloud.com', 'me.com', 'mac.com',
+  // Other common providers
+  'aol.com', 'protonmail.com', 'proton.me', 'tutanota.com',
+  'zoho.com', 'zmail.com', 'gmx.com', 'gmx.net',
+  'mail.com', 'email.com', 'inbox.com',
+  'yandex.com', 'yandex.ru',
+  'fastmail.com', 'hushmail.com',
+  'rediffmail.com', 'rediff.com',
+  'sify.com', 'indiatimes.com',
+  // Social/messaging providers
+  'facebook.com', 'fb.com',
+  // Temp/disposable email providers
+  'tempmail.com', 'temp-mail.org', 'guerrillamail.com', 'mailinator.com',
+  '10minutemail.com', 'throwaway.email',
+];
+
+/**
+ * Check if an email address uses a personal email provider.
+ * Returns true if the domain is in the PERSONAL_EMAIL_DOMAINS list.
+ *
+ * Official emails (e.g., user@company.com) return false — they're allowed.
+ * Personal emails (e.g., user@gmail.com) return true — they're blocked.
+ *
+ * @param email - The email address to check
+ * @returns { isPersonal: boolean, domain: string }
+ */
+export function isPersonalEmail(email: string): { isPersonal: boolean; domain: string } {
+  if (!email || !email.includes('@')) {
+    return { isPersonal: false, domain: '' };
+  }
+  const domain = email.split('@').pop()?.toLowerCase().trim() || '';
+  const isPersonal = PERSONAL_EMAIL_DOMAINS.includes(domain);
+  return { isPersonal, domain };
+}
+
+/**
+ * Validate that an email is an "official" email (not from a personal provider).
+ * Used by the login and employee creation routes to enforce the golden rule:
+ * only official/company emails can be used for tenant user accounts.
+ *
+ * Candidates are exempt — they can use personal emails.
+ *
+ * @param email - The email address to validate
+ * @returns { valid: boolean, error?: string }
+ */
+export function validateOfficialEmail(email: string): { valid: boolean; error?: string } {
+  if (!email || !email.trim()) return { valid: false, error: 'Email is required' };
+
+  // First check basic email format
+  const emailResult = validateEmail(email);
+  if (!emailResult.valid) return emailResult;
+
+  // Check if it's a personal email
+  const { isPersonal, domain } = isPersonalEmail(email);
+  if (isPersonal) {
+    return {
+      valid: false,
+      error: `Personal email addresses (${domain}) are not allowed. Please use your official/company email address. (e.g., yourname@company.com)`,
+    };
+  }
+
+  return { valid: true };
+}
+
+
 
 /**
  * Validate Indian ZIP / Postal code.

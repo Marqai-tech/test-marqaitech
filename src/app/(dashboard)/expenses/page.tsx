@@ -410,26 +410,26 @@ export default function ExpensesPage() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Title *</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Title <span className="text-red-500 font-bold">*</span></label>
                 <input type="text" value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="Expense title" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Category *</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Category <span className="text-red-500 font-bold">*</span></label>
                 <select value={form.category} onChange={e => setForm(p => ({ ...p, category: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                   {EXPENSE_CATEGORIES.map(c => <option key={c} value={c}>{formatCategory(c)}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Amount *</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Amount <span className="text-red-500 font-bold">*</span></label>
                 <input type="number" step="0.01" value={form.amount} onChange={e => setForm(p => ({ ...p, amount: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="0.00" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Date *</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Date <span className="text-red-500 font-bold">*</span></label>
                 <input type="date" value={form.date} onChange={e => setForm(p => ({ ...p, date: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
               </div>
               {!editingId && (
                 <div>
-                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Employee *</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Employee <span className="text-red-500 font-bold">*</span></label>
                   <select value={form.employeeId} onChange={e => setForm(p => ({ ...p, employeeId: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                     <option value="">Select Employee</option>
                     {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.firstName} {emp.lastName}</option>)}

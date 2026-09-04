@@ -330,22 +330,22 @@ export default function ApplyAttendanceByHRPage() {
                   <>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-xs font-medium text-slate-600 mb-1.5">Date *</label>
+                        <label className="block text-xs font-medium text-slate-600 mb-1.5">Date <span className="text-red-500 font-bold">*</span></label>
                         <input type="date" value={regularizeForm.date} onChange={e => setRegularizeForm({ ...regularizeForm, date: e.target.value })} className="3boxes-input w-full" />
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-slate-600 mb-1.5">Punch Type *</label>
+                        <label className="block text-xs font-medium text-slate-600 mb-1.5">Punch Type <span className="text-red-500 font-bold">*</span></label>
                         <select value={regularizeForm.punchType} onChange={e => setRegularizeForm({ ...regularizeForm, punchType: e.target.value })} className="3boxes-input w-full">
                           <option value="check_in">Check-In (forgot to clock in)</option>
                           <option value="check_out">Check-Out (forgot to clock out)</option>
                         </select>
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-slate-600 mb-1.5">Actual Time *</label>
+                        <label className="block text-xs font-medium text-slate-600 mb-1.5">Actual Time <span className="text-red-500 font-bold">*</span></label>
                         <input type="time" value={regularizeForm.requestedTime} onChange={e => setRegularizeForm({ ...regularizeForm, requestedTime: e.target.value })} className="3boxes-input w-full" />
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-slate-600 mb-1.5">Reason *</label>
+                        <label className="block text-xs font-medium text-slate-600 mb-1.5">Reason <span className="text-red-500 font-bold">*</span></label>
                         <input type="text" value={regularizeForm.reason} onChange={e => setRegularizeForm({ ...regularizeForm, reason: e.target.value })} className="3boxes-input w-full" placeholder="e.g. Forgot to punch in after meeting" />
                       </div>
                     </div>
@@ -356,20 +356,20 @@ export default function ApplyAttendanceByHRPage() {
                 {selectedRequestType === 'permission' && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1.5">Date *</label>
+                      <label className="block text-xs font-medium text-slate-600 mb-1.5">Date <span className="text-red-500 font-bold">*</span></label>
                       <input type="date" value={permissionForm.date} onChange={e => setPermissionForm({ ...permissionForm, date: e.target.value })} className="3boxes-input w-full" />
                     </div>
                     <div />
                     <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1.5">Start Time *</label>
+                      <label className="block text-xs font-medium text-slate-600 mb-1.5">Start Time <span className="text-red-500 font-bold">*</span></label>
                       <input type="time" value={permissionForm.startTime} onChange={e => setPermissionForm({ ...permissionForm, startTime: e.target.value })} className="3boxes-input w-full" />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1.5">End Time *</label>
+                      <label className="block text-xs font-medium text-slate-600 mb-1.5">End Time <span className="text-red-500 font-bold">*</span></label>
                       <input type="time" value={permissionForm.endTime} onChange={e => setPermissionForm({ ...permissionForm, endTime: e.target.value })} className="3boxes-input w-full" />
                     </div>
                     <div className="sm:col-span-2">
-                      <label className="block text-xs font-medium text-slate-600 mb-1.5">Reason *</label>
+                      <label className="block text-xs font-medium text-slate-600 mb-1.5">Reason <span className="text-red-500 font-bold">*</span></label>
                       <input type="text" value={permissionForm.reason} onChange={e => setPermissionForm({ ...permissionForm, reason: e.target.value })} className="3boxes-input w-full" placeholder="e.g. Personal work for 2 hours" />
                     </div>
                   </div>
@@ -379,11 +379,11 @@ export default function ApplyAttendanceByHRPage() {
                 {selectedRequestType === 'gatepass' && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1.5">Date *</label>
+                      <label className="block text-xs font-medium text-slate-600 mb-1.5">Date <span className="text-red-500 font-bold">*</span></label>
                       <input type="date" value={gatepassForm.date} onChange={e => setGatepassForm({ ...gatepassForm, date: e.target.value })} className="3boxes-input w-full" />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1.5">Out Time *</label>
+                      <label className="block text-xs font-medium text-slate-600 mb-1.5">Out Time <span className="text-red-500 font-bold">*</span></label>
                       <input type="time" value={gatepassForm.outTime} onChange={e => setGatepassForm({ ...gatepassForm, outTime: e.target.value })} className="3boxes-input w-full" />
                     </div>
                     <div>
@@ -391,7 +391,7 @@ export default function ApplyAttendanceByHRPage() {
                       <input type="time" value={gatepassForm.expectedReturn} onChange={e => setGatepassForm({ ...gatepassForm, expectedReturn: e.target.value })} className="3boxes-input w-full" />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1.5">Reason *</label>
+                      <label className="block text-xs font-medium text-slate-600 mb-1.5">Reason <span className="text-red-500 font-bold">*</span></label>
                       <input type="text" value={gatepassForm.reason} onChange={e => setGatepassForm({ ...gatepassForm, reason: e.target.value })} className="3boxes-input w-full" placeholder="e.g. Doctor appointment" />
                     </div>
                   </div>
@@ -401,20 +401,20 @@ export default function ApplyAttendanceByHRPage() {
                 {selectedRequestType === 'overtime' && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1.5">Date *</label>
+                      <label className="block text-xs font-medium text-slate-600 mb-1.5">Date <span className="text-red-500 font-bold">*</span></label>
                       <input type="date" value={overtimeForm.date} onChange={e => setOvertimeForm({ ...overtimeForm, date: e.target.value })} className="3boxes-input w-full" />
                     </div>
                     <div />
                     <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1.5">OT Start Time *</label>
+                      <label className="block text-xs font-medium text-slate-600 mb-1.5">OT Start Time <span className="text-red-500 font-bold">*</span></label>
                       <input type="time" value={overtimeForm.startTime} onChange={e => setOvertimeForm({ ...overtimeForm, startTime: e.target.value })} className="3boxes-input w-full" />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1.5">OT End Time *</label>
+                      <label className="block text-xs font-medium text-slate-600 mb-1.5">OT End Time <span className="text-red-500 font-bold">*</span></label>
                       <input type="time" value={overtimeForm.endTime} onChange={e => setOvertimeForm({ ...overtimeForm, endTime: e.target.value })} className="3boxes-input w-full" />
                     </div>
                     <div className="sm:col-span-2">
-                      <label className="block text-xs font-medium text-slate-600 mb-1.5">Reason *</label>
+                      <label className="block text-xs font-medium text-slate-600 mb-1.5">Reason <span className="text-red-500 font-bold">*</span></label>
                       <input type="text" value={overtimeForm.reason} onChange={e => setOvertimeForm({ ...overtimeForm, reason: e.target.value })} className="3boxes-input w-full" placeholder="e.g. Project deadline" />
                     </div>
                   </div>
@@ -424,11 +424,11 @@ export default function ApplyAttendanceByHRPage() {
                 {selectedRequestType === 'comp-off' && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1.5">Comp-Off Date *</label>
+                      <label className="block text-xs font-medium text-slate-600 mb-1.5">Comp-Off Date <span className="text-red-500 font-bold">*</span></label>
                       <input type="date" value={compoffForm.date} onChange={e => setCompoffForm({ ...compoffForm, date: e.target.value })} className="3boxes-input w-full" />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1.5">Reason *</label>
+                      <label className="block text-xs font-medium text-slate-600 mb-1.5">Reason <span className="text-red-500 font-bold">*</span></label>
                       <input type="text" value={compoffForm.reason} onChange={e => setCompoffForm({ ...compoffForm, reason: e.target.value })} className="3boxes-input w-full" placeholder="e.g. Worked on holiday" />
                     </div>
                   </div>
@@ -438,7 +438,7 @@ export default function ApplyAttendanceByHRPage() {
                 {selectedRequestType === 'wfh' && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1.5">From Date *</label>
+                      <label className="block text-xs font-medium text-slate-600 mb-1.5">From Date <span className="text-red-500 font-bold">*</span></label>
                       <input type="date" value={wfhForm.date} onChange={e => setWfhForm({ ...wfhForm, date: e.target.value })} className="3boxes-input w-full" />
                     </div>
                     <div>
@@ -446,7 +446,7 @@ export default function ApplyAttendanceByHRPage() {
                       <input type="date" value={wfhForm.endDate} onChange={e => setWfhForm({ ...wfhForm, endDate: e.target.value })} className="3boxes-input w-full" />
                     </div>
                     <div className="sm:col-span-2">
-                      <label className="block text-xs font-medium text-slate-600 mb-1.5">Reason *</label>
+                      <label className="block text-xs font-medium text-slate-600 mb-1.5">Reason <span className="text-red-500 font-bold">*</span></label>
                       <input type="text" value={wfhForm.reason} onChange={e => setWfhForm({ ...wfhForm, reason: e.target.value })} className="3boxes-input w-full" placeholder="e.g. Personal reason / unwell" />
                     </div>
                   </div>

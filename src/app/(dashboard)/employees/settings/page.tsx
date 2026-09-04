@@ -1625,7 +1625,7 @@ export default function EmployeeSettingsPage() {
                 </div>
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-xs font-medium text-thb-text-secondary mb-1">Company *</label>
+                    <label className="block text-xs font-medium text-thb-text-secondary mb-1">Company <span className="text-red-500 font-bold">*</span></label>
                     <select value={newMappingCompanyId} onChange={e => {
                       const cid = e.target.value
                       setNewMappingCompanyId(cid)
@@ -1648,7 +1648,7 @@ export default function EmployeeSettingsPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-thb-text-secondary mb-1">Employee ID for this Company *</label>
+                    <label className="block text-xs font-medium text-thb-text-secondary mb-1">Employee ID for this Company <span className="text-red-500 font-bold">*</span></label>
                     <input type="text" value={newMappingEmpCode} onChange={e => setNewMappingEmpCode(e.target.value)} placeholder="e.g. EMP-002" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20" />
                   </div>
                   <div>

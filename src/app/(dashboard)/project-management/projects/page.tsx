@@ -295,7 +295,7 @@ export default function ProjectsPage() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="col-span-2">
-                <label className="text-xs font-medium text-thb-text-secondary">Name *</label>
+                <label className="text-xs font-medium text-thb-text-secondary">Name <span className="text-red-500 font-bold">*</span></label>
                 <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
                   className="w-full mt-1 px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-thb-primary/20" />
               </div>
@@ -326,7 +326,7 @@ export default function ProjectsPage() {
                 </select>
               </div>
               <div>
-                <label className="text-xs font-medium text-thb-text-secondary">Start Date *</label>
+                <label className="text-xs font-medium text-thb-text-secondary">Start Date <span className="text-red-500 font-bold">*</span></label>
                 <input type="date" value={form.startDate} onChange={e => setForm({ ...form, startDate: e.target.value })}
                   className="w-full mt-1 px-3 py-2 border border-thb-border rounded-lg text-sm" />
               </div>

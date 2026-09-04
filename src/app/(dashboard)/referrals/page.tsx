@@ -688,9 +688,7 @@ export default function ReferralsPage() {
                               {formatBonus(r.bonusAmount, r.bonusCurrency)}
                             </span>
                           ) : r.bonusAmount ? (
-                            <span className="text-thb-text-muted">
-                              {formatBonus(r.bonusAmount, r.bonusCurrency)}*
-                            </span>
+                            <span className="text-thb-text-muted">{formatBonus(r.bonusAmount, r.bonusCurrency)} <span className="text-red-500 font-bold">*</span></span>
                           ) : (
                             <span className="text-thb-text-muted">—</span>
                           )}
@@ -774,7 +772,7 @@ export default function ReferralsPage() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium text-thb-text-secondary mb-1">Job *</label>
+              <label className="block text-xs font-medium text-thb-text-secondary mb-1">Job <span className="text-red-500 font-bold">*</span></label>
               <select
                 value={formJobId}
                 onChange={(e) => setFormJobId(e.target.value)}
@@ -787,7 +785,7 @@ export default function ReferralsPage() {
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-thb-text-secondary mb-1">Candidate Name *</label>
+              <label className="block text-xs font-medium text-thb-text-secondary mb-1">Candidate Name <span className="text-red-500 font-bold">*</span></label>
               <input
                 value={form.candidateName}
                 onChange={(e) => setForm({ ...form, candidateName: e.target.value })}
@@ -796,7 +794,7 @@ export default function ReferralsPage() {
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-thb-text-secondary mb-1">Candidate Email *</label>
+              <label className="block text-xs font-medium text-thb-text-secondary mb-1">Candidate Email <span className="text-red-500 font-bold">*</span></label>
               <input
                 type="email"
                 value={form.candidateEmail}

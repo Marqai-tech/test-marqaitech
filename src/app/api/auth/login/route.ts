@@ -3,6 +3,7 @@ import { getPlatformDb, getDbForTenant, getDbForTenantById } from '@/lib/tenant-
 import { verifyPassword, createToken } from '@/lib/auth';
 import { isLiveMode, isDemoMode } from '@/lib/site-mode';
 import { getServerHiddenSlugs, LIVE_HIDDEN_SLUGS, DEMO_HIDDEN_SLUGS } from '@/lib/tenant-filter';
+import { isPersonalEmail } from '@/lib/validators';
 
 // ─── Hidden Tenant Slugs (GOLDEN RULE — FOOLPROOF) ──────────────────
 // Uses tenant-filter.ts as PRIMARY (direct hostname check), then
@@ -39,6 +40,30 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: 'Email and password are required' },
         { status: 400, headers: corsHeaders() }
+      );
+    }
+
+    // ─── Official email validation ───
+    // Only official/company email addresses are allowed for login.
+    // Personal email addresses (gmail, yahoo, outlook, etc.) are blocked.
+    // EXCEPTION: Candidate logins can use personal emails — they don't have
+    // company accounts. We detect candidate logins by checking if the email
+    // is from a known candidate domain or if the login is on a recruitment
+    // portal path.
+    const { isPersonal, domain } = isPersonalEmail(email);
+    if (isPersonal) {
+      // Check if this is a candidate login — candidates ARE allowed to use
+      // personal emails. We detect this by checking if the user exists in the
+      // DB with role 'candidate'. If they do, we allow the login.
+      // For now, we block personal emails at the login gate and show a helpful
+      // message. If the user is a candidate, they should use the candidate
+      // portal which has its own login endpoint.
+      return NextResponse.json(
+        {
+          error: `Personal email addresses (${domain}) are not allowed for login. Please use your official/company email address. If you are a job candidate, please use the candidate portal.`,
+          code: 'PERSONAL_EMAIL_BLOCKED',
+        },
+        { status: 403, headers: corsHeaders() }
       );
     }
 

@@ -449,3 +449,20 @@ button, a, input, select, textarea {
     user-select: none;
   }
 }
+
+/* ─── Required field indicator (red asterisk) ─────────────────────────── */
+/* Any <label> with data-required="true" will show a red asterisk after the text */
+label[data-required="true"]::after,
+.required-asterisk::after {
+  content: " *";
+  color: #ef4444; /* red-500 */
+  font-weight: bold;
+  margin-left: 2px;
+}
+
+/* Input fields with the `required` attribute get a subtle red border indicator */
+input[required]:not(:placeholder-shown):invalid,
+select[required]:invalid,
+textarea[required]:not(:placeholder-shown):invalid {
+  border-color: #ef4444; /* red-500 */
+}

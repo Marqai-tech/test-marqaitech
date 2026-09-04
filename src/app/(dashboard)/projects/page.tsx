@@ -712,7 +712,7 @@ export default function ProjectsPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Name *</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Name <span className="text-red-500 font-bold">*</span></label>
                 <input
                   type="text"
                   value={form.name}
@@ -733,7 +733,7 @@ export default function ProjectsPage() {
               </div>
               {!editingId && (
                 <div>
-                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Company *</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Company <span className="text-red-500 font-bold">*</span></label>
                   <input
                     type="text"
                     value={form.companyId}
@@ -805,7 +805,7 @@ export default function ProjectsPage() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Start Date *</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Start Date <span className="text-red-500 font-bold">*</span></label>
                 <input
                   type="date"
                   value={form.startDate}

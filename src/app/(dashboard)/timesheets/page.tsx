@@ -458,11 +458,11 @@ export default function TimesheetsPage() {
                 </div>
               )}
               <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Date *</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Date <span className="text-red-500 font-bold">*</span></label>
                 <input type="date" value={form.date} onChange={e => setForm(p => ({ ...p, date: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Project *</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Project <span className="text-red-500 font-bold">*</span></label>
                 <select value={form.projectId} onChange={e => setForm(p => ({ ...p, projectId: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                   <option value="">Select Project</option>
                   {projects.map(p => (
@@ -474,11 +474,11 @@ export default function TimesheetsPage() {
                 )}
               </div>
               <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Task *</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Task <span className="text-red-500 font-bold">*</span></label>
                 <input type="text" value={form.task} onChange={e => setForm(p => ({ ...p, task: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="Task description" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Hours *</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Hours <span className="text-red-500 font-bold">*</span></label>
                 <input type="number" step="0.5" min="0" max="24" value={form.hours} onChange={e => setForm(p => ({ ...p, hours: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="0.0" />
               </div>
               <div>

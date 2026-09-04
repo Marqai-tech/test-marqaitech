@@ -254,7 +254,7 @@ export default function TerminationPage() {
           Select Employee
         </h2>
         <div>
-          <label className="block text-xs font-medium text-thb-text-secondary mb-1">Employee *</label>
+          <label className="block text-xs font-medium text-thb-text-secondary mb-1">Employee <span className="text-red-500 font-bold">*</span></label>
             <select value={form.employeeId} onChange={e => handleEmployeeSelect(e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 max-w-md">
               <option value="">Select Employee</option>
               {employeeList.map(e => <option key={e.id} value={e.id}>{e.employeeId} — {e.firstName} {e.lastName}</option>)}
@@ -281,17 +281,17 @@ export default function TerminationPage() {
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <div>
-            <label className="block text-xs font-medium text-thb-text-secondary mb-1">Termination Type *</label>
+            <label className="block text-xs font-medium text-thb-text-secondary mb-1">Termination Type <span className="text-red-500 font-bold">*</span></label>
             <select value={form.terminationType} onChange={e => updateField('terminationType', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
               {TERMINATION_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
             </select>
           </div>
           <div>
-            <label className="block text-xs font-medium text-thb-text-secondary mb-1 flex items-center gap-1"><FiCalendar className="w-3 h-3" /> Termination Date *</label>
+            <label className="block text-xs font-medium text-thb-text-secondary mb-1 flex items-center gap-1"><FiCalendar className="w-3 h-3" />Termination Date <span className="text-red-500 font-bold">*</span></label>
             <input type="date" value={form.terminationDate} onChange={e => updateField('terminationDate', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
           </div>
           <div>
-            <label className="block text-xs font-medium text-thb-text-secondary mb-1">Last Working Date *</label>
+            <label className="block text-xs font-medium text-thb-text-secondary mb-1">Last Working Date <span className="text-red-500 font-bold">*</span></label>
             <input type="date" value={form.lastWorkingDate} onChange={e => updateField('lastWorkingDate', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
           </div>
           <div>
@@ -303,7 +303,7 @@ export default function TerminationPage() {
             </select>
           </div>
           <div>
-            <label className="block text-xs font-medium text-thb-text-secondary mb-1">Reason Category *</label>
+            <label className="block text-xs font-medium text-thb-text-secondary mb-1">Reason Category <span className="text-red-500 font-bold">*</span></label>
             <select value={form.reasonCategory} onChange={e => updateField('reasonCategory', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
               {REASON_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
             </select>

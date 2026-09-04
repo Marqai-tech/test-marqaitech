@@ -175,7 +175,7 @@ export default function ShiftsPage() {
             </div>
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Name *</label><input type="text" value={form.name || ''} onChange={e => updateForm('name', e.target.value)} required className={inputClass} placeholder="Shift name" /></div>
+                <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Name <span className="text-red-500 font-bold">*</span></label><input type="text" value={form.name || ''} onChange={e => updateForm('name', e.target.value)} required className={inputClass} placeholder="Shift name" /></div>
                 <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Start Time</label><input type="time" value={form.startTime || '09:00'} onChange={e => updateForm('startTime', e.target.value)} className={inputClass} /></div>
                 <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">End Time</label><input type="time" value={form.endTime || '18:00'} onChange={e => updateForm('endTime', e.target.value)} className={inputClass} /></div>
                 <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Break (min)</label><input type="number" value={form.breakDuration || '60'} onChange={e => updateForm('breakDuration', e.target.value)} className={inputClass} placeholder="60" /></div>

@@ -421,7 +421,7 @@ export default function AIAdminPage() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Prompt Name *</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Prompt Name <span className="text-red-500 font-bold">*</span></label>
                 <input type="text" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="e.g., Resume Screener" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400" />
               </div>
               <div>
@@ -431,7 +431,7 @@ export default function AIAdminPage() {
                 </select>
               </div>
               <div className="sm:col-span-2">
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Purpose *</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Purpose <span className="text-red-500 font-bold">*</span></label>
                 <input type="text" value={form.purpose} onChange={e => setForm(p => ({ ...p, purpose: e.target.value }))} placeholder="What does this prompt do?" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400" />
               </div>
               <div>

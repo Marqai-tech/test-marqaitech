@@ -192,7 +192,7 @@ export default function ProfileConfigPage() {
             <h3 className="text-lg font-semibold text-thb-text-primary mb-4">Add Custom Field</h3>
             <div className="space-y-3">
               <div>
-                <label className="text-xs font-medium text-thb-text-secondary">Label *</label>
+                <label className="text-xs font-medium text-thb-text-secondary">Label <span className="text-red-500 font-bold">*</span></label>
                 <input
                   type="text"
                   value={newField.label}
@@ -202,7 +202,7 @@ export default function ProfileConfigPage() {
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-thb-text-secondary">Key *</label>
+                <label className="text-xs font-medium text-thb-text-secondary">Key <span className="text-red-500 font-bold">*</span></label>
                 <input
                   type="text"
                   value={newField.key}
@@ -213,7 +213,7 @@ export default function ProfileConfigPage() {
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-xs font-medium text-thb-text-secondary">Type *</label>
+                  <label className="text-xs font-medium text-thb-text-secondary">Type <span className="text-red-500 font-bold">*</span></label>
                   <select
                     value={newField.fieldType}
                     onChange={(e) => setNewField({ ...newField, fieldType: e.target.value })}
@@ -229,7 +229,7 @@ export default function ProfileConfigPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-thb-text-secondary">Scope *</label>
+                  <label className="text-xs font-medium text-thb-text-secondary">Scope <span className="text-red-500 font-bold">*</span></label>
                   <select
                     value={newField.scope}
                     onChange={(e) => setNewField({ ...newField, scope: e.target.value })}

@@ -543,17 +543,17 @@ export default function CurrencyFXPage() {
               <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Entity & Currency</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Legal Entity ID *</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Legal Entity ID <span className="text-red-500 font-bold">*</span></label>
                   <input value={configForm.legalEntityId} onChange={(e) => setConfigForm({ ...configForm, legalEntityId: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="e.g. LE-001" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Base Currency *</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Base Currency <span className="text-red-500 font-bold">*</span></label>
                   <select value={configForm.baseCurrency} onChange={(e) => setConfigForm({ ...configForm, baseCurrency: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                     {CURRENCY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Payroll Currency *</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Payroll Currency <span className="text-red-500 font-bold">*</span></label>
                   <select value={configForm.payrollCurrency} onChange={(e) => setConfigForm({ ...configForm, payrollCurrency: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                     {CURRENCY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
@@ -633,23 +633,23 @@ export default function CurrencyFXPage() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">From Currency *</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">From Currency <span className="text-red-500 font-bold">*</span></label>
                 <select value={rateForm.fromCurrency} onChange={(e) => setRateForm({ ...rateForm, fromCurrency: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                   {CURRENCY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">To Currency *</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">To Currency <span className="text-red-500 font-bold">*</span></label>
                 <select value={rateForm.toCurrency} onChange={(e) => setRateForm({ ...rateForm, toCurrency: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                   {CURRENCY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Exchange Rate *</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Exchange Rate <span className="text-red-500 font-bold">*</span></label>
                 <input type="number" step="0.000001" value={rateForm.exchangeRate} onChange={(e) => setRateForm({ ...rateForm, exchangeRate: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="e.g. 83.45" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Rate Date *</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Rate Date <span className="text-red-500 font-bold">*</span></label>
                 <input type="date" value={rateForm.rateDate} onChange={(e) => setRateForm({ ...rateForm, rateDate: e.target.value })} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
               </div>
               <div>

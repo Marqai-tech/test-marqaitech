@@ -317,7 +317,7 @@ export default function ApplyLeaveByHRPage() {
               <div className="space-y-5">
                 {/* Leave Type */}
                 <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1.5">Leave Type *</label>
+                  <label className="block text-xs font-medium text-slate-600 mb-1.5">Leave Type <span className="text-red-500 font-bold">*</span></label>
                   <select
                     value={form.leaveTypeId}
                     onChange={e => setForm({ ...form, leaveTypeId: e.target.value })}
@@ -346,11 +346,11 @@ export default function ApplyLeaveByHRPage() {
                 {/* Date Range */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1.5">Start Date *</label>
+                    <label className="block text-xs font-medium text-slate-600 mb-1.5">Start Date <span className="text-red-500 font-bold">*</span></label>
                     <input type="date" value={form.startDate} onChange={e => setForm({ ...form, startDate: e.target.value })} className="3boxes-input w-full" />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1.5">End Date *</label>
+                    <label className="block text-xs font-medium text-slate-600 mb-1.5">End Date <span className="text-red-500 font-bold">*</span></label>
                     <input type="date" value={form.endDate} onChange={e => setForm({ ...form, endDate: e.target.value })} className="3boxes-input w1-full" />
                   </div>
                 </div>

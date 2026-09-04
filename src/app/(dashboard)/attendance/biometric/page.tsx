@@ -808,7 +808,7 @@ export default function BiometricPage() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs font-medium text-thb-text-secondary">Vendor *</label>
+                <label className="text-xs font-medium text-thb-text-secondary">Vendor <span className="text-red-500 font-bold">*</span></label>
                 <select
                   value={deviceForm.vendor}
                   onChange={(e) => setDeviceForm({ ...deviceForm, vendor: e.target.value })}
@@ -873,7 +873,7 @@ export default function BiometricPage() {
         <Modal title="Enroll Employee Biometric" onClose={() => setShowEnrollForm(false)}>
           <div className="space-y-3">
             <div>
-              <label className="text-xs font-medium text-thb-text-secondary">Employee *</label>
+              <label className="text-xs font-medium text-thb-text-secondary">Employee <span className="text-red-500 font-bold">*</span></label>
               <select
                 value={enrollForm.employeeId}
                 onChange={(e) => setEnrollForm({ ...enrollForm, employeeId: e.target.value })}
@@ -886,7 +886,7 @@ export default function BiometricPage() {
               </select>
             </div>
             <div>
-              <label className="text-xs font-medium text-thb-text-secondary">Device *</label>
+              <label className="text-xs font-medium text-thb-text-secondary">Device <span className="text-red-500 font-bold">*</span></label>
               <select
                 value={enrollForm.deviceId}
                 onChange={(e) => setEnrollForm({ ...enrollForm, deviceId: e.target.value })}
@@ -900,7 +900,7 @@ export default function BiometricPage() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs font-medium text-thb-text-secondary">Modality *</label>
+                <label className="text-xs font-medium text-thb-text-secondary">Modality <span className="text-red-500 font-bold">*</span></label>
                 <select
                   value={enrollForm.modality}
                   onChange={(e) => setEnrollForm({ ...enrollForm, modality: e.target.value })}
@@ -921,7 +921,7 @@ export default function BiometricPage() {
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-thb-text-secondary">Template hash (SHA-256 of encrypted template) *</label>
+              <label className="text-xs font-medium text-thb-text-secondary">Template hash (SHA-256 of encrypted template) <span className="text-red-500 font-bold">*</span></label>
               <textarea
                 value={enrollForm.templateHash}
                 onChange={(e) => setEnrollForm({ ...enrollForm, templateHash: e.target.value })}

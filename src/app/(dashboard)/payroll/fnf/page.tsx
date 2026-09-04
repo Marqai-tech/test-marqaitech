@@ -432,7 +432,7 @@ export default function FNFSettlementPage() {
               <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Employee Details</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Employee *</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Employee <span className="text-red-500 font-bold">*</span></label>
                   {employees.length > 0 ? (
                     <select value={form.employeeId} onChange={(e) => setForm({ ...form, employeeId: e.target.value })}
                       className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">

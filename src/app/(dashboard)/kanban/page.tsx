@@ -627,7 +627,7 @@ export default function KanbanBoardPage() {
             <div className="px-6 py-5 space-y-4 max-h-[60vh] overflow-y-auto">
               {/* Title */}
               <div>
-                <label className="block text-xs font-semibold text-thb-text-secondary uppercase tracking-wider mb-1.5">Title *</label>
+                <label className="block text-xs font-semibold text-thb-text-secondary uppercase tracking-wider mb-1.5">Title <span className="text-red-500 font-bold">*</span></label>
                 <input
                   type="text"
                   value={newCard.title}

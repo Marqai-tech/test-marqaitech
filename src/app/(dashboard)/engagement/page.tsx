@@ -327,7 +327,7 @@ export default function EngagementPage() {
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-medium text-thb-text-secondary mb-1">Survey Title *</label>
+                    <label className="block text-xs font-medium text-thb-text-secondary mb-1">Survey Title <span className="text-red-500 font-bold">*</span></label>
                     <input type="text" value={surveyForm.title} onChange={e => setSurveyForm(p => ({ ...p, title: e.target.value }))} placeholder="e.g., Q2 2026 Pulse" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-400" />
                   </div>
                   <div>
@@ -419,7 +419,7 @@ export default function EngagementPage() {
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-medium text-thb-text-secondary mb-1">To Employee *</label>
+                    <label className="block text-xs font-medium text-thb-text-secondary mb-1">To Employee <span className="text-red-500 font-bold">*</span></label>
                     <input type="text" value={recognitionForm.toEmployee} onChange={e => setRecognitionForm(p => ({ ...p, toEmployee: e.target.value }))} placeholder="Employee name" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-400" />
                   </div>
                   <div>
@@ -429,7 +429,7 @@ export default function EngagementPage() {
                     </select>
                   </div>
                   <div className="sm:col-span-2">
-                    <label className="block text-xs font-medium text-thb-text-secondary mb-1">Message *</label>
+                    <label className="block text-xs font-medium text-thb-text-secondary mb-1">Message <span className="text-red-500 font-bold">*</span></label>
                     <textarea rows={2} value={recognitionForm.message} onChange={e => setRecognitionForm(p => ({ ...p, message: e.target.value }))} placeholder="What did they do well?" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-400 resize-none" />
                   </div>
                 </div>

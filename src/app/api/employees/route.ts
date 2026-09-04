@@ -6,7 +6,7 @@ import { getEmployeeCompanyFilter, getCompanyFilter, getAuthInfo, resolveCompany
 import { checkTenantStatusOrBlock } from '@/lib/tenant-guard';
 import { isServerLiveSite } from '@/lib/tenant-filter';
 // Note: isServerLiveSite is used later for the manual guard on normal queries
-import { validateEmail, validatePhone, validateAadhaar, validatePAN, validateIFSC, validateBankAccount } from '@/lib/validators';
+import { validateEmail, validatePhone, validateAadhaar, validatePAN, validateIFSC, validateBankAccount, validateOfficialEmail } from '@/lib/validators';
 
 function generateRandomPassword(length = 12): string {
   const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -606,7 +606,8 @@ export async function POST(request: Request) {
       }
     }
     if (email && typeof email === 'string') {
-      const emailResult = validateEmail(email);
+      // Validate email format AND ensure it's an official email (not personal)
+      const emailResult = validateOfficialEmail(email);
       if (!emailResult.valid) {
         return NextResponse.json({ error: emailResult.error }, { status: 400, headers: corsHeaders() });
       }

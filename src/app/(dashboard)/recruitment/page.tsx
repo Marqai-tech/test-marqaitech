@@ -897,11 +897,11 @@ export default function RecruitmentPage() {
             <div className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Job Title *</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Job Title <span className="text-red-500 font-bold">*</span></label>
                   <input type="text" value={jobForm.title} onChange={e => setJobForm(p => ({ ...p, title: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Department *</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Department <span className="text-red-500 font-bold">*</span></label>
                   <select value={jobForm.departmentId} onChange={e => setJobForm(p => ({ ...p, departmentId: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400">
                     <option value="">Select Department</option>
                     {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
@@ -942,7 +942,7 @@ export default function RecruitmentPage() {
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Description *</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Description <span className="text-red-500 font-bold">*</span></label>
                 <textarea rows={4} value={jobForm.description} onChange={e => setJobForm(p => ({ ...p, description: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 resize-none" />
               </div>
               <div>
@@ -980,7 +980,7 @@ export default function RecruitmentPage() {
                 </div>
               )}
               <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Job Posting *</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Job Posting <span className="text-red-500 font-bold">*</span></label>
                 <select value={appForm.jobPostingId} onChange={e => setAppForm(p => ({ ...p, jobPostingId: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-400">
                   <option value="">Select Job</option>
                   {displayJobs.filter(j => j.status === 'open').map(j => <option key={j.id} value={j.id}>{j.title}</option>)}
@@ -988,11 +988,11 @@ export default function RecruitmentPage() {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Candidate Name *</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Candidate Name <span className="text-red-500 font-bold">*</span></label>
                   <input type="text" value={appForm.candidateName} onChange={e => setAppForm(p => ({ ...p, candidateName: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-400" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Email *</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Email <span className="text-red-500 font-bold">*</span></label>
                   <input type="email" placeholder="e.g., name@domain.com" value={appForm.candidateEmail} onChange={e => setAppForm(p => ({ ...p, candidateEmail: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-400" />
                 </div>
                 <div>

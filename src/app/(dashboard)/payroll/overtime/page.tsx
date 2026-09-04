@@ -482,7 +482,7 @@ export default function OvertimePage() {
               <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Overtime Details</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Employee *</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Employee <span className="text-red-500 font-bold">*</span></label>
                   {employees.length > 0 ? (
                     <select
                       value={form.employeeId}
@@ -507,7 +507,7 @@ export default function OvertimePage() {
                   )}
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Date *</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Date <span className="text-red-500 font-bold">*</span></label>
                   <input
                     type="date"
                     value={form.date}
@@ -516,7 +516,7 @@ export default function OvertimePage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Hours *</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Hours <span className="text-red-500 font-bold">*</span></label>
                   <input
                     type="number"
                     step="0.5"

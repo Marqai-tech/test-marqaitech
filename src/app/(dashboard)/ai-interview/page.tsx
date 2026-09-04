@@ -782,11 +782,11 @@ export default function AIInterviewPage() {
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">Set Title *</label>
+                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">Set Title <span className="text-red-500 font-bold">*</span></label>
                       <input value={setForm.title} onChange={e => setSetForm(p => ({ ...p, title: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400" placeholder="e.g., Senior Frontend Developer Assessment" />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">Role Title *</label>
+                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">Role Title <span className="text-red-500 font-bold">*</span></label>
                       <input value={setForm.roleTitle} onChange={e => setSetForm(p => ({ ...p, roleTitle: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400" placeholder="e.g., Senior Frontend Developer" />
                     </div>
                   </div>

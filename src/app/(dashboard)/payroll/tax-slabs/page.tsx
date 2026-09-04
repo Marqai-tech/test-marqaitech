@@ -587,7 +587,7 @@ export default function TaxSlabsPage() {
             {/* Slab Table Fields */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Slab Table Name *</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Slab Table Name <span className="text-red-500 font-bold">*</span></label>
                 <input
                   required
                   value={form.name}
@@ -607,7 +607,7 @@ export default function TaxSlabsPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Tax Year *</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Tax Year <span className="text-red-500 font-bold">*</span></label>
                 <input
                   required
                   value={form.taxYear}

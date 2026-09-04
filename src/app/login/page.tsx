@@ -859,7 +859,7 @@ export default function LoginPage() {
             {/* Email Field */}
             <div>
               <label htmlFor="email" className="block text-sm font-semibold text-slate-700 mb-1.5">
-                Email Address
+                Email Address <span className="text-red-500 font-bold">*</span>
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
@@ -885,7 +885,7 @@ export default function LoginPage() {
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label htmlFor="password" className="block text-sm font-semibold text-slate-700">
-                  Password
+                  Password <span className="text-red-500 font-bold">*</span>
                 </label>
                 {!isPlatformSite && (
                   <button type="button" className="text-xs font-medium text-green-500 hover:text-green-700 transition-colors">

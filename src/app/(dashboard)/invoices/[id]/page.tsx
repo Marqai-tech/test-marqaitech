@@ -602,7 +602,7 @@ export default function InvoiceDetailPage() {
               </p>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">Date From *</label>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Date From <span className="text-red-500 font-bold">*</span></label>
                   <input
                     type="date"
                     value={genForm.dateFrom}
@@ -611,7 +611,7 @@ export default function InvoiceDetailPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">Date To *</label>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Date To <span className="text-red-500 font-bold">*</span></label>
                   <input
                     type="date"
                     value={genForm.dateTo}
@@ -671,7 +671,7 @@ export default function InvoiceDetailPage() {
             </div>
             <div className="p-5 space-y-4">
               <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">Description *</label>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Description <span className="text-red-500 font-bold">*</span></label>
                 <input
                   type="text"
                   value={lineForm.description}

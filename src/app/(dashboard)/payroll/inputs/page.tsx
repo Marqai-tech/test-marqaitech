@@ -633,7 +633,7 @@ export default function PayrollInputsPage() {
               <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Basic Information</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Employee *</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Employee <span className="text-red-500 font-bold">*</span></label>
                   {employees.length > 0 ? (
                     <select
                       value={form.employeeId}
@@ -668,7 +668,7 @@ export default function PayrollInputsPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Component Code *</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Component Code <span className="text-red-500 font-bold">*</span></label>
                   <input
                     required
                     value={form.componentCode}

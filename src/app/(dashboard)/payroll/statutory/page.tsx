@@ -597,7 +597,7 @@ export default function StatutoryComponentsPage() {
               <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Basic Information</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Component Code *</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Component Code <span className="text-red-500 font-bold">*</span></label>
                   <input
                     required
                     value={form.componentCode}
@@ -607,7 +607,7 @@ export default function StatutoryComponentsPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Component Name *</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Component Name <span className="text-red-500 font-bold">*</span></label>
                   <input
                     required
                     value={form.componentName}
@@ -627,7 +627,7 @@ export default function StatutoryComponentsPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Authority Name *</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Authority Name <span className="text-red-500 font-bold">*</span></label>
                   <input
                     required
                     value={form.authorityName}

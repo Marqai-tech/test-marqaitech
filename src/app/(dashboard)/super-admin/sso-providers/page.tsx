@@ -160,7 +160,7 @@ export default function SSOProvidersPage() {
             <h3 className="text-lg font-semibold text-thb-text-primary mb-4">Add SSO Provider</h3>
             <div className="space-y-3">
               <div>
-                <label className="text-xs font-medium text-thb-text-secondary">Display Name *</label>
+                <label className="text-xs font-medium text-thb-text-secondary">Display Name <span className="text-red-500 font-bold">*</span></label>
                 <input
                   type="text"
                   value={newProvider.name}
@@ -170,7 +170,7 @@ export default function SSOProvidersPage() {
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-thb-text-secondary">Provider Type *</label>
+                <label className="text-xs font-medium text-thb-text-secondary">Provider Type <span className="text-red-500 font-bold">*</span></label>
                 <select
                   value={newProvider.providerType}
                   onChange={(e) => setNewProvider({ ...newProvider, providerType: e.target.value })}

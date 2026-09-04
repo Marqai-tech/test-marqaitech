@@ -365,7 +365,7 @@ export default function PiiPolicyAdminPage() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Field *</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Field <span className="text-red-500 font-bold">*</span></label>
                 <select
                   value={newPolicy.field}
                   onChange={e => setNewPolicy(p => ({ ...p, field: e.target.value }))}
@@ -377,7 +377,7 @@ export default function PiiPolicyAdminPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Masking Strategy *</label>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Masking Strategy <span className="text-red-500 font-bold">*</span></label>
                 <select
                   value={newPolicy.maskingStrategy}
                   onChange={e => setNewPolicy(p => ({ ...p, maskingStrategy: e.target.value as MaskingStrategy }))}

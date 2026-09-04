@@ -508,7 +508,7 @@ export default function LoansPage() {
               <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Loan Details</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Employee *</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Employee <span className="text-red-500 font-bold">*</span></label>
                   {employees.length > 0 ? (
                     <select
                       value={form.employeeId}
@@ -543,7 +543,7 @@ export default function LoansPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Loan Amount *</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Loan Amount <span className="text-red-500 font-bold">*</span></label>
                   <input
                     type="number"
                     step="0.01"
@@ -574,7 +574,7 @@ export default function LoansPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Tenure (Months) *</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Tenure (Months) <span className="text-red-500 font-bold">*</span></label>
                   <input
                     type="number"
                     min="1"
@@ -599,7 +599,7 @@ export default function LoansPage() {
               <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Dates</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Start Date *</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Start Date <span className="text-red-500 font-bold">*</span></label>
                   <input
                     type="date"
                     value={form.startDate}

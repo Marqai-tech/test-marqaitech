@@ -567,7 +567,7 @@ export default function PayrollComponentsPage() {
               <h3 className="text-sm font-semibold text-thb-text-primary mb-3">Basic Information</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Code *</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Code <span className="text-red-500 font-bold">*</span></label>
                   <input
                     required
                     value={form.code}
@@ -577,7 +577,7 @@ export default function PayrollComponentsPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Name *</label>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Name <span className="text-red-500 font-bold">*</span></label>
                   <input
                     required
                     value={form.name}
