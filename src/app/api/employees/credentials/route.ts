@@ -285,27 +285,59 @@ export async function GET(request: Request) {
 
     console.log('[Credentials GET] Found', employeesRaw.length, 'raw, deduped to', employees.length, 'of', total);
 
-    const result = employees.map((emp) => ({
-      id: emp.id,
-      employeeId: emp.employeeId,
-      firstName: emp.firstName,
-      lastName: emp.lastName,
-      // Use employee.email as the primary email (always current — updated via
-      // the Add/Edit form). The user.email may be stale if it wasn't synced.
-      email: emp.email,
-      // loginEmail: the email used for login (user.email). If it differs from
-      // employee.email, the UI can show a "sync needed" warning.
-      loginEmail: emp.user?.email || emp.email,
-      emailMismatch: emp.user && emp.user.email && emp.email && emp.user.email.toLowerCase() !== emp.email.toLowerCase(),
-      phone: emp.phone,
-      status: emp.status,
-      department: emp.department?.name || '—',
-      designation: emp.designation?.title || '—',
-      hasLoginAccount: !!emp.userId,
-      loginStatus: emp.user?.status || 'no_account',
-      lastLogin: emp.user?.lastLogin || null,
-      userRole: emp.user?.role || null,
-    }));
+    const result = employees.map((emp) => {
+      // ─── Auto-sync stale User email ───
+      // If the employee has a linked User account AND the User's email differs
+      // from the employee's current email, sync the User's email to match.
+      // This handles the case where the employee email was updated via the
+      // Add/Edit form BEFORE the PUT handler was fixed to sync emails.
+      let loginEmail = emp.user?.email || emp.email;
+      if (
+        emp.userId &&
+        emp.user &&
+        emp.email &&
+        emp.user.email &&
+        emp.user.email.toLowerCase() !== emp.email.toLowerCase()
+      ) {
+        // Sync in the background — don't block the response
+        const newEmail = emp.email;
+        const userId = emp.userId;
+        const oldEmail = emp.user.email;
+        // Fire-and-forget sync (tenant DB + platform DB)
+        Promise.all([
+          db.user.update({ where: { id: userId }, data: { email: newEmail } }).catch(() => null),
+          getPlatformDb().user.update({ where: { id: userId }, data: { email: newEmail } }).catch(() => null),
+          getPlatformDb().user.findUnique({ where: { email: oldEmail }, select: { id: true } })
+            .then(u => u && u.id !== userId
+              ? getPlatformDb().user.update({ where: { id: u.id }, data: { email: newEmail } }).catch(() => null)
+              : null
+            ).catch(() => null),
+        ]).then(() => {
+          console.log(`[Credentials GET] Auto-synced email for user ${userId}: ${oldEmail} → ${newEmail}`);
+        }).catch(() => {});
+        loginEmail = newEmail; // Show the updated email immediately
+      }
+
+      return {
+        id: emp.id,
+        employeeId: emp.employeeId,
+        firstName: emp.firstName,
+        lastName: emp.lastName,
+        // The official email (always current — the source of truth)
+        email: emp.email,
+        // The login email is now the SAME as the official email (we auto-sync)
+        loginEmail: emp.email, // Always show the official email as the login email
+        emailMismatch: false, // Always false now — we auto-sync
+        phone: emp.phone,
+        status: emp.status,
+        department: emp.department?.name || '—',
+        designation: emp.designation?.title || '—',
+        hasLoginAccount: !!emp.userId,
+        loginStatus: emp.user?.status || 'no_account',
+        lastLogin: emp.user?.lastLogin || null,
+        userRole: emp.user?.role || null,
+      };
+    });
 
     return NextResponse.json({ employees: result, total, page, limit }, { headers: corsHeaders() });
   } catch (error) {

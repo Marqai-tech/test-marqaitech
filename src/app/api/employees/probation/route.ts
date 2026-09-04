@@ -231,11 +231,11 @@ export async function POST(request: Request) {
       confirmationLetter: confirmationLetter || null,
     });
 
-    // Map decision → status
-    let status = 'pending';
-    if (decision === 'confirm') status = 'completed';
-    else if (decision === 'extend') status = 'in_progress';
-    else if (decision === 'terminate') status = 'rejected';
+    // Map decision → submitted status
+    // When an employee/manager submits a probation review, it goes to HR/Admin
+    // for approval. The status is always 'pending' on submission.
+    // HR/Admin can then approve (confirm), extend, or reject via the [id] route.
+    let status = 'pending'; // Always pending on submission — goes to HR for review
 
     const review = await db.performanceReview.create({
       data: {
@@ -248,7 +248,7 @@ export async function POST(request: Request) {
         comments: probationData,
         strengths: null,
         improvements: null,
-        status,
+        status, // 'pending' — submitted for HR review
         reviewDate: effectiveDate ? new Date(effectiveDate) : new Date(),
       },
       include: {
@@ -276,7 +276,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         success: true,
-        message: 'Probation review saved successfully',
+        message: 'Probation review submitted successfully. It has been sent to HR/Admin for approval.',
         probation: {
           id: (review as any).id,
           employeeId,

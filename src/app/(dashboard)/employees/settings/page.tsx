@@ -1137,15 +1137,7 @@ export default function EmployeeSettingsPage() {
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        <div>
-                          <span className="text-sm text-thb-text-secondary">{emp.email}</span>
-                          {emp.hasLoginAccount && emp.emailMismatch && (
-                            <p className="text-[10px] text-amber-600 mt-0.5 flex items-center gap-1">
-                              <FiAlertTriangle className="w-3 h-3" />
-                              Login email differs: {emp.loginEmail}
-                            </p>
-                          )}
-                        </div>
+                        <span className="text-sm text-thb-text-secondary">{emp.email}</span>
                       </td>
                       <td className="px-4 py-3">
                         <span className="text-sm text-thb-text-secondary">{emp.department}</span>

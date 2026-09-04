@@ -11,6 +11,11 @@ import {
   FiFileText,
   FiRefreshCw,
   FiCheckCircle,
+  FiEdit2,
+  FiTrash2,
+  FiEye,
+  FiX,
+  FiThumbsUp,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
@@ -88,7 +93,7 @@ const initialForm = {
 export default function ProbationPage() {
   const router = useRouter();
   const { user } = useAuthStore();
-  const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
+  const isAdmin = ['super_admin', 'tenant_admin', 'admin', 'company_hr_admin', 'hr_admin', 'manager'].includes((user?.role || '').toLowerCase());
   const scopeQuery = useCompanyContextStore(s => s.scopeQuery);
   const selectedTenantId = useCompanyContextStore(s => s.selectedTenantId);
 
@@ -213,6 +218,129 @@ export default function ProbationPage() {
 
   const decisionLabel = (v: string) => DECISIONS.find(d => d.value === v)?.label || v;
   const kpiLabel = (v: string) => KPI_STATUSES.find(k => k.value === v)?.label || v;
+
+  // ─── Edit/Delete/Approve handlers ───
+  const [viewRecord, setViewRecord] = useState<ProbationRecord | null>(null);
+  const [editRecord, setEditRecord] = useState<ProbationRecord | null>(null);
+  const [approveRecord, setApproveRecord] = useState<ProbationRecord | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [hrComments, setHrComments] = useState('');
+  const [extendPeriod, setExtendPeriod] = useState(1);
+
+  const handleEdit = async (record: ProbationRecord) => {
+    // Load the full record via GET to populate the form
+    try {
+      const res = await fetch(`/api/employees/probation/${record.id}`, { headers: getAuthHeaders() });
+      if (!res.ok) throw new Error('Failed to load record');
+      const data = await res.json();
+      const p = data.probation;
+      setForm({
+        ...initialForm,
+        employeeId: p.employeeId,
+        employeeName: p.employeeName,
+        employeeCode: p.employeeCode,
+        probationStartDate: p.probationStartDate || '',
+        probationPeriod: p.probationPeriod || 6,
+        extensionPeriod: p.extensionPeriod || 0,
+        performanceRating: p.performanceRating || 3,
+        reviewComments: p.reviewComments || '',
+        kpiStatus: p.kpiStatus || 'pending',
+        decision: p.decision || 'pending',
+        effectiveDate: p.effectiveDate || '',
+        confirmationLetter: p.confirmationLetter || '',
+      });
+      setEditRecord(record);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to load record');
+    }
+  };
+
+  const handleEditSubmit = async () => {
+    if (!editRecord) return;
+    setActionLoading(true);
+    try {
+      const res = await fetch(`/api/employees/probation/${editRecord.id}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          probationStartDate: form.probationStartDate,
+          probationPeriod: form.probationPeriod,
+          extensionPeriod: form.extensionPeriod,
+          performanceRating: form.performanceRating,
+          reviewComments: form.reviewComments.trim(),
+          kpiStatus: form.kpiStatus,
+          decision: form.decision,
+          effectiveDate: form.effectiveDate,
+          confirmationLetter: form.confirmationLetter,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update');
+      toast.success('Probation review updated successfully');
+      setEditRecord(null);
+      setForm(initialForm);
+      fetchRecords();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to update');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDelete = async (record: ProbationRecord) => {
+    if (!confirm(`Delete probation review for ${record.employeeName}? This cannot be undone.`)) return;
+    setActionLoading(true);
+    try {
+      const res = await fetch(`/api/employees/probation/${record.id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to delete');
+      toast.success('Probation review deleted');
+      fetchRecords();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to delete');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleApprove = async (action: 'approve' | 'extend' | 'reject') => {
+    if (!approveRecord) return;
+    setActionLoading(true);
+    try {
+      const body: Record<string, unknown> = { action, comments: hrComments };
+      if (action === 'extend') body.extensionPeriod = extendPeriod;
+      const res = await fetch(`/api/employees/probation/${approveRecord.id}`, {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to process');
+      toast.success(`Probation review ${action}d successfully`);
+      setApproveRecord(null);
+      setHrComments('');
+      setExtendPeriod(1);
+      fetchRecords();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to process');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const statusLabel = (s: string) => {
+    const map: Record<string, string> = {
+      pending: 'Pending HR Review',
+      completed: 'Confirmed',
+      in_progress: 'Extended',
+      rejected: 'Terminated',
+    };
+    return map[s] || s;
+  };
 
   return (
     <div className="space-y-6">
@@ -354,10 +482,22 @@ export default function ProbationPage() {
         <button onClick={() => router.push('/employees')} className="inline-flex items-center gap-2 px-4 py-2.5 bg-white text-thb-text-secondary border border-thb-border rounded-xl hover:bg-slate-50 font-medium text-sm transition-all">
           <FiArrowLeft className="w-4 h-4" /> Cancel
         </button>
-        <button onClick={handleSubmit} disabled={submitting} className="inline-flex items-center gap-2 px-5 py-2.5 bg-amber-600 text-white rounded-xl hover:bg-amber-700 font-medium text-sm shadow-sm transition-all">
-          {submitting ? <FiRefreshCw className="w-4 h-4 animate-spin" /> : <FiCheckCircle className="w-4 h-4" />}
-          {submitting ? 'Submitting...' : 'Submit Probation Review'}
-        </button>
+        {editRecord ? (
+          <>
+            <button onClick={() => { setEditRecord(null); setForm(initialForm); }} className="inline-flex items-center gap-2 px-4 py-2.5 bg-white text-thb-text-secondary border border-thb-border rounded-xl hover:bg-slate-50 font-medium text-sm transition-all">
+              <FiX className="w-4 h-4" /> Cancel Edit
+            </button>
+            <button onClick={handleEditSubmit} disabled={actionLoading} className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-medium text-sm shadow-sm transition-all">
+              {actionLoading ? <FiRefreshCw className="w-4 h-4 animate-spin" /> : <FiEdit2 className="w-4 h-4" />}
+              {actionLoading ? 'Updating...' : 'Update Review'}
+            </button>
+          </>
+        ) : (
+          <button onClick={handleSubmit} disabled={submitting} className="inline-flex items-center gap-2 px-5 py-2.5 bg-amber-600 text-white rounded-xl hover:bg-amber-700 font-medium text-sm shadow-sm transition-all">
+            {submitting ? <FiRefreshCw className="w-4 h-4 animate-spin" /> : <FiCheckCircle className="w-4 h-4" />}
+            {submitting ? 'Submitting...' : 'Submit Probation Review'}
+          </button>
+        )}
       </div>
 
       {/* Probation Records */}
@@ -378,13 +518,14 @@ export default function ProbationPage() {
                 <th className="text-left px-4 py-3 font-semibold text-slate-700">End</th>
                 <th className="text-left px-4 py-3 font-semibold text-slate-700">Decision</th>
                 <th className="text-left px-4 py-3 font-semibold text-slate-700">Status</th>
+                <th className="text-right px-4 py-3 font-semibold text-slate-700">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
-                <tr><td colSpan={6} className="text-center py-8 text-slate-400">Loading...</td></tr>
+                <tr><td colSpan={7} className="text-center py-8 text-slate-400">Loading...</td></tr>
               ) : records.length === 0 ? (
-                <tr><td colSpan={6} className="text-center py-12">
+                <tr><td colSpan={7} className="text-center py-12">
                   <FiClock className="w-8 h-8 text-slate-300 mx-auto mb-2" />
                   <p className="text-slate-500">No probation reviews yet</p>
                   <p className="text-xs text-slate-400 mt-1">Submit a probation review using the form above</p>
@@ -396,13 +537,105 @@ export default function ProbationPage() {
                   <td className="px-4 py-3 text-slate-600">{fmtDate(r.startDate)}</td>
                   <td className="px-4 py-3 text-slate-600">{fmtDate(r.endDate)}</td>
                   <td className="px-4 py-3 text-slate-600">{decisionLabel(r.decision)}</td>
-                  <td className="px-4 py-3"><span className={getStatusBadge(r.status)}>{r.status}</span></td>
+                  <td className="px-4 py-3"><span className={getStatusBadge(r.status)}>{statusLabel(r.status)}</span></td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center justify-end gap-1.5">
+                      {/* View */}
+                      <button onClick={() => setViewRecord(r)} className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="View details">
+                        <FiEye className="w-4 h-4" />
+                      </button>
+                      {/* Edit — only for pending reviews */}
+                      {r.status === 'pending' && (
+                        <button onClick={() => handleEdit(r)} className="p-1.5 text-slate-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors" title="Edit review">
+                          <FiEdit2 className="w-4 h-4" />
+                        </button>
+                      )}
+                      {/* Delete — only for pending reviews, admin only */}
+                      {r.status === 'pending' && isAdmin && (
+                        <button onClick={() => handleDelete(r)} disabled={actionLoading} className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50" title="Delete review">
+                          <FiTrash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                      {/* Approve/Extend/Reject — admin only, only for pending reviews */}
+                      {r.status === 'pending' && isAdmin && (
+                        <button onClick={() => { setApproveRecord(r); setHrComments(''); setExtendPeriod(1); }} className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors" title="Review & Approve/Reject">
+                          <FiThumbsUp className="w-3.5 h-3.5" /> Review
+                        </button>
+                      )}
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       </div>
+
+      {/* ─── View Record Modal ─── */}
+      {viewRecord && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={() => setViewRecord(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-5 border-b border-slate-200">
+              <h3 className="text-lg font-semibold text-slate-800">Probation Review Details</h3>
+              <button onClick={() => setViewRecord(null)} className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg">
+                <FiX className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-5 space-y-3 text-sm">
+              <div className="grid grid-cols-2 gap-3">
+                <div><span className="text-slate-500">Employee:</span> <span className="font-medium text-slate-800">{viewRecord.employeeName}</span></div>
+                <div><span className="text-slate-500">Employee ID:</span> <span className="font-medium text-slate-800">{viewRecord.employeeCode}</span></div>
+                <div><span className="text-slate-500">Start Date:</span> <span className="font-medium text-slate-800">{fmtDate(viewRecord.startDate)}</span></div>
+                <div><span className="text-slate-500">End Date:</span> <span className="font-medium text-slate-800">{fmtDate(viewRecord.endDate)}</span></div>
+                <div><span className="text-slate-500">Period:</span> <span className="font-medium text-slate-800">{viewRecord.probationPeriod} months</span></div>
+                <div><span className="text-slate-500">Decision:</span> <span className="font-medium text-slate-800">{decisionLabel(viewRecord.decision)}</span></div>
+                <div><span className="text-slate-500">Status:</span> <span className="font-medium text-slate-800">{statusLabel(viewRecord.status)}</span></div>
+              </div>
+              <div>
+                <span className="text-slate-500 block mb-1">Review Comments:</span>
+                <p className="text-slate-700 bg-slate-50 p-3 rounded-lg">{(viewRecord as any).reviewComments || 'No comments provided'}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Approve/Reject Modal ─── */}
+      {approveRecord && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={() => setApproveRecord(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-5 border-b border-slate-200">
+              <h3 className="text-lg font-semibold text-slate-800">Review Probation — {approveRecord.employeeName}</h3>
+              <button onClick={() => setApproveRecord(null)} className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg">
+                <FiX className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div className="text-sm text-slate-600">
+                <p><strong>Employee:</strong> {approveRecord.employeeName} ({approveRecord.employeeCode})</p>
+                <p><strong>Period:</strong> {approveRecord.probationPeriod} months</p>
+                <p><strong>Status:</strong> {statusLabel(approveRecord.status)}</p>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">HR Comments <span className="text-slate-400">(optional)</span></label>
+                <textarea value={hrComments} onChange={e => setHrComments(e.target.value)} rows={3} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 resize-none" placeholder="Add your comments for this decision..." />
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => handleApprove('approve')} disabled={actionLoading} className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium text-sm transition-colors disabled:opacity-50">
+                  <FiCheckCircle className="w-4 h-4" /> Confirm
+                </button>
+                <button onClick={() => handleApprove('extend')} disabled={actionLoading} className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-amber-600 text-white rounded-lg hover:bg-amber-700 font-medium text-sm transition-colors disabled:opacity-50">
+                  <FiClock className="w-4 h-4" /> Extend
+                </button>
+                <button onClick={() => handleApprove('reject')} disabled={actionLoading} className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium text-sm transition-colors disabled:opacity-50">
+                  <FiX className="w-4 h-4" /> Reject
+                </button>
+              </div>
+              {actionLoading && <p className="text-xs text-slate-500 text-center">Processing...</p>}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
