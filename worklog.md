@@ -452,3 +452,27 @@ Stage Summary:
 - The 'No Account' metric correctly counts employees without login access
 - Admin can create credentials via 'Generate Passwords' or 'Reset Password' buttons
 - Only then does the employee's status change to 'Active' / 'Has Account'
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: Official email-only login + red asterisks on all mandatory fields
+
+Work Log:
+TASK 1 — Official Email Only Login:
+- Created validateOfficialEmail() + isPersonalEmail() in src/lib/validators.ts
+- Maintains a list of 30+ personal email domains (gmail, yahoo, outlook, hotmail, icloud, protonmail, rediffmail, etc.)
+- /api/auth/login POST: rejects personal emails with clear error message. Candidates are exempt — they can use personal emails via the candidate portal.
+- /api/employees POST: also validates email with validateOfficialEmail() so new employees can only be created with official emails
+
+TASK 2 — Red Asterisks on All Mandatory Fields:
+- Created reusable RequiredLabel + RequiredAsterisk components in src/components/RequiredLabel.tsx
+- Added global CSS rule in globals.css: label[data-required=true]::after shows red '*'
+- Ran automated script (scripts/fix-required-asterisks.py) that replaced 'Label *' with 'Label <span class="text-red-500 font-bold">*</span>' across ALL dashboard pages
+- 92 files modified, 278 red asterisks added across: Employee, Leave, Attendance, Payroll, Company, Onboarding, Recruitment, Super-admin, Invoices, etc.
+- Login page: Email Address and Password labels now show red asterisks
+- Build succeeded, committed and pushed to main
+
+Stage Summary:
+- After deploy, login on marqaitechgroup.3boxeshrms.com will reject personal emails (gmail, yahoo, etc.) with a clear error message
+- All mandatory fields across all modules now show a red asterisk (*) next to the label
