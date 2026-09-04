@@ -67,6 +67,7 @@ export async function GET(request: Request) {
       const syncStatements = [
         // Employee columns
         `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "avatar" TEXT`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "personalEmail" TEXT`,
         `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "maritalStatus" TEXT`,
         `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "nationality" TEXT`,
         `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "address" TEXT`,

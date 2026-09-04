@@ -45,6 +45,7 @@ export async function GET(request: Request) {
     try {
       const syncStatements = [
         `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "avatar" TEXT`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "personalEmail" TEXT`,
         `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "maritalStatus" TEXT`,
         `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "nationality" TEXT`,
         `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "address" TEXT`,
@@ -469,6 +470,7 @@ export async function POST(request: Request) {
     try {
       const syncStatements = [
         `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "avatar" TEXT`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "personalEmail" TEXT`,
         `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "maritalStatus" TEXT`,
         `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "nationality" TEXT`,
         `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "address" TEXT`,
@@ -546,6 +548,7 @@ export async function POST(request: Request) {
       firstName,
       lastName,
       email,
+      personalEmail,
       phone,
       departmentId,
       designationId,
@@ -759,6 +762,7 @@ export async function POST(request: Request) {
         firstName,
         lastName,
         email,
+        personalEmail: personalEmail || null,
         phone: phone || null,
         departmentId: departmentId,
         designationId: designationId,

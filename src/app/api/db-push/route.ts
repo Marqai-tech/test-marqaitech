@@ -1103,6 +1103,7 @@ export async function POST() {
       // re-runs are safe. Nullable columns use plain ADD COLUMN; NOT NULL
       // columns use DEFAULT so existing rows get populated.
       `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "avatar" TEXT`,
+      `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "personalEmail" TEXT`,
       `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "maritalStatus" TEXT`,
       `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "nationality" TEXT`,
       `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "address" TEXT`,

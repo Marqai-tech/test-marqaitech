@@ -53,6 +53,7 @@ module.exports = [
   // This fixes P2022 "column does not exist" errors when the Prisma client
   // expects a column that the actual DB table doesn't have.
   `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "avatar" TEXT`,
+  `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "personalEmail" TEXT`,
   `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "maritalStatus" TEXT`,
   `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "nationality" TEXT`,
   `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "address" TEXT`,

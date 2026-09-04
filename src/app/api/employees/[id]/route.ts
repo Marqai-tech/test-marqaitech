@@ -210,7 +210,7 @@ export async function PUT(
       const actualId = existingEmployee.id;
 
       const {
-        firstName, lastName, email, phone, departmentId, designationId,
+        firstName, lastName, email, personalEmail, phone, departmentId, designationId,
         branchId, companyId, dateOfJoining, dateOfBirth, gender, maritalStatus,
         nationality, address, city, state, zipCode, country, bloodGroup,
         emergencyContactName, emergencyContactPhone, bankName, bankAccountNo,
@@ -222,6 +222,7 @@ export async function PUT(
       if (firstName !== undefined) updateData.firstName = firstName;
       if (lastName !== undefined) updateData.lastName = lastName;
       if (email !== undefined) updateData.email = email;
+      if (personalEmail !== undefined) updateData.personalEmail = personalEmail || null;
       if (phone !== undefined) updateData.phone = phone;
       if (departmentId !== undefined) updateData.departmentId = departmentId || undefined;
       if (designationId !== undefined) updateData.designationId = designationId || undefined;

@@ -186,7 +186,8 @@ const initialForm = {
   employeeId: '',
   firstName: '',
   lastName: '',
-  email: '',
+  email: '',           // Official Email ID (required, official email only)
+  personalEmail: '',   // Personal Email ID (optional, gmail/yahoo/etc.)
   phone: '',
   dateOfBirth: '',
   gender: '',
@@ -348,7 +349,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
     personal: [
       { field: 'firstName', label: 'First Name' },
       { field: 'lastName', label: 'Last Name' },
-      { field: 'email', label: 'Email' },
+      { field: 'email', label: 'Official Email ID' },
       { field: 'employeeId', label: 'Employee ID' },
     ],
     address: [
@@ -385,7 +386,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
     personal: [
       { field: 'firstName', label: 'First Name', validate: (v) => validateName(v, 'First name') },
       { field: 'lastName', label: 'Last Name', validate: (v) => validateName(v, 'Last name') },
-      { field: 'email', label: 'Email', validate: validateEmailFormat },
+      { field: 'email', label: 'Official Email ID', validate: validateEmailFormat },
       { field: 'phone', label: 'Phone', validate: validatePhone },
       { field: 'nationality', label: 'Nationality', validate: validateNationality },
     ],
@@ -487,6 +488,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
       'First Name': emp.firstName || '',
       'Last Name': emp.lastName || '',
       'Email': emp.email || '',
+      'Personal Email': (emp as Record<string, unknown>).personalEmail as string || '',
       'Phone': emp.phone || '',
       'Department': emp.department?.name || '',
       'Designation': emp.designation?.title || '',
@@ -650,6 +652,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
           firstName: emp.firstName || '',
           lastName: emp.lastName || '',
           email: emp.email || '',
+          personalEmail: (emp as Record<string, unknown>).personalEmail as string || '',
           phone: emp.phone || '',
           dateOfBirth: emp.dateOfBirth ? emp.dateOfBirth.split('T')[0] : '',
           gender: emp.gender || '',
@@ -817,6 +820,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
       firstName: emp.firstName,
       lastName: emp.lastName,
       email: emp.email,
+      personalEmail: (emp as Record<string, unknown>).personalEmail as string || '',
       phone: emp.phone || '',
       dateOfBirth: emp.dateOfBirth ? emp.dateOfBirth.split('T')[0] : '',
       gender: emp.gender || '',
@@ -1452,9 +1456,15 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">Email <span className="text-red-500 font-bold">*</span></label>
-                      <input type="email" value={form.email} onChange={e => updateForm('email', e.target.value)} required className={`w-full px-3 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 ${stepErrors.email ? 'border-red-400 bg-red-50' : 'border-thb-border'}`} />
+                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">Official Email ID <span className="text-red-500 font-bold">*</span></label>
+                      <input type="email" value={form.email} onChange={e => updateForm('email', e.target.value)} required placeholder="e.g., yourname@company.com" className={`w-full px-3 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 ${stepErrors.email ? 'border-red-400 bg-red-50' : 'border-thb-border'}`} />
+                      <p className="text-[10px] text-thb-text-muted mt-0.5">Use company/official email only (no gmail, yahoo, etc.)</p>
                       {stepErrors.email && <p className="text-xs text-red-500 mt-1">{stepErrors.email}</p>}
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">Personal Email ID</label>
+                      <input type="email" value={form.personalEmail} onChange={e => updateForm('personalEmail', e.target.value)} placeholder="e.g., yourname@gmail.com (optional)" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
+                      <p className="text-[10px] text-thb-text-muted mt-0.5">Personal email for backup contact (optional)</p>
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Phone</label>

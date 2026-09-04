@@ -428,6 +428,7 @@ model Employee {
   firstName      String
   lastName       String
   email          String
+  personalEmail  String?  // Personal email (gmail/yahoo/etc.) — optional, used for backup contact
   phone          String?
   avatar         String?
 
