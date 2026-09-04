@@ -258,6 +258,48 @@ export async function PUT(
         include: coreInclude,
       });
 
+      // ─── Sync email to the linked User account ───
+      // When the employee's official email is updated, also update the linked
+      // User record's email so login credentials stay in sync. Without this,
+      // the credentials page shows the OLD user.email even after the employee
+      // email was updated.
+      if (email !== undefined && employee.userId) {
+        try {
+          // Update the User's email in the tenant DB
+          await db.user.update({
+            where: { id: employee.userId },
+            data: { email },
+          }).catch(() => null);
+
+          // Also update in the platform DB (login checks platform DB first)
+          const { getPlatformDb } = await import('@/lib/tenant-db');
+          const platformDb = getPlatformDb();
+          await platformDb.user.update({
+            where: { id: employee.userId },
+            data: { email },
+          }).catch(() => null);
+
+          // Also try to find and update by the OLD email in platform DB
+          // (in case the User record exists with a different ID)
+          if (existingEmployee.email && existingEmployee.email !== email) {
+            const platformUserByEmail = await platformDb.user.findUnique({
+              where: { email: existingEmployee.email },
+              select: { id: true },
+            }).catch(() => null);
+            if (platformUserByEmail && platformUserByEmail.id !== employee.userId) {
+              await platformDb.user.update({
+                where: { id: platformUserByEmail.id },
+                data: { email },
+              }).catch(() => null);
+            }
+          }
+
+          console.log(`[Employee PUT] Synced email update for user ${employee.userId}: ${existingEmployee.email} → ${email}`);
+        } catch (syncErr) {
+          console.error('[Employee PUT] Failed to sync email to User account (non-critical):', syncErr);
+        }
+      }
+
       // ─── Update User role if provided ───
       if (role !== undefined && employee.userId) {
         try {

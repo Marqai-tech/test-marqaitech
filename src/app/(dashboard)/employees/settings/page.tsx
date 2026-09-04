@@ -26,6 +26,7 @@ interface EmployeeCredential {
   designation: string
   hasLoginAccount: boolean
   loginEmail: string
+  emailMismatch?: boolean
   loginStatus: string
   lastLogin: string | null
   userRole: string | null
@@ -1107,7 +1108,7 @@ export default function EmployeeSettingsPage() {
                       />
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-thb-text-muted uppercase tracking-wider">Employee</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-thb-text-muted uppercase tracking-wider">Login Email</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-thb-text-muted uppercase tracking-wider">Official Email</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-thb-text-muted uppercase tracking-wider">Department</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-thb-text-muted uppercase tracking-wider">Account Status</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-thb-text-muted uppercase tracking-wider">Last Login</th>
@@ -1136,7 +1137,15 @@ export default function EmployeeSettingsPage() {
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        <span className="text-sm text-thb-text-secondary">{emp.loginEmail}</span>
+                        <div>
+                          <span className="text-sm text-thb-text-secondary">{emp.email}</span>
+                          {emp.hasLoginAccount && emp.emailMismatch && (
+                            <p className="text-[10px] text-amber-600 mt-0.5 flex items-center gap-1">
+                              <FiAlertTriangle className="w-3 h-3" />
+                              Login email differs: {emp.loginEmail}
+                            </p>
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-3">
                         <span className="text-sm text-thb-text-secondary">{emp.department}</span>

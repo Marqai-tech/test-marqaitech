@@ -290,13 +290,18 @@ export async function GET(request: Request) {
       employeeId: emp.employeeId,
       firstName: emp.firstName,
       lastName: emp.lastName,
+      // Use employee.email as the primary email (always current — updated via
+      // the Add/Edit form). The user.email may be stale if it wasn't synced.
       email: emp.email,
+      // loginEmail: the email used for login (user.email). If it differs from
+      // employee.email, the UI can show a "sync needed" warning.
+      loginEmail: emp.user?.email || emp.email,
+      emailMismatch: emp.user && emp.user.email && emp.email && emp.user.email.toLowerCase() !== emp.email.toLowerCase(),
       phone: emp.phone,
       status: emp.status,
       department: emp.department?.name || '—',
       designation: emp.designation?.title || '—',
       hasLoginAccount: !!emp.userId,
-      loginEmail: emp.user?.email || emp.email,
       loginStatus: emp.user?.status || 'no_account',
       lastLogin: emp.user?.lastLogin || null,
       userRole: emp.user?.role || null,
