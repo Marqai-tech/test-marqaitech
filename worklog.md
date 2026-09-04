@@ -520,3 +520,36 @@ Stage Summary:
   2. Sync the new email to the linked User account (tenant DB + platform DB)
   3. Show the UPDATED email in the Login Credentials tab
   4. Login with the new email works immediately
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: Email sync in credentials + probation workflow + edit/delete in review list
+
+Work Log:
+TASK 1 — Email sync:
+- GET /api/employees/credentials now auto-syncs stale User emails in the background (tenant DB + platform DB)
+- Response shows emp.email as both 'email' and 'loginEmail' (official email IS the login email)
+- Removed emailMismatch warning UI (no longer needed)
+
+TASK 2 — Probation review workflow:
+- POST: status always 'pending' on submission (goes to HR/Admin for review)
+- New PATCH /api/employees/probation/[id]: HR/Admin can approve (confirm), extend, or reject
+- Only HR/Admin roles can approve/reject; only pending reviews can be actioned
+
+TASK 3 — Edit/Delete in review list:
+- New GET /api/employees/probation/[id]: fetch single review
+- New PUT /api/employees/probation/[id]: edit pending review
+- New DELETE /api/employees/probation/[id]: delete pending review (admin only)
+- Updated probation page UI with Actions column: View, Edit, Delete, Review buttons
+- View modal shows full review details
+- Edit loads review into the form
+- Review modal has Confirm/Extend/Reject buttons
+- Build succeeded, committed and pushed to main
+
+Stage Summary:
+- After deploy:
+  1. Credentials page shows the UPDATED official email (auto-syncs User account)
+  2. Probation reviews go to HR/Admin for approval (status=pending)
+  3. HR/Admin can approve/extend/reject via the Review button
+  4. Edit/Delete buttons available for pending reviews
