@@ -584,6 +584,30 @@ export default function SuperAdminPage() {
     }
   };
 
+  // ─── Register Tenant Databases (Golden Rule: separate DBs) ────────────
+  const [registeringDbs, setRegisteringDbs] = useState(false);
+  const handleRegisterTenantDbs = async () => {
+    if (!confirm('Register separate databases for Demo and MarqAI tenants?\n\nThis ensures:\n• Super Admin (3boxeshrms.com) → neondb (platform DB)\n• Demo (nexus-hrms-mu.vercel.app) → tenant_demo\n• MarqAI (marqaitechgroup.3boxeshrms.com) → tenant_marqaitechgroup\n\nEach link will have its OWN separate database.')) return;
+    try {
+      setRegisteringDbs(true);
+      const res = await fetch('/api/admin/register-tenant-dbs', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.error || 'Failed');
+      }
+      const data = await res.json();
+      toast.success(data.message || 'Tenant databases registered successfully');
+      console.log('Tenant DB registration:', data);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to register tenant DBs');
+    } finally {
+      setRegisteringDbs(false);
+    }
+  };
+
   // ─── Company Group Handlers ───────────────────────────
   const fetchGroups = useCallback(async () => {
     try {
@@ -2305,6 +2329,33 @@ export default function SuperAdminPage() {
       {/* ═══ TAB: BACKUP REPOSITORY ═══ */}
       {activeTab === 'backups' && (
         <div className="space-y-4">
+          {/* Golden Rule: Register Separate Databases */}
+          <div className="thb-card p-5 border-2 border-emerald-200 bg-emerald-50/30">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1">
+                <h3 className="text-sm font-bold text-emerald-800 flex items-center gap-2">
+                  <FiDatabase className="w-4 h-4" /> Golden Rule: Separate Databases
+                </h3>
+                <p className="text-xs text-emerald-700 mt-1">
+                  Each link must have its OWN separate database. Click below to register the dedicated databases:
+                </p>
+                <ul className="text-xs text-emerald-600 mt-2 space-y-0.5 ml-4">
+                  <li>• <strong>3boxeshrms.com</strong> (Super Admin) → neondb (platform DB)</li>
+                  <li>• <strong>nexus-hrms-mu.vercel.app</strong> (Demo) → tenant_demo</li>
+                  <li>• <strong>marqaitechgroup.3boxeshrms.com</strong> (Tenant) → tenant_marqaitechgroup</li>
+                </ul>
+              </div>
+              <button
+                onClick={handleRegisterTenantDbs}
+                disabled={registeringDbs}
+                className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium text-sm transition-colors disabled:opacity-50 whitespace-nowrap"
+              >
+                {registeringDbs ? <FiRefreshCw className="w-4 h-4 animate-spin" /> : <FiDatabase className="w-4 h-4" />}
+                {registeringDbs ? 'Registering...' : 'Register Separate DBs'}
+              </button>
+            </div>
+          </div>
+
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-lg font-bold text-thb-text-primary flex items-center gap-2">
