@@ -71,6 +71,19 @@ interface ProbationRecord {
   decision: string;
   status: string;
   createdAt: string;
+  reviewComments?: string;
+  workflowStage?: string;
+  hrDecision?: string | null;
+  hrComments?: string;
+  hrActionDate?: string | null;
+  mdAction?: string | null;
+  mdComments?: string;
+  mdActionDate?: string | null;
+  autoCreated?: boolean;
+  department?: string;
+  designation?: string;
+  performanceRating?: number;
+  kpiStatus?: string;
 }
 
 const initialForm = {
@@ -115,21 +128,59 @@ export default function ProbationPage() {
       .catch(() => setEmployeeList([]));
   }, [scopeQuery, selectedTenantId]);
 
-  const handleEmployeeSelect = (employeeId: string) => {
+  const handleEmployeeSelect = async (employeeId: string) => {
     updateField('employeeId', employeeId);
     if (employeeId) {
-      const emp = employeeList.find(e => e.id === employeeId);
-      if (emp) {
-        updateField('employeeName', `${emp.firstName} ${emp.lastName}`);
-        updateField('employeeCode', emp.employeeId);
-        updateField('department', emp.department?.name || '');
-        updateField('designation', emp.designation?.title || '');
+      // Fetch FRESH employee data from the API (not from the cached list)
+      // This ensures we get the latest dateOfJoining and other fields
+      try {
+        const res = await fetch(`/api/employees/${employeeId}`, { headers: getAuthHeaders() });
+        if (res.ok) {
+          const data = await res.json();
+          const emp = data.employee || data;
+          updateField('employeeName', `${emp.firstName || ''} ${emp.lastName || ''}`.trim());
+          updateField('employeeCode', emp.employeeId || '');
+          updateField('department', emp.department?.name || '');
+          updateField('designation', emp.designation?.title || '');
+          // Auto-populate probation start date from the employee's date of joining
+          if (emp.dateOfJoining) {
+            const doj = emp.dateOfJoining.split('T')[0];
+            updateField('probationStartDate', doj);
+          }
+        } else {
+          // Fallback to cached list
+          const emp = employeeList.find(e => e.id === employeeId);
+          if (emp) {
+            updateField('employeeName', `${emp.firstName} ${emp.lastName}`);
+            updateField('employeeCode', emp.employeeId);
+            updateField('department', emp.department?.name || '');
+            updateField('designation', emp.designation?.title || '');
+            if ((emp as any).dateOfJoining) {
+              const doj = (emp as any).dateOfJoining.split('T')[0];
+              updateField('probationStartDate', doj);
+            }
+          }
+        }
+      } catch {
+        // Fallback to cached list
+        const emp = employeeList.find(e => e.id === employeeId);
+        if (emp) {
+          updateField('employeeName', `${emp.firstName} ${emp.lastName}`);
+          updateField('employeeCode', emp.employeeId);
+          updateField('department', emp.department?.name || '');
+          updateField('designation', emp.designation?.title || '');
+          if ((emp as any).dateOfJoining) {
+            const doj = (emp as any).dateOfJoining.split('T')[0];
+            updateField('probationStartDate', doj);
+          }
+        }
       }
     } else {
       updateField('employeeName', '');
       updateField('employeeCode', '');
       updateField('department', '');
       updateField('designation', '');
+      updateField('probationStartDate', '');
     }
   };
 
@@ -332,7 +383,11 @@ export default function ProbationPage() {
     }
   };
 
-  const statusLabel = (s: string) => {
+  const statusLabel = (s: string, ws?: string) => {
+    if (ws === 'md_review') return 'Awaiting MD Approval';
+    if (ws === 'completed' && s === 'completed') return 'Confirmed';
+    if (ws === 'completed' && s === 'in_progress') return 'Extended';
+    if (ws === 'completed' && s === 'rejected') return 'Terminated';
     const map: Record<string, string> = {
       pending: 'Pending HR Review',
       completed: 'Confirmed',
@@ -537,7 +592,7 @@ export default function ProbationPage() {
                   <td className="px-4 py-3 text-slate-600">{fmtDate(r.startDate)}</td>
                   <td className="px-4 py-3 text-slate-600">{fmtDate(r.endDate)}</td>
                   <td className="px-4 py-3 text-slate-600">{decisionLabel(r.decision)}</td>
-                  <td className="px-4 py-3"><span className={getStatusBadge(r.status)}>{statusLabel(r.status)}</span></td>
+                  <td className="px-4 py-3"><span className={getStatusBadge(r.status)}>{statusLabel(r.status, r.workflowStage)}</span></td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1.5">
                       {/* View */}
@@ -558,8 +613,8 @@ export default function ProbationPage() {
                       )}
                       {/* Approve/Extend/Reject — admin only, only for pending reviews */}
                       {r.status === 'pending' && isAdmin && (
-                        <button onClick={() => { setApproveRecord(r); setHrComments(''); setExtendPeriod(1); }} className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors" title="Review & Approve/Reject">
-                          <FiThumbsUp className="w-3.5 h-3.5" /> Review
+                        <button onClick={() => { setApproveRecord(r); setHrComments(''); setExtendPeriod(1); }} className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors" title={r.workflowStage === 'md_review' ? 'MD/Admin Final Approval' : 'HR Review & Submit to MD'}>
+                          <FiThumbsUp className="w-3.5 h-3.5" /> {r.workflowStage === 'md_review' ? 'MD Approve' : 'HR Review'}
                         </button>
                       )}
                     </div>
@@ -585,16 +640,40 @@ export default function ProbationPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div><span className="text-slate-500">Employee:</span> <span className="font-medium text-slate-800">{viewRecord.employeeName}</span></div>
                 <div><span className="text-slate-500">Employee ID:</span> <span className="font-medium text-slate-800">{viewRecord.employeeCode}</span></div>
+                <div><span className="text-slate-500">Department:</span> <span className="font-medium text-slate-800">{viewRecord.department || '—'}</span></div>
+                <div><span className="text-slate-500">Designation:</span> <span className="font-medium text-slate-800">{viewRecord.designation || '—'}</span></div>
                 <div><span className="text-slate-500">Start Date:</span> <span className="font-medium text-slate-800">{fmtDate(viewRecord.startDate)}</span></div>
                 <div><span className="text-slate-500">End Date:</span> <span className="font-medium text-slate-800">{fmtDate(viewRecord.endDate)}</span></div>
                 <div><span className="text-slate-500">Period:</span> <span className="font-medium text-slate-800">{viewRecord.probationPeriod} months</span></div>
+                <div><span className="text-slate-500">Extension:</span> <span className="font-medium text-slate-800">{viewRecord.extensionPeriod || 0} months</span></div>
+                <div><span className="text-slate-500">Performance:</span> <span className="font-medium text-slate-800">{viewRecord.performanceRating || 0}/5</span></div>
+                <div><span className="text-slate-500">KPI Status:</span> <span className="font-medium text-slate-800 capitalize">{viewRecord.kpiStatus || 'pending'}</span></div>
                 <div><span className="text-slate-500">Decision:</span> <span className="font-medium text-slate-800">{decisionLabel(viewRecord.decision)}</span></div>
-                <div><span className="text-slate-500">Status:</span> <span className="font-medium text-slate-800">{statusLabel(viewRecord.status)}</span></div>
+                <div><span className="text-slate-500">Status:</span> <span className="font-medium text-slate-800">{statusLabel(viewRecord.status, viewRecord.workflowStage)}</span></div>
               </div>
               <div>
                 <span className="text-slate-500 block mb-1">Review Comments:</span>
-                <p className="text-slate-700 bg-slate-50 p-3 rounded-lg">{(viewRecord as any).reviewComments || 'No comments provided'}</p>
+                <p className="text-slate-700 bg-slate-50 p-3 rounded-lg whitespace-pre-wrap">{viewRecord.reviewComments || 'No comments provided'}</p>
               </div>
+              {viewRecord.autoCreated && (
+                <div className="p-2 bg-blue-50 border border-blue-100 rounded-lg">
+                  <p className="text-xs text-blue-600">ℹ This review was auto-created when the employee was added with status "Probation".</p>
+                </div>
+              )}
+              {viewRecord.hrDecision && (
+                <div className="p-3 bg-amber-50 border border-amber-100 rounded-lg">
+                  <p className="text-xs font-semibold text-amber-700 mb-1">HR Decision: {decisionLabel(viewRecord.hrDecision)}</p>
+                  <p className="text-xs text-amber-600">{viewRecord.hrComments || 'No HR comments'}</p>
+                  {viewRecord.hrActionDate && <p className="text-[10px] text-amber-500 mt-1">Submitted: {fmtDate(viewRecord.hrActionDate)}</p>}
+                </div>
+              )}
+              {viewRecord.mdAction && (
+                <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-lg">
+                  <p className="text-xs font-semibold text-emerald-700 mb-1">MD/Admin Final Decision: {decisionLabel(viewRecord.mdAction)}</p>
+                  <p className="text-xs text-emerald-600">{viewRecord.mdComments || 'No MD comments'}</p>
+                  {viewRecord.mdActionDate && <p className="text-[10px] text-emerald-500 mt-1">Finalized: {fmtDate(viewRecord.mdActionDate)}</p>}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -613,11 +692,28 @@ export default function ProbationPage() {
             <div className="p-5 space-y-4">
               <div className="text-sm text-slate-600">
                 <p><strong>Employee:</strong> {approveRecord.employeeName} ({approveRecord.employeeCode})</p>
+                <p><strong>Department:</strong> {approveRecord.department || '—'}</p>
+                <p><strong>Designation:</strong> {approveRecord.designation || '—'}</p>
                 <p><strong>Period:</strong> {approveRecord.probationPeriod} months</p>
-                <p><strong>Status:</strong> {statusLabel(approveRecord.status)}</p>
+                <p><strong>Status:</strong> {statusLabel(approveRecord.status, approveRecord.workflowStage)}</p>
               </div>
+              {approveRecord.reviewComments && (
+                <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                  <p className="text-xs font-semibold text-slate-600 mb-1">Review Comments:</p>
+                  <p className="text-xs text-slate-600 whitespace-pre-wrap">{approveRecord.reviewComments}</p>
+                </div>
+              )}
+              {approveRecord.hrDecision && approveRecord.workflowStage === 'md_review' && (
+                <div className="p-3 bg-amber-50 border border-amber-100 rounded-lg">
+                  <p className="text-xs font-semibold text-amber-700 mb-1">HR Submitted Decision: {decisionLabel(approveRecord.hrDecision)}</p>
+                  <p className="text-xs text-amber-600">{approveRecord.hrComments || 'No HR comments'}</p>
+                  <p className="text-[10px] text-amber-500 mt-1">Please review and provide your final decision.</p>
+                </div>
+              )}
               <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">HR Comments <span className="text-slate-400">(optional)</span></label>
+                <label className="block text-xs font-medium text-slate-600 mb-1">
+                  {approveRecord.workflowStage === 'md_review' ? 'MD/Admin Comments' : 'HR Comments'} <span className="text-slate-400">(optional)</span>
+                </label>
                 <textarea value={hrComments} onChange={e => setHrComments(e.target.value)} rows={3} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 resize-none" placeholder="Add your comments for this decision..." />
               </div>
               <div className="flex gap-2">

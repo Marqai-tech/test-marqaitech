@@ -45,24 +45,22 @@ export async function GET(request: Request) {
     }
 
     // Step 1: Fetch user — try the resolved DB first, then fall back to platform DB.
-    // This handles the case where the user was created in the platform DB
-    // (e.g., via the marqai seed or self-healing login) but getDb(request)
-    // resolves to a different DB.
     let user = await db.user.findUnique({
       where: { id: decoded.userId as string },
       include: { tenant: true },
     }).catch(() => null);
 
+    let userFoundInPlatformDb = false;
+
     if (!user) {
-      // Try platform DB
       user = await platformDb.user.findUnique({
         where: { id: decoded.userId as string },
         include: { tenant: true },
       }).catch(() => null);
+      if (user) userFoundInPlatformDb = true;
     }
 
     if (!user) {
-      // Last resort: try to find by email from the JWT
       const email = (decoded as any).email;
       if (email) {
         user = await db.user.findUnique({
@@ -74,6 +72,7 @@ export async function GET(request: Request) {
             where: { email },
             include: { tenant: true },
           }).catch(() => null);
+          if (user) userFoundInPlatformDb = true;
         }
       }
     }
@@ -82,10 +81,8 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'User not found' }, { status: 404, headers: corsHeaders() });
     }
 
-    // Use the DB that found the user for subsequent queries.
-    // If the user was found in the platform DB, use that for employee lookup too.
-    // Otherwise use the resolved DB (db).
-    const userDb = (db !== platformDb && user === (await platformDb.user.findUnique({ where: { id: decoded.userId as string } }).catch(() => null))) ? platformDb : db;
+    // Use the DB that found the user for subsequent queries
+    const userDb = userFoundInPlatformDb ? platformDb : db;
 
     // Step 2: Try to fetch employee data separately (may not exist for all users)
     // Try the userDb first, then fall back to platform DB (employee may be in
