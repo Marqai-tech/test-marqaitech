@@ -82,13 +82,19 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'User not found' }, { status: 404, headers: corsHeaders() });
     }
 
-    // Use the DB that found the user for subsequent queries
-    const userDb = (user.tenantId === null && db !== platformDb) ? platformDb : db;
+    // Use the DB that found the user for subsequent queries.
+    // If the user was found in the platform DB, use that for employee lookup too.
+    // Otherwise use the resolved DB (db).
+    const userDb = (db !== platformDb && user === (await platformDb.user.findUnique({ where: { id: decoded.userId as string } }).catch(() => null))) ? platformDb : db;
 
     // Step 2: Try to fetch employee data separately (may not exist for all users)
+    // Try the userDb first, then fall back to platform DB (employee may be in
+    // a different DB than the user record)
     let employeeData = null;
+    let employee = null;
     try {
-      const employee = await userDb.employee.findUnique({
+      // Try userDb first
+      employee = await userDb.employee.findUnique({
         where: { userId: user.id },
         include: {
           department: { select: { name: true } },
@@ -99,7 +105,70 @@ export async function GET(request: Request) {
           experiences: true,
           documents: { select: { id: true, name: true, type: true, status: true } },
         },
-      });
+      }).catch(() => null);
+
+      // If not found in userDb, try platform DB
+      if (!employee && userDb !== platformDb) {
+        employee = await platformDb.employee.findUnique({
+          where: { userId: user.id },
+          include: {
+            department: { select: { name: true } },
+            designation: { select: { title: true } },
+            branch: { select: { name: true } },
+            dependents: true,
+            qualifications: true,
+            experiences: true,
+            documents: { select: { id: true, name: true, type: true, status: true } },
+          },
+        }).catch(() => null);
+      }
+
+      // If still not found, try the resolved db (db) as a last resort
+      if (!employee && userDb !== db) {
+        employee = await db.employee.findUnique({
+          where: { userId: user.id },
+          include: {
+            department: { select: { name: true } },
+            designation: { select: { title: true } },
+            branch: { select: { name: true } },
+            dependents: true,
+            qualifications: true,
+            experiences: true,
+            documents: { select: { id: true, name: true, type: true, status: true } },
+          },
+        }).catch(() => null);
+      }
+
+      // Also try by email if not found by userId (employee.email may match user.email)
+      if (!employee && user.email) {
+        employee = await userDb.employee.findFirst({
+          where: { email: user.email },
+          include: {
+            department: { select: { name: true } },
+            designation: { select: { title: true } },
+            branch: { select: { name: true } },
+            dependents: true,
+            qualifications: true,
+            experiences: true,
+            documents: { select: { id: true, name: true, type: true, status: true } },
+          },
+        }).catch(() => null);
+
+        if (!employee) {
+          employee = await platformDb.employee.findFirst({
+            where: { email: user.email },
+            include: {
+              department: { select: { name: true } },
+              designation: { select: { title: true } },
+              branch: { select: { name: true } },
+              dependents: true,
+              qualifications: true,
+              experiences: true,
+              documents: { select: { id: true, name: true, type: true, status: true } },
+            },
+          }).catch(() => null);
+        }
+      }
 
       if (employee) {
         employeeData = {
@@ -242,13 +311,12 @@ export async function PATCH(request: Request) {
       });
     }
 
-    // Determine which DB to use for employee updates
-    const userDb = (updatedUser.tenantId === null && db !== platformDb) ? platformDb : db;
-
     // Update employee details if provided (Employee model has: phone, address, etc.)
+    // The employee may be linked via userId OR may have the same email as the user.
+    // We try to find the employee in both DBs and update accordingly.
     const hasEmployeeUpdates = phone !== undefined || emergencyContactName !== undefined || emergencyContactPhone !== undefined || address !== undefined || city !== undefined || state !== undefined || zipCode !== undefined || country !== undefined || dateOfBirth !== undefined || gender !== undefined || bloodGroup !== undefined;
 
-    if (updatedUser.employee && hasEmployeeUpdates) {
+    if (hasEmployeeUpdates) {
       const employeeUpdateData: Record<string, unknown> = {};
       if (phone !== undefined) employeeUpdateData.phone = phone;
       if (emergencyContactName !== undefined) employeeUpdateData.emergencyContactName = emergencyContactName;
@@ -262,10 +330,40 @@ export async function PATCH(request: Request) {
       if (gender !== undefined) employeeUpdateData.gender = gender;
       if (bloodGroup !== undefined) employeeUpdateData.bloodGroup = bloodGroup;
 
-      await userDb.employee.update({
-        where: { id: updatedUser.employee.id },
-        data: employeeUpdateData,
-      }).catch(() => null);
+      // Find the employee record — try userId first, then email
+      let employeeRecord = null;
+
+      // Try by userId in resolved DB
+      if (updatedUser.employee) {
+        employeeRecord = updatedUser.employee;
+      } else {
+        // Try by userId in both DBs
+        employeeRecord = await db.employee.findUnique({ where: { userId: updatedUser.id } }).catch(() => null);
+        if (!employeeRecord) {
+          employeeRecord = await platformDb.employee.findUnique({ where: { userId: updatedUser.id } }).catch(() => null);
+        }
+        // Try by email
+        if (!employeeRecord && updatedUser.email) {
+          employeeRecord = await db.employee.findFirst({ where: { email: updatedUser.email } }).catch(() => null);
+          if (!employeeRecord) {
+            employeeRecord = await platformDb.employee.findFirst({ where: { email: updatedUser.email } }).catch(() => null);
+          }
+        }
+      }
+
+      if (employeeRecord) {
+        // Try updating in the resolved DB first
+        await db.employee.update({
+          where: { id: employeeRecord.id },
+          data: employeeUpdateData,
+        }).catch(async () => {
+          // If that fails, try platform DB
+          await platformDb.employee.update({
+            where: { id: employeeRecord.id },
+            data: employeeUpdateData,
+          }).catch(() => null);
+        });
+      }
     }
 
     return NextResponse.json(

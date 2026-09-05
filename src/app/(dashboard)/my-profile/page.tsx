@@ -25,6 +25,8 @@ import {
   FiHash,
   FiRefreshCw,
   FiGlobe,
+  FiCheck,
+  FiX,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
@@ -137,6 +139,9 @@ export default function MyProfilePage() {
   const [profileData, setProfileData] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [editForm, setEditForm] = useState<Record<string, string>>({});
 
   const fetchProfile = useCallback(async () => {
     try {
@@ -146,6 +151,22 @@ export default function MyProfilePage() {
       if (res.ok) {
         const data = await res.json();
         setProfileData(data);
+        // Initialize edit form with current data
+        const emp = data.employee as Record<string, unknown> | null;
+        setEditForm({
+          name: data.name || '',
+          phone: (emp?.phone as string) || '',
+          emergencyContactName: (emp?.emergencyContactName as string) || '',
+          emergencyContactPhone: (emp?.emergencyContactPhone as string) || '',
+          address: (emp?.address as string) || '',
+          city: (emp?.city as string) || '',
+          state: (emp?.state as string) || '',
+          zipCode: (emp?.zipCode as string) || '',
+          country: (emp?.country as string) || '',
+          dateOfBirth: (emp?.dateOfBirth as string) || '',
+          gender: (emp?.gender as string) || '',
+          bloodGroup: (emp?.bloodGroup as string) || '',
+        });
       } else {
         const errData = await res.json().catch(() => ({}));
         setError(errData.error || 'Failed to load profile');
@@ -158,6 +179,30 @@ export default function MyProfilePage() {
   }, []);
 
   useEffect(() => { fetchProfile(); }, [fetchProfile]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch('/api/users/profile', {
+        method: 'PATCH',
+        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify(editForm),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update profile');
+      toast.success('Profile updated successfully');
+      setIsEditing(false);
+      fetchProfile(); // Reload profile data
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to update profile');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const updateEditField = (field: string, value: string) => {
+    setEditForm(prev => ({ ...prev, [field]: value }));
+  };
 
   const emp = profileData?.employee as Record<string, unknown> | null | undefined;
   const tenant = profileData?.tenant as Record<string, unknown> | null | undefined;
@@ -292,10 +337,33 @@ export default function MyProfilePage() {
               </div>
             </div>
             <div className="hidden md:flex items-center gap-2 pb-2">
-              <button className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-green-50 text-green-600 text-sm font-medium hover:bg-green-100 transition-colors border border-green-100">
-                <FiEdit2 className="w-4 h-4" />
-                Edit Profile
-              </button>
+              {isEditing ? (
+                <>
+                  <button
+                    onClick={handleSave}
+                    disabled={saving}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 transition-colors disabled:opacity-50"
+                  >
+                    {saving ? <FiRefreshCw className="w-4 h-4 animate-spin" /> : <FiCheck className="w-4 h-4" />}
+                    {saving ? 'Saving...' : 'Save Changes'}
+                  </button>
+                  <button
+                    onClick={() => setIsEditing(false)}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-100 text-slate-600 text-sm font-medium hover:bg-slate-200 transition-colors"
+                  >
+                    <FiX className="w-4 h-4" />
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => setIsEditing(true)}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-green-50 text-green-600 text-sm font-medium hover:bg-green-100 transition-colors border border-green-100"
+                >
+                  <FiEdit2 className="w-4 h-4" />
+                  Edit Profile
+                </button>
+              )}
             </div>
           </div>
 
@@ -409,14 +477,46 @@ export default function MyProfilePage() {
         {activeTab === 'personal' && (
           <div className="space-y-5">
             <SectionCard title="Basic Information" icon={<FiUser className="w-4 h-4" />} accent="blue">
-              <InfoRow label="Full Name" value={`${str(emp?.firstName)} ${str(emp?.lastName)}`} icon={<FiUser className="w-3.5 h-3.5" />} />
-              <InfoRow label="Official Email" value={str(emp?.email)} icon={<FiMail className="w-3.5 h-3.5" />} />
-              <InfoRow label="Phone" value={str(emp?.phone)} icon={<FiPhone className="w-3.5 h-3.5" />} />
-              <InfoRow label="Gender" value={str(emp?.gender) ? String(emp?.gender).charAt(0).toUpperCase() + String(emp?.gender).slice(1) : ''} />
-              <InfoRow label="Blood Group" value={str(emp?.bloodGroup)} icon={<FiHeart className="w-3.5 h-3.5" />} />
-              <InfoRow label="Date of Birth" value={formatDate(emp?.dateOfBirth)} icon={<FiCalendar className="w-3.5 h-3.5" />} />
-              <InfoRow label="Marital Status" value={str(emp?.maritalStatus) ? String(emp?.maritalStatus).charAt(0).toUpperCase() + String(emp?.maritalStatus).slice(1) : ''} />
-              <InfoRow label="Nationality" value={str(emp?.nationality)} icon={<FiMapPin className="w-3.5 h-3.5" />} />
+              {isEditing ? (
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Full Name</label>
+                    <input type="text" value={editForm.name || ''} onChange={e => updateEditField('name', e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Phone</label>
+                    <input type="tel" value={editForm.phone || ''} onChange={e => updateEditField('phone', e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Gender</label>
+                    <select value={editForm.gender || ''} onChange={e => updateEditField('gender', e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
+                      <option value="">Select</option>
+                      <option value="male">Male</option>
+                      <option value="female">Female</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Blood Group</label>
+                    <input type="text" value={editForm.bloodGroup || ''} onChange={e => updateEditField('bloodGroup', e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Date of Birth</label>
+                    <input type="date" value={editForm.dateOfBirth || ''} onChange={e => updateEditField('dateOfBirth', e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <InfoRow label="Full Name" value={`${str(emp?.firstName)} ${str(emp?.lastName)}`} icon={<FiUser className="w-3.5 h-3.5" />} />
+                  <InfoRow label="Official Email" value={str(emp?.email)} icon={<FiMail className="w-3.5 h-3.5" />} />
+                  <InfoRow label="Phone" value={str(emp?.phone)} icon={<FiPhone className="w-3.5 h-3.5" />} />
+                  <InfoRow label="Gender" value={str(emp?.gender) ? String(emp?.gender).charAt(0).toUpperCase() + String(emp?.gender).slice(1) : ''} />
+                  <InfoRow label="Blood Group" value={str(emp?.bloodGroup)} icon={<FiHeart className="w-3.5 h-3.5" />} />
+                  <InfoRow label="Date of Birth" value={formatDate(emp?.dateOfBirth)} icon={<FiCalendar className="w-3.5 h-3.5" />} />
+                  <InfoRow label="Marital Status" value={str(emp?.maritalStatus) ? String(emp?.maritalStatus).charAt(0).toUpperCase() + String(emp?.maritalStatus).slice(1) : ''} />
+                  <InfoRow label="Nationality" value={str(emp?.nationality)} icon={<FiMapPin className="w-3.5 h-3.5" />} />
+                </>
+              )}
             </SectionCard>
 
             <SectionCard title="Quick Info" icon={<FiInfo className="w-4 h-4" />} accent="emerald">
