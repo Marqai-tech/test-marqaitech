@@ -610,3 +610,21 @@ Stage Summary:
 - Cron endpoint sends 10-day alerts to HR/Admin
 - 2-level workflow: HR review → MD/Admin final confirmation
 - Employee status auto-updates to 'confirmed' when MD approves
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix /my-profile 'User not found' error for tenant admin
+
+Work Log:
+- Diagnosed: /api/users/profile GET only checked the DB resolved by getDb(request). For the marqaitechgroup tenant (which shares the platform DB), the user exists in the platform DB but getDb(request) may resolve to a different DB.
+- Fixed /api/users/profile GET and PATCH with multi-DB fallback:
+  1. Try the resolved DB (db) first
+  2. If not found, try the platform DB
+  3. If still not found, try by email from the JWT
+  4. Use the DB that found the user for subsequent employee queries
+  5. Resolve tenant info separately if the relation wasn't included
+- Build succeeded, committed and pushed to main
+
+Stage Summary:
+- After deploy, /my-profile will load for all roles including tenant admin, HR admins, super admin, and employees
