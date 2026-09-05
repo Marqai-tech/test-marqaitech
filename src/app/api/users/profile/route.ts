@@ -32,6 +32,7 @@ function toStr(val: string | null | undefined): string {
 // GET - Fetch current user profile
 export async function GET(request: Request) {
   const db = await getDb(request);
+  const platformDb = getPlatformDb();
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -43,26 +44,55 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
     }
 
-    // Step 1: Fetch user with tenant (lightweight, no deep nested includes)
-    const user = await db.user.findUnique({
+    // Step 1: Fetch user — try the resolved DB first, then fall back to platform DB.
+    // This handles the case where the user was created in the platform DB
+    // (e.g., via the marqai seed or self-healing login) but getDb(request)
+    // resolves to a different DB.
+    let user = await db.user.findUnique({
       where: { id: decoded.userId as string },
-      include: {
-        tenant: true,
-      },
-    });
+      include: { tenant: true },
+    }).catch(() => null);
+
+    if (!user) {
+      // Try platform DB
+      user = await platformDb.user.findUnique({
+        where: { id: decoded.userId as string },
+        include: { tenant: true },
+      }).catch(() => null);
+    }
+
+    if (!user) {
+      // Last resort: try to find by email from the JWT
+      const email = (decoded as any).email;
+      if (email) {
+        user = await db.user.findUnique({
+          where: { email },
+          include: { tenant: true },
+        }).catch(() => null);
+        if (!user) {
+          user = await platformDb.user.findUnique({
+            where: { email },
+            include: { tenant: true },
+          }).catch(() => null);
+        }
+      }
+    }
 
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404, headers: corsHeaders() });
     }
 
+    // Use the DB that found the user for subsequent queries
+    const userDb = (user.tenantId === null && db !== platformDb) ? platformDb : db;
+
     // Step 2: Try to fetch employee data separately (may not exist for all users)
     let employeeData = null;
     try {
-      const employee = await db.employee.findUnique({
+      const employee = await userDb.employee.findUnique({
         where: { userId: user.id },
         include: {
           department: { select: { name: true } },
-          designation: { select: { name: true } },
+          designation: { select: { title: true } },
           branch: { select: { name: true } },
           dependents: true,
           qualifications: true,
@@ -92,7 +122,7 @@ export async function GET(request: Request) {
           nationality: toStr(employee.nationality),
           bloodGroup: toStr(employee.bloodGroup),
           department: employee.department?.name || '',
-          designation: employee.designation?.name || '',
+          designation: employee.designation?.title || '',
           branch: employee.branch?.name || '',
           dateOfJoining: toISOStr(employee.dateOfJoining),
           status: employee.status,
@@ -123,6 +153,28 @@ export async function GET(request: Request) {
       // Employee data is optional — continue without it
     }
 
+    // Resolve tenant info (may be null for super_admin)
+    let tenantInfo = null;
+    if (user.tenant) {
+      tenantInfo = {
+        id: user.tenant.id,
+        name: user.tenant.name,
+        slug: user.tenant.slug,
+        plan: user.tenant.plan,
+        currency: user.tenant.currency,
+        timezone: user.tenant.timezone,
+      };
+    } else if (user.tenantId) {
+      // Tenant relation wasn't included or failed — fetch it separately
+      try {
+        const tenant = await platformDb.tenant.findUnique({
+          where: { id: user.tenantId },
+          select: { id: true, name: true, slug: true, plan: true, currency: true, timezone: true },
+        });
+        if (tenant) tenantInfo = tenant;
+      } catch { /* non-critical */ }
+    }
+
     return NextResponse.json(
       {
         id: user.id,
@@ -131,14 +183,7 @@ export async function GET(request: Request) {
         role: user.role,
         avatar: user.avatar,
         status: user.status,
-        tenant: {
-          id: user.tenant.id,
-          name: user.tenant.name,
-          slug: user.tenant.slug,
-          plan: user.tenant.plan,
-          currency: user.tenant.currency,
-          timezone: user.tenant.timezone,
-        },
+        tenant: tenantInfo,
         employee: employeeData,
         lastLogin: user.lastLogin ? toISOStr(user.lastLogin) : null,
         createdAt: user.createdAt ? toISOStr(user.createdAt) : null,
@@ -160,6 +205,7 @@ export async function GET(request: Request) {
 // PATCH - Update current user profile
 export async function PATCH(request: Request) {
   const db = await getDb(request);
+  const platformDb = getPlatformDb();
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -179,11 +225,25 @@ export async function PATCH(request: Request) {
     if (name !== undefined) userUpdateData.name = name;
     if (avatar !== undefined) userUpdateData.avatar = avatar;
 
-    const updatedUser = await db.user.update({
-      where: { id: decoded.userId as string },
-      data: userUpdateData,
-      include: { tenant: true, employee: true },
-    });
+    // Try to update in the resolved DB first, then fall back to platform DB
+    let updatedUser = null;
+    try {
+      updatedUser = await db.user.update({
+        where: { id: decoded.userId as string },
+        data: userUpdateData,
+        include: { tenant: true, employee: true },
+      });
+    } catch {
+      // User not found in tenant DB — try platform DB
+      updatedUser = await platformDb.user.update({
+        where: { id: decoded.userId as string },
+        data: userUpdateData,
+        include: { tenant: true, employee: true },
+      });
+    }
+
+    // Determine which DB to use for employee updates
+    const userDb = (updatedUser.tenantId === null && db !== platformDb) ? platformDb : db;
 
     // Update employee details if provided (Employee model has: phone, address, etc.)
     const hasEmployeeUpdates = phone !== undefined || emergencyContactName !== undefined || emergencyContactPhone !== undefined || address !== undefined || city !== undefined || state !== undefined || zipCode !== undefined || country !== undefined || dateOfBirth !== undefined || gender !== undefined || bloodGroup !== undefined;
@@ -202,10 +262,10 @@ export async function PATCH(request: Request) {
       if (gender !== undefined) employeeUpdateData.gender = gender;
       if (bloodGroup !== undefined) employeeUpdateData.bloodGroup = bloodGroup;
 
-      await db.employee.update({
+      await userDb.employee.update({
         where: { id: updatedUser.employee.id },
         data: employeeUpdateData,
-      });
+      }).catch(() => null);
     }
 
     return NextResponse.json(
