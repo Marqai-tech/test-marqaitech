@@ -585,6 +585,9 @@ export async function POST(request: Request) {
       // Employee Status & Type
       employeeStatus,
       employeeType,
+      // Probation period (months) — sent from the form based on employee settings.
+      // Used to auto-create the probation review with the correct end date.
+      probationPeriod,
       // Optional relationship fields (added in newer schema versions)
       reportingManagerId,
       leavePolicyId,
@@ -924,28 +927,26 @@ export async function POST(request: Request) {
       // When a new employee is created with employeeStatus='probation', we
       // automatically create a PerformanceReview (reviewCycle='Probation') with:
       //   - probationStartDate = dateOfJoining
-      //   - probationPeriod = the default probation period from employee settings
-      //     (stored in localStorage as '3boxes_hrms_employee_settings' →
-      //     employee_probation_period, default 6 months)
+      //   - probationPeriod = from the form (sent by frontend based on employee
+      //     settings employee_probation_period, default 6 months)
       //   - status = 'pending' (goes to HR/Admin for review)
       //   - decision = 'pending'
       // The probation end date is auto-calculated as startDate + probationPeriod.
       // This links the probation to the joining date automatically.
       if (employeeStatus === 'probation' && dateOfJoining) {
         try {
-          // Default probation period is 6 months. In a future iteration, this
-          // can be read from the employee settings (employee_probation_period).
-          const probationPeriod = 6; // months
+          // Use the probation period from the form, or default to 6 months
+          const probPeriod = Number(probationPeriod) > 0 ? Number(probationPeriod) : 6;
 
           // Calculate probation end date
           const startDate = new Date(dateOfJoining);
           const endDate = new Date(startDate);
-          endDate.setMonth(endDate.getMonth() + probationPeriod);
+          endDate.setMonth(endDate.getMonth() + probPeriod);
 
           // Serialize probation data as JSON in comments field
           const probationData = JSON.stringify({
             probationStartDate: dateOfJoining,
-            probationPeriod,
+            probationPeriod: probPeriod,
             extensionPeriod: 0,
             performanceRating: 0,
             reviewComments: 'Auto-created from employee onboarding. Employee status: Probation.',
@@ -954,13 +955,21 @@ export async function POST(request: Request) {
             effectiveDate: endDate.toISOString().split('T')[0],
             confirmationLetter: null,
             autoCreated: true,
+            // Workflow tracking
+            workflowStage: 'hr_review', // hr_review → md_review → completed
+            hrActionDate: null,
+            mdActionDate: null,
+            // Alert tracking
+            alertSent10Day: false, // Will be set true when 10-day alert is sent
+            alertSent3Day: false,
+            alertSent1Day: false,
           });
 
           await db.performanceReview.create({
             data: {
               employeeId: employee.id,
               reviewCycle: 'Probation',
-              reviewPeriod: `Probation (${probationPeriod} months)`,
+              reviewPeriod: `Probation (${probPeriod} months)`,
               reviewerId: decodedUserId || null,
               rating: 0,
               overallRating: 0,
@@ -972,7 +981,7 @@ export async function POST(request: Request) {
             },
           });
 
-          console.log(`[Employees POST] Auto-created probation review for employee ${employee.employeeId} (joining: ${dateOfJoining}, period: ${probationPeriod} months)`);
+          console.log(`[Employees POST] Auto-created probation review for employee ${employee.employeeId} (joining: ${dateOfJoining}, period: ${probPeriod} months, end: ${endDate.toISOString().split('T')[0]})`);
         } catch (probationErr) {
           console.error('[Employees POST] Failed to auto-create probation review (non-critical):', probationErr);
         }

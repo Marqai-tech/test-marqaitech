@@ -780,6 +780,33 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
     return { autoGeneration: true, prefix: 'EMP', sequence: 1001 };
   }, []);
 
+  /* Read the probation period (months) from employee settings (localStorage).
+     Default is 6 months. Configurable via Employee Settings → Probation & Notice. */
+  const getProbationPeriod = useCallback((): number => {
+    try {
+      const stored = localStorage.getItem('3boxes_hrms_settings');
+      if (stored) {
+        const settings = JSON.parse(stored);
+        const val = Number(settings.employee_probation_period);
+        if (val > 0 && val <= 24) return val;
+      }
+    } catch { /* ignore */ }
+    return 6; // default
+  }, []);
+
+  /* Calculate the probation end date = joiningDate + probationPeriod months.
+     Returns a formatted date string (e.g., "Jul 15, 2026"). */
+  const formatProbationEndDate = useCallback((joiningDate: string, months: number): string => {
+    try {
+      const start = new Date(joiningDate);
+      const end = new Date(start);
+      end.setMonth(end.getMonth() + months);
+      return end.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    } catch {
+      return '—';
+    }
+  }, []);
+
   /* Generate the next employee code based on settings */
   const generateNextEmployeeCode = useCallback(() => {
     const settings = getEmployeeCodeSettings();
@@ -958,6 +985,9 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
         ...form,
         salary: form.salary ? parseFloat(form.salary) : null,
         companyId: form.companyId || scopeCompanyId || null,
+        // Send the probation period (from employee settings) so the API can
+        // auto-create the probation review with the correct end date
+        probationPeriod: form.employeeStatus === 'probation' ? getProbationPeriod() : undefined,
       };
 
       if (editingId) {
@@ -1665,7 +1695,24 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                         <option value="intern">Intern</option>
                       </select>
                       {form.employeeStatus === 'probation' && (
-                        <p className="text-[10px] text-amber-600 mt-0.5">A probation review will be auto-created based on the joining date and probation period setting.</p>
+                        <div className="mt-2 p-2.5 bg-amber-50 border border-amber-200 rounded-lg">
+                          {form.dateOfJoining ? (
+                            <>
+                              <p className="text-[11px] font-medium text-amber-800">
+                                <FiClock className="w-3 h-3 inline mr-1" />
+                                Probation Period: <strong>{getProbationPeriod()} months</strong>
+                              </p>
+                              <p className="text-[11px] text-amber-700 mt-0.5">
+                                Probation End Date: <strong>{formatProbationEndDate(form.dateOfJoining, getProbationPeriod())}</strong>
+                              </p>
+                              <p className="text-[10px] text-amber-600 mt-0.5">
+                                A probation review will be auto-created with these dates. HR/Admin will receive email alerts 10 days before the end date.
+                              </p>
+                            </>
+                          ) : (
+                            <p className="text-[10px] text-amber-600">Select a Date of Joining to see the probation end date.</p>
+                          )}
+                        </div>
                       )}
                     </div>
                     <div>
