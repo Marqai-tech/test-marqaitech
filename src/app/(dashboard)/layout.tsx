@@ -136,6 +136,54 @@ export default function DashboardLayout({
     }
   }, [isAuthenticated]);
 
+  // ─── Chunk-loading error auto-recovery ───
+  // When Vercel deploys a new build, old browser tabs try to load JavaScript
+  // chunks that no longer exist → "Failed to load chunk" error.
+  // This handler catches those errors and reloads the page ONCE to fetch
+  // the new chunks from the latest build.
+  useEffect(() => {
+    let hasReloaded = false;
+    const handleChunkError = (event: ErrorEvent) => {
+      const msg = event.message || '';
+      const filename = event.filename || '';
+      if (
+        (msg.includes('Failed to load chunk') ||
+         msg.includes('Loading chunk') ||
+         msg.includes('Loading CSS chunk') ||
+         msg.includes('Importing a module script failed') ||
+         filename.includes('/_next/static/chunks/')) &&
+        !hasReloaded
+      ) {
+        hasReloaded = true;
+        console.warn('[Layout] Chunk loading error detected. Reloading page to fetch new chunks...');
+        // Force reload from server (not cache)
+        window.location.reload();
+      }
+    };
+
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      const reason = String(event.reason || '');
+      if (
+        (reason.includes('Failed to load chunk') ||
+         reason.includes('Loading chunk') ||
+         reason.includes('Importing a module script failed')) &&
+        !hasReloaded
+      ) {
+        hasReloaded = true;
+        console.warn('[Layout] Chunk loading promise rejection. Reloading page...');
+        window.location.reload();
+      }
+    };
+
+    window.addEventListener('error', handleChunkError);
+    window.addEventListener('unhandledrejection', handleUnhandledRejection);
+
+    return () => {
+      window.removeEventListener('error', handleChunkError);
+      window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+    };
+  }, []);
+
   // Fetch notifications
   useEffect(() => {
     if (isAuthenticated) {
