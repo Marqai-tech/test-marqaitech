@@ -553,3 +553,28 @@ Stage Summary:
   2. Probation reviews go to HR/Admin for approval (status=pending)
   3. HR/Admin can approve/extend/reject via the Review button
   4. Edit/Delete buttons available for pending reviews
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: Add employee status + employee type + auto-probation workflow
+
+Work Log:
+- Added Employee.employeeStatus (confirmed/probation/trainee/intern) + Employee.employeeType (permanent/contract/temporary/consultant) to Prisma schema
+- Updated all 4 schema-sync scripts to add the new columns
+- Updated employee form: added two dropdowns in the Employment step with red asterisks
+- When 'probation' is selected, shows helper text about auto-creating a probation review
+- Updated /api/employees POST and PUT to accept + save both fields
+- Updated edit handler to populate both fields
+- Added auto-probation workflow: when a new employee is created with employeeStatus='probation' and dateOfJoining is provided, the API automatically creates a PerformanceReview (reviewCycle='Probation') with:
+  - probationStartDate = dateOfJoining
+  - probationPeriod = 6 months (default)
+  - status = 'pending' (goes to HR/Admin for review)
+  - The review appears in /employees/probation automatically
+- Build succeeded, committed and pushed to main
+
+Stage Summary:
+- After deploy, Add Employee form shows Employee Status + Employee Type dropdowns
+- Select 'probation' + set joining date → save → probation review auto-created
+- Go to /employees/probation → see the auto-created review
+- HR/Admin can approve/extend/reject via the Review button
