@@ -54,7 +54,7 @@ module.exports = [
   // expects a column that the actual DB table doesn't have.
   `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "avatar" TEXT`,
   `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "personalEmail" TEXT`,
-  `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "employeeStatus" TEXT NOT NULL DEFAULT 'confirmed'`,
+  `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "employeeStatus" TEXT NOT NULL DEFAULT 'full_time'`,
   `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "employeeType" TEXT NOT NULL DEFAULT 'permanent'`,
   `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "maritalStatus" TEXT`,
   `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "nationality" TEXT`,

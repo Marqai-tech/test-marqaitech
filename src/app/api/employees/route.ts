@@ -46,7 +46,7 @@ export async function GET(request: Request) {
       const syncStatements = [
         `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "avatar" TEXT`,
         `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "personalEmail" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "employeeStatus" TEXT NOT NULL DEFAULT 'confirmed'`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "employeeStatus" TEXT NOT NULL DEFAULT 'full_time'`,
         `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "employeeType" TEXT NOT NULL DEFAULT 'permanent'`,
         `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "maritalStatus" TEXT`,
         `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "nationality" TEXT`,
@@ -473,7 +473,7 @@ export async function POST(request: Request) {
       const syncStatements = [
         `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "avatar" TEXT`,
         `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "personalEmail" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "employeeStatus" TEXT NOT NULL DEFAULT 'confirmed'`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "employeeStatus" TEXT NOT NULL DEFAULT 'full_time'`,
         `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "employeeType" TEXT NOT NULL DEFAULT 'permanent'`,
         `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "maritalStatus" TEXT`,
         `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "nationality" TEXT`,
@@ -802,7 +802,7 @@ export async function POST(request: Request) {
         userId: userId || null,
         avatar: avatar || null,
         // Employee Status & Type
-        employeeStatus: employeeStatus || 'confirmed',
+        employeeStatus: employeeStatus || 'full_time',
         employeeType: employeeType || 'permanent',
         status: 'active',
       };

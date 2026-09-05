@@ -205,7 +205,7 @@ const initialForm = {
   branchId: '',
   role: '',
   dateOfJoining: '',
-  employeeStatus: 'confirmed', // confirmed, probation, trainee, intern
+  employeeStatus: 'full_time', // full_time, part_time, contract, internship
   employeeType: 'permanent',   // permanent, contract, temporary, consultant
   bankName: '',
   bankAccountNo: '',
@@ -671,7 +671,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
           designationId: emp.designation?.id || '',
           branchId: emp.branch?.id || '',
           dateOfJoining: emp.dateOfJoining ? emp.dateOfJoining.split('T')[0] : '',
-          employeeStatus: (emp as Record<string, unknown>).employeeStatus as string || 'confirmed',
+          employeeStatus: (emp as Record<string, unknown>).employeeStatus as string || 'full_time',
           employeeType: (emp as Record<string, unknown>).employeeType as string || 'permanent',
           bankName: emp.bankName || '',
           bankAccountNo: emp.bankAccountNo || '',
@@ -1690,31 +1690,12 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Employee Status <span className="text-red-500 font-bold">*</span></label>
                       <select value={form.employeeStatus} onChange={e => updateForm('employeeStatus', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
-                        <option value="confirmed">Confirmed</option>
-                        <option value="probation">Probation</option>
-                        <option value="trainee">Trainee</option>
-                        <option value="intern">Intern</option>
+                        <option value="full_time">Full Time</option>
+                        <option value="part_time">Part Time</option>
+                        <option value="contract">Contract</option>
+                        <option value="internship">Internship</option>
                       </select>
-                      {form.employeeStatus === 'probation' && (
-                        <div className="mt-2 p-2.5 bg-amber-50 border border-amber-200 rounded-lg">
-                          {form.dateOfJoining ? (
-                            <>
-                              <p className="text-[11px] font-medium text-amber-800">
-                                <FiClock className="w-3 h-3 inline mr-1" />
-                                Probation Period: <strong>{getProbationPeriod()} months</strong>
-                              </p>
-                              <p className="text-[11px] text-amber-700 mt-0.5">
-                                Probation End Date: <strong>{formatProbationEndDate(form.dateOfJoining, getProbationPeriod())}</strong>
-                              </p>
-                              <p className="text-[10px] text-amber-600 mt-0.5">
-                                A probation review will be auto-created with these dates. HR/Admin will receive email alerts 10 days before the end date.
-                              </p>
-                            </>
-                          ) : (
-                            <p className="text-[10px] text-amber-600">Select a Date of Joining to see the probation end date.</p>
-                          )}
-                        </div>
-                      )}
+                      <p className="text-[10px] text-thb-text-muted mt-0.5">This determines the policy configuration applied to the employee.</p>
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Employee Type <span className="text-red-500 font-bold">*</span></label>
