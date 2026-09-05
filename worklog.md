@@ -578,3 +578,35 @@ Stage Summary:
 - Select 'probation' + set joining date → save → probation review auto-created
 - Go to /employees/probation → see the auto-created review
 - HR/Admin can approve/extend/reject via the Review button
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: Probation end date display + 10-day alerts + 2-level HR→MD workflow
+
+Work Log:
+FEATURE 1 — Probation end date display:
+- When 'probation' is selected, form shows probation period + end date + helper text
+- Reads probation period from employee settings (employee_probation_period, default 6)
+
+FEATURE 2 — Configurable probation period:
+- /api/employees POST accepts probationPeriod from form
+- Calculates correct end date and stores workflow tracking fields
+
+FEATURE 3 — 10-day alerts cron endpoint:
+- New /api/cron/probation-alerts endpoint (secured by CRON_SECRET)
+- Sends notifications at 10, 3, 1 days before end + overdue
+- Each alert sent only once (tracked via flags in comments JSON)
+
+FEATURE 4 — 2-level workflow:
+- Stage 1 (hr_review): HR/Admin submits decision → MD/Admin notified
+- Stage 2 (md_review): MD/Admin finalizes → HR notified + employee status updated
+- Role-based access: Stage 1 = HR/Admin, Stage 2 = super_admin/tenant_admin only
+- If approved, employee.employeeStatus auto-updated to 'confirmed'
+- Build succeeded, committed and pushed to main
+
+Stage Summary:
+- Add Employee form shows probation end date when 'probation' is selected
+- Cron endpoint sends 10-day alerts to HR/Admin
+- 2-level workflow: HR review → MD/Admin final confirmation
+- Employee status auto-updates to 'confirmed' when MD approves
