@@ -467,6 +467,21 @@ model Employee {
 
   status         String @default("active") // active, on_leave, terminated, resigned
 
+  // ─── Employee Status & Type (REQ-EMP-02) ───
+  // employeeStatus: The current employment status — drives probation workflow
+  //   confirmed → employee has completed probation
+  //   probation → employee is in probation period (auto-creates probation review)
+  //   trainee → employee is a trainee (no probation workflow)
+  //   intern → employee is an intern (no probation workflow)
+  employeeStatus String? @default("confirmed") // confirmed, probation, trainee, intern
+
+  // employeeType: The employment contract type
+  //   permanent → full-time permanent employee
+  //   contract → fixed-term contract employee
+  //   temporary → temporary/seasonal worker
+  //   consultant → external consultant
+  employeeType   String? @default("permanent") // permanent, contract, temporary, consultant
+
   bankName       String?
   bankAccountNo  String?
   bankIfscCode   String?

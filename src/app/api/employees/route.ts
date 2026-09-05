@@ -46,6 +46,8 @@ export async function GET(request: Request) {
       const syncStatements = [
         `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "avatar" TEXT`,
         `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "personalEmail" TEXT`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "employeeStatus" TEXT NOT NULL DEFAULT 'confirmed'`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "employeeType" TEXT NOT NULL DEFAULT 'permanent'`,
         `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "maritalStatus" TEXT`,
         `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "nationality" TEXT`,
         `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "address" TEXT`,
@@ -471,6 +473,8 @@ export async function POST(request: Request) {
       const syncStatements = [
         `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "avatar" TEXT`,
         `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "personalEmail" TEXT`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "employeeStatus" TEXT NOT NULL DEFAULT 'confirmed'`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "employeeType" TEXT NOT NULL DEFAULT 'permanent'`,
         `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "maritalStatus" TEXT`,
         `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "nationality" TEXT`,
         `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "address" TEXT`,
@@ -578,6 +582,9 @@ export async function POST(request: Request) {
       userId,
       role,
       avatar,
+      // Employee Status & Type
+      employeeStatus,
+      employeeType,
       // Optional relationship fields (added in newer schema versions)
       reportingManagerId,
       leavePolicyId,
@@ -791,6 +798,9 @@ export async function POST(request: Request) {
         salaryCurrency: salaryCurrency || 'INR',
         userId: userId || null,
         avatar: avatar || null,
+        // Employee Status & Type
+        employeeStatus: employeeStatus || 'confirmed',
+        employeeType: employeeType || 'permanent',
         status: 'active',
       };
 
@@ -907,6 +917,64 @@ export async function POST(request: Request) {
           });
         } catch (mappingErr) {
           console.error('Failed to create EmployeeCompanyMapping (non-critical):', mappingErr);
+        }
+      }
+
+      // ─── Auto-create probation review if employeeStatus is 'probation' ───
+      // When a new employee is created with employeeStatus='probation', we
+      // automatically create a PerformanceReview (reviewCycle='Probation') with:
+      //   - probationStartDate = dateOfJoining
+      //   - probationPeriod = the default probation period from employee settings
+      //     (stored in localStorage as '3boxes_hrms_employee_settings' →
+      //     employee_probation_period, default 6 months)
+      //   - status = 'pending' (goes to HR/Admin for review)
+      //   - decision = 'pending'
+      // The probation end date is auto-calculated as startDate + probationPeriod.
+      // This links the probation to the joining date automatically.
+      if (employeeStatus === 'probation' && dateOfJoining) {
+        try {
+          // Default probation period is 6 months. In a future iteration, this
+          // can be read from the employee settings (employee_probation_period).
+          const probationPeriod = 6; // months
+
+          // Calculate probation end date
+          const startDate = new Date(dateOfJoining);
+          const endDate = new Date(startDate);
+          endDate.setMonth(endDate.getMonth() + probationPeriod);
+
+          // Serialize probation data as JSON in comments field
+          const probationData = JSON.stringify({
+            probationStartDate: dateOfJoining,
+            probationPeriod,
+            extensionPeriod: 0,
+            performanceRating: 0,
+            reviewComments: 'Auto-created from employee onboarding. Employee status: Probation.',
+            kpiStatus: 'pending',
+            decision: 'pending',
+            effectiveDate: endDate.toISOString().split('T')[0],
+            confirmationLetter: null,
+            autoCreated: true,
+          });
+
+          await db.performanceReview.create({
+            data: {
+              employeeId: employee.id,
+              reviewCycle: 'Probation',
+              reviewPeriod: `Probation (${probationPeriod} months)`,
+              reviewerId: decodedUserId || null,
+              rating: 0,
+              overallRating: 0,
+              comments: probationData,
+              strengths: null,
+              improvements: null,
+              status: 'pending', // Goes to HR/Admin for review
+              reviewDate: endDate,
+            },
+          });
+
+          console.log(`[Employees POST] Auto-created probation review for employee ${employee.employeeId} (joining: ${dateOfJoining}, period: ${probationPeriod} months)`);
+        } catch (probationErr) {
+          console.error('[Employees POST] Failed to auto-create probation review (non-critical):', probationErr);
         }
       }
 

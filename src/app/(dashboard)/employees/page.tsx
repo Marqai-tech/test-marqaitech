@@ -204,6 +204,8 @@ const initialForm = {
   branchId: '',
   role: '',
   dateOfJoining: '',
+  employeeStatus: 'confirmed', // confirmed, probation, trainee, intern
+  employeeType: 'permanent',   // permanent, contract, temporary, consultant
   bankName: '',
   bankAccountNo: '',
   bankIfscCode: '',
@@ -668,6 +670,8 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
           designationId: emp.designation?.id || '',
           branchId: emp.branch?.id || '',
           dateOfJoining: emp.dateOfJoining ? emp.dateOfJoining.split('T')[0] : '',
+          employeeStatus: (emp as Record<string, unknown>).employeeStatus as string || 'confirmed',
+          employeeType: (emp as Record<string, unknown>).employeeType as string || 'permanent',
           bankName: emp.bankName || '',
           bankAccountNo: emp.bankAccountNo || '',
           bankIfscCode: emp.bankIfscCode || '',
@@ -1651,6 +1655,27 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Date of Joining <span className="text-red-500 font-bold">*</span></label>
                       <input type="date" value={form.dateOfJoining} onChange={e => updateForm('dateOfJoining', e.target.value)} required className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">Employee Status <span className="text-red-500 font-bold">*</span></label>
+                      <select value={form.employeeStatus} onChange={e => updateForm('employeeStatus', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
+                        <option value="confirmed">Confirmed</option>
+                        <option value="probation">Probation</option>
+                        <option value="trainee">Trainee</option>
+                        <option value="intern">Intern</option>
+                      </select>
+                      {form.employeeStatus === 'probation' && (
+                        <p className="text-[10px] text-amber-600 mt-0.5">A probation review will be auto-created based on the joining date and probation period setting.</p>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">Employee Type <span className="text-red-500 font-bold">*</span></label>
+                      <select value={form.employeeType} onChange={e => updateForm('employeeType', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
+                        <option value="permanent">Permanent</option>
+                        <option value="contract">Contract</option>
+                        <option value="temporary">Temporary</option>
+                        <option value="consultant">Consultant</option>
+                      </select>
                     </div>
                   </div>
                   <div className="flex items-center justify-between pt-2">

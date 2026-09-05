@@ -88,6 +88,8 @@ async function main() {
     // ─── Comprehensive Employee column sync (fixes P2022 "column does not exist") ───
     `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "avatar" TEXT`,
     `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "personalEmail" TEXT`,
+    `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "employeeStatus" TEXT NOT NULL DEFAULT 'confirmed'`,
+    `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "employeeType" TEXT NOT NULL DEFAULT 'permanent'`,
     `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "maritalStatus" TEXT`,
     `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "nationality" TEXT`,
     `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "address" TEXT`,

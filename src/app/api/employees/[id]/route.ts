@@ -216,6 +216,7 @@ export async function PUT(
         emergencyContactName, emergencyContactPhone, bankName, bankAccountNo,
         bankIfscCode, panNumber, aadhaarNumber, taxId, salary, salaryCurrency,
         status, role, avatar,
+        employeeStatus, employeeType,
       } = body;
 
       const updateData: Record<string, unknown> = {};
@@ -224,6 +225,8 @@ export async function PUT(
       if (email !== undefined) updateData.email = email;
       if (personalEmail !== undefined) updateData.personalEmail = personalEmail || null;
       if (phone !== undefined) updateData.phone = phone;
+      if (employeeStatus !== undefined) updateData.employeeStatus = employeeStatus;
+      if (employeeType !== undefined) updateData.employeeType = employeeType;
       if (departmentId !== undefined) updateData.departmentId = departmentId || undefined;
       if (designationId !== undefined) updateData.designationId = designationId || undefined;
       if (branchId !== undefined) updateData.branchId = branchId || null;
