@@ -846,66 +846,87 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
     setTimeout(() => document.getElementById('crud-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
   };
 
-  const handleOpenEditForm = (emp: Employee) => {
+  const handleOpenEditForm = async (emp: Employee) => {
     setEditingId(emp.id);
-    setForm({
-      employeeId: emp.employeeId,
-      firstName: emp.firstName,
-      lastName: emp.lastName,
-      email: emp.email,
-      personalEmail: (emp as Record<string, unknown>).personalEmail as string || '',
-      phone: emp.phone || '',
-      dateOfBirth: emp.dateOfBirth ? emp.dateOfBirth.split('T')[0] : '',
-      gender: emp.gender || '',
-      maritalStatus: emp.maritalStatus || '',
-      nationality: emp.nationality || '',
-      address: emp.address || '',
-      city: emp.city || '',
-      state: emp.state || '',
-      zipCode: emp.zipCode || '',
-      country: emp.country || '',
-      companyId: emp.companyId || '',
-      departmentId: emp.department?.id || '',
-      designationId: emp.designation?.id || '',
-      branchId: emp.branch?.id || '',
-      dateOfJoining: emp.dateOfJoining ? emp.dateOfJoining.split('T')[0] : '',
-      bankName: emp.bankName || '',
-      bankAccountNo: emp.bankAccountNo || '',
-      bankIfscCode: emp.bankIfscCode || '',
-      panNumber: emp.panNumber || '',
-      aadhaarNumber: emp.aadhaarNumber || '',
-      salary: emp.salary?.toString() || '',
-      salaryCurrency: emp.salaryCurrency || 'INR',
-      emergencyContactName: emp.emergencyContactName || '',
-      emergencyContactPhone: emp.emergencyContactPhone || '',
-      bloodGroup: emp.bloodGroup || '',
-      hasChronicIllness: (emp as Record<string, unknown>).hasChronicIllness as string || '',
-      chronicIllnessDetails: (emp as Record<string, unknown>).chronicIllnessDetails as string || '',
-      hasAllergies: (emp as Record<string, unknown>).hasAllergies as string || '',
-      allergyDetails: (emp as Record<string, unknown>).allergyDetails as string || '',
-      hasDisability: (emp as Record<string, unknown>).hasDisability as string || '',
-      disabilityDetails: (emp as Record<string, unknown>).disabilityDetails as string || '',
-      isOnMedication: (emp as Record<string, unknown>).isOnMedication as string || '',
-      medicationDetails: (emp as Record<string, unknown>).medicationDetails as string || '',
-      hasHadSurgery: (emp as Record<string, unknown>).hasHadSurgery as string || '',
-      surgeryDetails: (emp as Record<string, unknown>).surgeryDetails as string || '',
-      emergencyMedicalCondition: (emp as Record<string, unknown>).emergencyMedicalCondition as string || '',
-      primaryPhysicianName: (emp as Record<string, unknown>).primaryPhysicianName as string || '',
-      primaryPhysicianPhone: (emp as Record<string, unknown>).primaryPhysicianPhone as string || '',
-      healthInsuranceProvider: (emp as Record<string, unknown>).healthInsuranceProvider as string || '',
-      healthInsurancePolicyNo: (emp as Record<string, unknown>).healthInsurancePolicyNo as string || '',
-      leavePolicyId: emp.leavePolicyId || '',
-      attendancePolicyId: emp.attendancePolicyId || '',
-      travelPolicyId: emp.travelPolicyId || '',
-      salaryStructureId: emp.salaryStructureId || '',
-      role: emp.user?.role || 'employee',
-      avatar: emp.avatar || '',
-    });
     setShowForm(true);
     setFormTab('personal'); setCompletedSteps(new Set());
-    setPhotoPreview(emp.avatar || null);
     setDeleteConfirmId(null);
     setActionMenuOpen(null);
+
+    // Fetch FRESH employee data from the API to ensure we get the latest
+    // employeeStatus, employeeType, personalEmail, etc.
+    let freshEmp: any = emp;
+    try {
+      const res = await fetch(`/api/employees/${emp.id}`, { headers: getAuthHeaders() });
+      if (res.ok) {
+        const data = await res.json();
+        freshEmp = data.employee || data;
+      }
+    } catch {
+      // Fall back to the list data
+      freshEmp = emp;
+    }
+
+    setForm({
+      ...initialForm,
+      employeeId: freshEmp.employeeId || '',
+      firstName: freshEmp.firstName || '',
+      lastName: freshEmp.lastName || '',
+      email: freshEmp.email || '',
+      personalEmail: freshEmp.personalEmail || '',
+      phone: freshEmp.phone || '',
+      dateOfBirth: freshEmp.dateOfBirth ? freshEmp.dateOfBirth.split('T')[0] : '',
+      gender: freshEmp.gender || '',
+      maritalStatus: freshEmp.maritalStatus || '',
+      nationality: freshEmp.nationality || '',
+      address: freshEmp.address || '',
+      city: freshEmp.city || '',
+      state: freshEmp.state || '',
+      zipCode: freshEmp.zipCode || '',
+      country: freshEmp.country || '',
+      companyId: freshEmp.companyId || freshEmp.company?.id || '',
+      departmentId: freshEmp.department?.id || '',
+      designationId: freshEmp.designation?.id || '',
+      branchId: freshEmp.branch?.id || '',
+      role: freshEmp.role || '',
+      dateOfJoining: freshEmp.dateOfJoining ? freshEmp.dateOfJoining.split('T')[0] : '',
+      employeeStatus: freshEmp.employeeStatus || 'confirmed',
+      employeeType: freshEmp.employeeType || 'full_time',
+      probationEndDate: freshEmp.probationEndDate || '',
+      bankName: freshEmp.bankName || '',
+      bankAccountNo: freshEmp.bankAccountNo || '',
+      bankIfscCode: freshEmp.bankIfscCode || '',
+      panNumber: freshEmp.panNumber || '',
+      aadhaarNumber: freshEmp.aadhaarNumber || '',
+      salary: freshEmp.salary?.toString() || '',
+      salaryCurrency: freshEmp.salaryCurrency || 'INR',
+      emergencyContactName: freshEmp.emergencyContactName || '',
+      emergencyContactPhone: freshEmp.emergencyContactPhone || '',
+      bloodGroup: freshEmp.bloodGroup || '',
+      avatar: freshEmp.avatar || '',
+      hasChronicIllness: freshEmp.hasChronicIllness || '',
+      chronicIllnessDetails: freshEmp.chronicIllnessDetails || '',
+      hasAllergies: freshEmp.hasAllergies || '',
+      allergyDetails: freshEmp.allergyDetails || '',
+      hasDisability: freshEmp.hasDisability || '',
+      disabilityDetails: freshEmp.disabilityDetails || '',
+      isOnMedication: freshEmp.isOnMedication || '',
+      medicationDetails: freshEmp.medicationDetails || '',
+      hasHadSurgery: freshEmp.hasHadSurgery || '',
+      surgeryDetails: freshEmp.surgeryDetails || '',
+      emergencyMedicalCondition: freshEmp.emergencyMedicalCondition || '',
+      primaryPhysicianName: freshEmp.primaryPhysicianName || '',
+      primaryPhysicianPhone: freshEmp.primaryPhysicianPhone || '',
+      healthInsuranceProvider: freshEmp.healthInsuranceProvider || '',
+      healthInsurancePolicyNo: freshEmp.healthInsurancePolicyNo || '',
+      leavePolicyId: freshEmp.leavePolicyId || '',
+      attendancePolicyId: freshEmp.attendancePolicyId || '',
+      travelPolicyId: freshEmp.travelPolicyId || '',
+      salaryStructureId: freshEmp.salaryStructureId || '',
+      role: freshEmp.user?.role || freshEmp.role || 'employee',
+      avatar: freshEmp.avatar || '',
+    });
+    setPhotoPreview(freshEmp.avatar || null);
     setTimeout(() => document.getElementById('crud-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
   };
 

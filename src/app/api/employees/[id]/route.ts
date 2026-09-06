@@ -430,6 +430,78 @@ export async function PUT(
         }
       }
 
+      // ─── Auto-create/update probation review if employeeStatus changed to 'probation' ───
+      if (employeeStatus === 'probation' && existingEmployee.employeeStatus !== 'probation') {
+        // Status changed TO probation — create a probation review
+        try {
+          const doj = dateOfJoining || existingEmployee.dateOfJoining;
+          if (doj) {
+            // Check if a probation review already exists
+            const existingReview = await db.performanceReview.findFirst({
+              where: { employeeId: actualId, reviewCycle: 'Probation' },
+            });
+
+            if (!existingReview) {
+              // Calculate end date from body.probationEndDate or default 6 months
+              let endDate: Date;
+              if (body.probationEndDate) {
+                endDate = new Date(body.probationEndDate);
+              } else {
+                endDate = new Date(doj);
+                endDate.setMonth(endDate.getMonth() + 6);
+              }
+
+              const startDate = new Date(doj);
+              const probPeriodMs = endDate.getTime() - startDate.getTime();
+              const probPeriodMonths = Math.round(probPeriodMs / (1000 * 60 * 60 * 24 * 30));
+
+              const probationData = JSON.stringify({
+                probationStartDate: doj instanceof Date ? doj.toISOString().split('T')[0] : doj,
+                probationEndDate: endDate.toISOString().split('T')[0],
+                probationPeriod: probPeriodMonths || 6,
+                extensionPeriod: 0,
+                performanceRating: 0,
+                reviewComments: 'Auto-created from employee edit. Status changed to Probation.',
+                kpiStatus: 'pending',
+                decision: 'pending',
+                effectiveDate: endDate.toISOString().split('T')[0],
+                autoCreated: true,
+                workflowStage: 'hr_review',
+                alertSent10Day: false,
+                alertSent3Day: false,
+                alertSent1Day: false,
+                alertSentOverdue: false,
+              });
+
+              await db.performanceReview.create({
+                data: {
+                  employeeId: actualId,
+                  reviewCycle: 'Probation',
+                  reviewPeriod: `Probation (${probPeriodMonths || 6} months)`,
+                  rating: 0,
+                  overallRating: 0,
+                  comments: probationData,
+                  status: 'pending',
+                  reviewDate: endDate,
+                },
+              }).catch(() => null);
+
+              console.log(`[Employee PUT] Auto-created probation review for ${actualId} (end: ${endDate.toISOString().split('T')[0]})`);
+            }
+          }
+        } catch (probErr) {
+          console.error('[Employee PUT] Auto-probation creation failed (non-critical):', probErr);
+        }
+      } else if (employeeStatus && employeeStatus !== 'probation' && existingEmployee.employeeStatus === 'probation') {
+        // Status changed FROM probation to something else — update the probation review status
+        try {
+          await db.performanceReview.updateMany({
+            where: { employeeId: actualId, reviewCycle: 'Probation', status: 'pending' },
+            data: { status: employeeStatus === 'confirmed' ? 'completed' : 'rejected' },
+          }).catch(() => null);
+        } catch { /* non-critical */ }
+      }
+
       // Try audit log (non-critical)
       try {
         const token = getTokenFromHeaders(request);
