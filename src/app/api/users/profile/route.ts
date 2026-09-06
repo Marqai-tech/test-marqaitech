@@ -84,96 +84,100 @@ export async function GET(request: Request) {
     // Use the DB that found the user for subsequent queries
     const userDb = userFoundInPlatformDb ? platformDb : db;
 
-    // Step 2: Try to fetch employee data separately (may not exist for all users)
-    // Try the userDb first, then fall back to platform DB (employee may be in
-    // a different DB than the user record)
+    // Step 2: Fetch employee data — try a SIMPLE query first (no includes).
+    // If the query with includes fails (because related tables don't exist),
+    // the whole thing returns null. So we fetch the employee record alone,
+    // then fetch each relation separately with individual error handling.
     let employeeData = null;
-    let employee = null;
     try {
-      // Try userDb first
+      // Try to find the employee by userId in both DBs
+      let employee = null;
+
+      // Try by userId in userDb
       employee = await userDb.employee.findUnique({
         where: { userId: user.id },
-        include: {
-          department: { select: { name: true } },
-          designation: { select: { title: true } },
-          branch: { select: { name: true } },
-          dependents: true,
-          qualifications: true,
-          experiences: true,
-          documents: { select: { id: true, name: true, type: true, status: true } },
-        },
       }).catch(() => null);
 
-      // If not found in userDb, try platform DB
+      // Try by userId in platform DB
       if (!employee && userDb !== platformDb) {
         employee = await platformDb.employee.findUnique({
           where: { userId: user.id },
-          include: {
-            department: { select: { name: true } },
-            designation: { select: { title: true } },
-            branch: { select: { name: true } },
-            dependents: true,
-            qualifications: true,
-            experiences: true,
-            documents: { select: { id: true, name: true, type: true, status: true } },
-          },
         }).catch(() => null);
       }
 
-      // If still not found, try the resolved db (db) as a last resort
+      // Try by userId in resolved db
       if (!employee && userDb !== db) {
         employee = await db.employee.findUnique({
           where: { userId: user.id },
-          include: {
-            department: { select: { name: true } },
-            designation: { select: { title: true } },
-            branch: { select: { name: true } },
-            dependents: true,
-            qualifications: true,
-            experiences: true,
-            documents: { select: { id: true, name: true, type: true, status: true } },
-          },
         }).catch(() => null);
       }
 
-      // Also try by email if not found by userId (employee.email may match user.email)
+      // Try by email in all DBs
       if (!employee && user.email) {
         employee = await userDb.employee.findFirst({
           where: { email: user.email },
-          include: {
-            department: { select: { name: true } },
-            designation: { select: { title: true } },
-            branch: { select: { name: true } },
-            dependents: true,
-            qualifications: true,
-            experiences: true,
-            documents: { select: { id: true, name: true, type: true, status: true } },
-          },
         }).catch(() => null);
-
         if (!employee) {
           employee = await platformDb.employee.findFirst({
             where: { email: user.email },
-            include: {
-              department: { select: { name: true } },
-              designation: { select: { title: true } },
-              branch: { select: { name: true } },
-              dependents: true,
-              qualifications: true,
-              experiences: true,
-              documents: { select: { id: true, name: true, type: true, status: true } },
-            },
+          }).catch(() => null);
+        }
+        if (!employee && db !== platformDb && db !== userDb) {
+          employee = await db.employee.findFirst({
+            where: { email: user.email },
           }).catch(() => null);
         }
       }
 
       if (employee) {
+        // Now fetch relations SEPARATELY (each non-fatal)
+        const empDb = userDb; // Use the DB that found the employee
+        let department = null, designation = null, branch = null;
+        let dependents: any[] = [], qualifications: any[] = [], experiences: any[] = [], documents: any[] = [];
+
+        if (employee.departmentId) {
+          department = await empDb.department.findUnique({
+            where: { id: employee.departmentId },
+            select: { name: true },
+          }).catch(() => null);
+        }
+        if (employee.designationId) {
+          designation = await empDb.designation.findUnique({
+            where: { id: employee.designationId },
+            select: { title: true },
+          }).catch(() => null);
+          // If not found in empDb, try platform DB
+          if (!designation && empDb !== platformDb) {
+            designation = await platformDb.designation.findUnique({
+              where: { id: employee.designationId },
+              select: { title: true },
+            }).catch(() => null);
+          }
+        }
+        if (employee.branchId) {
+          branch = await empDb.branch.findUnique({
+            where: { id: employee.branchId },
+            select: { name: true },
+          }).catch(() => null);
+        }
+        // Fetch related data individually (non-fatal if tables don't exist)
+        dependents = await empDb.dependent.findMany({ where: { employeeId: employee.id } }).catch(() => []);
+        qualifications = await empDb.qualification.findMany({ where: { employeeId: employee.id } }).catch(() => []);
+        experiences = await (empDb as any).experience?.findMany?.({ where: { employeeId: employee.id } }).catch(() => []) || [];
+        documents = await empDb.document.findMany({
+          where: { employeeId: employee.id },
+          select: { id: true, name: true, type: true, status: true },
+        }).catch(() => []);
+
         employeeData = {
           id: employee.id,
           employeeId: employee.employeeId,
           firstName: employee.firstName,
           lastName: employee.lastName,
           email: employee.email,
+          personalEmail: toStr((employee as any).personalEmail),
+          employeeStatus: toStr((employee as any).employeeStatus),
+          employeeType: toStr((employee as any).employeeType),
           phone: toStr(employee.phone),
           emergencyContactName: toStr(employee.emergencyContactName),
           emergencyContactPhone: toStr(employee.emergencyContactPhone),
@@ -187,9 +191,9 @@ export async function GET(request: Request) {
           maritalStatus: toStr(employee.maritalStatus),
           nationality: toStr(employee.nationality),
           bloodGroup: toStr(employee.bloodGroup),
-          department: employee.department?.name || '',
-          designation: employee.designation?.title || '',
-          branch: employee.branch?.name || '',
+          department: department?.name || '',
+          designation: designation?.title || '',
+          branch: branch?.name || '',
           dateOfJoining: toISOStr(employee.dateOfJoining),
           status: employee.status,
           // Bank & Finance
@@ -208,10 +212,10 @@ export async function GET(request: Request) {
           travelPolicyId: toStr(employee.travelPolicyId),
           salaryStructureId: toStr(employee.salaryStructureId),
           // Related data
-          dependents: employee.dependents || [],
-          qualifications: employee.qualifications || [],
-          experiences: employee.experiences || [],
-          documents: (employee.documents || []).map((d: { id: string; name: string; type: string; status: string }) => ({ id: d.id, name: d.name, type: d.type, status: d.status })),
+          dependents: dependents || [],
+          qualifications: qualifications || [],
+          experiences: experiences || [],
+          documents: (documents || []).map((d: { id: string; name: string; type: string; status: string }) => ({ id: d.id, name: d.name, type: d.type, status: d.status })),
         };
       }
     } catch (empErr) {
