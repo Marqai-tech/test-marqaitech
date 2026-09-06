@@ -78,11 +78,21 @@ export async function GET(request: Request) {
     }
 
     if (!user) {
+      console.error('[Profile GET] User not found. decoded.userId:', decoded.userId, 'decoded.email:', (decoded as any).email);
       return NextResponse.json({ error: 'User not found' }, { status: 404, headers: corsHeaders() });
     }
 
     // Use the DB that found the user for subsequent queries
     const userDb = userFoundInPlatformDb ? platformDb : db;
+
+    console.log('[Profile GET] User found:', {
+      userId: user.id,
+      email: user.email,
+      role: user.role,
+      userFoundInPlatformDb,
+      userDbIsPlatform: userDb === platformDb,
+      dbIsPlatform: db === platformDb,
+    });
 
     // Step 2: Fetch employee data — try a SIMPLE query first (no includes).
     // If the query with includes fails (because related tables don't exist),
@@ -98,11 +108,14 @@ export async function GET(request: Request) {
         where: { userId: user.id },
       }).catch(() => null);
 
+      console.log('[Profile GET] Employee by userId in userDb:', employee ? `${employee.firstName} ${employee.lastName}` : 'NOT FOUND');
+
       // Try by userId in platform DB
       if (!employee && userDb !== platformDb) {
         employee = await platformDb.employee.findUnique({
           where: { userId: user.id },
         }).catch(() => null);
+        console.log('[Profile GET] Employee by userId in platformDb:', employee ? `${employee.firstName} ${employee.lastName}` : 'NOT FOUND');
       }
 
       // Try by userId in resolved db
@@ -110,6 +123,7 @@ export async function GET(request: Request) {
         employee = await db.employee.findUnique({
           where: { userId: user.id },
         }).catch(() => null);
+        console.log('[Profile GET] Employee by userId in db:', employee ? `${employee.firstName} ${employee.lastName}` : 'NOT FOUND');
       }
 
       // Try by email in all DBs
@@ -117,15 +131,19 @@ export async function GET(request: Request) {
         employee = await userDb.employee.findFirst({
           where: { email: user.email },
         }).catch(() => null);
+        console.log('[Profile GET] Employee by email in userDb:', employee ? `${employee.firstName} ${employee.lastName}` : 'NOT FOUND');
+
         if (!employee) {
           employee = await platformDb.employee.findFirst({
             where: { email: user.email },
           }).catch(() => null);
+          console.log('[Profile GET] Employee by email in platformDb:', employee ? `${employee.firstName} ${employee.lastName}` : 'NOT FOUND');
         }
         if (!employee && db !== platformDb && db !== userDb) {
           employee = await db.employee.findFirst({
             where: { email: user.email },
           }).catch(() => null);
+          console.log('[Profile GET] Employee by email in db:', employee ? `${employee.firstName} ${employee.lastName}` : 'NOT FOUND');
         }
       }
 
@@ -244,6 +262,14 @@ export async function GET(request: Request) {
         if (tenant) tenantInfo = tenant;
       } catch { /* non-critical */ }
     }
+
+    console.log('[Profile GET] Final response:', {
+      userId: user.id,
+      hasEmployee: !!employeeData,
+      employeeId: employeeData?.employeeId,
+      employeeName: employeeData ? `${employeeData.firstName} ${employeeData.lastName}` : null,
+      hasTenant: !!tenantInfo,
+    });
 
     return NextResponse.json(
       {
