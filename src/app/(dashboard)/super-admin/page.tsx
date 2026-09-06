@@ -608,6 +608,53 @@ export default function SuperAdminPage() {
     }
   };
 
+  // ─── Seed Tenant Database ────────────────────────────
+  const [seedingTenantDb, setSeedingTenantDb] = useState<string | null>(null);
+  const handleSeedTenantDb = async (slug: string, name: string) => {
+    if (!confirm(`Seed the dedicated database for "${name}"?\n\nThis will:\n• Register the TenantDatabase record\n• Create all required tables\n• Seed: Companies, Departments, Designations, Users, Employees, Leave Types, Shifts, Holidays\n• Password for all users: MarqAI@2026\n\nThis is safe to run multiple times (uses upsert/idempotent).`)) return;
+    try {
+      setSeedingTenantDb(slug);
+      const res = await fetch(`/api/admin/seed-tenant-db?slug=${encodeURIComponent(slug)}`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.error || 'Failed');
+      }
+      const data = await res.json();
+      toast.success(data.message || `Tenant DB seeded successfully`, { duration: 8000 });
+      console.log('Seed result:', data);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to seed tenant DB');
+    } finally {
+      setSeedingTenantDb(null);
+    }
+  };
+
+  // ─── Clear Probation Reviews ────────────────────────────
+  const [clearingProbation, setClearingProbation] = useState<string | null>(null);
+  const handleClearProbation = async (slug: string, name: string) => {
+    if (!confirm(`Clear ALL probation review data for "${name}"?\n\nThis will delete all PerformanceReview records with reviewCycle='Probation'. This cannot be undone.`)) return;
+    try {
+      setClearingProbation(slug);
+      const res = await fetch(`/api/admin/clear-probation?slug=${encodeURIComponent(slug)}`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.error || 'Failed');
+      }
+      const data = await res.json();
+      toast.success(data.message || 'Probation reviews cleared');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to clear probation reviews');
+    } finally {
+      setClearingProbation(null);
+    }
+  };
+
   // ─── Company Group Handlers ───────────────────────────
   const fetchGroups = useCallback(async () => {
     try {
@@ -1574,6 +1621,14 @@ export default function SuperAdminPage() {
                           <button onClick={() => handleResetAllPasswords(t.slug, t.name)} disabled={resettingPasswords === t.slug} className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-emerald-700 bg-emerald-50 rounded-lg hover:bg-emerald-100 disabled:opacity-50" title="Reset ALL user passwords to 'MarqAI@2026' (tenant DB + platform DB)">
                             {resettingPasswords === t.slug ? <FiRefreshCw className="w-3 h-3 animate-spin" /> : <FiKey className="w-3 h-3" />}
                             Reset Pwd
+                          </button>
+                          <button onClick={() => handleSeedTenantDb(t.slug, t.name)} disabled={seedingTenantDb === t.slug} className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-indigo-700 bg-indigo-50 rounded-lg hover:bg-indigo-100 disabled:opacity-50" title="Seed dedicated tenant database with companies, employees, etc.">
+                            {seedingTenantDb === t.slug ? <FiRefreshCw className="w-3 h-3 animate-spin" /> : <FiDatabase className="w-3 h-3" />}
+                            Seed DB
+                          </button>
+                          <button onClick={() => handleClearProbation(t.slug, t.name)} disabled={clearingProbation === t.slug} className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-orange-700 bg-orange-50 rounded-lg hover:bg-orange-100 disabled:opacity-50" title="Clear ALL probation review data for this tenant">
+                            {clearingProbation === t.slug ? <FiRefreshCw className="w-3 h-3 animate-spin" /> : <FiTrash2 className="w-3 h-3" />}
+                            Clear Prob
                           </button>
                           <button onClick={() => handleBackupTenantDB(t.slug, t.name)} disabled={backingUpTenant === t.slug} className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100 disabled:opacity-50" title="Backup tenant database">
                             {backingUpTenant === t.slug ? <FiRefreshCw className="w-3 h-3 animate-spin" /> : <FiDownload className="w-3 h-3" />}
