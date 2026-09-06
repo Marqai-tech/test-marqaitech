@@ -715,6 +715,9 @@ export default function EmployeeDetailPage() {
                   <InfoField label="Branch" value={employee.branch?.name} icon={<FiBriefcase className="w-3.5 h-3.5" />} />
                   <InfoField label="Date of Joining" value={formatDate(employee.dateOfJoining)} icon={<FiCalendar className="w-3.5 h-3.5" />} />
                   <InfoField label="Status" value={badge.label} />
+                  <InfoField label="Employee Status" value={(employee as Record<string, unknown>).employeeStatus ? String((employee as Record<string, unknown>).employeeStatus).charAt(0).toUpperCase() + String((employee as Record<string, unknown>).employeeStatus).slice(1) : '—'} />
+                  <InfoField label="Employee Type" value={(employee as Record<string, unknown>).employeeType ? String((employee as Record<string, unknown>).employeeType).replace(/_/g, ' ').charAt(0).toUpperCase() + String((employee as Record<string, unknown>).employeeType).slice(1).replace(/_/g, ' ') : '—'} />
+                  <InfoField label="Personal Email" value={(employee as Record<string, unknown>).personalEmail as string || '—'} icon={<FiMail className="w-3.5 h-3.5" />} />
                 </div>
               </SectionCard>
 
