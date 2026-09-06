@@ -94,6 +94,56 @@ export async function GET(request: Request) {
       dbIsPlatform: db === platformDb,
     });
 
+    // ─── Inline schema-sync: ensure ALL Employee columns exist ───
+    // The Prisma client expects ALL columns from the schema (including
+    // employeeStatus, employeeType, personalEmail, reportingManagerId).
+    // If any column is missing from the actual DB table, the query fails
+    // with P2022 — which is silently caught by .catch(() => null), making
+    // it look like the employee doesn't exist. We add the columns here.
+    try {
+      const syncStatements = [
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "avatar" TEXT`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "personalEmail" TEXT`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "employeeStatus" TEXT NOT NULL DEFAULT 'confirmed'`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "employeeType" TEXT NOT NULL DEFAULT 'full_time'`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "maritalStatus" TEXT`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "nationality" TEXT`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "address" TEXT`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "city" TEXT`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "state" TEXT`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "zipCode" TEXT`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "country" TEXT`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "status" TEXT NOT NULL DEFAULT 'active'`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "reportingManagerId" TEXT`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "designationId" TEXT`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "dateOfJoining" TIMESTAMP(3)`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "bloodGroup" TEXT`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "emergencyContactName" TEXT`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "emergencyContactPhone" TEXT`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "bankName" TEXT`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "bankAccountNo" TEXT`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "bankIfscCode" TEXT`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "panNumber" TEXT`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "aadhaarNumber" TEXT`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "taxId" TEXT`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "salary" DOUBLE PRECISION`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "salaryCurrency" TEXT NOT NULL DEFAULT 'INR'`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "leavePolicyId" TEXT`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "attendancePolicyId" TEXT`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "travelPolicyId" TEXT`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "salaryStructureId" TEXT`,
+      ];
+      // Sync both userDb and platformDb (data might be in either)
+      for (const sql of syncStatements) {
+        try { await userDb.$executeRawUnsafe(sql); } catch { /* column exists */ }
+        if (userDb !== platformDb) {
+          try { await platformDb.$executeRawUnsafe(sql); } catch { /* column exists */ }
+        }
+      }
+    } catch (syncErr) {
+      console.warn('[Profile GET] Inline schema-sync failed (non-fatal):', syncErr);
+    }
+
     // Step 2: Fetch employee data — try a SIMPLE query first (no includes).
     // If the query with includes fails (because related tables don't exist),
     // the whole thing returns null. So we fetch the employee record alone,
