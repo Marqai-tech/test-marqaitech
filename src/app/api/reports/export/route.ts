@@ -406,15 +406,18 @@ async function generatePDF(data: any): Promise<Buffer> {
   const autoTable = (await import('jspdf-autotable')).default;
 
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
 
-  // Tenant branding header
+  // Tenant branding header (centered)
   const tenantName = data.tenantName || '3Boxes HRMS';
   const reportName = data.reportName || data.title || 'Report';
+  const tenantAddress = data.tenantAddress || '';
 
-  // Try to add tenant logo if available
+  // Try to add tenant logo (centered at top)
+  let logoAdded = false;
   if (data.tenantLogo) {
     try {
-      // Fetch the logo image
       const logoUrl = data.tenantLogo.startsWith('http') ? data.tenantLogo : null;
       if (logoUrl) {
         const logoResponse = await fetch(logoUrl);
@@ -423,35 +426,59 @@ async function generatePDF(data: any): Promise<Buffer> {
           const logoBase64 = Buffer.from(logoBuffer).toString('base64');
           const contentType = logoResponse.headers.get('content-type') || 'image/png';
           const format = contentType.includes('png') ? 'PNG' : 'JPEG';
-          doc.addImage(logoBase64, format, 14, 8, 20, 20);
+          // Center the logo: logo width=25mm, so x = (pageWidth - 25) / 2
+          doc.addImage(logoBase64, format, (pageWidth - 25) / 2, 8, 25, 25);
+          logoAdded = true;
         }
       }
-    } catch { /* logo fetch failed — continue without logo */ }
+    } catch { /* logo fetch failed */ }
   }
 
-  // Tenant name (bold, large)
+  // Tenant name (centered, bold, below logo)
+  let yPos = logoAdded ? 36 : 14;
   doc.setFontSize(16);
   doc.setTextColor(20, 100, 100);
-  doc.text(tenantName, 38, 16);
+  doc.text(tenantName, pageWidth / 2, yPos, { align: 'center' });
 
-  // Report name (below tenant name)
+  // Company address (centered, small, below tenant name)
+  yPos += 5;
+  if (tenantAddress) {
+    doc.setFontSize(8);
+    doc.setTextColor(100, 100, 100);
+    // Split address into multiple lines if too long
+    const addrLines = doc.splitTextToSize(tenantAddress, pageWidth - 40);
+    addrLines.slice(0, 2).forEach((line: string, i: number) => {
+      doc.text(line, pageWidth / 2, yPos + (i * 4), { align: 'center' });
+    });
+    yPos += addrLines.length > 1 ? 10 : 5;
+  }
+
+  // Report name (centered, below address)
+  yPos += 3;
   doc.setFontSize(13);
   doc.setTextColor(40, 40, 40);
-  doc.text(reportName, 38, 23);
+  doc.text(reportName, pageWidth / 2, yPos, { align: 'center' });
 
-  // Generated date
+  // Horizontal line separator
+  yPos += 3;
+  doc.setDrawColor(20, 150, 140);
+  doc.setLineWidth(0.5);
+  doc.line(14, yPos, pageWidth - 14, yPos);
+
+  // Generated date (left-aligned)
+  yPos += 5;
   doc.setFontSize(9);
   doc.setTextColor(120, 120, 120);
-  doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 32);
+  doc.text(`Generated: ${new Date().toLocaleString()}`, 14, yPos);
 
   // Summary
-  let y = 40;
+  yPos += 5;
   if (data.summary && Object.keys(data.summary).length > 0) {
     doc.setFontSize(10);
     doc.setTextColor(60, 60, 60);
     const summaryText = Object.entries(data.summary).map(([k, v]) => `${k}: ${v}`).join('  |  ');
-    doc.text(summaryText, 14, y);
-    y += 8;
+    doc.text(summaryText, 14, yPos);
+    yPos += 8;
   }
 
   // Data table
@@ -462,21 +489,38 @@ async function generatePDF(data: any): Promise<Buffer> {
     autoTable(doc, {
       head: [headers],
       body,
-      startY: y,
-      styles: { fontSize: 8, cellPadding: 2 },
-      headStyles: { fillColor: [20, 150, 140], textColor: 255, fontStyle: 'bold' },
+      startY: yPos,
+      styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak' },
+      headStyles: { fillColor: [20, 150, 140], textColor: 255, fontStyle: 'bold', halign: 'center' },
       alternateRowStyles: { fillColor: [240, 248, 248] },
       margin: { left: 14, right: 14 },
     });
   }
 
-  // Footer with tenant name
+  // Footer with "Powered by 3Boxes HRMS" (centered)
   const pageCount = doc.getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
+
+    // Footer line
+    doc.setDrawColor(200, 200, 200);
+    doc.setLineWidth(0.3);
+    doc.line(14, pageHeight - 14, pageWidth - 14, pageHeight - 14);
+
+    // Page number (left)
     doc.setFontSize(8);
     doc.setTextColor(150, 150, 150);
-    doc.text(`${tenantName} - ${reportName} - Page ${i} of ${pageCount}`, doc.internal.pageSize.getWidth() - 80, doc.internal.pageSize.getHeight() - 10);
+    doc.text(`Page ${i} of ${pageCount}`, 14, pageHeight - 9);
+
+    // Powered by (centered)
+    doc.setFontSize(8);
+    doc.setTextColor(20, 100, 100);
+    doc.text('Powered by 3Boxes HRMS', pageWidth / 2, pageHeight - 9, { align: 'center' });
+
+    // Tenant name (right)
+    doc.setFontSize(8);
+    doc.setTextColor(150, 150, 150);
+    doc.text(tenantName, pageWidth - 14, pageHeight - 9, { align: 'right' });
   }
 
   return Buffer.from(doc.output('arraybuffer'));
@@ -527,16 +571,47 @@ export async function POST(request: Request) {
       reportData = await collectReportData(db, reportType, targetTenantId);
     }
 
-    // Fetch tenant info for branding (logo + name) in exports
-    let tenantInfo: { name: string; logo: string | null } = { name: '3Boxes HRMS', logo: null };
+    // Fetch tenant info for branding (logo + name + address) in exports
+    let tenantInfo: { name: string; logo: string | null; address: string; city: string; state: string; country: string } = {
+      name: '3Boxes HRMS', logo: null, address: '', city: '', state: '', country: ''
+    };
     try {
       if (targetTenantId) {
         const tenant = await getPlatformDb().tenant.findUnique({
           where: { id: targetTenantId },
-          select: { name: true, logo: true },
+          select: { name: true, logo: true, domain: true },
         });
         if (tenant) {
-          tenantInfo = { name: tenant.name, logo: tenant.logo };
+          // Also try to get the company address from the first company in the tenant
+          let companyAddress = '';
+          try {
+            const company = await db.company.findFirst({
+              where: { companyGroup: { tenantId: targetTenantId } },
+              select: { name: true, address: true, city: true, state: true, country: true, phone: true, email: true },
+            });
+            if (company) {
+              tenantInfo = {
+                name: tenant.name,
+                logo: tenant.logo,
+                address: company.address || '',
+                city: company.city || '',
+                state: company.state || '',
+                country: company.country || '',
+              };
+              // Build full address string
+              const addrParts = [company.address, company.city, company.state, company.country].filter(Boolean);
+              if (addrParts.length > 0) {
+                companyAddress = addrParts.join(', ');
+              }
+              if (company.phone) companyAddress += ` | Tel: ${company.phone}`;
+              if (company.email) companyAddress += ` | Email: ${company.email}`;
+            }
+          } catch { /* company query failed */ }
+
+          if (!tenantInfo.name) {
+            tenantInfo = { name: tenant.name, logo: tenant.logo, address: '', city: '', state: '', country: '' };
+          }
+          tenantInfo.address = companyAddress || tenantInfo.address;
         }
       }
     } catch { /* non-critical */ }
@@ -544,6 +619,7 @@ export async function POST(request: Request) {
     // Add tenant branding to report data
     reportData.tenantName = tenantInfo.name;
     reportData.tenantLogo = tenantInfo.logo;
+    reportData.tenantAddress = tenantInfo.address;
     reportData.reportName = `${reportType.charAt(0).toUpperCase() + reportType.slice(1)} Report`;
 
     // Generate file based on format

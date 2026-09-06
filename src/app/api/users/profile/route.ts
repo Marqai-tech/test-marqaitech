@@ -75,12 +75,89 @@ export async function GET(request: Request) {
         if (rows && rows.length > 0) { employee = rows[0]; empDb = tryDb; console.log(`[Profile] Found employee by userId in ${dbName}`); break; }
       } catch (e) { console.error(`[Profile] SQL by userId in ${dbName}:`, e); }
 
-      // Try by email
+      // Try by email (exact match)
       if (!employee && user.email) {
         try {
           const rows = await tryDb.$queryRawUnsafe(`SELECT * FROM "Employee" WHERE "email" = $1 LIMIT 1`, user.email) as any[];
           if (rows && rows.length > 0) { employee = rows[0]; empDb = tryDb; console.log(`[Profile] Found employee by email in ${dbName}`); break; }
         } catch (e) { console.error(`[Profile] SQL by email in ${dbName}:`, e); }
+      }
+
+      // Try by email (case-insensitive)
+      if (!employee && user.email) {
+        try {
+          const rows = await tryDb.$queryRawUnsafe(`SELECT * FROM "Employee" WHERE LOWER("email") = LOWER($1) LIMIT 1`, user.email) as any[];
+          if (rows && rows.length > 0) { employee = rows[0]; empDb = tryDb; console.log(`[Profile] Found employee by email (case-insensitive) in ${dbName}`); break; }
+        } catch (e) { console.error(`[Profile] SQL by email (ci) in ${dbName}:`, e); }
+      }
+
+      // Try by personalEmail (the user's email might be stored as personalEmail)
+      if (!employee && user.email) {
+        try {
+          const rows = await tryDb.$queryRawUnsafe(`SELECT * FROM "Employee" WHERE "personalEmail" = $1 LIMIT 1`, user.email) as any[];
+          if (rows && rows.length > 0) { employee = rows[0]; empDb = tryDb; console.log(`[Profile] Found employee by personalEmail in ${dbName}`); break; }
+        } catch (e) { console.error(`[Profile] SQL by personalEmail in ${dbName}:`, e); }
+      }
+    }
+
+    // If employee not found by userId or email, try to LINK it:
+    // The employee record exists (visible in employee list) but userId is NULL.
+    // We can find it by matching the employee's email to the user's email,
+    // or by finding ANY employee with a NULL userId in the same tenant.
+    if (!employee && user.email) {
+      for (const tryDb of allDbs) {
+        const dbName = tryDb === platformDb ? 'platformDb' : 'tenantDb';
+        try {
+          // Try to find an employee whose email matches the user's email
+          // (even if the column has different casing)
+          const rows = await tryDb.$queryRawUnsafe(
+            `SELECT * FROM "Employee" WHERE LOWER(TRIM("email")) = LOWER(TRIM($1)) OR LOWER(TRIM("personalEmail")) = LOWER(TRIM($1)) LIMIT 1`,
+            user.email
+          ) as any[];
+          if (rows && rows.length > 0) {
+            employee = rows[0];
+            empDb = tryDb;
+            console.log(`[Profile] Found employee by TRIM/LOWER email match in ${dbName}`);
+
+            // LINK the employee to the user (set userId)
+            try {
+              await tryDb.$executeRawUnsafe(
+                `UPDATE "Employee" SET "userId" = $1 WHERE "id" = $2`,
+                user.id, employee.id
+              );
+              console.log(`[Profile] Linked employee ${employee.id} to user ${user.id}`);
+            } catch (linkErr) {
+              console.error('[Profile] Failed to link employee to user:', linkErr);
+            }
+            break;
+          }
+        } catch (e) {
+          console.error(`[Profile] TRIM/LOWER search in ${dbName}:`, e);
+        }
+      }
+    }
+
+    // LAST RESORT: If still not found, try finding by the user's name
+    if (!employee && user.name) {
+      for (const tryDb of allDbs) {
+        const dbName = tryDb === platformDb ? 'platformDb' : 'tenantDb';
+        try {
+          const nameParts = user.name.split(' ');
+          if (nameParts.length >= 2) {
+            const rows = await tryDb.$queryRawUnsafe(
+              `SELECT * FROM "Employee" WHERE "firstName" = $1 AND "lastName" = $2 LIMIT 1`,
+              nameParts[0], nameParts.slice(1).join(' ')
+            ) as any[];
+            if (rows && rows.length > 0) {
+              employee = rows[0];
+              empDb = tryDb;
+              console.log(`[Profile] Found employee by name match in ${dbName}`);
+              break;
+            }
+          }
+        } catch (e) {
+          console.error(`[Profile] Name search in ${dbName}:`, e);
+        }
       }
     }
 
