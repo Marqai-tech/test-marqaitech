@@ -82,8 +82,16 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'User not found' }, { status: 404, headers: corsHeaders() });
     }
 
-    // Use the DB that found the user for subsequent queries
+    // Use the DB that found the user for subsequent queries.
+    // BUT also try db (the resolved DB from getDb) — because the employee
+    // data might be in a DIFFERENT DB than the user record.
+    // Scenario: TenantDatabase registered → db = tenant_marqaitechgroup (empty),
+    // but user found in platformDb → userDb = platformDb (has employee data).
+    // We need to try BOTH.
     const userDb = userFoundInPlatformDb ? platformDb : db;
+    // Also search db (the resolved DB) if it's different from userDb
+    const tryDbs = [userDb];
+    if (db !== userDb) tryDbs.push(db);
 
     console.log('[Profile GET] User found:', {
       userId: user.id,
@@ -208,64 +216,84 @@ export async function GET(request: Request) {
         console.error('[Profile GET] Employee table check failed:', tableErr);
       }
 
-      // Try by userId in userDb
-      try {
-        employee = await userDb.employee.findUnique({
-          where: { userId: user.id },
-        });
-      } catch (err) {
-        const errObj = err as { code?: string; message?: string };
-        console.error('[Profile GET] Employee by userId FAILED:', errObj.code, errObj.message);
+      // Try by userId in each DB (tryDbs includes both userDb and db)
+      for (const tryDb of tryDbs) {
+        try {
+          employee = await tryDb.employee.findUnique({
+            where: { userId: user.id },
+          });
+          if (employee) {
+            console.log('[Profile GET] Employee found by userId in', tryDb === platformDb ? 'platformDb' : 'tenantDb');
+            break;
+          }
+        } catch (err) {
+          const errObj = err as { code?: string; message?: string };
+          console.error('[Profile GET] Employee by userId FAILED in', tryDb === platformDb ? 'platformDb' : 'tenantDb', ':', errObj.code, errObj.message);
 
-        // FALLBACK: Try raw SQL if Prisma fails
-        if (!employee) {
-          try {
-            const rawResult = await userDb.$queryRawUnsafe(
-              `SELECT * FROM "Employee" WHERE "userId" = $1 LIMIT 1`,
-              user.id
-            ) as any[];
-            if (rawResult && rawResult.length > 0) {
-              employee = rawResult[0];
-              console.log('[Profile GET] Employee found via RAW SQL by userId:', employee?.firstname || employee?.firstname);
+          // FALLBACK: Try raw SQL if Prisma fails
+          if (!employee) {
+            try {
+              const rawResult = await tryDb.$queryRawUnsafe(
+                `SELECT * FROM "Employee" WHERE "userId" = $1 LIMIT 1`,
+                user.id
+              ) as any[];
+              if (rawResult && rawResult.length > 0) {
+                employee = rawResult[0];
+                console.log('[Profile GET] Employee found via RAW SQL by userId');
+                break;
+              }
+            } catch (rawErr) {
+              console.error('[Profile GET] Raw SQL by userId failed:', rawErr);
             }
-          } catch (rawErr) {
-            console.error('[Profile GET] Raw SQL by userId failed:', rawErr);
           }
         }
       }
 
-      console.log('[Profile GET] Employee by userId in userDb:', employee ? `${employee.firstName || employee.firstname} ${employee.lastName || employee.lastname}` : 'NOT FOUND');
+      console.log('[Profile GET] Employee by userId:', employee ? `${employee.firstName || (employee as any).firstname} ${employee.lastName || (employee as any).lastname}` : 'NOT FOUND');
 
-      // Try by email in userDb
+      // Try by email in each DB
       if (!employee && user.email) {
-        try {
-          employee = await userDb.employee.findFirst({
-            where: { email: user.email },
-          });
-        } catch (err) {
-          const errObj = err as { code?: string; message?: string };
-          console.error('[Profile GET] Employee by email FAILED:', errObj.code, errObj.message);
-
-          // FALLBACK: Try raw SQL
+        for (const tryDb of tryDbs) {
           try {
-            const rawResult = await userDb.$queryRawUnsafe(
-              `SELECT * FROM "Employee" WHERE "email" = $1 LIMIT 1`,
-              user.email
-            ) as any[];
-            if (rawResult && rawResult.length > 0) {
-              employee = rawResult[0];
-              console.log('[Profile GET] Employee found via RAW SQL by email');
+            employee = await tryDb.employee.findFirst({
+              where: { email: user.email },
+            });
+            if (employee) {
+              console.log('[Profile GET] Employee found by email in', tryDb === platformDb ? 'platformDb' : 'tenantDb');
+              break;
             }
-          } catch (rawErr) {
-            console.error('[Profile GET] Raw SQL by email failed:', rawErr);
+          } catch (err) {
+            const errObj = err as { code?: string; message?: string };
+            console.error('[Profile GET] Employee by email FAILED in', tryDb === platformDb ? 'platformDb' : 'tenantDb', ':', errObj.code, errObj.message);
+
+            // FALLBACK: Try raw SQL
+            try {
+              const rawResult = await tryDb.$queryRawUnsafe(
+                `SELECT * FROM "Employee" WHERE "email" = $1 LIMIT 1`,
+                user.email
+              ) as any[];
+              if (rawResult && rawResult.length > 0) {
+                employee = rawResult[0];
+                console.log('[Profile GET] Employee found via RAW SQL by email');
+                break;
+              }
+            } catch (rawErr) {
+              console.error('[Profile GET] Raw SQL by email failed:', rawErr);
+            }
           }
         }
-        console.log('[Profile GET] Employee by email in userDb:', employee ? `${employee.firstName || employee.firstname} ${employee.lastName || employee.lastname}` : 'NOT FOUND');
+        console.log('[Profile GET] Employee by email:', employee ? `${employee.firstName || (employee as any).firstname} ${employee.lastName || (employee as any).lastname}` : 'NOT FOUND');
       }
 
       if (employee) {
-        // Fetch relations SEPARATELY from the SAME DB (no platform DB fallback)
+        // Fetch relations from the DB that found the employee.
+        // If employee was found via Prisma, use the same DB.
+        // If found via raw SQL, we need to determine which DB it came from.
+        // For safety, try the same DB that found the user first, then the other.
         const empDb = userDb;
+        // Also prepare to try db if empDb fails
+        const empTryDbs = [empDb];
+        if (db !== empDb) empTryDbs.push(db);
         let department = null, designation = null, branch = null;
         let dependents: any[] = [], qualifications: any[] = [], experiences: any[] = [], documents: any[] = [];
 
