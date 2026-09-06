@@ -58,10 +58,34 @@ export default function EmployeeReportsPage() {
     setLoading(true);
     try {
       const sq = scopeQuery();
-      const res = await fetch(`/api/reports?type=${activeReport}&${sq || ''}`, { headers: getAuthHeaders() });
+      const res = await fetch(`/api/reports?type=employee_report&${sq || ''}`, { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
-        setReportData(data);
+        // Map API response to the format the UI expects
+        const employees = data.employees || [];
+        const deptMap = data.departmentDistribution || {};
+        const deptRows = Object.entries(deptMap).map(([name, count]) => ({ department: name, count: count as number }));
+
+        setReportData({
+          stats: {
+            total: data.headcount || employees.length || 0,
+            active: data.headcount || employees.length || 0,
+            newHires: data.newHires || 0,
+            attrition: data.attrition || 0,
+            departments: Object.keys(deptMap).length,
+          },
+          rows: activeReport === 'headcount' ? deptRows :
+                activeReport === 'department' ? deptRows :
+                employees.map((e: any) => ({
+                  employeeId: e.employeeId,
+                  name: `${e.firstName} ${e.lastName}`,
+                  email: e.email,
+                  department: e.department?.name || '—',
+                  designation: e.designation?.title || '—',
+                  dateOfJoining: e.dateOfJoining ? new Date(e.dateOfJoining).toLocaleDateString() : '—',
+                  status: e.status || 'active',
+                })),
+        });
       } else {
         setReportData(null);
       }
