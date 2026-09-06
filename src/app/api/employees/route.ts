@@ -46,8 +46,8 @@ export async function GET(request: Request) {
       const syncStatements = [
         `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "avatar" TEXT`,
         `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "personalEmail" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "employeeStatus" TEXT NOT NULL DEFAULT 'full_time'`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "employeeType" TEXT NOT NULL DEFAULT 'permanent'`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "employeeStatus" TEXT NOT NULL DEFAULT 'confirmed'`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "employeeType" TEXT NOT NULL DEFAULT 'full_time'`,
         `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "maritalStatus" TEXT`,
         `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "nationality" TEXT`,
         `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "address" TEXT`,
@@ -473,8 +473,8 @@ export async function POST(request: Request) {
       const syncStatements = [
         `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "avatar" TEXT`,
         `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "personalEmail" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "employeeStatus" TEXT NOT NULL DEFAULT 'full_time'`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "employeeType" TEXT NOT NULL DEFAULT 'permanent'`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "employeeStatus" TEXT NOT NULL DEFAULT 'confirmed'`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "employeeType" TEXT NOT NULL DEFAULT 'full_time'`,
         `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "maritalStatus" TEXT`,
         `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "nationality" TEXT`,
         `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "address" TEXT`,
@@ -585,9 +585,9 @@ export async function POST(request: Request) {
       // Employee Status & Type
       employeeStatus,
       employeeType,
-      // Probation period (months) — sent from the form based on employee settings.
+      // Probation end date — sent from the form when employeeStatus='probation'.
       // Used to auto-create the probation review with the correct end date.
-      probationPeriod,
+      probationEndDate,
       // Optional relationship fields (added in newer schema versions)
       reportingManagerId,
       leavePolicyId,
@@ -802,8 +802,8 @@ export async function POST(request: Request) {
         userId: userId || null,
         avatar: avatar || null,
         // Employee Status & Type
-        employeeStatus: employeeStatus || 'full_time',
-        employeeType: employeeType || 'permanent',
+        employeeStatus: employeeStatus || 'confirmed',
+        employeeType: employeeType || 'full_time',
         status: 'active',
       };
 
@@ -924,29 +924,34 @@ export async function POST(request: Request) {
       }
 
       // ─── Auto-create probation review if employeeStatus is 'probation' ───
-      // When a new employee is created with employeeStatus='probation', we
-      // automatically create a PerformanceReview (reviewCycle='Probation') with:
+      // When a new employee is created with employeeStatus='probation' AND
+      // dateOfJoining is provided, we automatically create a PerformanceReview
+      // (reviewCycle='Probation') with:
       //   - probationStartDate = dateOfJoining
-      //   - probationPeriod = from the form (sent by frontend based on employee
-      //     settings employee_probation_period, default 6 months)
+      //   - probationEndDate = from the form (editable, default = joining + 6 months)
       //   - status = 'pending' (goes to HR/Admin for review)
-      //   - decision = 'pending'
-      // The probation end date is auto-calculated as startDate + probationPeriod.
-      // This links the probation to the joining date automatically.
       if (employeeStatus === 'probation' && dateOfJoining) {
         try {
-          // Use the probation period from the form, or default to 6 months
-          const probPeriod = Number(probationPeriod) > 0 ? Number(probationPeriod) : 6;
+          // Calculate the probation end date
+          // Use the form-provided probationEndDate if available, otherwise default to 6 months
+          let endDate: Date;
+          if (probationEndDate) {
+            endDate = new Date(probationEndDate);
+          } else {
+            endDate = new Date(dateOfJoining);
+            endDate.setMonth(endDate.getMonth() + 6);
+          }
 
-          // Calculate probation end date
+          // Calculate the probation period in months (for display)
           const startDate = new Date(dateOfJoining);
-          const endDate = new Date(startDate);
-          endDate.setMonth(endDate.getMonth() + probPeriod);
+          const probPeriodMs = endDate.getTime() - startDate.getTime();
+          const probPeriodMonths = Math.round(probPeriodMs / (1000 * 60 * 60 * 24 * 30));
 
           // Serialize probation data as JSON in comments field
           const probationData = JSON.stringify({
             probationStartDate: dateOfJoining,
-            probationPeriod: probPeriod,
+            probationEndDate: endDate.toISOString().split('T')[0],
+            probationPeriod: probPeriodMonths || 6,
             extensionPeriod: 0,
             performanceRating: 0,
             reviewComments: 'Auto-created from employee onboarding. Employee status: Probation.',
@@ -956,32 +961,35 @@ export async function POST(request: Request) {
             confirmationLetter: null,
             autoCreated: true,
             // Workflow tracking
-            workflowStage: 'hr_review', // hr_review → md_review → completed
+            workflowStage: 'hr_review',
             hrActionDate: null,
             mdActionDate: null,
             // Alert tracking
-            alertSent10Day: false, // Will be set true when 10-day alert is sent
+            alertSent10Day: false,
             alertSent3Day: false,
             alertSent1Day: false,
+            alertSentOverdue: false,
           });
 
           await db.performanceReview.create({
             data: {
               employeeId: employee.id,
               reviewCycle: 'Probation',
-              reviewPeriod: `Probation (${probPeriod} months)`,
+              reviewPeriod: `Probation (${probPeriodMonths || 6} months)`,
               reviewerId: decodedUserId || null,
               rating: 0,
               overallRating: 0,
               comments: probationData,
               strengths: null,
               improvements: null,
-              status: 'pending', // Goes to HR/Admin for review
+              status: 'pending',
               reviewDate: endDate,
             },
+          }).catch((createErr: { code?: string; message?: string }) => {
+            console.error('[Employees POST] Failed to auto-create probation review:', createErr);
           });
 
-          console.log(`[Employees POST] Auto-created probation review for employee ${employee.employeeId} (joining: ${dateOfJoining}, period: ${probPeriod} months, end: ${endDate.toISOString().split('T')[0]})`);
+          console.log(`[Employees POST] Auto-created probation review for employee ${employee.employeeId} (joining: ${dateOfJoining}, end: ${endDate.toISOString().split('T')[0]})`);
         } catch (probationErr) {
           console.error('[Employees POST] Failed to auto-create probation review (non-critical):', probationErr);
         }

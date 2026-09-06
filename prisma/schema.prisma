@@ -473,14 +473,11 @@ model Employee {
   //   probation → employee is in probation period (auto-creates probation review)
   //   trainee → employee is a trainee (no probation workflow)
   //   intern → employee is an intern (no probation workflow)
-  employeeStatus String? @default("full_time") // full_time, part_time, contract, internship
+  employeeStatus String? @default("confirmed") // confirmed, probation, contract, internship, consultant
 
-  // employeeType: The employment contract type
-  //   permanent → full-time permanent employee
-  //   contract → fixed-term contract employee
-  //   temporary → temporary/seasonal worker
-  //   consultant → external consultant
-  employeeType   String? @default("permanent") // permanent, contract, temporary, consultant
+  // employeeType: The employment type
+  //   full_time, part_time, contract, temporary, consultant
+  employeeType   String? @default("full_time") // full_time, part_time, contract, temporary, consultant
 
   bankName       String?
   bankAccountNo  String?
