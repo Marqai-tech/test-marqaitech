@@ -144,62 +144,32 @@ export async function GET(request: Request) {
       console.warn('[Profile GET] Inline schema-sync failed (non-fatal):', syncErr);
     }
 
-    // Step 2: Fetch employee data — try a SIMPLE query first (no includes).
-    // If the query with includes fails (because related tables don't exist),
-    // the whole thing returns null. So we fetch the employee record alone,
-    // then fetch each relation separately with individual error handling.
+    // Step 2: Fetch employee data from the SAME DB that found the user.
+    // NO platform DB fallback — tenant data must come from the tenant DB only.
+    // (Golden Rule: super admin DB stores ONLY tenants, users, analytics —
+    // never tenant data like employees, departments, etc.)
     let employeeData = null;
     try {
-      // Try to find the employee by userId in both DBs
       let employee = null;
 
-      // Try by userId in userDb
+      // Try by userId in userDb only (no platform DB fallback)
       employee = await userDb.employee.findUnique({
         where: { userId: user.id },
       }).catch(() => null);
 
       console.log('[Profile GET] Employee by userId in userDb:', employee ? `${employee.firstName} ${employee.lastName}` : 'NOT FOUND');
 
-      // Try by userId in platform DB
-      if (!employee && userDb !== platformDb) {
-        employee = await platformDb.employee.findUnique({
-          where: { userId: user.id },
-        }).catch(() => null);
-        console.log('[Profile GET] Employee by userId in platformDb:', employee ? `${employee.firstName} ${employee.lastName}` : 'NOT FOUND');
-      }
-
-      // Try by userId in resolved db
-      if (!employee && userDb !== db) {
-        employee = await db.employee.findUnique({
-          where: { userId: user.id },
-        }).catch(() => null);
-        console.log('[Profile GET] Employee by userId in db:', employee ? `${employee.firstName} ${employee.lastName}` : 'NOT FOUND');
-      }
-
-      // Try by email in all DBs
+      // Try by email in userDb only (no platform DB fallback)
       if (!employee && user.email) {
         employee = await userDb.employee.findFirst({
           where: { email: user.email },
         }).catch(() => null);
         console.log('[Profile GET] Employee by email in userDb:', employee ? `${employee.firstName} ${employee.lastName}` : 'NOT FOUND');
-
-        if (!employee) {
-          employee = await platformDb.employee.findFirst({
-            where: { email: user.email },
-          }).catch(() => null);
-          console.log('[Profile GET] Employee by email in platformDb:', employee ? `${employee.firstName} ${employee.lastName}` : 'NOT FOUND');
-        }
-        if (!employee && db !== platformDb && db !== userDb) {
-          employee = await db.employee.findFirst({
-            where: { email: user.email },
-          }).catch(() => null);
-          console.log('[Profile GET] Employee by email in db:', employee ? `${employee.firstName} ${employee.lastName}` : 'NOT FOUND');
-        }
       }
 
       if (employee) {
-        // Now fetch relations SEPARATELY (each non-fatal)
-        const empDb = userDb; // Use the DB that found the employee
+        // Fetch relations SEPARATELY from the SAME DB (no platform DB fallback)
+        const empDb = userDb;
         let department = null, designation = null, branch = null;
         let dependents: any[] = [], qualifications: any[] = [], experiences: any[] = [], documents: any[] = [];
 
@@ -214,13 +184,6 @@ export async function GET(request: Request) {
             where: { id: employee.designationId },
             select: { title: true },
           }).catch(() => null);
-          // If not found in empDb, try platform DB
-          if (!designation && empDb !== platformDb) {
-            designation = await platformDb.designation.findUnique({
-              where: { id: employee.designationId },
-              select: { title: true },
-            }).catch(() => null);
-          }
         }
         if (employee.branchId) {
           branch = await empDb.branch.findUnique({
@@ -228,7 +191,6 @@ export async function GET(request: Request) {
             select: { name: true },
           }).catch(() => null);
         }
-        // Fetch related data individually (non-fatal if tables don't exist)
         dependents = await empDb.dependent.findMany({ where: { employeeId: employee.id } }).catch(() => []);
         qualifications = await empDb.qualification.findMany({ where: { employeeId: employee.id } }).catch(() => []);
         experiences = await (empDb as any).experience?.findMany?.({ where: { employeeId: employee.id } }).catch(() => []) || [];
@@ -264,22 +226,18 @@ export async function GET(request: Request) {
           branch: branch?.name || '',
           dateOfJoining: toISOStr(employee.dateOfJoining),
           status: employee.status,
-          // Bank & Finance
           bankName: toStr(employee.bankName),
           bankAccountNo: toStr(employee.bankAccountNo),
           bankIfscCode: toStr(employee.bankIfscCode),
           panNumber: toStr(employee.panNumber),
           aadhaarNumber: toStr(employee.aadhaarNumber),
           taxId: toStr(employee.taxId),
-          // Salary
           salary: employee.salary,
           salaryCurrency: toStr(employee.salaryCurrency),
-          // Policies
           leavePolicyId: toStr(employee.leavePolicyId),
           attendancePolicyId: toStr(employee.attendancePolicyId),
           travelPolicyId: toStr(employee.travelPolicyId),
           salaryStructureId: toStr(employee.salaryStructureId),
-          // Related data
           dependents: dependents || [],
           qualifications: qualifications || [],
           experiences: experiences || [],
@@ -288,7 +246,6 @@ export async function GET(request: Request) {
       }
     } catch (empErr) {
       console.error('Get profile employee error (non-fatal):', empErr);
-      // Employee data is optional — continue without it
     }
 
     // Resolve tenant info (may be null for super_admin)
@@ -389,8 +346,8 @@ export async function PATCH(request: Request) {
     }
 
     // Update employee details if provided (Employee model has: phone, address, etc.)
-    // The employee may be linked via userId OR may have the same email as the user.
-    // We try to find the employee in both DBs and update accordingly.
+    // NO platform DB fallback — employee data must be read/updated from the
+    // tenant DB only (Golden Rule).
     const hasEmployeeUpdates = phone !== undefined || emergencyContactName !== undefined || emergencyContactPhone !== undefined || address !== undefined || city !== undefined || state !== undefined || zipCode !== undefined || country !== undefined || dateOfBirth !== undefined || gender !== undefined || bloodGroup !== undefined;
 
     if (hasEmployeeUpdates) {
@@ -407,39 +364,26 @@ export async function PATCH(request: Request) {
       if (gender !== undefined) employeeUpdateData.gender = gender;
       if (bloodGroup !== undefined) employeeUpdateData.bloodGroup = bloodGroup;
 
-      // Find the employee record — try userId first, then email
+      // Find the employee record in the tenant DB ONLY (no platform DB fallback)
       let employeeRecord = null;
 
-      // Try by userId in resolved DB
       if (updatedUser.employee) {
         employeeRecord = updatedUser.employee;
       } else {
-        // Try by userId in both DBs
+        // Try by userId in tenant DB
         employeeRecord = await db.employee.findUnique({ where: { userId: updatedUser.id } }).catch(() => null);
-        if (!employeeRecord) {
-          employeeRecord = await platformDb.employee.findUnique({ where: { userId: updatedUser.id } }).catch(() => null);
-        }
-        // Try by email
+        // Try by email in tenant DB
         if (!employeeRecord && updatedUser.email) {
           employeeRecord = await db.employee.findFirst({ where: { email: updatedUser.email } }).catch(() => null);
-          if (!employeeRecord) {
-            employeeRecord = await platformDb.employee.findFirst({ where: { email: updatedUser.email } }).catch(() => null);
-          }
         }
       }
 
       if (employeeRecord) {
-        // Try updating in the resolved DB first
+        // Update in the tenant DB ONLY (no platform DB fallback)
         await db.employee.update({
           where: { id: employeeRecord.id },
           data: employeeUpdateData,
-        }).catch(async () => {
-          // If that fails, try platform DB
-          await platformDb.employee.update({
-            where: { id: employeeRecord.id },
-            data: employeeUpdateData,
-          }).catch(() => null);
-        });
+        }).catch(() => null);
       }
     }
 

@@ -53,14 +53,24 @@ export async function POST(request: Request) {
       }
     }
 
-    // Also clear from platform DB (in case data is there too)
+    // Also clear from platform DB ONLY if the tenant doesn't have a dedicated DB
+    // (Golden Rule: tenant data should NOT be in the platform DB — but if the
+    // tenant hasn't been migrated to a dedicated DB yet, data might still be there)
     let platformDeleted = 0;
-    try {
-      const result = await platformDb.performanceReview.deleteMany({
-        where: { reviewCycle: 'Probation' },
-      }).catch(() => null);
-      platformDeleted = result?.count || 0;
-    } catch { /* non-critical */ }
+    const hasDedicatedDb = await platformDb.tenantDatabase.findFirst({
+      where: { tenant: { slug }, isActive: true },
+      select: { id: true },
+    }).catch(() => null);
+
+    if (!hasDedicatedDb) {
+      // No dedicated DB — data is still in platform DB, clear it there
+      try {
+        const result = await platformDb.performanceReview.deleteMany({
+          where: { reviewCycle: 'Probation' },
+        }).catch(() => null);
+        platformDeleted = result?.count || 0;
+      } catch { /* non-critical */ }
+    }
 
     return NextResponse.json({
       success: true,
