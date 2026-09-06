@@ -206,6 +206,7 @@ export default function MyProfilePage() {
 
   const emp = profileData?.employee as Record<string, unknown> | null | undefined;
   const tenant = profileData?.tenant as Record<string, unknown> | null | undefined;
+  const debugInfo = profileData?._debug as Record<string, unknown> | undefined;
 
   const getInitials = (name: string) =>
     name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
@@ -297,6 +298,21 @@ export default function MyProfilePage() {
 
   return (
     <div className="space-y-6">
+      {/* Debug banner — temporary, remove after fixing */}
+      {debugInfo && !emp && (
+        <div className="thb-card p-4 border-2 border-amber-300 bg-amber-50">
+          <p className="text-sm font-semibold text-amber-800">Debug Info (Profile Data Issue)</p>
+          <div className="mt-2 text-xs text-amber-700 space-y-1">
+            <p>User found in platform DB: {String(debugInfo.foundInPlatform)}</p>
+            <p>Has employee data: {String(debugInfo.hasEmployee)}</p>
+            <p>Employee email: {String(debugInfo.empEmail)}</p>
+            <p>User email: {str(profileData?.email)}</p>
+            <p>User ID: {str(profileData?.id)}</p>
+            <p>Tenant: {tenant ? str(tenant?.name) : 'null'}</p>
+            <p className="mt-2 text-amber-600">If hasEmployee is false, the Employee record doesn't exist in any DB for this user. The employee list may show data because it queries by companyId, not userId.</p>
+          </div>
+        </div>
+      )}
       {/* ═══════════════════════════════════════════
           Profile Header Card – SmartHR Style
           ═══════════════════════════════════════════ */}
