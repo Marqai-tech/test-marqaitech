@@ -152,19 +152,115 @@ export async function GET(request: Request) {
     try {
       let employee = null;
 
-      // Try by userId in userDb only (no platform DB fallback)
-      employee = await userDb.employee.findUnique({
-        where: { userId: user.id },
-      }).catch(() => null);
+      // First, verify the Employee table exists via raw SQL
+      try {
+        const tableCheck = await userDb.$executeRawUnsafe(
+          `CREATE TABLE IF NOT EXISTS "Employee" (
+            "id" TEXT NOT NULL,
+            "employeeId" TEXT NOT NULL,
+            "firstName" TEXT NOT NULL,
+            "lastName" TEXT NOT NULL,
+            "email" TEXT NOT NULL,
+            "personalEmail" TEXT,
+            "phone" TEXT,
+            "avatar" TEXT,
+            "userId" TEXT,
+            "departmentId" TEXT NOT NULL,
+            "designationId" TEXT NOT NULL,
+            "branchId" TEXT,
+            "companyId" TEXT,
+            "reportingManagerId" TEXT,
+            "dateOfJoining" TIMESTAMP(3) NOT NULL DEFAULT NOW(),
+            "dateOfBirth" TIMESTAMP(3),
+            "gender" TEXT,
+            "maritalStatus" TEXT,
+            "nationality" TEXT,
+            "address" TEXT,
+            "city" TEXT,
+            "state" TEXT,
+            "zipCode" TEXT,
+            "country" TEXT,
+            "bloodGroup" TEXT,
+            "emergencyContactName" TEXT,
+            "emergencyContactPhone" TEXT,
+            "status" TEXT NOT NULL DEFAULT 'active',
+            "employeeStatus" TEXT NOT NULL DEFAULT 'confirmed',
+            "employeeType" TEXT NOT NULL DEFAULT 'full_time',
+            "bankName" TEXT,
+            "bankAccountNo" TEXT,
+            "bankIfscCode" TEXT,
+            "panNumber" TEXT,
+            "aadhaarNumber" TEXT,
+            "taxId" TEXT,
+            "salary" DOUBLE PRECISION,
+            "salaryCurrency" TEXT NOT NULL DEFAULT 'INR',
+            "leavePolicyId" TEXT,
+            "attendancePolicyId" TEXT,
+            "travelPolicyId" TEXT,
+            "salaryStructureId" TEXT,
+            "createdAt" TIMESTAMP(3) NOT NULL DEFAULT NOW(),
+            "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT NOW(),
+            CONSTRAINT "Employee_pkey" PRIMARY KEY ("id")
+          )`
+        );
+        console.log('[Profile GET] Employee table check/created:', tableCheck);
+      } catch (tableErr) {
+        console.error('[Profile GET] Employee table check failed:', tableErr);
+      }
 
-      console.log('[Profile GET] Employee by userId in userDb:', employee ? `${employee.firstName} ${employee.lastName}` : 'NOT FOUND');
+      // Try by userId in userDb
+      try {
+        employee = await userDb.employee.findUnique({
+          where: { userId: user.id },
+        });
+      } catch (err) {
+        const errObj = err as { code?: string; message?: string };
+        console.error('[Profile GET] Employee by userId FAILED:', errObj.code, errObj.message);
 
-      // Try by email in userDb only (no platform DB fallback)
+        // FALLBACK: Try raw SQL if Prisma fails
+        if (!employee) {
+          try {
+            const rawResult = await userDb.$queryRawUnsafe(
+              `SELECT * FROM "Employee" WHERE "userId" = $1 LIMIT 1`,
+              user.id
+            ) as any[];
+            if (rawResult && rawResult.length > 0) {
+              employee = rawResult[0];
+              console.log('[Profile GET] Employee found via RAW SQL by userId:', employee?.firstname || employee?.firstname);
+            }
+          } catch (rawErr) {
+            console.error('[Profile GET] Raw SQL by userId failed:', rawErr);
+          }
+        }
+      }
+
+      console.log('[Profile GET] Employee by userId in userDb:', employee ? `${employee.firstName || employee.firstname} ${employee.lastName || employee.lastname}` : 'NOT FOUND');
+
+      // Try by email in userDb
       if (!employee && user.email) {
-        employee = await userDb.employee.findFirst({
-          where: { email: user.email },
-        }).catch(() => null);
-        console.log('[Profile GET] Employee by email in userDb:', employee ? `${employee.firstName} ${employee.lastName}` : 'NOT FOUND');
+        try {
+          employee = await userDb.employee.findFirst({
+            where: { email: user.email },
+          });
+        } catch (err) {
+          const errObj = err as { code?: string; message?: string };
+          console.error('[Profile GET] Employee by email FAILED:', errObj.code, errObj.message);
+
+          // FALLBACK: Try raw SQL
+          try {
+            const rawResult = await userDb.$queryRawUnsafe(
+              `SELECT * FROM "Employee" WHERE "email" = $1 LIMIT 1`,
+              user.email
+            ) as any[];
+            if (rawResult && rawResult.length > 0) {
+              employee = rawResult[0];
+              console.log('[Profile GET] Employee found via RAW SQL by email');
+            }
+          } catch (rawErr) {
+            console.error('[Profile GET] Raw SQL by email failed:', rawErr);
+          }
+        }
+        console.log('[Profile GET] Employee by email in userDb:', employee ? `${employee.firstName || employee.firstname} ${employee.lastName || employee.lastname}` : 'NOT FOUND');
       }
 
       if (employee) {
@@ -276,6 +372,8 @@ export async function GET(request: Request) {
       employeeId: employeeData?.employeeId,
       employeeName: employeeData ? `${employeeData.firstName} ${employeeData.lastName}` : null,
       hasTenant: !!tenantInfo,
+      userDbIsPlatform: userDb === platformDb,
+      dbIsPlatform: db === platformDb,
     });
 
     return NextResponse.json(
@@ -290,6 +388,13 @@ export async function GET(request: Request) {
         employee: employeeData,
         lastLogin: user.lastLogin ? toISOStr(user.lastLogin) : null,
         createdAt: user.createdAt ? toISOStr(user.createdAt) : null,
+        _debug: {
+          userFoundInPlatformDb,
+          userDbIsPlatform: userDb === platformDb,
+          dbIsPlatform: db === platformDb,
+          hasEmployee: !!employeeData,
+          employeeEmail: employeeData?.email,
+        },
       },
       { headers: corsHeaders() }
     );
