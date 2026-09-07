@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getDb, getPlatformDb } from '@/lib/tenant-db';
+import { getDb, getPlatformDb, getDbForTenant } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders, hashPassword } from '@/lib/auth';
 
 function corsHeaders() {
@@ -52,25 +52,55 @@ export async function GET(request: Request) {
 
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404, headers: corsHeaders() });
 
-    // ─── Determine search order for employee lookup ───
-    // The employee record lives in the TENANT DB (not the platform DB).
-    // So we ALWAYS search the tenant DB FIRST, then fall back to platform DB.
+    // ─── CRITICAL FIX: Explicitly resolve the tenant DB from the user's tenantId ───
+    // getDb(request) relies on the x-tenant-slug header from middleware, which
+    // might not be set correctly. This caused the profile API to search the
+    // platform DB instead of the tenant DB — even though the employee record
+    // exists in the tenant DB with the correct userId.
     //
-    // Previously, if the user was found in the platform DB (foundInPlatform=true),
-    // the search order was [platformDb, tenantDb] — which meant the platform DB
-    // was searched first (and the employee wasn't there), then the tenant DB.
-    // This worked, but only if the tenant DB was actually `db` (the resolved DB).
-    //
-    // The fix: always search `db` (tenant DB) first, then `platformDb`.
-    const allDbs: any[] = [db];
-    if (platformDb !== db) allDbs.push(platformDb);
+    // Fix: use the user's tenantId → look up the tenant slug → getDbForTenant(slug)
+    // This guarantees we search the tenant DB where the employee actually lives.
+    let explicitTenantDb: any = null;
+    let tenantSlug: string | null = null;
+    if (user.tenantId) {
+      try {
+        const tenant = await platformDb.tenant.findUnique({
+          where: { id: user.tenantId },
+          select: { slug: true },
+        });
+        if (tenant?.slug) {
+          tenantSlug = tenant.slug;
+          explicitTenantDb = await getDbForTenant(tenant.slug);
+          console.log(`[Profile] Explicitly resolved tenant DB for slug "${tenant.slug}"`);
+        }
+      } catch (e) {
+        console.error('[Profile] Failed to resolve tenant DB from tenantId:', e);
+      }
+    }
+
+    // ─── Build search list: tenant DB FIRST, then platform DB ───
+    // The employee record lives in the TENANT DB. We search it first.
+    // - explicitTenantDb: resolved from user.tenantId (most reliable)
+    // - db: resolved by getDb(request) from x-tenant-slug header
+    // - platformDb: last resort
+    const allDbs: any[] = [];
+    if (explicitTenantDb && explicitTenantDb !== platformDb) {
+      allDbs.push(explicitTenantDb);
+    }
+    if (db !== platformDb && !allDbs.includes(db)) {
+      allDbs.push(db);
+    }
+    if (!allDbs.includes(platformDb)) {
+      allDbs.push(platformDb);
+    }
 
     // Step 2: Find employee using RAW SQL ONLY (bypasses P2022, P2009, etc.)
     let employee: any = null;
     let empDb: any = null;
+    let foundByStrategy = '';
 
     for (const tryDb of allDbs) {
-      const dbName = tryDb === platformDb ? 'platformDb' : 'tenantDb';
+      const dbName = tryDb === platformDb ? 'platformDb' : (tryDb === explicitTenantDb ? 'explicitTenantDb' : 'tenantDb');
 
       // Ensure Employee table exists
       try {
@@ -80,14 +110,14 @@ export async function GET(request: Request) {
       // Try by userId
       try {
         const rows = await tryDb.$queryRawUnsafe(`SELECT * FROM "Employee" WHERE "userId" = $1 LIMIT 1`, user.id) as any[];
-        if (rows && rows.length > 0) { employee = rows[0]; empDb = tryDb; console.log(`[Profile] Found employee by userId in ${dbName}`); break; }
+        if (rows && rows.length > 0) { employee = rows[0]; empDb = tryDb; foundByStrategy = `userId in ${dbName}`; console.log(`[Profile] Found employee by userId in ${dbName}`); break; }
       } catch (e) { console.error(`[Profile] SQL by userId in ${dbName}:`, e); }
 
       // Try by email (exact match)
       if (!employee && user.email) {
         try {
           const rows = await tryDb.$queryRawUnsafe(`SELECT * FROM "Employee" WHERE "email" = $1 LIMIT 1`, user.email) as any[];
-          if (rows && rows.length > 0) { employee = rows[0]; empDb = tryDb; console.log(`[Profile] Found employee by email in ${dbName}`); break; }
+          if (rows && rows.length > 0) { employee = rows[0]; empDb = tryDb; foundByStrategy = `email in ${dbName}`; console.log(`[Profile] Found employee by email in ${dbName}`); break; }
         } catch (e) { console.error(`[Profile] SQL by email in ${dbName}:`, e); }
       }
 
@@ -95,29 +125,24 @@ export async function GET(request: Request) {
       if (!employee && user.email) {
         try {
           const rows = await tryDb.$queryRawUnsafe(`SELECT * FROM "Employee" WHERE LOWER("email") = LOWER($1) LIMIT 1`, user.email) as any[];
-          if (rows && rows.length > 0) { employee = rows[0]; empDb = tryDb; console.log(`[Profile] Found employee by email (case-insensitive) in ${dbName}`); break; }
+          if (rows && rows.length > 0) { employee = rows[0]; empDb = tryDb; foundByStrategy = `email (ci) in ${dbName}`; console.log(`[Profile] Found employee by email (case-insensitive) in ${dbName}`); break; }
         } catch (e) { console.error(`[Profile] SQL by email (ci) in ${dbName}:`, e); }
       }
 
-      // Try by personalEmail (the user's email might be stored as personalEmail)
+      // Try by personalEmail
       if (!employee && user.email) {
         try {
           const rows = await tryDb.$queryRawUnsafe(`SELECT * FROM "Employee" WHERE "personalEmail" = $1 LIMIT 1`, user.email) as any[];
-          if (rows && rows.length > 0) { employee = rows[0]; empDb = tryDb; console.log(`[Profile] Found employee by personalEmail in ${dbName}`); break; }
+          if (rows && rows.length > 0) { employee = rows[0]; empDb = tryDb; foundByStrategy = `personalEmail in ${dbName}`; console.log(`[Profile] Found employee by personalEmail in ${dbName}`); break; }
         } catch (e) { console.error(`[Profile] SQL by personalEmail in ${dbName}:`, e); }
       }
     }
 
-    // If employee not found by userId or email, try to LINK it:
-    // The employee record exists (visible in employee list) but userId is NULL.
-    // We can find it by matching the employee's email to the user's email,
-    // or by finding ANY employee with a NULL userId in the same tenant.
+    // If employee not found by userId or email, try TRIM/LOWER email match
     if (!employee && user.email) {
       for (const tryDb of allDbs) {
         const dbName = tryDb === platformDb ? 'platformDb' : 'tenantDb';
         try {
-          // Try to find an employee whose email matches the user's email
-          // (even if the column has different casing)
           const rows = await tryDb.$queryRawUnsafe(
             `SELECT * FROM "Employee" WHERE LOWER(TRIM("email")) = LOWER(TRIM($1)) OR LOWER(TRIM("personalEmail")) = LOWER(TRIM($1)) LIMIT 1`,
             user.email
@@ -125,9 +150,8 @@ export async function GET(request: Request) {
           if (rows && rows.length > 0) {
             employee = rows[0];
             empDb = tryDb;
+            foundByStrategy = `TRIM/LOWER email in ${dbName}`;
             console.log(`[Profile] Found employee by TRIM/LOWER email match in ${dbName}`);
-
-            // LINK the employee to the user (set userId)
             try {
               await tryDb.$executeRawUnsafe(
                 `UPDATE "Employee" SET "userId" = $1 WHERE "id" = $2`,
@@ -159,8 +183,8 @@ export async function GET(request: Request) {
             if (rows && rows.length > 0) {
               employee = rows[0];
               empDb = tryDb;
+              foundByStrategy = `name in ${dbName}`;
               console.log(`[Profile] Found employee by name match in ${dbName}`);
-              // Link it
               try {
                 await tryDb.$executeRawUnsafe(
                   `UPDATE "Employee" SET "userId" = $1, "email" = $2 WHERE "id" = $3`,
@@ -178,8 +202,6 @@ export async function GET(request: Request) {
     }
 
     // LAST RESORT 2: Find ANY employee with a NULL userId in the tenant DB
-    // and link it to this user. This handles the case where the seed created
-    // employee records without userId, and the user is the only tenant_admin.
     if (!employee) {
       for (const tryDb of allDbs) {
         const dbName = tryDb === platformDb ? 'platformDb' : 'tenantDb';
@@ -190,8 +212,8 @@ export async function GET(request: Request) {
           if (rows && rows.length > 0) {
             employee = rows[0];
             empDb = tryDb;
+            foundByStrategy = `NULL userId in ${dbName}`;
             console.log(`[Profile] Found employee with NULL userId in ${dbName}, linking...`);
-            // Link it + set the email
             try {
               await tryDb.$executeRawUnsafe(
                 `UPDATE "Employee" SET "userId" = $1, "email" = $2 WHERE "id" = $3`,
@@ -207,7 +229,7 @@ export async function GET(request: Request) {
       }
     }
 
-    console.log('[Profile] Employee:', employee ? `${employee.firstname} ${employee.lastname}` : 'NOT FOUND');
+    console.log('[Profile] Employee:', employee ? `${employee.firstname} ${employee.lastname}` : 'NOT FOUND', '| Strategy:', foundByStrategy || 'none');
 
     // Build employee data from raw SQL row (PostgreSQL returns lowercase column names)
     let employeeData = null;
@@ -288,7 +310,15 @@ export async function GET(request: Request) {
       avatar: user.avatar, status: user.status,
       tenant: tenantInfo, employee: employeeData,
       lastLogin: toISOStr(user.lastLogin), createdAt: toISOStr(user.createdAt),
-      _debug: { foundInPlatform, hasEmployee: !!employeeData, empEmail: employeeData?.email },
+      _debug: {
+        foundInPlatform,
+        hasEmployee: !!employeeData,
+        empEmail: employeeData?.email,
+        foundByStrategy: foundByStrategy || 'not_found',
+        tenantSlug: tenantSlug,
+        searchedDbs: allDbs.length,
+        explicitTenantDbResolved: !!explicitTenantDb && explicitTenantDb !== platformDb,
+      },
     }, { headers: corsHeaders() });
   } catch (error) {
     console.error('Get profile error:', error);
