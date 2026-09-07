@@ -309,6 +309,17 @@ export const useCompanyContextStore = create<CompanyContextState>()(
             selectedGroupId = persistedSelectedGroup;
           }
 
+          // Deduplicate by id to prevent duplicate companies/groups from stale
+          // localStorage or DB issues
+          const dedupById = <T extends { id: string }>(arr: T[]): T[] => {
+            const seen = new Set<string>();
+            return (arr || []).filter((item) => {
+              if (seen.has(item.id)) return false;
+              seen.add(item.id);
+              return true;
+            });
+          };
+
           set({
             hydrated: true,
             hydrating: false,
@@ -320,10 +331,10 @@ export const useCompanyContextStore = create<CompanyContextState>()(
             tenantQuota: data.tenantQuota || null,
             ownCompanyId: data.ownCompanyId,
             ownCompany: data.ownCompany,
-            availableTenants: data.availableTenants || [],
-            availableCompanyGroups: data.availableCompanyGroups || [],
-            availableCompanies: data.availableCompanies || [],
-            mappedCompanies: data.mappedCompanies || [],
+            availableTenants: dedupById(data.availableTenants || []),
+            availableCompanyGroups: dedupById(data.availableCompanyGroups || []),
+            availableCompanies: dedupById(data.availableCompanies || []),
+            mappedCompanies: dedupById(data.mappedCompanies || []),
             selectedTenantId,
             selectedGroupId,
             selectedCompanyId,

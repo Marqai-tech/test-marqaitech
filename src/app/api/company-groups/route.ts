@@ -71,9 +71,10 @@ async function ensureDefaultGroupsForTenants(tenantIds: string[]): Promise<void>
           tenantsNeedingGroup.push(t);
         }
       } catch (e: unknown) {
-        // If we can't check, assume group is needed
-        console.error(`[company-groups] Check for existing groups in tenant ${t.id} failed:`, e);
-        tenantsNeedingGroup.push(t);
+        // If we can't check, SKIP — don't create a duplicate group.
+        // Previously this pushed to tenantsNeedingGroup, causing duplicate
+        // CompanyGroup records when the check threw a transient error.
+        console.error(`[company-groups] Check for existing groups in tenant ${t.id} failed (skipping to avoid duplicate):`, e);
       }
     }
     if (tenantsNeedingGroup.length === 0) return;

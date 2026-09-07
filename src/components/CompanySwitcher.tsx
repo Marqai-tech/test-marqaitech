@@ -198,17 +198,23 @@ export default function CompanySwitcher() {
   // (it's a required field on Company), so it's the reliable source of truth.
   // GOLDEN RULE: Use safeAvailableCompanyGroups and safeAvailableCompanies
   // so we never group/render companies from hidden tenants.
-  const groupedCompanies = safeAvailableCompanyGroups.reduce<Record<string, { groupName: string; items: typeof safeAvailableCompanies }>>((acc, g) => {
+  // Deduplicate companies by id (prevents duplicates from stale localStorage or DB issues)
+  const dedupedCompanies = safeAvailableCompanies.filter((c, idx, arr) =>
+    arr.findIndex((c2) => c2.id === c.id) === idx
+  );
+  // Deduplicate groups by id
+  const dedupedGroups = safeAvailableCompanyGroups.filter((g, idx, arr) =>
+    arr.findIndex((g2) => g2.id === g.id) === idx
+  );
+
+  const groupedCompanies = dedupedGroups.reduce<Record<string, { groupName: string; items: typeof dedupedCompanies }>>((acc, g) => {
     acc[g.id] = { groupName: g.name, items: [] };
     return acc;
   }, {});
   // Now add each company to its group using the FK as the primary key
-  for (const c of safeAvailableCompanies) {
-    // Prefer the raw foreign key (always present), fall back to the relation
+  for (const c of dedupedCompanies) {
     const gid = c.companyGroupId || c.companyGroup?.id || 'ungrouped';
-    // Resolve the group name from safeAvailableCompanyGroups (authoritative),
-    // then fall back to the relation, then to 'Ungrouped'
-    const gname = safeAvailableCompanyGroups.find(g => g.id === gid)?.name || c.companyGroup?.name || 'Ungrouped';
+    const gname = dedupedGroups.find(g => g.id === gid)?.name || c.companyGroup?.name || 'Ungrouped';
     if (!groupedCompanies[gid]) groupedCompanies[gid] = { groupName: gname, items: [] };
     groupedCompanies[gid].items.push(c);
   }
