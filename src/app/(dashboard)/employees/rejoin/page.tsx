@@ -92,7 +92,9 @@ export default function RejoinPage() {
       .then(r => r.ok ? r.json() : { employees: [] })
       .then(d => {
         const allEmps = d.employees || [];
-        setResignedEmployees(allEmps.filter((e: { status: string }) => e.status === 'resigned' || e.status === 'terminated' || e.status === 'inactive'));
+        // Filter: only resigned or terminated employees are eligible for rejoin
+        // (inactive is NOT a real employee status — only active/on_leave/terminated/resigned exist)
+        setResignedEmployees(allEmps.filter((e: { status: string }) => e.status === 'resigned' || e.status === 'terminated'));
       })
       .catch(() => setResignedEmployees([]));
   }, [selectedCompanyId, scopeQuery, selectedTenantId]);
@@ -146,6 +148,12 @@ export default function RejoinPage() {
     if (!form.newDepartment) return 'New Department is required';
     if (!form.newDesignation) return 'New Designation is required';
     if (!form.rejoinReason.trim() || form.rejoinReason.trim().length < 20) return 'Rejoin reason must be at least 20 characters';
+    // Reporting Manager name validation: only letters, spaces, hyphens, apostrophes, periods
+    if (form.reportingManager.trim()) {
+      if (!/^[A-Za-z\u00C0-\u017F\u0900-\u097F\s.'-]+$/.test(form.reportingManager.trim())) {
+        return 'Reporting Manager name must contain only letters, spaces, hyphens, apostrophes, or periods. Numbers and special characters are not allowed.';
+      }
+    }
     return null;
   };
 

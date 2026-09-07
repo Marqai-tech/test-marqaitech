@@ -366,20 +366,36 @@ export default function OrgChartPage() {
   const tree = useMemo(() => buildOrgTree(employees), [employees]);
 
   const filteredTree = useMemo(() => {
-    if (!deptFilter) return tree;
+    // Filter by both deptFilter AND search term.
+    // A node is kept if it matches the filter OR if any of its descendants match.
     const filter = (nodes: OrgNode[]): OrgNode[] => {
       return nodes.reduce<OrgNode[]>((acc, node) => {
         const deptName = node.employee.department?.name || 'Unassigned';
-        const matches = deptName === deptFilter;
+        const fullName = `${node.employee.firstName} ${node.employee.lastName}`.toLowerCase();
+        const email = (node.employee.email || '').toLowerCase();
+        const empId = (node.employee.employeeId || '').toLowerCase();
+        const designation = (node.employee.designation?.title || '').toLowerCase();
+
+        const matchesDept = !deptFilter || deptName === deptFilter;
+        const matchesSearch = !search ||
+          fullName.includes(search.toLowerCase()) ||
+          email.includes(search.toLowerCase()) ||
+          empId.includes(search.toLowerCase()) ||
+          designation.includes(search.toLowerCase());
+
         const filteredChildren = filter(node.children);
-        if (matches || filteredChildren.length > 0) {
+        // Keep this node if:
+        //   - It matches both filters (dept + search), OR
+        //   - It matches the dept filter AND any descendant matches the search, OR
+        //   - No filters are active
+        if ((matchesDept && matchesSearch) || (matchesDept && filteredChildren.length > 0)) {
           acc.push({ ...node, children: filteredChildren });
         }
         return acc;
       }, []);
     };
     return filter(tree);
-  }, [tree, deptFilter]);
+  }, [tree, deptFilter, search]);
 
   const departments = useMemo(() => {
     const seen = new Map<string, string>();
@@ -536,17 +552,29 @@ export default function OrgChartPage() {
 
         {/* ── Search + Toolbar ── */}
         <div className="bg-white rounded-xl border border-slate-200 p-4 mb-6">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-            <div className="flex-1 relative">
-              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <div className="flex flex-col gap-3">
+            {/* Search bar — full width on its own row */}
+            <div className="relative w-full">
+              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
               <input
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search by name or email..."
-                className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
+                placeholder="Search by name, email, employee ID, or designation..."
+                className="w-full pl-10 pr-10 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
               />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  title="Clear search"
+                >
+                  ×
+                </button>
+              )}
             </div>
+            {/* Department filter chips — on their own row, wrapping as needed */}
             <div className="flex items-center gap-2 flex-wrap">
               <button
                 type="button"

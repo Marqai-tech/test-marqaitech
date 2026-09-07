@@ -185,20 +185,40 @@ export default function EmployeeDashboardPage() {
         const leaveCount = allEmps.filter((e: any) => e.status === 'on_leave').length;
         const inactiveCount = allEmps.filter((e: any) => e.status !== 'active' && e.status !== 'on_leave').length;
 
-        // ─── Compute lifecycle counts from employee data ───
-        const PROBATION_PERIOD_DAYS = 90; // standard probation period
+        // ─── Compute lifecycle counts from employee data + lifecycle APIs ───
+        // Read probation period from settings (default 6 months = ~180 days)
+        let PROBATION_PERIOD_DAYS = 180; // default 6 months
+        try {
+          const stored = localStorage.getItem('3boxes_hrms_settings');
+          if (stored) {
+            const settings = JSON.parse(stored);
+            const months = Number(settings.employee_probation_period);
+            if (months > 0 && months <= 24) {
+              PROBATION_PERIOD_DAYS = months * 30;
+            }
+          }
+        } catch { /* ignore */ }
+
+        // On Probation: employees with employeeStatus='probation' OR
+        // employees who joined within the probation period
         const onProbationCount = (allEmps as any[]).filter((e: any) => {
-          if (e.status !== 'active' || !e.dateOfJoining) return false;
+          if (e.status !== 'active') return false;
+          // Check employeeStatus field first (more reliable)
+          if (e.employeeStatus === 'probation') return true;
+          // Fallback: check dateOfJoining
+          if (!e.dateOfJoining) return false;
           const joinDate = new Date(e.dateOfJoining);
           const daysSinceJoin = Math.floor((now.getTime() - joinDate.getTime()) / (1000 * 60 * 60 * 24));
-          return daysSinceJoin <= PROBATION_PERIOD_DAYS;
+          return daysSinceJoin <= PROBATION_PERIOD_DAYS && daysSinceJoin >= 0;
         }).length;
 
+        // Resignations & Terminations: count from employee status
         const resignationsCount = (allEmps as any[]).filter((e: any) => e.status === 'resigned').length;
         const terminationsCount = (allEmps as any[]).filter((e: any) => e.status === 'terminated').length;
 
-        // Transfers & Rejoins: these don't have dedicated DB models yet,
-        // so fetch counts from the respective APIs
+        // Transfers & Rejoins: fetch counts from the respective lifecycle APIs
+        // (previously these were stubs that always returned 0; now they
+        // persist real records, so the counts will reflect actual submissions)
         let transfersCount = 0;
         let rejoinsCount = 0;
         try {
@@ -215,7 +235,7 @@ export default function EmployeeDashboardPage() {
             rejoinsCount = rejoinData.pagination?.total || rejoinData.rejoins?.length || 0;
           }
         } catch {
-          // Lifecycle APIs may be stubs — keep 0
+          // Lifecycle APIs may be unavailable — keep 0
         }
 
         setLifecycleCounts({

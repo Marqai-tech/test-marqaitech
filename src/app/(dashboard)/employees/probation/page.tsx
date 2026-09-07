@@ -119,12 +119,17 @@ export default function ProbationPage() {
     setForm(prev => ({ ...prev, [field]: value }));
   };
 
-  const [employeeList, setEmployeeList] = useState<Array<{ id: string; employeeId: string; firstName: string; lastName: string; department?: { id: string; name: string } | null; designation?: { id: string; title: string } | null }>>([]);
+  const [employeeList, setEmployeeList] = useState<Array<{ id: string; employeeId: string; firstName: string; lastName: string; status?: string; department?: { id: string; name: string } | null; designation?: { id: string; title: string } | null }>>([]);
   useEffect(() => {
     const sq = scopeQuery();
     fetch(`/api/employees?limit=500${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() })
       .then(r => r.ok ? r.json() : { employees: [] })
-      .then(d => setEmployeeList(d.employees || []))
+      .then(d => {
+        const allEmps = d.employees || [];
+        // Filter: only active employees can be put on probation review
+        // (inactive/terminated/resigned employees are excluded)
+        setEmployeeList(allEmps.filter((e: { status?: string }) => e.status === 'active' || !e.status));
+      })
       .catch(() => setEmployeeList([]));
   }, [scopeQuery, selectedTenantId]);
 

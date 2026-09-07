@@ -103,6 +103,35 @@ export default async function RootLayout({
           dangerouslySetInnerHTML={{
             __html: `(function(){
               try{
+                // ─── CRITICAL: Per-tab session token storage ───
+                // Migrate tb_token from localStorage (shared across tabs)
+                // to sessionStorage (per-tab). This prevents session/role
+                // bleed when two tabs are logged in as different users.
+                var TOKEN_KEY='tb_token';
+                var ssTok=sessionStorage.getItem(TOKEN_KEY);
+                var lsTok=localStorage.getItem(TOKEN_KEY);
+                if(!ssTok && lsTok){
+                  sessionStorage.setItem(TOKEN_KEY, lsTok);
+                  localStorage.removeItem(TOKEN_KEY);
+                }
+                // Install localStorage shim: redirect tb_token reads/writes
+                // to sessionStorage so all 200+ existing call sites work.
+                var origGet=localStorage.getItem.bind(localStorage);
+                var origSet=localStorage.setItem.bind(localStorage);
+                var origRm=localStorage.removeItem.bind(localStorage);
+                localStorage.getItem=function(k){
+                  if(k===TOKEN_KEY)return sessionStorage.getItem(TOKEN_KEY);
+                  return origGet(k);
+                };
+                localStorage.setItem=function(k,v){
+                  if(k===TOKEN_KEY){sessionStorage.setItem(TOKEN_KEY,v);return;}
+                  origSet(k,v);
+                };
+                localStorage.removeItem=function(k){
+                  if(k===TOKEN_KEY){sessionStorage.removeItem(TOKEN_KEY);return;}
+                  origRm(k);
+                };
+
                 var h=window.location.hostname.toLowerCase();
                 // FOOLPROOF: Direct hostname check — no env vars, no detection
                 var isLive=h==='3boxeshrms.com'||h.endsWith('.3boxeshrms.com')||h==='www.3boxeshrms.com';

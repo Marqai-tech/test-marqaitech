@@ -467,6 +467,20 @@ model Employee {
 
   status         String @default("active") // active, on_leave, terminated, resigned
 
+  // ─── Login Credentials Status (REQ-EMP-LOGIN) ───
+  // Tracks whether login credentials have been explicitly created/invited
+  // for this employee. Until credentials are created, the employee shows
+  // as "No Account" in the Login Credentials page — even if a User record
+  // happens to exist (e.g., from the seed). This is the source of truth
+  // for the credentials page; userId alone is NOT sufficient.
+  //   not_invited → default; no credentials created yet
+  //   invited     → credentials created; invitation email sent
+  //   active      → user has logged in at least once
+  //   inactive    → admin deactivated the account
+  credentialsStatus     String? @default("not_invited")
+  credentialsInvitedAt  DateTime?
+  credentialsInvitedBy  String?
+
   // ─── Employee Status & Type (REQ-EMP-02) ───
   // employeeStatus: The current employment status — drives probation workflow
   //   confirmed → employee has completed probation

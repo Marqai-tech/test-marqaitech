@@ -98,6 +98,13 @@ export async function GET(request: Request) {
         `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "attendancePolicyId" TEXT`,
         `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "travelPolicyId" TEXT`,
         `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "salaryStructureId" TEXT`,
+        // ─── Login credentials status tracking (REQ-EMP-LOGIN) ───
+        // Source of truth for "No Account" vs "Active" in the credentials page.
+        // Until credentials are explicitly created/invited, this is 'not_invited'
+        // — even if a User record exists from the seed.
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "credentialsStatus" TEXT NOT NULL DEFAULT 'not_invited'`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "credentialsInvitedAt" TIMESTAMP(3)`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "credentialsInvitedBy" TEXT`,
         // User columns (the credentials route selects role, status, lastLogin)
         `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "avatar" TEXT`,
         `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "tenantId" TEXT`,
@@ -245,6 +252,9 @@ export async function GET(request: Request) {
             designation: { select: { title: true } },
             userId: true,
             user: { select: { id: true, email: true, status: true, lastLogin: true, role: true } },
+            // Source-of-truth for credentials status — see schema-sync above
+            credentialsStatus: true,
+            credentialsInvitedAt: true,
           },
           orderBy: { firstName: 'asc' },
           skip: (page - 1) * limit,
@@ -320,6 +330,34 @@ export async function GET(request: Request) {
         loginEmail = newEmail; // Show the updated email immediately
       }
 
+      // ─── Determine hasLoginAccount + loginStatus using credentialsStatus
+      // as the source of truth (NOT just emp.userId). ───
+      //
+      // Previously: hasLoginAccount = !!emp.userId → if the seed created a
+      // User record for the employee, the credentials page showed "Active"
+      // even though the admin hadn't explicitly created/invited credentials.
+      //
+      // Now: hasLoginAccount is true ONLY when credentialsStatus is 'invited',
+      // 'active', or 'inactive' — meaning the admin has explicitly created
+      // login credentials for this employee. When credentialsStatus is
+      // 'not_invited' (default), hasLoginAccount is false → shows "No Account".
+      const credStatus = (emp as any).credentialsStatus || 'not_invited';
+      const hasLoginAccount = credStatus !== 'not_invited';
+      let loginStatus: string;
+      if (credStatus === 'not_invited') {
+        loginStatus = 'no_account';
+      } else if (credStatus === 'invited') {
+        // If the user has logged in, show 'active'; otherwise 'invited'
+        loginStatus = emp.user?.lastLogin ? 'active' : 'invited';
+      } else if (credStatus === 'active') {
+        loginStatus = 'active';
+      } else if (credStatus === 'inactive') {
+        loginStatus = 'inactive';
+      } else {
+        // Fallback: use legacy behavior (user.status)
+        loginStatus = emp.user?.status || 'no_account';
+      }
+
       return {
         id: emp.id,
         employeeId: emp.employeeId,
@@ -334,8 +372,10 @@ export async function GET(request: Request) {
         status: emp.status,
         department: emp.department?.name || '—',
         designation: emp.designation?.title || '—',
-        hasLoginAccount: !!emp.userId,
-        loginStatus: emp.user?.status || 'no_account',
+        hasLoginAccount,
+        loginStatus,
+        credentialsStatus: credStatus,
+        credentialsInvitedAt: (emp as any).credentialsInvitedAt || null,
         lastLogin: emp.user?.lastLogin || null,
         userRole: emp.user?.role || null,
       };
@@ -484,6 +524,16 @@ export async function POST(request: Request) {
             }).catch(() => null);
           }
 
+          // ─── Mark credentials as 'invited' on the Employee record ───
+          // This is the source-of-truth for the credentials page.
+          // Without this, the employee would still show as "No Account"
+          // even after the admin explicitly created/reset their password.
+          await db.$executeRawUnsafe(
+            `UPDATE "Employee" SET "credentialsStatus" = 'invited', "credentialsInvitedAt" = NOW(), "credentialsInvitedBy" = $1, "updatedAt" = NOW() WHERE "id" = $2`,
+            decoded.userId,
+            emp.id,
+          ).catch(() => null);
+
           results.push({
             employeeId: emp.employeeId,
             name: `${emp.firstName} ${emp.lastName}`,
@@ -517,10 +567,27 @@ export async function POST(request: Request) {
               status: 'active',
             },
           });
-          // Link employee to user
+          // Link employee to user AND mark credentials as 'invited'
           await db.employee.update({
             where: { id: emp.id },
-            data: { userId: newUser.id },
+            data: {
+              userId: newUser.id,
+              // @ts-expect-error — credentialsStatus column exists in DB (via schema-sync)
+              credentialsStatus: 'invited',
+              // @ts-expect-error — credentialsInvitedAt column exists in DB
+              credentialsInvitedAt: new Date(),
+              // @ts-expect-error — credentialsInvitedBy column exists in DB
+              credentialsInvitedBy: decoded.userId,
+            },
+          }).catch(async () => {
+            // Fallback: use raw SQL in case the Prisma client doesn't know about
+            // the new columns yet (tenant DBs that haven't been regenerated)
+            await db.$executeRawUnsafe(
+              `UPDATE "Employee" SET "userId" = $1, "credentialsStatus" = 'invited', "credentialsInvitedAt" = NOW(), "credentialsInvitedBy" = $2, "updatedAt" = NOW() WHERE "id" = $3`,
+              newUser.id,
+              decoded.userId,
+              emp.id,
+            ).catch(() => null);
           });
           results.push({
             employeeId: emp.employeeId,
@@ -565,6 +632,12 @@ export async function POST(request: Request) {
                 where: { id: emp.id },
                 data: { userId: existingUser.id },
               });
+              // Mark credentials as 'invited' (source-of-truth for credentials page)
+              await db.$executeRawUnsafe(
+                `UPDATE "Employee" SET "credentialsStatus" = 'invited', "credentialsInvitedAt" = NOW(), "credentialsInvitedBy" = $1, "updatedAt" = NOW() WHERE "id" = $2`,
+                decoded.userId,
+                emp.id,
+              ).catch(() => null);
               results.push({
                 employeeId: emp.employeeId,
                 name: `${emp.firstName} ${emp.lastName}`,

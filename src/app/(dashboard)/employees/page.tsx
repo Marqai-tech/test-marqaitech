@@ -809,13 +809,19 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
     }
   }, []);
 
-  /* Generate the next employee code based on settings */
+  /* Generate the next employee code based on settings.
+   *  - When autoGeneration is OFF → return '' (user must enter manually)
+   *  - When autoGeneration is ON  → use prefix + sequence + random suffix
+   *    (we append a short random suffix to guarantee uniqueness even if the
+   *     sequence counter in localStorage isn't perfectly in sync with the DB)
+   */
   const generateNextEmployeeCode = useCallback(() => {
     const settings = getEmployeeCodeSettings();
     if (!settings.autoGeneration) return ''; // Manual mode — leave empty for user to fill
-    // Use prefix + timestamp-based unique suffix to avoid collisions
-    const ts = String(Date.now()).slice(-6);
-    return `${settings.prefix}${ts}`;
+    // Use prefix + sequence + short random suffix for uniqueness
+    const seq = String(settings.sequence || 1001).padStart(4, '0');
+    const rand = Math.random().toString(36).slice(2, 5).toUpperCase();
+    return `${settings.prefix}${seq}${rand}`;
   }, [getEmployeeCodeSettings]);
 
   /* Auto-initialize form when in formOnly (Add Employee) mode */
@@ -1002,6 +1008,30 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
       toast.error(`Validation errors: ${formatErrors.join('; ')}`, { duration: 6000 });
       return;
     }
+
+    // ─── Employee ID uniqueness check (manual mode only) ───
+    // When auto-generation is ON, the system generates a unique ID, so we
+    // skip the check. When auto-generation is OFF, the user has manually
+    // entered an ID — we must verify it doesn't already exist.
+    if (!editingId && !settings.autoGeneration && form.employeeId) {
+      try {
+        const sq = scopeQuery();
+        const checkRes = await fetch(`/api/employees?limit=500${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
+        if (checkRes.ok) {
+          const checkData = await checkRes.json();
+          const allEmps = checkData.employees || [];
+          const duplicate = allEmps.find((e: { employeeId: string }) => e.employeeId?.toLowerCase() === form.employeeId.toLowerCase());
+          if (duplicate) {
+            toast.error(`Employee ID "${form.employeeId}" already exists. Please use a different ID.`, { duration: 6000 });
+            setFormTab('personal');
+            return;
+          }
+        }
+      } catch {
+        // If the check fails, proceed — the API will catch duplicates anyway
+      }
+    }
+
     try {
       setSubmitting(true);
       const payload = {
@@ -1341,6 +1371,8 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                 <option value="active">Active</option>
                 <option value="on_leave">On Leave</option>
                 <option value="inactive">Inactive</option>
+                <option value="terminated">Terminated</option>
+                <option value="resigned">Resigned</option>
               </select>
             </div>
 

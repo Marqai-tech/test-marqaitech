@@ -59,31 +59,58 @@ export async function GET(request: Request) {
     if (employeeId) where.employeeId = employeeId;
     if (status) where.status = status;
 
+    // ─── Use raw SQL for maximum compatibility across tenant DBs ───
+    // Previously this used db.performanceReview.findMany() which can fail
+    // silently on tenant DBs where the Prisma client hasn't been regenerated
+    // with the latest schema. Raw SQL is more reliable.
     let reviews: any[] = [];
     let total = 0;
     try {
-      [reviews, total] = await Promise.all([
-        db.performanceReview.findMany({
-          where,
-          include: {
-            employee: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                employeeId: true,
-                avatar: true,
-                department: { select: { name: true } },
-                designation: { select: { title: true } },
-              },
-            },
-          },
-          orderBy: { createdAt: 'desc' },
-          skip: (page - 1) * limit,
-          take: limit,
-        }),
-        db.performanceReview.count({ where }),
-      ]);
+      // Build raw SQL query
+      const conditions: string[] = [`pr."reviewCycle" = 'Probation'`];
+      const params: unknown[] = [];
+      if (employeeId) {
+        params.push(employeeId);
+        conditions.push(`pr."employeeId" = $${params.length}`);
+      }
+      if (status) {
+        params.push(status);
+        conditions.push(`pr."status" = $${params.length}`);
+      }
+      const whereClause = `WHERE ${conditions.join(' AND ')}`;
+
+      // Count total
+      try {
+        const countRows = await db.$queryRawUnsafe(
+          `SELECT COUNT(*)::int AS count FROM "PerformanceReview" pr ${whereClause}`,
+          ...params,
+        ) as any[];
+        total = countRows?.[0]?.count || 0;
+      } catch (countErr) {
+        console.error('[Probation GET] count failed:', countErr);
+        total = 0;
+      }
+
+      // Fetch rows with employee join
+      const offset = (page - 1) * limit;
+      const queryParams = [...params, limit, offset];
+      reviews = await db.$queryRawUnsafe(
+        `SELECT pr.*,
+           e."firstName" AS "empFirstName",
+           e."lastName"  AS "empLastName",
+           e."employeeId" AS "empCode",
+           e."avatar" AS "empAvatar",
+           d."name" AS "deptName",
+           des."title" AS "desgTitle"
+         FROM "PerformanceReview" pr
+         LEFT JOIN "Employee" e ON e."id" = pr."employeeId"
+         LEFT JOIN "Department" d ON d."id" = e."departmentId"
+         LEFT JOIN "Designation" des ON des."id" = e."designationId"
+         ${whereClause}
+         ORDER BY pr."createdAt" DESC
+         LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+        ...queryParams,
+      ) as any[];
     } catch (queryErr) {
       const errObj = queryErr as { code?: string; message?: string };
       console.error('[Probation GET] query failed:', errObj);
@@ -106,12 +133,13 @@ export async function GET(request: Request) {
         }
       } catch { /* not JSON — treat as plain comment */ }
 
-      // Build employee name from the included employee relation
-      const emp = review.employee || {};
-      const employeeName = `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || 'Unknown';
-      const employeeCode = emp.employeeId || '—';
-      const departmentName = emp.department?.name || '—';
-      const designationTitle = emp.designation?.title || '—';
+      // Build employee name from the joined employee columns
+      const empFirstName = review.empFirstName || review.employee?.firstName || '';
+      const empLastName = review.empLastName || review.employee?.lastName || '';
+      const employeeName = `${empFirstName} ${empLastName}`.trim() || 'Unknown';
+      const employeeCode = review.empCode || review.employee?.employeeId || '—';
+      const departmentName = review.deptName || review.employee?.department?.name || '—';
+      const designationTitle = review.desgTitle || review.employee?.designation?.title || '—';
 
       // Calculate probation end date from start date + period + extension
       let endDate: string | null = null;
@@ -128,8 +156,16 @@ export async function GET(request: Request) {
       return {
         id: review.id,
         employeeId: review.employeeId,
-        employee: review.employee,
-        // UI-expected fields ( ProbationRecord interface)
+        employee: review.employee || (empFirstName ? {
+          id: review.employeeId,
+          firstName: empFirstName,
+          lastName: empLastName,
+          employeeId: employeeCode,
+          avatar: review.empAvatar,
+          department: { name: departmentName },
+          designation: { title: designationTitle },
+        } : null),
+        // UI-expected fields (ProbationRecord interface)
         employeeName,
         employeeCode,
         startDate: startDateStr,

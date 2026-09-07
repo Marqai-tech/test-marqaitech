@@ -4,6 +4,10 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Toaster } from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+// CRITICAL: Install per-tab session token storage shim BEFORE any auth code runs.
+// This redirects localStorage['tb_token'] to sessionStorage so that two tabs
+// in the same browser don't share/overwrite each other's sessions.
+import '@/lib/token-storage';
 import { useNotificationStore } from '@/store/notificationStore';
 import Sidebar from '@/components/Sidebar';
 import { navSections, PICKER_ROUTES } from '@/lib/navData';

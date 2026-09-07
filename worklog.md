@@ -654,3 +654,123 @@ Stage Summary:
 - Created /api/admin/map-tenant-admin-emp-id endpoint (idempotent, safe)
 - Added "Map Admin EMP" button to super-admin UI for one-click mapping
 - After mapping: tenant admin user is linked to Employee record with employeeId="EMP-MTPL-001", visible in both super admin (3boxeshrms.com/super-admin) and tenant admin (marqaitechgroup.3boxeshrms.com) links
+
+---
+Task ID: 3
+Agent: Main Agent
+Task: Fix 11 bugs across Probation/Transfer/Resignation/Termination/Rejoin/Employee List/Session/Credentials/Employee ID/Org Chart/Dashboard
+
+Work Log:
+
+1. CRITICAL Session/Role Switching Bug (security):
+   - Root cause: tb_token stored in localStorage (shared across all browser tabs)
+   - Fix: Created /src/lib/token-storage.ts — installs a shim that redirects
+     localStorage['tb_token'] reads/writes to sessionStorage (per-tab)
+   - Added inline script in /src/app/layout.tsx that runs BEFORE React hydrates:
+     migrates existing token from localStorage → sessionStorage, then patches
+     localStorage.getItem/setItem/removeItem to redirect tb_token to sessionStorage
+   - Imported the shim in /src/app/(dashboard)/layout.tsx for safety
+   - Result: Two tabs can now be logged in as different users without session bleed
+
+2. Employee List — Inactive status filter:
+   - Added 'terminated' and 'resigned' options to the status filter dropdown
+     (previously only had: active, on_leave, inactive)
+   - The API already supported filtering by any status value via where.status = status
+
+3. Probation Review dropdown — exclude inactive/terminated:
+   - Added client-side filter: only show employees with status === 'active'
+   - Same filter applied to Transfer, Termination dropdowns
+   - Rejoin dropdown: only show resigned/terminated employees (removed 'inactive' which is not a real status)
+
+4. Transfer API (was a stub returning empty array):
+   - Rewrote /src/app/api/employees/transfer/route.ts with:
+     • Inline schema-sync (creates Transfer table via raw SQL)
+     • GET: raw SQL with JOIN to Employee/Department/Designation/Branch
+     • POST: inserts Transfer record with status='pending', sends notifications
+       to all HR/Admin users + reporting manager, creates audit log
+   - Fixed Transfer page: designation now shows name (via desgLabel helper)
+     instead of internal ID
+
+5. Resignation API (was a stub + had ReferenceError: db is not defined):
+   - Rewrote /src/app/api/employees/resignation/route.ts with:
+     • Inline schema-sync (creates Resignation table)
+     • GET: raw SQL with JOIN
+     • POST: inserts record, sends notifications to HR/Admin + reporting manager,
+       creates audit log
+     • Fixed the missing `db` import that caused silent failures
+
+6. Termination API (was a stub):
+   - Rewrote /src/app/api/employees/termination/route.ts with:
+     • Inline schema-sync (creates Termination table)
+     • GET: raw SQL with JOIN
+     • POST: inserts record with status='completed' (admin-initiated),
+       updates Employee.status = 'terminated', deactivates linked User account,
+       sends notifications to HR/Admin + reporting manager + employee,
+       creates audit log
+
+7. Rejoin API (was a stub + had ReferenceError: db is not defined):
+   - Rewrote /src/app/api/employees/rejoin/route.ts with:
+     • Inline schema-sync (creates Rejoin table)
+     • GET: raw SQL with JOIN
+     • POST: validates Reporting Manager name (letters/spaces/hyphens/apostrophes
+       only — no numbers or special chars), inserts record with status='completed',
+       updates Employee.status = 'active' + new dept/desg/DOJ, reactivates User
+       account, sends notifications to HR/Admin + employee + new manager,
+       creates audit log
+   - Added client-side validation for Reporting Manager name on the Rejoin page
+
+8. Employee Account Status (Login Credentials page):
+   - Root cause: credentials page used `hasLoginAccount = !!emp.userId` —
+     if the seed created a User record for the employee, the page showed "Active"
+     even though the admin hadn't explicitly created/invited credentials
+   - Fix: Added `credentialsStatus` column to Employee schema (values: not_invited,
+     invited, active, inactive; default: not_invited)
+   - Updated credentials API to use credentialsStatus as source of truth:
+     • hasLoginAccount = credentialsStatus !== 'not_invited'
+     • loginStatus derived from credentialsStatus (not from user.status)
+   - Updated POST handler: when admin creates/resets credentials, sets
+     credentialsStatus = 'invited' + credentialsInvitedAt + credentialsInvitedBy
+   - Added inline schema-sync (ALTER TABLE ADD COLUMN IF NOT EXISTS) for the
+     new columns on all tenant DBs
+
+9. Employee ID Auto-Generation Setting:
+   - Root cause: /employees/settings page wrote to '3boxes_hrms_employee_settings'
+     localStorage key, but the Add Employee form read from '3boxes_hrms_settings'
+     (different key) — so toggling auto-generation had no effect
+   - Fix: Updated /employees/settings to write to BOTH keys (canonical +
+     legacy) so the Add Employee form picks up changes immediately
+   - Also fixed generateNextEmployeeCode to actually use the configured
+     `sequence` number (was using Date.now().slice(-6))
+   - Added client-side uniqueness check for manually-entered employee IDs
+     (fetches all employees and checks for duplicates before POST)
+
+10. Org Chart — Search Bar UI + Search Functionality:
+    - Restructured the search/toolbar layout: search bar now gets its own
+      full-width row (was in a flex container that squeezed it)
+    - Added a clear-search (×) button when search is non-empty
+    - Updated filteredTree to actually filter by search term (was only
+      filtering by department) — now matches on name, email, employee ID,
+      and designation
+    - Improved search placeholder: "Search by name, email, employee ID, or designation..."
+
+11. Probation Review not displaying in Tenant Admin:
+    - Rewrote probation GET handler to use raw SQL ($queryRawUnsafe) instead
+      of Prisma's db.performanceReview.findMany() — this is more reliable
+      across tenant DBs where the Prisma client may not have been regenerated
+      with the latest schema
+    - Added JOINs to fetch employee/department/designation names in the same query
+
+12. Dashboard Lifecycle Counts:
+    - Fixed probation count: now reads employee_probation_period from
+      localStorage settings (was hardcoded 90 days); also checks
+      employeeStatus === 'probation' first
+    - Transfer/Rejoin counts now work because the APIs are no longer stubs
+    - Resignation/Termination counts already worked (counted from employee status)
+
+Stage Summary:
+- All 11 bugs fixed
+- 4 stub APIs (Transfer/Resignation/Termination/Rejoin) now persist real records
+  with notifications + audit logs
+- Session isolation fixed via sessionStorage shim (critical security fix)
+- Employee credentials status now has a proper source-of-truth column
+- TypeScript compiles with 0 new errors (11 pre-existing errors in unrelated files)

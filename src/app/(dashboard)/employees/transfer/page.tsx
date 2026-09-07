@@ -84,13 +84,17 @@ export default function TransferPage() {
   const DESIGNATIONS = designations.map(d => ({ value: d.id, label: d.title }));
   const LOCATIONS = branches.map(b => ({ value: b.id, label: b.name + (b.city ? `, ${b.city}` : '') }));
 
-  // Fetch employees for dropdown
-  const [employeeList, setEmployeeList] = useState<Array<{ id: string; employeeId: string; firstName: string; lastName: string; department?: { id: string; name: string } | null; designation?: { id: string; title: string } | null; branch?: { id: string; name: string } | null }>>([]);
+  // Fetch employees for dropdown (only active employees — exclude inactive/terminated/resigned)
+  const [employeeList, setEmployeeList] = useState<Array<{ id: string; employeeId: string; firstName: string; lastName: string; status?: string; department?: { id: string; name: string } | null; designation?: { id: string; title: string } | null; branch?: { id: string; name: string } | null }>>([]);
   useEffect(() => {
     const sq = scopeQuery();
     fetch(`/api/employees?limit=500${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() })
       .then(r => r.ok ? r.json() : { employees: [] })
-      .then(d => setEmployeeList(d.employees || []))
+      .then(d => {
+        const allEmps = d.employees || [];
+        // Filter: only active employees can be transferred
+        setEmployeeList(allEmps.filter((e: { status?: string }) => e.status === 'active' || !e.status));
+      })
       .catch(() => setEmployeeList([]));
   }, [selectedCompanyId, scopeQuery, selectedTenantId]);
 
@@ -194,8 +198,9 @@ export default function TransferPage() {
   };
 
   const transferTypeLabel = (v: string) => TRANSFER_TYPES.find(t => t.value === v)?.label || v;
-  const deptLabel = (v: string) => DEPARTMENTS.find(d => d.value === v)?.label || v;
-  const locLabel = (v: string) => LOCATIONS.find(l => l.value === v)?.label || v;
+  const deptLabel = (v: string) => DEPARTMENTS.find(d => d.value === v)?.label || (v || '—');
+  const desgLabel = (v: string) => DESIGNATIONS.find(d => d.value === v)?.label || (v || '—');
+  const locLabel = (v: string) => LOCATIONS.find(l => l.value === v)?.label || (v || '—');
 
   return (
     <div className="space-y-6">
@@ -234,9 +239,9 @@ export default function TransferPage() {
           <div className="mt-4 p-3 bg-slate-50 rounded-lg">
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Current Details</p>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
-              <div><span className="text-slate-500">Department:</span> <span className="font-medium text-slate-700">{deptLabel(form.currentDepartment) || '—'}</span></div>
-              <div><span className="text-slate-500">Designation:</span> <span className="font-medium text-slate-700">{form.currentDesignation || '—'}</span></div>
-              <div><span className="text-slate-500">Location:</span> <span className="font-medium text-slate-700">{locLabel(form.currentLocation) || '—'}</span></div>
+              <div><span className="text-slate-500">Department:</span> <span className="font-medium text-slate-700">{deptLabel(form.currentDepartment)}</span></div>
+              <div><span className="text-slate-500">Designation:</span> <span className="font-medium text-slate-700">{desgLabel(form.currentDesignation)}</span></div>
+              <div><span className="text-slate-500">Location:</span> <span className="font-medium text-slate-700">{locLabel(form.currentLocation)}</span></div>
             </div>
           </div>
         )}

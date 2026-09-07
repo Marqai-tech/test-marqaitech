@@ -167,14 +167,27 @@ function getAuthHeaders(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' }
 }
 
-/* ── localStorage Helper for Settings ── */
+/* ── localStorage Helper for Settings ──
+ *
+ * IMPORTANT: We write to BOTH the canonical '3boxes_hrms_settings' key
+ * (which the Add Employee form reads from) AND the legacy
+ * '3boxes_hrms_employee_settings' key (for backwards compatibility).
+ * This fixes a desync bug where toggling auto-generation in
+ * /employees/settings had no effect on the Add Employee form because
+ * the form was reading from a different key.
+ */
+const CANONICAL_SETTINGS_KEY = '3boxes_hrms_settings'
 const EMP_SETTINGS_KEY = '3boxes_hrms_employee_settings'
 
 function loadEmployeeSettings(): Record<string, string | number | boolean> {
   if (typeof window === 'undefined') return {}
   try {
-    const stored = localStorage.getItem(EMP_SETTINGS_KEY)
-    if (stored) return JSON.parse(stored)
+    // Prefer the canonical key (same as /settings and the Add Employee form)
+    const canonical = localStorage.getItem(CANONICAL_SETTINGS_KEY)
+    if (canonical) return JSON.parse(canonical)
+    // Fall back to the legacy key
+    const legacy = localStorage.getItem(EMP_SETTINGS_KEY)
+    if (legacy) return JSON.parse(legacy)
   } catch { /* ignore */ }
   return {}
 }
@@ -182,6 +195,9 @@ function loadEmployeeSettings(): Record<string, string | number | boolean> {
 function saveEmployeeSettings(settings: Record<string, string | number | boolean>) {
   if (typeof window === 'undefined') return
   try {
+    // Write to BOTH keys so the Add Employee form (which reads
+    // '3boxes_hrms_settings') picks up the changes immediately.
+    localStorage.setItem(CANONICAL_SETTINGS_KEY, JSON.stringify(settings))
     localStorage.setItem(EMP_SETTINGS_KEY, JSON.stringify(settings))
   } catch { /* ignore */ }
 }
