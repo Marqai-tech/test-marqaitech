@@ -632,6 +632,47 @@ export default function SuperAdminPage() {
     }
   };
 
+  // ─── Seed ALL Modules with sample data (DEMO ONLY) ───
+  // Visible only on the demo site (nexus-hrms-mu.vercel.app).
+  // Seeds 6 companies, 50 employees, and sample data for every module:
+  // leave, attendance, payroll, recruitment, assets, training,
+  // performance, grievances, helpdesk.
+  const [seedingAllModules, setSeedingAllModules] = useState(false);
+  const [seedAllWithReset, setSeedAllWithReset] = useState(false);
+  const handleSeedAllModules = async (withReset: boolean) => {
+    if (withReset) {
+      if (!confirm('RESET + SEED ALL MODULES (Demo only)?\n\n⚠️ This will FIRST DELETE all existing demo companies/employees/module data, then seed fresh:\n\n• 6 companies (TechNova, Innovatech, Global Dynamics, Apex Services, Prime Healthcare, Stellar)\n• 50 employees distributed across all 6 companies\n• Leave types + balances + 30 leave requests\n• Attendance: 30 days × 50 employees\n• Payroll: 3 months payslips × 50 employees + payroll runs\n• Recruitment: 6 job postings + 20 candidates + 30 applications\n• Assets: 30 assets + 25 assignments\n• Training: 5 trainings + 25 enrollments\n• Performance: 20 reviews + 40 goals\n• Grievances: 8 | Helpdesk tickets: 15\n\nThis cannot be undone. Continue?')) return;
+    } else {
+      if (!confirm('SEED ALL MODULES (Demo only)?\n\nThis will ADD sample data (idempotent — existing records are skipped):\n\n• 6 companies, 50 employees\n• Leave, attendance, payroll, recruitment, assets, training, performance, grievances, helpdesk sample data\n\nContinue?')) return;
+    }
+    try {
+      setSeedingAllModules(true);
+      setSeedAllWithReset(withReset);
+      const res = await fetch(`/api/admin/seed-demo-full${withReset ? '?reset=true' : ''}`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.error || 'Failed');
+      }
+      const data = await res.json();
+      const r = data.report || {};
+      const lines = Object.entries(r)
+        .filter(([k]) => k !== 'reset')
+        .map(([k, v]: [string, any]) => `${k}: +${v.created || 0}`)
+        .join(' | ');
+      toast.success(`${data.message}\n\n${lines}`, { duration: 15000 });
+      console.log('[SeedAllModules] Full report:', data);
+      fetchTenants();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to seed demo data');
+    } finally {
+      setSeedingAllModules(false);
+      setSeedAllWithReset(false);
+    }
+  };
+
   // ─── Clear Probation Reviews ────────────────────────────
   const [clearingProbation, setClearingProbation] = useState<string | null>(null);
   const handleClearProbation = async (slug: string, name: string) => {
@@ -1689,6 +1730,45 @@ export default function SuperAdminPage() {
             </select>
             <button onClick={() => fetchTenants()} className="p-2.5 border border-thb-border rounded-lg hover:bg-slate-50"><FiRefreshCw className="w-4 h-4 text-thb-text-muted" /></button>
           </div>
+
+          {/* ─── Demo-Only: Seed ALL Modules with sample data ───
+               Visible ONLY on the demo site (nexus-hrms-mu.vercel.app).
+               Hidden on the live site (3boxeshrms.com) per GOLDEN RULE. */}
+          {!isClientLiveMode() && (
+            <div className="thb-card p-4 bg-gradient-to-r from-fuchsia-50 to-purple-50 border-purple-200">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                <div className="flex-1">
+                  <p className="text-sm font-bold text-purple-900 flex items-center gap-2">
+                    <FiDatabase className="w-4 h-4" /> Demo Data Seeder
+                  </p>
+                  <p className="text-xs text-purple-700 mt-0.5">
+                    Seeds the demo tenant with <b>6 companies</b>, <b>50 employees</b> (each company ≥ 6), and sample data for ALL modules:
+                    leave, attendance, payroll, recruitment, assets, training, performance, grievances, helpdesk.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    onClick={() => handleSeedAllModules(false)}
+                    disabled={seedingAllModules}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-white bg-gradient-to-r from-fuchsia-600 to-purple-600 rounded-lg hover:from-fuchsia-700 hover:to-purple-700 disabled:opacity-50 shadow-sm transition-all"
+                    title="Add sample data (idempotent — existing records are skipped)"
+                  >
+                    {seedingAllModules && !seedAllWithReset ? <FiRefreshCw className="w-3.5 h-3.5 animate-spin" /> : <FiDatabase className="w-3.5 h-3.5" />}
+                    Seed All Modules
+                  </button>
+                  <button
+                    onClick={() => handleSeedAllModules(true)}
+                    disabled={seedingAllModules}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-white bg-gradient-to-r from-red-600 to-rose-600 rounded-lg hover:from-red-700 hover:to-rose-700 disabled:opacity-50 shadow-sm transition-all"
+                    title="DELETE existing demo data first, then seed fresh (destructive)"
+                  >
+                    {seedingAllModules && seedAllWithReset ? <FiRefreshCw className="w-3.5 h-3.5 animate-spin" /> : <FiTrash2 className="w-3.5 h-3.5" />}
+                    Reset + Seed Fresh
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Tenant List */}
           {tenantsLoading ? (
