@@ -438,8 +438,11 @@ export async function POST(request: Request) {
 
     // ─── Auto-link employee to user on login ───
     // If the user doesn't have a linked Employee record, try to find one
-    // by email and link it. This handles the case where the Employee record
-    // was created without a userId (or with a different userId).
+    // and link it. The Employee record may exist but:
+    // - userId is NULL (not linked)
+    // - email field is empty (marqai seed didn't set email on Employee)
+    // - email doesn't match the user's login email
+    // We try multiple strategies to find and link the employee.
     try {
       // Check if the user already has a linked employee
       let hasEmployee = false;
@@ -447,28 +450,114 @@ export async function POST(request: Request) {
         const emp = await dataDb.employee.findUnique({ where: { userId: user.id } });
         if (emp) hasEmployee = true;
       } catch {}
-
-      if (!hasEmployee && user.email) {
-        // Try to find employee by email in dataDb
+      // Also check platform DB
+      if (!hasEmployee) {
         try {
-          const emp = await dataDb.employee.findFirst({ where: { email: user.email } });
-          if (emp) {
-            await dataDb.employee.update({
-              where: { id: emp.id },
-              data: { userId: user.id },
-            });
-            console.log(`[Login] Auto-linked employee ${emp.id} to user ${user.id} by email`);
-          }
-        } catch {
-          // Try platform DB
+          const emp = await platformDb.employee.findUnique({ where: { userId: user.id } });
+          if (emp) hasEmployee = true;
+        } catch {}
+      }
+
+      if (!hasEmployee) {
+        // Strategy 1: Find by email match
+        const searchDbs = [dataDb, platformDb];
+        for (const searchDb of searchDbs) {
           try {
-            const emp = await platformDb.employee.findFirst({ where: { email: user.email } });
+            const emp = await searchDb.employee.findFirst({ where: { email: user.email } });
             if (emp) {
-              await platformDb.employee.update({
+              await searchDb.employee.update({
                 where: { id: emp.id },
                 data: { userId: user.id },
               });
-              console.log(`[Login] Auto-linked employee ${emp.id} to user ${user.id} by email (platform DB)`);
+              console.log(`[Login] Auto-linked employee ${emp.id} to user ${user.id} by email`);
+              hasEmployee = true;
+              break;
+            }
+          } catch {}
+        }
+      }
+
+      // Strategy 2: Find by email using raw SQL (case-insensitive, TRIM)
+      if (!hasEmployee && user.email) {
+        for (const searchDb of [dataDb, platformDb]) {
+          try {
+            const rows = await searchDb.$queryRawUnsafe(
+              `SELECT * FROM "Employee" WHERE LOWER(TRIM("email")) = LOWER(TRIM($1)) LIMIT 1`,
+              user.email
+            ) as any[];
+            if (rows && rows.length > 0) {
+              await searchDb.$executeRawUnsafe(
+                `UPDATE "Employee" SET "userId" = $1 WHERE "id" = $2`,
+                user.id, rows[0].id
+              );
+              console.log(`[Login] Auto-linked employee ${rows[0].id} to user ${user.id} by raw SQL email`);
+              hasEmployee = true;
+              break;
+            }
+          } catch {}
+        }
+      }
+
+      // Strategy 3: Find by personalEmail
+      if (!hasEmployee && user.email) {
+        for (const searchDb of [dataDb, platformDb]) {
+          try {
+            const rows = await searchDb.$queryRawUnsafe(
+              `SELECT * FROM "Employee" WHERE "personalEmail" = $1 LIMIT 1`,
+              user.email
+            ) as any[];
+            if (rows && rows.length > 0) {
+              await searchDb.$executeRawUnsafe(
+                `UPDATE "Employee" SET "userId" = $1, "email" = $2 WHERE "id" = $3`,
+                user.id, user.email, rows[0].id
+              );
+              console.log(`[Login] Auto-linked employee ${rows[0].id} by personalEmail, also set email`);
+              hasEmployee = true;
+              break;
+            }
+          } catch {}
+        }
+      }
+
+      // Strategy 4: Find by employee name matching user name
+      if (!hasEmployee && user.name) {
+        const nameParts = user.name.split(' ');
+        if (nameParts.length >= 2) {
+          for (const searchDb of [dataDb, platformDb]) {
+            try {
+              const rows = await searchDb.$queryRawUnsafe(
+                `SELECT * FROM "Employee" WHERE "firstName" = $1 AND "lastName" = $2 LIMIT 1`,
+                nameParts[0], nameParts.slice(1).join(' ')
+              ) as any[];
+              if (rows && rows.length > 0) {
+                await searchDb.$executeRawUnsafe(
+                  `UPDATE "Employee" SET "userId" = $1, "email" = $2 WHERE "id" = $3`,
+                  user.id, user.email, rows[0].id
+                );
+                console.log(`[Login] Auto-linked employee ${rows[0].id} by name match, also set email`);
+                hasEmployee = true;
+                break;
+              }
+            } catch {}
+          }
+        }
+      }
+
+      // Strategy 5: Find ANY employee with NULL userId (last resort)
+      if (!hasEmployee) {
+        for (const searchDb of [dataDb, platformDb]) {
+          try {
+            const rows = await searchDb.$queryRawUnsafe(
+              `SELECT * FROM "Employee" WHERE "userId" IS NULL LIMIT 1`
+            ) as any[];
+            if (rows && rows.length > 0) {
+              await searchDb.$executeRawUnsafe(
+                `UPDATE "Employee" SET "userId" = $1, "email" = $2 WHERE "id" = $3`,
+                user.id, user.email, rows[0].id
+              );
+              console.log(`[Login] Auto-linked employee ${rows[0].id} by NULL userId, also set email`);
+              hasEmployee = true;
+              break;
             }
           } catch {}
         }
