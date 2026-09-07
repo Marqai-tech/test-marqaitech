@@ -628,3 +628,29 @@ Work Log:
 
 Stage Summary:
 - After deploy, /my-profile will load for all roles including tenant admin, HR admins, super admin, and employees
+
+---
+Task ID: 2
+Agent: Main Agent
+Task: Confirm whether EMP-MTPL-001 is the same as the MarqAI Tech Group tenant admin's employee ID; if not, map it.
+
+Work Log:
+- Investigated seed files (seed-marqai.ts and seed-tenant-db.ts):
+  • seed-marqai.ts creates tenant admin user `admin@marqaitechgroup.com` (role=tenant_admin) WITHOUT any Employee record linked
+  • seed-tenant-db.ts creates Employee records with IDs like `EMP-MAT-HR001` (tenant admin) and `EMP-MAT-E001` (regular employees)
+  • Neither seed creates an Employee record with employeeId="EMP-MTPL-001"
+- Confirmed: EMP-MTPL-001 is NOT the tenant admin's current employee ID
+- Created new endpoint /api/admin/map-tenant-admin-emp-id (POST + GET):
+  • POST: finds tenant admin user (role=tenant_admin) for the tenant, gets tenant DB, finds first company, dept, desg, branch; either creates a new Employee with employeeId="EMP-MTPL-001" linked to the tenant admin user, or updates/relinks an existing one
+  • GET: read-only inspection — returns whether the target employeeId matches the tenant admin's current employeeId
+  • Handles 5 scenarios: already_linked, relinked_existing_employee, consolidated_admin_employee_id_updated, updated_admin_employee_id, created_new_employee
+  • Syncs email across platform DB and tenant DB User records
+- Added "Map Admin EMP" button to super-admin tenant list (next to Link Emp / Backup buttons) — calls the new endpoint with tenantSlug + employeeId=EMP-MTPL-001
+- After successful mapping, automatically refreshes the tenant list so the new EMP-MTPL-001 entry shows up in the super admin "View Tenant" panel
+- The existing GET /api/tenants/[id] endpoint already returns employees with their employeeId field, so the new mapping is automatically visible in the super admin tenants view
+
+Stage Summary:
+- Confirmed EMP-MTPL-001 ≠ tenant admin's existing employee ID (tenant admin had either no Employee record, or one with ID like EMP-MAT-HR001)
+- Created /api/admin/map-tenant-admin-emp-id endpoint (idempotent, safe)
+- Added "Map Admin EMP" button to super-admin UI for one-click mapping
+- After mapping: tenant admin user is linked to Employee record with employeeId="EMP-MTPL-001", visible in both super admin (3boxeshrms.com/super-admin) and tenant admin (marqaitechgroup.3boxeshrms.com) links

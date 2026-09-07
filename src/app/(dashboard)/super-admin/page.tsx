@@ -680,6 +680,34 @@ export default function SuperAdminPage() {
     }
   };
 
+  // ─── Map Tenant Admin to EMP-MTPL-001 ─────────────────
+  const [mappingAdminEmp, setMappingAdminEmp] = useState<string | null>(null);
+  const handleMapAdminEmpId = async (slug: string, name: string) => {
+    if (!confirm(`Map the tenant admin for "${name}" to employee ID "EMP-MTPL-001"?\n\nThis will:\n• Find the tenant_admin user (admin@marqaitechgroup.com)\n• Find or create an Employee record with employeeId="EMP-MTPL-001"\n• Link Employee.userId = tenant_admin user ID\n• Sync the email so my-profile loads correctly\n• The employee will appear in the super admin "View Tenant" panel\n\nThis is safe and idempotent.`)) return;
+    try {
+      setMappingAdminEmp(slug);
+      const res = await fetch('/api/admin/map-tenant-admin-emp-id', {
+        method: 'POST',
+        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tenantSlug: slug, employeeId: 'EMP-MTPL-001' }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.error || 'Failed');
+      }
+      const data = await res.json();
+      const c = data.confirmation || {};
+      const summary = `${c.answer || 'Mapped'}\nBefore: ${c.before || '(none)'}\nAfter: ${c.after || 'OK'}`;
+      toast.success(summary, { duration: 8000 });
+      // Refresh tenant list so the new employee shows up in "View Tenant"
+      fetchTenants();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to map tenant admin employee ID');
+    } finally {
+      setMappingAdminEmp(null);
+    }
+  };
+
   // ─── Company Group Handlers ───────────────────────────
   const fetchGroups = useCallback(async () => {
     try {
@@ -1664,6 +1692,10 @@ export default function SuperAdminPage() {
                           <button onClick={() => handleLinkEmployee(t.slug, t.name)} disabled={linkingEmployee === t.slug} className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-cyan-700 bg-cyan-50 rounded-lg hover:bg-cyan-100 disabled:opacity-50" title="Auto-link all users to their employee records (fixes my-profile)">
                             {linkingEmployee === t.slug ? <FiRefreshCw className="w-3 h-3 animate-spin" /> : <FiUserCheck className="w-3 h-3" />}
                             Link Emp
+                          </button>
+                          <button onClick={() => handleMapAdminEmpId(t.slug, t.name)} disabled={mappingAdminEmp === t.slug} className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-emerald-700 bg-emerald-50 rounded-lg hover:bg-emerald-100 disabled:opacity-50" title="Map tenant admin to employee ID EMP-MTPL-001 (links User to Employee record)">
+                            {mappingAdminEmp === t.slug ? <FiRefreshCw className="w-3 h-3 animate-spin" /> : <FiKey className="w-3 h-3" />}
+                            Map Admin EMP
                           </button>
                           <button onClick={() => handleBackupTenantDB(t.slug, t.name)} disabled={backingUpTenant === t.slug} className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100 disabled:opacity-50" title="Backup tenant database">
                             {backingUpTenant === t.slug ? <FiRefreshCw className="w-3 h-3 animate-spin" /> : <FiDownload className="w-3 h-3" />}
