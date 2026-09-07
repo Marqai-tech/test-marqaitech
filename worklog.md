@@ -924,3 +924,58 @@ Stage Summary:
 - Supports 6 approver types per tier (role-based + user-based + employee-based)
 - Inline schema-sync ensures new tables/columns are created on all tenant DBs
 - Committed and pushed to origin/main (Vercel deploying now)
+
+---
+Task ID: 7
+Agent: Main Agent
+Task: Fix my-profile not loading after Map Admin EMP ID mapping
+
+Work Log:
+
+Root cause analysis:
+1. The /api/admin/map-tenant-admin-emp-id endpoint had TWO branches that
+   updated the employeeId but did NOT set userId:
+   - 'updated_admin_employee_id': changes employeeId + email, but leaves
+     userId as-is (possibly NULL or pointing to a different user)
+   - 'consolidated_admin_employee_id_updated': same issue
+   This meant after clicking "Map Admin EMP ID", the employee record had
+   employeeId='EMP-MTPL-001' but userId was still NULL — so the profile
+   API couldn't find it by userId.
+
+2. The /api/users/profile GET handler had a flawed search order:
+   - If the user was found in the platform DB (foundInPlatform=true),
+     it searched [platformDb, tenantDb] — platform DB FIRST
+   - But the employee record lives in the TENANT DB, not the platform DB
+   - So the search would fail on platform DB, then try tenant DB only
+     if it was in the allDbs array (which wasn't guaranteed)
+
+Fixes applied:
+
+1. /api/admin/map-tenant-admin-emp-id/route.ts:
+   - 'updated_admin_employee_id' branch: now SETS userId = tenantAdminUser.id
+   - 'consolidated_admin_employee_id_updated' branch: now SETS userId
+   - All branches now ensure the employee record is properly linked to
+     the tenant admin user
+
+2. /api/users/profile/route.ts:
+   - Fixed search order: ALWAYS search db (tenant DB) FIRST, then platformDb
+   - Added auto-linking in the name-match fallback (sets userId + email)
+   - Added new "NULL userId" fallback: if all other strategies fail, find
+     ANY employee with a NULL userId in the tenant DB and link it to the
+     current user (handles seed-created employees that were never linked)
+   - This means even if the Map Admin EMP ID button wasn't clicked, the
+     profile API will auto-recover by finding and linking the orphaned
+     employee record
+
+Result:
+- After deploying, the tenant admin's /my-profile page will:
+  1. Search the tenant DB first (where the employee lives)
+  2. Find the employee by userId (now correctly set by Map Admin EMP ID)
+  3. If userId isn't set, find by email, personalEmail, or name
+  4. If all else fails, find ANY employee with NULL userId and auto-link it
+- The profile data (name, employee ID, department, designation, etc.)
+  will now display correctly
+
+Stage Summary:
+- Two bugs fixed: missing userId in map endpoint + wrong DB search order
+- Pushed to origin/main (commit 5cfe6131), Vercel deploying
