@@ -708,6 +708,72 @@ export default function SuperAdminPage() {
     }
   };
 
+  // ─── Force Fix Profile (nuclear option) ──────────────
+  const [forceFixingProfile, setForceFixingProfile] = useState<string | null>(null);
+  const handleForceFixProfile = async (slug: string, name: string) => {
+    if (!confirm(`FORCE FIX profile for "${name}"?\n\nThis is the nuclear option — it directly creates or updates an Employee record with employeeId="EMP-MTPL-001" linked to the tenant admin's userId, bypassing all conditional logic.\n\nUse this when "Map Admin EMP ID" was clicked but /my-profile still shows no data.\n\nThis is safe and idempotent.`)) return;
+    try {
+      setForceFixingProfile(slug);
+      const res = await fetch(`/api/admin/force-fix-profile?slug=${encodeURIComponent(slug)}`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.error || 'Failed');
+      }
+      const data = await res.json();
+      if (data.success) {
+        toast.success(data.message || 'Profile force-fixed successfully', { duration: 10000 });
+      } else {
+        toast.error(data.message || data.upsertError || 'Force-fix failed', { duration: 10000 });
+      }
+      fetchTenants();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to force-fix profile');
+    } finally {
+      setForceFixingProfile(null);
+    }
+  };
+
+  // ─── Diagnose Profile (read-only inspection) ─────────
+  const [diagnosingProfile, setDiagnosingProfile] = useState<string | null>(null);
+  const handleDiagnoseProfile = async (slug: string, name: string) => {
+    try {
+      setDiagnosingProfile(slug);
+      const res = await fetch(`/api/admin/force-fix-profile?slug=${encodeURIComponent(slug)}`, {
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.error || 'Failed');
+      }
+      const data = await res.json();
+      // Format the diagnosis as a readable summary
+      const lines: string[] = [
+        `Tenant: ${data.tenant?.name} (${data.tenant?.slug})`,
+        `Has Tenant DB: ${data.hasTenantDb}`,
+        `Admin User: ${data.adminUser?.email} (${data.adminUser?.id?.slice(0, 12)}...)`,
+        '',
+        'Search Results:',
+      ];
+      for (const s of data.searches || []) {
+        lines.push(`  ${s.db} / ${s.search}: ${s.found ? `✅ FOUND (${s.rows.length} row(s))` : '❌ not found'}${s.error ? ` — ERROR: ${s.error}` : ''}`);
+        if (s.found) {
+          for (const r of s.rows.slice(0, 3)) {
+            lines.push(`    • ${r.employeeId} | ${r.name} | userId=${r.userId?.slice(0, 12) || 'NULL'}${r.userIdMatches ? ' ✅ matches' : ' ❌ mismatch'} | ${r.email}`);
+          }
+        }
+      }
+      const summary = lines.join('\n');
+      toast(summary, { duration: 30000, icon: '🔍' });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to diagnose profile');
+    } finally {
+      setDiagnosingProfile(null);
+    }
+  };
+
   // ─── Company Group Handlers ───────────────────────────
   const fetchGroups = useCallback(async () => {
     try {
@@ -1723,6 +1789,24 @@ export default function SuperAdminPage() {
                         >
                           {mappingAdminEmp === t.slug ? <FiRefreshCw className="w-3.5 h-3.5 animate-spin" /> : <FiKey className="w-3.5 h-3.5" />}
                           Map Admin EMP ID → EMP-MTPL-001
+                        </button>
+                        <button
+                          onClick={() => handleForceFixProfile(t.slug, t.name)}
+                          disabled={forceFixingProfile === t.slug}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-gradient-to-r from-red-600 to-orange-600 rounded-lg hover:from-red-700 hover:to-orange-700 disabled:opacity-50 shadow-sm transition-all"
+                          title="Nuclear option: directly creates/updates the Employee record with the correct userId. Use this if Map Admin EMP ID didn't fix /my-profile."
+                        >
+                          {forceFixingProfile === t.slug ? <FiRefreshCw className="w-3.5 h-3.5 animate-spin" /> : <FiAlertTriangle className="w-3.5 h-3.5" />}
+                          Force Fix Profile
+                        </button>
+                        <button
+                          onClick={() => handleDiagnoseProfile(t.slug, t.name)}
+                          disabled={diagnosingProfile === t.slug}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-700 bg-slate-100 border border-slate-300 rounded-lg hover:bg-slate-200 disabled:opacity-50 transition-all"
+                          title="Read-only diagnostic: inspects the actual DB state for this tenant's admin profile. Shows whether the employee record exists and whether userId is set correctly."
+                        >
+                          {diagnosingProfile === t.slug ? <FiRefreshCw className="w-3.5 h-3.5 animate-spin" /> : <FiSearch className="w-3.5 h-3.5" />}
+                          Diagnose
                         </button>
                       </div>
                     </>
