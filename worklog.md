@@ -1020,3 +1020,61 @@ Stage Summary:
 - 2 new API endpoints + 2 new buttons in super admin UI
 - Pushed to origin/main (commit 194486e7), Vercel deploying
 - These tools will definitively show what's in the DB and force the fix
+
+---
+Task ID: 9
+Agent: Main Agent
+Task: Seed sample data for ALL modules in the demo link — 50 employees, 6 companies
+
+Work Log:
+
+1. Explored existing seed infrastructure (via Explore agent):
+   - Found schema-drift bugs in existing seeders (seed-demo-data, seed-payroll-demo):
+     • SalaryStructure/Payroll/PayrollRun using non-existent fields
+     • PayrollRun missing required legalEntityId → silent failures
+     • Ticket using wrong fields (employeeId/assignedTo don't exist)
+     • Training using non-existent duration/provider/level fields
+     • Candidate missing required tenantId
+   - Demo tenant slug: 3boxes-hrms-demo, has dedicated TenantDatabase record
+
+2. Created POST /api/admin/seed-demo-full — comprehensive demo seeder:
+   - GOLDEN RULE: blocked on live site (isLiveMode → 403)
+   - 6 companies: TechNova (TNS/Hyderabad), Innovatech (ISY/Bengaluru),
+     Global Dynamics (GDC/Mumbai), Apex Services (ASG/Delhi),
+     Prime Healthcare (PHL/Chennai), Stellar Enterprises (STE/Pune)
+   - 50 employees distributed [10,9,8,8,8,7] — each company ≥6 employees
+     with full details: employeeId (EMP-{CODE}-NNN), email, phone, personal email,
+     department, designation, branch, DOJ, DOB, gender, marital status,
+     nationality, salary by designation level, bank details, employeeStatus
+     (probation for first 2 per company), employeeType
+   - Reporting managers assigned (first employee per company manages the rest)
+   - EmployeeCompanyMapping (isPrimary) for all employees
+   - Leave: 5 types (CL/SL/EL/ML/PL) + balances (50 employees × 3 types)
+     + 30 leave requests in mixed statuses
+   - Attendance: 30 days × 50 employees, weekday-only, 82/10/4/4 distribution,
+     WFH vs Office mix, check-in/out times, overtime
+   - Payroll: 3 PayrollRuns WITH legalEntityId (fixes drift bug) +
+     150 payslips (3 months × 50) with correct Indian components:
+     basic, HRA (40%), DA (10%), conveyance (1600), medical (1250),
+     PF (12% of basic), ESI (if gross ≤ 21k), tax (8%), professional tax (200)
+   - Recruitment: 6 job postings + 20 candidates WITH tenantId + 30 applications
+   - Assets: 30 assets + 25 AssetAssignments (correct model name)
+   - Training: 5 trainings + 25 enrollments
+   - Performance: 20 PerformanceReviews + 40 Goals
+   - Grievances: 8 (module was previously empty)
+   - Helpdesk: 15 tickets with CORRECT schema (ticketId unique, requesterId,
+     requesterName, subject, description)
+   - Idempotent: all creates check for existing records first
+   - ?reset=true: destructive re-seed (deletes all demo data first)
+
+3. Super admin UI — added "Demo Data Seeder" card in Tenants tab:
+   - Visible ONLY when !isClientLiveMode() (demo site)
+   - Two buttons: "Seed All Modules" (additive) and "Reset + Seed Fresh" (destructive)
+   - Confirmation dialogs explain exactly what will be seeded
+   - Toast shows per-module created counts (15s duration)
+
+Stage Summary:
+- Demo link (nexus-hrms-mu.vercel.app) will have 6 companies, 50 employees,
+  and sample data for every module after the user clicks the seed button
+- All previous schema-drift bugs avoided (verified against actual Prisma schema)
+- Pushed to origin/main (commit 0b0bdb67), Vercel deploying
