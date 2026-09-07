@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { resolveCompanyScope } from '@/lib/companyScope';
 import { createNotification } from '@/lib/notifications';
+import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 function corsHeaders() {
   return {
@@ -15,6 +16,26 @@ export async function OPTIONS() {
   return NextResponse.json({}, { headers: corsHeaders() });
 }
 
+/**
+ * PATCH /api/leave/[id]
+ *
+ * Approves, rejects, or cancels a leave request.
+ *
+ * Body:
+ *   { "status": "approved" | "rejected" | "cancelled", "comments": "..." }
+ *
+ * Workflow behavior:
+ *   - If the leave request has a workflowStage (multi-tier workflow is active):
+ *     • 'approved' → advance to the next tier. If this was the last tier,
+ *       finalize (status='approved', deduct balance, notify employee).
+ *       Otherwise, set workflowStage to the next tier and notify the next approver.
+ *     • 'rejected' → reject at the current tier (status='rejected', stop workflow,
+ *       notify employee).
+ *   - If no workflowStage (legacy single-step):
+ *     • 'approved' → finalize immediately (deduct balance, notify employee).
+ *     • 'rejected' → reject immediately (notify employee).
+ *   - 'cancelled' → employee cancels their own pending request (no balance change).
+ */
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -40,11 +61,17 @@ export async function PATCH(
       );
     }
 
+    // Get the token + decoded user for workflow authorization checks
+    const token = getTokenFromHeaders(request);
+    const decoded = token ? await verifyToken(token) : null;
+    const userRole = decoded?.role as string || 'employee';
+    const userId = decoded?.userId as string || scope.userId || '';
+
     const existingLeave = await db.leaveRequest.findUnique({
       where: { id },
       include: {
         employee: {
-          select: { firstName: true, lastName: true, userId: true, companyId: true },
+          select: { firstName: true, lastName: true, userId: true, companyId: true, employeeId: true },
         },
         leaveType: true,
       },
@@ -95,6 +122,252 @@ export async function PATCH(
       );
     }
 
+    // ─── Handle cancellation (no workflow involved) ───
+    if (status === 'cancelled') {
+      const leaveRequest = await db.leaveRequest.update({
+        where: { id },
+        data: {
+          status: 'cancelled',
+          approvedBy: scope.userId,
+          approvedAt: new Date(),
+          comments,
+        },
+        include: {
+          employee: {
+            select: { firstName: true, lastName: true, userId: true },
+          },
+          leaveType: true,
+        },
+      });
+
+      await db.auditLog.create({
+        data: {
+          userId: scope.userId,
+          action: 'CANCELLED_LEAVE_REQUEST',
+          module: 'leave',
+          details: `Cancelled leave request ${id}`,
+        },
+      });
+
+      return NextResponse.json({ leaveRequest }, { headers: corsHeaders() });
+    }
+
+    // ─── Check if a multi-tier workflow is active ───
+    // We check the workflowStage column (set by initializeLeaveWorkflow on POST)
+    let workflowStage: string | null = null;
+    try {
+      const rows = await db.$queryRawUnsafe(
+        `SELECT "workflowStage" FROM "LeaveRequest" WHERE "id" = $1 LIMIT 1`,
+        id,
+      ) as any[];
+      workflowStage = rows?.[0]?.workflowstage || rows?.[0]?.workflowStage || null;
+    } catch {
+      // Column might not exist (tenant DB not synced) — fall back to legacy
+      workflowStage = null;
+    }
+
+    // ─── Multi-tier workflow path ───
+    if (workflowStage && workflowStage !== 'final_approval' && workflowStage !== 'rejected') {
+      // Verify the user is authorized to approve the current tier
+      const { canUserApproveCurrentTier } = await import('@/lib/leave-workflow');
+      const canApprove = await canUserApproveCurrentTier(db, id, userId, userRole, scope.tenantId);
+      if (!canApprove) {
+        return NextResponse.json(
+          { error: 'You are not authorized to approve this tier. Only the assigned approver or an admin can approve.' },
+          { status: 403, headers: corsHeaders() }
+        );
+      }
+
+      if (status === 'approved') {
+        // Advance to the next tier (or finalize if last tier)
+        const { advanceLeaveWorkflow } = await import('@/lib/leave-workflow');
+        const result = await advanceLeaveWorkflow(
+          db,
+          id,
+          existingLeave.employeeId,
+          scope.tenantId,
+          scope.userId || userId,
+          comments || '',
+          existingLeave.leaveType?.name,
+        );
+
+        if (result.finalized) {
+          // ─── Final approval: deduct leave balance + notify employee ───
+          const daysDiff = Math.ceil(
+            (new Date(existingLeave.endDate).getTime() - new Date(existingLeave.startDate).getTime()) / (1000 * 60 * 60 * 24)
+          ) + 1;
+          const daysToDeduct = existingLeave.halfDay ? 0.5 : daysDiff;
+
+          const currentYear = new Date().getFullYear();
+          try {
+            await db.leaveBalance.updateMany({
+              where: {
+                employeeId: existingLeave.employeeId,
+                leaveTypeId: existingLeave.leaveTypeId,
+                year: currentYear,
+              },
+              data: {
+                used: { increment: daysToDeduct },
+                remaining: { decrement: daysToDeduct },
+              },
+            });
+          } catch (e) {
+            console.warn('[Leave PATCH] Balance deduction failed (non-fatal):', e);
+          }
+
+          // Notify the employee of final approval
+          if (existingLeave.employee.userId) {
+            await createNotification({
+              tenantId: scope.tenantId,
+              userId: existingLeave.employee.userId,
+              title: 'Leave Request Approved',
+              message: `Your ${existingLeave.leaveType.name} leave request from ${existingLeave.startDate.toLocaleDateString()} to ${existingLeave.endDate.toLocaleDateString()} has been fully approved.`,
+              type: 'success',
+              category: 'leave',
+              link: `/leave/${id}`,
+            }).catch(() => null);
+          }
+
+          // Notify all HR admins (for record-keeping)
+          try {
+            const hrAdmins = await db.user.findMany({
+              where: {
+                tenantId: scope.tenantId,
+                role: { in: ['tenant_admin', 'admin'] },
+                status: 'active',
+              },
+              select: { id: true },
+            });
+            for (const admin of hrAdmins) {
+              await createNotification({
+                tenantId: scope.tenantId,
+                userId: admin.id,
+                title: 'Leave Request Fully Approved',
+                message: `${existingLeave.employee.firstName} ${existingLeave.employee.lastName}'s ${existingLeave.leaveType.name} leave (${existingLeave.startDate.toLocaleDateString()} → ${existingLeave.endDate.toLocaleDateString()}) has been fully approved through all workflow tiers.`,
+                type: 'info',
+                category: 'leave',
+                link: `/leave`,
+              }).catch(() => null);
+            }
+          } catch { /* non-critical */ }
+
+          await db.auditLog.create({
+            data: {
+              userId: scope.userId,
+              action: 'APPROVE_LEAVE_REQUEST_FINAL',
+              module: 'leave',
+              details: `Final approval for leave request ${id} (all tiers passed) for ${existingLeave.employee.firstName} ${existingLeave.employee.lastName}`,
+            },
+          });
+
+          const updatedLeave = await db.leaveRequest.findUnique({
+            where: { id },
+            include: {
+              employee: { select: { firstName: true, lastName: true, userId: true } },
+              leaveType: true,
+            },
+          });
+
+          return NextResponse.json({
+            leaveRequest: updatedLeave,
+            workflowFinalized: true,
+            message: 'Leave request fully approved through all workflow tiers. Leave balance has been updated.',
+          }, { headers: corsHeaders() });
+        } else {
+          // ─── Advanced to next tier: notify the next approver ───
+          if (result.nextApproverId) {
+            await createNotification({
+              tenantId: scope.tenantId,
+              userId: result.nextApproverId,
+              title: `Leave Request — Tier ${result.nextTier} Approval Required`,
+              message: `${existingLeave.employee.firstName} ${existingLeave.employee.lastName}'s ${existingLeave.leaveType.name} leave request has passed tier ${result.nextTier! - 1} and now requires your approval (tier ${result.nextTier}).`,
+              type: 'workflow',
+              category: 'leave',
+              link: `/leave`,
+            }).catch(() => null);
+          }
+
+          // Notify the employee that their request advanced a tier
+          if (existingLeave.employee.userId) {
+            await createNotification({
+              tenantId: scope.tenantId,
+              userId: existingLeave.employee.userId,
+              title: `Leave Request — Tier ${result.nextTier! - 1} Approved`,
+              message: `Your ${existingLeave.leaveType.name} leave request has been approved at tier ${result.nextTier! - 1} and is now pending tier ${result.nextTier} review.`,
+              type: 'info',
+              category: 'leave',
+              link: `/leave/${id}`,
+            }).catch(() => null);
+          }
+
+          await db.auditLog.create({
+            data: {
+              userId: scope.userId,
+              action: `APPROVE_LEAVE_TIER_${result.nextTier! - 1}`,
+              module: 'leave',
+              details: `Approved tier ${result.nextTier! - 1} for leave request ${id}. Advanced to tier ${result.nextTier}.`,
+            },
+          });
+
+          const updatedLeave = await db.leaveRequest.findUnique({
+            where: { id },
+            include: {
+              employee: { select: { firstName: true, lastName: true, userId: true } },
+              leaveType: true,
+            },
+          });
+
+          return NextResponse.json({
+            leaveRequest: updatedLeave,
+            workflowAdvanced: true,
+            nextTier: result.nextTier,
+            nextApproverId: result.nextApproverId,
+            message: `Tier ${result.nextTier! - 1} approved. Advanced to tier ${result.nextTier}.`,
+          }, { headers: corsHeaders() });
+        }
+      } else {
+        // ─── Reject at current tier ───
+        const { rejectLeaveWorkflow } = await import('@/lib/leave-workflow');
+        await rejectLeaveWorkflow(db, id, scope.userId || userId, comments || '');
+
+        // Notify the employee of rejection
+        if (existingLeave.employee.userId) {
+          await createNotification({
+            tenantId: scope.tenantId,
+            userId: existingLeave.employee.userId,
+            title: 'Leave Request Rejected',
+            message: `Your ${existingLeave.leaveType.name} leave request from ${existingLeave.startDate.toLocaleDateString()} to ${existingLeave.endDate.toLocaleDateString()} has been rejected.`,
+            type: 'warning',
+            category: 'leave',
+            link: `/leave/${id}`,
+          }).catch(() => null);
+        }
+
+        await db.auditLog.create({
+          data: {
+            userId: scope.userId,
+            action: 'REJECT_LEAVE_REQUEST',
+            module: 'leave',
+            details: `Rejected leave request ${id} for ${existingLeave.employee.firstName} ${existingLeave.employee.lastName}`,
+          },
+        });
+
+        const updatedLeave = await db.leaveRequest.findUnique({
+          where: { id },
+          include: {
+            employee: { select: { firstName: true, lastName: true, userId: true } },
+            leaveType: true,
+          },
+        });
+
+        return NextResponse.json({
+          leaveRequest: updatedLeave,
+          message: 'Leave request rejected.',
+        }, { headers: corsHeaders() });
+      }
+    }
+
+    // ─── Legacy single-step path (no workflow) ───
     const leaveRequest = await db.leaveRequest.update({
       where: { id },
       data: {
@@ -129,7 +402,7 @@ export async function PATCH(
           used: { increment: daysToDeduct },
           remaining: { decrement: daysToDeduct },
         },
-      });
+      }).catch(() => null);
     }
 
     // Notify the employee about the leave decision
@@ -161,7 +434,7 @@ export async function PATCH(
   } catch (error) {
     console.error('Update leave request error:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown' },
       { status: 500, headers: corsHeaders() }
     );
   }

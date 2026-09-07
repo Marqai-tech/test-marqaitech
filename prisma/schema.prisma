@@ -906,13 +906,93 @@ model LeaveRequest {
   // REQ-LVE-04: AI collaborative leave check warning snapshot
   aiCollaborativeWarning String?
 
+  // ─── Leave Approval Workflow (dynamic multi-tier) ───
+  // The workflow stage this request is currently at.
+  //   'pending'        → awaiting tier 1 approver
+  //   'tier_1_review'  → tier 1 approved, awaiting tier 2
+  //   'tier_2_review'  → tier 2 approved, awaiting tier 3
+  //   ... etc.
+  //   'final_approval' → all tiers passed, fully approved (status='approved')
+  // NULL when no workflow config exists (legacy single-step behavior)
+  workflowStage   String?
+  // The user ID of the current pending approver (resolved at submission time)
+  currentApproverId String?
+  // JSON snapshot of the workflow config that was applied at submission time
+  // (so historical requests retain their original chain even if config changes)
+  workflowConfigSnapshot String?
+
   attachments LeaveAttachment[]
+  approvalSteps LeaveApprovalStep[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([employeeId])
   @@index([status])
+  @@index([currentApproverId])
+  @@index([workflowStage])
+}
+
+// ─── Leave Approval Workflow Config (per-tenant, per-leave-type) ───
+// Stores the dynamic approver chain. Each tier can be:
+//   - role-based: 'reporting_manager' | 'department_head' | 'hr_admin' | 'tenant_admin'
+//   - user-based: a specific user ID
+//   - employee-based: a specific employee ID (resolved to their linked userId)
+//
+// Example config JSON:
+//   {
+//     "tiers": [
+//       { "tier": 1, "approverType": "reporting_manager", "approverId": null, "label": "Direct Manager" },
+//       { "tier": 2, "approverType": "department_head", "approverId": null, "label": "Department Head" },
+//       { "tier": 3, "approverType": "hr_admin", "approverId": null, "label": "HR Admin" }
+//     ],
+//     "requireAllTiers": true,
+//     "autoApproveShortLeave": false,
+//     "shortLeaveMaxDays": 1
+//   }
+model LeaveWorkflowConfig {
+  id              String @id @default(cuid())
+  tenantId        String
+  // Optional: scope to a specific leave type. NULL = applies to ALL leave types.
+  leaveTypeId     String?
+  // Whether this config is active
+  isActive        Boolean @default(true)
+  // JSON config (see example above)
+  config          String
+  // Human-readable name for this workflow
+  name            String @default("Default Leave Approval Workflow")
+  description     String?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([leaveTypeId])
+}
+
+// ─── Leave Approval Step (one row per tier per leave request) ───
+// Tracks the full approval history for each leave request.
+model LeaveApprovalStep {
+  id              String @id @default(cuid())
+  leaveRequestId  String
+  leaveRequest    LeaveRequest @relation(fields: [leaveRequestId], references: [id], onDelete: Cascade)
+  // Tier number (1, 2, 3, ...)
+  tier            Int
+  // The approver type that was configured for this tier
+  approverType    String // reporting_manager | department_head | hr_admin | tenant_admin | specific_user | specific_employee
+  // The resolved user ID who should approve this tier
+  approverUserId  String?
+  // The user ID who actually approved/rejected (may differ if delegated)
+  actionByUserId  String?
+  // approve | reject | delegate | skip
+  action          String?
+  comments        String?
+  actionAt        DateTime?
+
+  createdAt       DateTime @default(now())
+
+  @@index([leaveRequestId])
+  @@index([approverUserId])
 }
 
 // ============ ATTENDANCE ============

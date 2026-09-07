@@ -271,9 +271,76 @@ export async function POST(request: Request) {
       console.warn('[leave] Auto-approval evaluation failed (non-fatal):', e);
     }
 
-    // ─── REQ-ENG-04: Intelligent approval router ─────────────────────────
-    let approvalRouting: { fallbackApplied: boolean; approverId: string | null; reason: string } | null = null;
+    // ─── Dynamic Leave Approval Workflow ──────────────────────────────
+    // Load the workflow config for this tenant + leave type, initialize
+    // the multi-tier approval chain, and notify the first approver.
+    //
+    // If auto-approval was already applied (above), we skip the workflow
+    // entirely — the request is already approved.
+    let workflowResult: { currentApproverId: string | null; firstTier: number } | null = null;
     if (!autoApprovalApplied) {
+      try {
+        const { loadWorkflowConfig, initializeLeaveWorkflow } = await import('@/lib/leave-workflow');
+        const { config: wfConfig, configId: wfConfigId } = await loadWorkflowConfig(
+          db,
+          scope.tenantId,
+          leaveTypeId,
+        );
+
+        // Check if auto-approve short leave is enabled AND the leave is short enough
+        const leaveDays = Math.ceil(
+          (new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24),
+        ) + 1;
+        const effectiveDays = halfDay ? 0.5 : leaveDays;
+
+        if (wfConfig.autoApproveShortLeave && effectiveDays <= (wfConfig.shortLeaveMaxDays || 1)) {
+          // Auto-approve short leave (bypass workflow)
+          await db.leaveRequest.update({
+            where: { id: leaveRequest.id },
+            data: {
+              status: 'approved',
+              approvedBy: 'ai_auto',
+              approvedAt: new Date(),
+              comments: `Auto-approved: short leave (${effectiveDays} day(s)) ≤ ${wfConfig.shortLeaveMaxDays} day threshold`,
+            },
+          });
+          autoApprovalApplied = true;
+          autoApprovalReason = `Short leave auto-approval (${effectiveDays} day(s))`;
+        } else {
+          // Initialize the multi-tier workflow
+          workflowResult = await initializeLeaveWorkflow(
+            db,
+            leaveRequest.id,
+            employeeId,
+            scope.tenantId,
+            wfConfig,
+            wfConfigId,
+            leaveRequest.leaveType?.name,
+          );
+
+          // Notify the first approver (if resolved)
+          if (workflowResult.currentApproverId) {
+            await createNotification({
+              tenantId: scope.tenantId,
+              userId: workflowResult.currentApproverId,
+              title: 'Leave Request Requires Your Approval',
+              message: `${leaveRequest.employee.firstName} ${leaveRequest.employee.lastName} has submitted a ${leaveRequest.leaveType.name} leave request from ${startDate} to ${endDate}. Please review and approve/reject.`,
+              type: 'workflow',
+              category: 'leave',
+              link: `/leave`,
+            }).catch(() => { /* non-fatal */ });
+          }
+        }
+      } catch (wfErr) {
+        console.warn('[leave] Workflow initialization failed (non-fatal), falling back to legacy:', wfErr);
+      }
+    }
+
+    // ─── REQ-ENG-04: Intelligent approval router ─────────────────────────
+    // Only run the legacy router if the workflow was NOT initialized
+    // (i.e., no workflow config exists, or it failed)
+    let approvalRouting: { fallbackApplied: boolean; approverId: string | null; reason: string } | null = null;
+    if (!autoApprovalApplied && !workflowResult) {
       try {
         const { resolveAndAuditApprover } = await import('@/lib/approval-router');
         const router = await resolveAndAuditApprover(
@@ -305,24 +372,28 @@ export async function POST(request: Request) {
       }
     }
 
-    // Notify HR admins about the leave request
-    const hrAdmins = await db.user.findMany({
-      where: {
-        tenantId: scope.tenantId,
-        role: { in: ['super_admin', 'tenant_admin', 'admin'] },
-      },
-    });
-
-    for (const admin of hrAdmins) {
-      await createNotification({
-        tenantId: scope.tenantId,
-        userId: admin.id,
-        title: 'New Leave Request',
-        message: `${leaveRequest.employee.firstName} ${leaveRequest.employee.lastName} has submitted a ${leaveRequest.leaveType.name} leave request from ${startDate} to ${endDate}.`,
-        type: 'workflow',
-        category: 'leave',
-        link: `/leave/${leaveRequest.id}`,
+    // Notify HR admins about the leave request (only if workflow wasn't set up
+    // — if it was, the first approver was already notified above, and HR admins
+    // will be notified when it's their tier's turn)
+    if (!workflowResult) {
+      const hrAdmins = await db.user.findMany({
+        where: {
+          tenantId: scope.tenantId,
+          role: { in: ['super_admin', 'tenant_admin', 'admin'] },
+        },
       });
+
+      for (const admin of hrAdmins) {
+        await createNotification({
+          tenantId: scope.tenantId,
+          userId: admin.id,
+          title: 'New Leave Request',
+          message: `${leaveRequest.employee.firstName} ${leaveRequest.employee.lastName} has submitted a ${leaveRequest.leaveType.name} leave request from ${startDate} to ${endDate}.`,
+          type: 'workflow',
+          category: 'leave',
+          link: `/leave/${leaveRequest.id}`,
+        });
+      }
     }
 
     await db.auditLog.create({

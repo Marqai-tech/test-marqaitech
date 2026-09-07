@@ -836,6 +836,11 @@ function LeavePageContent() {
                         <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border ${badge.bg} ${badge.text}`}>
                           {badge.label}
                         </span>
+                        {(lr as any).workflowStage && (lr as any).workflowStage !== 'final_approval' && (lr as any).workflowStage !== 'rejected' && (
+                          <span className="block mt-1 text-[10px] text-slate-500 font-medium">
+                            {(lr as any).workflowStage.replace(/_/g, ' ')}
+                          </span>
+                        )}
                       </td>
                       <td className="px-4 py-3">
                         {isActionRow && actionType ? (
