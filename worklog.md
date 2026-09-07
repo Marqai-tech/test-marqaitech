@@ -774,3 +774,33 @@ Stage Summary:
 - Session isolation fixed via sessionStorage shim (critical security fix)
 - Employee credentials status now has a proper source-of-truth column
 - TypeScript compiles with 0 new errors (11 pre-existing errors in unrelated files)
+
+---
+Task ID: 4
+Agent: Main Agent
+Task: Fix "Map Admin EMP" button not visible in super admin link
+
+Work Log:
+- Investigated the super-admin page code — the button WAS present (line 1696)
+  but buried as the 9th button in a row of 11+ action buttons (View, Edit,
+  Reset, Purge Dups, Reset Pwd, Seed DB, Clear Prob, Link Emp, Map Admin EMP,
+  Backup, Delete, Suspend/Activate)
+- The flex-wrap container caused buttons to wrap unpredictably on smaller
+  screens, pushing "Map Admin EMP" out of view
+- Also, the button used the same emerald color as "Reset Pwd" and "Activate",
+  making it blend in visually
+- Fix: Moved the "Map Admin EMP" button to its OWN dedicated row below the
+  action buttons row, with:
+  • A separator border and label "Employee ID Mapping:" for clarity
+  • A prominent gradient background (emerald → teal) with white bold text
+  • A shadow for visual elevation
+  • Full button text: "Map Admin EMP ID → EMP-MTPL-001" so the user knows
+    exactly what it does
+- Verified TypeScript compiles with 0 errors in the super-admin page
+
+Stage Summary:
+- "Map Admin EMP" button is now on its own row, prominently styled with
+  a gradient background, making it immediately visible when viewing any
+  tenant row in the Super Admin → Tenants tab
+- After clicking, the toast confirms success and the tenant list refreshes
+  so EMP-MTPL-001 appears in View Tenant → Employees table
