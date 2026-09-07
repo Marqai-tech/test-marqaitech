@@ -436,6 +436,47 @@ export async function POST(request: Request) {
       console.error('Failed to create loginActivity:', e);
     }
 
+    // ─── Auto-link employee to user on login ───
+    // If the user doesn't have a linked Employee record, try to find one
+    // by email and link it. This handles the case where the Employee record
+    // was created without a userId (or with a different userId).
+    try {
+      // Check if the user already has a linked employee
+      let hasEmployee = false;
+      try {
+        const emp = await dataDb.employee.findUnique({ where: { userId: user.id } });
+        if (emp) hasEmployee = true;
+      } catch {}
+
+      if (!hasEmployee && user.email) {
+        // Try to find employee by email in dataDb
+        try {
+          const emp = await dataDb.employee.findFirst({ where: { email: user.email } });
+          if (emp) {
+            await dataDb.employee.update({
+              where: { id: emp.id },
+              data: { userId: user.id },
+            });
+            console.log(`[Login] Auto-linked employee ${emp.id} to user ${user.id} by email`);
+          }
+        } catch {
+          // Try platform DB
+          try {
+            const emp = await platformDb.employee.findFirst({ where: { email: user.email } });
+            if (emp) {
+              await platformDb.employee.update({
+                where: { id: emp.id },
+                data: { userId: user.id },
+              });
+              console.log(`[Login] Auto-linked employee ${emp.id} to user ${user.id} by email (platform DB)`);
+            }
+          } catch {}
+        }
+      }
+    } catch (linkErr) {
+      console.error('[Login] Auto-link employee failed (non-critical):', linkErr);
+    }
+
     try {
       // ─── Clean up ALL previous unread notifications on login ───
       // Mark every previous unread notification as read so the user only sees

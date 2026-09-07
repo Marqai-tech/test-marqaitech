@@ -659,6 +659,7 @@ export default function SuperAdminPage() {
   const [linkingEmployee, setLinkingEmployee] = useState<string | null>(null);
   const handleLinkEmployee = async (slug: string, name: string) => {
     if (!confirm(`Auto-link all users to their employee records for "${name}"?\n\nThis will find each user's employee record by email and set Employee.userId = User.id. This fixes the my-profile data issue.`)) return;
+    if (!confirm(`Auto-link all users to their employee records for "${name}"?\n\nThis will:\n• Find each user's employee record by email\n• Set Employee.userId = User.id\n• Fix the my-profile data issue\n\nThis is safe and idempotent.`)) return;
     try {
       setLinkingEmployee(slug);
       const res = await fetch('/api/admin/link-employee', {
@@ -1655,6 +1656,7 @@ export default function SuperAdminPage() {
                             Clear Prob
                           </button>
                           <button onClick={() => handleLinkEmployee(t.slug, t.name)} disabled={linkingEmployee === t.slug} className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-cyan-700 bg-cyan-50 rounded-lg hover:bg-cyan-100 disabled:opacity-50" title="Auto-link all users to their employee records">
+                          <button onClick={() => handleLinkEmployee(t.slug, t.name)} disabled={linkingEmployee === t.slug} className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-cyan-700 bg-cyan-50 rounded-lg hover:bg-cyan-100 disabled:opacity-50" title="Auto-link all users to their employee records (fixes my-profile)">
                             {linkingEmployee === t.slug ? <FiRefreshCw className="w-3 h-3 animate-spin" /> : <FiUserCheck className="w-3 h-3" />}
                             Link Emp
                           </button>
