@@ -804,3 +804,24 @@ Stage Summary:
   tenant row in the Super Admin → Tenants tab
 - After clicking, the toast confirms success and the tenant list refreshes
   so EMP-MTPL-001 appears in View Tenant → Employees table
+
+---
+Task ID: 5
+Agent: Main Agent
+Task: Fix "Map Admin EMP ID" button still not visible — deploy issue
+
+Work Log:
+- Checked git status: local branch was 3 commits AHEAD of origin/main
+  (changes were committed locally but never pushed to GitHub/Vercel)
+- This is why the user couldn't see the button on the live site —
+  the deployed code on Vercel didn't have the changes yet
+- Ran `git push origin main` — successfully pushed 3 commits
+  (b3f8bf66..c7b42a3b) to GitHub
+- Vercel will now auto-deploy from the latest commit
+
+Stage Summary:
+- Root cause was a deployment issue, not a code issue
+- All 3 commits (containing the Map Admin EMP button, the 11 bug fixes,
+  and the session isolation fix) are now pushed to origin/main
+- Vercel deployment will be live in ~2-3 minutes
+- User should refresh the super admin page after deployment completes
