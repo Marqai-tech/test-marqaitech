@@ -825,3 +825,102 @@ Stage Summary:
   and the session isolation fix) are now pushed to origin/main
 - Vercel deployment will be live in ~2-3 minutes
 - User should refresh the super admin page after deployment completes
+
+---
+Task ID: 6
+Agent: Main Agent
+Task: Build dynamic multi-tier leave approval workflow with configurable approvers
+
+Work Log:
+
+1. Prisma Schema (prisma/schema.prisma):
+   - Added 3 new fields to LeaveRequest:
+     • workflowStage (String?) — current tier (tier_1_review, tier_2_review, etc.)
+     • currentApproverId (String?) — resolved user ID of the pending approver
+     • workflowConfigSnapshot (String?) — JSON snapshot of the config at submission time
+   - Added new model LeaveWorkflowConfig (per-tenant, per-leave-type):
+     • tenantId, leaveTypeId (nullable for tenant-wide), isActive, config (JSON),
+       name, description
+   - Added new model LeaveApprovalStep (one row per tier per leave request):
+     • leaveRequestId, tier, approverType, approverUserId, actionByUserId,
+       action (approve/reject/delegate/skip), comments, actionAt
+   - Added relation: LeaveRequest.approvalSteps → LeaveApprovalStep[]
+
+2. Workflow Engine (/src/lib/leave-workflow.ts):
+   - DEFAULT_WORKFLOW_CONFIG: 2-tier (reporting_manager → hr_admin)
+   - loadWorkflowConfig(): loads config from DB (leave-type-specific → tenant-wide → default)
+   - resolveApproverForTier(): resolves concrete user ID for each approver type:
+     • reporting_manager → Employee.reportingManagerId → User.id
+     • department_head → Department.headId → User.id
+     • hr_admin → any user with role 'admin' in the tenant
+     • tenant_admin → any user with role 'tenant_admin' in the tenant
+     • specific_user → the exact user ID
+     • specific_employee → employee ID → resolve to their userId
+   - initializeLeaveWorkflow(): creates LeaveApprovalStep rows for all tiers,
+     sets workflowStage to tier_1_review, notifies first approver
+   - advanceLeaveWorkflow(): marks current tier as 'approve', advances to next
+     tier OR finalizes if last tier (sets status='approved')
+   - rejectLeaveWorkflow(): marks current tier as 'reject', sets status='rejected'
+   - canUserApproveCurrentTier(): authorization check (currentApproverId match,
+     or super_admin/tenant_admin override, or admin in same tenant)
+   - getApprovalHistory(): returns all approval steps with JOIN to User for names
+
+3. API Endpoints:
+   - GET/POST /api/leave/workflow-config — CRUD for workflow config
+     • Inline schema-sync (CREATE TABLE IF NOT EXISTS)
+     • Validates tiers (at least 1, valid approverType, approverId when required)
+     • Upserts by tenantId + leaveTypeId
+   - GET /api/leave/[id]/approval-history — returns full approval chain
+   - Updated POST /api/leave — initializes workflow on submission:
+     • Loads workflow config
+     • If autoApproveShortLeave enabled and leave is short enough → auto-approve
+     • Otherwise → initializeLeaveWorkflow() + notify first approver
+     • Falls back to legacy single-step if no config or workflow fails
+   - Updated PATCH /api/leave/[id] — multi-tier approve/reject:
+     • Checks workflowStage to determine if workflow is active
+     • 'approved' → advanceLeaveWorkflow():
+       - If last tier → finalize (status='approved', deduct balance, notify
+         employee + HR admins)
+       - If more tiers → set next tier, notify next approver + employee
+     • 'rejected' → rejectLeaveWorkflow() (stop workflow, notify employee)
+     • 'cancelled' → legacy behavior (no workflow)
+     • Authorization: canUserApproveCurrentTier() check
+
+4. UI — Leave Settings (/leave/leave-policy):
+   - Added new "Approval Workflow" tab (FiSettings icon)
+   - Full workflow config editor:
+     • Workflow name + description
+     • Dynamic tier list with add/remove/reorder (up/down arrows)
+     • Per-tier: label, approver type dropdown, approver ID input (when needed)
+     • 6 approver types: reporting_manager, department_head, hr_admin,
+       tenant_admin, specific_user, specific_employee
+     • Options: requireAllTiers, autoApproveShortLeave + threshold
+     • Save button → POST /api/leave/workflow-config
+   • Info panel explaining the 5 workflow stages:
+     Submission → Eligibility Check → Manager Review → Multi-Tier Routing →
+     Notification & Syncing
+
+5. UI — Leave Request List (/leave):
+   - Status badge now shows workflowStage below the status label
+     (e.g., "Pending" with "tier 1 review" underneath)
+
+6. Workflow Stages (as described in the user's requirements):
+   - Stage 1 (Submission): Employee submits with dates, leave type, reason
+   - Stage 2 (Eligibility & Balance Check): System verifies leave balance
+   - Stage 3 (Manager Review): Tier 1 approver (reporting manager) reviews
+   - Stage 4 (Multi-Tier Approval): Routes to department head, HR, etc.
+   - Stage 5 (Notification & Syncing): Updates employee, syncs calendar,
+     adjusts leave balance on final approval
+
+7. Notifications sent at each stage:
+   - On submission: Tier 1 approver notified
+   - On tier advancement: Next approver + employee notified
+   - On final approval: Employee + all HR admins notified
+   - On rejection: Employee notified
+
+Stage Summary:
+- Dynamic multi-tier leave approval workflow is fully implemented
+- Configurable from Leave → Leave Policy → Approval Workflow tab
+- Supports 6 approver types per tier (role-based + user-based + employee-based)
+- Inline schema-sync ensures new tables/columns are created on all tenant DBs
+- Committed and pushed to origin/main (Vercel deploying now)
