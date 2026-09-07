@@ -33,7 +33,7 @@ export async function GET(request: Request) {
     let user: any = null;
     let foundInPlatform = false;
 
-    // Try by ID in resolved DB
+    // Try by ID in resolved DB (tenant DB — this is where the employee lives)
     try {
       user = await db.user.findUnique({ where: { id: decoded.userId as string }, include: { tenant: true } });
     } catch {}
@@ -52,10 +52,18 @@ export async function GET(request: Request) {
 
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404, headers: corsHeaders() });
 
-    // Collect ALL DBs to search for employee data
-    const allDbs: any[] = [foundInPlatform ? platformDb : db];
-    if (db !== (foundInPlatform ? platformDb : db)) allDbs.push(db);
-    if (platformDb !== allDbs[0] && !allDbs.includes(platformDb)) allDbs.push(platformDb);
+    // ─── Determine search order for employee lookup ───
+    // The employee record lives in the TENANT DB (not the platform DB).
+    // So we ALWAYS search the tenant DB FIRST, then fall back to platform DB.
+    //
+    // Previously, if the user was found in the platform DB (foundInPlatform=true),
+    // the search order was [platformDb, tenantDb] — which meant the platform DB
+    // was searched first (and the employee wasn't there), then the tenant DB.
+    // This worked, but only if the tenant DB was actually `db` (the resolved DB).
+    //
+    // The fix: always search `db` (tenant DB) first, then `platformDb`.
+    const allDbs: any[] = [db];
+    if (platformDb !== db) allDbs.push(platformDb);
 
     // Step 2: Find employee using RAW SQL ONLY (bypasses P2022, P2009, etc.)
     let employee: any = null;
@@ -137,7 +145,7 @@ export async function GET(request: Request) {
       }
     }
 
-    // LAST RESORT: If still not found, try finding by the user's name
+    // LAST RESORT 1: Try finding by the user's name
     if (!employee && user.name) {
       for (const tryDb of allDbs) {
         const dbName = tryDb === platformDb ? 'platformDb' : 'tenantDb';
@@ -152,11 +160,49 @@ export async function GET(request: Request) {
               employee = rows[0];
               empDb = tryDb;
               console.log(`[Profile] Found employee by name match in ${dbName}`);
+              // Link it
+              try {
+                await tryDb.$executeRawUnsafe(
+                  `UPDATE "Employee" SET "userId" = $1, "email" = $2 WHERE "id" = $3`,
+                  user.id, user.email, employee.id
+                );
+                console.log(`[Profile] Linked employee ${employee.id} to user ${user.id} (name match)`);
+              } catch {}
               break;
             }
           }
         } catch (e) {
           console.error(`[Profile] Name search in ${dbName}:`, e);
+        }
+      }
+    }
+
+    // LAST RESORT 2: Find ANY employee with a NULL userId in the tenant DB
+    // and link it to this user. This handles the case where the seed created
+    // employee records without userId, and the user is the only tenant_admin.
+    if (!employee) {
+      for (const tryDb of allDbs) {
+        const dbName = tryDb === platformDb ? 'platformDb' : 'tenantDb';
+        try {
+          const rows = await tryDb.$queryRawUnsafe(
+            `SELECT * FROM "Employee" WHERE "userId" IS NULL ORDER BY "createdAt" ASC LIMIT 1`
+          ) as any[];
+          if (rows && rows.length > 0) {
+            employee = rows[0];
+            empDb = tryDb;
+            console.log(`[Profile] Found employee with NULL userId in ${dbName}, linking...`);
+            // Link it + set the email
+            try {
+              await tryDb.$executeRawUnsafe(
+                `UPDATE "Employee" SET "userId" = $1, "email" = $2 WHERE "id" = $3`,
+                user.id, user.email, employee.id
+              );
+              console.log(`[Profile] Linked employee ${employee.id} to user ${user.id} (NULL userId fallback)`);
+            } catch {}
+            break;
+          }
+        } catch (e) {
+          console.error(`[Profile] NULL userId search in ${dbName}:`, e);
         }
       }
     }

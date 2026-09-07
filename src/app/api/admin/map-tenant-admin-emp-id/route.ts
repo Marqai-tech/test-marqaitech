@@ -264,10 +264,12 @@ export async function POST(request: Request) {
           `UPDATE "Employee"
              SET "employeeId" = $1,
                  "email" = $2,
+                 "userId" = $3,
                  "updatedAt" = NOW()
-           WHERE "id" = $3`,
+           WHERE "id" = $4`,
           targetEmpId,
           tenantAdminUser.email,
+          tenantAdminUser.id,
           adminEmployee.id,
         );
         action = 'consolidated_admin_employee_id_updated';
@@ -284,10 +286,12 @@ export async function POST(request: Request) {
           `UPDATE "Employee"
              SET "employeeId" = $1,
                  "email" = $2,
+                 "userId" = $3,
                  "updatedAt" = NOW()
-           WHERE "id" = $3`,
+           WHERE "id" = $4`,
           targetEmpId,
           tenantAdminUser.email,
+          tenantAdminUser.id,
           adminEmployee.id,
         );
         action = 'updated_admin_employee_id';
