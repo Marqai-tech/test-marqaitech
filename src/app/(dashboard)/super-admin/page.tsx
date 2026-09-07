@@ -693,12 +693,14 @@ export default function SuperAdminPage() {
       if (res.ok) {
         const data = await res.json();
         const allGroups = data.groups || [];
-        // Defense-in-depth: filter out groups belonging to hidden tenants + deduplicate by id
-        const seenIds = new Set<string>();
+        // Defense-in-depth: filter out groups belonging to hidden tenants + deduplicate by name+tenantId
+        const seenGroupKeys = new Set<string>();
         setGroups(allGroups.filter((g: CompanyGroupRow) => {
           if (isTenantHiddenClient(g.tenantSlug || '') || (g.tenantName || '').includes(PLATFORM_PLACEHOLDER_NAME)) return false;
-          if (seenIds.has(g.id)) return false; // dedup by id
-          seenIds.add(g.id);
+          // Deduplicate by name+tenantId (different IDs but same name = duplicate)
+          const groupKey = `${g.tenantId || g.tenantSlug}:${g.name}`;
+          if (seenGroupKeys.has(groupKey)) return false;
+          seenGroupKeys.add(groupKey);
           return true;
         }));
       } else {

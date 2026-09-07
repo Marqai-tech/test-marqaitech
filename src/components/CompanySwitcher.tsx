@@ -202,9 +202,9 @@ export default function CompanySwitcher() {
   const dedupedCompanies = safeAvailableCompanies.filter((c, idx, arr) =>
     arr.findIndex((c2) => c2.id === c.id) === idx
   );
-  // Deduplicate groups by id
+  // Deduplicate groups by name (different IDs but same name = duplicate from auto-heal bug)
   const dedupedGroups = safeAvailableCompanyGroups.filter((g, idx, arr) =>
-    arr.findIndex((g2) => g2.id === g.id) === idx
+    arr.findIndex((g2) => g2.name === g.name && g2.tenantId === g.tenantId) === idx
   );
 
   const groupedCompanies = dedupedGroups.reduce<Record<string, { groupName: string; items: typeof dedupedCompanies }>>((acc, g) => {

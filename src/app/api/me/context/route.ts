@@ -657,13 +657,15 @@ export async function GET(request: Request) {
     );
 
     // 3. Filter availableCompanyGroups — remove any that belong to hidden tenants
-    //    AND deduplicate by group ID (fixes duplicates from old auto-heal bug)
+    //    AND deduplicate by name+tenantId (fixes duplicate groups from old auto-heal bug)
     const visibleTenantIdSet = new Set(finalAvailableTenants.map((t) => t.id));
-    const seenGroupIds = new Set<string>();
+    const seenGroupKeys = new Set<string>();
     const finalAvailableCompanyGroups = availableCompanyGroups.filter((g) => {
       if (!visibleTenantIdSet.has(g.tenantId)) return false;
-      if (seenGroupIds.has(g.id)) return false; // dedup by id
-      seenGroupIds.add(g.id);
+      // Deduplicate by name+tenantId (different IDs but same name = duplicate)
+      const groupKey = `${g.tenantId}:${g.name}`;
+      if (seenGroupKeys.has(groupKey)) return false;
+      seenGroupKeys.add(groupKey);
       return true;
     });
 
