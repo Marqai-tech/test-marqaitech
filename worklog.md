@@ -979,3 +979,44 @@ Result:
 Stage Summary:
 - Two bugs fixed: missing userId in map endpoint + wrong DB search order
 - Pushed to origin/main (commit 5cfe6131), Vercel deploying
+
+---
+Task ID: 8
+Agent: Main Agent
+Task: My-profile still not loading — add diagnostic + force-fix tools
+
+Work Log:
+- The previous fix (always set userId + search tenant DB first) was
+  correct in theory, but the user reports /my-profile STILL shows no data
+- Rather than guessing, I created two new tools to diagnose + force-fix:
+
+1. /api/admin/diagnose-profile (GET) — comprehensive diagnostic:
+   - Returns the tenant admin user from both platform + tenant DBs
+   - Searches for employee records by employeeId, userId, email, NULL userId
+   - Generates a diagnosis + recommendations
+   - Shows which DB has the employee + whether userId matches
+
+2. /api/admin/force-fix-profile (GET + POST):
+   - GET: read-only diagnostic (same as diagnose-profile but simpler)
+   - POST: nuclear option that directly creates/updates an Employee record:
+     • Uses INSERT ... ON CONFLICT ("employeeId") DO UPDATE
+     • Sets userId = admin user ID, email = admin email
+     • Falls back to UPDATE-then-INSERT if ON CONFLICT fails
+     • Tries tenant DB first, then platform DB
+     • Creates unique index on Employee.employeeId if missing
+     • Returns verification (confirms userId matches after upsert)
+
+3. Super admin UI — added 2 new buttons next to "Map Admin EMP ID":
+   - "Diagnose" (gray) — runs GET, shows a toast with the DB state
+   - "Force Fix Profile" (red-orange gradient) — runs POST, brute-force
+     creates/updates the employee record with the correct userId
+
+Usage flow:
+1. Click "Diagnose" first — see the actual DB state
+2. If the employee doesn't exist or userId is NULL, click "Force Fix Profile"
+3. Log out of tenant admin, log back in, go to /my-profile — data should load
+
+Stage Summary:
+- 2 new API endpoints + 2 new buttons in super admin UI
+- Pushed to origin/main (commit 194486e7), Vercel deploying
+- These tools will definitively show what's in the DB and force the fix
