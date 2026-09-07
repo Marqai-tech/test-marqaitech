@@ -242,15 +242,30 @@ export async function GET(request: Request) {
     // Compute aggregate employee count per group (sum of employees across all companies)
     // FILTER OUT hidden tenants (Marq AI Tech Pvt Ltd placeholder, demo tenant)
     // so they don't appear in the group companies list.
+    // ALSO deduplicate groups and companies by ID (fixes duplicates from
+    // the old auto-heal bug that created duplicate CompanyGroup records).
+    const seenGroupIds = new Set<string>();
     const enriched = groups
       .filter((g) => {
         // Exclude groups belonging to hidden tenants
         const slug = g.tenant?.slug;
         if (!slug) return false; // Exclude orphan groups (no tenant)
-        return !hiddenSlugs.includes(slug);
+        if (hiddenSlugs.includes(slug)) return false;
+        // Deduplicate by group ID — keep only the first occurrence
+        if (seenGroupIds.has(g.id)) return false;
+        seenGroupIds.add(g.id);
+        return true;
       })
       .map((g) => {
-      const companiesWithCounts = g.companies.map((c) => ({
+      // Deduplicate companies within this group by ID
+      const seenCompanyIds = new Set<string>();
+      const dedupedCompanies = g.companies.filter((c) => {
+        if (seenCompanyIds.has(c.id)) return false;
+        seenCompanyIds.add(c.id);
+        return true;
+      });
+
+      const companiesWithCounts = dedupedCompanies.map((c) => ({
         ...c,
         _count: {
           ...(c._count || {}),

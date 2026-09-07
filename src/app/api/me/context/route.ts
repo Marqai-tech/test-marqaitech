@@ -657,16 +657,26 @@ export async function GET(request: Request) {
     );
 
     // 3. Filter availableCompanyGroups — remove any that belong to hidden tenants
+    //    AND deduplicate by group ID (fixes duplicates from old auto-heal bug)
     const visibleTenantIdSet = new Set(finalAvailableTenants.map((t) => t.id));
-    const finalAvailableCompanyGroups = availableCompanyGroups.filter(
-      (g) => visibleTenantIdSet.has(g.tenantId)
-    );
+    const seenGroupIds = new Set<string>();
+    const finalAvailableCompanyGroups = availableCompanyGroups.filter((g) => {
+      if (!visibleTenantIdSet.has(g.tenantId)) return false;
+      if (seenGroupIds.has(g.id)) return false; // dedup by id
+      seenGroupIds.add(g.id);
+      return true;
+    });
 
     // 4. Filter availableCompanies — remove any whose group was filtered out
+    //    AND deduplicate by company ID
     const visibleGroupIdSet = new Set(finalAvailableCompanyGroups.map((g) => g.id));
-    const finalAvailableCompanies = availableCompanies.filter(
-      (c) => visibleGroupIdSet.has(c.companyGroupId)
-    );
+    const seenCompanyIds = new Set<string>();
+    const finalAvailableCompanies = availableCompanies.filter((c) => {
+      if (!visibleGroupIdSet.has(c.companyGroupId)) return false;
+      if (seenCompanyIds.has(c.id)) return false; // dedup by id
+      seenCompanyIds.add(c.id);
+      return true;
+    });
 
     // 5. Scrub tenantQuota if it was computed from a hidden tenant
     let finalTenantQuota = tenantQuota;
