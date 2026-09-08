@@ -1280,3 +1280,36 @@ Stage Summary:
   /api/employees returns tenant data without an Authorization header
   (unauthenticated requests fall through to scope 'all'). Flagged for
   a dedicated hardening task.
+
+---
+Task ID: 14
+Agent: Main Agent
+Task: Demo "Seed All Modules" failing — "Seed phase 1 failed: Cannot set properties of undefined (setting 'reset')"
+
+Work Log:
+1. Traced the error string: "Seed phase 1 failed" comes from the
+   seed-demo-full POST dispatcher (single-phase 500 response); the
+   "setting 'reset'" part is the phaseErr message from phase1.
+2. Root cause — argument-order bug from the Task 10 rewrite:
+   - phase1 declared (db, tenant, reset, report)
+   - dispatcher calls phase.fn(db, tenant, report) — 3 args
+   => report === undefined -> report['reset'] = ... -> TypeError
+   => reset === report object (truthy) -> destructive cleanup ran on
+      EVERY "Seed All Modules" click (contained to demo DB; tables
+      were empty so no visible damage)
+3. Fix (commit c15aa577):
+   - phase1 signature -> (db, tenant, report, reset = false)
+   - dispatcher -> phase.fn(db, tenant, report, reset)
+   - PHASES fn type -> (db, tenant, report, reset?: boolean)
+   - Phases 2-6 already (db, tenant, report) — untouched
+   - Added a signature-stability comment to prevent regression
+4. Demo DB health re-confirmed: TenantDatabase record for
+   3boxes-hrms-demo connects (drift diff in Task 13 ran through it);
+   DB is empty post-Task-12 creation, so the accidental cleanups were
+   no-ops. Seeding is additive/idempotent going forward.
+
+Stage Summary:
+- User action: wait ~2 min for Vercel deploy, then re-click
+  "Seed All Modules" on nexus-hrms-mu.vercel.app/super-admin.
+  Phase 1 will no longer throw; reset cleanup only runs when
+  "Reset + Seed Fresh" is clicked.
