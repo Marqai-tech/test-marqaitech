@@ -156,6 +156,33 @@ async function resolveDemoDb() {
     });
   }
   const db = await getDbForTenant(DEMO_SLUG);
+
+  // Mirror the Tenant row INTO the demo tenant DB. The tenant DB has its
+  // own "Tenant" table and most seeded rows (User.tenantId,
+  // CompanyGroup.tenantId, Candidate.tenantId, ...) carry a FK to it.
+  // After the 2026-09-08 wipe the mirror row was gone, so every create
+  // failed with "Foreign key constraint violated: *_tenantId_fkey".
+  // The old 'Seed Tenant DB' button used to create this row — keeping the
+  // mirror fresh here makes the seed fully self-healing.
+  await (db as any).tenant.upsert({
+    where: { id: tenant.id },
+    update: { name: tenant.name, slug: tenant.slug, status: 'active' },
+    create: {
+      id: tenant.id,
+      name: tenant.name,
+      slug: tenant.slug,
+      domain: 'nexus-hrms-mu.vercel.app',
+      plan: 'enterprise',
+      status: 'active',
+      country: 'IN',
+      currency: 'INR',
+      timezone: 'Asia/Kolkata',
+      maxCompaniesAllowed: 10,
+    },
+  }).catch((e: unknown) => {
+    console.error('[SeedDemoFull] Tenant mirror upsert failed:', e);
+  });
+
   return { db, tenant };
 }
 
