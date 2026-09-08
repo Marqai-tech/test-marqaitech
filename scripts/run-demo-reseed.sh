@@ -12,9 +12,12 @@ if [ -z "$TOKEN" ]; then echo "LOGIN FAILED: $LOGIN"; exit 1; fi
 echo "token acquired (${#TOKEN} chars)"
 
 echo "=== 2. Seed phases ==="
+RESET_FLAG="${RESET:-0}"
 for PHASE in 1 2 3 4 5 6; do
   echo "--- phase $PHASE ---"
-  RES=$(curl -s -X POST "$BASE/api/admin/seed-demo-full?phase=$PHASE" \
+  EXTRA=""
+  if [ "$RESET_FLAG" = "1" ] && [ "$PHASE" = "1" ]; then EXTRA="&reset=true"; fi
+  RES=$(curl -s -X POST "$BASE/api/admin/seed-demo-full?phase=$PHASE$EXTRA" \
     -H "Authorization: Bearer $TOKEN" --max-time 120)
   echo "$RES" | python3 -c "
 import sys, json

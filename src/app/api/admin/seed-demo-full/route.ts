@@ -403,8 +403,13 @@ async function phase1(db: any, tenant: any, report: Report, reset: boolean = fal
   report['shifts'] = { created: shiftCreates.length, skipped: companyRecords.length * 2 - shiftCreates.length };
 
   // Holidays — bulk (5 per company for 2026)
+  // NOTE: Prisma's groupBy returns _count as an OBJECT ({ _all: N }), so
+  // `h._count > 0` was always false and holidays were re-created on every
+  // run. Handle both shapes.
   const holidayCounts = await db.holiday.groupBy({ by: ['companyId'], where: { companyId: { in: companyIds } }, _count: true });
-  const companiesWithHolidays = new Set(holidayCounts.filter((h: any) => h._count > 0).map((h: any) => h.companyId));
+  const companiesWithHolidays = new Set(holidayCounts
+    .filter((h: any) => (typeof h._count === 'number' ? h._count : (h._count?._all ?? 0)) > 0)
+    .map((h: any) => h.companyId));
   const holidays2026 = [
     { name: 'Republic Day', date: new Date('2026-01-26') },
     { name: 'Holi', date: new Date('2026-03-04') },
@@ -504,6 +509,7 @@ async function phase2(db: any, tenant: any, report: Report) {
   // Re-fetch full demo employee list
   const employees = await db.employee.findMany({
     where: demoEmployeeWhere(),
+    orderBy: { employeeId: 'asc' }, // STABLE order — pick() dedupe depends on it
     select: { id: true, employeeId: true, email: true, departmentId: true, designationId: true, branchId: true, companyId: true, dateOfJoining: true, firstName: true, lastName: true },
   });
 
@@ -560,6 +566,7 @@ async function phase3(db: any, tenant: any, report: Report) {
   const companyIds = companyRecords.map((c: any) => c.id);
   const employees = await db.employee.findMany({
     where: demoEmployeeWhere(),
+    orderBy: { employeeId: 'asc' }, // STABLE order — pick() dedupe depends on it
     select: { id: true, companyId: true },
   });
   if (employees.length === 0) {
@@ -625,7 +632,8 @@ async function phase3(db: any, tenant: any, report: Report) {
   for (const emp of employees) {
     const types = typesByCompany.get(emp.companyId) || [];
     for (const lt of types) {
-      if (lt.code === 'ML' || lt.code === 'PL') continue;
+      const baseCode = String(lt.code).split('-')[0]; // codes are suffixed per company (CL-TNS)
+      if (baseCode === 'ML' || baseCode === 'PL') continue;
       if (balanceKey.has(`${emp.id}|${lt.id}`)) continue;
       const used = rand(0, 5);
       balanceCreates.push({
@@ -691,6 +699,7 @@ async function phase3(db: any, tenant: any, report: Report) {
 async function phase4(db: any, tenant: any, report: Report) {
   const employees = await db.employee.findMany({
     where: demoEmployeeWhere(),
+    orderBy: { employeeId: 'asc' }, // STABLE order — pick() dedupe depends on it
     select: { id: true, salary: true },
   });
   if (employees.length === 0) {
@@ -825,7 +834,7 @@ async function phase5(db: any, tenant: any, report: Report) {
     return;
   }
   const deptRows = await db.department.findMany({ where: { companyId: { in: companyRecords.map((c: any) => c.id) } }, select: { id: true, companyId: true, name: true } });
-  const employees = await db.employee.findMany({ where: demoEmployeeWhere(), select: { id: true, firstName: true, lastName: true } });
+  const employees = await db.employee.findMany({ where: demoEmployeeWhere(), orderBy: { employeeId: 'asc' }, select: { id: true, firstName: true, lastName: true } });
 
   // ── Job postings ──
   const jobTitles = ['Senior Software Engineer', 'Product Manager', 'HR Business Partner', 'Financial Analyst', 'Sales Executive', 'Operations Lead'];
@@ -933,10 +942,11 @@ async function phase5(db: any, tenant: any, report: Report) {
   report['assets'] = { created: assetCreates.length, skipped: existingAssets.length };
 
   // ── Assignments ──
-  const assetRecords = await db.asset.findMany({ where: { assetTag: { in: assetTags } }, select: { id: true } });
+  const assetRecords = await db.asset.findMany({ where: { assetTag: { in: assetTags } }, orderBy: { assetTag: 'asc' }, select: { id: true } });
   const empIds = employees.map((e: any) => e.id);
-  const existingAssignments = empIds.length
-    ? await db.assetAssignment.findMany({ where: { employeeId: { in: empIds } }, select: { assetId: true, employeeId: true } })
+  const assetIds = assetRecords.map((a: any) => a.id);
+  const existingAssignments = (empIds.length && assetIds.length)
+    ? await db.assetAssignment.findMany({ where: { OR: [{ employeeId: { in: empIds } }, { assetId: { in: assetIds } }] }, select: { assetId: true, employeeId: true } })
     : [];
   const assignKey = new Set(existingAssignments.map((a: any) => `${a.assetId}|${a.employeeId}`));
   const assignCreates: any[] = [];
@@ -962,6 +972,7 @@ async function phase5(db: any, tenant: any, report: Report) {
 async function phase6(db: any, tenant: any, report: Report) {
   const employees = await db.employee.findMany({
     where: demoEmployeeWhere(),
+    orderBy: { employeeId: 'asc' }, // STABLE order — pick() dedupe depends on it
     select: { id: true, firstName: true, lastName: true },
   });
   if (employees.length === 0) {
@@ -994,7 +1005,7 @@ async function phase6(db: any, tenant: any, report: Report) {
   }
   if (trainingCreates.length) await db.training.createMany({ data: trainingCreates }).catch(() => {});
   report['trainings'] = { created: trainingCreates.length, skipped: existingTrainings.length };
-  const trainingRecords = await db.training.findMany({ where: { title: { in: trainingTitles } }, select: { id: true } });
+  const trainingRecords = await db.training.findMany({ where: { title: { in: trainingTitles } }, orderBy: { title: 'asc' }, select: { id: true } });
 
   // ── Enrollments ──
   const existingEnrollments = await db.trainingEnrollment.findMany({
