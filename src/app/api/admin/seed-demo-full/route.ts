@@ -263,38 +263,62 @@ async function phase1(db: any, tenant: any, report: Report, reset: boolean = fal
       const oldEmpIds = oldEmployees.map((e: any) => e.id);
       const oldCompanies = await db.company.findMany({ where: { code: { in: COMPANIES.map((c) => c.code) } }, select: { id: true } });
       const oldCompanyIds = oldCompanies.map((c: any) => c.id);
+      const oldDepartments = await db.department.findMany({ where: { companyId: { in: oldCompanyIds } }, select: { id: true } });
+      const oldDepartmentIds = oldDepartments.map((d: any) => d.id);
 
-      const cleanup = [
-        db.leaveRequest.deleteMany({ where: { employeeId: { in: oldEmpIds } } }),
-        db.leaveBalance.deleteMany({ where: { employeeId: { in: oldEmpIds } } }),
-        db.attendance.deleteMany({ where: { employeeId: { in: oldEmpIds } } }),
-        db.payroll.deleteMany({ where: { employeeId: { in: oldEmpIds } } }),
-        db.performanceReview.deleteMany({ where: { employeeId: { in: oldEmpIds } } }),
-        db.goal.deleteMany({ where: { employeeId: { in: oldEmpIds } } }),
-        db.assetAssignment.deleteMany({ where: { employeeId: { in: oldEmpIds } } }),
-        db.trainingEnrollment.deleteMany({ where: { employeeId: { in: oldEmpIds } } }),
-        db.grievance.deleteMany({ where: { employeeId: { in: oldEmpIds } } }),
-        db.employeeCompanyMapping.deleteMany({ where: { employeeId: { in: oldEmpIds } } }),
-        db.jobApplication.deleteMany({}),
-        db.candidate.deleteMany({ where: { tenantId: tenant.id } }),
-        db.asset.deleteMany({}),
-        db.training.deleteMany({}),
-        db.ticket.deleteMany({}),
-        db.payrollRun.deleteMany({}),
-        db.employee.deleteMany({ where: { id: { in: oldEmpIds } } }),
-        db.department.deleteMany({ where: { companyId: { in: oldCompanyIds } } }),
-        db.designation.deleteMany({}),
-        db.branch.deleteMany({ where: { companyId: { in: oldCompanyIds } } }),
-        db.shift.deleteMany({ where: { companyId: { in: oldCompanyIds } } }),
-        db.holiday.deleteMany({ where: { companyId: { in: oldCompanyIds } } }),
-        db.leaveType.deleteMany({ where: { companyId: { in: oldCompanyIds } } }),
-        db.company.deleteMany({ where: { id: { in: oldCompanyIds } } }),
+      // IMPORTANT: delete CHILDREN BEFORE PARENTS, one deleteMany at a time.
+      // The previous version batched 6 deletes into a $transaction — a single
+      // FK violation (e.g. departments deleted while designations still
+      // referenced them) rolled back the WHOLE chunk silently and the reset
+      // only half-wiped the DB, producing duplicates on re-seed.
+      const cleanup: Array<[string, () => Promise<any>]> = [
+        // per-employee module data (children of Employee)
+        ['leaveEncashmentRequest', () => db.leaveEncashmentRequest.deleteMany({ where: { employeeId: { in: oldEmpIds } } })],
+        ['optionalHolidayElection', () => (db as any).optionalHolidayElection?.deleteMany({ where: { employeeId: { in: oldEmpIds } } })],
+        ['leaveRequest', () => db.leaveRequest.deleteMany({ where: { employeeId: { in: oldEmpIds } } })],
+        ['leaveBalance', () => db.leaveBalance.deleteMany({ where: { employeeId: { in: oldEmpIds } } })],
+        ['attendance', () => db.attendance.deleteMany({ where: { employeeId: { in: oldEmpIds } } })],
+        ['payroll', () => db.payroll.deleteMany({ where: { employeeId: { in: oldEmpIds } } })],
+        ['performanceReview', () => db.performanceReview.deleteMany({ where: { employeeId: { in: oldEmpIds } } })],
+        ['goal', () => db.goal.deleteMany({ where: { employeeId: { in: oldEmpIds } } })],
+        ['grievance', () => db.grievance.deleteMany({ where: { employeeId: { in: oldEmpIds } } })],
+        ['assetAssignment', () => db.assetAssignment.deleteMany({ where: { employeeId: { in: oldEmpIds } } })],
+        ['trainingEnrollment', () => db.trainingEnrollment.deleteMany({ where: { employeeId: { in: oldEmpIds } } })],
+        ['employeeCompanyMapping', () => db.employeeCompanyMapping.deleteMany({ where: { employeeId: { in: oldEmpIds } } })],
+        // tickets + comments (requesterId → Employee)
+        ['ticketComment', () => (db as any).ticketComment?.deleteMany({ where: { ticket: { requesterId: { in: oldEmpIds } } } })],
+        ['ticket', () => db.ticket.deleteMany({ where: { requesterId: { in: oldEmpIds } } })],
+        // recruitment
+        ['jobApplication', () => db.jobApplication.deleteMany({})],
+        ['jobPosting', () => db.jobPosting.deleteMany({ where: { departmentId: { in: oldDepartmentIds } } })],
+        ['candidate', () => db.candidate.deleteMany({ where: { tenantId: tenant.id } })],
+        // assets / training / payroll runs
+        ['asset', () => db.asset.deleteMany({})],
+        ['training', () => db.training.deleteMany({})],
+        ['payrollRun', () => db.payrollRun.deleteMany({})],
+        // employees (after all children)
+        ['employee', () => db.employee.deleteMany({ where: { id: { in: oldEmpIds } } })],
+        // org structure (children → parents)
+        ['designation', () => db.designation.deleteMany({ where: { departmentId: { in: oldDepartmentIds } } })],
+        ['department', () => db.department.deleteMany({ where: { companyId: { in: oldCompanyIds } } })],
+        ['branch', () => db.branch.deleteMany({ where: { companyId: { in: oldCompanyIds } } })],
+        ['shift', () => db.shift.deleteMany({ where: { companyId: { in: oldCompanyIds } } })],
+        ['holiday', () => db.holiday.deleteMany({ where: { companyId: { in: oldCompanyIds } } })],
+        ['leaveType', () => db.leaveType.deleteMany({ where: { companyId: { in: oldCompanyIds } } })],
+        ['company', () => db.company.deleteMany({ where: { id: { in: oldCompanyIds } } })],
       ];
-      // Run deletes in small batches so a missing table never aborts the rest
-      for (const c of chunk(cleanup, 6)) {
-        await db.$transaction(c).catch(() => {});
+      let resetFailures = 0;
+      for (const [name, fn] of cleanup) {
+        if (typeof fn !== 'function') continue;
+        try {
+          await fn();
+        } catch (e: any) {
+          // Missing table / nothing to delete is fine — log anything else.
+          resetFailures++;
+          console.error(`[SeedDemoFull] reset delete "${name}" failed:`, e?.code || '', String(e?.message || e).slice(0, 200));
+        }
       }
-      report['reset'] = { created: 0, skipped: 0, note: 'Cleared existing demo data' };
+      report['reset'] = { created: 0, skipped: 0, note: resetFailures ? `Cleared existing demo data (${resetFailures} non-critical delete warnings)` : 'Cleared existing demo data' };
     } catch (e) {
       report['reset'] = { created: 0, skipped: 0, note: `Reset partially failed: ${e instanceof Error ? e.message : 'unknown'}` };
     }
@@ -421,11 +445,16 @@ async function phase1(db: any, tenant: any, report: Report, reset: boolean = fal
   for (const c of companyRecords) {
     if (!companiesWithHolidays.has(c.id)) {
       for (const h of holidays2026) {
-        holidayCreates.push({ name: h.name, date: h.date, type: 'public', country: 'IN', companyId: c.id, status: 'active' });
+        // NOTE: Holiday has NO 'status' column (schema) — including it made
+        // Prisma reject the whole createMany batch (silently swallowed) and
+        // the demo ended up with 0 holidays.
+        holidayCreates.push({ name: h.name, date: h.date, type: 'public', country: 'IN', companyId: c.id });
       }
     }
   }
-  if (holidayCreates.length) await db.holiday.createMany({ data: holidayCreates }).catch(() => {});
+  if (holidayCreates.length) await db.holiday.createMany({ data: holidayCreates }).catch((e: unknown) => {
+    console.error('[SeedDemoFull] holiday.createMany failed:', e);
+  });
   report['holidays'] = { created: holidayCreates.length, skipped: companyRecords.length * 5 - holidayCreates.length };
 }
 
@@ -657,8 +686,10 @@ async function phase3(db: any, tenant: any, report: Report) {
   });
   const reqKey = new Set(existingRequests.map((r: any) => `${r.employeeId}|${r.leaveTypeId}|${dateOnly(new Date(r.startDate)).toISOString().slice(0, 10)}`));
   const empById = new Map(employees.map((e: any) => [e.id, e]));
+  // TOP-UP semantics: only create enough NEW requests to reach 30 total.
+  const requestTarget = Math.max(0, 30 - existingRequests.length);
   const requestCreates: any[] = [];
-  for (let i = 0; requestCreates.length < 30 && i < 120; i++) {
+  for (let i = 0; requestCreates.length < requestTarget && i < 120; i++) {
     const emp = pick(employees, i * 3);
     const types = (typesByCompany.get(emp.companyId) || []).filter((t: any) => ['CL', 'SL', 'EL'].includes(String(t.code).split('-')[0]));
     if (!types.length) continue;
@@ -888,8 +919,10 @@ async function phase5(db: any, tenant: any, report: Report) {
     ? await db.jobApplication.findMany({ where: { jobPostingId: { in: jobIds } }, select: { jobPostingId: true, candidateEmail: true } })
     : [];
   const appKey = new Set(existingApps.map((a: any) => `${a.jobPostingId}|${a.candidateEmail}`));
+  // TOP-UP semantics: only create enough NEW applications to reach 30 total.
+  const appTarget = Math.max(0, 30 - existingApps.length);
   const appCreates: any[] = [];
-  for (let i = 0; appCreates.length < 30 && i < 90; i++) {
+  for (let i = 0; appCreates.length < appTarget && i < 90; i++) {
     const job = jobRecords.length ? pick(jobRecords, i) : null;
     if (!job) break;
     const cand = candidateRecords.length ? pick(candidateRecords, i * 2) : null;
@@ -949,8 +982,10 @@ async function phase5(db: any, tenant: any, report: Report) {
     ? await db.assetAssignment.findMany({ where: { OR: [{ employeeId: { in: empIds } }, { assetId: { in: assetIds } }] }, select: { assetId: true, employeeId: true } })
     : [];
   const assignKey = new Set(existingAssignments.map((a: any) => `${a.assetId}|${a.employeeId}`));
+  // TOP-UP semantics: only create enough NEW assignments to reach 25 total.
+  const assignTarget = Math.max(0, 25 - existingAssignments.length);
   const assignCreates: any[] = [];
-  for (let i = 0; assignCreates.length < 25 && i < assetRecords.length; i++) {
+  for (let i = 0; assignCreates.length < assignTarget && i < assetRecords.length; i++) {
     const asset = assetRecords[i];
     if (!asset || !employees.length) break;
     const emp = pick(employees, i * 2);
@@ -1013,8 +1048,10 @@ async function phase6(db: any, tenant: any, report: Report) {
     select: { trainingId: true, employeeId: true },
   });
   const enrollKey = new Set(existingEnrollments.map((e: any) => `${e.trainingId}|${e.employeeId}`));
+  // TOP-UP semantics: only create enough NEW enrollments to reach 25 total.
+  const enrollTarget = Math.max(0, 25 - existingEnrollments.length);
   const enrollCreates: any[] = [];
-  for (let i = 0; enrollCreates.length < 25 && i < 75; i++) {
+  for (let i = 0; enrollCreates.length < enrollTarget && i < 75; i++) {
     const training = trainingRecords.length ? pick(trainingRecords, i) : null;
     if (!training) break;
     const emp = pick(employees, i * 2 + 1);
@@ -1036,8 +1073,10 @@ async function phase6(db: any, tenant: any, report: Report) {
     select: { employeeId: true, reviewCycle: true },
   });
   const reviewKey = new Set(existingReviews.map((r: any) => `${r.employeeId}|${r.reviewCycle}`));
+  // TOP-UP semantics: only create enough NEW reviews to reach 20 total.
+  const reviewTarget = Math.max(0, 20 - existingReviews.length);
   const reviewCreates: any[] = [];
-  for (let i = 0; reviewCreates.length < 20 && i < 60; i++) {
+  for (let i = 0; reviewCreates.length < reviewTarget && i < 60; i++) {
     const emp = pick(employees, i * 2 + 1);
     const cycle = pick(cycles, i);
     if (reviewKey.has(`${emp.id}|${cycle}`)) continue;
@@ -1068,8 +1107,10 @@ async function phase6(db: any, tenant: any, report: Report) {
     select: { employeeId: true, title: true },
   });
   const goalKey = new Set(existingGoals.map((g: any) => `${g.employeeId}|${g.title}`));
+  // TOP-UP semantics: only create enough NEW goals to reach 40 total.
+  const goalTarget = Math.max(0, 40 - existingGoals.length);
   const goalCreates: any[] = [];
-  for (let i = 0; goalCreates.length < 40 && i < 120; i++) {
+  for (let i = 0; goalCreates.length < goalTarget && i < 120; i++) {
     const emp = pick(employees, i);
     const title = pick(goalTitles, i);
     if (goalKey.has(`${emp.id}|${title}`)) continue;
@@ -1096,8 +1137,10 @@ async function phase6(db: any, tenant: any, report: Report) {
     select: { employeeId: true, subject: true },
   });
   const grievanceKey = new Set(existingGrievances.map((g: any) => `${g.employeeId}|${g.subject}`));
+  // TOP-UP semantics: only create enough NEW grievances to reach 8 total.
+  const grievanceTarget = Math.max(0, 8 - existingGrievances.length);
   const grievanceCreates: any[] = [];
-  for (let i = 0; grievanceCreates.length < 8 && i < 40; i++) {
+  for (let i = 0; grievanceCreates.length < grievanceTarget && i < 40; i++) {
     const emp = pick(employees, i * 5);
     const subject = pick(GRIEVANCE_SUBJECTS, i);
     if (grievanceKey.has(`${emp.id}|${subject}`)) continue;
@@ -1122,8 +1165,11 @@ async function phase6(db: any, tenant: any, report: Report) {
   });
   const ticketKey = new Set(existingTickets.map((t: any) => `${t.requesterId}|${t.subject}`));
   const ticketStamp = Date.now().toString().slice(-6);
+  // TOP-UP semantics: only create enough NEW tickets to reach 15 total
+  // (previous behaviour created 15 MORE on every run — tickets tripled).
+  const ticketTarget = Math.max(0, 15 - existingTickets.length);
   const ticketCreates: any[] = [];
-  for (let i = 0; ticketCreates.length < 15 && i < 60; i++) {
+  for (let i = 0; ticketCreates.length < ticketTarget && i < 60; i++) {
     const emp = pick(employees, i * 3);
     const subject = pick(TICKET_SUBJECTS, i);
     if (ticketKey.has(`${emp.id}|${subject}`)) continue;
