@@ -1313,3 +1313,34 @@ Stage Summary:
   "Seed All Modules" on nexus-hrms-mu.vercel.app/super-admin.
   Phase 1 will no longer throw; reset cleanup only runs when
   "Reset + Seed Fresh" is clicked.
+
+---
+Task ID: 14
+Agent: Main
+Task: Demo login credentials missing on nexus-hrms-mu.vercel.app login page (+ finish the pending "Seed phase 1 failed: Cannot set properties of undefined (setting 'reset')" fix from previous session)
+
+Work Log:
+- Confirmed commit c15aa577 (previous session) had already fixed the phase-1 signature TypeError and is deployed.
+- Reproduced user issue: GET /api/public/demo-credentials returned HTTP 200 but {"superAdmins":[],"tenantAdmins":[]} → login page had no credentials to render.
+- Root cause chain (DB forensics via psycopg2):
+  1. Demo tenant DB (tenant_3boxes-hrms-demo) was found COMPLETELY WIPED: 0 users, 0 companies, 0 employees, 0 Tenant rows. Platform DB still had all demo admin users (superadmin@3boxeshrms.com + 5 tenant_admins, tenantId cmrmxegjy000604jv9ntgcshh).
+  2. Middleware maps nexus-hrms-mu.vercel.app → slug 3boxes-hrms-demo → getDb() routes to the demo TENANT DB → empty → no credentials, no logins.
+  3. The wipe was collateral of the old phase-1 signature bug: the destructive cleanup ran on EVERY seed click (reset received truthy report object).
+- Fixes shipped (commits 148e8a41, 6a62820b, c603f6b6, 363709ff, 1e4b673b):
+  a. seed-demo-full phase 1 now upserts the 6 demo admin users (password MarqAI@2026) into the demo tenant DB — self-healing credentials.
+  b. resolveDemoDb() mirrors the platform Tenant row into the tenant DB (FK target for User/CompanyGroup/Candidate tenantId) — was lost in the wipe, caused *_tenantId_fkey violations.
+  c. LeaveType.code is @unique GLOBALLY in schema.prisma — seed created same 5 codes × 6 companies → every createMany batch died silently on LeaveType_code_key → 0 leave types/balances/requests. Fixed: codes suffixed per company (CL-TNS, CL-ISY, ...).
+  d. Phase-2 $transaction(managerUpdates) rejected .catch()-wrapped plain Promises → Promise.all.
+  e. Holiday createMany passed non-existent 'status' column → whole batch rejected silently → 0 holidays. Field removed.
+  f. Reset cleanup ran as $transaction chunks of 6 — one FK violation (departments before designations) silently rolled back whole chunks → half-wipe. Rewritten: individual deleteMany per table in strict child→parent order, incl. previously missed children (leaveEncashmentRequest, optionalHolidayElection, ticketComment, jobPosting).
+  g. All "fill to target" loops (tickets/grievances/reviews/goals/enrollments/assignments/applications/leave requests) now use TOP-UP semantics (create target-minus-existing) → repeated seed clicks no longer inflate counts (tickets had tripled to 45).
+  h. Stable orderBy (employeeId/assetTag/title) on every refetch so pick()-based dedupe keys are deterministic across runs; holiday groupBy _count object-shape bug fixed; ML/PL balance skip now compares base code.
+- Re-seeded the live demo via authenticated API (login superadmin@3boxeshrms.com / MarqAI@2026 → POST /api/admin/seed-demo-full?phase=1..6, final run with reset=true), then idempotency-tested a second full run.
+- Verified: all 27 tables match design counts exactly (6 companies, 50 employees, 30 leave types, 150 balances, 30 requests, 1048 attendance with 0 dup pairs, 150 payslips, 30 holidays, 15 tickets, ...), demo-credentials returns 1 super admin + 5 tenant admins, tenant-admin login works.
+
+Stage Summary:
+- Demo site fully restored: login page shows credentials again; Seed All Modules is now truly idempotent and self-healing (users + tenant mirror + data).
+- Demo logins: superadmin@3boxeshrms.com (super_admin), admin@3boxeshrms.com / admin@acme-global.com / admin@globalhr.com / admin@techstart.com / admin@marqaitechgroup.com (tenant_admin) — all MarqAI@2026.
+- Scripts added: scripts/run-demo-reseed.sh (RESET=1 for wipe+seed), scripts/check-demo-users.py, scripts/check-demo-tenantdb.py, scripts/fix-demo-tenant-mirror.py, scripts/verify-demo-seed-state.py, scripts/check-leave-schema-drift.py, scripts/repro-demo-leavetype.ts.
+- Lesson: silent .catch(() => {}) on Prisma writes hides total data loss (3 separate incidents hidden this way). All module createMany catches in the seed now console.error. Consider project-wide audit next.
+- Still open (pre-existing, flagged in Task 13): GET /api/employees returns data without Authorization header (auth hardening pending user confirmation).
