@@ -17,7 +17,7 @@ import {
   FiUsers, FiUserPlus, FiUserCheck, FiUserX, FiClock,
   FiTrendingUp, FiTrendingDown, FiBarChart2, FiPieChart,
   FiCalendar, FiAlertCircle, FiArrowRight, FiGrid,
-  FiBriefcase, FiMapPin, FiActivity, FiCheckCircle,
+  FiBriefcase, FiMapPin, FiActivity, FiCheckCircle, FiInfo,
   FiChevronRight, FiFileText, FiRefreshCw, FiSearch,
   FiMail, FiPhone, FiLayers, FiTarget, FiAward,
   FiShield, FiHeart,
@@ -92,8 +92,14 @@ export default function EmployeeDashboardPage() {
   const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
   const selectedTenantId = useCompanyContextStore(s => s.selectedTenantId);
   const selectedCompanyId = useCompanyContextStore(s => s.selectedCompanyId);
+  const setSelectedCompany = useCompanyContextStore(s => s.setSelectedCompany);
+  const availableCompanies = useCompanyContextStore(s => s.availableCompanies);
 
   const [stats, setStats] = useState<EmployeeStats | null>(null);
+  // If a company is selected in the switcher but it has ZERO employees, show a
+  // clear banner instead of a bare "0" — the classic "where did my employees
+  // go?" confusion (the data is still there, just scoped to another company).
+  const [companyScopeEmpty, setCompanyScopeEmpty] = useState(false);
   const [lifecycleCounts, setLifecycleCounts] = useState({
     onProbation: 0,
     transfers: 0,
@@ -138,6 +144,9 @@ export default function EmployeeDashboardPage() {
       if (statsRes.ok) {
         const statsData = await statsRes.json();
         const total = statsData.pagination?.total || 0;
+
+        // Detect the "empty selected company" case so we can warn the user
+        setCompanyScopeEmpty(total === 0 && Boolean(cid));
 
         // Fetch all employees for detailed stats (use pagination total for count)
         const allRes = await fetch(`/api/employees?limit=500&page=1${scopeQuery}`, { headers });
@@ -497,6 +506,24 @@ export default function EmployeeDashboardPage() {
          ══════════════════════════════════════════════════════════════ */}
       {activeTab === 'overview' && (
         <>
+          {/* ── "Selected company has no employees" banner ── */}
+          {companyScopeEmpty && selectedCompanyId && (
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 rounded-xl border border-amber-200 bg-amber-50">
+              <FiInfo className="w-5 h-5 text-amber-600 flex-shrink-0" />
+              <div className="flex-1 text-sm text-amber-900">
+                <p className="font-semibold">No employees in “{availableCompanies?.find(c => c.id === selectedCompanyId)?.name || 'the selected company'}”</p>
+                <p className="text-xs text-amber-700 mt-0.5">
+                  Your dashboard is scoped to this company via the Company Switcher. Your employee data is safe — switch to “All companies” or the company that has employees to see it.
+                </p>
+              </div>
+              <button
+                onClick={() => { setCompanyScopeEmpty(false); setSelectedCompany(null); fetchDashboardData(); }}
+                className="px-3 py-1.5 text-xs font-bold text-white bg-amber-600 rounded-lg hover:bg-amber-700 flex-shrink-0"
+              >
+                Show all companies
+              </button>
+            </div>
+          )}
           {/* ── KPI Cards ── */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCard

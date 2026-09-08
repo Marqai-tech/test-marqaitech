@@ -319,7 +319,20 @@ export async function GET(request: Request) {
       // from the URL params directly so the company filter still works.
       const effectiveCompanyIdFilter = scopeResult?.companyId || queryCompanyId;
       if (effectiveCompanyIdFilter) {
-        where.companyId = effectiveCompanyIdFilter;
+        // Validate the company exists in THIS database before filtering.
+        // A stale companyId (e.g., persisted in localStorage from another DB,
+        // a deleted company, or a super-admin cross-tenant selection) used to
+        // silently produce an empty list — the classic "employees disappeared"
+        // confusion. If the company doesn't exist here, ignore the filter.
+        const companyExists = await queryDb.company.findUnique({
+          where: { id: effectiveCompanyIdFilter },
+          select: { id: true },
+        }).catch(() => null);
+        if (companyExists) {
+          where.companyId = effectiveCompanyIdFilter;
+        } else {
+          console.warn(`[Employees GET] Ignoring stale/unknown companyId filter: ${effectiveCompanyIdFilter}`);
+        }
       }
 
       // ─── Tenant scope filter (super_admin only) ───
