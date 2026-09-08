@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getPlatformDb, getDbForTenant } from '@/lib/tenant-db';
-import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
+import { verifyToken, getTokenFromHeaders, hashPassword } from '@/lib/auth';
 import { isLiveMode } from '@/lib/site-mode';
 
 /**
@@ -32,7 +32,10 @@ import { isLiveMode } from '@/lib/site-mode';
  *
  * Phases:
  *   1. Org structure  — company group, 6 companies, branches, departments,
- *                       designations, shifts, holidays
+ *                       designations, shifts, holidays + DEMO LOGIN USERS
+ *                       (superadmin@3boxeshrms.com + 5 admin accounts,
+ *                       password MarqAI@2026 — restores the credentials
+ *                       panel on the login page and demo sign-in itself)
  *   2. Employees      — 50 employees + primary company mappings + reporting managers
  *   3. Leave          — 5 leave types × 6 companies, balances for all
  *                       employees, 30 leave requests (mixed statuses)
@@ -169,6 +172,56 @@ type Report = Record<string, { created: number; skipped: number; note?: string }
 // PHASE 1 — Org structure: group, companies, branches, departments,
 //            designations, shifts, holidays  (~17 round-trips)
 // ═════════════════════════════════════════════════════════════════════
+// ─── DEMO ADMIN USERS ────────────────────────────────────────────────
+// The login page + credentials panel resolve the demo host
+// (nexus-hrms-mu.vercel.app) to the DEMO TENANT DB, so this database
+// must contain its own User rows. Without them:
+//   • /api/public/demo-credentials returns [] → the login page shows
+//     no credentials at all
+//   • login falls through to an empty tenant DB → nobody can sign in
+// (2026-09-08: the whole demo DB was found wiped — 0 users, 0 companies —
+// after the phase-1 signature bug made the destructive cleanup run on
+// every seed click. This block makes the seed self-healing: it restores
+// the login users on every phase-1 run, idempotently.)
+const DEMO_PASSWORD = 'MarqAI@2026';
+const DEMO_ADMIN_USERS = [
+  { email: 'superadmin@3boxeshrms.com', name: '3Boxes Super Admin', role: 'super_admin' },
+  { email: 'admin@3boxeshrms.com', name: 'Admin', role: 'tenant_admin' },
+  { email: 'admin@acme-global.com', name: 'Admin (Acme Global)', role: 'tenant_admin' },
+  { email: 'admin@globalhr.com', name: 'Admin (GlobalHR)', role: 'tenant_admin' },
+  { email: 'admin@techstart.com', name: 'Admin (TechStart)', role: 'tenant_admin' },
+  { email: 'admin@marqaitechgroup.com', name: 'Tenant Admin', role: 'tenant_admin' },
+];
+
+async function seedDemoUsers(db: any, tenantId: string, report: Report) {
+  const hashed = await hashPassword(DEMO_PASSWORD);
+  let created = 0;
+  let skipped = 0;
+  for (const u of DEMO_ADMIN_USERS) {
+    const existing = await db.user.findUnique({ where: { email: u.email }, select: { id: true } });
+    if (existing) {
+      // Ensure the account is active and attached to the demo tenant.
+      // Do NOT overwrite the password — it may have been changed
+      // deliberately via 'Reset all passwords' or by the user.
+      await db.user.update({ where: { id: existing.id }, data: { status: 'active', tenantId } });
+      skipped++;
+      continue;
+    }
+    await db.user.create({
+      data: {
+        email: u.email,
+        password: hashed,
+        name: u.name,
+        role: u.role,
+        status: 'active',
+        tenantId,
+      },
+    });
+    created++;
+  }
+  report['users'] = { created, skipped, note: `Demo login users ready (password: ${DEMO_PASSWORD})` };
+}
+
 async function phase1(db: any, tenant: any, report: Report, reset: boolean = false) {
   // Optional destructive reset (only meaningful together with phase 1)
   // NOTE: signature must stay (db, tenant, report, reset) — the shared
@@ -219,6 +272,10 @@ async function phase1(db: any, tenant: any, report: Report, reset: boolean = fal
       report['reset'] = { created: 0, skipped: 0, note: `Reset partially failed: ${e instanceof Error ? e.message : 'unknown'}` };
     }
   }
+
+  // Restore/refresh the demo login users FIRST — without them the login
+  // page shows no credentials and nobody can sign in to the demo.
+  await seedDemoUsers(db, tenant.id, report);
 
   // Company group
   let group = await db.companyGroup.findFirst({ where: { tenantId: tenant.id } });
