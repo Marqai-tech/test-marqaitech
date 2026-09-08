@@ -169,8 +169,14 @@ type Report = Record<string, { created: number; skipped: number; note?: string }
 // PHASE 1 — Org structure: group, companies, branches, departments,
 //            designations, shifts, holidays  (~17 round-trips)
 // ═════════════════════════════════════════════════════════════════════
-async function phase1(db: any, tenant: any, reset: boolean, report: Report) {
+async function phase1(db: any, tenant: any, report: Report, reset: boolean = false) {
   // Optional destructive reset (only meaningful together with phase 1)
+  // NOTE: signature must stay (db, tenant, report, reset) — the shared
+  // dispatcher calls phase.fn(db, tenant, report, reset). A previous
+  // version had (db, tenant, reset, report) here while the dispatcher
+  // passed 3 args, which made `report` undefined (TypeError "setting
+  // 'reset'") AND made the destructive cleanup run on EVERY seed click
+  // because `reset` received the truthy report object.
   if (reset) {
     try {
       const oldEmployees = await db.employee.findMany({ where: demoEmployeeWhere(), select: { id: true } });
@@ -1028,7 +1034,7 @@ async function phase6(db: any, tenant: any, report: Report) {
 // ═════════════════════════════════════════════════════════════════════
 // POST dispatcher — ?phase=1..6 (default: all phases sequentially)
 // ═════════════════════════════════════════════════════════════════════
-const PHASES: Record<number, { name: string; fn: (db: any, tenant: any, report: Report) => Promise<void> }> = {
+const PHASES: Record<number, { name: string; fn: (db: any, tenant: any, report: Report, reset?: boolean) => Promise<void> }> = {
   1: { name: 'Organisation structure (companies, branches, departments, designations, shifts, holidays)', fn: phase1 },
   2: { name: 'Employees (50 employees + company mappings + reporting managers)', fn: phase2 },
   3: { name: 'Leave (types, balances, requests)', fn: phase3 },
@@ -1055,7 +1061,7 @@ export async function POST(request: Request) {
     for (const p of phasesToRun) {
       const phase = PHASES[p];
       try {
-        await phase.fn(db, tenant, report);
+        await phase.fn(db, tenant, report, reset);
         report[`phase_${p}`] = report[`phase_${p}`] || { created: 0, skipped: 0, note: 'OK' };
       } catch (phaseErr) {
         console.error(`[SeedDemoFull] Phase ${p} failed:`, phaseErr);
