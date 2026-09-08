@@ -1139,3 +1139,37 @@ Stage Summary:
   6 quick phases with visible progress and ends with a success toast.
 - Leftover partial data from the failed run is handled idempotently
   (existing rows are detected and skipped; missing ones are added).
+
+---
+Task ID: 11
+Agent: Main Agent
+Task: Remove Map Admin EMP ID / Force Fix Profile / Diagnose buttons from super admin tenant form
+
+Work Log:
+- User reported these one-off debugging options (created in Task 8 for
+  the EMP-MTPL-001 my-profile issue) create confusion for future
+  tenants; requested removal on live AND demo
+- Removed the standalone "Employee ID Mapping" row from each tenant
+  card in the Tenants tab (Map Admin EMP ID → EMP-MTPL-001,
+  Force Fix Profile, Diagnose buttons)
+- Removed the 3 handler functions + their loading states
+  (handleMapAdminEmpId/mappingAdminEmp, handleForceFixProfile/
+  forceFixingProfile, handleDiagnoseProfile/diagnosingProfile)
+  — 132 lines deleted
+- Restored the fragment closer (</>) that wrapped the tenant card
+  content to keep JSX balanced after the row removal
+- Verified: no dangling references; icons (FiKey, FiSearch,
+  FiAlertTriangle, FiUserCheck) still used elsewhere; tsc clean for
+  the file (pre-existing tsc errors in scripts/ + currency.ts are
+  unrelated and ignored by build via ignoreBuildErrors)
+- Kept the 3 auth-protected API endpoints
+  (/api/admin/map-tenant-admin-emp-id, force-fix-profile,
+  diagnose-profile) for emergency debugging — no longer referenced
+  by any UI
+- Other maintenance buttons (Link Emp, Seed DB, Clear Prob, Backup,
+  Reset Pwd, Purge Dups) remain untouched
+- Committed c5d4f9cb, pushed to origin/main → Vercel auto-deploys
+
+Stage Summary:
+- Super admin Tenants tab now shows only general-purpose actions;
+  no tenant-specific debugging buttons visible on live or demo
