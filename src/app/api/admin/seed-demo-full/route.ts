@@ -538,7 +538,11 @@ async function phase2(db: any, tenant: any, report: Report) {
     }
   }
   for (const c of chunk(managerUpdates, 25)) {
-    await db.$transaction(c).catch(() => {});
+    // NOTE: these promises carry .catch(() => {}) — they are PLAIN Promises,
+    // which Prisma's array $transaction rejects ("All elements of the array
+    // need to be Prisma Client promises"). Promise.all is both valid here
+    // and more resilient (one failed update doesn't abort the batch).
+    await Promise.all(c);
   }
   report['reportingManagers'] = { created: managerUpdates.length, skipped: 0 };
   void tenant;
@@ -571,26 +575,36 @@ async function phase3(db: any, tenant: any, report: Report) {
     { name: 'Paternity Leave', code: 'PL', defaultDays: 15, isPaid: true, carryForward: false, maxCarryForward: 0 },
   ];
 
+  // LeaveType.code is GLOBALLY UNIQUE in the schema (@@id-level @unique),
+  // but we create the same 5 leave types PER COMPANY — so every code must
+  // be suffixed with the company code (CL → CL-TNS, CL-ISY, ...). Without
+  // the suffix the whole createMany batch fails on LeaveType_code_key and
+  // the leave module ends up completely empty (2026-09-08 demo incident).
+  const allSuffixedCodes = companyRecords.flatMap((c: any) => leaveTypeDefs.map((lt) => `${lt.code}-${c.code}`));
+
   // LeaveType requires companyId → create the 5 types PER COMPANY (30 rows)
   const existingTypes = await db.leaveType.findMany({
-    where: { companyId: { in: companyIds }, code: { in: leaveTypeDefs.map((t) => t.code) } },
+    where: { companyId: { in: companyIds }, code: { in: allSuffixedCodes } },
     select: { id: true, code: true, companyId: true },
   });
   const typeKey = new Set(existingTypes.map((t: any) => `${t.companyId}|${t.code}`));
   const typeCreates: any[] = [];
   for (const company of companyRecords) {
     for (const lt of leaveTypeDefs) {
-      if (!typeKey.has(`${company.id}|${lt.code}`)) typeCreates.push({ ...lt, companyId: company.id });
+      const suffixed = `${lt.code}-${company.code}`;
+      if (!typeKey.has(`${company.id}|${suffixed}`)) typeCreates.push({ ...lt, code: suffixed, companyId: company.id });
     }
   }
   for (const c of chunk(typeCreates, 30)) {
-    await db.leaveType.createMany({ data: c }).catch(() => {});
+    await db.leaveType.createMany({ data: c }).catch((e: unknown) => {
+      console.error('[SeedDemoFull] leaveType.createMany failed:', e);
+    });
   }
   report['leaveTypes'] = { created: typeCreates.length, skipped: existingTypes.length };
 
   // Re-fetch and index types per company
   const allTypes = await db.leaveType.findMany({
-    where: { companyId: { in: companyIds }, code: { in: leaveTypeDefs.map((t) => t.code) } },
+    where: { companyId: { in: companyIds }, code: { in: allSuffixedCodes } },
     select: { id: true, code: true, companyId: true, defaultDays: true },
   });
   const typesByCompany = new Map<string, any[]>();
@@ -622,7 +636,9 @@ async function phase3(db: any, tenant: any, report: Report) {
     }
   }
   for (const c of chunk(balanceCreates, 100)) {
-    await db.leaveBalance.createMany({ data: c }).catch(() => {});
+    await db.leaveBalance.createMany({ data: c }).catch((e: unknown) => {
+      console.error('[SeedDemoFull] leaveBalance.createMany failed:', e);
+    });
   }
   report['leaveBalances'] = { created: balanceCreates.length, skipped: existingBalances.length };
 
@@ -636,7 +652,7 @@ async function phase3(db: any, tenant: any, report: Report) {
   const requestCreates: any[] = [];
   for (let i = 0; requestCreates.length < 30 && i < 120; i++) {
     const emp = pick(employees, i * 3);
-    const types = (typesByCompany.get(emp.companyId) || []).filter((t: any) => ['CL', 'SL', 'EL'].includes(t.code));
+    const types = (typesByCompany.get(emp.companyId) || []).filter((t: any) => ['CL', 'SL', 'EL'].includes(String(t.code).split('-')[0]));
     if (!types.length) continue;
     const lt = pick(types, i);
     const startOffset = rand(-60, 20);
@@ -660,7 +676,9 @@ async function phase3(db: any, tenant: any, report: Report) {
     });
   }
   for (const c of chunk(requestCreates, 30)) {
-    await db.leaveRequest.createMany({ data: c }).catch(() => {});
+    await db.leaveRequest.createMany({ data: c }).catch((e: unknown) => {
+      console.error('[SeedDemoFull] leaveRequest.createMany failed:', e);
+    });
   }
   report['leaveRequests'] = { created: requestCreates.length, skipped: existingRequests.length };
   void tenant;
