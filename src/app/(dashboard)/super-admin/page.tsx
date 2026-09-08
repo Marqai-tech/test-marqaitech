@@ -639,37 +639,65 @@ export default function SuperAdminPage() {
   // performance, grievances, helpdesk.
   const [seedingAllModules, setSeedingAllModules] = useState(false);
   const [seedAllWithReset, setSeedAllWithReset] = useState(false);
+  const [seedPhaseLabel, setSeedPhaseLabel] = useState<string | null>(null);
+  // Seed runs in 6 PHASES (one API call each) so no single serverless
+  // request exceeds the Vercel timeout. Each phase is idempotent.
+  const SEED_PHASE_LABELS: Record<number, string> = {
+    1: 'Organisation structure',
+    2: 'Employees',
+    3: 'Leave',
+    4: 'Attendance + Payroll',
+    5: 'Recruitment + Assets',
+    6: 'Training + Performance + Grievances + Helpdesk',
+  };
   const handleSeedAllModules = async (withReset: boolean) => {
     if (withReset) {
       if (!confirm('RESET + SEED ALL MODULES (Demo only)?\n\n⚠️ This will FIRST DELETE all existing demo companies/employees/module data, then seed fresh:\n\n• 6 companies (TechNova, Innovatech, Global Dynamics, Apex Services, Prime Healthcare, Stellar)\n• 50 employees distributed across all 6 companies\n• Leave types + balances + 30 leave requests\n• Attendance: 30 days × 50 employees\n• Payroll: 3 months payslips × 50 employees + payroll runs\n• Recruitment: 6 job postings + 20 candidates + 30 applications\n• Assets: 30 assets + 25 assignments\n• Training: 5 trainings + 25 enrollments\n• Performance: 20 reviews + 40 goals\n• Grievances: 8 | Helpdesk tickets: 15\n\nThis cannot be undone. Continue?')) return;
     } else {
-      if (!confirm('SEED ALL MODULES (Demo only)?\n\nThis will ADD sample data (idempotent — existing records are skipped):\n\n• 6 companies, 50 employees\n• Leave, attendance, payroll, recruitment, assets, training, performance, grievances, helpdesk sample data\n\nContinue?')) return;
+      if (!confirm('SEED ALL MODULES (Demo only)?\n\nThis will ADD sample data in 6 quick phases (idempotent — existing records are skipped):\n\n• 6 companies, 50 employees\n• Leave, attendance, payroll, recruitment, assets, training, performance, grievances, helpdesk sample data\n\nContinue?')) return;
     }
     try {
       setSeedingAllModules(true);
       setSeedAllWithReset(withReset);
-      const res = await fetch(`/api/admin/seed-demo-full${withReset ? '?reset=true' : ''}`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-      });
-      if (!res.ok) {
-        const d = await res.json().catch(() => ({}));
-        throw new Error(d.error || 'Failed');
+      const totals: Record<string, { created: number; skipped: number }> = {};
+      const failures: string[] = [];
+      let lastMessage = '';
+      for (let phase = 1; phase <= 6; phase++) {
+        setSeedPhaseLabel(`Phase ${phase}/6 — ${SEED_PHASE_LABELS[phase]}…`);
+        const url = `/api/admin/seed-demo-full?phase=${phase}${withReset && phase === 1 ? '&reset=true' : ''}`;
+        const res = await fetch(url, { method: 'POST', headers: getAuthHeaders() });
+        const d = await res.json().catch(() => ({} as any));
+        if (!res.ok) {
+          throw new Error(d.details ? `${d.error}: ${d.details}` : (d.error || `Phase ${phase} failed`));
+        }
+        lastMessage = d.message || lastMessage;
+        const r = d.report || {};
+        for (const [k, v] of Object.entries(r)) {
+          if (k.startsWith('phase_')) continue;
+          const rv = v as any;
+          if (rv?.note && String(rv.note).startsWith('FAILED')) failures.push(`${k} — ${rv.note}`);
+          if (!totals[k]) totals[k] = { created: 0, skipped: 0 };
+          totals[k].created += rv?.created || 0;
+          totals[k].skipped += rv?.skipped || 0;
+        }
       }
-      const data = await res.json();
-      const r = data.report || {};
-      const lines = Object.entries(r)
+      const lines = Object.entries(totals)
         .filter(([k]) => k !== 'reset')
-        .map(([k, v]: [string, any]) => `${k}: +${v.created || 0}`)
+        .map(([k, v]) => `${k}: +${v.created || 0}`)
         .join(' | ');
-      toast.success(`${data.message}\n\n${lines}`, { duration: 15000 });
-      console.log('[SeedAllModules] Full report:', data);
+      if (failures.length) {
+        toast.error(`Some phases reported errors:\n${failures.join('\n')}\n\n${lines}`, { duration: 15000 });
+      } else {
+        toast.success(`✅ Demo data seeded across all modules!\n\n${lines}`, { duration: 15000 });
+      }
+      console.log('[SeedAllModules] Report:', totals, lastMessage);
       fetchTenants();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Failed to seed demo data');
+      toast.error(e instanceof Error ? e.message : 'Failed to seed demo data', { duration: 12000 });
     } finally {
       setSeedingAllModules(false);
       setSeedAllWithReset(false);
+      setSeedPhaseLabel(null);
     }
   };
 
@@ -1754,7 +1782,7 @@ export default function SuperAdminPage() {
                     title="Add sample data (idempotent — existing records are skipped)"
                   >
                     {seedingAllModules && !seedAllWithReset ? <FiRefreshCw className="w-3.5 h-3.5 animate-spin" /> : <FiDatabase className="w-3.5 h-3.5" />}
-                    Seed All Modules
+                    {seedingAllModules && !seedAllWithReset && seedPhaseLabel ? seedPhaseLabel : 'Seed All Modules'}
                   </button>
                   <button
                     onClick={() => handleSeedAllModules(true)}
@@ -1763,7 +1791,7 @@ export default function SuperAdminPage() {
                     title="DELETE existing demo data first, then seed fresh (destructive)"
                   >
                     {seedingAllModules && seedAllWithReset ? <FiRefreshCw className="w-3.5 h-3.5 animate-spin" /> : <FiTrash2 className="w-3.5 h-3.5" />}
-                    Reset + Seed Fresh
+                    {seedingAllModules && seedAllWithReset && seedPhaseLabel ? seedPhaseLabel : 'Reset + Seed Fresh'}
                   </button>
                 </div>
               </div>
