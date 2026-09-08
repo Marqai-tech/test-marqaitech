@@ -1221,3 +1221,62 @@ Stage Summary:
 - After deploy: zero-employee companies show an explanatory banner
   instead of a bare 0; stale company IDs can never blank the list
 - Demo seeding now safe: dedicated demo DB exists with full schema
+
+---
+Task ID: 13
+Agent: Main Agent
+Task: LIVE incident — marqaitechgroup.3boxeshrms.com employees still zero after Task 12 fix ("no stil the same")
+
+Work Log:
+1. Re-investigated from scratch. Task 12's DB inspection used raw SQL
+   (psycopg2), which cannot see Prisma-level column requirements. The
+   "company switcher" conclusion was wrong/incomplete.
+2. Curled the LIVE API unauthenticated:
+   /api/employees -> HTTP 503 {"error":"Service temporarily unavailable","code":"DB_UNAVAILABLE"}
+   The frontend treats a failed statsRes as total=0 -> "zero employees".
+3. Reproduced locally with the project's generated Prisma client +
+   @prisma/adapter-neon + the TenantDatabase connectionString
+   (scripts/repro-employees-query.ts):
+   P2022 — column Employee.credentialsStatus does not exist.
+   Simple findMany also failed; department/designation/branch/user OK.
+4. Root cause: schema.prisma gained Employee.credentialsStatus /
+   credentialsInvitedAt / credentialsInvitedBy (commit 2f878bff,
+   2026-09-07 13:15 UTC) + later leave-workflow columns/tables, but no
+   migration ever ran on tenant DBs. The moment Vercel deployed the new
+   Prisma client, EVERY Employee query on the tenant DB failed -> 503 ->
+   dashboard showed 0. Data was NEVER lost (10 active employees intact,
+   all in MarqAI Tech Pvt Ltd; admin = tenant_admin w/ EMP-MTPL-001).
+5. Fix (additive-only DDL, zero data touched):
+   - Built scripts/gen-additive-sync.py: prisma migrate diff
+     (DB -> schema.prisma) then filters out ALL destructive statements
+     (DROP TABLE/COLUMN, DELETE, TRUNCATE, ALTER TYPE, RENAME).
+     Constraint relaxations (DROP NOT NULL/DEFAULT, DROP CONSTRAINT,
+     DROP INDEX) kept — they share blocks with required ADD COLUMNs.
+   - tenant_marqaitechgroup: 89 statements applied, 0 failed;
+     Employee.credentialsStatus verified present; row count still 10.
+   - platform neondb: 129/156 applied (27 FK-only failures caused by
+     pre-existing orphan rows referencing missing TenantConfig —
+     harmless; 46 skips are cosmetic index renames).
+   - tenant_3boxes-hrms-demo: already current (created from current
+     schema in Task 12), 0 statements needed.
+   - tenant_demo: orphan legacy DB, nothing points to it — skipped.
+   - Verified via exact Prisma repro: findMany returns 10 rows.
+6. LIVE verification: /api/employees now HTTP 200,
+   pagination.total=10, 10 employees (all active) returned.
+7. Code hardening (commit e6808b6a): extended the inline schema-sync
+   lists in /api/employees (GET + POST) with the 3 credential columns
+   so any DB missing them self-heals on first request. Noted in code
+   that this list must be extended whenever Employee columns are added.
+   Pushed 4758b296..e6808b6a -> Vercel auto-deploy.
+
+Stage Summary:
+- OUTAGE RESOLVED. Employees on the live tenant site are back (no user
+  action needed; hard refresh recommended to bust any cached bundle).
+- Key lesson: tenant DBs have no migration pipeline — schema.prisma
+  changes MUST be followed by additive sync across all tenant DBs
+  (scripts/gen-additive-sync.py + apply-additive-sync.py now exist for
+  that). The inline sync lists are a second line of defense.
+- Pre-existing security gap noted (NOT changed in this task): GET
+  /api/employees returns tenant data without an Authorization header
+  (unauthenticated requests fall through to scope 'all'). Flagged for
+  a dedicated hardening task.
