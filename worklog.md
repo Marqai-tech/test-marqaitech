@@ -1173,3 +1173,51 @@ Work Log:
 Stage Summary:
 - Super admin Tenants tab now shows only general-purpose actions;
   no tenant-specific debugging buttons visible on live or demo
+
+---
+Task ID: 12
+Agent: Main Agent
+Task: "Employees missing / count zero" on marqaitechgroup.3boxeshrms.com/employees/dashboard
+
+Work Log:
+1. READ-ONLY diagnosis via direct psycopg2 inspection of production
+   Neon (ep-blue-fire-aqk8jxd2) — scripts/diagnose-missing-employees{,-2,-3}.py
+2. FINDING: DATA IS INTACT. tenant_marqaitechgroup has all 10 employees
+   (9 real + EMP-MTPL-001 admin), 4 companies, 16 users; every
+   employee→company→user link valid. Nothing was deleted.
+3. ROOT CAUSE (UX): the dashboard scopes queries by the companyId
+   selected in the Company Switcher (persisted in localStorage). The
+   tenant has 4 companies; 3 of them (3 Boxes Consulting Services,
+   3 Boxes Luxury Curations, 3 Boxes Technologies — all created later,
+   cmspn* IDs) have ZERO employees. Viewing one of those companies
+   (the eye icon on the Companies page silently calls
+   setSelectedCompany(company.id)) scopes the dashboard to an empty
+   company → "suddenly zero employees".
+4. FIXES (commit 4758b296):
+   a. /api/employees GET validates the companyId filter against the
+      query DB; stale/foreign/deleted IDs are ignored with a console
+      warn instead of returning an empty list
+   b. Employee dashboard: amber banner when the selected company has
+      zero employees — shows the company name + "Show all companies"
+      button that resets the switcher and refetches
+5. BONUS LANDMINE FIXED: TenantDatabase record for 3boxes-hrms-demo
+   pointed to a NON-EXISTENT database (tenant_3boxes-hrms-demo not
+   among pg_database); getDbForTenant silently fell back to the
+   PLATFORM DB — the next seed click would have written demo data
+   into the live platform DB (golden-rule violation).
+   - Created tenant_3boxes-hrms-demo (CREATE DATABASE)
+   - Applied full Prisma schema via prisma migrate diff → 260 tables
+   - Verified pooler connection path used by the app works
+6. Also verified: platform DB (neondb) has NO demo pollution
+   (no @*.demo employees, no TNS/ISY companies — the failed seed runs
+   died before writing); legacy tenant_demo DB (61 employees) is an
+   orphan from old provisioning, no tenant points at it.
+7. Pushed 4758b296 to origin/main → Vercel auto-deploys.
+
+Stage Summary:
+- User action: open Company Switcher on the tenant link → select
+  "All companies (group)" or "MarqAI Tech Pvt Ltd" → all 10 employees
+  reappear immediately (no deploy needed for the immediate fix)
+- After deploy: zero-employee companies show an explanatory banner
+  instead of a bare 0; stale company IDs can never blank the list
+- Demo seeding now safe: dedicated demo DB exists with full schema
