@@ -1078,3 +1078,64 @@ Stage Summary:
   and sample data for every module after the user clicks the seed button
 - All previous schema-drift bugs avoided (verified against actual Prisma schema)
 - Pushed to origin/main (commit 0b0bdb67), Vercel deploying
+
+---
+Task ID: 10
+Agent: Main Agent
+Task: Fix "demo data not seeded" error when clicking Seed All Modules on demo link
+
+Work Log:
+
+1. Diagnosed 3 root causes in /api/admin/seed-demo-full:
+   a. LeaveType.companyId is REQUIRED (non-nullable in schema) but the
+      seeder omitted it → all 5 leave type creates failed silently
+      (.catch(() => null)) → leaveTypes array stayed empty →
+      pick() on empty array threw TypeError → 500 "Demo seed failed"
+   b. Attendance.checkIn/checkOut are DateTime columns but seeder
+      stored 'HH:mm' strings → Prisma rejected every row → 0 attendance
+   c. The single request ran ~2,500 sequential Neon round-trips
+      (per-row findFirst + create) → far beyond Vercel serverless
+      timeout → function killed → UI showed generic "not seeded" error
+
+2. Rewrote the seeder as a PHASED, BATCHED pipeline:
+   - 6 phases via ?phase=1..6 (default = all sequentially):
+     1. Org structure (group, 6 companies, branches, 5 depts each,
+        6 designations each, shifts, holidays 2026)
+     2. 50 employees + EmployeeCompanyMapping + reporting managers
+     3. Leave: 5 types × 6 companies (companyId now set!), balances
+        for all employees (CL/SL/EL), 30 mixed-status requests
+     4. Attendance (30 days × 50, weekday-only, Date objects for
+        checkIn/checkOut) + 3 PayrollRuns (legalEntityId) + 150 payslips
+     5. Recruitment: 6 jobs + 20 candidates (tenantId) + 30 applications
+        (expectedSalary as String per schema) + 30 assets + 25 assignments
+     6. 5 trainings + 25 enrollments + 20 reviews + 40 goals +
+        8 grievances + 15 tickets
+   - All writes via createMany (chunked 25-250) + $transaction batches
+     → ~60 round-trips total instead of ~2,500; each phase < 10 s
+   - maxDuration = 60 on the route
+   - Idempotency: one findMany per table → Set-based key dedupe →
+     only missing rows inserted (no per-row findFirst)
+   - Reset (?reset=true with phase 1): batched $transaction deletes
+     scoped to demo companies/employees only
+   - Demo employees scoped by email domain (@*.demo) via
+     demoEmployeeWhere() — never touches real tenant data
+   - Per-phase error capture: failures reported per-phase in the
+     response instead of aborting everything
+
+3. Updated super-admin UI handleSeedAllModules:
+   - Calls the 6 phases sequentially, button shows live progress
+     ("Phase 2/6 — Employees…")
+   - Aggregates per-module created/skipped counts across phases
+   - Success toast lists all module counts; failure toast lists
+     exactly which modules failed and why
+   - reset=true is sent only with phase 1
+
+4. Type-checked (tsc clean), committed e29ad556, pushed to origin/main
+   → Vercel auto-deploys to nexus-hrms-mu.vercel.app
+
+Stage Summary:
+- User action needed: wait for Vercel deploy (~2 min), then on the demo
+  site → Super Admin → Tenants tab → "Seed All Modules". It now runs
+  6 quick phases with visible progress and ends with a success toast.
+- Leftover partial data from the failed run is handled idempotently
+  (existing rows are detected and skipped; missing ones are added).
