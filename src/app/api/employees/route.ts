@@ -76,6 +76,14 @@ export async function GET(request: Request) {
         `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "attendancePolicyId" TEXT`,
         `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "travelPolicyId" TEXT`,
         `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "salaryStructureId" TEXT`,
+        // Credential-invite columns (added to schema.prisma 2026-09-07). A
+        // tenant DB missing these made EVERY Prisma employee query fail with
+        // P2022 -> /api/employees returned 503 -> dashboard showed 0 employees
+        // even though the data was intact. Keep this list in sync with the
+        // schema whenever new Employee columns are added.
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "credentialsStatus" TEXT DEFAULT 'not_invited'`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "credentialsInvitedAt" TIMESTAMP(3)`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "credentialsInvitedBy" TEXT`,
       ];
       for (const sql of syncStatements) {
         try {
@@ -516,6 +524,14 @@ export async function POST(request: Request) {
         `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "attendancePolicyId" TEXT`,
         `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "travelPolicyId" TEXT`,
         `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "salaryStructureId" TEXT`,
+        // Credential-invite columns (added to schema.prisma 2026-09-07). A
+        // tenant DB missing these made EVERY Prisma employee query fail with
+        // P2022 -> /api/employees returned 503 -> dashboard showed 0 employees
+        // even though the data was intact. Keep this list in sync with the
+        // schema whenever new Employee columns are added.
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "credentialsStatus" TEXT DEFAULT 'not_invited'`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "credentialsInvitedAt" TIMESTAMP(3)`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "credentialsInvitedBy" TEXT`,
       ];
       for (const sql of syncStatements) {
         try {
