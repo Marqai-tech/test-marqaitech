@@ -1755,3 +1755,104 @@ Stage Summary:
   control characters removed, max length enforced. The stored value is
   safe for all consumers (React, mobile, exports, notifications, audit
   logs).
+
+---
+Task ID: 20
+Agent: Main Agent
+Task: Add policy document dropdown + employee scope selectors to both leave + attendance workflow configurations
+
+Work Log:
+1. Explored the employee module's existing policy dropdown pattern
+   (employees/[id]/page.tsx → policyDropdown factory + handleSave +
+   Promise.allSettled fetch of /api/policies?category=<cat>). Replicated
+   the same UX in both workflow config UIs.
+2. SCHEMA (prisma/schema.prisma):
+   - AttendanceWorkflowConfig: + policyDocumentId (String?), employmentType
+     (String @default 'all'), branchId (String?), departmentId (String?),
+     employeeStatus (String @default 'all'). Added 3 new indexes.
+   - LeaveWorkflowConfig: + same 5 columns + companyId (String?) for
+     company-level scoping. Added 3 new indexes.
+   - Prisma client regenerated.
+3. SCHEMA SYNC (additive-only, zero data touched):
+   - tenant_marqaitechgroup: 8/8 OK (10 employees unchanged).
+   - tenant_3boxes-hrms-demo: 8/8 OK (52 employees unchanged).
+   - neondb (platform): 85 OK / 27 pre-existing benign FK-only fails.
+   GOLDEN RULE preserved.
+4. ATTENDANCE workflow-config API:
+   - GET returns the 5 new scope fields in each config object.
+   - PUT persists them (with enum validation on employmentType +
+     employeeStatus; branchId/departmentId/policyDocumentId accept any
+     string or null).
+   - Upsert now matches by requestType + companyId + scope (so different
+     scopes can coexist — e.g. one config for full-time, another for
+     contract employees).
+5. ATTENDANCE loadWorkflowConfig (lib/attendance-workflow.ts):
+   - New optional 4th parameter: employeeScope { employmentType, branchId,
+     departmentId, employeeStatus }.
+   - Resolution order (most-specific to least-specific):
+     1. Exact match on all 4 scope dimensions
+     2. employmentType + branchId + departmentId (status='all')
+     3. employmentType + branchId (department=null, status='all')
+     4. employmentType only
+     5. scope='all' catch-all
+     6. Legacy fallback (any config for this requestType, ignores scope)
+     7. Legacy AttendancePolicyRule inheritance (Task 18)
+     8. Blueprint defaults
+   - If the scoped query fails (columns missing on older tenant DBs),
+     falls back to the legacy filter automatically.
+6. ATTENDANCE submit API (/api/attendance/requests POST):
+   - Now passes the employee's scope to loadWorkflowConfig.
+   - Added normalizeEmploymentType() helper to map Employee.employeeType
+     (underscore: 'full_time') → workflow-config employmentType (hyphen:
+     'full-time').
+   - findEmployeeByEmail now selects employeeType + status (was missing).
+7. ATTENDANCE UI (settings/WorkflowBuilderTab.tsx):
+   - Added a 'Policy Document & Employee Scope' card at the top of the
+     config panel (before the rule constraints + workflow builder).
+   - Fetches policy documents (category=attendance), branches, and
+     departments via Promise.allSettled — same pattern as the employee
+     module.
+   - 5 dropdowns: Policy Document, Employment Type, Employee Status,
+     Branch, Department.
+   - Scope summary chips show the effective scope at a glance.
+   - All 5 fields are saved alongside levels + rules in the same PUT call.
+8. LEAVE workflow-config API:
+   - GET returns the 5 new scope fields.
+   - POST persists them via raw SQL (UPDATE + INSERT both include the 5
+     new columns).
+9. LEAVE UI (leave-policy/page.tsx → LeaveApprovalWorkflowConfig):
+   - Added a 'Policy Document & Employee Scope' card between the Workflow
+     Name/Description card and the Approval Tiers card.
+   - Fetches policy documents (category=leave), branches, departments.
+   - Same 5 dropdowns + scope summary chips.
+   - All 5 fields saved in the same POST call.
+10. NO BREAKING CHANGES — all new fields are optional with sensible
+    defaults (employmentType='all', employeeStatus='all', branchId=null,
+    departmentId=null, policyDocumentId=null). Existing saved configs
+    continue to work; they simply apply to all employees (scope='all')
+    until an admin restricts them.
+11. Type-checked with project tsconfig — 0 new errors.
+12. Deployed commit 1c0ee736 → push origin main → Vercel auto-build.
+    Verified post-deploy: demo /attendance/settings?tab=workflows = 200,
+    live /leave/leave-policy?tab=workflow = 200.
+
+Stage Summary:
+- BOTH leave and attendance workflow configs now have a 'Policy Document
+  & Employee Scope' card at the top of the configuration panel.
+- Admins can:
+  (a) Link the workflow to a specific Policy document via a dropdown
+      (populated from /api/policies?category=attendance or category=leave).
+      Same UX as the employee module's policy mapping.
+  (b) Restrict the config to a specific employment type (full-time /
+      part-time / contract / internship), employee status (active /
+      on_leave / inactive), branch, or department — or leave any
+      dimension as 'All' for a catch-all.
+- At submission time, the attendance engine resolves the MOST SPECIFIC
+  matching config (e.g. a full-time employee in the Engineering branch
+  gets the full-time+Engineering config if it exists, otherwise falls
+  back to full-time-only, otherwise to the catch-all 'all' config).
+- Multiple configs per request type can now coexist (e.g. one for
+  full-time employees with a 5-day regularization window, another for
+  contract employees with a 2-day window).
+- Scope summary chips at the bottom of the card show the effective scope
+  at a glance.
