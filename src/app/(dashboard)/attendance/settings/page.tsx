@@ -82,12 +82,17 @@ interface AttendancePolicyRule {
 }
 
 // ─── Tab types ──────────────────────────────────────────────────────
-type TabKey = 'documents' | 'rules' | 'workflows';
+// NOTE: 'rules' tab was removed in the unification pass — all policy rule
+// fields (shift, grace, late-mark, OT, gate-pass) are now configured inside
+// the 'workflows' tab alongside the approval chain. The old AttendancePolicyRule
+// table is still read as a legacy fallback at runtime (see lib/attendance-workflow.ts
+// loadWorkflowConfig) so existing saved rules continue to apply until an admin
+// saves a unified workflow config.
+type TabKey = 'documents' | 'workflows';
 
 const TABS: { key: TabKey; label: string; icon: React.ReactNode }[] = [
   { key: 'documents', label: 'Policy Documents', icon: <FiBookOpen className="w-4 h-4" /> },
-  { key: 'rules', label: 'Policy Rules & Configuration', icon: <FiList className="w-4 h-4" /> },
-  { key: 'workflows', label: 'Approval Workflows', icon: <FiGitBranch className="w-4 h-4" /> },
+  { key: 'workflows', label: 'Policy Rules & Approval Workflows', icon: <FiGitBranch className="w-4 h-4" /> },
 ];
 
 const EMPLOYMENT_TYPES = [
@@ -126,7 +131,7 @@ function AttendanceSettingsContent() {
   const router = useRouter()
 
   const tabFromUrl = searchParams.get('tab') as TabKey | null
-  const validTabs: TabKey[] = ['documents', 'rules', 'workflows']
+  const validTabs: TabKey[] = ['documents', 'workflows']
   const defaultTab = (tabFromUrl && validTabs.includes(tabFromUrl)) ? tabFromUrl : 'documents'
   const [activeTab, setActiveTab] = useState<TabKey>(defaultTab);
 
@@ -179,7 +184,6 @@ function AttendanceSettingsContent() {
 
       {/* Tab Content */}
       {activeTab === 'documents' && <PolicyDocumentsTab />}
-      {activeTab === 'rules' && <PolicyRulesTab companyId={companyId} scopeQuery={scopeQuery} />}
       {activeTab === 'workflows' && <WorkflowBuilderTab companyId={companyId} />}
     </div>
   );

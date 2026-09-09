@@ -10,7 +10,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   FiSettings, FiSave, FiRefreshCw, FiPlus, FiTrash2, FiArrowUp, FiArrowDown,
-  FiZap, FiClock, FiMapPin, FiShield, FiCheckSquare, FiGitBranch, FiAlertTriangle,
+  FiZap, FiClock, FiMapPin, FiShield, FiCheckSquare, FiGitBranch, FiAlertTriangle, FiAlertCircle, FiTrendingUp, FiCalendar,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
@@ -35,6 +35,7 @@ interface WorkflowLevel {
   autoApproveIf: RuleCondition | null;
 }
 interface RequestRules {
+  // Submission-window / cap rules
   windowDays: number;
   monthlyCap: number;
   weeklyCap: number;
@@ -44,6 +45,25 @@ interface RequestRules {
   geoFencingEnabled: boolean;
   allowedIps: string[];
   requireQrVerification: boolean;
+  // Shift & Grace policy (unified from legacy AttendancePolicyRule)
+  shiftStartDefault: string;
+  shiftEndDefault: string;
+  breakDurationMinutes: number;
+  lateGraceMinutes: number;
+  earlyGraceMinutes: number;
+  // Late-mark policy
+  lateMarkAllowancePerMonth: number;
+  lateMarkHalfDayOnExceed: boolean;
+  halfDayAfterMinutes: number;
+  lateMarkNotApplicableOnTour: boolean;
+  // Overtime policy
+  autoOvertimeEnabled: boolean;
+  overtimeThresholdMinutes: number;
+  // Gate-pass policy
+  gatePassMaxPerMonth: number;
+  gatePassHalfDayOnExceed: boolean;
+  gatePassHalfDayNextDay: boolean;
+  gatePassEarlyHours: number;
 }
 interface TypeConfig { levels: WorkflowLevel[]; rules: RequestRules; configId: string | null; name: string; scope: string; updatedAt: string | null }
 
@@ -302,6 +322,141 @@ export default function WorkflowBuilderTab({ companyId }: { companyId: string | 
                     <p className="text-[10px] text-slate-400 mt-1">Security scans the pass at the gate to log actual exit/entry times.</p>
                   </div>
                 )}
+
+                {/* ═══════ UNIFIED POLICY SECTIONS (absorbed from legacy AttendancePolicyRule) ═══════ */}
+                <div className="pt-2 mt-2 border-t border-thb-border">
+                  <p className="text-[10px] font-bold text-teal-700 uppercase tracking-wider mb-2">Shift, Grace & Policy Rules</p>
+                  <p className="text-[10px] text-slate-400 mb-3">One unified policy — every attendance request type shares these shift / grace / late-mark / OT / gate-pass parameters.</p>
+                </div>
+
+                {/* Shift & Grace */}
+                <div className="p-3 rounded-lg bg-slate-50/60 border border-thb-border">
+                  <label className={`${labelCls} flex items-center gap-1 mb-2`}><FiClock className="w-3 h-3" /> Shift & Grace Period</label>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    <div>
+                      <span className="text-[10px] text-slate-400">Shift Start</span>
+                      <input type="time" value={cfg.rules.shiftStartDefault || '09:00'}
+                        onChange={e => patchRules({ shiftStartDefault: e.target.value })}
+                        disabled={!canEdit} className={inputCls} />
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400">Shift End</span>
+                      <input type="time" value={cfg.rules.shiftEndDefault || '17:30'}
+                        onChange={e => patchRules({ shiftEndDefault: e.target.value })}
+                        disabled={!canEdit} className={inputCls} />
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400">Break (min)</span>
+                      <input type="number" min={0} max={120} value={cfg.rules.breakDurationMinutes ?? 30}
+                        onChange={e => patchRules({ breakDurationMinutes: Number(e.target.value) })}
+                        disabled={!canEdit} className={inputCls} />
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400">Late Grace (min)</span>
+                      <input type="number" min={0} max={60} value={cfg.rules.lateGraceMinutes ?? 15}
+                        onChange={e => patchRules({ lateGraceMinutes: Number(e.target.value) })}
+                        disabled={!canEdit} className={inputCls} />
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400">Early Grace (min)</span>
+                      <input type="number" min={0} max={60} value={cfg.rules.earlyGraceMinutes ?? 10}
+                        onChange={e => patchRules({ earlyGraceMinutes: Number(e.target.value) })}
+                        disabled={!canEdit} className={inputCls} />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Late-mark policy */}
+                <div className="p-3 rounded-lg bg-amber-50/40 border border-amber-100">
+                  <label className={`${labelCls} flex items-center gap-1 mb-2`}><FiAlertTriangle className="w-3 h-3 text-amber-500" /> Late-Mark Policy</label>
+                  <div className="grid grid-cols-2 gap-2 mb-2">
+                    <div>
+                      <span className="text-[10px] text-slate-400">Allowance / Month</span>
+                      <input type="number" min={0} max={30} value={cfg.rules.lateMarkAllowancePerMonth ?? 4}
+                        onChange={e => patchRules({ lateMarkAllowancePerMonth: Number(e.target.value) })}
+                        disabled={!canEdit} className={inputCls} />
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400">Half-Day After (min)</span>
+                      <input type="number" min={0} max={120} value={cfg.rules.halfDayAfterMinutes ?? 21}
+                        onChange={e => patchRules({ halfDayAfterMinutes: Number(e.target.value) })}
+                        disabled={!canEdit} className={inputCls} />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] text-slate-600">Half-day on exceeding allowance</span>
+                      <button onClick={() => patchRules({ lateMarkHalfDayOnExceed: !cfg.rules.lateMarkHalfDayOnExceed })} disabled={!canEdit}
+                        className={`relative inline-flex h-4 w-8 items-center rounded-full transition-colors ${cfg.rules.lateMarkHalfDayOnExceed ? 'bg-amber-500' : 'bg-slate-200'}`}>
+                        <span className={`inline-block h-3 w-3 transform rounded-full bg-white shadow transition-transform ${cfg.rules.lateMarkHalfDayOnExceed ? 'translate-x-[18px]' : 'translate-x-0.5'}`} />
+                      </button>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] text-slate-600">Not applicable on Tour / OD</span>
+                      <button onClick={() => patchRules({ lateMarkNotApplicableOnTour: !cfg.rules.lateMarkNotApplicableOnTour })} disabled={!canEdit}
+                        className={`relative inline-flex h-4 w-8 items-center rounded-full transition-colors ${cfg.rules.lateMarkNotApplicableOnTour ? 'bg-amber-500' : 'bg-slate-200'}`}>
+                        <span className={`inline-block h-3 w-3 transform rounded-full bg-white shadow transition-transform ${cfg.rules.lateMarkNotApplicableOnTour ? 'translate-x-[18px]' : 'translate-x-0.5'}`} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Overtime policy */}
+                <div className="p-3 rounded-lg bg-violet-50/40 border border-violet-100">
+                  <label className={`${labelCls} flex items-center gap-1 mb-2`}><FiTrendingUp className="w-3 h-3 text-violet-500" /> Overtime Policy</label>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] text-slate-600">Auto-detect overtime</span>
+                    <button onClick={() => patchRules({ autoOvertimeEnabled: !cfg.rules.autoOvertimeEnabled })} disabled={!canEdit}
+                      className={`relative inline-flex h-4 w-8 items-center rounded-full transition-colors ${cfg.rules.autoOvertimeEnabled ? 'bg-violet-500' : 'bg-slate-200'}`}>
+                      <span className={`inline-block h-3 w-3 transform rounded-full bg-white shadow transition-transform ${cfg.rules.autoOvertimeEnabled ? 'translate-x-[18px]' : 'translate-x-0.5'}`} />
+                    </button>
+                  </div>
+                  {cfg.rules.autoOvertimeEnabled && (
+                    <div>
+                      <span className="text-[10px] text-slate-400">OT Threshold (min, 480 = 8h)</span>
+                      <input type="number" min={0} max={1440} value={cfg.rules.overtimeThresholdMinutes ?? 480}
+                        onChange={e => patchRules({ overtimeThresholdMinutes: Number(e.target.value) })}
+                        disabled={!canEdit} className={inputCls} />
+                    </div>
+                  )}
+                </div>
+
+                {/* Gate-pass policy (show for all types — it's tenant-wide) */}
+                <div className="p-3 rounded-lg bg-cyan-50/40 border border-cyan-100">
+                  <label className={`${labelCls} flex items-center gap-1 mb-2`}><FiShield className="w-3 h-3 text-cyan-500" /> Gate-Pass Policy</label>
+                  <div className="grid grid-cols-2 gap-2 mb-2">
+                    <div>
+                      <span className="text-[10px] text-slate-400">Max Passes / Month</span>
+                      <input type="number" min={0} max={30} value={cfg.rules.gatePassMaxPerMonth ?? 1}
+                        onChange={e => patchRules({ gatePassMaxPerMonth: Number(e.target.value) })}
+                        disabled={!canEdit} className={inputCls} />
+                      <p className="text-[9px] text-slate-400 mt-0.5">0 = unlimited</p>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400">Early-Departure Hours</span>
+                      <input type="number" min={0} max={8} value={cfg.rules.gatePassEarlyHours ?? 1}
+                        onChange={e => patchRules({ gatePassEarlyHours: Number(e.target.value) })}
+                        disabled={!canEdit} className={inputCls} />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] text-slate-600">Half-day on exceeding monthly passes</span>
+                      <button onClick={() => patchRules({ gatePassHalfDayOnExceed: !cfg.rules.gatePassHalfDayOnExceed })} disabled={!canEdit}
+                        className={`relative inline-flex h-4 w-8 items-center rounded-full transition-colors ${cfg.rules.gatePassHalfDayOnExceed ? 'bg-cyan-500' : 'bg-slate-200'}`}>
+                        <span className={`inline-block h-3 w-3 transform rounded-full bg-white shadow transition-transform ${cfg.rules.gatePassHalfDayOnExceed ? 'translate-x-[18px]' : 'translate-x-0.5'}`} />
+                      </button>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] text-slate-600">Half-day gate-pass marks next day half-day</span>
+                      <button onClick={() => patchRules({ gatePassHalfDayNextDay: !cfg.rules.gatePassHalfDayNextDay })} disabled={!canEdit}
+                        className={`relative inline-flex h-4 w-8 items-center rounded-full transition-colors ${cfg.rules.gatePassHalfDayNextDay ? 'bg-cyan-500' : 'bg-slate-200'}`}>
+                        <span className={`inline-block h-3 w-3 transform rounded-full bg-white shadow transition-transform ${cfg.rules.gatePassHalfDayNextDay ? 'translate-x-[18px]' : 'translate-x-0.5'}`} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                {/* ═══════ END unified policy sections ═══════ */}
               </div>
             </div>
           </div>

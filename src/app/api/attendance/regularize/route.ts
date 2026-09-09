@@ -7,6 +7,7 @@
  */
 import { requireUser, findEmployeeByEmail, isAdminRole, parseBody, getQuery, ok, fail, OPTIONS } from '@/lib/attendance-leave-api';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
+import { loadWorkflowConfig, buildRequestContext, checkRules } from '@/lib/attendance-workflow';
 
 export { OPTIONS };
 
@@ -70,6 +71,24 @@ export async function POST(request: Request) {
       where: { date, type: { in: ['public', 'company'] } },
     });
     const isHoliday = !!holiday;
+
+    // ─── Unified Rule Engine enforcement ─────────────────────────────
+    // Even though the legacy regularize endpoint writes to its own table
+    // (AttendanceRegularization), it must honor the same submission-window
+    // and monthly-cap rules configured in the unified AttendanceWorkflowConfig.
+    // Rejecting here prevents data that would bypass policy from being created.
+    try {
+      const { config } = await loadWorkflowConfig(db, emp.companyId || null, 'REGULARIZATION');
+      const ctx = await buildRequestContext(db, {
+        employeeId: emp.id, requestType: 'REGULARIZATION',
+        startDate: date, endDate: date, gatePassType: '', hours: 0,
+      });
+      const ruleCheck = checkRules(config.rules, ctx, { startDate: date, requestType: 'REGULARIZATION' });
+      if (!ruleCheck.ok) return fail(ruleCheck.error!, 422);
+    } catch (ruleErr) {
+      console.warn('[regularize] rule engine check failed (non-fatal):', ruleErr);
+      // Non-fatal — fall through to legacy creation if the rule engine itself errors.
+    }
 
     // REQ-REG-02: AI suggestion based on historical data — find median check-in time
     let aiSuggestedTime: Date | null = null;

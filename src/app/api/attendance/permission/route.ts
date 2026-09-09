@@ -7,6 +7,7 @@
  */
 import { requireUser, findEmployeeByEmail, isAdminRole, parseBody, getQuery, ok, fail, OPTIONS } from '@/lib/attendance-leave-api';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
+import { loadWorkflowConfig, buildRequestContext, checkRules } from '@/lib/attendance-workflow';
 
 export { OPTIONS };
 
@@ -69,6 +70,22 @@ export async function POST(request: Request) {
     const rawHours = ms / (1000 * 60 * 60);
     const hours = Math.max(0.25, Math.round(rawHours * 4) / 4); // round to nearest 15 min
     if (hours > 8) return fail('Permission cannot exceed 8 hours — use a half-day leave instead');
+
+    // ─── Unified Rule Engine enforcement ─────────────────────────────
+    // Honor the unified AttendanceWorkflowConfig rules (monthly cap on
+    // hourly permissions, geofencing/IP, auto-deduction threshold) even
+    // when the legacy endpoint writes to its own HourlyPermission table.
+    try {
+      const { config } = await loadWorkflowConfig(db, emp.companyId || null, 'HOURLY_PERMISSION');
+      const ctx = await buildRequestContext(db, {
+        employeeId: emp.id, requestType: 'HOURLY_PERMISSION',
+        startDate: date, endDate: date, gatePassType: '', hours,
+      });
+      const ruleCheck = checkRules(config.rules, ctx, { startDate: date, requestType: 'HOURLY_PERMISSION' });
+      if (!ruleCheck.ok) return fail(ruleCheck.error!, 422);
+    } catch (ruleErr) {
+      console.warn('[permission] rule engine check failed (non-fatal):', ruleErr);
+    }
 
     // REQ-PERM-02: compute adjusted check-out time (target hours = 8; permission extends required check-out)
     // The required check-out shifts by `hours` later in the day.

@@ -76,6 +76,7 @@ export interface WorkflowLevel {
 }
 
 export interface RequestRules {
+  // ─── Submission-window / cap rules (rule engine) ───
   windowDays: number;                // submissions allowed within N days of the date (0 = no window)
   monthlyCap: number;                // max requests per calendar month (0 = unlimited)
   weeklyCap: number;                 // max WFH days per week (0 = unlimited)
@@ -85,6 +86,29 @@ export interface RequestRules {
   geoFencingEnabled: boolean;        // require WFH/OUT punches inside allowed geo/IP
   allowedIps: string[];              // whitelisted IPs for WFH / OUT requests
   requireQrVerification: boolean;    // gate pass must be scanned at turnstile
+
+  // ─── Shift & Grace policy (absorbed from legacy AttendancePolicyRule) ───
+  shiftStartDefault: string;         // '09:00'
+  shiftEndDefault: string;           // '17:30'
+  breakDurationMinutes: number;      // lunch break minutes
+  lateGraceMinutes: number;          // grace before marking late
+  earlyGraceMinutes: number;         // grace before marking early-departure
+
+  // ─── Late-mark policy ───
+  lateMarkAllowancePerMonth: number; // how many late marks allowed per month
+  lateMarkHalfDayOnExceed: boolean;  // half-day deduction when allowance exceeded
+  halfDayAfterMinutes: number;       // minutes after shift start that becomes half day
+  lateMarkNotApplicableOnTour: boolean;
+
+  // ─── Overtime policy ───
+  autoOvertimeEnabled: boolean;
+  overtimeThresholdMinutes: number;  // 480 = 8 hours
+
+  // ─── Gate-pass policy ───
+  gatePassMaxPerMonth: number;       // 0 = unlimited
+  gatePassHalfDayOnExceed: boolean;  // 2nd gate pass in month = half day
+  gatePassHalfDayNextDay: boolean;   // half-day gate pass marks next day half day
+  gatePassEarlyHours: number;        // gate-pass early-departure hours for full-day consideration
 }
 
 export interface WorkflowConfig {
@@ -102,6 +126,7 @@ export interface RequestContext {
 }
 
 const DEFAULT_RULES: RequestRules = {
+  // Submission-window / cap rules
   windowDays: 0,
   monthlyCap: 0,
   weeklyCap: 0,
@@ -111,6 +136,29 @@ const DEFAULT_RULES: RequestRules = {
   geoFencingEnabled: false,
   allowedIps: [],
   requireQrVerification: true,
+
+  // Shift & Grace (mirrors legacy AttendancePolicyRule defaults)
+  shiftStartDefault: '09:00',
+  shiftEndDefault: '17:30',
+  breakDurationMinutes: 30,
+  lateGraceMinutes: 15,
+  earlyGraceMinutes: 10,
+
+  // Late-mark policy
+  lateMarkAllowancePerMonth: 4,
+  lateMarkHalfDayOnExceed: true,
+  halfDayAfterMinutes: 21,
+  lateMarkNotApplicableOnTour: true,
+
+  // Overtime
+  autoOvertimeEnabled: true,
+  overtimeThresholdMinutes: 480,
+
+  // Gate-pass
+  gatePassMaxPerMonth: 1,
+  gatePassHalfDayOnExceed: true,
+  gatePassHalfDayNextDay: true,
+  gatePassEarlyHours: 1,
 };
 
 function L(
@@ -191,6 +239,50 @@ export async function loadWorkflowConfig(
   } catch (err) {
     console.error('[AttendanceWorkflow] loadWorkflowConfig failed, using defaults:', err);
   }
+
+  // ─── Legacy fallback ───────────────────────────────────────────────
+  // No AttendanceWorkflowConfig row yet — try to inherit field values from
+  // the legacy AttendancePolicyRule table (scoped by company / branch /
+  // employmentType) so that admins who configured the old "Policy Rules"
+  // tab don't lose their shift/grace/late-mark/OT/gate-pass settings.
+  try {
+    const legacyRule = await (db as any).attendancePolicyRule?.findFirst({
+      where: {
+        status: 'active',
+        OR: companyId ? [{ companyId }, { companyId: null }] : [{ companyId: null }],
+      },
+      orderBy: [{ priority: 'desc' }, { updatedAt: 'desc' }],
+    });
+    if (legacyRule) {
+      const rules: RequestRules = {
+        ...defaults.rules,
+        shiftStartDefault: legacyRule.shiftStartDefault || defaults.rules.shiftStartDefault,
+        shiftEndDefault: legacyRule.shiftEndDefault || defaults.rules.shiftEndDefault,
+        breakDurationMinutes: Number(legacyRule.breakDurationMinutes ?? defaults.rules.breakDurationMinutes),
+        lateGraceMinutes: Number(legacyRule.lateGraceMinutes ?? defaults.rules.lateGraceMinutes),
+        earlyGraceMinutes: Number(legacyRule.earlyGraceMinutes ?? defaults.rules.earlyGraceMinutes),
+        lateMarkAllowancePerMonth: Number(legacyRule.lateMarkAllowancePerMonth ?? defaults.rules.lateMarkAllowancePerMonth),
+        lateMarkHalfDayOnExceed: legacyRule.lateMarkHalfDayOnExceed ?? defaults.rules.lateMarkHalfDayOnExceed,
+        halfDayAfterMinutes: Number(legacyRule.halfDayAfterMinutes ?? defaults.rules.halfDayAfterMinutes),
+        lateMarkNotApplicableOnTour: legacyRule.lateMarkNotApplicableOnTour ?? defaults.rules.lateMarkNotApplicableOnTour,
+        autoOvertimeEnabled: legacyRule.autoOvertimeEnabled ?? defaults.rules.autoOvertimeEnabled,
+        overtimeThresholdMinutes: Number(legacyRule.overtimeThresholdMinutes ?? defaults.rules.overtimeThresholdMinutes),
+        gatePassMaxPerMonth: Number(legacyRule.gatePassMaxPerMonth ?? defaults.rules.gatePassMaxPerMonth),
+        gatePassHalfDayOnExceed: legacyRule.gatePassHalfDayOnExceed ?? defaults.rules.gatePassHalfDayOnExceed,
+        gatePassHalfDayNextDay: legacyRule.gatePassHalfDayNextDay ?? defaults.rules.gatePassHalfDayNextDay,
+        gatePassEarlyHours: Number(legacyRule.gatePassEarlyHours ?? defaults.rules.gatePassEarlyHours),
+      };
+      // Gate-pass monthly cap carries over to the workflow monthlyCap when the
+      // admin never set the latter explicitly.
+      if (requestType === 'GATE_PASS' && rules.monthlyCap === 0 && rules.gatePassMaxPerMonth > 0) {
+        rules.monthlyCap = rules.gatePassMaxPerMonth;
+      }
+      return { config: { levels: defaults.levels, rules }, configId: null };
+    }
+  } catch (err) {
+    /* legacy table may not exist — ignore */
+  }
+
   return { config: { levels: defaults.levels, rules: defaults.rules }, configId: null };
 }
 

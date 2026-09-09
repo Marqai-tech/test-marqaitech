@@ -119,12 +119,17 @@ function Toggle({ label, checked, onChange }: { label: string; checked: boolean;
 }
 
 /* ── Tab definitions ── */
-type TabKey = 'documents' | 'rules' | 'workflow'
+// NOTE: 'rules' tab was removed in the unification pass — all policy rule
+// fields (sandwich / pro-rata / probation / encashment / carry-forward) are
+// now configured inside the 'workflow' tab alongside the approval tiers.
+// The old LeavePolicyRule table is still read as a legacy fallback at runtime
+// (see lib/leave-workflow.ts loadWorkflowConfig) so existing saved rules
+// continue to apply until an admin saves a unified workflow config.
+type TabKey = 'documents' | 'workflow'
 
 const TABS: { key: TabKey; label: string; icon: React.ReactNode }[] = [
   { key: 'documents', label: 'Policy Documents', icon: <FiFileText className="w-4 h-4" /> },
-  { key: 'rules', label: 'Policy Rules & Leave Type Configuration', icon: <FiBookOpen className="w-4 h-4" /> },
-  { key: 'workflow', label: 'Approval Workflow', icon: <FiSettings className="w-4 h-4" /> },
+  { key: 'workflow', label: 'Policy Rules & Approval Workflow', icon: <FiSettings className="w-4 h-4" /> },
 ]
 
 function LeavePolicyPageContent() {
@@ -139,7 +144,7 @@ function LeavePolicyPageContent() {
 
   // ── Tab state (synced with URL) ──
   const tabFromUrl = searchParams.get('tab') as TabKey | null
-  const validTabs: TabKey[] = ['documents', 'rules', 'workflow']
+  const validTabs: TabKey[] = ['documents', 'workflow']
   const defaultTab = (tabFromUrl && validTabs.includes(tabFromUrl)) ? tabFromUrl : 'documents'
   const [activeTab, setActiveTab] = useState<TabKey>(defaultTab)
 
@@ -549,11 +554,6 @@ function LeavePolicyPageContent() {
               <FiPlus className="w-4 h-4" /> Add Policy
             </button>
           )}
-          {activeTab === 'rules' && isRoleAdmin && (
-            <button onClick={openAddRule} className="inline-flex items-center gap-2 px-4 py-2.5 bg-teal-500 text-white rounded-lg hover:bg-teal-600 font-medium text-sm shadow-sm shadow-teal-500/25 transition-colors">
-              <FiPlus className="w-4 h-4" /> Add Rule
-            </button>
-          )}
         </div>
       </div>
 
@@ -689,9 +689,12 @@ function LeavePolicyPageContent() {
       )}
 
       {/* ═══════════════════════════════════════════════════════ */}
-      {/* TAB 2: Policy Rules                                     */}
+      {/* TAB 2: Policy Rules — DISABLED in unification pass        */}
+      {/* All policy rule fields are now in the Approval Workflow   */}
+      {/* tab. The legacy LeavePolicyRule table is still read as a  */}
+      {/* fallback at runtime by lib/leave-workflow.ts.             */}
       {/* ═══════════════════════════════════════════════════════ */}
-      {activeTab === 'rules' && (
+      {false && activeTab === 'rules' && (
         <>
           {/* Rule Form Dialog */}
           {showRuleForm && (
@@ -1160,6 +1163,14 @@ interface WorkflowConfig {
   requireAllTiers: boolean;
   autoApproveShortLeave?: boolean;
   shortLeaveMaxDays?: number;
+  // Unified policy fields (absorbed from legacy LeavePolicyRule)
+  sandwichRuleEnabled?: boolean;
+  proRataEnabled?: boolean;
+  probationRestriction?: boolean;
+  probationMonths?: number;
+  encashmentAllowed?: boolean;
+  carryForwardGlobal?: boolean;
+  maxCarryForwardDays?: number;
 }
 
 const APPROVER_TYPE_OPTIONS = [
@@ -1185,6 +1196,14 @@ function LeaveApprovalWorkflowConfig() {
     requireAllTiers: true,
     autoApproveShortLeave: false,
     shortLeaveMaxDays: 1,
+    // Unified policy defaults (mirror legacy LeavePolicyRule defaults)
+    sandwichRuleEnabled: true,
+    proRataEnabled: false,
+    probationRestriction: true,
+    probationMonths: 6,
+    encashmentAllowed: false,
+    carryForwardGlobal: true,
+    maxCarryForwardDays: 5,
   });
   const [configId, setConfigId] = useState<string | null>(null);
   const [configName, setConfigName] = useState('Default Leave Approval Workflow');
@@ -1205,7 +1224,20 @@ function LeaveApprovalWorkflowConfig() {
       if (res.ok) {
         const data = await res.json();
         if (data.config) {
-          setConfig(data.config);
+          // Merge unified-policy defaults so old saved configs (without the
+          // new sandwich/probation/carry-forward fields) still render correctly.
+          setConfig({
+            // defaults
+            sandwichRuleEnabled: true,
+            proRataEnabled: false,
+            probationRestriction: true,
+            probationMonths: 6,
+            encashmentAllowed: false,
+            carryForwardGlobal: true,
+            maxCarryForwardDays: 5,
+            // saved values override defaults
+            ...data.config,
+          });
           setConfigId(data.configId);
           setConfigName(data.name || 'Default Leave Approval Workflow');
           setConfigDescription(data.description || '');
@@ -1523,6 +1555,122 @@ function LeaveApprovalWorkflowConfig() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* ═══ UNIFIED POLICY RULES (absorbed from legacy LeavePolicyRule) ═══ */}
+      <div className="thb-card p-6 rounded-xl border-l-4 border-l-teal-500">
+        <h3 className="text-sm font-semibold text-thb-text-primary mb-1 flex items-center gap-2">
+          <FiBookOpen className="w-4 h-4 text-teal-500" /> Leave Policy Rules
+        </h3>
+        <p className="text-xs text-slate-500 mb-4">
+          One unified policy — these rule fields and the approval tiers above are saved together as a single workflow configuration.
+        </p>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {/* Carry-forward */}
+          <div className="p-3 rounded-lg border border-slate-200 bg-slate-50/50">
+            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">Carry-Forward</label>
+            <label className="flex items-center gap-2 mb-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={config.carryForwardGlobal ?? true}
+                onChange={(e) => setConfig({ ...config, carryForwardGlobal: e.target.checked })}
+                className="w-4 h-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
+              />
+              <span className="text-sm text-thb-text-primary">Allow carry-forward of unused leave</span>
+            </label>
+            {config.carryForwardGlobal && (
+              <div>
+                <label className="block text-[11px] text-slate-500 mb-1">Max days carryable</label>
+                <input
+                  type="number" min={0} max={30} step={0.5}
+                  value={config.maxCarryForwardDays ?? 5}
+                  onChange={(e) => setConfig({ ...config, maxCarryForwardDays: parseFloat(e.target.value) || 0 })}
+                  className="w-32 px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400"
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Sandwich rule */}
+          <div className="p-3 rounded-lg border border-slate-200 bg-slate-50/50">
+            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">Sandwich Rule</label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={config.sandwichRuleEnabled ?? true}
+                onChange={(e) => setConfig({ ...config, sandwichRuleEnabled: e.target.checked })}
+                className="w-4 h-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
+              />
+              <div>
+                <span className="text-sm text-thb-text-primary">Enable sandwich rule</span>
+                <p className="text-[11px] text-slate-500 mt-0.5">Leave between holidays/weekends counts as leave.</p>
+              </div>
+            </label>
+          </div>
+
+          {/* Pro-rata */}
+          <div className="p-3 rounded-lg border border-slate-200 bg-slate-50/50">
+            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">Pro-Rata (Mid-Year Joiners)</label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={config.proRataEnabled ?? false}
+                onChange={(e) => setConfig({ ...config, proRataEnabled: e.target.checked })}
+                className="w-4 h-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
+              />
+              <div>
+                <span className="text-sm text-thb-text-primary">Enable pro-rata leave allocation</span>
+                <p className="text-[11px] text-slate-500 mt-0.5">New joiners get leave proportional to joining month.</p>
+              </div>
+            </label>
+          </div>
+
+          {/* Encashment */}
+          <div className="p-3 rounded-lg border border-slate-200 bg-slate-50/50">
+            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">Leave Encashment</label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={config.encashmentAllowed ?? false}
+                onChange={(e) => setConfig({ ...config, encashmentAllowed: e.target.checked })}
+                className="w-4 h-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
+              />
+              <div>
+                <span className="text-sm text-thb-text-primary">Allow leave encashment</span>
+                <p className="text-[11px] text-slate-500 mt-0.5">Employees can encash unused leave balance.</p>
+              </div>
+            </label>
+          </div>
+
+          {/* Probation */}
+          <div className="p-3 rounded-lg border border-slate-200 bg-slate-50/50 md:col-span-2">
+            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">Probation Restriction</label>
+            <label className="flex items-center gap-2 mb-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={config.probationRestriction ?? true}
+                onChange={(e) => setConfig({ ...config, probationRestriction: e.target.checked })}
+                className="w-4 h-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
+              />
+              <span className="text-sm text-thb-text-primary">Restrict leave during probation period</span>
+            </label>
+            {config.probationRestriction && (
+              <div>
+                <label className="block text-[11px] text-slate-500 mb-1">Probation period (months)</label>
+                <input
+                  type="number" min={0} max={24}
+                  value={config.probationMonths ?? 6}
+                  onChange={(e) => setConfig({ ...config, probationMonths: parseInt(e.target.value, 10) || 0 })}
+                  className="w-32 px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400"
+                />
+              </div>
+            )}
+          </div>
+        </div>
+        <p className="text-[11px] text-slate-400 mt-3">
+          Note: Leave-type quotas (CL/SL/EL days) are configured per Leave Type in the Leave Types master, not here.
+        </p>
       </div>
 
       {/* Save Button */}

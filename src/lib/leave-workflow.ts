@@ -31,6 +31,22 @@ export interface WorkflowConfig {
   requireAllTiers: boolean;
   autoApproveShortLeave?: boolean;
   shortLeaveMaxDays?: number;
+
+  // ─── Unified policy rules (absorbed from legacy LeavePolicyRule) ───
+  // These were previously configured in the separate "Policy Rules &
+  // Leave Type Configuration" tab. They are now part of the single
+  // workflow config so leave has ONE source of truth for both policy
+  // and approval chain.
+  sandwichRuleEnabled?: boolean;        // leave sandwiched between holidays/weekends counts as leave
+  proRataEnabled?: boolean;             // pro-rata leave for mid-year joiners
+  probationRestriction?: boolean;       // restrict leave during probation
+  probationMonths?: number;             // months of probation before full leave access
+  encashmentAllowed?: boolean;          // can encash unused leave
+  carryForwardGlobal?: boolean;         // global carry-forward toggle
+  maxCarryForwardDays?: number;         // max days that can be carried forward
+  // Leave-type allocations are kept in the LeaveType table itself (per-type
+  // defaultDays / carryForward), so they are NOT duplicated here. The
+  // LeavePolicyRule.leaveTypeAllocations JSON is deprecated.
 }
 
 export const DEFAULT_WORKFLOW_CONFIG: WorkflowConfig = {
@@ -41,11 +57,20 @@ export const DEFAULT_WORKFLOW_CONFIG: WorkflowConfig = {
   requireAllTiers: true,
   autoApproveShortLeave: false,
   shortLeaveMaxDays: 1,
+  // Unified policy defaults (mirror legacy LeavePolicyRule defaults)
+  sandwichRuleEnabled: true,
+  proRataEnabled: false,
+  probationRestriction: true,
+  probationMonths: 6,
+  encashmentAllowed: false,
+  carryForwardGlobal: true,
+  maxCarryForwardDays: 5,
 };
 
 /**
  * Load the active workflow config for a tenant + leave type.
  * Falls back to a leave-type-specific config, then a tenant-wide config,
+ * then inherits policy-rule fields from the legacy LeavePolicyRule table,
  * then the DEFAULT_WORKFLOW_CONFIG.
  */
 export async function loadWorkflowConfig(
@@ -61,10 +86,8 @@ export async function loadWorkflowConfig(
         orderBy: { updatedAt: 'desc' },
       });
       if (typeConfig) {
-        return {
-          config: JSON.parse(typeConfig.config) as WorkflowConfig,
-          configId: typeConfig.id,
-        };
+        const parsed = JSON.parse(typeConfig.config) as WorkflowConfig;
+        return { config: { ...DEFAULT_WORKFLOW_CONFIG, ...parsed }, configId: typeConfig.id };
       }
     }
     // 2. Try tenant-wide config (leaveTypeId IS NULL)
@@ -73,15 +96,42 @@ export async function loadWorkflowConfig(
       orderBy: { updatedAt: 'desc' },
     });
     if (tenantConfig) {
+      const parsed = JSON.parse(tenantConfig.config) as WorkflowConfig;
+      return { config: { ...DEFAULT_WORKFLOW_CONFIG, ...parsed }, configId: tenantConfig.id };
+    }
+  } catch {
+    // Table might not exist yet — fall through to legacy fallback
+  }
+
+  // 3. Legacy fallback — inherit policy-rule fields from LeavePolicyRule
+  // table so admins who configured the old "Policy Rules" tab don't lose
+  // their sandwich / pro-rata / probation / encashment / carry-forward
+  // settings until they save a unified workflow config.
+  try {
+    const legacyRule = await (db as any).leavePolicyRule?.findFirst({
+      where: { status: 'active', employmentType: 'all' },
+      orderBy: [{ priority: 'desc' }, { updatedAt: 'desc' }],
+    });
+    if (legacyRule) {
       return {
-        config: JSON.parse(tenantConfig.config) as WorkflowConfig,
-        configId: tenantConfig.id,
+        config: {
+          ...DEFAULT_WORKFLOW_CONFIG,
+          sandwichRuleEnabled: legacyRule.sandwichRuleEnabled ?? DEFAULT_WORKFLOW_CONFIG.sandwichRuleEnabled,
+          proRataEnabled: legacyRule.proRataEnabled ?? DEFAULT_WORKFLOW_CONFIG.proRataEnabled,
+          probationRestriction: legacyRule.probationRestriction ?? DEFAULT_WORKFLOW_CONFIG.probationRestriction,
+          probationMonths: Number(legacyRule.probationMonths ?? DEFAULT_WORKFLOW_CONFIG.probationMonths),
+          encashmentAllowed: legacyRule.encashmentAllowed ?? DEFAULT_WORKFLOW_CONFIG.encashmentAllowed,
+          carryForwardGlobal: legacyRule.carryForwardGlobal ?? DEFAULT_WORKFLOW_CONFIG.carryForwardGlobal,
+          maxCarryForwardDays: Number(legacyRule.maxCarryForwardDays ?? DEFAULT_WORKFLOW_CONFIG.maxCarryForwardDays),
+        },
+        configId: null,
       };
     }
   } catch {
-    // Table might not exist yet — fall through to default
+    /* legacy table may not exist — ignore */
   }
-  // 3. Default config
+
+  // 4. Default config
   return { config: DEFAULT_WORKFLOW_CONFIG, configId: null };
 }
 

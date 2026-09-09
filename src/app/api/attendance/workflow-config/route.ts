@@ -82,6 +82,7 @@ export async function PUT(request: Request) {
     }));
 
     const cleanRules = {
+      // Submission-window / cap rules
       windowDays: Math.max(0, Number(rules.windowDays) || 0),
       monthlyCap: Math.max(0, Number(rules.monthlyCap) || 0),
       weeklyCap: Math.max(0, Number(rules.weeklyCap) || 0),
@@ -91,6 +92,25 @@ export async function PUT(request: Request) {
       geoFencingEnabled: !!rules.geoFencingEnabled,
       allowedIps: Array.isArray(rules.allowedIps) ? rules.allowedIps.map(String).filter(Boolean) : [],
       requireQrVerification: rules.requireQrVerification !== false,
+      // Shift & Grace policy (unified from legacy AttendancePolicyRule)
+      shiftStartDefault: typeof rules.shiftStartDefault === 'string' ? rules.shiftStartDefault : '09:00',
+      shiftEndDefault: typeof rules.shiftEndDefault === 'string' ? rules.shiftEndDefault : '17:30',
+      breakDurationMinutes: Math.max(0, Math.min(180, Number(rules.breakDurationMinutes) || 30)),
+      lateGraceMinutes: Math.max(0, Math.min(120, Number(rules.lateGraceMinutes) || 15)),
+      earlyGraceMinutes: Math.max(0, Math.min(120, Number(rules.earlyGraceMinutes) || 10)),
+      // Late-mark policy
+      lateMarkAllowancePerMonth: Math.max(0, Math.min(31, Number(rules.lateMarkAllowancePerMonth) || 0)),
+      lateMarkHalfDayOnExceed: !!rules.lateMarkHalfDayOnExceed,
+      halfDayAfterMinutes: Math.max(0, Math.min(480, Number(rules.halfDayAfterMinutes) || 0)),
+      lateMarkNotApplicableOnTour: rules.lateMarkNotApplicableOnTour !== false,
+      // Overtime policy
+      autoOvertimeEnabled: rules.autoOvertimeEnabled !== false,
+      overtimeThresholdMinutes: Math.max(0, Math.min(1440, Number(rules.overtimeThresholdMinutes) || 480)),
+      // Gate-pass policy
+      gatePassMaxPerMonth: Math.max(0, Math.min(31, Number(rules.gatePassMaxPerMonth) || 0)),
+      gatePassHalfDayOnExceed: rules.gatePassHalfDayOnExceed !== false,
+      gatePassHalfDayNextDay: rules.gatePassHalfDayNextDay !== false,
+      gatePassEarlyHours: Math.max(0, Math.min(12, Number(rules.gatePassEarlyHours) || 0)),
     };
 
     const name = (body.name as string) || `Attendance Workflow — ${requestType}`;

@@ -8,6 +8,7 @@
 import { requireUser, findEmployeeByEmail, isAdminRole, parseBody, getQuery, ok, fail, OPTIONS } from '@/lib/attendance-leave-api';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { buildContext, evaluateGatepassAutoApproval } from '@/lib/auto-approval-engine';
+import { loadWorkflowConfig, buildRequestContext, checkRules } from '@/lib/attendance-workflow';
 
 export { OPTIONS };
 
@@ -58,10 +59,39 @@ export async function POST(request: Request) {
     const requestedAt = new Date(body.requestedAt as string);
 
     let employeeId: string | null = null;
+    let empCompanyId: string | null = null;
     if (type === 'early_departure' || type === 'late_arrival') {
       const emp = await findEmployeeByEmail(user.email);
       if (!emp) return fail('Employee record not found', 404);
       employeeId = emp.id;
+      empCompanyId = emp.companyId || null;
+    }
+
+    // ─── Unified Rule Engine enforcement ─────────────────────────────
+    // Honor the unified AttendanceWorkflowConfig gate-pass rules: monthly
+    // cap (gatePassMaxPerMonth), geofencing/IP whitelist, QR requirement.
+    // Skip for visitor/contractor passes (no employee context).
+    if (employeeId) {
+      try {
+        const { config } = await loadWorkflowConfig(db, empCompanyId, 'GATE_PASS');
+        const ctx = await buildRequestContext(db, {
+          employeeId, requestType: 'GATE_PASS',
+          startDate: requestedAt, endDate: requestedAt,
+          gatePassType: type === 'official' ? 'official' : 'personal',
+          hours: 0,
+        });
+        // Geofencing / IP restriction
+        let geoOk: boolean | undefined;
+        if (config.rules.geoFencingEnabled && config.rules.allowedIps.length > 0) {
+          const fwd = request.headers.get('x-forwarded-for') || '';
+          const ip = fwd.split(',')[0].trim();
+          geoOk = config.rules.allowedIps.includes(ip);
+        }
+        const ruleCheck = checkRules(config.rules, ctx, { startDate: requestedAt, requestType: 'GATE_PASS', geoOk });
+        if (!ruleCheck.ok) return fail(ruleCheck.error!, 422);
+      } catch (ruleErr) {
+        console.warn('[gatepass] rule engine check failed (non-fatal):', ruleErr);
+      }
     }
 
     // REQ-AI-ATT-04: run auto-approval engine for employee gatepasses
