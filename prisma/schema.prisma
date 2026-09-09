@@ -517,6 +517,7 @@ model Employee {
   attendance        Attendance[]
   payrolls          Payroll[]
   documents         Document[]
+  updateRequests    EmployeeUpdateRequest[]
   dependents        Dependent[]
   qualifications    Qualification[]
   experiences       Experience[]
@@ -858,6 +859,16 @@ model LeaveType {
   encashmentBasis      String  @default("basic") // basic | gross | monthly_salary
   maxEncashmentDays    Int     @default(0)
 
+  // ─── Employee scope (new — rules mapped to leave types) ───
+  // Which employment types + statuses this leave type applies to.
+  // 'all' (default) = every employee; otherwise restrict.
+  employmentType String @default("all") // all | full-time | part-time | contract | internship
+  employeeStatus String @default("all") // all | active | on_leave | inactive
+  // Probation restriction: if true, employees in probation cannot use this leave type
+  probationRestricted Boolean @default(false)
+  // Sandwich rule: if true, holidays/weekends between leave days count as leave
+  sandwichRuleEnabled Boolean @default(true)
+
   leaveBalances  LeaveBalance[]
   leaveRequests  LeaveRequest[]
   encashmentRequests LeaveEncashmentRequest[]
@@ -866,6 +877,7 @@ model LeaveType {
   updatedAt DateTime @updatedAt
 
   @@index([companyId])
+  @@index([employmentType])
 }
 
 model LeaveBalance {
@@ -1224,10 +1236,128 @@ model Document {
   expiryDate DateTime?
   description String?
 
+  // ─── Enhanced document management (new) ───
+  // Document category for the centralized document management system
+  category     String @default("other") // identification | onboarding | qualifications | financial | lifecycle | other
+  // Link to the centralized FileNode (file manager) — when set, the file
+  // lives in the enterprise file system with versioning + DLP + watermarks
+  fileNodeId   String?
+  // Who uploaded / requested this document
+  uploadedById String?
+  // Whether this document was requested by HR (digital document request)
+  isRequested  Boolean @default(false)
+  requestedById String?
+  requestedAt  DateTime?
+  // Format requirements (for requested docs)
+  requiredFormat String? // pdf, jpg, png, doc
+  maxFileSizeMb  Int?
+  // Expiry alert tracking
+  expiryAlertSent Boolean @default(false)
+  expiryAlertDays Int @default(30) // alert N days before expiry
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([employeeId])
+  @@index([category])
+  @@index([type])
+  @@index([expiryDate])
+}
+
+// ─── Employee Information Update Workflow ───
+// Tracks self-service profile change requests from employees.
+// High-risk fields (bank details, legal name, etc.) require approval;
+// low-risk fields (phone, address) can be direct updates.
+
+model EmployeeUpdateRequest {
+  id          String @id @default(cuid())
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  // What field is being changed
+  fieldName   String   // e.g. 'bankAccountNo', 'address', 'panNumber'
+  fieldLabel  String?  // human-readable label
+  category    String @default("personal") // personal | contact | employment | financial | kyc
+  oldValue    String?
+  newValue    String   // JSON-encoded new value
+  reason      String?
+
+  // Workflow state
+  status      String @default("pending") // pending | approved | rejected | cancelled | applied
+  currentTier Int @default(1)
+  configSnapshot String? // JSON snapshot of the workflow config at submission
+
+  // Document proof (optional — e.g. marriage cert for name change)
+  documentId  String?
+
+  // Audit trail
+  requestedById String?
+  requestedAt  DateTime @default(now())
+  approverUserId String?
+  approvedAt   DateTime?
+  approverComments String?
+  appliedAt    DateTime? // when the change was synced to the Employee record
+
+  // Approval steps (one row per tier)
+  approvalSteps EmployeeUpdateApprovalStep[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([employeeId])
+  @@index([status])
+  @@index([fieldName])
+}
+
+// ─── Multi-tier approval steps for employee update requests ───
+
+model EmployeeUpdateApprovalStep {
+  id          String @id @default(cuid())
+  updateRequestId String
+  updateRequest   EmployeeUpdateRequest @relation(fields: [updateRequestId], references: [id], onDelete: Cascade)
+
+  tier        Int
+  approverType String // reporting_manager | hr_admin | finance | tenant_admin | specific_user
+  approverUserId String?
+  approverName String?
+  status      String @default("pending") // pending | approved | rejected | auto_approved | skipped
+  comments    String?
+  actedAt     DateTime?
+  slaAt       DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@unique([updateRequestId, tier])
+  @@index([updateRequestId])
+  @@index([approverUserId, status])
+}
+
+// ─── Employee workflow configuration ───
+// Configures which fields require approval + the multi-tier approval chain.
+// Stored per-tenant (optionally per-company).
+
+model EmployeeWorkflowConfig {
+  id              String @id @default(cuid())
+  tenantId        String
+  companyId       String?  // null = tenant-wide
+  isActive        Boolean @default(true)
+  name            String @default("Default Employee Update Workflow")
+  description     String?
+
+  // JSON config: { fieldSensitivity: { fieldName: 'low'|'high'|'restricted' }, tiers: [...] }
+  config          String
+
+  // Scope
+  employmentType String @default("all")
+  branchId       String?
+  departmentId   String?
+  employeeStatus String @default("all")
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([employmentType])
 }
 
 // ============ INCIDENTS ============

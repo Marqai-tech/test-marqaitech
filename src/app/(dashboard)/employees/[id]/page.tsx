@@ -31,6 +31,9 @@ import {
   FiPlus,
   FiTrash2,
   FiToggleLeft,
+  FiAlertCircle,
+  FiDownload,
+  FiX,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
@@ -792,52 +795,7 @@ export default function EmployeeDetailPage() {
 
           {/* ── Documents Tab ── */}
           {activeTab === 'Documents' && (
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-semibold text-thb-text-primary">Documents</h3>
-                  <p className="text-xs text-thb-text-muted mt-0.5">{employee.documents?.length || 0} documents on file</p>
-                </div>
-                <button className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-lg text-xs font-medium hover:bg-green-700 transition-colors shadow-sm">
-                  <FiUpload className="w-3.5 h-3.5" />
-                  Upload Document
-                </button>
-              </div>
-              {(!employee.documents || employee.documents.length === 0) ? (
-                <div className="text-center py-12">
-                  <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
-                    <FiFileText className="w-8 h-8 text-slate-300" />
-                  </div>
-                  <p className="text-sm font-medium text-thb-text-secondary mb-1">No documents uploaded</p>
-                  <p className="text-xs text-thb-text-muted">Upload documents to keep employee records complete.</p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-thb-border">
-                        <th className="text-left py-3 text-xs font-semibold text-thb-text-muted uppercase tracking-wider">Name</th>
-                        <th className="text-left py-3 text-xs font-semibold text-thb-text-muted uppercase tracking-wider">Type</th>
-                        <th className="text-left py-3 text-xs font-semibold text-thb-text-muted uppercase tracking-wider">Status</th>
-                        <th className="text-left py-3 text-xs font-semibold text-thb-text-muted uppercase tracking-wider">Uploaded</th>
-                        <th className="text-left py-3 text-xs font-semibold text-thb-text-muted uppercase tracking-wider">Expiry</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {employee.documents.map(doc => (
-                        <tr key={doc.id} className="border-b border-thb-border/50 hover:bg-slate-50/50 transition-colors">
-                          <td className="py-3 text-sm font-medium text-thb-text-primary">{doc.name}</td>
-                          <td className="py-3 text-sm text-thb-text-secondary capitalize">{doc.type.replace('_', ' ')}</td>
-                          <td className="py-3"><span className="thb-badge thb-badge-success">{doc.status}</span></td>
-                          <td className="py-3 text-sm text-thb-text-secondary">{formatDate(doc.uploadedAt)}</td>
-                          <td className="py-3 text-sm text-thb-text-secondary">{formatDate(doc.expiryDate)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
+            <EmployeeDocumentsTab employeeId={employee.id} initialDocuments={employee.documents || []} />
           )}
 
           {/* ── Leave Tab ── */}
@@ -1169,6 +1127,221 @@ export default function EmployeeDetailPage() {
           )}
 
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  Employee Documents Tab — full document management with categories,
+//  upload, request, expiry tracking, and file manager integration.
+// ════════════════════════════════════════════════════════════════════
+
+interface EmployeeDocument {
+  id: string;
+  name: string;
+  type: string;
+  category?: string;
+  fileUrl?: string | null;
+  status: string;
+  uploadedAt?: string | null;
+  expiryDate?: string | null;
+  description?: string | null;
+  isRequested?: boolean;
+  requiredFormat?: string | null;
+  maxFileSizeMb?: number | null;
+}
+
+const DOC_CATEGORIES = [
+  { value: 'identification', label: 'Identification & Legal', icon: '🪪' },
+  { value: 'onboarding', label: 'Onboarding & Employment', icon: '📋' },
+  { value: 'qualifications', label: 'Qualifications', icon: '🎓' },
+  { value: 'financial', label: 'Financial & Statutory', icon: '💰' },
+  { value: 'lifecycle', label: 'Lifecycle & Performance', icon: '📈' },
+  { value: 'other', label: 'Other', icon: '📎' },
+];
+const DOC_TYPES = ['offer_letter','id_proof','contract','certificate','policy','other','aadhaar','pan_card','bank_proof','passport','visa','education','experience','medical'];
+
+function EmployeeDocumentsTab({ employeeId, initialDocuments }: { employeeId: string; initialDocuments: EmployeeDocument[] }) {
+  const { user } = useAuthStore();
+  const isAdmin = ['super_admin','tenant_admin','admin','hr_admin'].includes(user?.role || '');
+  const [documents, setDocuments] = useState<EmployeeDocument[]>(initialDocuments);
+  const [showUpload, setShowUpload] = useState(false);
+  const [showRequest, setShowRequest] = useState(false);
+  const [activeCategory, setActiveCategory] = useState('all');
+
+  const fetchDocs = async () => {
+    try {
+      const r = await fetch(`/api/employees/${employeeId}/documents`, { headers: getAuthHeaders() });
+      const d = await r.json();
+      if (r.ok) setDocuments(d.documents || []);
+    } catch { /* ignore */ }
+  };
+  useEffect(() => { fetchDocs(); }, [employeeId]);
+
+  const handleDelete = async (docId: string, name: string) => {
+    if (!confirm(`Delete document "${name}"?`)) return;
+    try {
+      const r = await fetch(`/api/employees/${employeeId}/documents?docId=${docId}`, { method: 'DELETE', headers: getAuthHeaders() });
+      if (r.ok) { toast.success('Document deleted'); fetchDocs(); }
+      else toast.error('Failed to delete');
+    } catch { toast.error('Failed'); }
+  };
+
+  const filteredDocs = activeCategory === 'all' ? documents : documents.filter(d => (d.category || 'other') === activeCategory);
+  const expiringDocs = documents.filter(d => {
+    if (!d.expiryDate) return false;
+    const days = Math.ceil((new Date(d.expiryDate).getTime() - Date.now()) / 86400000);
+    return days >= 0 && days <= 30;
+  });
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-sm font-semibold text-thb-text-primary">Employee Documents</h3>
+          <p className="text-xs text-thb-text-muted mt-0.5">{documents.length} documents · centralized in File Manager</p>
+        </div>
+        <div className="flex items-center gap-2">
+          {isAdmin && (
+            <button onClick={() => setShowRequest(true)} className="inline-flex items-center gap-2 px-3 py-2 border border-thb-border rounded-lg text-xs font-medium text-thb-text-secondary hover:bg-slate-50">
+              <FiAlertCircle className="w-3.5 h-3.5" /> Request Document
+            </button>
+          )}
+          <button onClick={() => setShowUpload(true)} className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg text-xs font-medium hover:bg-green-700">
+            <FiUpload className="w-3.5 h-3.5" /> Upload Document
+          </button>
+        </div>
+      </div>
+
+      {expiringDocs.length > 0 && (
+        <div className="p-3 rounded-lg border border-amber-200 bg-amber-50">
+          <p className="text-xs font-semibold text-amber-800 flex items-center gap-1.5">
+            <FiAlertCircle className="w-4 h-4" /> {expiringDocs.length} document(s) expiring within 30 days
+          </p>
+          <ul className="mt-1 space-y-0.5">
+            {expiringDocs.map(d => <li key={d.id} className="text-xs text-amber-700">• {d.name} — expires {formatDate(d.expiryDate)}</li>)}
+          </ul>
+        </div>
+      )}
+
+      <div className="flex flex-wrap gap-1.5">
+        <button onClick={() => setActiveCategory('all')} className={`px-3 py-1.5 rounded-lg text-xs font-medium ${activeCategory === 'all' ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>All ({documents.length})</button>
+        {DOC_CATEGORIES.map(cat => {
+          const count = documents.filter(d => (d.category || 'other') === cat.value).length;
+          return <button key={cat.value} onClick={() => setActiveCategory(cat.value)} className={`px-3 py-1.5 rounded-lg text-xs font-medium ${activeCategory === cat.value ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>{cat.icon} {cat.label} ({count})</button>;
+        })}
+      </div>
+
+      {filteredDocs.length === 0 ? (
+        <div className="text-center py-12">
+          <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4"><FiFileText className="w-8 h-8 text-slate-300" /></div>
+          <p className="text-sm font-medium text-thb-text-secondary mb-1">No documents in this category</p>
+          <p className="text-xs text-thb-text-muted">Upload documents or request them from the employee.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredDocs.map(doc => {
+            const cat = DOC_CATEGORIES.find(c => c.value === (doc.category || 'other'));
+            const isExpiring = doc.expiryDate && Math.ceil((new Date(doc.expiryDate).getTime() - Date.now()) / 86400000) <= 30;
+            const isExpired = doc.expiryDate && new Date(doc.expiryDate) < new Date();
+            return (
+              <div key={doc.id} className="thb-card p-4 hover:shadow-md transition-shadow">
+                <div className="flex items-start justify-between mb-2">
+                  <span className="text-2xl">{cat?.icon || '📎'}</span>
+                  <div className="flex items-center gap-1">
+                    {doc.isRequested && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">Requested</span>}
+                    {isExpired && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 font-medium">Expired</span>}
+                    {isExpiring && !isExpired && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">Expiring</span>}
+                  </div>
+                </div>
+                <p className="text-sm font-semibold text-thb-text-primary truncate">{doc.name}</p>
+                <p className="text-[10px] text-slate-400 mt-0.5 capitalize">{doc.type.replace(/_/g, ' ')}</p>
+                {doc.description && <p className="text-xs text-slate-500 mt-1 line-clamp-2">{doc.description}</p>}
+                <div className="mt-2 space-y-0.5 text-[11px] text-slate-400">
+                  {doc.uploadedAt && <p>Uploaded: {formatDate(doc.uploadedAt)}</p>}
+                  {doc.expiryDate && <p className={isExpiring ? 'text-amber-600 font-medium' : ''}>Expires: {formatDate(doc.expiryDate)}</p>}
+                  {doc.requiredFormat && <p>Required: {doc.requiredFormat.toUpperCase()}</p>}
+                </div>
+                <div className="mt-3 flex items-center gap-2">
+                  {doc.fileUrl && <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 px-2 py-1 text-[11px] text-teal-600 hover:bg-teal-50 rounded"><FiDownload className="w-3 h-3" /> Download</a>}
+                  {isAdmin && <button onClick={() => handleDelete(doc.id, doc.name)} className="inline-flex items-center gap-1 px-2 py-1 text-[11px] text-red-500 hover:bg-red-50 rounded ml-auto"><FiTrash2 className="w-3 h-3" /></button>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {showUpload && <UploadDocModal employeeId={employeeId} onClose={() => setShowUpload(false)} onDone={() => { setShowUpload(false); fetchDocs(); }} />}
+      {showRequest && <RequestDocModal employeeId={employeeId} onClose={() => setShowRequest(false)} onDone={() => { setShowRequest(false); fetchDocs(); }} />}
+    </div>
+  );
+}
+
+function UploadDocModal({ employeeId, onClose, onDone }: { employeeId: string; onClose: () => void; onDone: () => void }) {
+  const [name, setName] = useState(''); const [category, setCategory] = useState('identification');
+  const [type, setType] = useState('id_proof'); const [fileUrl, setFileUrl] = useState('');
+  const [description, setDescription] = useState(''); const [expiryDate, setExpiryDate] = useState(''); const [saving, setSaving] = useState(false);
+  const submit = async () => {
+    if (!name || !fileUrl) { toast.error('Name and file URL are required'); return; }
+    setSaving(true);
+    try {
+      const r = await fetch(`/api/employees/${employeeId}/documents`, { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify({ name, category, type, fileUrl, description, expiryDate: expiryDate || undefined }) });
+      const d = await r.json(); if (!r.ok) throw new Error(d.error || 'Failed');
+      toast.success('Document uploaded'); onDone();
+    } catch (e: unknown) { toast.error(e instanceof Error ? e.message : 'Failed'); } finally { setSaving(false); }
+  };
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 py-4 border-b"><h3 className="font-semibold">Upload Document</h3><button onClick={onClose}><FiX className="w-5 h-5 text-slate-400" /></button></div>
+        <div className="p-5 space-y-3">
+          <div><label className="block text-xs font-medium text-slate-600 mb-1">Document Name *</label><input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Aadhaar Card" className="w-full px-3 py-2 border rounded-lg text-sm" /></div>
+          <div className="grid grid-cols-2 gap-3">
+            <div><label className="block text-xs font-medium text-slate-600 mb-1">Category</label><select value={category} onChange={e => setCategory(e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm bg-white">{DOC_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}</select></div>
+            <div><label className="block text-xs font-medium text-slate-600 mb-1">Type</label><select value={type} onChange={e => setType(e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm bg-white">{DOC_TYPES.map(t => <option key={t} value={t}>{t.replace(/_/g, ' ')}</option>)}</select></div>
+          </div>
+          <div><label className="block text-xs font-medium text-slate-600 mb-1">File URL *</label><input value={fileUrl} onChange={e => setFileUrl(e.target.value)} placeholder="https://..." className="w-full px-3 py-2 border rounded-lg text-sm" /><p className="text-[10px] text-slate-400 mt-0.5">Upload via File Manager and paste the URL here.</p></div>
+          <div><label className="block text-xs font-medium text-slate-600 mb-1">Expiry Date (optional)</label><input type="date" value={expiryDate} onChange={e => setExpiryDate(e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm" /></div>
+          <div><label className="block text-xs font-medium text-slate-600 mb-1">Description</label><textarea value={description} onChange={e => setDescription(e.target.value)} rows={2} className="w-full px-3 py-2 border rounded-lg text-sm" /></div>
+        </div>
+        <div className="flex justify-end gap-3 px-5 py-4 border-t"><button onClick={onClose} className="px-4 py-2 text-sm text-slate-600">Cancel</button><button onClick={submit} disabled={saving} className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium disabled:opacity-50">{saving ? 'Uploading…' : 'Upload'}</button></div>
+      </div>
+    </div>
+  );
+}
+
+function RequestDocModal({ employeeId, onClose, onDone }: { employeeId: string; onClose: () => void; onDone: () => void }) {
+  const [name, setName] = useState(''); const [category, setCategory] = useState('identification');
+  const [type, setType] = useState('id_proof'); const [requiredFormat, setRequiredFormat] = useState('pdf');
+  const [maxFileSizeMb, setMaxFileSizeMb] = useState(10); const [description, setDescription] = useState(''); const [saving, setSaving] = useState(false);
+  const submit = async () => {
+    if (!name) { toast.error('Document name is required'); return; }
+    setSaving(true);
+    try {
+      const r = await fetch(`/api/employees/${employeeId}/documents`, { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify({ action: 'request', name, category, type, requiredFormat, maxFileSizeMb, description }) });
+      const d = await r.json(); if (!r.ok) throw new Error(d.error || 'Failed');
+      toast.success('Document request sent'); onDone();
+    } catch (e: unknown) { toast.error(e instanceof Error ? e.message : 'Failed'); } finally { setSaving(false); }
+  };
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 py-4 border-b"><h3 className="font-semibold">Request Document</h3><button onClick={onClose}><FiX className="w-5 h-5 text-slate-400" /></button></div>
+        <div className="p-5 space-y-3">
+          <div><label className="block text-xs font-medium text-slate-600 mb-1">Document Name *</label><input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Address Proof" className="w-full px-3 py-2 border rounded-lg text-sm" /></div>
+          <div className="grid grid-cols-2 gap-3">
+            <div><label className="block text-xs font-medium text-slate-600 mb-1">Category</label><select value={category} onChange={e => setCategory(e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm bg-white">{DOC_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}</select></div>
+            <div><label className="block text-xs font-medium text-slate-600 mb-1">Type</label><select value={type} onChange={e => setType(e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm bg-white">{DOC_TYPES.map(t => <option key={t} value={t}>{t.replace(/_/g, ' ')}</option>)}</select></div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div><label className="block text-xs font-medium text-slate-600 mb-1">Required Format</label><select value={requiredFormat} onChange={e => setRequiredFormat(e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm bg-white"><option value="pdf">PDF</option><option value="jpg">JPG</option><option value="png">PNG</option><option value="doc">DOC</option></select></div>
+            <div><label className="block text-xs font-medium text-slate-600 mb-1">Max Size (MB)</label><input type="number" value={maxFileSizeMb} onChange={e => setMaxFileSizeMb(Number(e.target.value))} min={1} max={50} className="w-full px-3 py-2 border rounded-lg text-sm" /></div>
+          </div>
+          <div><label className="block text-xs font-medium text-slate-600 mb-1">Instructions</label><textarea value={description} onChange={e => setDescription(e.target.value)} rows={2} placeholder="Instructions for the employee" className="w-full px-3 py-2 border rounded-lg text-sm" /></div>
+        </div>
+        <div className="flex justify-end gap-3 px-5 py-4 border-t"><button onClick={onClose} className="px-4 py-2 text-sm text-slate-600">Cancel</button><button onClick={submit} disabled={saving} className="px-4 py-2 bg-teal-600 text-white rounded-lg text-sm font-medium disabled:opacity-50">{saving ? 'Sending…' : 'Send Request'}</button></div>
       </div>
     </div>
   );

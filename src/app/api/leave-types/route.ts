@@ -61,7 +61,8 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { name, code, description, defaultDays, isPaid, carryForward, maxCarryForward, companyId } = body;
+    const { name, code, description, defaultDays, isPaid, carryForward, maxCarryForward, companyId,
+            employmentType, employeeStatus, probationRestricted, sandwichRuleEnabled } = body;
 
     if (!name || !code) {
       return NextResponse.json({ error: 'Name and code are required' }, { status: 400, headers: corsHeaders() });
@@ -132,6 +133,13 @@ export async function POST(req: NextRequest) {
         maxCarryForward: maxCarryForward ?? 0,
         status: 'active',
         companyId: resolvedCompanyId,
+        // Employee scope (new — rules mapped to leave types)
+        employmentType: ['all', 'full-time', 'part-time', 'contract', 'internship'].includes(String(employmentType))
+          ? String(employmentType) : 'all',
+        employeeStatus: ['all', 'active', 'on_leave', 'inactive'].includes(String(employeeStatus))
+          ? String(employeeStatus) : 'all',
+        probationRestricted: probationRestricted ?? false,
+        sandwichRuleEnabled: sandwichRuleEnabled ?? true,
       },
     });
 
