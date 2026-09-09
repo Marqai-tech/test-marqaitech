@@ -5,13 +5,14 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import {
   FiSettings, FiSave, FiRefreshCw, FiMonitor, FiMapPin, FiCamera, FiClock,
   FiFileText, FiPlus, FiSearch, FiEye, FiEdit2, FiTrash2, FiX, FiAlertTriangle,
-  FiList, FiSliders, FiBookOpen, FiCheck, FiChevronDown,
+  FiList, FiSliders, FiBookOpen, FiCheck, FiChevronDown, FiGitBranch,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
 import { useCompanyData, apiFetch, fmtDate, getStatusBadge } from '@/components/company/useCompanyData';
 import type { PolicyRecord } from '@/components/company/useCompanyData';
+import WorkflowBuilderTab from './WorkflowBuilderTab';
 
 // ─── Helpers ────────────────────────────────────────────────────────
 function getAuthHeaders() {
@@ -81,11 +82,12 @@ interface AttendancePolicyRule {
 }
 
 // ─── Tab types ──────────────────────────────────────────────────────
-type TabKey = 'documents' | 'rules';
+type TabKey = 'documents' | 'rules' | 'workflows';
 
 const TABS: { key: TabKey; label: string; icon: React.ReactNode }[] = [
   { key: 'documents', label: 'Policy Documents', icon: <FiBookOpen className="w-4 h-4" /> },
   { key: 'rules', label: 'Policy Rules & Configuration', icon: <FiList className="w-4 h-4" /> },
+  { key: 'workflows', label: 'Approval Workflows', icon: <FiGitBranch className="w-4 h-4" /> },
 ];
 
 const EMPLOYMENT_TYPES = [
@@ -124,7 +126,7 @@ function AttendanceSettingsContent() {
   const router = useRouter()
 
   const tabFromUrl = searchParams.get('tab') as TabKey | null
-  const validTabs: TabKey[] = ['documents', 'rules']
+  const validTabs: TabKey[] = ['documents', 'rules', 'workflows']
   const defaultTab = (tabFromUrl && validTabs.includes(tabFromUrl)) ? tabFromUrl : 'documents'
   const [activeTab, setActiveTab] = useState<TabKey>(defaultTab);
 
@@ -178,6 +180,7 @@ function AttendanceSettingsContent() {
       {/* Tab Content */}
       {activeTab === 'documents' && <PolicyDocumentsTab />}
       {activeTab === 'rules' && <PolicyRulesTab companyId={companyId} scopeQuery={scopeQuery} />}
+      {activeTab === 'workflows' && <WorkflowBuilderTab companyId={companyId} />}
     </div>
   );
 }

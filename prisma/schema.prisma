@@ -293,6 +293,8 @@ model Company {
   attendancePolicyConfigs AttendancePolicyConfig[]
   leavePolicyRules        LeavePolicyRule[]
   attendancePolicyRules   AttendancePolicyRule[]
+  attendanceWorkflowConfigs AttendanceWorkflowConfig[]
+  attendanceRequests      AttendanceRequest[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -568,6 +570,7 @@ model Employee {
   rosterAssignments         EmployeeRosterAssignment[]
   leaveEncashmentRequests   LeaveEncashmentRequest[]
   optionalHolidayElections  OptionalHolidayElection[]
+  attendanceRequests        AttendanceRequest[]
   burnoutFlags              BurnoutFlag[]
   attendanceAuditLogs       AttendanceAuditLog[]
   biometricEnrollments      BiometricEnrollment[]
@@ -7520,4 +7523,87 @@ model CollaborationSettings {
   updatedAt     DateTime @updatedAt
 
   @@index([tenantId])
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// ATTENDANCE WORKFLOW ENGINE (rule engine + dynamic multi-level approvals)
+// Covers: Attendance Regularization, WFH, Hourly Permission, Gate Pass & OUT
+// ══════════════════════════════════════════════════════════════════════
+
+// ── Per-company workflow + rule configuration for each request type ──
+// levels JSON: [{ level, actorType, label, slaHours, onSla: 'none'|'auto_approve'|'auto_escalate',
+//                 skipIf: {field,op,value}|null, autoApproveIf: {field,op,value}|null }]
+// rules  JSON: { windowDays, monthlyCap, weeklyCap, autoDeductThresholdHours,
+//                autoDeductLeaveDays, geoFencingEnabled, allowedIps, requireQrVerification }
+model AttendanceWorkflowConfig {
+  id          String   @id @default(cuid())
+  companyId   String?  // null = tenant-wide default for this request type
+  company     Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  requestType String   // REGULARIZATION | WFH | HOURLY_PERMISSION | GATE_PASS
+  name        String   @default("Default Attendance Workflow")
+  isActive    Boolean  @default(true)
+  levels      String   @default("[]")
+  rules       String   @default("{}")
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([companyId, requestType])
+}
+
+// ── Unified attendance request (one row per submitted request) ──
+model AttendanceRequest {
+  id             String   @id @default(cuid())
+  companyId      String?
+  company        Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  employeeId     String
+  employee       Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  requestType    String   // REGULARIZATION | WFH | HOURLY_PERMISSION | GATE_PASS
+  subtype        String?  // GATE_PASS: official | personal ; WFH: full_day | half_day | temporary | permanent
+  startDate      DateTime
+  endDate        DateTime?
+  payload        Json?    // type-specific data (punch times, hours window, remote location, docs)
+  reason         String
+  attachmentUrl  String?
+
+  status         String   @default("pending") // pending | approved | rejected | cancelled | completed
+  currentLevel   Int      @default(1)
+  configSnapshot String?  // workflow config snapshot for historical accuracy
+  monthlyKey     String?  // cap bucket, e.g. "2026-09"
+  systemActions  String?  // JSON log of system actions applied on final approval
+  qrToken        String?  @unique // gate pass verification token (QR payload)
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  approvals      AttendanceRequestApproval[]
+
+  @@index([companyId, requestType, status])
+  @@index([employeeId])
+  @@index([status, currentLevel])
+}
+
+// ── One approval step instance per workflow level per request ──
+model AttendanceRequestApproval {
+  id          String  @id @default(cuid())
+  requestId   String
+  request     AttendanceRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  level       Int
+  actorType   String  // reporting_manager | department_head | hr_admin | project_manager | vp_director | security
+  actorUserId String? // resolved approver (user id)
+  actorName   String?
+  status      String  @default("pending") // pending | approved | rejected | auto_approved | auto_escalated | skipped | verified
+  comments    String?
+  slaAt       DateTime?
+  actedAt     DateTime?
+  verifiedBy  String? // security user id for gate scans
+  scanLog     Json?   // { outAt, inAt, method }
+
+  createdAt   DateTime @default(now())
+
+  @@unique([requestId, level])
+  @@index([requestId])
+  @@index([actorUserId, status])
 }

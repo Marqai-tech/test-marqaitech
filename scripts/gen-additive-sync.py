@@ -57,23 +57,36 @@ def main(dbname):
     # 2. prisma migrate diff: DB -> schema.prisma
     #    Prisma 7: --from-url was removed; use --from-config-datasource with the
     #    URL injected through the env that prisma.config.ts reads.
+    #    Prisma rewrites pooler hosts to the direct endpoint internally, which
+    #    can fail transiently (Neon cold DNS) — retry, then fall back to the
+    #    direct URL explicitly.
     env = dict(os.environ)
-    env["POSTGRES_PRISMA_URL"] = cs
-    result = subprocess.run(
-        [
-            "npx", "prisma", "migrate", "diff",
-            "--from-config-datasource",
-            "--to-schema", "prisma/schema.prisma",
-            "--script",
-        ],
-        cwd=PROJECT, capture_output=True, text=True, timeout=300, env=env,
-    )
-    if result.returncode != 0:
-        print("PRISMA DIFF FAILED:")
-        print(result.stderr[-3000:])
+    direct_cs = f"postgresql://{USER}:{PASS}@{HOST}/{dbname}?sslmode=require"
+    candidates = [cs] + ([direct_cs] if "-pooler." in cs else [])
+    full_sql = None
+    for attempt_cs in candidates + [candidates[0]] * 2:  # 2 extra retries
+        env["POSTGRES_PRISMA_URL"] = attempt_cs
+        try:
+            result = subprocess.run(
+                [
+                    "npx", "prisma", "migrate", "diff",
+                    "--from-config-datasource",
+                    "--to-schema", "prisma/schema.prisma",
+                    "--script",
+                ],
+                cwd=PROJECT, capture_output=True, text=True, timeout=300, env=env,
+            )
+        except subprocess.TimeoutExpired:
+            print("[sync] prisma diff timed out, retrying…")
+            continue
+        if result.returncode == 0:
+            full_sql = result.stdout
+            break
+        print(f"[sync] diff failed ({'pooler' if '-pooler.' in attempt_cs else 'direct'}), trying next: "
+              + (result.stderr or "").strip().splitlines()[-1][:160] if (result.stderr or "").strip() else "[sync] diff failed")
+    if full_sql is None:
+        print("PRISMA DIFF FAILED after all retries:")
         sys.exit(1)
-
-    full_sql = result.stdout
     raw_path = os.path.join(PROJECT, "scripts", f"out-full-diff-{dbname}.sql")
     with open(raw_path, "w") as f:
         f.write(full_sql)

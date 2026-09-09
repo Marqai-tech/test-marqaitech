@@ -10,6 +10,7 @@ import {
   FiChevronLeft,
   FiChevronRight,
   FiCpu,
+  FiCheckSquare,
   FiMap,
   FiAlertTriangle,
   FiShield,
@@ -734,12 +735,13 @@ export default function AttendancePage() {
           </div>
 
           {/* ── Quick Links (admin only) ── */}
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+            <QuickLink href="/attendance/requests" icon={<FiCheckSquare className="w-4 h-4" />} label="Requests" sub="Reg/WFH/Permission/Pass" color="teal" />
             <QuickLink href="/attendance/biometric" icon={<FiCpu className="w-4 h-4" />} label="Biometric" sub="Devices & enrollments" color="violet" />
             <QuickLink href="/attendance/geofence" icon={<FiMap className="w-4 h-4" />} label="Geofencing" sub="Office perimeters" color="emerald" />
             <QuickLink href="/attendance/regularize" icon={<FiAlertTriangle className="w-4 h-4" />} label="Regularize" sub="Missed punch fix" color="amber" />
             <QuickLink href="/attendance/overtime" icon={<FiClock className="w-4 h-4" />} label="Overtime" sub="OT + comp-off" color="rose" />
-            <QuickLink href="/attendance/settings?tab=config" icon={<FiShield className="w-4 h-4" />} label="Policy & Settings" sub="Config + rules" color="violet" />
+            <QuickLink href="/attendance/settings?tab=workflows" icon={<FiShield className="w-4 h-4" />} label="Workflows & Rules" sub="Approval builder" color="violet" />
           </div>
 
           {/* ── Module Tips & Workflow ── */}
@@ -1170,6 +1172,7 @@ function QuickLink({ href, icon, label, sub, color }: {
   href: string; icon: React.ReactNode; label: string; sub: string; color: string;
 }) {
   const colorMap: Record<string, string> = {
+    teal: 'border-teal-200 hover:border-teal-300 hover:bg-teal-50 text-teal-600',
     violet: 'border-teal-200 hover:border-teal-300 hover:bg-teal-50 text-teal-600',
     emerald: 'border-emerald-200 hover:border-emerald-300 hover:bg-emerald-50 text-emerald-600',
     amber: 'border-amber-200 hover:border-amber-300 hover:bg-amber-50 text-amber-600',

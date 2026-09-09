@@ -1,7 +1,4 @@
 -- DropForeignKey
-ALTER TABLE "BankPaymentFile" DROP CONSTRAINT "BankPaymentFile_payrollRunId_fkey";
-
--- DropForeignKey
 ALTER TABLE "CalendarSync" DROP CONSTRAINT "CalendarSync_employeeId_fkey";
 
 -- DropForeignKey
@@ -107,16 +104,10 @@ ALTER TABLE "TeamMember" DROP CONSTRAINT "TeamMember_teamId_fkey";
 ALTER TABLE "TodoTask" DROP CONSTRAINT "TodoTask_createdById_fkey";
 
 -- DropForeignKey
-ALTER TABLE "User" DROP CONSTRAINT "User_tenantId_fkey";
-
--- DropForeignKey
 ALTER TABLE "WatermarkAccessLog" DROP CONSTRAINT "WatermarkAccessLog_fileId_fkey";
 
 -- DropForeignKey
 ALTER TABLE "WatermarkAccessLog" DROP CONSTRAINT "WatermarkAccessLog_userId_fkey";
-
--- DropIndex
-DROP INDEX "ComplianceFiling_payrollRunId_idx";
 
 -- DropIndex
 DROP INDEX "Geofence_isActive_idx";
@@ -130,57 +121,6 @@ DROP INDEX "Holiday_date_idx";
 -- DropIndex
 DROP INDEX "Holiday_type_idx";
 
--- DropIndex
-DROP INDEX "LeaveBalance_leaveTypeId_idx";
-
--- AlterTable
-ALTER TABLE "AttendancePolicyConfig" ADD COLUMN     "breakDurationMinutes" INTEGER NOT NULL DEFAULT 30,
-ADD COLUMN     "canteenEnabled" BOOLEAN NOT NULL DEFAULT true,
-ADD COLUMN     "canteenFreeForGeneralShift" BOOLEAN NOT NULL DEFAULT true,
-ADD COLUMN     "canteenFreeForNightShift" BOOLEAN NOT NULL DEFAULT true,
-ADD COLUMN     "canteenOtfreeThresholdHours" INTEGER NOT NULL DEFAULT 5,
-ADD COLUMN     "gatePassEarlyHours" INTEGER NOT NULL DEFAULT 1,
-ADD COLUMN     "gatePassHalfDayNextDay" BOOLEAN NOT NULL DEFAULT true,
-ADD COLUMN     "gatePassHalfDayOnExceed" BOOLEAN NOT NULL DEFAULT true,
-ADD COLUMN     "gatePassMaxPerMonth" INTEGER NOT NULL DEFAULT 1,
-ADD COLUMN     "halfDayAfterMinutes" INTEGER NOT NULL DEFAULT 21,
-ADD COLUMN     "lateMarkAllowancePerMonth" INTEGER NOT NULL DEFAULT 4,
-ADD COLUMN     "lateMarkHalfDayOnExceed" BOOLEAN NOT NULL DEFAULT true,
-ADD COLUMN     "lateMarkNotApplicableOnTour" BOOLEAN NOT NULL DEFAULT true,
-ADD COLUMN     "shiftEndDefault" TEXT NOT NULL DEFAULT '17:30',
-ADD COLUMN     "shiftStartDefault" TEXT NOT NULL DEFAULT '09:00',
-ALTER COLUMN "lateGraceMinutes" SET DEFAULT 15;
-
--- AlterTable
-ALTER TABLE "CollaborationSettings" ADD COLUMN     "resendApiKey" TEXT,
-ADD COLUMN     "resendFromAddress" TEXT,
-ADD COLUMN     "smtpEncryption" TEXT NOT NULL DEFAULT 'tls',
-ADD COLUMN     "smtpFromAddress" TEXT,
-ADD COLUMN     "smtpFromName" TEXT,
-ADD COLUMN     "smtpHost" TEXT,
-ADD COLUMN     "smtpPassword" TEXT,
-ADD COLUMN     "smtpPort" INTEGER NOT NULL DEFAULT 587,
-ADD COLUMN     "smtpReplyTo" TEXT,
-ADD COLUMN     "smtpUsername" TEXT,
-ADD COLUMN     "smtpVerifiedAt" TIMESTAMP(3),
-ADD COLUMN     "smtpVerifyError" TEXT;
-
--- AlterTable
-ALTER TABLE "Employee" ADD COLUMN     "credentialsInvitedAt" TIMESTAMP(3),
-ADD COLUMN     "credentialsInvitedBy" TEXT,
-ADD COLUMN     "credentialsStatus" TEXT DEFAULT 'not_invited',
-ALTER COLUMN "employeeStatus" DROP NOT NULL,
-ALTER COLUMN "employeeType" DROP NOT NULL,
-ALTER COLUMN "employeeType" SET DEFAULT 'full_time';
-
--- AlterTable
-ALTER TABLE "Holiday" ALTER COLUMN "companyId" DROP DEFAULT;
-
--- AlterTable
-ALTER TABLE "LeaveRequest" ADD COLUMN     "currentApproverId" TEXT,
-ADD COLUMN     "workflowConfigSnapshot" TEXT,
-ADD COLUMN     "workflowStage" TEXT;
-
 -- AlterTable
 ALTER TABLE "LeaveType" ADD COLUMN     "companyId" TEXT NOT NULL;
 
@@ -190,85 +130,87 @@ ALTER TABLE "Policy" ADD COLUMN     "companyId" TEXT NOT NULL;
 -- AlterTable
 ALTER TABLE "Shift" ADD COLUMN     "companyId" TEXT NOT NULL;
 
--- AlterTable
-ALTER TABLE "TenantDatabase" ALTER COLUMN "updatedAt" DROP DEFAULT;
-
 -- CreateTable
-CREATE TABLE "Candidate" (
+CREATE TABLE "AttendanceWorkflowConfig" (
     "id" TEXT NOT NULL,
-    "tenantId" TEXT NOT NULL,
     "companyId" TEXT,
-    "firstName" TEXT NOT NULL,
-    "lastName" TEXT NOT NULL,
-    "email" TEXT NOT NULL,
-    "phone" TEXT,
-    "avatar" TEXT,
-    "currentJobTitle" TEXT,
-    "currentCompany" TEXT,
-    "currentLocation" TEXT,
-    "totalExperience" DOUBLE PRECISION,
-    "noticePeriod" INTEGER,
-    "currentCTC" DOUBLE PRECISION,
-    "expectedCTC" DOUBLE PRECISION,
-    "currency" TEXT NOT NULL DEFAULT 'INR',
-    "skills" TEXT,
-    "highestQualification" TEXT,
-    "university" TEXT,
-    "graduationYear" INTEGER,
-    "source" TEXT NOT NULL DEFAULT 'direct',
-    "sourceDetails" TEXT,
-    "recruiterId" TEXT,
-    "resumeUrl" TEXT,
-    "coverLetterUrl" TEXT,
-    "linkedinUrl" TEXT,
-    "portfolioUrl" TEXT,
-    "status" TEXT NOT NULL DEFAULT 'new',
-    "subStatus" TEXT,
-    "aiMatchScore" DOUBLE PRECISION,
-    "aiSentimentScore" DOUBLE PRECISION,
-    "aiRecommendedRole" TEXT,
-    "lastContactedAt" TIMESTAMP(3),
-    "nextFollowUpAt" TIMESTAMP(3),
-    "communicationCount" INTEGER NOT NULL DEFAULT 0,
-    "tags" TEXT,
-    "category" TEXT,
-    "pool" TEXT,
-    "appliedAt" TIMESTAMP(3),
-    "hiredAt" TIMESTAMP(3),
-    "rejectedAt" TIMESTAMP(3),
-    "consentGiven" BOOLEAN NOT NULL DEFAULT false,
-    "consentDate" TIMESTAMP(3),
-    "dataRetentionDays" INTEGER NOT NULL DEFAULT 730,
-    "anonymized" BOOLEAN NOT NULL DEFAULT false,
+    "requestType" TEXT NOT NULL,
+    "name" TEXT NOT NULL DEFAULT 'Default Attendance Workflow',
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "levels" TEXT NOT NULL DEFAULT '[]',
+    "rules" TEXT NOT NULL DEFAULT '{}',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "Candidate_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "AttendanceWorkflowConfig_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "AttendanceRequest" (
+    "id" TEXT NOT NULL,
+    "companyId" TEXT,
+    "employeeId" TEXT NOT NULL,
+    "requestType" TEXT NOT NULL,
+    "subtype" TEXT,
+    "startDate" TIMESTAMP(3) NOT NULL,
+    "endDate" TIMESTAMP(3),
+    "payload" JSONB,
+    "reason" TEXT NOT NULL,
+    "attachmentUrl" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'pending',
+    "currentLevel" INTEGER NOT NULL DEFAULT 1,
+    "configSnapshot" TEXT,
+    "monthlyKey" TEXT,
+    "systemActions" TEXT,
+    "qrToken" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "AttendanceRequest_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "AttendanceRequestApproval" (
+    "id" TEXT NOT NULL,
+    "requestId" TEXT NOT NULL,
+    "level" INTEGER NOT NULL,
+    "actorType" TEXT NOT NULL,
+    "actorUserId" TEXT,
+    "actorName" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'pending',
+    "comments" TEXT,
+    "slaAt" TIMESTAMP(3),
+    "actedAt" TIMESTAMP(3),
+    "verifiedBy" TEXT,
+    "scanLog" JSONB,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "AttendanceRequestApproval_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
-CREATE INDEX "Candidate_tenantId_idx" ON "Candidate"("tenantId");
+CREATE INDEX "AttendanceWorkflowConfig_companyId_requestType_idx" ON "AttendanceWorkflowConfig"("companyId", "requestType");
 
 -- CreateIndex
-CREATE INDEX "Candidate_companyId_idx" ON "Candidate"("companyId");
+CREATE UNIQUE INDEX "AttendanceRequest_qrToken_key" ON "AttendanceRequest"("qrToken");
 
 -- CreateIndex
-CREATE INDEX "Candidate_status_idx" ON "Candidate"("status");
+CREATE INDEX "AttendanceRequest_companyId_requestType_status_idx" ON "AttendanceRequest"("companyId", "requestType", "status");
 
 -- CreateIndex
-CREATE INDEX "Candidate_source_idx" ON "Candidate"("source");
+CREATE INDEX "AttendanceRequest_employeeId_idx" ON "AttendanceRequest"("employeeId");
 
 -- CreateIndex
-CREATE INDEX "Candidate_aiMatchScore_idx" ON "Candidate"("aiMatchScore");
+CREATE INDEX "AttendanceRequest_status_currentLevel_idx" ON "AttendanceRequest"("status", "currentLevel");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Candidate_tenantId_email_key" ON "Candidate"("tenantId", "email");
+CREATE INDEX "AttendanceRequestApproval_requestId_idx" ON "AttendanceRequestApproval"("requestId");
 
 -- CreateIndex
-CREATE INDEX "LeaveRequest_currentApproverId_idx" ON "LeaveRequest"("currentApproverId");
+CREATE INDEX "AttendanceRequestApproval_actorUserId_status_idx" ON "AttendanceRequestApproval"("actorUserId", "status");
 
 -- CreateIndex
-CREATE INDEX "LeaveRequest_workflowStage_idx" ON "LeaveRequest"("workflowStage");
+CREATE UNIQUE INDEX "AttendanceRequestApproval_requestId_level_key" ON "AttendanceRequestApproval"("requestId", "level");
 
 -- CreateIndex
 CREATE INDEX "LeaveType_companyId_idx" ON "LeaveType"("companyId");
@@ -280,19 +222,7 @@ CREATE INDEX "Policy_companyId_idx" ON "Policy"("companyId");
 CREATE INDEX "Shift_companyId_idx" ON "Shift"("companyId");
 
 -- AddForeignKey
-ALTER TABLE "BackupRecord" ADD CONSTRAINT "BackupRecord_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "User" ADD CONSTRAINT "User_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "JobApplication" ADD CONSTRAINT "JobApplication_candidateId_fkey" FOREIGN KEY ("candidateId") REFERENCES "Candidate"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "LeaveType" ADD CONSTRAINT "LeaveType_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "LeaveApprovalStep" ADD CONSTRAINT "LeaveApprovalStep_leaveRequestId_fkey" FOREIGN KEY ("leaveRequestId") REFERENCES "LeaveRequest"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Policy" ADD CONSTRAINT "Policy_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -305,21 +235,6 @@ ALTER TABLE "Shift" ADD CONSTRAINT "Shift_companyId_fkey" FOREIGN KEY ("companyI
 
 -- AddForeignKey
 ALTER TABLE "OKR" ADD CONSTRAINT "OKR_ownerId_fkey" FOREIGN KEY ("ownerId") REFERENCES "Employee"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "PayrollInput" ADD CONSTRAINT "PayrollInput_payrollRunId_fkey" FOREIGN KEY ("payrollRunId") REFERENCES "PayrollRun"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "PayrollRun" ADD CONSTRAINT "PayrollRun_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "PayrollTransactionLine" ADD CONSTRAINT "PayrollTransactionLine_payrollRunId_fkey" FOREIGN KEY ("payrollRunId") REFERENCES "PayrollRun"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "ComplianceFiling" ADD CONSTRAINT "ComplianceFiling_payrollRunId_fkey" FOREIGN KEY ("payrollRunId") REFERENCES "PayrollRun"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "BankPaymentFile" ADD CONSTRAINT "BankPaymentFile_payrollRunId_fkey" FOREIGN KEY ("payrollRunId") REFERENCES "PayrollRun"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "EmployeeCustomFieldValue" ADD CONSTRAINT "EmployeeCustomFieldValue_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -418,27 +333,6 @@ ALTER TABLE "CandidateSentimentScore" ADD CONSTRAINT "CandidateSentimentScore_jo
 ALTER TABLE "JobBoardPosting" ADD CONSTRAINT "JobBoardPosting_jobPostingId_fkey" FOREIGN KEY ("jobPostingId") REFERENCES "JobPosting"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "WfhRequest" ADD CONSTRAINT "WfhRequest_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "LeavePolicyRule" ADD CONSTRAINT "LeavePolicyRule_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "LeavePolicyRule" ADD CONSTRAINT "LeavePolicyRule_branchId_fkey" FOREIGN KEY ("branchId") REFERENCES "Branch"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "LeavePolicyRule" ADD CONSTRAINT "LeavePolicyRule_departmentId_fkey" FOREIGN KEY ("departmentId") REFERENCES "Department"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "AttendancePolicyRule" ADD CONSTRAINT "AttendancePolicyRule_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "AttendancePolicyRule" ADD CONSTRAINT "AttendancePolicyRule_branchId_fkey" FOREIGN KEY ("branchId") REFERENCES "Branch"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "AttendancePolicyRule" ADD CONSTRAINT "AttendancePolicyRule_departmentId_fkey" FOREIGN KEY ("departmentId") REFERENCES "Department"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "LeaveAttachment" ADD CONSTRAINT "LeaveAttachment_leaveRequestId_fkey" FOREIGN KEY ("leaveRequestId") REFERENCES "LeaveRequest"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -448,19 +342,10 @@ ALTER TABLE "WalletBucket" ADD CONSTRAINT "WalletBucket_walletId_fkey" FOREIGN K
 ALTER TABLE "WalletTransaction" ADD CONSTRAINT "WalletTransaction_walletId_fkey" FOREIGN KEY ("walletId") REFERENCES "Wallet"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "WalletTransaction" ADD CONSTRAINT "WalletTransaction_bucketId_fkey" FOREIGN KEY ("bucketId") REFERENCES "WalletBucket"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "MarketplaceOrder" ADD CONSTRAINT "MarketplaceOrder_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "MarketplaceOrder" ADD CONSTRAINT "MarketplaceOrder_productId_fkey" FOREIGN KEY ("productId") REFERENCES "MarketplaceProduct"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "InsurancePolicy" ADD CONSTRAINT "InsurancePolicy_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "InsuranceClaim" ADD CONSTRAINT "InsuranceClaim_policyId_fkey" FOREIGN KEY ("policyId") REFERENCES "InsurancePolicy"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "InsuranceClaim" ADD CONSTRAINT "InsuranceClaim_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -478,9 +363,6 @@ ALTER TABLE "Gift" ADD CONSTRAINT "Gift_recipientId_fkey" FOREIGN KEY ("recipien
 ALTER TABLE "Gift" ADD CONSTRAINT "Gift_senderId_fkey" FOREIGN KEY ("senderId") REFERENCES "Employee"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Gift" ADD CONSTRAINT "Gift_productId_fkey" FOREIGN KEY ("productId") REFERENCES "MarketplaceProduct"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "RewardPointsLedger" ADD CONSTRAINT "RewardPointsLedger_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -491,24 +373,6 @@ ALTER TABLE "FinancialStressFlag" ADD CONSTRAINT "FinancialStressFlag_employeeId
 
 -- AddForeignKey
 ALTER TABLE "WalletBudgetAllocation" ADD CONSTRAINT "WalletBudgetAllocation_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "WalletBudgetAllocation" ADD CONSTRAINT "WalletBudgetAllocation_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Contractor" ADD CONSTRAINT "Contractor_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "EmployeeCompanyMapping" ADD CONSTRAINT "EmployeeCompanyMapping_departmentId_fkey" FOREIGN KEY ("departmentId") REFERENCES "Department"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "EmployeeCompanyMapping" ADD CONSTRAINT "EmployeeCompanyMapping_designationId_fkey" FOREIGN KEY ("designationId") REFERENCES "Designation"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "EmployeeCompanyMapping" ADD CONSTRAINT "EmployeeCompanyMapping_branchId_fkey" FOREIGN KEY ("branchId") REFERENCES "Branch"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "TenantConfiguration" ADD CONSTRAINT "TenantConfiguration_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "TenantCountryAccess" ADD CONSTRAINT "TenantCountryAccess_tenantConfigId_fkey" FOREIGN KEY ("tenantConfigId") REFERENCES "TenantConfiguration"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -523,31 +387,22 @@ ALTER TABLE "TenantLanguageAccess" ADD CONSTRAINT "TenantLanguageAccess_tenantCo
 ALTER TABLE "TenantPayrollPolicy" ADD CONSTRAINT "TenantPayrollPolicy_tenantConfigId_fkey" FOREIGN KEY ("tenantConfigId") REFERENCES "TenantConfiguration"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Candidate" ADD CONSTRAINT "Candidate_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Candidate" ADD CONSTRAINT "Candidate_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "CalendarEvent" ADD CONSTRAINT "CalendarEvent_createdBy_fkey" FOREIGN KEY ("createdBy") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "TodoTask" ADD CONSTRAINT "TodoTask_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Note" ADD CONSTRAINT "Note_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "SocialPost" ADD CONSTRAINT "SocialPost_authorId_fkey" FOREIGN KEY ("authorId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "AttendanceWorkflowConfig" ADD CONSTRAINT "AttendanceWorkflowConfig_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "SocialComment" ADD CONSTRAINT "SocialComment_postId_fkey" FOREIGN KEY ("postId") REFERENCES "SocialPost"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "AttendanceRequest" ADD CONSTRAINT "AttendanceRequest_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "SocialComment" ADD CONSTRAINT "SocialComment_authorId_fkey" FOREIGN KEY ("authorId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "AttendanceRequest" ADD CONSTRAINT "AttendanceRequest_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "KanbanBoard" ADD CONSTRAINT "KanbanBoard_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "AttendanceRequestApproval" ADD CONSTRAINT "AttendanceRequestApproval_requestId_fkey" FOREIGN KEY ("requestId") REFERENCES "AttendanceRequest"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- RenameIndex
 ALTER INDEX "AIKnowledgeQuery_user_idx" RENAME TO "AIKnowledgeQuery_userId_idx";
