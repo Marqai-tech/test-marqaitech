@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { FiHome, FiPlus, FiRefreshCw, FiCheckCircle, FiXCircle, FiInfo, FiCalendar, FiMapPin, FiClock, FiPhone, FiFileText, FiUpload, FiAlertCircle } from 'react-icons/fi';
+import { FiHome, FiPlus, FiRefreshCw, FiCheckCircle, FiXCircle, FiInfo, FiCalendar, FiMapPin, FiClock, FiPhone, FiFileText, FiUpload, FiAlertCircle, FiEye, FiX } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
@@ -89,6 +89,7 @@ export default function WfhPage() {
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [viewTarget, setViewTarget] = useState<WfhRequest | null>(null);
 
   const today = new Date().toISOString().split('T')[0];
   const [form, setForm] = useState({
@@ -445,21 +446,26 @@ export default function WfhPage() {
                     <span className={getStatusBadge(r.status)}>{r.status}</span>
                   </td>
                   <td className="px-4 py-3 text-right">
-                    {r.status === 'pending' && !isAdmin && (
-                      <button onClick={() => handleAction(r.id, 'cancelled')} className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded text-xs" title="Cancel">
-                        Cancel
+                    <div className="flex items-center justify-end gap-1">
+                      <button onClick={() => setViewTarget(r)} className="p-1.5 rounded-lg text-slate-400 hover:text-cyan-600 hover:bg-cyan-50 transition-colors" title="View WFH Application">
+                        <FiEye className="w-4 h-4" />
                       </button>
-                    )}
-                    {r.status === 'pending' && isAdmin && (
-                      <div className="flex justify-end gap-1">
-                        <button onClick={() => handleAction(r.id, 'approved')} className="p-1.5 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 rounded" title="Approve">
-                          <FiCheckCircle className="w-4 h-4" />
+                      {r.status === 'pending' && !isAdmin && (
+                        <button onClick={() => handleAction(r.id, 'cancelled')} className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded text-xs" title="Cancel">
+                          Cancel
                         </button>
-                        <button onClick={() => handleAction(r.id, 'rejected')} className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded" title="Reject">
-                          <FiXCircle className="w-4 h-4" />
-                        </button>
-                      </div>
-                    )}
+                      )}
+                      {r.status === 'pending' && isAdmin && (
+                        <>
+                          <button onClick={() => handleAction(r.id, 'approved')} className="p-1.5 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 rounded" title="Approve">
+                            <FiCheckCircle className="w-4 h-4" />
+                          </button>
+                          <button onClick={() => handleAction(r.id, 'rejected')} className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded" title="Reject">
+                            <FiXCircle className="w-4 h-4" />
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -467,6 +473,108 @@ export default function WfhPage() {
           </table>
         </div>
       </div>
+
+      {/* ─── View WFH Application Modal ─── */}
+      {viewTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50" onClick={() => setViewTarget(null)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div className="flex items-start justify-between p-5 border-b border-slate-100">
+              <div>
+                <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                  <FiHome className="w-5 h-5 text-cyan-500" /> WFH Application
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">Request ID: {viewTarget.id}</p>
+              </div>
+              <button onClick={() => setViewTarget(null)} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors" title="Close">
+                <FiX className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-5">
+              {/* Summary grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                {isAdmin && (
+                  <div className="col-span-2 sm:col-span-1">
+                    <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Employee</p>
+                    <p className="text-sm font-medium text-slate-800">{viewTarget.employee ? `${viewTarget.employee.firstName} ${viewTarget.employee.lastName}` : '—'}</p>
+                    <p className="text-xs text-slate-400">{viewTarget.employee?.employeeId || '—'}{viewTarget.employee?.department ? ` · ${viewTarget.employee.department.name}` : ''}</p>
+                  </div>
+                )}
+                <div>
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Request Type</p>
+                  <p className="text-sm text-slate-700">{reqTypeLabel(viewTarget.requestType)}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Reason Category</p>
+                  <p className="text-sm text-slate-700">{catLabel(viewTarget.reasonCategory)}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Start Date</p>
+                  <p className="text-sm text-slate-700">{fmtDate(viewTarget.startDate)}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">End Date</p>
+                  <p className="text-sm text-slate-700">{viewTarget.endDate ? fmtDate(viewTarget.endDate) : 'Open-ended'}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Total Days</p>
+                  <p className="text-sm text-slate-700">{viewTarget.totalDays || '—'}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Expected Hours/Day</p>
+                  <p className="text-sm text-slate-700">{viewTarget.expectedHours}h</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Available for Meetings</p>
+                  <p className="text-sm text-slate-700">{viewTarget.availableForMeetings ? 'Yes' : 'No'}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Remote Location</p>
+                  <p className="text-sm text-slate-700 flex items-center gap-1"><FiMapPin className="w-3 h-3" />{viewTarget.remoteLocation || '—'}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Emergency Contact</p>
+                  <p className="text-sm text-slate-700 flex items-center gap-1"><FiPhone className="w-3 h-3" />{viewTarget.emergencyContact || '—'}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Alternate Email</p>
+                  <p className="text-sm text-slate-700">{viewTarget.alternateEmail || '—'}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Status</p>
+                  <span className={getStatusBadge(viewTarget.status)}>{viewTarget.status}</span>
+                </div>
+              </div>
+
+              {/* Reason */}
+              <div>
+                <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Reason</p>
+                <p className="text-sm text-slate-700 bg-slate-50 rounded-lg px-3 py-2 border border-slate-100 min-h-[38px]">{viewTarget.reason || '—'}</p>
+              </div>
+
+              {/* Approver comments */}
+              {viewTarget.approverComments && (
+                <div>
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Approver Comments</p>
+                  <p className="text-sm text-slate-700 bg-amber-50 rounded-lg px-3 py-2 border border-amber-100">{viewTarget.approverComments}</p>
+                </div>
+              )}
+
+              {/* Submitted on */}
+              <div className="text-xs text-slate-400 border-t border-slate-100 pt-3">
+                Submitted on {fmtDate(viewTarget.createdAt)}
+                {viewTarget.approver && <span> · Action by {viewTarget.approver.firstName} {viewTarget.approver.lastName}</span>}
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-end gap-3 px-5 py-4 border-t border-slate-100">
+              <button onClick={() => setViewTarget(null)} className="px-4 py-2 rounded-lg border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors">Close</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

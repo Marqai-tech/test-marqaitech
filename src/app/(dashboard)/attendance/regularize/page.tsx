@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { FiClock, FiPlus, FiRefreshCw, FiZap, FiCheckCircle, FiXCircle } from 'react-icons/fi';
+import { FiClock, FiPlus, FiRefreshCw, FiZap, FiCheckCircle, FiXCircle, FiEye, FiX } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
@@ -37,6 +37,7 @@ export default function RegularizePage() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [viewTarget, setViewTarget] = useState<Regularization | null>(null);
 
   const [form, setForm] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -183,7 +184,7 @@ export default function RegularizePage() {
                 <th className="text-left px-4 py-3 font-semibold text-slate-700">Reason</th>
                 <th className="text-left px-4 py-3 font-semibold text-slate-700">Flags</th>
                 <th className="text-left px-4 py-3 font-semibold text-slate-700">Status</th>
-                {isAdmin && <th className="text-right px-4 py-3 font-semibold text-slate-700">Actions</th>}
+                <th className="text-right px-4 py-3 font-semibold text-slate-700">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -216,26 +217,120 @@ export default function RegularizePage() {
                       r.status === 'rejected' ? 'thb-badge-error' : 'thb-badge-warning'
                     }`}>{r.status}</span>
                   </td>
-                  {isAdmin && (
-                    <td className="px-4 py-3 text-right">
-                      {r.status === 'pending' && (
-                        <div className="flex justify-end gap-1">
+                  <td className="px-4 py-3 text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <button onClick={() => setViewTarget(r)} className="p-1.5 rounded-lg text-slate-400 hover:text-cyan-600 hover:bg-cyan-50 transition-colors" title="View Regularization">
+                        <FiEye className="w-4 h-4" />
+                      </button>
+                      {isAdmin && r.status === 'pending' && (
+                        <>
                           <button onClick={() => handleAction(r.id, 'approved')} className="p-1.5 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 rounded" title="Approve">
                             <FiCheckCircle className="w-4 h-4" />
                           </button>
                           <button onClick={() => handleAction(r.id, 'rejected')} className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded" title="Reject">
                             <FiXCircle className="w-4 h-4" />
                           </button>
-                        </div>
+                        </>
                       )}
-                    </td>
-                  )}
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       </div>
+
+      {/* ─── View Regularization Modal ─── */}
+      {viewTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50" onClick={() => setViewTarget(null)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div className="flex items-start justify-between p-5 border-b border-slate-100">
+              <div>
+                <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                  <FiClock className="w-5 h-5 text-cyan-500" /> Attendance Regularization
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">Request ID: {viewTarget.id}</p>
+              </div>
+              <button onClick={() => setViewTarget(null)} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors" title="Close">
+                <FiX className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-5">
+              {/* Summary grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                {isAdmin && (
+                  <div className="col-span-2 sm:col-span-1">
+                    <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Employee</p>
+                    <p className="text-sm font-medium text-slate-800">{viewTarget.employee ? `${viewTarget.employee.firstName} ${viewTarget.employee.lastName}` : '—'}</p>
+                    <p className="text-xs text-slate-400">{viewTarget.employee?.employeeId || '—'}</p>
+                  </div>
+                )}
+                <div>
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Date</p>
+                  <p className="text-sm text-slate-700">{fmtDate(viewTarget.date)}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Punch Type</p>
+                  <p className="text-sm text-slate-700 capitalize">{viewTarget.punchType.replace('_', '-')}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Requested Time</p>
+                  <p className="text-sm text-slate-700">{fmtTime(viewTarget.requestedTime)}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">AI Suggestion</p>
+                  <p className="text-sm text-slate-700">
+                    {viewTarget.aiSuggestedTime ? (
+                      <span className="text-emerald-700">
+                        {fmtTime(viewTarget.aiSuggestedTime)}
+                        {viewTarget.aiConfidence != null && <span className="text-slate-400 ml-1">({Math.round(viewTarget.aiConfidence * 100)}%)</span>}
+                      </span>
+                    ) : '—'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Status</p>
+                  <span className={`thb-badge ${
+                    viewTarget.status === 'approved' ? 'thb-badge-success' :
+                    viewTarget.status === 'rejected' ? 'thb-badge-error' : 'thb-badge-warning'
+                  }`}>{viewTarget.status}</span>
+                </div>
+              </div>
+
+              {/* Flags */}
+              {(viewTarget.isWeekend || viewTarget.isHoliday) && (
+                <div className="flex items-center gap-2">
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Flags:</p>
+                  {viewTarget.isWeekend && <span className="text-[10px] px-2 py-0.5 bg-amber-100 text-amber-700 rounded">Weekend</span>}
+                  {viewTarget.isHoliday && <span className="text-[10px] px-2 py-0.5 bg-teal-100 text-teal-700 rounded">Holiday</span>}
+                </div>
+              )}
+
+              {/* Reason */}
+              <div>
+                <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Reason</p>
+                <p className="text-sm text-slate-700 bg-slate-50 rounded-lg px-3 py-2 border border-slate-100 min-h-[38px]">{viewTarget.reason || '—'}</p>
+              </div>
+
+              {/* Comments */}
+              {viewTarget.comments && (
+                <div>
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Approver Comments</p>
+                  <p className="text-sm text-slate-700 bg-amber-50 rounded-lg px-3 py-2 border border-amber-100">{viewTarget.comments}</p>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-end gap-3 px-5 py-4 border-t border-slate-100">
+              <button onClick={() => setViewTarget(null)} className="px-4 py-2 rounded-lg border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors">Close</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

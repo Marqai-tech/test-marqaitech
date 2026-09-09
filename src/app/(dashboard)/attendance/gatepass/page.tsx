@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { FiShield, FiPlus, FiRefreshCw, FiCheckCircle, FiXCircle, FiUserCheck, FiUserX } from 'react-icons/fi';
+import { FiShield, FiPlus, FiRefreshCw, FiCheckCircle, FiXCircle, FiUserCheck, FiUserX, FiEye, FiX } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
@@ -39,6 +39,7 @@ export default function GatepassPage() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [viewTarget, setViewTarget] = useState<Gatepass | null>(null);
 
   const [form, setForm] = useState({
     type: 'early_departure',
@@ -204,7 +205,7 @@ export default function GatepassPage() {
                 <th className="text-left px-4 py-3 font-semibold text-slate-700">Manager</th>
                 <th className="text-left px-4 py-3 font-semibold text-slate-700">Security</th>
                 <th className="text-left px-4 py-3 font-semibold text-slate-700">Status</th>
-                {isAdmin && <th className="text-right px-4 py-3 font-semibold text-slate-700">Actions</th>}
+                <th className="text-right px-4 py-3 font-semibold text-slate-700">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -245,26 +246,126 @@ export default function GatepassPage() {
                       r.status === 'rejected' ? 'thb-badge-error' : 'thb-badge-warning'
                     }`}>{r.status}</span>
                   </td>
-                  {isAdmin && (
-                    <td className="px-4 py-3 text-right">
-                      {r.managerStatus === 'pending' && (
-                        <button onClick={() => handleTierAction(r.id, 'manager', 'approved')} className="p-1 text-slate-500 hover:text-emerald-600 mr-1" title="Manager approve">
+                  <td className="px-4 py-3 text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <button onClick={() => setViewTarget(r)} className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors" title="View Gatepass">
+                        <FiEye className="w-4 h-4" />
+                      </button>
+                      {isAdmin && r.managerStatus === 'pending' && (
+                        <button onClick={() => handleTierAction(r.id, 'manager', 'approved')} className="p-1 text-slate-500 hover:text-emerald-600" title="Manager approve">
                           <FiUserCheck className="w-4 h-4" />
                         </button>
                       )}
-                      {r.securityStatus === 'pending' && r.managerStatus === 'approved' && (
+                      {isAdmin && r.securityStatus === 'pending' && r.managerStatus === 'approved' && (
                         <button onClick={() => handleTierAction(r.id, 'security', 'approved')} className="p-1 text-slate-500 hover:text-emerald-600" title="Security approve">
                           <FiShield className="w-4 h-4" />
                         </button>
                       )}
-                    </td>
-                  )}
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       </div>
+
+      {/* ─── View Gatepass Modal ─── */}
+      {viewTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50" onClick={() => setViewTarget(null)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div className="flex items-start justify-between p-5 border-b border-slate-100">
+              <div>
+                <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                  <FiShield className="w-5 h-5 text-rose-500" /> Gatepass Application
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">Request ID: {viewTarget.id}</p>
+              </div>
+              <button onClick={() => setViewTarget(null)} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors" title="Close">
+                <FiX className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-5">
+              {/* Summary grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                <div>
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Type</p>
+                  <p className="text-sm text-slate-700 capitalize">{viewTarget.type.replace('_', ' ')}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Employee / Visitor</p>
+                  <p className="text-sm font-medium text-slate-800">
+                    {viewTarget.visitorName || (viewTarget.employee ? `${viewTarget.employee.firstName} ${viewTarget.employee.lastName}` : '—')}
+                  </p>
+                  {(viewTarget as Gatepass).employee && <p className="text-xs text-slate-400">{viewTarget.employee?.employeeId || '—'}</p>}
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Requested At</p>
+                  <p className="text-sm text-slate-700">{fmtDateTime(viewTarget.requestedAt)}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Actual Out Time</p>
+                  <p className="text-sm text-slate-700">{fmtDateTime(viewTarget.actualOutTime)}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Actual In Time</p>
+                  <p className="text-sm text-slate-700">{fmtDateTime(viewTarget.actualInTime)}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Overall Status</p>
+                  <span className={`thb-badge ${
+                    viewTarget.status === 'approved' || viewTarget.status === 'completed' ? 'thb-badge-success' :
+                    viewTarget.status === 'rejected' ? 'thb-badge-error' : 'thb-badge-warning'
+                  }`}>{viewTarget.status}</span>
+                </div>
+              </div>
+
+              {/* Two-tier approval status */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-3 rounded-lg border border-slate-200 bg-slate-50">
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Manager Approval</p>
+                  <span className={`thb-badge ${
+                    viewTarget.managerStatus === 'approved' ? 'thb-badge-success' :
+                    viewTarget.managerStatus === 'rejected' ? 'thb-badge-error' : 'thb-badge-warning'
+                  }`}>{viewTarget.managerStatus}</span>
+                </div>
+                <div className="p-3 rounded-lg border border-slate-200 bg-slate-50">
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Security Verification</p>
+                  <span className={`thb-badge ${
+                    viewTarget.securityStatus === 'approved' ? 'thb-badge-success' :
+                    viewTarget.securityStatus === 'rejected' ? 'thb-badge-error' : 'thb-badge-warning'
+                  }`}>{viewTarget.securityStatus}</span>
+                </div>
+              </div>
+
+              {/* Visitor details */}
+              {(viewTarget.visitorName || viewTarget.visitorCompany || viewTarget.visitorPhone) && (
+                <div className="p-3 rounded-lg border border-indigo-100 bg-indigo-50/50">
+                  <p className="text-[10px] font-semibold text-indigo-500 uppercase tracking-wider mb-2">Visitor / Contractor Details</p>
+                  <div className="grid grid-cols-3 gap-3 text-sm">
+                    <div><span className="text-slate-500">Name:</span> <span className="text-slate-800">{viewTarget.visitorName || '—'}</span></div>
+                    <div><span className="text-slate-500">Company:</span> <span className="text-slate-800">{viewTarget.visitorCompany || '—'}</span></div>
+                    <div><span className="text-slate-500">Phone:</span> <span className="text-slate-800">{viewTarget.visitorPhone || '—'}</span></div>
+                  </div>
+                </div>
+              )}
+
+              {/* Reason */}
+              <div>
+                <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Reason</p>
+                <p className="text-sm text-slate-700 bg-slate-50 rounded-lg px-3 py-2 border border-slate-100 min-h-[38px]">{viewTarget.reason || '—'}</p>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-end gap-3 px-5 py-4 border-t border-slate-100">
+              <button onClick={() => setViewTarget(null)} className="px-4 py-2 rounded-lg border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors">Close</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
