@@ -1500,3 +1500,125 @@ Stage Summary:
   scripts/cleanup-rbac-3roles.ts and src/lib/currency.ts; GET
   /api/employees returns data without Authorization header (auth
   hardening pending user confirmation, flagged since Task 13).
+
+---
+Task ID: 18
+Agent: Main Agent
+Task: Unify policy rules + approval workflow into ONE configuration system per module (attendance + leave); remove the dual-path / cross-wired setup
+
+Work Log:
+1. Audited both modules — confirmed BOTH leave and attendance had the
+   same structural problem:
+   - Leave: 'Policy Rules' tab → LeavePolicyRule table (sandwich /
+     pro-rata / probation / encashment / carry-forward) was DISCONNECTED
+     from 'Approval Workflow' tab → LeaveWorkflowConfig table (multi-tier
+     chain). Leave submit API only used the workflow config; policy rule
+     fields were silently ignored at submit time.
+   - Attendance: 'Policy Rules' tab → AttendancePolicyRule table (shift /
+     grace / late-mark / OT / gate-pass cap) was DISCONNECTED from
+     'Approval Workflows' tab → AttendanceWorkflowConfig table. Legacy
+     submit APIs (regularize/wfh/permission/gatepass POST) used NEITHER
+     — they had hardcoded single/dual-tier approval that bypassed every
+     configured rule.
+2. ATTENDANCE unification (lib/attendance-workflow.ts):
+   - Extended RequestRules interface with 16 legacy policy fields:
+     shiftStartDefault, shiftEndDefault, breakDurationMinutes,
+     lateGraceMinutes, earlyGraceMinutes, lateMarkAllowancePerMonth,
+     lateMarkHalfDayOnExceed, halfDayAfterMinutes,
+     lateMarkNotApplicableOnTour, autoOvertimeEnabled,
+     overtimeThresholdMinutes, gatePassMaxPerMonth,
+     gatePassHalfDayOnExceed, gatePassHalfDayNextDay, gatePassEarlyHours.
+   - DEFAULT_RULES now populates sensible defaults for all new fields
+     (mirror legacy AttendancePolicyRule defaults).
+   - loadWorkflowConfig() gains a legacy fallback: if no
+     AttendanceWorkflowConfig row exists yet, it reads the most recent
+     AttendancePolicyRule row and inherits shift/grace/late-mark/OT/
+     gate-pass fields — so existing admin config is preserved until an
+     admin saves a unified workflow config. Gate-pass monthlyCap auto-
+     inherits from gatePassMaxPerMonth.
+3. ATTENDANCE UI (settings/WorkflowBuilderTab.tsx):
+   - Extended the RequestRules interface mirror with all unified fields.
+   - Added 4 new policy sections inside the Rule Constraints card:
+     Shift & Grace Period, Late-Mark Policy, Overtime Policy, Gate-Pass
+     Policy. All fields editable + saved alongside existing rule
+     constraints in the same PUT call.
+4. ATTENDANCE workflow-config PUT API: extended cleanRules sanitizer to
+   persist all 16 new rule fields with input bounds (0-180 min break,
+   0-120 min grace, 0-1440 min OT threshold, 0-31 monthly cap, etc.).
+5. ATTENDANCE settings tabs (settings/page.tsx): removed 'Policy Rules
+   & Configuration' tab entirely. Tab list is now ['Policy Documents',
+   'Policy Rules & Approval Workflows']. PolicyRulesTab component kept
+   as dead code (next.config ignoreBuildErrors covers unused-var
+   warnings) so the legacy /api/attendance-policy-rules API still
+   works for any external integrations.
+6. ATTENDANCE legacy submit APIs — wired to unified rule engine:
+   - /api/attendance/regularize POST: calls loadWorkflowConfig +
+     buildRequestContext + checkRules. Rejects submissions outside the
+     regularization window or over the monthly cap with HTTP 422.
+   - /api/attendance/permission POST: same enforcement for hourly-
+     permission monthly cap, geofencing/IP, auto-deduction threshold.
+   - /api/attendance/gatepass POST: enforces gate-pass monthly cap +
+     geofencing/IP whitelist. Skipped for visitor/contractor passes.
+   - /api/attendance/wfh (NEW — was missing entirely, legacy page was
+     silently failing): created route.ts + [id]/route.ts. Submits WFH
+     requests to the WfhRequest table with unified rule enforcement
+     (weekly cap, geofencing). Manager/HR approval flow preserved for
+     backward compatibility with the legacy /attendance/wfh page.
+7. LEAVE unification (lib/leave-workflow.ts):
+   - Extended WorkflowConfig interface with: sandwichRuleEnabled,
+     proRataEnabled, probationRestriction, probationMonths,
+     encashmentAllowed, carryForwardGlobal, maxCarryForwardDays.
+   - DEFAULT_WORKFLOW_CONFIG now populates sensible defaults.
+   - loadWorkflowConfig() merges defaults into saved configs (so old
+     configs without the new fields still render correctly) + gains a
+     legacy fallback that inherits policy-rule fields from
+     LeavePolicyRule if no LeaveWorkflowConfig row exists yet.
+   - Leave-type quotas (CL/SL/EL days) stay in the LeaveType table —
+     not duplicated here.
+8. LEAVE UI (leave-policy/page.tsx):
+   - Extended WorkflowConfig interface mirror with unified fields.
+   - Initial state + loadConfig() merge unified-policy defaults.
+   - Added a new 'Leave Policy Rules' card inside the workflow tab
+     with 5 sections: Carry-Forward, Sandwich Rule, Pro-Rata,
+     Encashment, Probation. All fields save together with the tiers
+     in a single POST /api/leave/workflow-config call.
+   - Removed the 'Policy Rules & Leave Type Configuration' tab. Tab
+     list is now ['Policy Documents', 'Policy Rules & Approval
+     Workflow']. The legacy rule JSX is left in place behind
+     `{false && activeTab === 'rules' && ...}` so the underlying
+     /api/leave-policy-rules API still works for external integrations.
+9. NO SCHEMA CHANGES — purely additive JSON-shape extension. The
+   AttendanceWorkflowConfig.rules JSON and LeaveWorkflowConfig.config
+   JSON simply gain new keys. Existing tenant DB rows continue to work;
+   missing keys fall back to defaults at load time. No tenant DB
+   migration needed. GOLDEN RULE preserved — zero data touched on LIVE.
+10. Type-checked with project tsconfig — 0 new errors. Pre-existing
+    parse errors in scripts/cleanup-rbac-3roles.ts and src/lib/currency.ts
+    remain (already documented in Task 16; next.config has
+    ignoreBuildErrors:true so builds pass).
+11. Deployed commit bb6cad10 → push origin main → Vercel auto-build.
+    Verified post-deploy: demo /attendance/settings?tab=workflows = 200,
+    live /leave/leave-policy?tab=workflow = 200, workflow-config API
+    endpoints on both sites return 401 (correct — auth required).
+
+Stage Summary:
+- ONE unified policy + workflow config per module. Attendance has a
+  single 'Policy Rules & Approval Workflows' tab in /attendance/settings
+  that exposes every rule (shift, grace, late-mark, OT, gate-pass cap,
+  regularization window, monthly/weekly caps, auto-deduction, geo/IP,
+  QR requirement) alongside the multi-level approval chain (actor types,
+  SLA, conditional branching). Leave has a single 'Policy Rules &
+  Approval Workflow' tab in /leave/leave-policy that exposes sandwich /
+  pro-rata / probation / encashment / carry-forward alongside the
+  multi-tier approval chain.
+- ALL submit paths now honor the unified rules: the new
+  /api/attendance/requests endpoint, the 4 legacy attendance submit
+  APIs (regularize/permission/gatepass/wfh), and /api/leave POST all
+  load the same config and enforce the same rule constraints.
+- Legacy tables (AttendancePolicyRule, LeavePolicyRule) are kept as
+  read-only fallbacks at runtime — existing admin configurations
+  continue to apply until an admin saves a unified workflow config.
+  No data migration required; no schema migration required.
+- User action: open /attendance/settings?tab=workflows or
+  /leave/leave-policy?tab=workflow on either site to see the unified
+  configuration UI. Existing rule values are inherited automatically.
