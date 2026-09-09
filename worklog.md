@@ -1622,3 +1622,136 @@ Stage Summary:
 - User action: open /attendance/settings?tab=workflows or
   /leave/leave-policy?tab=workflow on either site to see the unified
   configuration UI. Existing rule values are inherited automatically.
+
+---
+Task ID: 19
+Agent: Main Agent
+Task: Fix 4 bugs — (1) Login credentials Account Status not updating, (2) Leave balance not deducted on approval, (3) Duplicate/weekend/holiday leave validation missing, (4) Reason field accepting HTML/script
+
+Work Log:
+1. Bug 1 — Login Credentials Account Status:
+   - Root cause: /api/employees/invite POST (used by the 'Invite' button)
+     created/reset User accounts but NEVER updated credentialsStatus on
+     the Employee record. So employees invited via that path still showed
+     'No Account' in the Login Credentials settings tab even though they
+     had a valid User account.
+   - Secondary issue: the loginStatus derivation mapped 'invited' →
+     'invited' (not 'active') when the user hadn't logged in yet, so the
+     'Active' metric count never updated until first login.
+   - Fix (commit cefa8e7a):
+     a. /api/employees/invite POST: added UPDATE Employee SET
+        credentialsStatus='invited' after each invite (mirrors what
+        /credentials POST already does).
+     b. /api/employees/credentials GET: 'invited' now maps to 'active'
+        (not 'invited') when the User account status is 'active' —
+        because the account IS active, the employee just hasn't logged
+        in for the first time. This makes the 'Active' metric count
+        update immediately after credential creation.
+
+2. Bug 2 — Leave balance not deducted on approval:
+   - Root cause: THREE separate approval paths were missing the
+     leaveBalance deduction:
+     (a) POST /api/leave AI auto-approval: set status='approved' but
+         never deducted balance.
+     (b) POST /api/leave short-leave auto-approval: same — set
+         status='approved' but never deducted.
+     (c) PATCH /api/leaves/[id] legacy route: set status='approved' but
+         never deducted.
+     (d) lib/leave-workflow.ts advanceLeaveWorkflow: finalized without
+         deducting balance — relied on the PATCH route to compensate
+         (which it did, but only for the workflow path, not for auto-
+         approval paths).
+   - Fix:
+     - Added a shared deductLeaveBalance() helper in /api/leave/route.ts.
+     - Called it after BOTH auto-approval paths (AI + short-leave).
+     - Added balance deduction to /api/leaves PATCH on approval.
+     - Centralized the deduction inside advanceLeaveWorkflow() in
+       lib/leave-workflow.ts so every caller gets it for free.
+     - Removed the duplicate deduction from PATCH /api/leave/[id] to
+       prevent double-deduction (the workflow engine now handles it).
+   - Verified: the legacy single-step path in PATCH /api/leave/[id]
+     (which runs when no workflow config exists) already deducted
+     correctly and is left untouched.
+
+3. Bug 3 — Duplicate/weekend/holiday validation missing:
+   - Root cause: POST /api/leave had NO server-side validation for:
+     (a) Duplicate: same employee could submit multiple overlapping
+         leave requests for the same dates.
+     (b) Weekends: employees could apply for leave on Sundays
+         (non-working days) — wasted leave balance.
+     (c) Holidays: employees could apply for leave on configured
+         holidays — the frontend showed an informational banner but
+         did not block.
+   - Fix (server-side hard blocks in POST /api/leave):
+     - Duplicate check: reject with HTTP 409 if the employee already
+       has a pending or approved leave request overlapping the selected
+       dates. Error message includes the existing request's dates +
+       status.
+     - Weekend + holiday validation: walk the date range, count working
+       days (Mon-Sat, excluding Sundays + configured public/company/
+       national holidays from the Holiday table). Reject with HTTP 400
+       if the range contains ZERO working days (entire leave is on
+       weekends + holidays). Also reject single-day leave on a Sunday
+       or holiday with a specific error message naming the holiday.
+     - Non-fatal: if the holiday table doesn't exist or the query
+       fails, the validation is skipped (doesn't block submission).
+
+4. Bug 4 — Reason field accepting HTML/script input:
+   - Root cause: NO sanitization utility existed in the codebase. The
+     only sanitizer (sanitizeSearch in lib/validators.ts) explicitly
+     did NOT escape HTML. All free-text fields (reason, comments) were
+     persisted raw.
+   - Fix:
+     - Created lib/sanitize.ts with:
+       - sanitizePlainText(value, maxLength) — strips HTML tags,
+         escapes the 5 HTML special characters (& < > " '), removes
+         control chars, trims, enforces max length.
+       - sanitizeMultiLineText(value, maxLength) — same but with
+         larger default max length (5000).
+       - containsHtmlOrScript(value) — detection helper for logging.
+     - Applied sanitizeMultiLineText to ALL free-text inputs across:
+       - POST /api/leave (reason) — also added min-3-char validation.
+       - PATCH /api/leave/[id] (comments)
+       - POST /api/leaves (reason)
+       - PATCH /api/leaves/[id] (comment)
+       - POST /api/attendance/requests (reason) — also added min-3-char.
+       - PATCH /api/attendance/requests/[id] (comments)
+       - POST /api/attendance/regularize (reason)
+       - POST /api/attendance/permission (reason)
+       - POST /api/attendance/gatepass (reason)
+       - POST /api/attendance/wfh (reason)
+     - React JSX auto-escapes output so XSS was not currently
+       exploitable via the UI, but the raw stored value is now safe
+       for all consumers (mobile app, exports, notifications, audit
+       logs) as defense-in-depth.
+
+5. NO SCHEMA CHANGES — no tenant DB migration needed. GOLDEN RULE
+   preserved (zero data touched on LIVE tenant).
+6. Type-checked with project tsconfig — 0 new errors.
+7. Deployed commit cefa8e7a → push origin main → Vercel auto-build.
+   Verified post-deploy: demo /leave = 200, live /leave = 200,
+   demo /employees/settings = 200.
+
+Stage Summary:
+- Bug 1 FIXED: After creating login credentials (via 'Create Account' OR
+  'Invite' button), the Account Status now changes from 'No Account' to
+  'Active' immediately, and the 'Active' metric count updates on
+  refresh. No more 'invited' limbo state.
+- Bug 2 FIXED: Leave balance is now deducted on EVERY approval path —
+  AI auto-approval, short-leave auto-approval, multi-tier workflow
+  finalization, and legacy single-step approval. Both Employee Dashboard
+  apply and Apply Leave by HR (which both POST to /api/leave) now
+  correctly deduct balance.
+- Bug 3 FIXED: Server-side hard blocks now reject:
+  - Duplicate leave requests for the same dates (HTTP 409).
+  - Leave ranges that contain only weekends + holidays (HTTP 400).
+  - Single-day leave on a Sunday or holiday (HTTP 400 with specific
+    message).
+  Multi-day ranges that include at least one working day are allowed
+  (so a Mon-Fri leave that includes a Saturday is fine).
+- Bug 4 FIXED: All free-text inputs (reason, comments) across leave +
+  attendance APIs are now sanitized via sanitizeMultiLineText() before
+  persistence. HTML tags are stripped, special characters are escaped,
+  control characters removed, max length enforced. The stored value is
+  safe for all consumers (React, mobile, exports, notifications, audit
+  logs).
