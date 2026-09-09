@@ -1412,3 +1412,27 @@ Stage Summary:
 - Note: createNotification targets the PLATFORM DB; demo-only users
   (ids not in platform DB) will have notifications silently skipped
   (createNotification swallows the FK error) — business ops unaffected.
+
+---
+Task ID: 16
+Agent: Main Agent
+Task: Build attendance workflow configurations — dynamic multi-level approval engine (regularization / WFH / hourly permission / gate pass & OUT) with rule constraints; deploy to Vercel
+
+Work Log:
+1. Explored existing attendance module: base models existed (AttendanceRegularization, HourlyPermission, Gatepass, WfhRequest) but approvals were hardcoded single/dual-step; no submission windows, caps, auto-deductions, geo/IP or dynamic chains.
+2. Schema (additive-only): AttendanceWorkflowConfig (per type: levels JSON + rules JSON), AttendanceRequest (unified request w/ payload, configSnapshot, currentLevel, qrToken), AttendanceRequestApproval (per-level step w/ actor, status, slaAt, scanLog). Back-relations on Employee + Company. Client regenerated.
+3. Built lib/attendance-workflow.ts — RULE ENGINE separated from WORKFLOW ENGINE:
+   - Rules: regularization window (5d), monthly caps (block|review), weekly WFH cap (2d), hourly-permission auto-deduction (cumulative > 4h/mo → deduct 0.5 paid leave from balance), geo/IP whitelist, QR requirement. Counts computed as AFTER-submission so autoApproveIf compares naturally vs cap.
+   - Levels: actor TYPES only (reporting_manager, department_head, hr_admin, project_manager, vp_director, security); skipIf conditional branching (official gate pass skips HR; HOD only when weekly WFH days > 2; VP only when > 3 days); autoApproveIf (HR auto-approves regularization within monthly cap — over-cap goes to HR manual review); SLA per level (auto_approve 24h low-risk / auto_escalate 48h) with lazy sweep on list endpoints.
+   - System actions on final approval: attendance row updated for payroll (regularization), days marked "Present - WFH" (WFH), adjusted check-out + cumulative deduction (permission), QR issuance (gate pass).
+4. APIs: /api/attendance/workflow-config (GET resolved configs w/ defaults, PUT admin upsert, POST sla-sweep); /api/attendance/requests (GET mine|inbox|all, POST submit w/ rule validation → 422 with clear messages on violations); /api/attendance/requests/[id] (GET detail w/ timeline, PATCH approve|reject|cancel w/ current-level actor check + admin override); /api/attendance/requests/gate-scan (QR token out/in scans, double-scan guards, attendance reconciliation).
+5. UI: NEW /attendance/requests page — dynamic apply modal per type, My Requests / Approvals Inbox / All Requests tabs, approval-timeline detail modal, security turnstile scan console. NEW Approval Workflows tab in /attendance/settings (WorkflowBuilderTab) — rule constraint panels + level builder (actor type, SLA, skip/auto-approve conditions, reorder/add/remove). Quick links added on /attendance.
+6. Synced schema: tenant_3boxes-hrms-demo 15/15 OK (51 employees unchanged), tenant_marqaitechgroup 15/15 OK (10 employees unchanged, GOLDEN RULE), neondb 92 ok/27 pre-existing benign FK-name fails. gen-additive-sync.py hardened with retry + direct-URL fallback (transient Neon direct-endpoint connect failures).
+7. Local E2E (dev server + real demo tenant DB): window rejection (422), 1-day WFH skips HOD+VP, 5-day WFH full L1→L2→L3 chain finalized, official pass skips HR, personal pass goes through HR, QR issued on reaching security level, out/in scans → completed + attendance reconciled, permission finalize logs adjusted check-out + cumulative tracking, SLA sweep 0 processed, employee cancel, config PUT persists. Two engine bugs found+fixed: (a) advanceWorkflow moved to next numbered level even when already skipped/auto-approved → now picks next PENDING step; (b) QR issued only at finalize → now issued when chain reaches security level (ensureQrToken).
+8. Deployed 79aea45a to Vercel. Verified: demo workflow-config API + full gate-pass E2E on production; restored standard 2-level REGULARIZATION blueprint on demo (a 1-level test config had been saved); live tenant loads all 4 blueprints, /attendance/requests renders, 0 requests (no fake data on LIVE).
+
+Stage Summary:
+- Attendance workflow system live on BOTH sites: rule constraints + dynamic multi-level approvals + SLA escalation + gate QR verification, configurable in Attendance Settings → Approval Workflows.
+- Demo test artifacts (a few requests) intentionally kept — demo is for exploration; LIVE tenant has config-only additions, zero transactions.
+- Note: processSlaOverdue auto_escalate falls back to auto-approve when no higher level exists, preventing inbox stalls; approval steps store actorUserId resolved at level activation.
+- Known pre-existing: tsc has parse errors in unrelated legacy files (scripts/cleanup-rbac-3roles.ts, src/lib/currency.ts); next.config has ignoreBuildErrors so builds pass.
