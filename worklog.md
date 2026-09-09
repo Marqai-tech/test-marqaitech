@@ -1856,3 +1856,123 @@ Stage Summary:
   contract employees with a 2-day window).
 - Scope summary chips at the bottom of the card show the effective scope
   at a glance.
+
+---
+Task ID: 21
+Agent: Main Agent
+Task: Leave type rules mapping + employee document management + employee info update workflow
+
+Work Log:
+1. LEAVE TYPES — rules mapped to leave types, employee types, employee status:
+   - Schema: added employmentType, employeeStatus, probationRestricted,
+     sandwichRuleEnabled columns to LeaveType model (4 new fields).
+   - /api/leave-types POST: accepts + persists the 4 new scope fields.
+   - NEW /api/leave-types/[id] PATCH + DELETE route (was missing — edit
+     and delete buttons were non-functional on the UI).
+   - Rewrote /leave/types page:
+     * Add dialog now calls the real API POST (was optimistic local-only).
+     * Edit button works (opens dialog pre-filled with existing values).
+     * Delete button calls DELETE (soft-delete via status='inactive').
+     * Added 'Employee Scope & Rules' section to the dialog with 4
+       selectors: Employment Type, Employee Status, Probation Restricted
+       toggle, Sandwich Rule toggle.
+     * Table shows scope chips per leave type (employment type, status,
+       probation, sandwich).
+   - Synced: 19/19 statements applied to both tenant DBs (10 + 52
+     employees unchanged). GOLDEN RULE preserved.
+
+2. EMPLOYEE DOCUMENT MANAGEMENT — full document management system:
+   - Schema: enhanced Document model with 10 new columns:
+     category (identification | onboarding | qualifications | financial |
+     lifecycle | other), fileNodeId (link to centralized FileNode/file
+     manager), uploadedById, isRequested, requestedById, requestedAt,
+     requiredFormat, maxFileSizeMb, expiryAlertSent, expiryAlertDays.
+   - NEW /api/employees/[id]/documents API (GET list, POST upload/request,
+     DELETE) — was missing entirely (only generic /api/documents existed).
+   - POST supports two modes:
+     (a) Upload: employee/admin uploads a document with fileUrl, category,
+         type, expiry date, description.
+     (b) Request (action='request'): HR triggers a document request to
+         the employee with requiredFormat + maxFileSizeMb + instructions.
+   - Rewrote the Documents tab on the employee detail page:
+     * Category-filtered grid view (6 categories with icons + counts):
+       Identification & Legal (passports, licenses, Aadhaar, PAN, visa),
+       Onboarding & Employment (offer letters, contracts, NDAs),
+       Qualifications (educational certificates, professional licenses),
+       Financial & Statutory (tax forms, banking info),
+       Lifecycle & Performance (appraisals, promotions, exit docs),
+       Other.
+     * Expiry alert banner for documents expiring within 30 days.
+     * Upload modal (name, category, type, file URL, expiry, description).
+     * Request Document modal (HR can request docs with format + size
+       requirements + instructions).
+     * Document cards show category icon, status badges (Requested /
+       Expired / Expiring), upload/expiry dates, download link, delete.
+   - All text inputs sanitized via sanitizeMultiLineText (no HTML/script).
+
+3. EMPLOYEE INFO UPDATE WORKFLOW — field-level sensitivity + multi-stage
+   approval + audit trail:
+   - NEW EmployeeUpdateRequest model: employeeId, fieldName, fieldLabel,
+     category, oldValue, newValue, reason, status (pending/approved/
+     rejected/cancelled/applied), currentTier, configSnapshot, documentId,
+     requestedById, approverUserId, approvedAt, appliedAt.
+   - NEW EmployeeUpdateApprovalStep model: tier, approverType,
+     approverUserId, status, comments, actedAt, slaAt.
+   - NEW EmployeeWorkflowConfig model: tenantId, companyId, config JSON
+     (fieldSensitivity map + approverTiers), scope fields.
+   - NEW /api/employees/update-requests API:
+     - GET ?scope=mine|inbox|all — list requests by perspective.
+     - POST — submit a profile-change request. Field sensitivity is
+       classified as:
+         'low' (phone, address, emergency contact, personal email) →
+           direct update, no approval needed (audit log still created).
+         'high' (bank details, legal name, PAN, Aadhaar, department,
+           designation, branch, reporting manager, employee type) →
+           creates pending request with 2-tier approval chain
+           (reporting_manager → hr_admin).
+         'restricted' (salary, employeeId, userId, email, dateOfJoining,
+           status, companyId) → rejected with 403.
+   - NEW /api/employees/update-requests/[id] PATCH:
+     - approve: advances to next tier, or finalizes (applies the change
+       to the Employee record + sets status='applied') if last tier.
+     - reject: rejects the whole request.
+     - cancel: owner or admin can cancel while pending.
+   - Audit trail: every request stores oldValue + newValue + requestedById
+     + requestedAt + approverUserId + approvedAt + approverComments +
+     appliedAt. Approval steps store tier + approverType + approverUserId
+     + status + comments + actedAt.
+   - Document proof: requests can optionally link a Document (e.g.
+     marriage certificate for name change) via documentId.
+
+4. SCHEMA SYNC (additive-only, zero data touched):
+   - tenant_marqaitechgroup: 19/19 OK (10 employees unchanged).
+   - tenant_3boxes-hrms-demo: 19/19 OK (52 employees unchanged).
+   - Prisma client regenerated.
+   GOLDEN RULE preserved.
+
+5. Type-checked with project tsconfig — 0 new errors.
+
+6. Deployed commit 8a2f919f → push origin main → Vercel auto-build.
+   Verified post-deploy: demo /leave/types = 200, live /leave/types =
+   200, demo /employees = 200.
+
+Stage Summary:
+- LEAVE TYPES: Admins can now configure each leave type with employment
+  type + employee status scope, probation restriction, and sandwich rule.
+  The Add/Edit/Delete buttons are fully functional (were cosmetic before).
+  At leave-application time, the leave types available to an employee can
+  be filtered by their employment type + status.
+- EMPLOYEE DOCUMENTS: Full document management with 6 categories
+  (Identification, Onboarding, Qualifications, Financial, Lifecycle,
+  Other), upload, HR document requests with format/size requirements,
+  expiry tracking with 30-day alert banner, and FileNode integration
+  (fileNodeId FK to the centralized file manager). The Documents tab on
+  the employee detail page is now a category-filtered card grid with
+  upload + request modals.
+- EMPLOYEE INFO UPDATE WORKFLOW: Field-level sensitivity control
+  classifies 30+ employee fields as low-risk (direct update), high-risk
+  (approval required), or restricted (never editable). High-risk changes
+  route through a 2-tier approval chain (reporting manager → HR admin).
+  Full audit trail with old/new values, timestamps, approver comments.
+  On final approval, the change is automatically applied to the Employee
+  record.
