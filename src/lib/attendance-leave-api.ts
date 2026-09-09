@@ -63,6 +63,8 @@ export async function findEmployeeByEmail(email: string | undefined | null, db?:
       departmentId: true,
       companyId: true,
       designationId: true,
+      employeeType: true,   // full_time | part_time | contract | temporary | consultant
+      status: true,         // active | on_leave | inactive
     },
   });
 }

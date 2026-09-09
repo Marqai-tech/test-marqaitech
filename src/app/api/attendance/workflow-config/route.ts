@@ -43,9 +43,25 @@ export async function GET(request: Request) {
         let rules = defaults.rules;
         try { const parsed = JSON.parse((row as any).levels || '[]'); if (Array.isArray(parsed) && parsed.length) levels = parsed; } catch { /* defaults */ }
         try { rules = { ...defaults.rules, ...JSON.parse((row as any).rules || '{}') }; } catch { /* defaults */ }
-        configs[type] = { levels, rules, configId: (row as any).id, name: (row as any).name, scope, updatedAt: (row as any).updatedAt };
+        configs[type] = {
+          levels, rules,
+          configId: (row as any).id,
+          name: (row as any).name,
+          scope,
+          updatedAt: (row as any).updatedAt,
+          // Scope fields (new — unification pass)
+          policyDocumentId: (row as any).policyDocumentId || null,
+          employmentType: (row as any).employmentType || 'all',
+          branchId: (row as any).branchId || null,
+          departmentId: (row as any).departmentId || null,
+          employeeStatus: (row as any).employeeStatus || 'all',
+        };
       } else {
-        configs[type] = { levels: defaults.levels, rules: defaults.rules, configId: null, name: 'Standard Blueprint', scope: 'default', updatedAt: null };
+        configs[type] = {
+          levels: defaults.levels, rules: defaults.rules,
+          configId: null, name: 'Standard Blueprint', scope: 'default', updatedAt: null,
+          policyDocumentId: null, employmentType: 'all', branchId: null, departmentId: null, employeeStatus: 'all',
+        };
       }
     }
     return ok({ configs, requestTypes: REQUEST_TYPES });
@@ -121,10 +137,28 @@ export async function PUT(request: Request) {
       isActive: true,
       levels: JSON.stringify(cleanLevels),
       rules: JSON.stringify(cleanRules),
+      // Policy document linkage + employee scope (new — unification pass)
+      policyDocumentId: (body.policyDocumentId as string) || null,
+      employmentType: ['all', 'full-time', 'part-time', 'contract', 'internship'].includes(String(body.employmentType))
+        ? String(body.employmentType) : 'all',
+      branchId: (body.branchId as string) || null,
+      departmentId: (body.departmentId as string) || null,
+      employeeStatus: ['all', 'active', 'on_leave', 'inactive'].includes(String(body.employeeStatus))
+        ? String(body.employeeStatus) : 'all',
     };
 
+    // Find existing config by requestType + companyId + scope (so different
+    // scopes can coexist — e.g. one config for full-time, another for contract).
     const existing = await (db as any).attendanceWorkflowConfig?.findFirst({
-      where: { requestType, isActive: true, companyId: companyId || null },
+      where: {
+        requestType,
+        isActive: true,
+        companyId: companyId || null,
+        employmentType: data.employmentType,
+        branchId: data.branchId,
+        departmentId: data.departmentId,
+        employeeStatus: data.employeeStatus,
+      },
     });
     let saved: unknown;
     if (existing) {

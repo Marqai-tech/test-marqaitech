@@ -106,6 +106,12 @@ export async function GET(request: Request) {
         description: configRow.description,
         leaveTypeId: configRow.leavetypeid || configRow.leaveTypeId,
         source: configRow.leavetypeid || configRow.leaveTypeId ? 'leave_type' : 'tenant',
+        // Scope fields (new — unification pass)
+        policyDocumentId: configRow.policydocumentid || configRow.policyDocumentId || null,
+        employmentType: configRow.employmenttype || configRow.employmentType || 'all',
+        branchId: configRow.branchid || configRow.branchId || null,
+        departmentId: configRow.departmentid || configRow.departmentId || null,
+        employeeStatus: configRow.employeestatus || configRow.employeeStatus || 'all',
       }, { headers: corsHeaders() });
     }
 
@@ -117,6 +123,12 @@ export async function GET(request: Request) {
       description: null,
       leaveTypeId: leaveTypeId || null,
       source: 'default',
+      // Scope defaults
+      policyDocumentId: null,
+      employmentType: 'all',
+      branchId: null,
+      departmentId: null,
+      employeeStatus: 'all',
     }, { headers: corsHeaders() });
   } catch (error) {
     console.error('[WorkflowConfig GET] Error:', error);
@@ -171,6 +183,14 @@ export async function POST(request: Request) {
 
     const body = await request.json();
     const { leaveTypeId, name, description, config } = body;
+    // Scope fields (new — unification pass)
+    const policyDocumentId = (body.policyDocumentId as string) || null;
+    const employmentType = ['all', 'full-time', 'part-time', 'contract', 'internship'].includes(String(body.employmentType))
+      ? String(body.employmentType) : 'all';
+    const branchId = (body.branchId as string) || null;
+    const departmentId = (body.departmentId as string) || null;
+    const employeeStatus = ['all', 'active', 'on_leave', 'inactive'].includes(String(body.employeeStatus))
+      ? String(body.employeeStatus) : 'all';
 
     if (!config || !config.tiers || !Array.isArray(config.tiers) || config.tiers.length === 0) {
       return NextResponse.json(
@@ -261,11 +281,19 @@ export async function POST(request: Request) {
       // Update existing
       await db.$executeRawUnsafe(
         `UPDATE "LeaveWorkflowConfig"
-           SET "config" = $1, "name" = $2, "description" = $3, "updatedAt" = NOW()
-         WHERE "id" = $4`,
+           SET "config" = $1, "name" = $2, "description" = $3,
+               "policyDocumentId" = $4, "employmentType" = $5, "branchId" = $6,
+               "departmentId" = $7, "employeeStatus" = $8,
+               "updatedAt" = NOW()
+         WHERE "id" = $9`,
         configJson,
         finalName,
         description || null,
+        policyDocumentId,
+        employmentType,
+        branchId,
+        departmentId,
+        employeeStatus,
         existingId,
       );
       return NextResponse.json({
@@ -276,18 +304,31 @@ export async function POST(request: Request) {
         name: finalName,
         description: description || null,
         leaveTypeId: finalLeaveTypeId,
+        policyDocumentId,
+        employmentType,
+        branchId,
+        departmentId,
+        employeeStatus,
       }, { headers: corsHeaders() });
     } else {
       // Create new
       await db.$executeRawUnsafe(
-        `INSERT INTO "LeaveWorkflowConfig" ("id", "tenantId", "leaveTypeId", "isActive", "config", "name", "description", "createdAt", "updatedAt")
-         VALUES ($1, $2, $3, true, $4, $5, $6, NOW(), NOW())`,
+        `INSERT INTO "LeaveWorkflowConfig"
+           ("id", "tenantId", "leaveTypeId", "isActive", "config", "name", "description",
+            "policyDocumentId", "employmentType", "branchId", "departmentId", "employeeStatus",
+            "createdAt", "updatedAt")
+         VALUES ($1, $2, $3, true, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())`,
         configId,
         tenantId,
         finalLeaveTypeId,
         configJson,
         finalName,
         description || null,
+        policyDocumentId,
+        employmentType,
+        branchId,
+        departmentId,
+        employeeStatus,
       );
       return NextResponse.json({
         success: true,
@@ -297,6 +338,11 @@ export async function POST(request: Request) {
         name: finalName,
         description: description || null,
         leaveTypeId: finalLeaveTypeId,
+        policyDocumentId,
+        employmentType,
+        branchId,
+        departmentId,
+        employeeStatus,
       }, { status: 201, headers: corsHeaders() });
     }
   } catch (error) {

@@ -122,7 +122,22 @@ DROP INDEX "Holiday_date_idx";
 DROP INDEX "Holiday_type_idx";
 
 -- AlterTable
+ALTER TABLE "AttendanceWorkflowConfig" ADD COLUMN     "branchId" TEXT,
+ADD COLUMN     "departmentId" TEXT,
+ADD COLUMN     "employeeStatus" TEXT NOT NULL DEFAULT 'all',
+ADD COLUMN     "employmentType" TEXT NOT NULL DEFAULT 'all',
+ADD COLUMN     "policyDocumentId" TEXT;
+
+-- AlterTable
 ALTER TABLE "LeaveType" ADD COLUMN     "companyId" TEXT NOT NULL;
+
+-- AlterTable
+ALTER TABLE "LeaveWorkflowConfig" ADD COLUMN     "branchId" TEXT,
+ADD COLUMN     "companyId" TEXT,
+ADD COLUMN     "departmentId" TEXT,
+ADD COLUMN     "employeeStatus" TEXT NOT NULL DEFAULT 'all',
+ADD COLUMN     "employmentType" TEXT NOT NULL DEFAULT 'all',
+ADD COLUMN     "policyDocumentId" TEXT;
 
 -- AlterTable
 ALTER TABLE "Policy" ADD COLUMN     "companyId" TEXT NOT NULL;
@@ -130,90 +145,26 @@ ALTER TABLE "Policy" ADD COLUMN     "companyId" TEXT NOT NULL;
 -- AlterTable
 ALTER TABLE "Shift" ADD COLUMN     "companyId" TEXT NOT NULL;
 
--- CreateTable
-CREATE TABLE "AttendanceWorkflowConfig" (
-    "id" TEXT NOT NULL,
-    "companyId" TEXT,
-    "requestType" TEXT NOT NULL,
-    "name" TEXT NOT NULL DEFAULT 'Default Attendance Workflow',
-    "isActive" BOOLEAN NOT NULL DEFAULT true,
-    "levels" TEXT NOT NULL DEFAULT '[]',
-    "rules" TEXT NOT NULL DEFAULT '{}',
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "AttendanceWorkflowConfig_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "AttendanceRequest" (
-    "id" TEXT NOT NULL,
-    "companyId" TEXT,
-    "employeeId" TEXT NOT NULL,
-    "requestType" TEXT NOT NULL,
-    "subtype" TEXT,
-    "startDate" TIMESTAMP(3) NOT NULL,
-    "endDate" TIMESTAMP(3),
-    "payload" JSONB,
-    "reason" TEXT NOT NULL,
-    "attachmentUrl" TEXT,
-    "status" TEXT NOT NULL DEFAULT 'pending',
-    "currentLevel" INTEGER NOT NULL DEFAULT 1,
-    "configSnapshot" TEXT,
-    "monthlyKey" TEXT,
-    "systemActions" TEXT,
-    "qrToken" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "AttendanceRequest_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "AttendanceRequestApproval" (
-    "id" TEXT NOT NULL,
-    "requestId" TEXT NOT NULL,
-    "level" INTEGER NOT NULL,
-    "actorType" TEXT NOT NULL,
-    "actorUserId" TEXT,
-    "actorName" TEXT,
-    "status" TEXT NOT NULL DEFAULT 'pending',
-    "comments" TEXT,
-    "slaAt" TIMESTAMP(3),
-    "actedAt" TIMESTAMP(3),
-    "verifiedBy" TEXT,
-    "scanLog" JSONB,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "AttendanceRequestApproval_pkey" PRIMARY KEY ("id")
-);
+-- CreateIndex
+CREATE INDEX "AttendanceWorkflowConfig_employmentType_idx" ON "AttendanceWorkflowConfig"("employmentType");
 
 -- CreateIndex
-CREATE INDEX "AttendanceWorkflowConfig_companyId_requestType_idx" ON "AttendanceWorkflowConfig"("companyId", "requestType");
+CREATE INDEX "AttendanceWorkflowConfig_branchId_idx" ON "AttendanceWorkflowConfig"("branchId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "AttendanceRequest_qrToken_key" ON "AttendanceRequest"("qrToken");
-
--- CreateIndex
-CREATE INDEX "AttendanceRequest_companyId_requestType_status_idx" ON "AttendanceRequest"("companyId", "requestType", "status");
-
--- CreateIndex
-CREATE INDEX "AttendanceRequest_employeeId_idx" ON "AttendanceRequest"("employeeId");
-
--- CreateIndex
-CREATE INDEX "AttendanceRequest_status_currentLevel_idx" ON "AttendanceRequest"("status", "currentLevel");
-
--- CreateIndex
-CREATE INDEX "AttendanceRequestApproval_requestId_idx" ON "AttendanceRequestApproval"("requestId");
-
--- CreateIndex
-CREATE INDEX "AttendanceRequestApproval_actorUserId_status_idx" ON "AttendanceRequestApproval"("actorUserId", "status");
-
--- CreateIndex
-CREATE UNIQUE INDEX "AttendanceRequestApproval_requestId_level_key" ON "AttendanceRequestApproval"("requestId", "level");
+CREATE INDEX "AttendanceWorkflowConfig_departmentId_idx" ON "AttendanceWorkflowConfig"("departmentId");
 
 -- CreateIndex
 CREATE INDEX "LeaveType_companyId_idx" ON "LeaveType"("companyId");
+
+-- CreateIndex
+CREATE INDEX "LeaveWorkflowConfig_employmentType_idx" ON "LeaveWorkflowConfig"("employmentType");
+
+-- CreateIndex
+CREATE INDEX "LeaveWorkflowConfig_branchId_idx" ON "LeaveWorkflowConfig"("branchId");
+
+-- CreateIndex
+CREATE INDEX "LeaveWorkflowConfig_departmentId_idx" ON "LeaveWorkflowConfig"("departmentId");
 
 -- CreateIndex
 CREATE INDEX "Policy_companyId_idx" ON "Policy"("companyId");
@@ -391,18 +342,6 @@ ALTER TABLE "TodoTask" ADD CONSTRAINT "TodoTask_createdById_fkey" FOREIGN KEY ("
 
 -- AddForeignKey
 ALTER TABLE "Note" ADD CONSTRAINT "Note_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "AttendanceWorkflowConfig" ADD CONSTRAINT "AttendanceWorkflowConfig_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "AttendanceRequest" ADD CONSTRAINT "AttendanceRequest_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "AttendanceRequest" ADD CONSTRAINT "AttendanceRequest_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "AttendanceRequestApproval" ADD CONSTRAINT "AttendanceRequestApproval_requestId_fkey" FOREIGN KEY ("requestId") REFERENCES "AttendanceRequest"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- RenameIndex
 ALTER INDEX "AIKnowledgeQuery_user_idx" RENAME TO "AIKnowledgeQuery_userId_idx";

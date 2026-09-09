@@ -26,6 +26,29 @@ export { OPTIONS };
 
 const VALID = new Set<string>(REQUEST_TYPES);
 
+/**
+ * Normalize the Employee.employeeType value (underscore format:
+ * 'full_time', 'part_time', etc.) to the workflow-config employmentType
+ * format (hyphen: 'full-time', 'part-time', etc.).
+ * Unknown values map to 'all' so the catch-all config is used.
+ */
+function normalizeEmploymentType(raw: string | undefined | null): string {
+  if (!raw) return 'all';
+  const map: Record<string, string> = {
+    'full_time': 'full-time',
+    'part_time': 'part-time',
+    'contract': 'contract',
+    'temporary': 'contract',
+    'consultant': 'contract',
+    'internship': 'internship',
+    'intern': 'internship',
+    // Already-hyphenated values pass through
+    'full-time': 'full-time',
+    'part-time': 'part-time',
+  };
+  return map[raw.toLowerCase()] || 'all';
+}
+
 export async function GET(request: Request) {
   const db = await getDb(request);
   const { user, response } = await requireUser(request);
@@ -163,7 +186,14 @@ export async function POST(request: Request) {
     }
 
     // ─── RULE ENGINE ───
-    const { config, configId } = await loadWorkflowConfig(db, emp.companyId || null, requestType);
+    // Pass the employee's scope (employmentType / branch / department / status)
+    // so loadWorkflowConfig resolves the most specific config row.
+    const { config, configId } = await loadWorkflowConfig(db, emp.companyId || null, requestType, {
+      employmentType: normalizeEmploymentType((emp as any).employeeType),
+      branchId: (emp as any).branchId || null,
+      departmentId: (emp as any).departmentId || null,
+      employeeStatus: (emp as any).status || 'active',
+    });
     const ctx = await buildRequestContext(db, {
       employeeId: emp.id,
       requestType,

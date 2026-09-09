@@ -966,11 +966,28 @@ model LeaveWorkflowConfig {
   name            String @default("Default Leave Approval Workflow")
   description     String?
 
+  // ─── Policy document linkage + employee scope ───
+  // Optional link to a Policy document (category='leave') that this
+  // workflow config implements. Admins pick from the dropdown — same UX
+  // as the employee module's policy mapping.
+  policyDocumentId String?
+  // Scope: which employees does this config apply to?
+  // 'all' (default) = every employee in the tenant; otherwise restrict
+  // by employment type, branch, department, or employee status.
+  companyId       String?  // null = tenant-wide; non-null = single company
+  employmentType String @default("all") // all | full-time | part-time | contract | internship
+  branchId       String?
+  departmentId   String?
+  employeeStatus String @default("all") // all | active | on_leave | inactive
+
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   @@index([tenantId])
   @@index([leaveTypeId])
+  @@index([employmentType])
+  @@index([branchId])
+  @@index([departmentId])
 }
 
 // ─── Leave Approval Step (one row per tier per leave request) ───
@@ -7545,10 +7562,26 @@ model AttendanceWorkflowConfig {
   levels      String   @default("[]")
   rules       String   @default("{}")
 
+  // ─── Policy document linkage + employee scope ───
+  // Optional link to a Policy document (category='attendance') that this
+  // workflow config implements. Admins pick from the dropdown — same UX
+  // as the employee module's policy mapping.
+  policyDocumentId String?
+  // Scope: which employees does this config apply to?
+  // 'all' (default) = every employee in the company; otherwise restrict
+  // by employment type, branch, department, or employee status.
+  employmentType String @default("all") // all | full-time | part-time | contract | internship
+  branchId       String?
+  departmentId   String?
+  employeeStatus String @default("all") // all | active | on_leave | inactive
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   @@index([companyId, requestType])
+  @@index([employmentType])
+  @@index([branchId])
+  @@index([departmentId])
 }
 
 // ── Unified attendance request (one row per submitted request) ──

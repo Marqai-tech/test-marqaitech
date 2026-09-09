@@ -216,13 +216,83 @@ export const DEFAULT_WORKFLOW_CONFIGS: Record<AttendanceRequestType, WorkflowCon
 
 // ─── Config loading ─────────────────────────────────────────────────────
 
-/** Load active config for a company + request type; falls back to blueprint defaults. */
+/**
+ * Load active config for a company + request type; falls back to blueprint defaults.
+ *
+ * Scope resolution (new — unification pass):
+ *   When `employeeScope` is provided, the function tries to find the most
+ *   specific config row that matches the employee's employment type /
+ *   branch / department / status. Resolution order:
+ *     1. Exact match on all 4 scope dimensions
+ *     2. Match on employmentType + branchId + departmentId (status='all')
+ *     3. Match on employmentType + branchId (department='all')
+ *     4. Match on employmentType only
+ *     5. Match on scope='all' (employmentType='all', no branch/department)
+ *     6. Legacy fallback (any config for this requestType + companyId)
+ *     7. Legacy AttendancePolicyRule inheritance
+ *     8. Blueprint defaults
+ */
 export async function loadWorkflowConfig(
   db: PrismaClient,
   companyId: string | null,
   requestType: AttendanceRequestType,
+  employeeScope?: {
+    employmentType?: string;
+    branchId?: string | null;
+    departmentId?: string | null;
+    employeeStatus?: string;
+  },
 ): Promise<{ config: WorkflowConfig; configId: string | null }> {
   const defaults = DEFAULT_WORKFLOW_CONFIGS[requestType] || DEFAULT_WORKFLOW_CONFIGS.REGULARIZATION;
+
+  // Build a list of scope filters from most-specific to least-specific.
+  // Each filter is tried in order; the first match wins.
+  const scopeFilters: Record<string, unknown>[] = [];
+  if (employeeScope && employeeScope.employmentType && employeeScope.employmentType !== 'all') {
+    const et = employeeScope.employmentType;
+    const bid = employeeScope.branchId || null;
+    const did = employeeScope.departmentId || null;
+    // 1. Exact match on all 4
+    scopeFilters.push({ employmentType: et, branchId: bid, departmentId: did, employeeStatus: employeeScope.employeeStatus || 'all' });
+    // 2. et + branch + dept (status='all')
+    scopeFilters.push({ employmentType: et, branchId: bid, departmentId: did, employeeStatus: 'all' });
+    // 3. et + branch (dept=null, status='all')
+    scopeFilters.push({ employmentType: et, branchId: bid, departmentId: null, employeeStatus: 'all' });
+    // 4. et only
+    scopeFilters.push({ employmentType: et, branchId: null, departmentId: null, employeeStatus: 'all' });
+  }
+  // 5. scope='all' (catch-all)
+  scopeFilters.push({ employmentType: 'all', branchId: null, departmentId: null, employeeStatus: 'all' });
+
+  for (const scopeFilter of scopeFilters) {
+    try {
+      const row = await (db as any).attendanceWorkflowConfig?.findFirst({
+        where: {
+          requestType,
+          isActive: true,
+          OR: companyId ? [{ companyId }, { companyId: null }] : [{ companyId: null }],
+          ...scopeFilter,
+        },
+        orderBy: { updatedAt: 'desc' },
+      });
+      if (row) {
+        let levels = defaults.levels;
+        let rules = defaults.rules;
+        try { levels = JSON.parse(row.levels || '[]'); } catch { /* keep defaults */ }
+        if (!Array.isArray(levels) || levels.length === 0) levels = defaults.levels;
+        try { rules = { ...defaults.rules, ...JSON.parse(row.rules || '{}') }; } catch { /* keep defaults */ }
+        return { config: { levels, rules }, configId: row.id };
+      }
+    } catch (err) {
+      // Scope columns may not exist yet on older tenant DBs — try the
+      // legacy filter (no scope columns) as a fallback on the first error.
+      console.warn('[AttendanceWorkflow] loadWorkflowConfig scoped query failed, trying legacy:', err);
+      break;
+    }
+  }
+
+  // 6. Legacy fallback — any config for this requestType + companyId
+  //    (ignores scope columns; used when the new columns don't exist yet)
   try {
     const row = await (db as any).attendanceWorkflowConfig?.findFirst({
       where: { requestType, isActive: true, OR: companyId ? [{ companyId }, { companyId: null }] : [{ companyId: null }] },
@@ -240,11 +310,7 @@ export async function loadWorkflowConfig(
     console.error('[AttendanceWorkflow] loadWorkflowConfig failed, using defaults:', err);
   }
 
-  // ─── Legacy fallback ───────────────────────────────────────────────
-  // No AttendanceWorkflowConfig row yet — try to inherit field values from
-  // the legacy AttendancePolicyRule table (scoped by company / branch /
-  // employmentType) so that admins who configured the old "Policy Rules"
-  // tab don't lose their shift/grace/late-mark/OT/gate-pass settings.
+  // 7. Legacy AttendancePolicyRule fallback (inherited from Task 18)
   try {
     const legacyRule = await (db as any).attendancePolicyRule?.findFirst({
       where: {
@@ -272,8 +338,6 @@ export async function loadWorkflowConfig(
         gatePassHalfDayNextDay: legacyRule.gatePassHalfDayNextDay ?? defaults.rules.gatePassHalfDayNextDay,
         gatePassEarlyHours: Number(legacyRule.gatePassEarlyHours ?? defaults.rules.gatePassEarlyHours),
       };
-      // Gate-pass monthly cap carries over to the workflow monthlyCap when the
-      // admin never set the latter explicitly.
       if (requestType === 'GATE_PASS' && rules.monthlyCap === 0 && rules.gatePassMaxPerMonth > 0) {
         rules.monthlyCap = rules.gatePassMaxPerMonth;
       }
@@ -283,6 +347,7 @@ export async function loadWorkflowConfig(
     /* legacy table may not exist — ignore */
   }
 
+  // 8. Blueprint defaults
   return { config: { levels: defaults.levels, rules: defaults.rules }, configId: null };
 }
 

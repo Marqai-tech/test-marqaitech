@@ -10,7 +10,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   FiSettings, FiSave, FiRefreshCw, FiPlus, FiTrash2, FiArrowUp, FiArrowDown,
-  FiZap, FiClock, FiMapPin, FiShield, FiCheckSquare, FiGitBranch, FiAlertTriangle, FiAlertCircle, FiTrendingUp, FiCalendar,
+  FiZap, FiClock, FiMapPin, FiShield, FiCheckSquare, FiGitBranch, FiAlertTriangle, FiAlertCircle, FiTrendingUp, FiCalendar, FiBookOpen,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
@@ -65,7 +65,20 @@ interface RequestRules {
   gatePassHalfDayNextDay: boolean;
   gatePassEarlyHours: number;
 }
-interface TypeConfig { levels: WorkflowLevel[]; rules: RequestRules; configId: string | null; name: string; scope: string; updatedAt: string | null }
+interface TypeConfig {
+  levels: WorkflowLevel[];
+  rules: RequestRules;
+  configId: string | null;
+  name: string;
+  scope: string;
+  updatedAt: string | null;
+  // Policy document linkage + employee scope (new — unification pass)
+  policyDocumentId?: string | null;
+  employmentType?: string;
+  branchId?: string | null;
+  departmentId?: string | null;
+  employeeStatus?: string;
+}
 
 const REQUEST_TYPES: { key: RequestType; label: string; desc: string; icon: React.ReactNode; color: string }[] = [
   { key: 'REGULARIZATION', label: 'Attendance Regularization', desc: 'Missed punch / biometric error fix', icon: <FiClock className="w-4 h-4" />, color: 'amber' },
@@ -115,6 +128,10 @@ export default function WorkflowBuilderTab({ companyId }: { companyId: string | 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [sweeping, setSweeping] = useState(false);
+  // Policy documents + branches + departments for the scope selectors
+  const [policies, setPolicies] = useState<Array<{ id: string; title: string; version: string }>>([]);
+  const [branches, setBranches] = useState<Array<{ id: string; name: string }>>([]);
+  const [departments, setDepartments] = useState<Array<{ id: string; name: string }>>([]);
 
   const fetchConfigs = useCallback(async () => {
     setLoading(true);
@@ -126,6 +143,29 @@ export default function WorkflowBuilderTab({ companyId }: { companyId: string | 
     } catch {
       toast.error('Failed to load workflow configs');
     } finally { setLoading(false); }
+  }, [companyId]);
+
+  // Fetch policy documents (category=attendance) + branches + departments
+  // for the scope selectors — same pattern as the employee module.
+  useEffect(() => {
+    const hdrs = getAuthHeaders();
+    const qs = companyId ? `?companyId=${companyId}` : '';
+    const sep = qs ? '&' : '?';
+    Promise.allSettled([
+      fetch(`/api/policies${qs}${sep}category=attendance`, { headers: hdrs }),
+      fetch(`/api/branches${qs}`, { headers: hdrs }),
+      fetch(`/api/departments${qs}`, { headers: hdrs }),
+    ]).then(results => {
+      if (results[0].status === 'fulfilled' && results[0].value.ok) {
+        results[0].value.json().then((d: any) => setPolicies(d.policies || d.data || []));
+      }
+      if (results[1].status === 'fulfilled' && results[1].value.ok) {
+        results[1].value.json().then((d: any) => setBranches(d.branches || d.data || []));
+      }
+      if (results[2].status === 'fulfilled' && results[2].value.ok) {
+        results[2].value.json().then((d: any) => setDepartments(d.departments || d.data || []));
+      }
+    });
   }, [companyId]);
 
   useEffect(() => { fetchConfigs(); }, [fetchConfigs]);
@@ -147,7 +187,16 @@ export default function WorkflowBuilderTab({ companyId }: { companyId: string | 
     try {
       const res = await fetch('/api/attendance/workflow-config', {
         method: 'PUT', headers: getAuthHeaders(),
-        body: JSON.stringify({ requestType: activeType, companyId, levels: cfg.levels, rules: cfg.rules }),
+        body: JSON.stringify({
+          requestType: activeType, companyId,
+          levels: cfg.levels, rules: cfg.rules,
+          // Policy document + scope (new — unification pass)
+          policyDocumentId: cfg.policyDocumentId || null,
+          employmentType: cfg.employmentType || 'all',
+          branchId: cfg.branchId || null,
+          departmentId: cfg.departmentId || null,
+          employeeStatus: cfg.employeeStatus || 'all',
+        }),
       });
       const data = await res.json();
       if (res.ok) { toast.success(`${REQUEST_TYPES.find(t => t.key === activeType)?.label} workflow saved`); fetchConfigs(); }
@@ -220,6 +269,108 @@ export default function WorkflowBuilderTab({ companyId }: { companyId: string | 
       {loading && <div className="text-center py-10 text-sm text-slate-400">Loading workflow configuration…</div>}
 
       {!loading && cfg && (
+        <>
+        {/* ─── Policy Document Linkage + Employee Scope (new — unification pass) ─── */}
+        <div className="p-4 rounded-xl border border-teal-200 bg-teal-50/30">
+          <h3 className="flex items-center gap-2 text-sm font-bold text-thb-text-primary mb-1">
+            <FiBookOpen className="w-4 h-4 text-teal-600" /> Policy Document & Employee Scope
+          </h3>
+          <p className="text-[11px] text-slate-500 mb-3">
+            Link this workflow to a policy document and restrict which employees it applies to. The most specific matching config wins at submission time.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {/* Policy document dropdown */}
+            <div className="sm:col-span-2 lg:col-span-1">
+              <label className={labelCls}>Policy Document (Attendance)</label>
+              <select
+                value={cfg.policyDocumentId || ''}
+                onChange={e => patchConfig({ policyDocumentId: e.target.value || null })}
+                disabled={!canEdit}
+                className={`${inputCls} mt-1`}
+              >
+                <option value="">— Not Linked —</option>
+                {policies.map(p => (
+                  <option key={p.id} value={p.id}>{p.title} {p.version ? `(v${p.version})` : ''}</option>
+                ))}
+              </select>
+              <p className="text-[10px] text-slate-400 mt-0.5">Pick from the Policy Documents tab (category = attendance).</p>
+            </div>
+            {/* Employment type */}
+            <div>
+              <label className={labelCls}>Employment Type</label>
+              <select
+                value={cfg.employmentType || 'all'}
+                onChange={e => patchConfig({ employmentType: e.target.value })}
+                disabled={!canEdit}
+                className={`${inputCls} mt-1`}
+              >
+                <option value="all">All Types</option>
+                <option value="full-time">Full-Time</option>
+                <option value="part-time">Part-Time</option>
+                <option value="contract">Contract</option>
+                <option value="internship">Internship</option>
+              </select>
+            </div>
+            {/* Employee status */}
+            <div>
+              <label className={labelCls}>Employee Status</label>
+              <select
+                value={cfg.employeeStatus || 'all'}
+                onChange={e => patchConfig({ employeeStatus: e.target.value })}
+                disabled={!canEdit}
+                className={`${inputCls} mt-1`}
+              >
+                <option value="all">All Statuses</option>
+                <option value="active">Active</option>
+                <option value="on_leave">On Leave</option>
+                <option value="inactive">Inactive</option>
+              </select>
+            </div>
+            {/* Branch */}
+            <div>
+              <label className={labelCls}>Branch</label>
+              <select
+                value={cfg.branchId || ''}
+                onChange={e => patchConfig({ branchId: e.target.value || null })}
+                disabled={!canEdit}
+                className={`${inputCls} mt-1`}
+              >
+                <option value="">All Branches</option>
+                {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+              </select>
+            </div>
+            {/* Department */}
+            <div>
+              <label className={labelCls}>Department</label>
+              <select
+                value={cfg.departmentId || ''}
+                onChange={e => patchConfig({ departmentId: e.target.value || null })}
+                disabled={!canEdit}
+                className={`${inputCls} mt-1`}
+              >
+                <option value="">All Departments</option>
+                {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+              </select>
+            </div>
+          </div>
+          {/* Scope summary chip */}
+          <div className="mt-3 flex flex-wrap items-center gap-1.5 text-[10px]">
+            <span className="text-slate-400 font-semibold uppercase tracking-wide">Applies to:</span>
+            <span className="px-2 py-0.5 rounded-full bg-teal-100 text-teal-700 font-medium">
+              {cfg.employmentType === 'all' ? 'All employment types' : cfg.employmentType}
+            </span>
+            <span className="px-2 py-0.5 rounded-full bg-teal-100 text-teal-700 font-medium">
+              {cfg.employeeStatus === 'all' ? 'All statuses' : cfg.employeeStatus}
+            </span>
+            <span className="px-2 py-0.5 rounded-full bg-teal-100 text-teal-700 font-medium">
+              {cfg.branchId ? (branches.find(b => b.id === cfg.branchId)?.name || 'Branch') : 'All branches'}
+            </span>
+            <span className="px-2 py-0.5 rounded-full bg-teal-100 text-teal-700 font-medium">
+              {cfg.departmentId ? (departments.find(d => d.id === cfg.departmentId)?.name || 'Dept') : 'All departments'}
+            </span>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
           {/* ─── Left: Rules & Constraints (Rule Engine) ─── */}
           <div className="lg:col-span-2 space-y-4">
@@ -604,6 +755,7 @@ export default function WorkflowBuilderTab({ companyId }: { companyId: string | 
             </div>
           </div>
         </div>
+        </>
       )}
     </div>
   );

@@ -1211,10 +1211,37 @@ function LeaveApprovalWorkflowConfig() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [configSource, setConfigSource] = useState<'tenant' | 'leave_type' | 'default'>('default');
+  // Policy document linkage + employee scope (new — unification pass)
+  const [policyDocumentId, setPolicyDocumentId] = useState<string | null>(null);
+  const [employmentType, setEmploymentType] = useState('all');
+  const [branchId, setBranchId] = useState<string | null>(null);
+  const [departmentId, setDepartmentId] = useState<string | null>(null);
+  const [employeeStatus, setEmployeeStatus] = useState('all');
+  // Dropdown options
+  const [leavePolicies, setLeavePolicies] = useState<Array<{ id: string; title: string; version: string }>>([]);
+  const [branches, setBranches] = useState<Array<{ id: string; name: string }>>([]);
+  const [departments, setDepartments] = useState<Array<{ id: string; name: string }>>([]);
 
   // Load existing config on mount
   useEffect(() => {
     loadConfig();
+    // Fetch policy documents (category=leave) + branches + departments
+    const hdrs = getAuthHeadersWF();
+    Promise.allSettled([
+      fetch('/api/policies?category=leave', { headers: hdrs }),
+      fetch('/api/branches', { headers: hdrs }),
+      fetch('/api/departments', { headers: hdrs }),
+    ]).then(results => {
+      if (results[0].status === 'fulfilled' && results[0].value.ok) {
+        results[0].value.json().then((d: any) => setLeavePolicies(d.policies || d.data || []));
+      }
+      if (results[1].status === 'fulfilled' && results[1].value.ok) {
+        results[1].value.json().then((d: any) => setBranches(d.branches || d.data || []));
+      }
+      if (results[2].status === 'fulfilled' && results[2].value.ok) {
+        results[2].value.json().then((d: any) => setDepartments(d.departments || d.data || []));
+      }
+    });
   }, []);
 
   const loadConfig = async () => {
@@ -1242,6 +1269,12 @@ function LeaveApprovalWorkflowConfig() {
           setConfigName(data.name || 'Default Leave Approval Workflow');
           setConfigDescription(data.description || '');
           setConfigSource(data.source || 'default');
+          // Scope fields (new — unification pass)
+          setPolicyDocumentId(data.policyDocumentId || null);
+          setEmploymentType(data.employmentType || 'all');
+          setBranchId(data.branchId || null);
+          setDepartmentId(data.departmentId || null);
+          setEmployeeStatus(data.employeeStatus || 'all');
         }
       }
     } catch (e) {
@@ -1314,6 +1347,12 @@ function LeaveApprovalWorkflowConfig() {
           name: configName,
           description: configDescription,
           config,
+          // Policy document + scope (new — unification pass)
+          policyDocumentId,
+          employmentType,
+          branchId,
+          departmentId,
+          employeeStatus,
         }),
       });
       const data = await res.json();
@@ -1388,6 +1427,102 @@ function LeaveApprovalWorkflowConfig() {
               placeholder="e.g., Standard 2-tier approval for all leave types"
             />
           </div>
+        </div>
+      </div>
+
+      {/* ═══ POLICY DOCUMENT LINKAGE + EMPLOYEE SCOPE (new — unification pass) ═══ */}
+      <div className="thb-card p-6 rounded-xl border-l-4 border-l-teal-500">
+        <h3 className="text-sm font-semibold text-thb-text-primary mb-1 flex items-center gap-2">
+          <FiBookOpen className="w-4 h-4 text-teal-500" /> Policy Document & Employee Scope
+        </h3>
+        <p className="text-xs text-slate-500 mb-4">
+          Link this workflow to a policy document and restrict which employees it applies to. At leave submission, the most specific matching config wins.
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {/* Policy document dropdown */}
+          <div className="sm:col-span-2 lg:col-span-1">
+            <label className="block text-xs font-medium text-thb-text-secondary mb-1">Policy Document (Leave)</label>
+            <select
+              value={policyDocumentId || ''}
+              onChange={e => setPolicyDocumentId(e.target.value || null)}
+              className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 bg-white"
+            >
+              <option value="">— Not Linked —</option>
+              {leavePolicies.map(p => (
+                <option key={p.id} value={p.id}>{p.title} {p.version ? `(v${p.version})` : ''}</option>
+              ))}
+            </select>
+            <p className="text-[11px] text-slate-400 mt-1">Pick from the Policy Documents tab (category = leave).</p>
+          </div>
+          {/* Employment type */}
+          <div>
+            <label className="block text-xs font-medium text-thb-text-secondary mb-1">Employment Type</label>
+            <select
+              value={employmentType}
+              onChange={e => setEmploymentType(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 bg-white"
+            >
+              <option value="all">All Types</option>
+              <option value="full-time">Full-Time</option>
+              <option value="part-time">Part-Time</option>
+              <option value="contract">Contract</option>
+              <option value="internship">Internship</option>
+            </select>
+          </div>
+          {/* Employee status */}
+          <div>
+            <label className="block text-xs font-medium text-thb-text-secondary mb-1">Employee Status</label>
+            <select
+              value={employeeStatus}
+              onChange={e => setEmployeeStatus(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 bg-white"
+            >
+              <option value="all">All Statuses</option>
+              <option value="active">Active</option>
+              <option value="on_leave">On Leave</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </div>
+          {/* Branch */}
+          <div>
+            <label className="block text-xs font-medium text-thb-text-secondary mb-1">Branch</label>
+            <select
+              value={branchId || ''}
+              onChange={e => setBranchId(e.target.value || null)}
+              className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 bg-white"
+            >
+              <option value="">All Branches</option>
+              {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+            </select>
+          </div>
+          {/* Department */}
+          <div>
+            <label className="block text-xs font-medium text-thb-text-secondary mb-1">Department</label>
+            <select
+              value={departmentId || ''}
+              onChange={e => setDepartmentId(e.target.value || null)}
+              className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 bg-white"
+            >
+              <option value="">All Departments</option>
+              {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+            </select>
+          </div>
+        </div>
+        {/* Scope summary chips */}
+        <div className="mt-4 flex flex-wrap items-center gap-1.5 text-[11px]">
+          <span className="text-slate-400 font-semibold uppercase tracking-wide">Applies to:</span>
+          <span className="px-2 py-0.5 rounded-full bg-teal-100 text-teal-700 font-medium">
+            {employmentType === 'all' ? 'All employment types' : employmentType}
+          </span>
+          <span className="px-2 py-0.5 rounded-full bg-teal-100 text-teal-700 font-medium">
+            {employeeStatus === 'all' ? 'All statuses' : employeeStatus}
+          </span>
+          <span className="px-2 py-0.5 rounded-full bg-teal-100 text-teal-700 font-medium">
+            {branchId ? (branches.find(b => b.id === branchId)?.name || 'Branch') : 'All branches'}
+          </span>
+          <span className="px-2 py-0.5 rounded-full bg-teal-100 text-teal-700 font-medium">
+            {departmentId ? (departments.find(d => d.id === departmentId)?.name || 'Dept') : 'All departments'}
+          </span>
         </div>
       </div>
 
