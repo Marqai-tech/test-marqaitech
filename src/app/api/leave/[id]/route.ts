@@ -3,6 +3,7 @@ import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { resolveCompanyScope } from '@/lib/companyScope';
 import { createNotification } from '@/lib/notifications';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
+import { safeAuditLog } from '@/lib/audit-safe';
 
 function corsHeaders() {
   return {
@@ -140,13 +141,11 @@ export async function PATCH(
         },
       });
 
-      await db.auditLog.create({
-        data: {
-          userId: scope.userId,
-          action: 'CANCELLED_LEAVE_REQUEST',
-          module: 'leave',
-          details: `Cancelled leave request ${id}`,
-        },
+      await safeAuditLog(db, {
+        userId: scope.userId,
+        action: 'CANCELLED_LEAVE_REQUEST',
+        module: 'leave',
+        details: `Cancelled leave request ${id}`,
       });
 
       return NextResponse.json({ leaveRequest }, { headers: corsHeaders() });
@@ -251,13 +250,11 @@ export async function PATCH(
             }
           } catch { /* non-critical */ }
 
-          await db.auditLog.create({
-            data: {
-              userId: scope.userId,
-              action: 'APPROVE_LEAVE_REQUEST_FINAL',
-              module: 'leave',
-              details: `Final approval for leave request ${id} (all tiers passed) for ${existingLeave.employee.firstName} ${existingLeave.employee.lastName}`,
-            },
+          await safeAuditLog(db, {
+            userId: scope.userId,
+            action: 'APPROVE_LEAVE_REQUEST_FINAL',
+            module: 'leave',
+            details: `Final approval for leave request ${id} (all tiers passed) for ${existingLeave.employee.firstName} ${existingLeave.employee.lastName}`,
           });
 
           const updatedLeave = await db.leaveRequest.findUnique({
@@ -300,13 +297,11 @@ export async function PATCH(
             }).catch(() => null);
           }
 
-          await db.auditLog.create({
-            data: {
-              userId: scope.userId,
-              action: `APPROVE_LEAVE_TIER_${result.nextTier! - 1}`,
-              module: 'leave',
-              details: `Approved tier ${result.nextTier! - 1} for leave request ${id}. Advanced to tier ${result.nextTier}.`,
-            },
+          await safeAuditLog(db, {
+            userId: scope.userId,
+            action: `APPROVE_LEAVE_TIER_${result.nextTier! - 1}`,
+            module: 'leave',
+            details: `Approved tier ${result.nextTier! - 1} for leave request ${id}. Advanced to tier ${result.nextTier}.`,
           });
 
           const updatedLeave = await db.leaveRequest.findUnique({
@@ -343,13 +338,11 @@ export async function PATCH(
           }).catch(() => null);
         }
 
-        await db.auditLog.create({
-          data: {
-            userId: scope.userId,
-            action: 'REJECT_LEAVE_REQUEST',
-            module: 'leave',
-            details: `Rejected leave request ${id} for ${existingLeave.employee.firstName} ${existingLeave.employee.lastName}`,
-          },
+        await safeAuditLog(db, {
+          userId: scope.userId,
+          action: 'REJECT_LEAVE_REQUEST',
+          module: 'leave',
+          details: `Rejected leave request ${id} for ${existingLeave.employee.firstName} ${existingLeave.employee.lastName}`,
         });
 
         const updatedLeave = await db.leaveRequest.findUnique({
@@ -418,13 +411,11 @@ export async function PATCH(
       });
     }
 
-    await db.auditLog.create({
-      data: {
-        userId: scope.userId,
-        action: `${status.toUpperCase()}_LEAVE_REQUEST`,
-        module: 'leave',
-        details: `${status} leave request ${id} for employee ${leaveRequest.employee.firstName} ${leaveRequest.employee.lastName}`,
-      },
+    await safeAuditLog(db, {
+      userId: scope.userId,
+      action: `${status.toUpperCase()}_LEAVE_REQUEST`,
+      module: 'leave',
+      details: `${status} leave request ${id} for employee ${leaveRequest.employee.firstName} ${leaveRequest.employee.lastName}`,
     });
 
     return NextResponse.json(

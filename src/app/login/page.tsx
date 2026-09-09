@@ -1042,6 +1042,32 @@ export default function LoginPage() {
                           </span>
                         </button>
                       ))}
+                      {demoCredentials.employees?.length > 0 && (
+                        <>
+                          <p className="text-[10px] font-semibold text-slate-600 mt-2 px-1">Employees (Self-Service)</p>
+                          {demoCredentials.employees.map((u: any) => (
+                            <button
+                              key={u.email}
+                              type="button"
+                              onClick={() => {
+                                setEmail(u.email);
+                                setPassword('MarqAI@2026');
+                                setLoginMode('user');
+                                toast.success('Filled: Employee Self-Service', { duration: 2000 });
+                              }}
+                              className="w-full flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/70 hover:bg-white border border-slate-100 hover:border-amber-200 transition-all text-left group"
+                            >
+                              <div className="flex-1 min-w-0">
+                                <p className="text-[11px] font-semibold text-slate-700 group-hover:text-amber-700 transition-colors">{u.name}</p>
+                                <p className="text-[9px] text-slate-400 truncate">{u.email}{u.department ? ` · ${u.department}` : ''}</p>
+                              </div>
+                              <span className="text-[8px] font-medium bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded">
+                                Employee
+                              </span>
+                            </button>
+                          ))}
+                        </>
+                      )}
                     </>
                   )}
 

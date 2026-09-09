@@ -486,10 +486,14 @@ export async function canUserApproveCurrentTier(
     const currentApproverId = rows[0].currentapproverid || rows[0].currentApproverId;
     if (currentApproverId === userId) return true;
 
-    // HR admins (role='admin') in the same tenant can also approve
-    if (userRole === 'admin') {
+    // HR admins (role='admin' or 'hr_admin') in the same tenant can also
+    // approve. 2026-09-09: 'hr_admin' added — the LIVE tenant's HR account
+    // (admin@marqaitech.com) has role 'hr_admin' and tier approverType is
+    // 'hr_admin', but this check only knew role 'admin' → tier-2 approvals
+    // were impossible ("not authorized to approve this tier").
+    if (userRole === 'admin' || userRole === 'hr_admin') {
       const admin = await db.user.findFirst({
-        where: { id: userId, tenantId, role: 'admin', status: 'active' },
+        where: { id: userId, tenantId, role: { in: ['admin', 'hr_admin'] }, status: 'active' },
         select: { id: true },
       });
       if (admin) return true;

@@ -146,39 +146,47 @@ export async function POST(request: Request) {
     let db: any = platformDb; // The DB that authenticated the user
     let userTenant: any = null; // Tenant info resolved separately
 
-    // Phase 1: Platform DB lookup
-    const platformUser = await platformDb.user.findUnique({
-      where: { email },
-      select: { ...userSelect, tenant: tenantSelect },
-    });
-
-    if (platformUser) {
-      user = platformUser;
-      db = platformDb;
-    } else if (tenantSlug) {
-      // Phase 2: Tenant-specific DB lookup
-      // Only attempt if we have a tenant slug (from middleware subdomain detection).
-      // This allows demo users (in tenant_demo) and tenant users (in tenant DBs)
-      // to authenticate even if they're not in the platform DB.
+    // ─── Identity resolution order (2026-09-09 FIX) ─────────────────────
+    // When the request comes from a tenant/demo domain (tenant slug present),
+    // prefer the TENANT DB identity. Every subsequent write (leave requests,
+    // attendance, audit logs, workflow approvals) targets the tenant DB, so
+    // the token userId MUST exist there. The old platform-first order handed
+    // out platform ids that don't exist in the tenant DB (stale synthetic
+    // 'demo-tenantadmin', or separately-provisioned rows) → FK violations
+    // (AuditLog_userId_fkey) turned every leave apply into
+    // "Internal server error" and blocked workflow-tier approvals.
+    // On the platform domain (no slug) the platform DB is consulted first.
+    if (tenantSlug) {
       try {
-        const tenantDb = await getDbForTenant(tenantSlug);
-        const tenantUser = await tenantDb.user.findUnique({
+        const tenantDbForLogin = await getDbForTenant(tenantSlug);
+        const tenantUser = await tenantDbForLogin.user.findUnique({
           where: { email },
           select: userSelect,
         });
         if (tenantUser) {
           user = tenantUser;
-          db = tenantDb;
+          db = tenantDbForLogin;
           // Resolve tenant info from platform DB (Tenant model is platform-level)
-          const tenant = await platformDb.tenant.findUnique({
+          userTenant = await platformDb.tenant.findUnique({
             where: { id: tenantUser.tenantId },
             select: tenantSelect.select,
           });
-          userTenant = tenant;
         }
       } catch (tenantLookupErr) {
         console.error('[Login] Tenant DB lookup failed:', tenantLookupErr);
-        // Don't block login if tenant DB is unreachable — just use platform DB result (null)
+        // Don't block login if tenant DB is unreachable — fall through to platform DB
+      }
+    }
+
+    // Platform DB lookup (primary on the platform domain, fallback on tenant domains)
+    if (!user) {
+      const platformUser = await platformDb.user.findUnique({
+        where: { email },
+        select: { ...userSelect, tenant: tenantSelect },
+      });
+      if (platformUser) {
+        user = platformUser;
+        db = platformDb;
       }
     }
 

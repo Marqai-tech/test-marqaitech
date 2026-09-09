@@ -53,6 +53,16 @@ export async function GET(request: Request) {
         orderBy: { tenant: { name: 'asc' } },
       });
 
+      // Employee self-service accounts (2026-09-09) — lets reviewers test the
+      // employee experience (apply leave, self-service modules) on the demo.
+      // Only accounts that actually have a linked Employee record are returned.
+      const employeeUsers = await db.user.findMany({
+        where: { role: 'employee', status: 'active', employee: { isNot: null } },
+        select: { email: true, name: true, role: true, employee: { select: { employeeId: true, department: { select: { name: true } } } } },
+        orderBy: { email: 'asc' },
+        take: 6,
+      });
+
       return NextResponse.json({
         site: 'demo',
         hasAutoFill: true,
@@ -72,6 +82,14 @@ export async function GET(request: Request) {
           functionalRole: 'Tenant Admin',
           tenant: u.tenant.name,
           tenantSlug: u.tenant.slug,
+        })),
+        employees: employeeUsers.map(u => ({
+          email: u.email,
+          name: u.name,
+          role: u.role,
+          functionalRole: 'Employee',
+          department: u.employee?.department?.name || null,
+          employeeCode: u.employee?.employeeId || null,
         })),
       });
     }

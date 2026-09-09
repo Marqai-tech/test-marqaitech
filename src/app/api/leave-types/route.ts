@@ -23,6 +23,22 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
     }
 
+    // Employee self-service ('self' scope): restrict the list to the types of
+    // the employee's OWN company. getCompanyFilter returns {} for employees,
+    // which made the apply dropdown show every company's leave types — and
+    // submitting one from another company is rejected by the leave POST
+    // validation. (2026-09-09)
+    const scope = await resolveCompanyScope(req);
+    if (scope && scope.scope === 'self' && !scope.companyId) {
+      const own = await db.employee.findFirst({
+        where: { userId: scope.userId, status: 'active' },
+        select: { companyId: true },
+      });
+      if (own?.companyId) {
+        companyFilter.companyId = own.companyId;
+      }
+    }
+
     const leaveTypes = await db.leaveType.findMany({
       where: { status: 'active', ...companyFilter },
       orderBy: { name: 'asc' },

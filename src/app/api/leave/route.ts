@@ -4,6 +4,7 @@ import { resolveCompanyScope } from '@/lib/companyScope';
 import { createNotification } from '@/lib/notifications';
 import { buildContext, evaluateLeaveAutoApproval } from '@/lib/auto-approval-engine';
 import { isServerLiveSite } from '@/lib/tenant-filter';
+import { safeAuditLog } from '@/lib/audit-safe';
 
 function corsHeaders() {
   return {
@@ -151,6 +152,27 @@ export async function POST(request: Request) {
       );
     }
 
+    // Validate the leave type BEFORE the create — a stale UI id (or a
+    // hardcoded fallback id from an old bundle) used to reach Prisma and die
+    // as LeaveRequest_leaveTypeId_fkey → "Internal server error". Fail fast
+    // with a clear message instead.
+    const leaveType = await db.leaveType.findUnique({
+      where: { id: leaveTypeId },
+      select: { id: true, companyId: true, name: true },
+    });
+    if (!leaveType) {
+      return NextResponse.json(
+        { error: 'Invalid leave type. Please refresh the page and pick a leave type again.' },
+        { status: 400, headers: corsHeaders() }
+      );
+    }
+    if (leaveType.companyId !== targetEmployee.companyId) {
+      return NextResponse.json(
+        { error: "The selected leave type does not belong to the employee's company." },
+        { status: 400, headers: corsHeaders() }
+      );
+    }
+
     if (scope.scope === 'self') {
       // Employees can only create leave requests for themselves
       if (targetEmployee.userId !== scope.userId) {
@@ -257,14 +279,13 @@ export async function POST(request: Request) {
         autoApprovalApplied = true;
         autoApprovalReason = decision.reason;
 
-        // Audit log for the auto-approval
-        await db.auditLog.create({
-          data: {
-            userId: scope.userId,
-            action: 'AI_AUTO_APPROVE_LEAVE',
-            module: 'leave',
-            details: `Leave request ${leaveRequest.id} auto-approved for employee ${employeeId}. Reason: ${decision.reason}. Confidence: ${decision.confidence}. Rules: ${decision.rulesEvaluated.join(', ')}`,
-          },
+        // Audit log for the auto-approval (FK-safe: actor id may belong to
+        // the platform DB while this write targets a tenant DB)
+        await safeAuditLog(db, {
+          userId: scope.userId,
+          action: 'AI_AUTO_APPROVE_LEAVE',
+          module: 'leave',
+          details: `Leave request ${leaveRequest.id} auto-approved for employee ${employeeId}. Reason: ${decision.reason}. Confidence: ${decision.confidence}. Rules: ${decision.rulesEvaluated.join(', ')}`,
         });
       }
     } catch (e) {
@@ -396,13 +417,16 @@ export async function POST(request: Request) {
       }
     }
 
-    await db.auditLog.create({
-      data: {
-        userId: scope.userId,
-        action: 'CREATE_LEAVE_REQUEST',
-        module: 'leave',
-        details: `Created leave request for employee ${employeeId}`,
-      },
+    // FK-safe audit write — 2026-09-09: this used to be a bare auditLog.create
+    // and violated AuditLog_userId_fkey when the token identity came from the
+    // platform DB (e.g. demo 'demo-tenantadmin') while the write targeted the
+    // tenant DB → the whole apply request 500'd AFTER the leave row was
+    // created. Audit must never break the business operation.
+    await safeAuditLog(db, {
+      userId: scope.userId,
+      action: 'CREATE_LEAVE_REQUEST',
+      module: 'leave',
+      details: `Created leave request for employee ${employeeId}`,
     });
 
     return NextResponse.json(
