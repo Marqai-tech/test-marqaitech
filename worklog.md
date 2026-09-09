@@ -1436,3 +1436,67 @@ Stage Summary:
 - Demo test artifacts (a few requests) intentionally kept — demo is for exploration; LIVE tenant has config-only additions, zero transactions.
 - Note: processSlaOverdue auto_escalate falls back to auto-approve when no higher level exists, preventing inbox stalls; approval steps store actorUserId resolved at level activation.
 - Known pre-existing: tsc has parse errors in unrelated legacy files (scripts/cleanup-rbac-3roles.ts, src/lib/currency.ts); next.config has ignoreBuildErrors so builds pass.
+
+---
+Task ID: 17
+Agent: Main Agent
+Task: Employee can't see attendance application details in the list — add "View" option (like leave) to all 4 attendance workflow pages; deploy to Vercel
+
+Work Log:
+1. Reproduced user issue by reading all 4 legacy attendance workflow
+   pages (regularize / wfh / permission / gatepass). Confirmed: every
+   page's Actions column was wrapped in `{isAdmin && <th>...</th>}` —
+   employees saw NO actions column at all, no eye icon, no detail view.
+   The leave module (Task 15) already had the right pattern: an always-
+   visible "View Leave Application" eye icon that opens a detail modal,
+   with admin-only approve/reject buttons kept in the same column.
+2. Applied the leave pattern uniformly to all 4 attendance pages:
+   - Imports: added FiEye + FiX to each page's react-icons import.
+   - State: added `viewTarget` useState for the detail-modal payload.
+   - Table header: Actions column is now ALWAYS rendered (removed
+     `isAdmin &&` gate on the <th>).
+   - Table body: every row gets an eye button (visible to admin AND
+     employee, regardless of status). Admin-only approve/reject/scan
+     buttons stay in the same cell, still gated by `isAdmin && status
+     === 'pending'`. Employee self-cancel (WFH) preserved.
+   - colSpan on loading/empty rows unchanged (already accounted for
+     the always-present Actions column).
+3. Built a dedicated detail modal per page:
+   - regularize: date, punch type, requested time, AI suggestion w/
+     confidence %, weekend/holiday flags, status, reason, approver
+     comments.
+   - wfh: request type, reason category, start/end dates, total days,
+     expected hours, meeting availability, remote location, emergency
+     contact, alternate email, approver comments, approver name,
+     submitted-on timestamp, status.
+   - permission: date, start/end times, duration, adjusted check-out,
+     AI auto-approval indicator (with explanatory callout when
+     autoApproved=true), status, reason.
+   - gatepass: type, employee/visitor, requested at, actual out/in
+     times, two-tier (manager + security) approval status panels,
+     visitor/contractor details block, overall status, reason.
+4. Verified: no schema changes (purely UI), so no tenant DB migration
+   needed — both demo and live tenant DBs are unchanged. GOLDEN RULE
+   preserved (zero data touched).
+5. Type-checked the 4 edited files with the project tsconfig — 0 new
+   errors. Pre-existing parse errors in scripts/cleanup-rbac-3roles.ts
+   and src/lib/currency.ts remain (already documented in Task 16;
+   next.config has ignoreBuildErrors:true so builds pass).
+6. Deployed: commit 8bc85e19 → push origin main → Vercel auto-build.
+   Verified post-deploy: demo /attendance/regularize = HTTP 200,
+   /attendance/wfh = 200, /attendance/permission = 200,
+   /attendance/gatepass = 200; live marqaitechgroup.3boxeshrms.com
+   same paths = 200; demo and live HTML share identical chunk lists
+   (same deployment).
+
+Stage Summary:
+- All 4 attendance workflow list views now show a "View" eye icon on
+  every row for every user (employee + admin). Clicking opens a
+  detail modal mirroring the leave module's pattern.
+- Admin actions (approve/reject/scan) preserved in the same column,
+  still admin-only and pending-only.
+- No DB changes; no risk to live data.
+- Known pre-existing (NOT changed in this task): tsc parse errors in
+  scripts/cleanup-rbac-3roles.ts and src/lib/currency.ts; GET
+  /api/employees returns data without Authorization header (auth
+  hardening pending user confirmation, flagged since Task 13).
