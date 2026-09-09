@@ -20,6 +20,7 @@ import {
   REQUEST_TYPE_LABELS,
   type AttendanceRequestType,
 } from '@/lib/attendance-workflow';
+import { sanitizeMultiLineText } from '@/lib/sanitize';
 
 export { OPTIONS };
 
@@ -97,8 +98,9 @@ export async function POST(request: Request) {
     }
 
     // ─── Type-specific payload validation ───
-    const reason = String(body.reason || '').trim();
-    if (!reason) return fail('Reason is required');
+    // Sanitize free-text reason to strip HTML/script content before persisting.
+    const reason = sanitizeMultiLineText(body.reason, 2000);
+    if (!reason || reason.trim().length < 3) return fail('Reason is required (min 3 characters). HTML/script tags are not allowed.');
     const subtype = (body.subtype as string) || null;
 
     let startDate: Date;

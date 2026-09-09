@@ -341,14 +341,22 @@ export async function GET(request: Request) {
       // 'active', or 'inactive' — meaning the admin has explicitly created
       // login credentials for this employee. When credentialsStatus is
       // 'not_invited' (default), hasLoginAccount is false → shows "No Account".
+      //
+      // IMPORTANT: Once credentials are created, the User record's status is
+      // set to 'active' (see POST handler). So 'invited' maps to 'active'
+      // for display purposes — the account IS active, the employee just
+      // hasn't logged in for the first time yet. This ensures the "Active"
+      // metric count updates immediately after credential creation.
       const credStatus = (emp as any).credentialsStatus || 'not_invited';
       const hasLoginAccount = credStatus !== 'not_invited';
       let loginStatus: string;
       if (credStatus === 'not_invited') {
         loginStatus = 'no_account';
       } else if (credStatus === 'invited') {
-        // If the user has logged in, show 'active'; otherwise 'invited'
-        loginStatus = emp.user?.lastLogin ? 'active' : 'invited';
+        // The User account was created with status='active' when credentials
+        // were issued. Show 'active' so the metric updates immediately.
+        // (If the user account is inactive/suspended, show 'inactive' instead.)
+        loginStatus = emp.user?.status === 'inactive' ? 'inactive' : 'active';
       } else if (credStatus === 'active') {
         loginStatus = 'active';
       } else if (credStatus === 'inactive') {

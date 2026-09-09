@@ -5,6 +5,38 @@ import { createNotification } from '@/lib/notifications';
 import { buildContext, evaluateLeaveAutoApproval } from '@/lib/auto-approval-engine';
 import { isServerLiveSite } from '@/lib/tenant-filter';
 import { safeAuditLog } from '@/lib/audit-safe';
+import { sanitizeMultiLineText } from '@/lib/sanitize';
+
+/**
+ * Deduct leave balance for an approved leave request.
+ * Shared helper so every approval path (AI auto-approve, short-leave
+ * auto-approve, manual PATCH approve) deducts the balance consistently.
+ */
+async function deductLeaveBalance(
+  db: any,
+  params: { employeeId: string; leaveTypeId: string; startDate: string | Date; endDate: string | Date; halfDay?: boolean | null; requestId?: string },
+): Promise<{ deducted: boolean; days: number; error?: string }> {
+  const { employeeId, leaveTypeId, startDate, endDate, halfDay, requestId } = params;
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+  const days = halfDay ? 0.5 : daysDiff;
+  const year = start.getFullYear();
+  try {
+    const result = await db.leaveBalance.updateMany({
+      where: { employeeId, leaveTypeId, year },
+      data: { used: { increment: days }, remaining: { decrement: days } },
+    });
+    if (result.count === 0) {
+      console.warn(`[leave] No LeaveBalance row found for employee=${employeeId} leaveType=${leaveTypeId} year=${year} — balance not deducted (request ${requestId || 'n/a'})`);
+      return { deducted: false, days, error: 'No LeaveBalance row found for this employee + leave type + year' };
+    }
+    return { deducted: true, days };
+  } catch (e) {
+    console.warn(`[leave] Balance deduction failed (non-fatal) for request ${requestId || 'n/a'}:`, e);
+    return { deducted: false, days, error: e instanceof Error ? e.message : 'Unknown error' };
+  }
+}
 
 function corsHeaders() {
   return {
@@ -129,11 +161,20 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { employeeId, leaveTypeId, startDate, endDate, reason, halfDay, halfDaySlot } = body;
+    const { employeeId, leaveTypeId, startDate, endDate, halfDay, halfDaySlot } = body;
+    // Sanitize free-text fields to strip HTML/script content before persisting.
+    const reason = sanitizeMultiLineText(body.reason, 2000);
 
     if (!employeeId || !leaveTypeId || !startDate || !endDate) {
       return NextResponse.json(
         { error: 'Missing required fields: employeeId, leaveTypeId, startDate, endDate' },
+        { status: 400, headers: corsHeaders() }
+      );
+    }
+
+    if (!reason || reason.trim().length < 3) {
+      return NextResponse.json(
+        { error: 'Reason is required (min 3 characters). HTML/script tags are not allowed.' },
         { status: 400, headers: corsHeaders() }
       );
     }
@@ -231,6 +272,115 @@ export async function POST(request: Request) {
       // Non-fatal — leave request can still proceed without the AI warning
     }
 
+    // ─── Duplicate / Weekend / Holiday validation ────────────────────
+    // Bug fixes:
+    //  (a) Duplicate: reject if the same employee already has a pending or
+    //      approved leave request overlapping these dates.
+    //  (b) Weekends: reject if ALL days in the range are weekends (likely
+    //      a data-entry mistake — weekends are non-working days). If the
+    //      range is a single weekend day, also reject. Multi-day ranges
+    //      that include at least one working day are allowed.
+    //  (c) Holidays: reject if the entire range falls on configured
+    //      holidays (same logic as weekends).
+    //
+    // These are server-side hard blocks. The frontend also shows warnings,
+    // but the server is the source of truth.
+
+    const parsedStart = new Date(startDate);
+    const parsedEnd = new Date(endDate);
+    if (parsedEnd < parsedStart) {
+      return NextResponse.json({ error: 'End date cannot be before start date.' }, { status: 400, headers: corsHeaders() });
+    }
+
+    // (a) Duplicate overlap check (same employee)
+    try {
+      const existing = await db.leaveRequest.findFirst({
+        where: {
+          employeeId,
+          status: { in: ['pending', 'approved'] },
+          AND: [
+            { startDate: { lte: parsedEnd } },
+            { endDate: { gte: parsedStart } },
+          ],
+        },
+        select: { id: true, startDate: true, endDate: true, status: true },
+      });
+      if (existing) {
+        return NextResponse.json({
+          error: `Duplicate leave request: you already have a ${existing.status} leave request from ${new Date(existing.startDate).toLocaleDateString()} to ${new Date(existing.endDate).toLocaleDateString()} that overlaps with the selected dates.`,
+        }, { status: 409, headers: corsHeaders() });
+      }
+    } catch (dupErr) {
+      console.warn('[leave] Duplicate check failed (non-fatal):', dupErr);
+    }
+
+    // (b) + (c) Weekend + Holiday validation
+    // Count working days (Mon–Sat, excluding Sundays + configured holidays).
+    // If the range contains ZERO working days, reject.
+    try {
+      // Fetch all holidays in the date range
+      const holidaysInRange = await db.holiday.findMany({
+        where: {
+          date: { gte: parsedStart, lte: parsedEnd },
+          type: { in: ['public', 'company', 'national'] },
+        },
+        select: { date: true, name: true },
+      });
+      const holidayDates = new Set(
+        holidaysInRange.map((h: { date: { toISOString: () => string } }) =>
+          new Date(h.date).toISOString().split('T')[0]
+        )
+      );
+
+      // Walk the date range, count working days
+      let workingDayCount = 0;
+      const weekendDays: string[] = [];
+      const holidayDays: string[] = [];
+      const cursor = new Date(parsedStart);
+      while (cursor <= parsedEnd) {
+        const dayOfWeek = cursor.getDay(); // 0=Sun, 6=Sat
+        const dateStr = cursor.toISOString().split('T')[0];
+        const isSunday = dayOfWeek === 0;
+        const isHoliday = holidayDates.has(dateStr);
+        if (isSunday) {
+          weekendDays.push(dateStr);
+        } else if (isHoliday) {
+          holidayDays.push(dateStr);
+        } else {
+          workingDayCount++;
+        }
+        cursor.setDate(cursor.getDate() + 1);
+      }
+
+      // Reject if there are NO working days in the range at all
+      // (means the entire leave is on weekends + holidays — likely a mistake)
+      if (workingDayCount === 0) {
+        const reasons: string[] = [];
+        if (weekendDays.length > 0) reasons.push(`${weekendDays.length} weekend day(s)`);
+        if (holidayDays.length > 0) reasons.push(`${holidayDays.length} holiday(s)`);
+        return NextResponse.json({
+          error: `The selected date range contains only ${reasons.join(' and ')} — no working days. Leave cannot be applied for non-working days only. Please select a range that includes at least one working day.`,
+        }, { status: 400, headers: corsHeaders() });
+      }
+
+      // If the range is a SINGLE day and it's a Sunday or holiday, reject
+      if (parsedStart.getTime() === parsedEnd.getTime()) {
+        if (weekendDays.length > 0) {
+          return NextResponse.json({
+            error: 'The selected date is a Sunday (weekend). Leave cannot be applied for a single weekend day. Please choose a working day.',
+          }, { status: 400, headers: corsHeaders() });
+        }
+        if (holidayDays.length > 0) {
+          const holidayName = holidaysInRange[0]?.name || 'a holiday';
+          return NextResponse.json({
+            error: `The selected date is ${holidayName} (a holiday). Leave cannot be applied for a single holiday. Please choose a working day.`,
+          }, { status: 400, headers: corsHeaders() });
+        }
+      }
+    } catch (validErr) {
+      console.warn('[leave] Weekend/holiday validation failed (non-fatal):', validErr);
+    }
+
     const leaveRequest = await db.leaveRequest.create({
       data: {
         employeeId,
@@ -278,6 +428,15 @@ export async function POST(request: Request) {
         });
         autoApprovalApplied = true;
         autoApprovalReason = decision.reason;
+
+        // ─── Deduct leave balance on auto-approval ───
+        // Bug fix: previously the balance was never deducted when the AI
+        // auto-approved, so the employee's leave balance stayed unchanged
+        // even though the leave was approved.
+        await deductLeaveBalance(db, {
+          employeeId, leaveTypeId, startDate, endDate,
+          halfDay: halfDay || false, requestId: leaveRequest.id,
+        });
 
         // Audit log for the auto-approval (FK-safe: actor id may belong to
         // the platform DB while this write targets a tenant DB)
@@ -327,6 +486,13 @@ export async function POST(request: Request) {
           });
           autoApprovalApplied = true;
           autoApprovalReason = `Short leave auto-approval (${effectiveDays} day(s))`;
+
+          // ─── Deduct leave balance on short-leave auto-approval ───
+          // Bug fix: same as AI auto-approval — balance was never deducted.
+          await deductLeaveBalance(db, {
+            employeeId, leaveTypeId, startDate, endDate,
+            halfDay: halfDay || false, requestId: leaveRequest.id,
+          });
         } else {
           // Initialize the multi-tier workflow
           workflowResult = await initializeLeaveWorkflow(

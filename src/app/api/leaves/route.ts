@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { resolveCompanyScope } from '@/lib/companyScope';
+import { sanitizeMultiLineText } from '@/lib/sanitize';
 
 export async function GET(req: NextRequest) {
   const db = await getDb(req);
@@ -106,9 +107,11 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const {
-      type, startDate, endDate, totalDays, reason,
+      type, startDate, endDate, totalDays,
       employeeId, createWorkflow,
     } = body;
+    // Sanitize free-text reason to strip HTML/script content before persisting.
+    const reason = sanitizeMultiLineText(body.reason, 2000);
 
     if (!type || !startDate || !endDate || !totalDays || !employeeId) {
       return NextResponse.json(
@@ -245,7 +248,9 @@ export async function PATCH(req: NextRequest) {
   const db = await getDb(req);
   try {
     const body = await req.json();
-    const { id, action, approverId, comment } = body;
+    const { id, action, approverId } = body;
+    // Sanitize free-text comment to strip HTML/script content before persisting.
+    const comment = sanitizeMultiLineText(body.comment, 2000);
 
     if (!id || !action || !approverId) {
       return NextResponse.json(
@@ -285,6 +290,28 @@ export async function PATCH(req: NextRequest) {
         approver: { select: { firstName: true, lastName: true } },
       },
     });
+
+    // ─── Deduct leave balance on approval ───
+    // Bug fix: previously the legacy /api/leaves PATCH never deducted
+    // balance when a leave was approved, so the employee's leave balance
+    // stayed unchanged.
+    if (action === 'approve') {
+      try {
+        const daysDiff = Math.ceil(
+          (new Date(leave.endDate).getTime() - new Date(leave.startDate).getTime()) / (1000 * 60 * 60 * 24),
+        ) + 1;
+        const year = new Date(leave.startDate).getFullYear();
+        await db.leaveBalance.updateMany({
+          where: { employeeId: leave.employeeId, year },
+          data: {
+            used: { increment: daysDiff },
+            remaining: { decrement: daysDiff },
+          },
+        });
+      } catch (e) {
+        console.warn('[leaves PATCH] Balance deduction failed (non-fatal):', e);
+      }
+    }
 
     // Update workflow instance if exists
     if (leave.workflowInstanceId) {

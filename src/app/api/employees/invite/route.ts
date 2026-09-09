@@ -280,6 +280,17 @@ export async function POST(request: Request) {
           html: emailHtml,
         });
 
+        // ─── Mark credentials as 'invited' on the Employee record ───
+        // Without this, the employee still shows as "No Account" in the
+        // Login Credentials settings tab even after the invite was sent
+        // and a User account was created/reset above. The credentialsStatus
+        // column is the source-of-truth for the settings page metrics.
+        await db.$executeRawUnsafe(
+          `UPDATE "Employee" SET "credentialsStatus" = 'invited', "credentialsInvitedAt" = NOW(), "credentialsInvitedBy" = $1, "updatedAt" = NOW() WHERE "id" = $2`,
+          admin.id,
+          emp.id,
+        ).catch(() => null);
+
         console.log(
           `[INVITE] Invite ${emailResult.success ? 'sent' : 'failed'} for ${emp.email} (tenant: ${admin.tenant?.name})` +
           `${emailResult.usedFallbackFrom ? ' [FALLBACK FROM — sandbox sender used]' : ''}`,

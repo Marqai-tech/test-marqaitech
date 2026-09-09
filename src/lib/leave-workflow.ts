@@ -418,6 +418,33 @@ export async function advanceLeaveWorkflow(
       comments || null,
       leaveRequestId,
     ).catch(() => null);
+
+    // ─── Deduct leave balance on final approval ───
+    // Bug fix: the workflow engine previously finalized without deducting
+    // the leave balance. The PATCH /api/leave/[id] route had its own
+    // deduction as a rescue, but centralizing it here ensures every caller
+    // gets the deduction for free (and prevents double-deduction since the
+    // PATCH route checks result.finalized before deducting).
+    try {
+      const lr = await db.leaveRequest.findUnique({
+        where: { id: leaveRequestId },
+        select: { employeeId: true, leaveTypeId: true, startDate: true, endDate: true, halfDay: true },
+      });
+      if (lr) {
+        const daysDiff = Math.ceil(
+          (new Date(lr.endDate).getTime() - new Date(lr.startDate).getTime()) / (1000 * 60 * 60 * 24),
+        ) + 1;
+        const days = lr.halfDay ? 0.5 : daysDiff;
+        const year = new Date(lr.startDate).getFullYear();
+        await db.leaveBalance.updateMany({
+          where: { employeeId: lr.employeeId, leaveTypeId: lr.leaveTypeId, year },
+          data: { used: { increment: days }, remaining: { decrement: days } },
+        });
+      }
+    } catch (e) {
+      console.warn(`[leave-workflow] Balance deduction on finalize failed (non-fatal) for ${leaveRequestId}:`, e);
+    }
+
     return { finalized: true, nextApproverId: null, nextTier: null };
   }
 

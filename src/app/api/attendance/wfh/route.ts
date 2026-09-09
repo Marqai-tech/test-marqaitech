@@ -14,6 +14,7 @@
 import { requireUser, findEmployeeByEmail, isAdminRole, parseBody, getQuery, ok, fail, OPTIONS } from '@/lib/attendance-leave-api';
 import { getDb } from '@/lib/tenant-db';
 import { loadWorkflowConfig, buildRequestContext, checkRules } from '@/lib/attendance-workflow';
+import { sanitizeMultiLineText } from '@/lib/sanitize';
 
 export { OPTIONS };
 
@@ -65,7 +66,7 @@ export async function POST(request: Request) {
     if (endDate && isNaN(endDate.getTime())) return fail('Invalid end date');
     if (endDate && endDate < startDate) return fail('End date cannot be before start date');
 
-    const reason = String(body.reason || '').trim();
+    const reason = sanitizeMultiLineText(body.reason, 2000);
     if (!reason || reason.length < 20) return fail('Reason must be at least 20 characters');
 
     const reasonCategory = String(body.reasonCategory || 'personal');

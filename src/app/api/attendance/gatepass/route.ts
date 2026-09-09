@@ -9,6 +9,7 @@ import { requireUser, findEmployeeByEmail, isAdminRole, parseBody, getQuery, ok,
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { buildContext, evaluateGatepassAutoApproval } from '@/lib/auto-approval-engine';
 import { loadWorkflowConfig, buildRequestContext, checkRules } from '@/lib/attendance-workflow';
+import { sanitizeMultiLineText } from '@/lib/sanitize';
 
 export { OPTIONS };
 
@@ -54,7 +55,7 @@ export async function POST(request: Request) {
     if (!['early_departure', 'late_arrival', 'visitor', 'contractor'].includes(type)) {
       return fail('Invalid gatepass type');
     }
-    const reason = (body.reason as string) || '';
+    const reason = sanitizeMultiLineText(body.reason, 2000);
     if (!reason) return fail('Reason is required');
     const requestedAt = new Date(body.requestedAt as string);
 

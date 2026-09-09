@@ -4,6 +4,7 @@ import { resolveCompanyScope } from '@/lib/companyScope';
 import { createNotification } from '@/lib/notifications';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { safeAuditLog } from '@/lib/audit-safe';
+import { sanitizeMultiLineText } from '@/lib/sanitize';
 
 function corsHeaders() {
   return {
@@ -53,7 +54,9 @@ export async function PATCH(
 
     const { id } = await params;
     const body = await request.json();
-    const { status, comments } = body;
+    const { status } = body;
+    // Sanitize free-text comments to strip HTML/script content before persisting.
+    const comments = sanitizeMultiLineText(body.comments, 2000);
 
     if (!status || !['approved', 'rejected', 'cancelled'].includes(status)) {
       return NextResponse.json(
@@ -191,28 +194,13 @@ export async function PATCH(
         );
 
         if (result.finalized) {
-          // ─── Final approval: deduct leave balance + notify employee ───
-          const daysDiff = Math.ceil(
-            (new Date(existingLeave.endDate).getTime() - new Date(existingLeave.startDate).getTime()) / (1000 * 60 * 60 * 24)
-          ) + 1;
-          const daysToDeduct = existingLeave.halfDay ? 0.5 : daysDiff;
-
-          const currentYear = new Date().getFullYear();
-          try {
-            await db.leaveBalance.updateMany({
-              where: {
-                employeeId: existingLeave.employeeId,
-                leaveTypeId: existingLeave.leaveTypeId,
-                year: currentYear,
-              },
-              data: {
-                used: { increment: daysToDeduct },
-                remaining: { decrement: daysToDeduct },
-              },
-            });
-          } catch (e) {
-            console.warn('[Leave PATCH] Balance deduction failed (non-fatal):', e);
-          }
+          // ─── Balance deduction is now handled centrally inside
+          // advanceLeaveWorkflow() in lib/leave-workflow.ts ───
+          // Previously this route deducted here, but that caused either
+          // (a) double-deduction when the workflow engine also deducted,
+          // or (b) missed deduction when the workflow engine didn't.
+          // Now the workflow engine ALWAYS deducts on finalize, so we
+          // only need to notify the employee here.
 
           // Notify the employee of final approval
           if (existingLeave.employee.userId) {

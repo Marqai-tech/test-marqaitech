@@ -8,6 +8,7 @@
 import { requireUser, findEmployeeByEmail, isAdminRole, parseBody, getQuery, ok, fail, OPTIONS } from '@/lib/attendance-leave-api';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { loadWorkflowConfig, buildRequestContext, checkRules } from '@/lib/attendance-workflow';
+import { sanitizeMultiLineText } from '@/lib/sanitize';
 
 export { OPTIONS };
 
@@ -53,7 +54,7 @@ export async function POST(request: Request) {
     const date = new Date(body.date as string);
     const startTime = new Date(body.startTime as string);
     const endTime = new Date(body.endTime as string);
-    const reason = (body.reason as string) || '';
+    const reason = sanitizeMultiLineText(body.reason, 2000);
 
     // ─── Validate inputs ───
     if (isNaN(date.getTime())) return fail('Invalid date format');

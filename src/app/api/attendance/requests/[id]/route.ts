@@ -12,6 +12,7 @@ import {
   advanceWorkflow, notifyApprover, REQUEST_TYPE_LABELS,
   type AttendanceRequestType,
 } from '@/lib/attendance-workflow';
+import { sanitizeMultiLineText } from '@/lib/sanitize';
 
 export { OPTIONS };
 
@@ -89,7 +90,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       db, id,
       action === 'approve' ? 'approved' : 'rejected',
       user.id,
-      String(body.comments || ''),
+      sanitizeMultiLineText(body.comments, 2000),
     );
 
     // Notify the requester of the final outcome

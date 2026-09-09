@@ -8,6 +8,7 @@
 import { requireUser, findEmployeeByEmail, isAdminRole, parseBody, getQuery, ok, fail, OPTIONS } from '@/lib/attendance-leave-api';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { loadWorkflowConfig, buildRequestContext, checkRules } from '@/lib/attendance-workflow';
+import { sanitizeMultiLineText } from '@/lib/sanitize';
 
 export { OPTIONS };
 
@@ -52,7 +53,7 @@ export async function POST(request: Request) {
     const date = new Date(body.date as string);
     const punchType = body.punchType as string;
     const requestedTime = new Date(body.requestedTime as string);
-    const reason = (body.reason as string) || '';
+    const reason = sanitizeMultiLineText(body.reason, 2000);
     if (!punchType || !['check_in', 'check_out'].includes(punchType)) return fail('Invalid punchType');
     if (!reason) return fail('Reason is required');
 
