@@ -2106,3 +2106,26 @@ Stage Summary:
 - Demo recruitment module now has full-pipeline sample data incl. offers (were 0) and a live offer-acceptance portal link
 - Test credentials (all password MarqAI@2026): superadmin@3boxeshrms.com, admin@3boxeshrms.com (tenant admin), amit.reddy@innovatech.demo / meera.bansal@technova.demo / bala.mukherjee@innovatech.demo (employees), aravind.menon22@candidate.demo (candidate portal, has PENDING offer to accept)
 - Aravind's offer portal link: /offer/off_5a43caa554f1411d95737e10b86a9b28mtv3o5vo (accept/decline flow testable)
+
+---
+Task ID: 27
+Agent: Super Z (main agent)
+Task: Tenant management admin module testing on demo — sample tenants + fixed broken tenant-detail employees
+
+Work Log:
+- Audited existing Super Admin module on demo: /super-admin page (200), /api/tenants, subscriptions, packages, tenant-usage, tenant-modules all functional; nav entry roles ['super_admin']; demo tenant DB module flags all enabled. Module was present but nearly untestable (only 1 tenant visible)
+- GOLDEN RULE GUARD FIRST: added sample slugs (acme-global-demo, zenith-retail-demo, nova-tech-demo) to LIVE_HIDDEN_SLUGS in tenant-filter.ts (commit 4e9fd21b), deployed BEFORE seeding
+- scripts/seed-demo-sample-tenants.mjs (idempotent, PLATFORM DB neondb, shared-mode tenants — no new Neon DBs, no TenantDatabase registration):
+  - Acme Global Industries (enterprise, active, USD, 2 companies, 4 employees, annual $29,900 sub, 2 users)
+  - Zenith Retail Group (starter, active, INR, 1 company, 3 employees, monthly 4,999 sub, payroll+CRM module flags DISABLED to showcase module control)
+  - Nova Tech Solutions (professional, SUSPENDED, EUR, 1 company, 1 employee, overdue payment sub — realistic suspension scenario)
+  - Each: tenant row + platform users + company group (name = tenant name per hierarchy rule) + companies/departments/designations/employees + active Subscription + 22 module_ FeatureFlags
+- BUG FOUND & FIXED (pre-existing, affected ALL tenants incl. LIVE): GET /api/tenants/[id] employees query (a) filtered by Employee.tenantId which exists in NO database (PrismaClientValidationError swallowed by safe() -> employees always []), and (b) selected Designation.name but the field is title. Fixed: scope by companyId from discovered groups + designation.title (commits 60edc354, 6e7e6254). Demo tenant detail now shows 52 employees (was 0), Acme shows 4
+- Verified demo: /api/tenants shows 4 tenants (demo + 3 samples, live hidden); Acme detail full hierarchy (group -> companies -> depts -> designations -> employees w/ company names); Zenith flags disabled ['crm','payroll']; PATCH status toggle Nova suspended->active->suspended OK
+- Verified LIVE (3boxeshrms.com platform login): /api/tenants shows ONLY marqaitechgroup — samples + demo fully hidden. Note: super admin login blocked on live tenant subdomains by design (platform root only)
+- Sample tenant admin users have random passwords and are NOT for login (demo host always routes requests to the demo tenant DB, so a sample-tenant login session is not supported); management happens via superadmin@3boxeshrms.com
+
+Stage Summary:
+- Demo Super Admin tenant management now fully testable: 4 tenants spanning plans (enterprise/starter/professional), statuses (active x3, suspended), currencies (USD/INR/EUR), subscription states (paid/monthly/annual/overdue), module toggles (Zenith missing payroll+CRM)
+- Fixed long-hidden bug: tenant detail employees section was ALWAYS empty for every tenant (invalid tenantId filter + invalid Designation.name select) — now returns real data everywhere
+- LIVE isolation proven: sample tenants invisible on 3boxeshrms.com and marqaitechgroup.3boxeshrms.com
