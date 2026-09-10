@@ -2059,3 +2059,26 @@ Work Log:
 Stage Summary:
 - All new routes live on demo + LIVE; schema additive-only, no destructive changes
 - Follow-ups: register /api/cron/onboarding-reminders in Vercel dashboard crons; offer PDF is HTML-based (existing limitation); DocuSign still stubbed (internal e-sign + typed-name self-service in place)
+
+---
+Task ID: 25
+Agent: Super Z (main agent)
+Task: Register onboarding-reminders cron (follow-up from Task 24) + final verification sweep
+
+Work Log:
+- Checked vercel.json: had NO crons key despite distribute-reports route comment claiming "every 15 minutes via vercel.json" — neither onboarding-reminders nor probation-alerts was registered in Vercel
+- Added vercel.json crons: probation-alerts @ 30 1 * * * (01:30 UTC / 07:00 IST), onboarding-reminders @ 0 2 * * * (02:00 UTC / 07:30 IST); both daily (valid on Hobby AND Pro plans) with ?secret= in path
+- distribute-reports intentionally NOT registered: 15-min frequency requires Pro plan (unverified), would fail deployment on Hobby; left as-is (pre-existing)
+- Both cron routes now also accept Authorization: Bearer <CRON_SECRET> (Vercel's native cron auth) in addition to ?secret= query param — additive, belt-and-suspenders for either env configuration
+- probation-alerts double-fire risk assessed SAFE: alertSent flags in comments JSON make it idempotent per stage; onboarding-reminders idempotent via 24h lastRemindedAt cooldown
+- tsc clean (only 2 known pre-existing errors); commit 5492c526 pushed (incl. pending worklog commit 01f9e19a); repo renamed upstream to 3-Boxes-HRMS.git (redirect works)
+- Verified LIVE: onboarding-reminders valid secret 200 {"tasksConsidered":0}, invalid 401; probation-alerts 200 processed
+- Verified DEMO: Bearer-header auth works on both endpoints; probation-alerts swept 2 real overdue alerts (Arjun Kumar, Madhu KK) — end-to-end proof
+- Page sweep 200 on demo+LIVE: /employees/approval-config, /employees/update-requests, /offer/test-token, /onboarding, /preboarding, /leave/leave-policy, /attendance/settings
+- API sweep: workflow-config / acknowledgments / onboarding-progress / background-checks 401 unauth; /api/offers/accept/bad-token 404 — all as expected
+
+Stage Summary:
+- Vercel crons now LIVE in vercel.json: daily probation alerts 07:00 IST + daily onboarding task reminders 07:30 IST, no manual dashboard step needed
+- Both cron endpoints accept secret query param OR Bearer token; idempotent sweeps
+- All Tasks 23-26 deliverables re-verified healthy on demo + LIVE after this deploy
+- Remaining known limitations (accepted): offer letter is HTML-based; DocuSign external integration stubbed (internal e-sign + typed-name self-service in place); distribute-reports cron unregistered (needs plan check)
