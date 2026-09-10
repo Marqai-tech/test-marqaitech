@@ -32,7 +32,10 @@ export async function GET(request: NextRequest) {
   const db = await getDb(request);
   try {
     const searchParams = new URL(request.url).searchParams;
-    if (searchParams.get('secret') !== CRON_SECRET) {
+    // Accept the secret via query param OR Vercel Cron's Authorization: Bearer header
+    const bearer = request.headers.get('authorization');
+    const bearerToken = bearer?.startsWith('Bearer ') ? bearer.slice(7).trim() : null;
+    if (searchParams.get('secret') !== CRON_SECRET && bearerToken !== CRON_SECRET) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
     }
 

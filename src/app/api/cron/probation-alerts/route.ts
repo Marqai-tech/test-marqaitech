@@ -33,10 +33,12 @@ const CRON_SECRET = process.env.CRON_SECRET || '3boxes-hrms-cron-2026';
 
 export async function GET(request: Request) {
   try {
-    // Verify the cron secret
+    // Verify the cron secret — query param OR Vercel Cron's Authorization: Bearer header
     const { searchParams } = new URL(request.url);
     const secret = searchParams.get('secret');
-    if (secret !== CRON_SECRET) {
+    const bearer = request.headers.get('authorization');
+    const bearerToken = bearer?.startsWith('Bearer ') ? bearer.slice(7).trim() : null;
+    if (secret !== CRON_SECRET && bearerToken !== CRON_SECRET) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
