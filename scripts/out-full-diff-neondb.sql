@@ -122,49 +122,48 @@ DROP INDEX "Holiday_date_idx";
 DROP INDEX "Holiday_type_idx";
 
 -- AlterTable
-ALTER TABLE "AttendanceWorkflowConfig" ADD COLUMN     "branchId" TEXT,
-ADD COLUMN     "departmentId" TEXT,
+ALTER TABLE "Document" ADD COLUMN     "category" TEXT NOT NULL DEFAULT 'other',
+ADD COLUMN     "expiryAlertDays" INTEGER NOT NULL DEFAULT 30,
+ADD COLUMN     "expiryAlertSent" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN     "fileNodeId" TEXT,
+ADD COLUMN     "isRequested" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN     "maxFileSizeMb" INTEGER,
+ADD COLUMN     "requestedAt" TIMESTAMP(3),
+ADD COLUMN     "requestedById" TEXT,
+ADD COLUMN     "requiredFormat" TEXT,
+ADD COLUMN     "uploadedById" TEXT;
+
+-- AlterTable
+ALTER TABLE "LeaveType" ADD COLUMN     "companyId" TEXT NOT NULL,
 ADD COLUMN     "employeeStatus" TEXT NOT NULL DEFAULT 'all',
 ADD COLUMN     "employmentType" TEXT NOT NULL DEFAULT 'all',
-ADD COLUMN     "policyDocumentId" TEXT;
+ADD COLUMN     "probationRestricted" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN     "sandwichRuleEnabled" BOOLEAN NOT NULL DEFAULT true;
 
 -- AlterTable
-ALTER TABLE "LeaveType" ADD COLUMN     "companyId" TEXT NOT NULL;
-
--- AlterTable
-ALTER TABLE "LeaveWorkflowConfig" ADD COLUMN     "branchId" TEXT,
-ADD COLUMN     "companyId" TEXT,
-ADD COLUMN     "departmentId" TEXT,
-ADD COLUMN     "employeeStatus" TEXT NOT NULL DEFAULT 'all',
-ADD COLUMN     "employmentType" TEXT NOT NULL DEFAULT 'all',
-ADD COLUMN     "policyDocumentId" TEXT;
-
--- AlterTable
-ALTER TABLE "Policy" ADD COLUMN     "companyId" TEXT NOT NULL;
+ALTER TABLE "Policy" ADD COLUMN     "companyId" TEXT NOT NULL,
+ADD COLUMN     "fileMimeType" TEXT,
+ADD COLUMN     "fileName" TEXT,
+ADD COLUMN     "fileSize" INTEGER,
+ADD COLUMN     "fileUrl" TEXT;
 
 -- AlterTable
 ALTER TABLE "Shift" ADD COLUMN     "companyId" TEXT NOT NULL;
 
 -- CreateIndex
-CREATE INDEX "AttendanceWorkflowConfig_employmentType_idx" ON "AttendanceWorkflowConfig"("employmentType");
+CREATE INDEX "Document_category_idx" ON "Document"("category");
 
 -- CreateIndex
-CREATE INDEX "AttendanceWorkflowConfig_branchId_idx" ON "AttendanceWorkflowConfig"("branchId");
+CREATE INDEX "Document_type_idx" ON "Document"("type");
 
 -- CreateIndex
-CREATE INDEX "AttendanceWorkflowConfig_departmentId_idx" ON "AttendanceWorkflowConfig"("departmentId");
+CREATE INDEX "Document_expiryDate_idx" ON "Document"("expiryDate");
 
 -- CreateIndex
 CREATE INDEX "LeaveType_companyId_idx" ON "LeaveType"("companyId");
 
 -- CreateIndex
-CREATE INDEX "LeaveWorkflowConfig_employmentType_idx" ON "LeaveWorkflowConfig"("employmentType");
-
--- CreateIndex
-CREATE INDEX "LeaveWorkflowConfig_branchId_idx" ON "LeaveWorkflowConfig"("branchId");
-
--- CreateIndex
-CREATE INDEX "LeaveWorkflowConfig_departmentId_idx" ON "LeaveWorkflowConfig"("departmentId");
+CREATE INDEX "LeaveType_employmentType_idx" ON "LeaveType"("employmentType");
 
 -- CreateIndex
 CREATE INDEX "Policy_companyId_idx" ON "Policy"("companyId");
@@ -174,6 +173,12 @@ CREATE INDEX "Shift_companyId_idx" ON "Shift"("companyId");
 
 -- AddForeignKey
 ALTER TABLE "LeaveType" ADD CONSTRAINT "LeaveType_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "EmployeeUpdateRequest" ADD CONSTRAINT "EmployeeUpdateRequest_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "EmployeeUpdateApprovalStep" ADD CONSTRAINT "EmployeeUpdateApprovalStep_updateRequestId_fkey" FOREIGN KEY ("updateRequestId") REFERENCES "EmployeeUpdateRequest"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Policy" ADD CONSTRAINT "Policy_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE CASCADE ON UPDATE CASCADE;
