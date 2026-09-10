@@ -2016,3 +2016,46 @@ Stage Summary:
 - Admins can now upload the complete policy document (PDF/DOCX ≤3MB) on every policy form; description stays a brief summary
 - Uploaded documents downloadable from table rows, View Details panel, and edit form; same UX on demo + LIVE
 - 3MB cap chosen to stay under Vercel's ~4.5MB serverless request-body limit (consistent with employee documents)
+
+---
+Task ID: 24
+Agent: Super Z (main agent)
+Task: Policy doc version history + acknowledgments + bulk doc upload + approver configs (update-profile & probation) + recruitment/onboarding gap build (offer acceptance portal, candidate→employee conversion, background checks, progress dashboard, role alignment, reminders)
+
+Work Log:
+- Schema additive-only: PolicyDocumentVersion + PolicyAcknowledgment models, EmployeeWorkflowConfig.workflowType, Offer.accessToken/candidateSignature/candidateSignedAt, OnboardingTask.priority/kra/trainingModule/mentorEmployeeId/remindersEnabled/lastRemindedAt; synced to tenant_3boxes-hrms-demo + tenant_marqaitechgroup BEFORE push; verified in LIVE
+- Version history: PUT /api/policies archives previous snapshot (incl. attached PDF/DOCX) when material fields change; GET /api/policies/[id]/versions; PolicyVersionHistory.tsx modal wired into leave-policy, attendance settings, company policies, travel policy (row icon + view panel)
+- Acknowledgments: /api/policies/acknowledgments (mine=1 self list, policyId admin tracking, POST acknowledge); PolicyAcknowledgeButton + PolicyAcknowledgmentTracker on all 4 policy view panels
+- Bulk upload: BulkUploadModal in employees/[id] Documents tab (multi-file ≤3MB → data URLs, shared category/type/expiry/description, sequential POST w/ progress)
+- Approver config: /api/employees/workflow-config (GET/POST upsert per workflowType) + src/lib/approverResolve.ts (loadWorkflowConfig + resolveTierApprovers); update-requests POST now uses configured tiers; probation PATCH has N-tier configurable chain (legacy hr_review→md_review mapped onto tiers, super admins can act at any tier); UI /employees/approval-config with two tier-builder cards; nav entry "Approval Workflows"
+- Update requests inbox: /employees/update-requests (My Approvals / My Requests / All tabs + Request Change modal); fixed pre-existing syntax corruption check on RequestDocModal (was display artifact only, file OK)
+- Offer acceptance portal: Offer.accessToken minted on status→sent; public /offer/[token] page (details, typed-name e-sign accept / decline + comments); /api/offers/accept/[token] GET/POST; copy-link button on offers page for sent/approved/accepted; pendingOffer banner in candidate-portal dashboard + dashboard API pendingOffer field
+- Conversion: src/lib/onboarding-cascade.ts convertCandidateToEmployee (employee w/ probation status + employeeCode, PreboardingCandidate row (jobTitle field), checklist from OnboardingTaskTemplates or 8-task baseline, notifications to IT/admin/finance/HR, application→hired, posting vacancies-- auto-fill); /api/recruitment/convert; ConvertCandidateButton on offers page (accepted) + recruitment job detail (hired)
+- Background checks: /api/preboarding/background-checks GET/POST/PATCH (vendor/package/consentId/status sync to preboarding record); preboarding page fetchData now loads LIVE /api/preboarding records (status→stage mapping, documentsUploaded JSON, BGV status) with live/demo banner
+- Onboarding: /api/onboarding POST + [id] PUT accept priority/kra/trainingModule/mentorEmployeeId/remindersEnabled; /api/onboarding/progress per-employee aggregates; progress panel on /onboarding; role-alignment fields in task form; /api/cron/onboarding-reminders (secret-pattern like probation-alerts, 2-day window, 24h cooldown)
+- tsc clean (only 2 known pre-existing errors); commit a5e56b9f pushed
+
+Stage Summary:
+- All 4 policy pages: version history (old PDFs kept) + acknowledgment button + admin tracking
+- Employee Documents tab: Bulk Upload (multi-file)
+- Approver configuration lives at /employees/approval-config (update-profile + probation confirmation chains) — previously hardcoded RM→HR / HR→MD, now configurable; inbox at /employees/update-requests
+- Offer flow: offers page "Link" copies candidate URL; /offer/[token] lets candidate accept w/ e-sign; accepted offers show "Convert" → full onboarding cascade
+- Preboarding shows live data after conversion; /onboarding has progress dashboard + KRA/training/mentor assignment
+- Reminder cron endpoint: /api/cron/onboarding-reminders?secret=3boxes-hrms-cron-2026 (schedule via Vercel dashboard like probation-alerts)
+
+---
+Task ID: 24-deploy
+Agent: Super Z (main agent)
+Task: Deployment verification for Task 24
+
+Work Log:
+- Push 1 (a5e56b9f) — Vercel build FAILED: FiHistory icon does not exist in react-icons/fi (Turbopack hard error)
+- Fixed by replacing FiHistory → FiArchive in PolicyVersionHistory.tsx; local next build passed (674 pages, /offer/[token] in manifest)
+- Push 2 (a8beb66f) — deployed
+- Verified on demo (nexus-hrms-mu.vercel.app) AND LIVE (marqaitechgroup.3boxeshrms.com):
+  /offer/test-token 200 · /employees/approval-config 200 · /employees/update-requests 200
+  /api/offers/accept/<bad> → 404 JSON (tenant-resolved) · workflow-config / acknowledgments / onboarding progress → 401 unauth (correct)
+
+Stage Summary:
+- All new routes live on demo + LIVE; schema additive-only, no destructive changes
+- Follow-ups: register /api/cron/onboarding-reminders in Vercel dashboard crons; offer PDF is HTML-based (existing limitation); DocuSign still stubbed (internal e-sign + typed-name self-service in place)
