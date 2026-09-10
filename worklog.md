@@ -1996,3 +1996,23 @@ Stage Summary:
 - /employees/add now shows a Documents tab (11 form steps total); documents attach automatically after employee creation
 - Edit form Documents tab manages real records; detail-page profile Documents tab unchanged and consistent
 - Verified demo + live /employees/add return 200 post-deploy
+
+---
+Task ID: 23
+Agent: Super Z (main agent)
+Task: Policy settings improvement — document upload (PDF/DOCX) instead of lengthy description text
+
+Work Log:
+- Diagnosed: all 4 policy forms (Leave Policy, Attendance Policy Documents, Company Policies, Travel Policy) only had a single-line Description input; admins pasted entire policy content there
+- Created shared component src/components/hrms/PolicyFileField.tsx: PolicyFileUploadField (PDF/DOC/DOCX ≤3MB → data URL, file chip + remove), PolicyFileDownloadLink (download attr for data: URLs), readPolicyFile helper
+- Prisma Policy model +4 additive columns: fileUrl, fileName, fileSize (Int), fileMimeType; prisma generate
+- /api/policies POST/PUT: extractPolicyFileFields() validation (http(s)/data URL, 5MB data-URL guard), field whitelist on PUT (prevents mass-assignment), sanitizeMultiLineText on title/description
+- Wired upload field into all 4 policy forms (full-width row under description), "Policy Document" download section in View Details, FiDownload icon in table rows
+- Description relabeled "short summary only; attach the full policy document below"; whitespace-pre-wrap for readability in view panels
+- Additive-only schema sync applied to tenant_marqaitechgroup (LIVE), tenant_3boxes-hrms-demo, neondb BEFORE push; verified 4 columns exist in LIVE Policy table
+- tsc clean; commit 8b72c333 pushed; all 6 policy pages + API verified (200 / 401 unauth as expected)
+
+Stage Summary:
+- Admins can now upload the complete policy document (PDF/DOCX ≤3MB) on every policy form; description stays a brief summary
+- Uploaded documents downloadable from table rows, View Details panel, and edit form; same UX on demo + LIVE
+- 3MB cap chosen to stay under Vercel's ~4.5MB serverless request-body limit (consistent with employee documents)
