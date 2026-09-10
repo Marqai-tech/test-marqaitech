@@ -1976,3 +1976,23 @@ Stage Summary:
   Full audit trail with old/new values, timestamps, approver comments.
   On final approval, the change is automatically applied to the Employee
   record.
+
+---
+Task ID: 22
+Agent: Super Z (main agent)
+Task: Documents tab missing in Add Employee page
+
+Work Log:
+- Diagnosed: Task 21 added Documents only to the employee DETAIL page; the Add/Edit Employee form (10-tab stepper in src/app/(dashboard)/employees/page.tsx) had no Documents step
+- Added 'documents' tab to formTabs (between Experience and Policies) with icon; added to stepRequiredFields/stepFormatValidators as optional step
+- Add mode: staged documents (name, category, type, file <=3MB as data URL, or pasted link, expiry, description) stored in local state; after POST /api/employees returns the new employee id, each staged doc is POSTed to /api/employees/[id]/documents (non-blocking; success/failure toasts)
+- Edit mode: live document management — useEffect fetches /api/employees/[id]/documents when the tab opens; save/delete hit the real API
+- Documents API (src/app/api/employees/[id]/documents/route.ts): fileUrl now OPTIONAL (name-only entries allowed for offline-collected docs) with http(s)/data URL validation; stores null instead of empty string
+- Detail page ([id]/page.tsx): data-URL documents now use download attribute (target=_blank is blocked by browsers for data: URLs)
+- Reset of staged docs/draft wired into handleOpenAddForm, handleOpenEditForm, handleCancelForm
+- tsc --noEmit clean (only 2 pre-existing known errors in unrelated files); commit 035320f6 pushed; Vercel deployed
+
+Stage Summary:
+- /employees/add now shows a Documents tab (11 form steps total); documents attach automatically after employee creation
+- Edit form Documents tab manages real records; detail-page profile Documents tab unchanged and consistent
+- Verified demo + live /employees/add return 200 post-deploy
