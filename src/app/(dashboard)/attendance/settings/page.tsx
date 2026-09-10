@@ -13,6 +13,7 @@ import { useCompanyContextStore } from '@/store/companyContextStore';
 import { useCompanyData, apiFetch, fmtDate, getStatusBadge } from '@/components/company/useCompanyData';
 import type { PolicyRecord } from '@/components/company/useCompanyData';
 import { PolicyFileUploadField, PolicyFileDownloadLink } from '@/components/hrms/PolicyFileField';
+import { PolicyVersionHistoryButton, PolicyAcknowledgeButton, PolicyAcknowledgmentTracker } from '@/components/hrms/PolicyVersionHistory';
 import WorkflowBuilderTab from './WorkflowBuilderTab';
 
 // ─── Helpers ────────────────────────────────────────────────────────
@@ -336,6 +337,11 @@ function PolicyDocumentsTab() {
                   <p className="text-sm font-medium text-thb-text-primary truncate">{viewingRecord.fileName || 'Attached document'}</p>
                 </div>
                 <PolicyFileDownloadLink fileUrl={viewingRecord.fileUrl} fileName={viewingRecord.fileName} />
+                <div className="flex items-center gap-2 flex-wrap pt-1">
+                  <PolicyAcknowledgeButton policyId={viewingRecord.id} />
+                  <PolicyAcknowledgmentTracker policyId={viewingRecord.id} />
+                  <PolicyVersionHistoryButton policyId={viewingRecord.id} />
+                </div>
               </div>
             )}
           </div>
@@ -419,6 +425,7 @@ function PolicyDocumentsTab() {
                             <div className="flex items-center justify-end gap-1">
                               {p.fileUrl && <a href={p.fileUrl} {...(p.fileUrl.startsWith('data:') ? { download: p.fileName || p.title } : { target: '_blank', rel: 'noopener noreferrer' })} className="p-1.5 rounded-lg text-thb-text-muted hover:text-teal-500 hover:bg-teal-50 transition-colors" title="Download policy document"><FiDownload className="w-3.5 h-3.5" /></a>}
                               <button onClick={() => openView(p)} className="p-1.5 rounded-lg text-thb-text-muted hover:text-teal-500 hover:bg-teal-50 transition-colors" title="View"><FiEye className="w-3.5 h-3.5" /></button>
+                              <PolicyVersionHistoryButton policyId={p.id} iconOnly className="p-1.5 rounded-lg text-thb-text-muted hover:text-indigo-500 hover:bg-indigo-50 transition-colors" />
                               {isAdmin && <>
                                 <button onClick={() => openEdit(p)} className="p-1.5 rounded-lg text-thb-text-muted hover:text-green-500 hover:bg-green-50 transition-colors" title="Edit"><FiEdit2 className="w-3.5 h-3.5" /></button>
                                 <button onClick={() => { setDeleteConfirmId(p.id); setDeleteName(p.title); }} className="p-1.5 rounded-lg text-thb-text-muted hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete"><FiTrash2 className="w-3.5 h-3.5" /></button>

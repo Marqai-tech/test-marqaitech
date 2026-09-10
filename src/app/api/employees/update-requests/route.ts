@@ -13,6 +13,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/tenant-db';
 import { getAuthInfo } from '@/lib/companyScope';
 import { sanitizeMultiLineText } from '@/lib/sanitize';
+import { loadWorkflowConfig, resolveTierApprovers } from '@/lib/approverResolve';
 
 function corsHeaders() {
   return {
@@ -175,12 +176,21 @@ export async function POST(req: NextRequest) {
     }
 
     // For HIGH-risk fields: create a pending approval request
+    // Approval chain comes from the ACTIVE EmployeeWorkflowConfig
+    // (workflowType='update_profile') when configured; otherwise the
+    // 2-tier default (Reporting Manager → HR Admin) applies.
+    const wfConfig = await loadWorkflowConfig(db as Record<string, any>, req, 'update_profile');
+    const tiers = wfConfig?.tiers?.length
+      ? wfConfig.tiers.map((t, i) => ({ tier: i + 1, approverType: t.approverType, approverUserId: t.approverUserId || null, approverName: t.approverName || null }))
+      : [
+          { tier: 1, approverType: 'reporting_manager', approverName: 'Reporting Manager' },
+          { tier: 2, approverType: 'hr_admin', approverName: 'HR Admin' },
+        ];
+
     const configSnapshot = JSON.stringify({
       fieldSensitivity: fieldConfig,
-      tiers: [
-        { tier: 1, approverType: 'reporting_manager', label: 'Reporting Manager' },
-        { tier: 2, approverType: 'hr_admin', label: 'HR Admin' },
-      ],
+      workflowConfigId: wfConfig?.id || null,
+      tiers,
     });
 
     const updateRequest = await db.employeeUpdateRequest.create({
@@ -194,27 +204,22 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Create approval steps (2-tier default)
-    const steps = [
-      { tier: 1, approverType: 'reporting_manager', approverName: 'Reporting Manager' },
-      { tier: 2, approverType: 'hr_admin', approverName: 'HR Admin' },
-    ];
-    for (const step of steps) {
-      // Resolve approver user ID
+    // Create approval steps (configured chain or 2-tier default)
+    for (const step of tiers) {
+      // Resolve approver user ID(s) for this tier
       let approverUserId: string | null = null;
-      if (step.approverType === 'reporting_manager') {
-        const mgr = await db.employee.findUnique({
-          where: { id: employeeId },
-          select: { reportingManagerId: true },
-        });
+      try {
+        const resolved = await resolveTierApprovers(db as Record<string, any>, step, employeeId);
+        approverUserId = resolved.userIds[0] || null;
+      } catch { approverUserId = null; }
+      if (!approverUserId && step.approverType === 'reporting_manager') {
+        // legacy fallback: resolve RM directly
+        const mgr = await db.employee.findUnique({ where: { id: employeeId }, select: { reportingManagerId: true } });
         if (mgr?.reportingManagerId) {
-          const mgrUser = await db.employee.findUnique({
-            where: { id: mgr.reportingManagerId },
-            select: { userId: true },
-          });
+          const mgrUser = await db.employee.findUnique({ where: { id: mgr.reportingManagerId }, select: { userId: true } });
           approverUserId = mgrUser?.userId || null;
         }
-      } else if (step.approverType === 'hr_admin') {
+      } else if (!approverUserId && step.approverType === 'hr_admin') {
         const admin = await db.user.findFirst({
           where: { role: { in: ['admin', 'hr_admin', 'tenant_admin'] }, status: 'active' },
           select: { id: true },
@@ -226,9 +231,9 @@ export async function POST(req: NextRequest) {
           updateRequestId: updateRequest.id,
           tier: step.tier,
           approverType: step.approverType,
-          approverName: step.approverName,
+          approverName: step.approverName || step.approverType,
           approverUserId,
-          status: step.tier === 1 ? 'pending' : 'pending',
+          status: 'pending',
         },
       });
     }

@@ -129,6 +129,10 @@ const initialForm = {
   dueDate: '',
   notes: '',
   status: 'pending',
+  priority: 'medium',
+  kra: '',
+  trainingModule: '',
+  mentorEmployeeId: '',
 };
 
 /* ── Placeholder Tabs ── */
@@ -264,6 +268,19 @@ function OnboardingContent() {
 
   useEffect(() => { queueMicrotask(() => fetchData()); }, [fetchData]);
 
+  /* Onboarding progress dashboard (per-employee completion) */
+  const [progress, setProgress] = useState<{ summary: { newHires: number; avgCompletion: number; overdueTasks: number; fullyComplete: number }; rows: Array<{ employeeId: string; name: string; code: string; total: number; completed: number; overdue: number; completionPct: number; nextDue: { task: string; dueDate: string | null } | null }> }>({ summary: { newHires: 0, avgCompletion: 0, overdueTasks: 0, fullyComplete: 0 }, rows: [] });
+  const fetchProgress = useCallback(async () => {
+    try {
+      const res = await fetch('/api/onboarding/progress', { headers: getAuthHeaders() });
+      if (res.ok) {
+        const data = await res.json();
+        setProgress({ summary: data.summary, rows: data.rows || [] });
+      }
+    } catch { /* non-critical */ }
+  }, []);
+  useEffect(() => { queueMicrotask(() => fetchProgress()); }, [fetchProgress]);
+
   /* Filtered tasks */
   const filteredTasks = tasks.filter(t => {
     const matchSearch = !search ||
@@ -301,6 +318,10 @@ function OnboardingContent() {
       dueDate: task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : '',
       notes: task.notes || '',
       status: task.status,
+      priority: (task as unknown as Record<string, unknown>).priority as string || 'medium',
+      kra: (task as unknown as Record<string, unknown>).kra as string || '',
+      trainingModule: (task as unknown as Record<string, unknown>).trainingModule as string || '',
+      mentorEmployeeId: (task as unknown as Record<string, unknown>).mentorEmployeeId as string || '',
     });
     setEditingId(task.id);
     setShowForm(true);
@@ -341,6 +362,10 @@ function OnboardingContent() {
             status: form.status,
             dueDate: form.dueDate || null,
             notes: form.notes || null,
+            priority: form.priority,
+            kra: form.kra || null,
+            trainingModule: form.trainingModule || null,
+            mentorEmployeeId: form.mentorEmployeeId || null,
           }),
         });
         if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
@@ -356,6 +381,10 @@ function OnboardingContent() {
             dueDate: form.dueDate || null,
             notes: form.notes || null,
             assignedBy: user?.name,
+            priority: form.priority,
+            kra: form.kra || null,
+            trainingModule: form.trainingModule || null,
+            mentorEmployeeId: form.mentorEmployeeId || null,
           }),
         });
         if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
@@ -602,6 +631,52 @@ function OnboardingContent() {
                   className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                 />
               </div>
+              {/* ── Role Alignment ── */}
+              <div>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Priority</label>
+                <select
+                  value={form.priority}
+                  onChange={e => setForm(p => ({ ...p, priority: e.target.value }))}
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm bg-white"
+                >
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Training Module</label>
+                <input
+                  type="text"
+                  value={form.trainingModule}
+                  onChange={e => setForm(p => ({ ...p, trainingModule: e.target.value }))}
+                  placeholder="e.g. Security Basics 101"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">KRA (Key Responsibility Area)</label>
+                <input
+                  type="text"
+                  value={form.kra}
+                  onChange={e => setForm(p => ({ ...p, kra: e.target.value }))}
+                  placeholder="e.g. Own the release pipeline"
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Mentor / Check-in Owner</label>
+                <select
+                  value={form.mentorEmployeeId}
+                  onChange={e => setForm(p => ({ ...p, mentorEmployeeId: e.target.value }))}
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm bg-white"
+                >
+                  <option value="">None</option>
+                  {(employees as Array<Record<string, unknown>>).map(emp => (
+                    <option key={String(emp.id)} value={String(emp.id)}>{String(emp.firstName || '')} {String(emp.lastName || '')}{emp.employeeId ? ` (${String(emp.employeeId)})` : ''}</option>
+                  ))}
+                </select>
+              </div>
             </div>
             <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-thb-border">
               <button onClick={handleCancelForm} className="px-4 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">Cancel</button>
@@ -609,6 +684,35 @@ function OnboardingContent() {
                 {submitting ? 'Saving...' : editingId ? 'Update' : 'Save'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Onboarding Progress Dashboard */}
+      {progress.rows.length > 0 && (
+        <div className="thb-card p-5">
+          <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
+            <div>
+              <h3 className="text-sm font-semibold text-thb-text-primary flex items-center gap-2"><FiBarChart2 className="w-4 h-4 text-emerald-500" /> Onboarding Progress</h3>
+              <p className="text-xs text-thb-text-muted mt-0.5">Real-time completion for every new hire — {progress.summary.avgCompletion}% average, {progress.summary.overdueTasks} overdue task(s)</p>
+            </div>
+            <span className="text-[10px] px-2 py-1 rounded-full bg-emerald-50 text-emerald-700 font-medium">{progress.summary.fullyComplete}/{progress.summary.newHires} fully onboarded</span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {progress.rows.slice(0, 8).map((r) => (
+              <div key={r.employeeId} className="rounded-lg border border-thb-border p-3">
+                <div className="flex items-center justify-between gap-2 mb-1.5">
+                  <p className="text-xs font-semibold text-thb-text-primary truncate">{r.name} <span className="text-thb-text-muted font-normal">· {r.code}</span></p>
+                  <span className={`text-xs font-bold ${r.completionPct === 100 ? 'text-emerald-600' : r.completionPct >= 50 ? 'text-amber-600' : 'text-slate-500'}`}>{r.completionPct}%</span>
+                </div>
+                <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+                  <div className={`h-full rounded-full ${r.completionPct === 100 ? 'bg-emerald-500' : r.completionPct >= 50 ? 'bg-amber-400' : 'bg-teal-400'}`} style={{ width: `${r.completionPct}%` }} />
+                </div>
+                <p className="text-[10px] text-thb-text-muted mt-1.5">
+                  {r.completed}/{r.total} done{r.overdue ? ` · ${r.overdue} overdue` : ''}{r.nextDue ? ` · next: ${r.nextDue.task.slice(0, 40)}${r.nextDue.task.length > 40 ? '…' : ''}` : ''}
+                </p>
+              </div>
+            ))}
           </div>
         </div>
       )}

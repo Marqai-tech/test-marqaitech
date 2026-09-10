@@ -12,6 +12,7 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import ConvertCandidateButton from '@/components/hrms/ConvertCandidateButton';
 
 /* ── Helpers ── */
 function getAuthHeaders() {
@@ -609,6 +610,13 @@ export default function JobDetailPage() {
                             </div>
                           ) : (
                             <div className="flex items-center justify-end gap-1">
+                              {isAdmin && app.status === 'hired' && (
+                                <ConvertCandidateButton
+                                  applicationId={app.id}
+                                  className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-lg bg-teal-600 text-white hover:bg-teal-700"
+                                  label="Convert"
+                                />
+                              )}
                               {isAdmin && (
                                 <button onClick={() => handleOpenAppEdit(app)} className="p-2 rounded-lg text-thb-text-muted hover:text-amber-600 hover:bg-amber-50 transition-colors" title="Edit Status">
                                   <FiEdit2 className="w-4 h-4" />

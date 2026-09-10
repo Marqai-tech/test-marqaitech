@@ -518,6 +518,7 @@ model Employee {
   payrolls          Payroll[]
   documents         Document[]
   updateRequests    EmployeeUpdateRequest[]
+  policyAcknowledgments PolicyAcknowledgment[]
   dependents        Dependent[]
   qualifications    Qualification[]
   experiences       Experience[]
@@ -824,6 +825,14 @@ model OnboardingTask {
   templateId        String?
   // Buddy assigned (for category=buddy_setup tasks)
   buddyEmployeeId   String?
+
+  // ─── Role alignment & reminder tracking ───
+  priority         String   @default("medium") // low | medium | high
+  kra              String?  // Key Responsibility Area for this task
+  trainingModule   String?  // training module / course name
+  mentorEmployeeId String?  // mentor / check-in owner
+  remindersEnabled Boolean  @default(true)
+  lastRemindedAt   DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1341,6 +1350,9 @@ model EmployeeWorkflowConfig {
   tenantId        String
   companyId       String?  // null = tenant-wide
   isActive        Boolean @default(true)
+  // update_profile = employee profile-change approval chain
+  // probation_confirmation = probation → confirmed approval chain
+  workflowType    String @default("update_profile")
   name            String @default("Default Employee Update Workflow")
   description     String?
 
@@ -1676,10 +1688,54 @@ model Policy {
   companyId   String
   company     Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
+  documentVersions PolicyDocumentVersion[]
+  acknowledgments  PolicyAcknowledgment[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([companyId])
+}
+
+// ─── Policy document version history ───
+// Every time a policy is updated (title/description/file changed), the
+// PREVIOUS version is archived here so admins can always retrieve or
+// download an older copy of the policy document.
+model PolicyDocumentVersion {
+  id            String   @id @default(cuid())
+  policyId      String
+  policy        Policy   @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  versionNumber Int      @default(1) // 1 = first archived snapshot, increments per update
+  version       String   @default("1.0") // human-readable version label at archive time
+  title         String
+  description   String?
+  fileName      String?
+  fileUrl       String?
+  fileSize      Int?
+  fileMimeType  String?
+  changeNote    String?  // optional note describing the update
+  archivedById  String?
+  archivedAt    DateTime @default(now())
+
+  @@index([policyId])
+}
+
+// ─── Policy acknowledgment (employee confirms they've read the policy) ───
+model PolicyAcknowledgment {
+  id             String   @id @default(cuid())
+  policyId       String
+  policy         Policy   @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  employeeId     String
+  employee       Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  policyVersion  String?  // version acknowledged
+  method         String   @default("self_service") // self_service | admin_marked
+  acknowledgedAt DateTime @default(now())
+  acknowledgedById String? // userId who recorded the acknowledgment
+  comments       String?
+
+  @@unique([policyId, employeeId])
+  @@index([policyId])
+  @@index([employeeId])
 }
 
 // ============ HOLIDAYS ============
@@ -2237,6 +2293,11 @@ model Offer {
   signedPdfUrl      String?
   signedAt          DateTime?
   signedById        String?
+
+  // ─── Candidate self-service acceptance (secure token link) ───
+  accessToken        String?   @unique // public link /offer/<token>
+  candidateSignature String?   // typed full name accepted as e-signature
+  candidateSignedAt  DateTime?
 
   // ─── REQ-OFR-04: Decline survey back-reference ───
   declineSurvey     OfferDeclineSurvey?

@@ -193,6 +193,33 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: 'Forbidden: cannot modify policy outside your company' }, { status: 403, headers: corsHeaders() });
     }
 
+    // ─── Version history: archive the PREVIOUS snapshot before overwriting ───
+    // Only archive when something material actually changed (title, description,
+    // content, version label, or the attached document). This keeps the previous
+    // PDF/DOCX downloadable even after the policy is updated.
+    const materialKeys = ['title', 'description', 'content', 'version', 'fileUrl', 'fileName', 'fileSize', 'fileMimeType'] as const;
+    const changed = materialKeys.some((k) =>
+      updateData[k] !== undefined && String(updateData[k] ?? '') !== String((existing as Record<string, unknown>)[k] ?? '')
+    );
+    if (changed) {
+      const prevCount = await (db as any).policyDocumentVersion?.count({ where: { policyId: id } }) ?? 0;
+      await (db as any).policyDocumentVersion?.create({
+        data: {
+          policyId: id,
+          versionNumber: prevCount + 1,
+          version: existing.version || '1.0',
+          title: existing.title,
+          description: existing.description,
+          fileName: existing.fileName,
+          fileUrl: existing.fileUrl,
+          fileSize: existing.fileSize,
+          fileMimeType: existing.fileMimeType,
+          changeNote: typeof rest.changeNote === 'string' ? sanitizeMultiLineText(rest.changeNote, 300) : null,
+          archivedById: auth.userId,
+        },
+      }).catch(() => null);
+    }
+
     const policy = await db.policy.update({
       where: { id },
       data: updateData,

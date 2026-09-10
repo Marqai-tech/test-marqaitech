@@ -62,6 +62,12 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     }
     if (body.dueDate !== undefined) data.dueDate = body.dueDate ? new Date(body.dueDate) : null;
     if (body.notes !== undefined) data.notes = body.notes;
+    // Role alignment + reminder fields
+    if (body.priority !== undefined) data.priority = ['low', 'medium', 'high'].includes(body.priority) ? body.priority : 'medium';
+    if (body.kra !== undefined) data.kra = body.kra || null;
+    if (body.trainingModule !== undefined) data.trainingModule = body.trainingModule || null;
+    if (body.mentorEmployeeId !== undefined) data.mentorEmployeeId = body.mentorEmployeeId || null;
+    if (body.remindersEnabled !== undefined) data.remindersEnabled = Boolean(body.remindersEnabled);
 
     const task = await db.onboardingTask.update({
       where: { id },

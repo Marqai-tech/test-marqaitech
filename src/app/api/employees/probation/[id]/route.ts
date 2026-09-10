@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
+import { loadWorkflowConfig, resolveTierApprovers } from '@/lib/approverResolve';
 
 function corsHeaders() {
   return {
@@ -254,6 +255,157 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const currentStage = probationData.workflowStage || 'hr_review';
     const isMDAdmin = ['super_admin', 'tenant_admin'].includes(userRole);
     const isHRAdmin = ['admin', 'company_hr_admin', 'hr_admin', 'manager'].includes(userRole) || isMDAdmin;
+
+    // ─── Configurable approval chain (EmployeeWorkflowConfig, workflowType='probation_confirmation') ───
+    // When HR has configured approvers in /employees/approval-config, this
+    // multi-tier chain replaces the fixed HR → MD/Admin flow. Tiers are acted
+    // on in order; only the LAST tier's decision finalizes the review. Legacy
+    // 'hr_review'/'md_review' stages map onto tiers 1/2 for in-flight reviews.
+    const wfConfig = await loadWorkflowConfig(db as Record<string, any>, request, 'probation_confirmation');
+    if (wfConfig && currentStage !== 'completed') {
+      let tierIdx = Number(probationData.tierIndex) || 0;
+      if (!tierIdx) {
+        if (currentStage === 'hr_review') tierIdx = 1;
+        else if (currentStage === 'md_review') tierIdx = Math.min(2, wfConfig.tiers.length);
+        else tierIdx = 1;
+      }
+      tierIdx = Math.min(tierIdx, wfConfig.tiers.length);
+      const currentTierDef = wfConfig.tiers[tierIdx - 1];
+      const resolved = await resolveTierApprovers(db as Record<string, any>, currentTierDef, existing.employeeId);
+
+      // Permission gate for the current tier
+      let allowed = isMDAdmin || resolved.userIds.includes(String(decoded.userId));
+      if (!allowed && currentTierDef.approverType === 'hr_admin' && ['admin', 'company_hr_admin', 'hr_admin', 'manager'].includes(userRole)) allowed = true;
+      if (!allowed) {
+        return NextResponse.json({
+          error: `This probation review is waiting for approval from: ${resolved.label}. You are not an approver at this stage.`,
+        }, { status: 403, headers: corsHeaders() });
+      }
+
+      // Record this tier's decision
+      probationData.tierDecisions = Array.isArray(probationData.tierDecisions) ? probationData.tierDecisions : [];
+      probationData.tierDecisions.push({
+        tier: tierIdx,
+        approverType: currentTierDef.approverType,
+        approverName: resolved.label,
+        action,
+        comments: comments || '',
+        by: decoded.userId,
+        at: new Date().toISOString(),
+      });
+      if (action === 'extend' && extensionPeriod) {
+        probationData.extensionPeriod = extensionPeriod;
+      }
+
+      const reviewForName = await db.performanceReview.update({
+        where: { id },
+        data: { comments: JSON.stringify(probationData) },
+        include: { employee: { select: { firstName: true, lastName: true, employeeId: true } } },
+      });
+      const empName = `${(reviewForName as any).employee?.firstName || ''} ${(reviewForName as any).employee?.lastName || ''}`.trim();
+
+      const isLastTier = tierIdx >= wfConfig.tiers.length;
+      if (!isLastTier) {
+        // Advance to the next tier
+        probationData.tierIndex = tierIdx + 1;
+        probationData.workflowStage = `tier_${tierIdx + 1}`;
+        await db.performanceReview.update({ where: { id }, data: { status: 'pending', comments: JSON.stringify(probationData) } });
+
+        const nextTierDef = wfConfig.tiers[tierIdx];
+        const nextResolved = await resolveTierApprovers(db as Record<string, any>, nextTierDef, existing.employeeId);
+        for (const uid of nextResolved.userIds) {
+          try {
+            await db.notification.create({
+              data: {
+                userId: uid,
+                title: `Probation Review Needs Your Approval — ${empName}`,
+                message: `Tier ${tierIdx} decision (${action}) has been recorded. Your approval is required as ${nextResolved.label} (tier ${tierIdx + 1} of ${wfConfig.tiers.length}).`,
+                type: 'probation',
+                category: 'probation_tier_review',
+                isRead: false,
+                isEmailSent: false,
+                actionUrl: '/employees/probation',
+              },
+            }).catch(() => null);
+          } catch { /* non-critical */ }
+        }
+        try {
+          await db.auditLog.create({
+            data: { userId: decoded.userId as string, action: 'PROBATION_TIER_REVIEW', module: 'employees', details: `Tier ${tierIdx} (${resolved.label}) decision "${action}" recorded for ${empName}. Advanced to tier ${tierIdx + 1}.` },
+          });
+        } catch { /* non-critical */ }
+
+        return NextResponse.json({
+          success: true,
+          message: `Decision recorded. Sent to ${nextResolved.label} (tier ${tierIdx + 1} of ${wfConfig.tiers.length}) for approval.`,
+          probation: { id, status: 'pending', workflowStage: probationData.workflowStage, tierIndex: tierIdx + 1 },
+        }, { headers: corsHeaders() });
+      }
+
+      // ─── Final tier: finalize the review (same semantics as legacy md_review) ───
+      let newStatus = 'pending';
+      let newDecision = 'pending';
+      if (action === 'approve') { newStatus = 'completed'; newDecision = 'confirm'; }
+      else if (action === 'extend') { newStatus = 'in_progress'; newDecision = 'extend'; }
+      else if (action === 'reject') { newStatus = 'rejected'; newDecision = 'terminate'; }
+
+      probationData.decision = newDecision;
+      probationData.finalAction = action;
+      probationData.finalComments = comments || '';
+      probationData.workflowStage = 'completed';
+      probationData.tierIndex = tierIdx;
+
+      const finalReview = await db.performanceReview.update({
+        where: { id },
+        data: { status: newStatus, comments: JSON.stringify(probationData), reviewDate: new Date() },
+        include: { employee: { select: { id: true, firstName: true, lastName: true, employeeId: true } } },
+      });
+
+      if (action === 'approve') {
+        try {
+          await db.employee.update({ where: { id: existing.employeeId }, data: { employeeStatus: 'confirmed' } });
+        } catch { /* non-critical */ }
+      }
+
+      // Notify HR admins that the decision is final
+      try {
+        const { getPlatformDb } = await import('@/lib/tenant-db');
+        const platformDb = getPlatformDb();
+        const hrAdmins = await platformDb.user.findMany({
+          where: { role: { in: ['admin', 'company_hr_admin', 'hr_admin'] }, status: 'active' },
+          select: { id: true },
+        }).catch(() => []);
+        const decisionLabel = newDecision === 'confirm' ? 'Confirmed' : newDecision === 'extend' ? 'Extended' : 'Terminated';
+        for (const hr of hrAdmins) {
+          try {
+            await db.notification.create({
+              data: {
+                userId: hr.id,
+                title: `Probation Decision Finalized — ${empName}`,
+                message: `The probation approval chain has completed for ${empName}.\n\nFinal Decision: ${decisionLabel}\nComments: ${comments || 'No comments'}`,
+                type: 'probation',
+                category: 'probation_completed',
+                isRead: false,
+                isEmailSent: false,
+                actionUrl: '/employees/probation',
+              },
+            }).catch(() => null);
+          } catch { /* non-critical */ }
+        }
+      } catch { /* non-critical */ }
+
+      try {
+        await db.auditLog.create({
+          data: { userId: decoded.userId as string, action: `PROBATION_FINAL_${action.toUpperCase()}`, module: 'employees', details: `Final tier decision "${action}" (${newDecision}) for ${empName}. Chain: ${wfConfig.tiers.length} tier(s).` },
+        });
+      } catch { /* non-critical */ }
+
+      return NextResponse.json({
+        success: true,
+        message: `Probation review ${action}d at the final approval tier. Employee status updated.`,
+        probation: { id, status: newStatus, decision: newDecision, workflowStage: 'completed' },
+      }, { headers: corsHeaders() });
+    }
 
     // ─── Stage 1: HR Review ───
     if (currentStage === 'hr_review') {

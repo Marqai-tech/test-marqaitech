@@ -71,7 +71,7 @@ export async function POST(request: Request) {
     if (!decoded) return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
 
     const body = await request.json();
-    const { employeeId, task, category, dueDate, assignedBy, notes } = body;
+    const { employeeId, task, category, dueDate, assignedBy, notes, priority, kra, trainingModule, mentorEmployeeId } = body;
 
     if (!employeeId || !task) {
       return NextResponse.json({ error: 'Missing required fields: employeeId, task' }, { status: 400, headers: corsHeaders() });
@@ -85,6 +85,10 @@ export async function POST(request: Request) {
         dueDate: dueDate ? new Date(dueDate) : null,
         assignedBy,
         notes: notes || null,
+        priority: ['low', 'medium', 'high'].includes(priority) ? priority : 'medium',
+        kra: kra || null,
+        trainingModule: trainingModule || null,
+        mentorEmployeeId: mentorEmployeeId || null,
       },
       include: { employee: { select: { firstName: true, lastName: true, employeeId: true } } },
     });

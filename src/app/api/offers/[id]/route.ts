@@ -90,6 +90,10 @@ export async function PATCH(
       }
       if (status === 'sent') {
         updateData.sentAt = new Date();
+        // Mint the candidate self-service acceptance link token once
+        if (!existing.accessToken) {
+          updateData.accessToken = `off_${crypto.randomUUID().replace(/-/g, '')}${Date.now().toString(36)}`;
+        }
       }
       if (status === 'accepted' || status === 'rejected') {
         updateData.respondedAt = new Date();

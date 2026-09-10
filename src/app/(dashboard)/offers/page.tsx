@@ -2,10 +2,11 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import {
-  FiPlus, FiX, FiCheck, FiFileText, FiEye, FiEdit2, FiTrash2,
+  FiPlus, FiX, FiCheck, FiFileText, FiEye, FiEdit2, FiTrash2, FiLink,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import ConvertCandidateButton from '@/components/hrms/ConvertCandidateButton';
 import ModuleTips from '@/components/ModuleTips';
 import ModuleWorkflow from '@/components/ModuleWorkflow';
 
@@ -15,7 +16,7 @@ function getAuthHeaders() {
 }
 
 interface Offer {
-  id: string; candidateName: string; candidateEmail: string; position: string; department: string | null; offeredSalary: number; offeredCurrency: string; joiningDate: string; probationPeriod: number; status: string; createdAt: string;
+  id: string; candidateName: string; candidateEmail: string; position: string; department: string | null; offeredSalary: number; offeredCurrency: string; joiningDate: string; probationPeriod: number; status: string; createdAt: string; accessToken?: string | null;
 }
 
 const offersTips = [
@@ -327,6 +328,24 @@ export default function OffersPage() {
                                 <button onClick={() => handleStatusChange(o.id, 'accepted')} className="px-2 py-1 text-xs font-medium text-emerald-700 bg-emerald-50 rounded hover:bg-emerald-100">Accept</button>
                                 <button onClick={() => handleStatusChange(o.id, 'rejected')} className="px-2 py-1 text-xs font-medium text-red-700 bg-red-50 rounded hover:bg-red-100">Reject</button>
                               </>
+                            )}
+                            {o.accessToken && ['sent', 'approved', 'accepted'].includes(o.status) && (
+                              <button
+                                onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/offer/${o.accessToken}`).then(() => toast.success('Candidate link copied — share it with the candidate')).catch(() => toast.error('Copy failed')); }}
+                                className="px-2 py-1 text-xs font-medium text-sky-700 bg-sky-50 rounded hover:bg-sky-100 flex items-center gap-1"
+                                title="Copy the secure candidate acceptance link"
+                              >
+                                <FiLink className="w-3 h-3" /> Link
+                              </button>
+                            )}
+                            {o.status === 'accepted' && (
+                              <ConvertCandidateButton
+                                offerId={o.id}
+                                defaultJoiningDate={o.joiningDate}
+                                defaultProbationDays={o.probationPeriod}
+                                className="px-2 py-1 text-xs font-medium text-white bg-teal-600 rounded hover:bg-teal-700 inline-flex items-center gap-1"
+                                label="Convert"
+                              />
                             )}
                           </div>
                         </td>

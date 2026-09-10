@@ -212,6 +212,7 @@ function PreboardingContent() {
   const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
 
   const [candidates, setCandidates] = useState<PreboardingCandidate[]>(demoCandidates);
+  const [usingLiveData, setUsingLiveData] = useState(false);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [filterStage, setFilterStage] = useState('');
@@ -225,19 +226,66 @@ function PreboardingContent() {
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  /* Fetch data */
+  /* Fetch data — LIVE preboarding records from the conversion cascade;
+     demo examples are only shown when no real records exist yet */
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/onboarding?limit=100', { headers: getAuthHeaders() });
+      const res = await fetch('/api/preboarding?limit=100', { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
-        if (data.tasks && data.tasks.length > 0) {
-          // API has data - would map to preboarding model
-          // For now, keep demo data
+        const live = (data.candidates || []) as Array<Record<string, unknown>>;
+        if (live.length > 0) {
+          const statusToStage: Record<string, string> = {
+            offer_accepted: 'Offer Accepted',
+            document_collection: 'Document Collection',
+            bgv: 'Background Verification',
+            provisioning: 'IT Setup',
+            asset_request: 'IT Setup',
+            joined: 'Day 1 Ready',
+            cancelled: 'Cancelled',
+          };
+          const docTypes = ['offer_letter', 'id_proof', 'tax_forms', 'direct_deposit', 'employment_agreement', 'emergency_contact'];
+          const mapped: PreboardingCandidate[] = live.map((c) => {
+            const status = String(c.status || 'offer_accepted');
+            const bgvStatus = String(c.backgroundCheckStatus || 'pending');
+            let docs: DocumentItem[] = [];
+            try {
+              const parsed = typeof c.documentsUploaded === 'string' && (c.documentsUploaded as string).startsWith('[')
+                ? JSON.parse(c.documentsUploaded as string)
+                : null;
+              if (Array.isArray(parsed)) docs = parsed;
+            } catch { /* ignore */ }
+            if (!docs.length) {
+              docs = docTypes.map((t) => ({ type: t, status: 'pending' as const }));
+            }
+            return {
+              id: String(c.id),
+              name: String(c.candidateName || 'Unknown'),
+              email: String(c.candidateEmail || ''),
+              position: String(c.jobTitle || 'New Hire'),
+              stage: statusToStage[status] || 'Offer Accepted',
+              startDate: c.joiningDate ? String(c.joiningDate).slice(0, 10) : '',
+              documents: docs,
+              bgv: {
+                vendor: 'Sterling',
+                status: (bgvStatus === 'cleared' ? 'completed' : bgvStatus === 'failed' ? 'failed' : bgvStatus === 'pending' ? 'pending' : 'in_progress') as BGVRecord['status'],
+                submittedDate: null,
+                completedDate: bgvStatus === 'cleared' || bgvStatus === 'failed' ? new Date().toISOString().slice(0, 10) : null,
+                notes: String(c.backgroundCheckNotes || ''),
+              },
+              hrVerified: Boolean(c.hrVerified),
+            };
+          });
+          setCandidates(mapped);
+          setUsingLiveData(true);
+          return;
         }
       }
+      setUsingLiveData(false);
+      setCandidates(demoCandidates);
     } catch {
+      setUsingLiveData(false);
       // Use demo data on error
     } finally {
       setLoading(false);
@@ -351,6 +399,9 @@ function PreboardingContent() {
             Preboarding
           </h1>
           <p className="text-thb-text-secondary mt-1">Manage pre-boarding workflow for incoming employees</p>
+          <p className={`text-[11px] mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-full ${usingLiveData ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+            {usingLiveData ? '● Live data — candidates converted from recruitment appear here' : '● Sample data — convert a hired candidate in Recruitment to see live records'}
+          </p>
         </div>
         {isAdmin && (
           <button onClick={handleShowAddForm} className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 font-medium text-sm shadow-sm shadow-emerald-500/25 transition-colors">

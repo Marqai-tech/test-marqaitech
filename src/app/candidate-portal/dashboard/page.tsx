@@ -17,6 +17,7 @@ interface DashboardData {
     applied: number; shortlisted: number; interviewing: number;
     offered: number; hired: number; rejected: number; talentPool: number; total: number;
   };
+  pendingOffer?: { accessToken: string; position: string; joiningDate?: string; offerStatus: string } | null;
   applications: Array<{
     id: string; jobTitle: string; position: string; department?: string;
     location?: string; type: string; status: string; appliedDate: string;
@@ -443,6 +444,19 @@ export default function CandidateDashboardPage() {
           </div>
         </div>
       </header>
+      {data?.pendingOffer && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
+          <a href={`/offer/${data.pendingOffer.accessToken}`} className="block rounded-xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-teal-50 px-5 py-4 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div>
+                <p className="text-sm font-bold text-emerald-800">🎉 You have an offer for the {data.pendingOffer.position} position!</p>
+                <p className="text-xs text-emerald-700 mt-0.5">Review the details and accept securely online{data.pendingOffer.joiningDate ? ` — proposed joining: ${new Date(data.pendingOffer.joiningDate).toLocaleDateString()}` : ''}.</p>
+              </div>
+              <span className="px-4 py-2 rounded-lg bg-emerald-600 text-white text-xs font-semibold">View &amp; Respond →</span>
+            </div>
+          </a>
+        </div>
+      )}
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         {/* Stats Grid */}

@@ -34,6 +34,7 @@ import {
   FiAlertCircle,
   FiDownload,
   FiX,
+  FiLayers,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
@@ -1167,6 +1168,7 @@ function EmployeeDocumentsTab({ employeeId, initialDocuments }: { employeeId: st
   const isAdmin = ['super_admin','tenant_admin','admin','hr_admin'].includes(user?.role || '');
   const [documents, setDocuments] = useState<EmployeeDocument[]>(initialDocuments);
   const [showUpload, setShowUpload] = useState(false);
+  const [showBulkUpload, setShowBulkUpload] = useState(false);
   const [showRequest, setShowRequest] = useState(false);
   const [activeCategory, setActiveCategory] = useState('all');
 
@@ -1208,6 +1210,9 @@ function EmployeeDocumentsTab({ employeeId, initialDocuments }: { employeeId: st
               <FiAlertCircle className="w-3.5 h-3.5" /> Request Document
             </button>
           )}
+          <button onClick={() => setShowBulkUpload(true)} className="inline-flex items-center gap-2 px-3 py-2 border border-green-600 text-green-700 rounded-lg text-xs font-medium hover:bg-green-50">
+            <FiLayers className="w-3.5 h-3.5" /> Bulk Upload
+          </button>
           <button onClick={() => setShowUpload(true)} className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg text-xs font-medium hover:bg-green-700">
             <FiUpload className="w-3.5 h-3.5" /> Upload Document
           </button>
@@ -1274,6 +1279,7 @@ function EmployeeDocumentsTab({ employeeId, initialDocuments }: { employeeId: st
       )}
 
       {showUpload && <UploadDocModal employeeId={employeeId} onClose={() => setShowUpload(false)} onDone={() => { setShowUpload(false); fetchDocs(); }} />}
+      {showBulkUpload && <BulkUploadModal employeeId={employeeId} onClose={() => setShowBulkUpload(false)} onDone={() => { setShowBulkUpload(false); fetchDocs(); }} />}
       {showRequest && <RequestDocModal employeeId={employeeId} onClose={() => setShowRequest(false)} onDone={() => { setShowRequest(false); fetchDocs(); }} />}
     </div>
   );
@@ -1307,6 +1313,122 @@ function UploadDocModal({ employeeId, onClose, onDone }: { employeeId: string; o
           <div><label className="block text-xs font-medium text-slate-600 mb-1">Description</label><textarea value={description} onChange={e => setDescription(e.target.value)} rows={2} className="w-full px-3 py-2 border rounded-lg text-sm" /></div>
         </div>
         <div className="flex justify-end gap-3 px-5 py-4 border-t"><button onClick={onClose} className="px-4 py-2 text-sm text-slate-600">Cancel</button><button onClick={submit} disabled={saving} className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium disabled:opacity-50">{saving ? 'Uploading…' : 'Upload'}</button></div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Bulk Upload modal — pick multiple files at once (≤3MB each); every file is
+ * read to a data URL and uploaded as its own document record. Shared
+ * category/type/expiry/description apply to the whole batch; each document
+ * is named after its file.
+ */
+function BulkUploadModal({ employeeId, onClose, onDone }: { employeeId: string; onClose: () => void; onDone: () => void }) {
+  const [files, setFiles] = useState<File[]>([]);
+  const [category, setCategory] = useState('identification');
+  const [type, setType] = useState('other');
+  const [expiryDate, setExpiryDate] = useState('');
+  const [description, setDescription] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState({ done: 0, failed: 0 });
+
+  const handlePick = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const picked = Array.from(e.target.files || []);
+    e.target.value = '';
+    const accepted: File[] = [];
+    for (const f of picked) {
+      if (f.size > 3 * 1024 * 1024) { toast.error(`${f.name}: exceeds 3MB — skipped`, { duration: 5000 }); continue; }
+      accepted.push(f);
+    }
+    if (accepted.length) setFiles((prev) => [...prev, ...accepted]);
+  };
+
+  const removeFile = (idx: number) => setFiles((prev) => prev.filter((_, i) => i !== idx));
+
+  const readFile = (file: File): Promise<string | null> => new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.onerror = () => resolve(null);
+    reader.readAsDataURL(file);
+  });
+
+  const submit = async () => {
+    if (!files.length) { toast.error('Choose at least one file'); return; }
+    setUploading(true);
+    setProgress({ done: 0, failed: 0 });
+    let done = 0; let failed = 0;
+    for (const file of files) {
+      try {
+        const dataUrl = await readFile(file);
+        if (!dataUrl) throw new Error('read failed');
+        // Name = filename without extension (readable, matches single-upload UX)
+        const docName = file.name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim() || file.name;
+        const r = await fetch(`/api/employees/${employeeId}/documents`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({
+            name: docName, category, type,
+            fileUrl: dataUrl,
+            description: description || undefined,
+            expiryDate: expiryDate || undefined,
+          }),
+        });
+        if (!r.ok) {
+          const d = await r.json().catch(() => ({}));
+          throw new Error(d.error || 'upload failed');
+        }
+        done++;
+      } catch {
+        failed++;
+      }
+      setProgress({ done, failed });
+    }
+    setUploading(false);
+    if (failed === 0) toast.success(`${done} document${done === 1 ? '' : 's'} uploaded`);
+    else toast.error(`${done} uploaded, ${failed} failed`, { duration: 5000 });
+    if (done > 0) onDone(); else onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 py-4 border-b"><h3 className="font-semibold">Bulk Upload Documents</h3><button onClick={onClose}><FiX className="w-5 h-5 text-slate-400" /></button></div>
+        <div className="p-5 space-y-3">
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Files (select multiple) *</label>
+            <label className="flex items-center justify-center gap-2 px-3 py-6 rounded-lg border border-dashed border-thb-border text-sm text-slate-500 cursor-pointer hover:bg-slate-50">
+              <FiLayers className="w-5 h-5 text-green-600" />
+              <span>{files.length ? `${files.length} file(s) ready` : 'Click to choose files — any type, max 3MB each'}</span>
+              <input type="file" multiple className="hidden" onChange={handlePick} />
+            </label>
+            {files.length > 0 && (
+              <ul className="mt-2 max-h-32 overflow-y-auto space-y-1">
+                {files.map((f, i) => (
+                  <li key={`${f.name}-${i}`} className="flex items-center justify-between gap-2 text-xs text-slate-600 bg-slate-50 rounded px-2 py-1">
+                    <span className="truncate">{f.name} · {(f.size / 1024).toFixed(0)} KB</span>
+                    <button type="button" onClick={() => removeFile(i)} className="text-red-500 hover:text-red-700 shrink-0"><FiX className="w-3.5 h-3.5" /></button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <p className="text-[10px] text-slate-400 mt-1">Each document is named after its file and uploaded with the shared category/type below.</p>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div><label className="block text-xs font-medium text-slate-600 mb-1">Category (all files)</label><select value={category} onChange={e => setCategory(e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm bg-white">{DOC_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}</select></div>
+            <div><label className="block text-xs font-medium text-slate-600 mb-1">Type (all files)</label><select value={type} onChange={e => setType(e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm bg-white">{DOC_TYPES.map(t => <option key={t} value={t}>{t.replace(/_/g, ' ')}</option>)}</select></div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div><label className="block text-xs font-medium text-slate-600 mb-1">Expiry Date (optional)</label><input type="date" value={expiryDate} onChange={e => setExpiryDate(e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm" /></div>
+            <div><label className="block text-xs font-medium text-slate-600 mb-1">Description (optional)</label><input value={description} onChange={e => setDescription(e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm" /></div>
+          </div>
+          {uploading && (
+            <p className="text-xs text-teal-700 bg-teal-50 rounded-lg px-3 py-2">
+              Uploading… {progress.done + progress.failed}/{files.length} processed{progress.failed ? ` · ${progress.failed} failed` : ''}
+            </p>
+          )}
+        </div>
+        <div className="flex justify-end gap-3 px-5 py-4 border-t"><button onClick={onClose} className="px-4 py-2 text-sm text-slate-600">Cancel</button><button onClick={submit} disabled={uploading || !files.length} className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium disabled:opacity-50">{uploading ? 'Uploading…' : `Upload ${files.length || ''} Document${files.length === 1 ? '' : 's'}`}</button></div>
       </div>
     </div>
   );

@@ -100,6 +100,13 @@ export async function GET(request: Request) {
       orderBy: { appliedDate: 'desc' },
     });
 
+    // ─── Pending offer for this candidate (self-service acceptance) ────────
+    const pendingOffer = await db.offer.findFirst({
+      where: { candidateEmail: email, accessToken: { not: null }, status: { in: ['sent', 'approved'] } },
+      select: { id: true, accessToken: true, position: true, status: true, joiningDate: true, candidateName: true },
+      orderBy: { createdAt: 'desc' },
+    }).catch(() => null);
+
     // ─── Backfill missing ResumeParse rows for existing applications ────
     // Before this fix, /api/public/apply stored the resume data URL on the
     // application but never created a ResumeParse row. So candidates who
@@ -449,6 +456,7 @@ export async function GET(request: Request) {
     return NextResponse.json({
       profile: { name, email },
       stats,
+      pendingOffer: pendingOffer ? { accessToken: pendingOffer.accessToken, position: pendingOffer.position, joiningDate: pendingOffer.joiningDate, offerStatus: pendingOffer.status } : null,
       applications: applications.map(a => {
         const opt = optimizationByApp[a.id];
         const fb = feedbackByApp[a.id];
