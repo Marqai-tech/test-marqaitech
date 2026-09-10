@@ -153,22 +153,32 @@ export async function GET(
     // but `companyId` is just a String? field (no `company` relation).
     // We include department/designation names via relations, and look up
     // company name separately below.
-    const employees = await safe(
-      'tenantDb.employee.findMany',
-      () => tenantDb.employee.findMany({
-        where: { tenantId: id, status: 'active' },
-        select: {
-          id: true, firstName: true, lastName: true, email: true,
-          employeeId: true, status: true, phone: true, createdAt: true,
-          companyId: true,
-          department: { select: { name: true } },
-          designation: { select: { name: true } },
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 200, // limit for performance
-      }),
-      [],
-    );
+    // ⚠️ Employee has NO tenantId column in any database (dedicated or
+    // shared-mode) — filtering by tenantId throws PrismaClientValidationError
+    // at runtime and safe() masks it, so employees were always []. Scope by
+    // the companies discovered in step 3a instead (works for both modes).
+    const groupCompanyIds = normalisedCompanyGroups.flatMap((g) => (g.companies || []).map((c) => c.id));
+    const employees = groupCompanyIds.length === 0
+      ? ([] as Awaited<ReturnType<typeof fetchEmployees>>)
+      : await fetchEmployees();
+    async function fetchEmployees() {
+      return await safe(
+        'tenantDb.employee.findMany',
+        () => tenantDb.employee.findMany({
+          where: { companyId: { in: groupCompanyIds }, status: 'active' },
+          select: {
+            id: true, firstName: true, lastName: true, email: true,
+            employeeId: true, status: true, phone: true, createdAt: true,
+            companyId: true,
+            department: { select: { name: true } },
+            designation: { select: { name: true } },
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 200, // limit for performance
+        }),
+        [],
+      );
+    }
 
     // 3b-2. Resolve company names for employees
     // Since Employee.companyId is a String? (no Prisma relation), we need
