@@ -171,7 +171,7 @@ export async function GET(
             employeeId: true, status: true, phone: true, createdAt: true,
             companyId: true,
             department: { select: { name: true } },
-            designation: { select: { name: true } },
+            designation: { select: { title: true } },
           },
           orderBy: { createdAt: 'desc' },
           take: 200, // limit for performance
@@ -199,7 +199,7 @@ export async function GET(
     const employeesWithCompany = employees.map((e: any) => ({
       ...e,
       department: e.department?.name || null,
-      designation: e.designation?.name || null,
+      designation: e.designation?.title || null,
       company: e.companyId ? { id: e.companyId, name: companyMap.get(e.companyId) || null } : null,
     }));
 
