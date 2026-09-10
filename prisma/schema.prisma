@@ -1664,6 +1664,15 @@ model Policy {
   effectiveDate DateTime?
   expiryDate  DateTime?
 
+  // ── Attached policy document (PDF/DOCX upload) ──
+  // Admins can upload the complete policy document instead of pasting
+  // lengthy policy text into the description. Small files (≤3MB) are stored
+  // as data URLs; fileName/fileSize/fileMimeType describe the attachment.
+  fileUrl      String? // data URL or external link to the policy document
+  fileName     String?
+  fileSize     Int?    // bytes
+  fileMimeType String?
+
   companyId   String
   company     Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 

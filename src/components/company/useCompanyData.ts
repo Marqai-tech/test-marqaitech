@@ -18,7 +18,7 @@ export interface DepartmentRecord { id: string; name: string; code?: string; com
 export interface DesignationRecord { id: string; title: string; departmentId: string; level: number; minSalary?: number | null; maxSalary?: number | null; status: string; department?: { id: string; name: string }; _count?: { employees: number } }
 export interface ShiftRecord { id: string; name: string; startTime: string; endTime: string; breakDuration: number; graceTime: number; status: string }
 export interface HolidayRecord { id: string; name: string; date: string; type: string; country?: string; description?: string }
-export interface PolicyRecord { id: string; title: string; category: string; description: string; version: string; status: string; effectiveDate?: string | null; expiryDate?: string | null }
+export interface PolicyRecord { id: string; title: string; category: string; description: string; version: string; status: string; effectiveDate?: string | null; expiryDate?: string | null; fileUrl?: string | null; fileName?: string | null; fileSize?: number | null; fileMimeType?: string | null }
 
 /* ── Helpers ── */
 function getAuthHeaders() {

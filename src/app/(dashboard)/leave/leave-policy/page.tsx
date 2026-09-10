@@ -4,12 +4,13 @@ import { useState, useEffect, useCallback, Suspense } from 'react'
 import {
   FiFileText, FiPlus, FiSearch, FiEye, FiEdit2, FiTrash2, FiX, FiAlertTriangle,
   FiSettings, FiSave, FiToggleLeft, FiToggleRight, FiCalendar, FiBookOpen,
-  FiLayers, FiLink, FiChevronDown, FiRefreshCw, FiTrash, FiCheck
+  FiLayers, FiLink, FiChevronDown, FiRefreshCw, FiTrash, FiCheck, FiDownload
 } from 'react-icons/fi'
 import { useSearchParams, useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import { useCompanyData, apiFetch, fmtDate, getStatusBadge } from '@/components/company/useCompanyData'
 import { PolicyRecord, BranchRecord, DepartmentRecord } from '@/components/company/useCompanyData'
+import { PolicyFileUploadField, PolicyFileDownloadLink } from '@/components/hrms/PolicyFileField'
 import { useCompanyContextStore } from '@/store/companyContextStore'
 import { useAuthStore } from '@/store/authStore'
 
@@ -280,7 +281,8 @@ function LeavePolicyPageContent() {
   // ═══════════════════════════════════════════════════════════
 
   const getDefaultForm = (): Record<string, string> => ({
-    title: '', category: POLICY_CATEGORY, description: '', version: '1.0', status: 'active', effectiveDate: '', expiryDate: ''
+    title: '', category: POLICY_CATEGORY, description: '', version: '1.0', status: 'active', effectiveDate: '', expiryDate: '',
+    fileUrl: '', fileName: '', fileSize: '', fileMimeType: ''
   })
 
   const getFormFromRecord = (r: PolicyRecord): Record<string, string> => {
@@ -603,10 +605,19 @@ function LeavePolicyPageContent() {
                   ].map(([label, value]) => (
                     <div key={String(label)} className={label === 'Description' ? 'sm:col-span-2 lg:col-span-3' : ''}>
                       <p className="text-xs font-medium text-thb-text-muted mb-1">{label}</p>
-                      <p className="text-sm font-medium text-thb-text-primary">{value || '—'}</p>
+                      <p className="text-sm font-medium text-thb-text-primary whitespace-pre-wrap">{value || '—'}</p>
                     </div>
                   ))}
                 </div>
+                {viewingRecord.fileUrl && (
+                  <div className="mt-4 pt-4 border-t border-thb-border/50 flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium text-thb-text-muted mb-0.5">Policy Document</p>
+                      <p className="text-sm font-medium text-thb-text-primary truncate">{viewingRecord.fileName || 'Attached document'}</p>
+                    </div>
+                    <PolicyFileDownloadLink fileUrl={viewingRecord.fileUrl} fileName={viewingRecord.fileName} />
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -623,7 +634,8 @@ function LeavePolicyPageContent() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Title <span className="text-red-500 font-bold">*</span></label><input type="text" value={form.title || ''} onChange={e => updateForm('title', e.target.value)} required className={inputClass} placeholder="Policy title" /></div>
                     <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Version</label><input type="text" value={form.version || '1.0'} onChange={e => updateForm('version', e.target.value)} className={inputClass} placeholder="1.0" /></div>
-                    <div className="sm:col-span-2 lg:col-span-3"><label className="block text-xs font-medium text-thb-text-secondary mb-1">Description</label><input type="text" value={form.description || ''} onChange={e => updateForm('description', e.target.value)} className={inputClass} placeholder="Brief description" /></div>
+                    <div className="sm:col-span-2 lg:col-span-3"><label className="block text-xs font-medium text-thb-text-secondary mb-1">Description <span className="text-[10px] font-normal text-thb-text-muted">— short summary only; attach the full policy document below</span></label><input type="text" value={form.description || ''} onChange={e => updateForm('description', e.target.value)} className={inputClass} placeholder="Brief description" /></div>
+                    <PolicyFileUploadField form={form} updateForm={updateForm} inputClass={inputClass} />
                     <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Effective Date</label><input type="date" value={form.effectiveDate || ''} onChange={e => updateForm('effectiveDate', e.target.value)} className={inputClass} /></div>
                     <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Expiry Date</label><input type="date" value={form.expiryDate || ''} onChange={e => updateForm('expiryDate', e.target.value)} className={inputClass} /></div>
                     <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Status</label><select value={form.status || 'active'} onChange={e => updateForm('status', e.target.value)} className={inputClass}><option value="active">Active</option><option value="draft">Draft</option><option value="inactive">Inactive</option></select></div>
@@ -670,6 +682,7 @@ function LeavePolicyPageContent() {
                           <TD><span className={badge.className}>{badge.label}</span></TD>
                           <TD className="text-right">
                             <div className="flex items-center justify-end gap-1">
+                              {p.fileUrl && <a href={p.fileUrl} {...(p.fileUrl.startsWith('data:') ? { download: p.fileName || p.title } : { target: '_blank', rel: 'noopener noreferrer' })} className="p-1.5 rounded-lg text-thb-text-muted hover:text-teal-500 hover:bg-teal-50 transition-colors" title="Download policy document"><FiDownload className="w-3.5 h-3.5" /></a>}
                               <button onClick={() => openView(p)} className="p-1.5 rounded-lg text-thb-text-muted hover:text-teal-500 hover:bg-teal-50 transition-colors" title="View"><FiEye className="w-3.5 h-3.5" /></button>
                               {isAdmin && <>
                                 <button onClick={() => openEdit(p)} className="p-1.5 rounded-lg text-thb-text-muted hover:text-green-500 hover:bg-green-50 transition-colors" title="Edit"><FiEdit2 className="w-3.5 h-3.5" /></button>
