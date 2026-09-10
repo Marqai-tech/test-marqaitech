@@ -1264,7 +1264,7 @@ function EmployeeDocumentsTab({ employeeId, initialDocuments }: { employeeId: st
                   {doc.requiredFormat && <p>Required: {doc.requiredFormat.toUpperCase()}</p>}
                 </div>
                 <div className="mt-3 flex items-center gap-2">
-                  {doc.fileUrl && <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 px-2 py-1 text-[11px] text-teal-600 hover:bg-teal-50 rounded"><FiDownload className="w-3 h-3" /> Download</a>}
+                  {doc.fileUrl && <a href={doc.fileUrl} {...((doc.fileUrl || '').startsWith('data:') ? { download: doc.name } : { target: '_blank', rel: 'noopener noreferrer' })} className="inline-flex items-center gap-1 px-2 py-1 text-[11px] text-teal-600 hover:bg-teal-50 rounded"><FiDownload className="w-3 h-3" /> Download</a>}
                   {isAdmin && <button onClick={() => handleDelete(doc.id, doc.name)} className="inline-flex items-center gap-1 px-2 py-1 text-[11px] text-red-500 hover:bg-red-50 rounded ml-auto"><FiTrash2 className="w-3 h-3" /></button>}
                 </div>
               </div>

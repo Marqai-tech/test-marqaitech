@@ -27,6 +27,7 @@ import {
   FiDownload,
   FiSettings,
   FiClock,
+  FiFileText,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
@@ -182,6 +183,39 @@ function getAvatarColor(name: string) {
   return colors[Math.abs(hash) % colors.length];
 }
 
+/* ── Employee Documents tab (Add/Edit Employee form) ── */
+interface FormDocEntry {
+  id: string;
+  name: string;
+  category: string;
+  type: string;
+  fileUrl: string;
+  fileName: string;
+  expiryDate: string;
+  description: string;
+}
+
+const FORM_DOC_CATEGORIES = [
+  { value: 'identification', label: 'Identification & Legal', icon: '🪪' },
+  { value: 'onboarding', label: 'Onboarding & Employment', icon: '📋' },
+  { value: 'qualifications', label: 'Qualifications', icon: '🎓' },
+  { value: 'financial', label: 'Financial & Statutory', icon: '💰' },
+  { value: 'lifecycle', label: 'Lifecycle & Performance', icon: '📈' },
+  { value: 'other', label: 'Other', icon: '📎' },
+];
+
+const FORM_DOC_TYPES = ['offer_letter','id_proof','contract','certificate','policy','aadhaar','pan_card','bank_proof','passport','visa','education','experience','medical','other'];
+
+const emptyDocDraft = () => ({
+  name: '',
+  category: 'onboarding',
+  type: 'offer_letter',
+  fileUrl: '',
+  fileName: '',
+  expiryDate: '',
+  description: '',
+});
+
 /* ── Initial Form State ── */
 const initialForm = {
   employeeId: '',
@@ -311,6 +345,13 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
   const [submitting, setSubmitting] = useState(false);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
 
+  // Documents tab state — staging mode (Add) vs live mode (Edit)
+  const [stagedDocs, setStagedDocs] = useState<FormDocEntry[]>([]);
+  const [docDraft, setDocDraft] = useState(emptyDocDraft());
+  const [docUploading, setDocUploading] = useState(false);
+  const [editDocs, setEditDocs] = useState<Array<{ id: string; name: string; category?: string; type: string; fileUrl?: string | null; expiryDate?: string | null; description?: string | null; uploadedAt?: string }>>([]);
+  const [editDocsLoading, setEditDocsLoading] = useState(false);
+
   const [departments, setDepartments] = useState<Department[]>([]);
   const [designations, setDesignations] = useState<Designation[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
@@ -345,6 +386,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
     { key: 'health', label: 'Health', icon: '❤️' },
     { key: 'overseas', label: 'Overseas', icon: '🌍' },
     { key: 'experience', label: 'Experience', icon: '📄' },
+    { key: 'documents', label: 'Documents', icon: '📎' },
     { key: 'policies', label: 'Policies', icon: '🛡️' },
   ] as const;
 
@@ -382,6 +424,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
     ],
     overseas: [],
     experience: [],
+    documents: [],
     policies: [],
   };
 
@@ -416,6 +459,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
     health: [],
     overseas: [],
     experience: [],
+    documents: [],
     policies: [],
   };
 
@@ -847,6 +891,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
     });
     setShowForm(true);
     setFormTab('personal'); setCompletedSteps(new Set());
+    setStagedDocs([]); setDocDraft(emptyDocDraft());
     setDeleteConfirmId(null);
     setActionMenuOpen(null);
     setTimeout(() => document.getElementById('crud-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
@@ -856,6 +901,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
     setEditingId(emp.id);
     setShowForm(true);
     setFormTab('personal'); setCompletedSteps(new Set());
+    setStagedDocs([]); setDocDraft(emptyDocDraft()); setEditDocs([]);
     setDeleteConfirmId(null);
     setActionMenuOpen(null);
 
@@ -946,6 +992,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
     setForm(initialForm);
     setFormTab('personal'); setCompletedSteps(new Set());
     setPhotoPreview(null);
+    setStagedDocs([]); setDocDraft(emptyDocDraft()); setEditDocs([]);
   };
 
   const handleSubmit = async (e?: React.FormEvent) => {
@@ -1064,6 +1111,38 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
           throw new Error(errorMsg);
         }
         toast.success('Employee created successfully');
+
+        // ─── Attach staged documents to the freshly created employee ───
+        // Non-blocking: if a document upload fails, the employee is still
+        // created and the user is told to attach the failed docs manually.
+        const created = await res.json().catch(() => null);
+        const newEmpId: string | undefined = created?.employee?.id;
+        if (newEmpId && stagedDocs.length > 0) {
+          let docsOk = 0;
+          let docsFailed = 0;
+          for (const doc of stagedDocs) {
+            try {
+              const dr = await fetch(`/api/employees/${newEmpId}/documents`, {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify({
+                  name: doc.name,
+                  category: doc.category,
+                  type: doc.type,
+                  fileUrl: doc.fileUrl || undefined,
+                  description: doc.description || undefined,
+                  expiryDate: doc.expiryDate || undefined,
+                }),
+              });
+              if (dr.ok) docsOk++; else docsFailed++;
+            } catch {
+              docsFailed++;
+            }
+          }
+          if (docsOk > 0) toast.success(`${docsOk} document${docsOk > 1 ? 's' : ''} attached to employee`);
+          if (docsFailed > 0) toast.error(`${docsFailed} document${docsFailed > 1 ? 's' : ''} could not be attached — add them from the employee profile`, { duration: 7000 });
+          setStagedDocs([]);
+        }
       }
       handleCancelForm();
       fetchEmployees(pagination.page);
@@ -1119,6 +1198,95 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
       updateForm('avatar', reader.result as string);
     };
     reader.readAsDataURL(file);
+  };
+
+  /* ── Documents tab handlers ── */
+  const handleDocFilePick = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 3 * 1024 * 1024) {
+      toast.error('File must be under 3MB. For larger files, paste a shareable link instead.', { duration: 6000 });
+      e.target.value = '';
+      return;
+    }
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setDocDraft(prev => ({ ...prev, fileUrl: reader.result as string, fileName: file.name }));
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  const addStagedDoc = () => {
+    if (!docDraft.name.trim()) { toast.error('Document name is required'); return; }
+    setStagedDocs(prev => [...prev, { id: `doc_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, ...docDraft, name: docDraft.name.trim() }]);
+    setDocDraft(emptyDocDraft());
+    toast.success('Document added — it will be saved when you click "Add Employee"');
+  };
+
+  const removeStagedDoc = (id: string) => setStagedDocs(prev => prev.filter(d => d.id !== id));
+
+  /* Edit mode: live document management against the real API */
+  const fetchEditDocs = useCallback(async (employeeId: string) => {
+    try {
+      setEditDocsLoading(true);
+      const r = await fetch(`/api/employees/${employeeId}/documents`, { headers: getAuthHeaders() });
+      if (r.ok) {
+        const d = await r.json();
+        setEditDocs(d.documents || []);
+      }
+    } catch {
+      // non-critical — leave list as-is
+    } finally {
+      setEditDocsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (formTab === 'documents' && editingId) fetchEditDocs(editingId);
+  }, [formTab, editingId, fetchEditDocs]);
+
+  const uploadLiveDoc = async () => {
+    if (!editingId) return;
+    if (!docDraft.name.trim()) { toast.error('Document name is required'); return; }
+    try {
+      setDocUploading(true);
+      const r = await fetch(`/api/employees/${editingId}/documents`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          name: docDraft.name.trim(),
+          category: docDraft.category,
+          type: docDraft.type,
+          fileUrl: docDraft.fileUrl || undefined,
+          description: docDraft.description || undefined,
+          expiryDate: docDraft.expiryDate || undefined,
+        }),
+      });
+      if (!r.ok) {
+        const d = await r.json().catch(() => ({}));
+        throw new Error(d.error || 'Upload failed');
+      }
+      toast.success('Document saved to employee record');
+      setDocDraft(emptyDocDraft());
+      fetchEditDocs(editingId);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Upload failed');
+    } finally {
+      setDocUploading(false);
+    }
+  };
+
+  const deleteLiveDoc = async (docId: string) => {
+    if (!editingId) return;
+    try {
+      const r = await fetch(`/api/employees/${editingId}/documents?docId=${docId}`, { method: 'DELETE', headers: getAuthHeaders() });
+      if (!r.ok) throw new Error('Delete failed');
+      toast.success('Document removed');
+      fetchEditDocs(editingId);
+    } catch {
+      toast.error('Failed to delete document');
+    }
   };
 
   /* Bulk selection */
@@ -2287,6 +2455,132 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                       <FiChevronLeft className="w-4 h-4" /> Back
                     </button>
                     <button type="button" onClick={handleNextStep} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 shadow-sm transition-colors">
+                      Next: Documents <FiChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Documents */}
+              {formTab === 'documents' && (
+                <div className="space-y-4">
+                  <div className="flex items-start gap-2.5 p-3.5 rounded-lg bg-teal-50 border border-teal-200">
+                    <FiFileText className="w-4 h-4 text-teal-600 mt-0.5 shrink-0" />
+                    <p className="text-xs text-teal-800 leading-relaxed">
+                      {editingId
+                        ? 'Add documents to this employee\'s record. Each document is saved immediately and visible on the employee profile under the Documents tab.'
+                        : 'Attach onboarding documents (offer letter, ID proof, certificates, etc.). They will be saved to the employee\'s Documents tab automatically right after the employee is created. Files up to 3MB are stored directly — for larger files, paste a shareable link instead.'}
+                    </p>
+                  </div>
+
+                  {/* Add document form */}
+                  <div className="thb-card p-4">
+                    <h4 className="text-xs font-semibold text-thb-text-muted uppercase tracking-wider mb-3">Add Document</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-xs font-medium text-thb-text-secondary mb-1">Document Name <span className="text-red-500 font-bold">*</span></label>
+                        <input type="text" value={docDraft.name} onChange={e => setDocDraft(prev => ({ ...prev, name: e.target.value }))} placeholder="e.g., Offer Letter — Signed" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-thb-text-secondary mb-1">Category</label>
+                        <select value={docDraft.category} onChange={e => setDocDraft(prev => ({ ...prev, category: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
+                          {FORM_DOC_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.icon} {c.label}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-thb-text-secondary mb-1">Document Type</label>
+                        <select value={docDraft.type} onChange={e => setDocDraft(prev => ({ ...prev, type: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
+                          {FORM_DOC_TYPES.map(t => <option key={t} value={t}>{t.replace(/_/g, ' ').replace(/\b\w/g, ch => ch.toUpperCase())}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-thb-text-secondary mb-1">Upload File</label>
+                        <div className="flex items-center gap-2">
+                          <label className="flex-1 px-3 py-2.5 rounded-lg border border-dashed border-thb-border text-sm text-thb-text-muted cursor-pointer hover:bg-slate-50 truncate">
+                            {docDraft.fileName || 'Choose file (PDF, JPG, PNG — max 3MB)'}
+                            <input type="file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" className="hidden" onChange={handleDocFilePick} />
+                          </label>
+                          {docDraft.fileName && (
+                            <button type="button" onClick={() => setDocDraft(prev => ({ ...prev, fileUrl: '', fileName: '' }))} className="p-2 text-red-500 hover:bg-red-50 rounded-lg" title="Remove file">
+                              <FiX className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-thb-text-secondary mb-1">or File Link</label>
+                        <input type="text" value={docDraft.fileName ? '' : docDraft.fileUrl} onChange={e => setDocDraft(prev => ({ ...prev, fileUrl: e.target.value, fileName: '' }))} placeholder="https://drive.google.com/..." className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-thb-text-secondary mb-1">Expiry Date</label>
+                        <input type="date" value={docDraft.expiryDate} onChange={e => setDocDraft(prev => ({ ...prev, expiryDate: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
+                      </div>
+                      <div className="sm:col-span-2 lg:col-span-3">
+                        <label className="block text-xs font-medium text-thb-text-secondary mb-1">Description</label>
+                        <input type="text" value={docDraft.description} onChange={e => setDocDraft(prev => ({ ...prev, description: e.target.value }))} placeholder="Optional notes about this document" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
+                      </div>
+                    </div>
+                    <div className="flex justify-end mt-3">
+                      <button type="button" onClick={editingId ? uploadLiveDoc : addStagedDoc} disabled={docUploading} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 disabled:opacity-50 shadow-sm transition-colors">
+                        <FiPlus className="w-4 h-4" /> {editingId ? (docUploading ? 'Saving...' : 'Save to Employee') : 'Add to List'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Document list */}
+                  <div className="thb-card p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-xs font-semibold text-thb-text-muted uppercase tracking-wider">
+                        {editingId ? `Documents on Record (${editDocs.length})` : `Documents to Attach (${stagedDocs.length})`}
+                      </h4>
+                      {editingId && editDocsLoading && <span className="text-xs text-thb-text-muted">Loading…</span>}
+                    </div>
+                    {!editingId && stagedDocs.length === 0 && (
+                      <div className="text-center py-8">
+                        <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center mx-auto mb-3"><FiFileText className="w-6 h-6 text-slate-300" /></div>
+                        <p className="text-sm text-thb-text-muted">No documents added yet. This step is optional — you can also add documents later from the employee profile.</p>
+                      </div>
+                    )}
+                    {editingId && !editDocsLoading && editDocs.length === 0 && (
+                      <div className="text-center py-8">
+                        <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center mx-auto mb-3"><FiFileText className="w-6 h-6 text-slate-300" /></div>
+                        <p className="text-sm text-thb-text-muted">No documents on record yet. Use the form above to add the first one.</p>
+                      </div>
+                    )}
+                    {editingId ? editDocs.map(doc => {
+                      const cat = FORM_DOC_CATEGORIES.find(c => c.value === (doc.category || 'other'));
+                      const isData = (doc.fileUrl || '').startsWith('data:');
+                      return (
+                        <div key={doc.id} className="flex items-center gap-3 py-2.5 border-b border-thb-border/50 last:border-0">
+                          <span className="text-lg shrink-0">{cat?.icon || '📎'}</span>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium text-thb-text-primary truncate">{doc.name}</p>
+                            <p className="text-[11px] text-thb-text-muted">{cat?.label || 'Other'}{doc.expiryDate ? ` · Expires ${formatDate(doc.expiryDate)}` : ''}</p>
+                          </div>
+                          {doc.fileUrl && <a href={doc.fileUrl} {...(isData ? { download: doc.name } : { target: '_blank', rel: 'noopener noreferrer' })} className="inline-flex items-center gap-1 px-2 py-1 text-[11px] text-teal-600 hover:bg-teal-50 rounded shrink-0"><FiDownload className="w-3 h-3" /> Download</a>}
+                          <button type="button" onClick={() => deleteLiveDoc(doc.id)} className="p-1.5 text-red-500 hover:bg-red-50 rounded shrink-0" title="Delete document"><FiTrash2 className="w-3.5 h-3.5" /></button>
+                        </div>
+                      );
+                    }) : stagedDocs.map(doc => {
+                      const cat = FORM_DOC_CATEGORIES.find(c => c.value === doc.category);
+                      return (
+                        <div key={doc.id} className="flex items-center gap-3 py-2.5 border-b border-thb-border/50 last:border-0">
+                          <span className="text-lg shrink-0">{cat?.icon || '📎'}</span>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium text-thb-text-primary truncate">{doc.name}</p>
+                            <p className="text-[11px] text-thb-text-muted">{cat?.label || 'Other'}{doc.fileName ? ` · ${doc.fileName}` : ''}{doc.expiryDate ? ` · Expires ${formatDate(doc.expiryDate)}` : ''}</p>
+                          </div>
+                          <button type="button" onClick={() => removeStagedDoc(doc.id)} className="p-1.5 text-red-500 hover:bg-red-50 rounded shrink-0" title="Remove"><FiX className="w-3.5 h-3.5" /></button>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2">
+                    <button type="button" onClick={() => setFormTab('experience')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">
+                      <FiChevronLeft className="w-4 h-4" /> Back
+                    </button>
+                    <button type="button" onClick={handleNextStep} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 shadow-sm transition-colors">
                       Next: Policies <FiChevronRight className="w-4 h-4" />
                     </button>
                   </div>
@@ -2330,7 +2624,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
 
                   {/* Form Actions */}
                   <div className="flex items-center justify-between pt-4 border-t border-thb-border mt-4">
-                    <button type="button" onClick={() => setFormTab('experience')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">
+                    <button type="button" onClick={() => setFormTab('documents')} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg border border-thb-border text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">
                       <FiChevronLeft className="w-4 h-4" /> Back
                     </button>
                     <div className="flex items-center gap-3">

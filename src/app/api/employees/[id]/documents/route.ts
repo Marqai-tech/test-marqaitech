@@ -92,6 +92,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
 
     // ─── Upload mode (employee or admin uploads a document) ───
+    // fileUrl is optional: a document entry may represent a physical/offline
+    // document (e.g. collected during onboarding) with no digital file yet.
     const name = sanitizeMultiLineText(body.name, 200);
     const fileUrl = String(body.fileUrl || '');
     const category = VALID_CATEGORIES.includes(String(body.category)) ? String(body.category) : 'other';
@@ -100,8 +102,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const expiryDate = body.expiryDate ? new Date(body.expiryDate) : null;
     const fileNodeId = body.fileNodeId ? String(body.fileNodeId) : null;
 
-    if (!name || !fileUrl) {
-      return NextResponse.json({ error: 'Name and fileUrl are required' }, { status: 400, headers: corsHeaders() });
+    if (!name) {
+      return NextResponse.json({ error: 'Name is required' }, { status: 400, headers: corsHeaders() });
+    }
+    if (fileUrl && !/^(https?:\/\/|data:)/i.test(fileUrl)) {
+      return NextResponse.json({ error: 'fileUrl must be a valid http(s) or data URL' }, { status: 400, headers: corsHeaders() });
     }
     if (expiryDate && isNaN(expiryDate.getTime())) {
       return NextResponse.json({ error: 'Invalid expiry date' }, { status: 400, headers: corsHeaders() });
@@ -113,7 +118,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         name,
         type,
         category,
-        fileUrl,
+        fileUrl: fileUrl || null,
         description,
         expiryDate,
         status: 'active',
