@@ -12,7 +12,7 @@
  *   is still pending.
  */
 import { useCallback, useEffect, useState } from 'react';
-import { FiHistory, FiDownload, FiX, FiCheckCircle, FiClock, FiUsers, FiCheck } from 'react-icons/fi';
+import { FiArchive, FiDownload, FiX, FiCheckCircle, FiClock, FiUsers, FiCheck } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { formatPolicyFileSize } from './PolicyFileField';
 
@@ -57,14 +57,14 @@ export function PolicyVersionHistoryButton({ policyId, className, iconOnly }: { 
   return (
     <>
       <button type="button" onClick={() => setOpen(true)} title="Version history" className={className || `${btnBase} bg-slate-100 text-slate-600 hover:bg-slate-200`}>
-        <FiHistory className="w-3.5 h-3.5" />{!iconOnly && ' History'}
+        <FiArchive className="w-3.5 h-3.5" />{!iconOnly && ' History'}
       </button>
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setOpen(false)}>
           <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-thb-border">
               <div className="flex items-center gap-2">
-                <FiHistory className="w-5 h-5 text-teal-600" />
+                <FiArchive className="w-5 h-5 text-teal-600" />
                 <h3 className="text-base font-semibold text-thb-text-primary">Version History</h3>
               </div>
               <button type="button" onClick={() => setOpen(false)} className="p-1.5 rounded-lg hover:bg-slate-100"><FiX className="w-4 h-4" /></button>
@@ -74,7 +74,7 @@ export function PolicyVersionHistoryButton({ policyId, className, iconOnly }: { 
                 <p className="text-sm text-thb-text-muted py-6 text-center">Loading versions…</p>
               ) : versions.length === 0 ? (
                 <div className="text-center py-8">
-                  <FiHistory className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+                  <FiArchive className="w-10 h-10 text-slate-300 mx-auto mb-3" />
                   <p className="text-sm text-thb-text-muted">No archived versions yet.</p>
                   <p className="text-xs text-thb-text-muted mt-1">Each time this policy is updated, the previous copy (including its document) is automatically archived here.</p>
                 </div>
