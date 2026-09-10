@@ -2082,3 +2082,27 @@ Stage Summary:
 - Both cron endpoints accept secret query param OR Bearer token; idempotent sweeps
 - All Tasks 23-26 deliverables re-verified healthy on demo + LIVE after this deploy
 - Remaining known limitations (accepted): offer letter is HTML-based; DocuSign external integration stubbed (internal e-sign + typed-name self-service in place); distribute-reports cron unregistered (needs plan check)
+
+---
+Task ID: 26
+Agent: Super Z (main agent)
+Task: Seed sample candidate data in DEMO tenant DB + provide test login credentials (demo only, live untouched)
+
+Work Log:
+- Inspected tenant_3boxes-hrms-demo: tenant cmrmxegjy000604jv9ntgcshh, 6 companies, 6 open job postings, 20 thin candidate rows, 30 applications, 0 OFFERS (new offer flow untestable)
+- Verified demo credentials by bcrypt: superadmin@3boxeshrms.com, admin@3boxeshrms.com, admin@marqaitechgroup.com all = MarqAI@2026; employee demo accounts (amit.reddy/meera.bansal/bala.mukherjee) did NOT match any known password
+- scripts/seed-demo-candidates.mjs (idempotent, DEMO DB ONLY):
+  - Reset 3 employee demo passwords -> MarqAI@2026 (bcrypt cost 12)
+  - 8 rich candidates (rohan.iyer20 … tanvi.kulkarni27 @candidate.demo): skills/CTC/experience/AI match/consent, statuses new x2, screening, shortlisted, interviewing x2, offered, hired; linked to existing postings via department companyId
+  - 8 JobApplications (status-aligned: applied/screening/interview/offered/hired) w/ cover letters, ratings, expectedSalary LPA
+  - 5 Interviews: completed technical/managerial w/ feedback + scores, scheduled HR/final rounds w/ meeting URLs
+  - 4 Offers covering full lifecycle: draft (Rohan), approved (Manish, existing candidate), sent (Aravind, accessToken minted), accepted (Tanvi, typed-name e-sign + signedAt)
+  - 1 PreboardingCandidate (Tanvi): document_collection, BGV in_progress, joining +12d
+  - 2 CandidatePortalUser rows (Aravind, Tanvi) with password MarqAI@2026
+- Verified on demo: /offer/<token> 200 x2; /api/offers/accept/<token> returns offer JSON; logins OK for admin/superadmin/employee (JWT issued); candidate portal password login OK (kind=candidate JWT); /api/recruitment shows 8 new apps across 6 postings (38 total); /api/offers shows 4 offers; /api/preboarding shows Tanvi; pages /recruitment /offers /onboarding /preboarding 200; candidate portal at /candidate-portal/login + /dashboard 200
+- NO code changes, NO deploy needed; LIVE (tenant_marqaitechgroup) never touched
+
+Stage Summary:
+- Demo recruitment module now has full-pipeline sample data incl. offers (were 0) and a live offer-acceptance portal link
+- Test credentials (all password MarqAI@2026): superadmin@3boxeshrms.com, admin@3boxeshrms.com (tenant admin), amit.reddy@innovatech.demo / meera.bansal@technova.demo / bala.mukherjee@innovatech.demo (employees), aravind.menon22@candidate.demo (candidate portal, has PENDING offer to accept)
+- Aravind's offer portal link: /offer/off_5a43caa554f1411d95737e10b86a9b28mtv3o5vo (accept/decline flow testable)
