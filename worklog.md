@@ -2157,3 +2157,17 @@ Stage Summary:
 - All 12 reported leave/policy validation bugs fixed and verified on demo (nexus-hrms-mu.vercel.app) with 23/23 automated checks + browser UI verification
 - Test creds unchanged (admin@3boxeshrms.com / MarqAI@2026); key new validation messages documented in code; scripts/verify-leave-bugfixes.mjs is re-runnable (idempotent, random suffixes)
 - No DB schema changes; no live data touched; legacy /api/leaves (broken db.leave delegate used only by mobile app) intentionally left as-is
+
+---
+Task ID: 29
+Agent: Super Z (main agent)
+Task: Confirm leave/policy bugfix deployment is live on Vercel (user asked "is the above updated in vercel")
+
+Work Log:
+- git: main up to date with origin/main, tree clean (fcfbbaa8 + 2b4afe97 pushed)
+- Vercel CLI unavailable -> verified deployment behaviorally via scripts/check-vercel-deploy.mjs against https://nexus-hrms-mu.vercel.app (admin login, Bearer token from /api/auth/login)
+- Signature checks on LIVE deployment: past-date leave POST -> 400 "Leave requests cannot be submitted for past dates. 2025-05-01 has already passed (today is 2026-09-12)" (exact new message, only exists in fcfbbaa8); /api/policies?usable=1 -> 200 with 5 rows (new query param); company-scoping guard also observed ("does not belong to the employee's company" when employee/type companies mismatched)
+- 2/2 checks PASS -> new build confirmed deployed; script kept re-runnable at scripts/check-vercel-deploy.mjs
+
+Stage Summary:
+- Demo Vercel deployment CONFIRMED running the 12-bug fix build (fcfbbaa8). No data written (all test calls intentionally rejected server-side).
