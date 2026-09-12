@@ -237,23 +237,24 @@ let taskA = null; let taskB = null; let cardA = null;
   });
   check('timesheet logged against project task', ts.status === 201, ts.status === 201 ? `approver routing notified PM` : JSON.stringify(ts.body).slice(0, 100));
 
-  // waterfall phase gate: seeded demo project PMWF-DEMO-2 phase-2 task is pending
+  // waterfall phase gate: seeded demo project PMWF-DEMO-2 — phase 3 (Development) is
+  // gated by phase 2 (Design) which is still pending → logging must 409
   const wf = await api('/api/projects?limit=100');
   const wfProject = (wf.body?.projects || []).find((p) => p.code === 'PMWF-DEMO-2');
   if (wfProject) {
     const tasks = await api(`/api/projects/${wfProject.id}/tasks`);
-    const phase2Task = (tasks.body?.tasks || []).find((t) => t.milestone?.sequence === 2);
-    if (phase2Task) {
+    const phase3Task = (tasks.body?.tasks || []).find((t) => t.milestone?.sequence === 3);
+    if (phase3Task) {
       const blocked = await api('/api/timesheets', {
         method: 'POST',
-        body: JSON.stringify({ employeeId: employees[0].id, date: new Date().toISOString().slice(0, 10), projectId: wfProject.id, projectTaskId: phase2Task.id, hours: 2, status: 'submitted' }),
+        body: JSON.stringify({ employeeId: employees[0].id, date: new Date().toISOString().slice(0, 10), projectId: wfProject.id, projectTaskId: phase3Task.id, hours: 2, status: 'submitted' }),
       });
-      check('WATERFALL PHASE GATE blocks logging to phase 2', blocked.status === 409, blocked.body?.error?.slice(0, 80));
+      check('WATERFALL PHASE GATE blocks logging to phase 3', blocked.status === 409, blocked.body?.error?.slice(0, 80));
     } else {
-      check('WATERFALL PHASE GATE blocks logging to phase 2', false, 'phase-2 task not found in seed');
+      check('WATERFALL PHASE GATE blocks logging to phase 3', false, 'phase-3 task not found in seed');
     }
   } else {
-    check('WATERFALL PHASE GATE blocks logging to phase 2', false, 'seeded waterfall project missing');
+    check('WATERFALL PHASE GATE blocks logging to phase 3', false, 'seeded waterfall project missing');
   }
 }
 

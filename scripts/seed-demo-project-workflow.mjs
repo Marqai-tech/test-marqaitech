@@ -315,6 +315,11 @@ await conn.query(
    VALUES (gen_random_uuid()::text, $1, $2, 'Target architecture blueprint', now() + interval '1 day', now() + interval '40 days', 200, 'critical', 'todo', false, $3, $3)`,
   [wfId, phaseIds[1], now()]
 );
+await conn.query(
+  `INSERT INTO "ProjectTask" (id, "projectId", "milestoneId", name, "plannedStart", "plannedEnd", "estimatedHours", priority, status, "isBillable", "createdAt", "updatedAt")
+   VALUES (gen_random_uuid()::text, $1, $2, 'Core policy engine implementation', now() + interval '41 days', now() + interval '140 days', 1200, 'critical', 'todo', false, $3, $3)`,
+  [wfId, phaseIds[2], now()]
+);
 
 // allocations
 for (const a of [{ e: pm, role: 'Project Manager', pct: 40 }, { e: devs[1], role: 'Solution Architect', pct: 50 }]) {
