@@ -2129,3 +2129,31 @@ Stage Summary:
 - Demo Super Admin tenant management now fully testable: 4 tenants spanning plans (enterprise/starter/professional), statuses (active x3, suspended), currencies (USD/INR/EUR), subscription states (paid/monthly/annual/overdue), module toggles (Zenith missing payroll+CRM)
 - Fixed long-hidden bug: tenant detail employees section was ALWAYS empty for every tenant (invalid tenantId filter + invalid Designation.name select) — now returns real data everywhere
 - LIVE isolation proven: sample tenants invisible on 3boxeshrms.com and marqaitechgroup.3boxeshrms.com
+
+---
+Task ID: 28
+Agent: Super Z (main agent)
+Task: Leave Module + Policy validation bug fixes (12 reported bugs from validation round)
+
+Work Log:
+- Explored leave/policy/leave-types code via 3 parallel Explore agents; mapped POST /api/leave, PATCH /api/leave/[id], leave-workflow.ts finalize, /api/policies, /api/leave-types, leave UI pages, leave-policy tabs
+- NEW src/lib/working-days.ts: shared helpers — weekend config (Setting table keys attendance_weekend_saturday/sunday + attendance_weekendDays, default Sat+Sun), non-optional holiday fetch, computeWorkingDays walker, tenant-timezone "today" (todayInTimezone)
+- NEW src/lib/attendance-leave-sync.ts: syncAttendanceForLeave — upserts Attendance rows (status on_leave / half_day) for WORKING days of an approved leave; never clobbers days with real punches (checkIn/checkOut)
+- Bug 1 (past dates): POST /api/leave now rejects startDate < today computed in the TENANT timezone ("Leave requests cannot be submitted for past dates. <date> has already passed (today is <today>)"); client guards + min attrs on leave/page.tsx + apply-by-hr
+- Bug 2 (balance): POST validates requested working days vs LeaveBalance.remaining (fallback type.defaultDays when no row; untracked types with quota 0 skip check → LOP still works) → 400 "Insufficient leave balance: requested X day(s) of \"<type>\" but only Y available"
+- Bug 3 (attendance): all 3 approval finalize paths (PATCH legacy, advanceLeaveWorkflow, both auto-approve paths in POST) now call syncAttendanceForLeave — verified on_leave row with note "Leave approved — request <id>" created in demo DB
+- Bug 4 (weekends/holidays): day count now = working days (Sat+Sun default, Setting-table configurable; non-optional holidays excluded); drives balance deduction, auto-approval engine, short-leave threshold, response `days`; all-weekend/holiday ranges still rejected with clearer messages
+- Bug 5 (apply-by-hr types): fetchLeaveData passes ?companyId=<selected employee company> to /api/leave-types; leaveTypeId reset on employee switch
+- Bug 6 (duplicate policies): POST/PUT /api/policies reject same companyId+title+version (case-insensitive) → 409 with clear message; same title + NEW version allowed
+- Bugs 7+8 (dropdown): GET /api/policies?usable=1 = status active + effectiveDate<=now + not expired; employee add/edit (employees/page.tsx) + employee detail (employees/[id]/page.tsx) policy dropdowns switched to usable=1
+- Bug 9 (policy delete): DELETE checks policyAcknowledgment, employee leavePolicyId/attendancePolicyId/travelPolicyId, LeavePolicyRule.policyId, AttendancePolicyRule.policyId, LeaveWorkflowConfig.policyDocumentId → 409 with usage breakdown, suggests deactivation
+- Bug 10 (code format): regex /^[A-Z][A-Z0-9-]{1,9}$/ (allows LT-TNS) in POST+PATCH; global duplicate code check (DB has global unique index LeaveType_code_key — verified via pg) + P2002→409 mapping; UI hint text + client validation
+- Bug 11 (leave type delete): DELETE now 409s with dependency breakdown (requests/balances/encashment/workflow configs/LeavePolicyRule allocations JSON scan) when in use; unused types still deactivate cleanly
+- Bug 12 (mapping page): Leave Type Mapping tab RESTORED at /leave/leave-policy?tab=mapping (TabKey/TABS/validTabs; was hard-disabled `{false && ...}` → silently fell back to documents tab for ALL roles); new standalone mapping panel (rule selector + allocation editor + save via existing handlers) + re-enabled policy rules table + Add Policy Rule button; navData 'Policy Rules' repointed ?tab=rules → ?tab=workflow
+- Verification: scripts/verify-leave-bugfixes.mjs against demo — 23/23 checks PASS (past-date 400, insufficient-balance 400 w/ message, Fri→Mon=2 days, company-filtered types 6 vs 31, duplicate type/policy 409s, in-use deletes 409 w/ breakdowns, usable list excludes future/inactive, on_leave attendance row, mapping page UI via agent-browser incl. rule selection + allocation editor)
+- Build clean (0 new tsc errors; only known legacy currency.ts/cleanup-rbac errors); commit fcfbbaa8 deployed to demo (Vercel auto-deploy); LIVE checked healthy (307/401 routing+auth) — no schema changes, LIVE isolation untouched
+
+Stage Summary:
+- All 12 reported leave/policy validation bugs fixed and verified on demo (nexus-hrms-mu.vercel.app) with 23/23 automated checks + browser UI verification
+- Test creds unchanged (admin@3boxeshrms.com / MarqAI@2026); key new validation messages documented in code; scripts/verify-leave-bugfixes.mjs is re-runnable (idempotent, random suffixes)
+- No DB schema changes; no live data touched; legacy /api/leaves (broken db.leave delegate used only by mobile app) intentionally left as-is
