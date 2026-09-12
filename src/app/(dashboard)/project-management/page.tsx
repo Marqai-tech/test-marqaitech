@@ -711,11 +711,29 @@ function ProjectManagementContent() {
             <div key={col.key} className="flex-shrink-0 w-72"
               onDragOver={e => { e.preventDefault(); e.currentTarget.style.background = 'rgba(139,92,246,0.05)'; }}
               onDragLeave={e => { e.currentTarget.style.background = ''; }}
-              onDrop={e => {
+              onDrop={async e => {
                 e.currentTarget.style.background = '';
                 if (draggedTask) {
-                  toast.success(`Task moved to ${col.label}`);
-                  setDraggedTask(null);
+                  const taskId = draggedTask; setDraggedTask(null);
+                  const task = allTasks.find(t => t.id === taskId);
+                  if (!task) return;
+                  // Persist the status change (dependency gate errors surface here)
+                  try {
+                    const res = await fetch(`/api/projects/${task.projectId}/tasks/${task.id}`, {
+                      method: 'PATCH',
+                      headers: { 'Content-Type': 'application/json', ...(typeof window !== 'undefined' && localStorage.getItem('tb_token') ? { Authorization: `Bearer ${localStorage.getItem('tb_token')}` } : {}) },
+                      body: JSON.stringify({ status: col.key }),
+                    });
+                    const j = await res.json().catch(() => ({}));
+                    if (!res.ok) {
+                      toast.error(j.error || 'Move blocked by workflow rules');
+                    } else {
+                      toast.success(`Task moved to ${col.label} — synced to collaboration board`);
+                      setAllTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: col.key } : t));
+                    }
+                  } catch {
+                    toast.error('Failed to update task status');
+                  }
                 }
               }}
             >

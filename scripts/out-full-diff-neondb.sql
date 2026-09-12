@@ -122,16 +122,17 @@ DROP INDEX "Holiday_date_idx";
 DROP INDEX "Holiday_type_idx";
 
 -- AlterTable
-ALTER TABLE "Document" ADD COLUMN     "category" TEXT NOT NULL DEFAULT 'other',
-ADD COLUMN     "expiryAlertDays" INTEGER NOT NULL DEFAULT 30,
-ADD COLUMN     "expiryAlertSent" BOOLEAN NOT NULL DEFAULT false,
-ADD COLUMN     "fileNodeId" TEXT,
-ADD COLUMN     "isRequested" BOOLEAN NOT NULL DEFAULT false,
-ADD COLUMN     "maxFileSizeMb" INTEGER,
-ADD COLUMN     "requestedAt" TIMESTAMP(3),
-ADD COLUMN     "requestedById" TEXT,
-ADD COLUMN     "requiredFormat" TEXT,
-ADD COLUMN     "uploadedById" TEXT;
+ALTER TABLE "Employee" ADD COLUMN     "defaultWeeklyHours" INTEGER,
+ADD COLUMN     "timezone" TEXT;
+
+-- AlterTable
+ALTER TABLE "EmployeeWorkflowConfig" ADD COLUMN     "workflowType" TEXT NOT NULL DEFAULT 'update_profile';
+
+-- AlterTable
+ALTER TABLE "KanbanBoard" ADD COLUMN     "projectId" TEXT;
+
+-- AlterTable
+ALTER TABLE "KanbanCard" ADD COLUMN     "projectTaskId" TEXT;
 
 -- AlterTable
 ALTER TABLE "LeaveType" ADD COLUMN     "companyId" TEXT NOT NULL,
@@ -141,6 +142,20 @@ ADD COLUMN     "probationRestricted" BOOLEAN NOT NULL DEFAULT false,
 ADD COLUMN     "sandwichRuleEnabled" BOOLEAN NOT NULL DEFAULT true;
 
 -- AlterTable
+ALTER TABLE "Offer" ADD COLUMN     "accessToken" TEXT,
+ADD COLUMN     "approvalTiers" TEXT,
+ADD COLUMN     "candidateSignature" TEXT,
+ADD COLUMN     "candidateSignedAt" TIMESTAMP(3);
+
+-- AlterTable
+ALTER TABLE "OnboardingTask" ADD COLUMN     "kra" TEXT,
+ADD COLUMN     "lastRemindedAt" TIMESTAMP(3),
+ADD COLUMN     "mentorEmployeeId" TEXT,
+ADD COLUMN     "priority" TEXT NOT NULL DEFAULT 'medium',
+ADD COLUMN     "remindersEnabled" BOOLEAN NOT NULL DEFAULT true,
+ADD COLUMN     "trainingModule" TEXT;
+
+-- AlterTable
 ALTER TABLE "Policy" ADD COLUMN     "companyId" TEXT NOT NULL,
 ADD COLUMN     "fileMimeType" TEXT,
 ADD COLUMN     "fileName" TEXT,
@@ -148,22 +163,238 @@ ADD COLUMN     "fileSize" INTEGER,
 ADD COLUMN     "fileUrl" TEXT;
 
 -- AlterTable
+ALTER TABLE "Project" ADD COLUMN     "approvedAt" TIMESTAMP(3),
+ADD COLUMN     "approvedBy" TEXT,
+ADD COLUMN     "businessObjective" TEXT,
+ADD COLUMN     "closedAt" TIMESTAMP(3),
+ADD COLUMN     "costCenter" TEXT,
+ADD COLUMN     "executiveSponsor" TEXT,
+ADD COLUMN     "intakeStatus" TEXT,
+ADD COLUMN     "methodology" TEXT,
+ADD COLUMN     "signOffBy" TEXT,
+ADD COLUMN     "signOffNotes" TEXT,
+ADD COLUMN     "sprintDuration" INTEGER NOT NULL DEFAULT 14,
+ADD COLUMN     "submittedAt" TIMESTAMP(3),
+ADD COLUMN     "targetCompletionDate" TIMESTAMP(3),
+ADD COLUMN     "travelBudgetRequired" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN     "workspaceBoardId" TEXT,
+ADD COLUMN     "workspaceRoomId" TEXT;
+
+-- AlterTable
+ALTER TABLE "ProjectMilestone" ADD COLUMN     "budgetCap" DOUBLE PRECISION,
+ADD COLUMN     "isPhase" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN     "sequence" INTEGER;
+
+-- AlterTable
+ALTER TABLE "ProjectTask" ADD COLUMN     "dependsOnId" TEXT,
+ADD COLUMN     "sprintId" TEXT,
+ADD COLUMN     "storyPoints" INTEGER;
+
+-- AlterTable
 ALTER TABLE "Shift" ADD COLUMN     "companyId" TEXT NOT NULL;
 
--- CreateIndex
-CREATE INDEX "Document_category_idx" ON "Document"("category");
+-- CreateTable
+CREATE TABLE "Sprint" (
+    "id" TEXT NOT NULL,
+    "projectId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "goal" TEXT,
+    "sprintNumber" INTEGER NOT NULL DEFAULT 1,
+    "startDate" TIMESTAMP(3) NOT NULL,
+    "endDate" TIMESTAMP(3) NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'planned',
+    "committedPoints" INTEGER NOT NULL DEFAULT 0,
+    "completedPoints" INTEGER NOT NULL DEFAULT 0,
+    "closedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Sprint_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ProjectRoleRequirement" (
+    "id" TEXT NOT NULL,
+    "projectId" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "count" INTEGER NOT NULL DEFAULT 1,
+    "requiredSkills" TEXT,
+    "estimatedHours" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "allocationPct" INTEGER,
+    "startDate" TIMESTAMP(3),
+    "endDate" TIMESTAMP(3),
+    "priority" TEXT NOT NULL DEFAULT 'medium',
+    "status" TEXT NOT NULL DEFAULT 'open',
+    "matchedEmployees" TEXT,
+    "notes" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ProjectRoleRequirement_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "EmployeeCostRate" (
+    "id" TEXT NOT NULL,
+    "employeeId" TEXT NOT NULL,
+    "hourlyCostRateEnc" TEXT NOT NULL,
+    "hourlyBillableRateEnc" TEXT,
+    "weeklyHours" INTEGER NOT NULL DEFAULT 40,
+    "currency" TEXT NOT NULL DEFAULT 'INR',
+    "effectiveFrom" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "EmployeeCostRate_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ProjectApprovalStep" (
+    "id" TEXT NOT NULL,
+    "projectId" TEXT NOT NULL,
+    "gateType" TEXT NOT NULL,
+    "entityType" TEXT,
+    "entityId" TEXT,
+    "level" INTEGER NOT NULL DEFAULT 1,
+    "name" TEXT,
+    "approverType" TEXT NOT NULL,
+    "approverValue" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'pending',
+    "decidedBy" TEXT,
+    "decidedAt" TIMESTAMP(3),
+    "comments" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ProjectApprovalStep_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ProjectIntegration" (
+    "id" TEXT NOT NULL,
+    "projectId" TEXT NOT NULL,
+    "provider" TEXT NOT NULL,
+    "baseUrl" TEXT,
+    "projectKey" TEXT,
+    "username" TEXT,
+    "tokenEnc" TEXT,
+    "mapping" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'connected',
+    "lastSyncAt" TIMESTAMP(3),
+    "lastSyncResult" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ProjectIntegration_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ProjectReview" (
+    "id" TEXT NOT NULL,
+    "projectId" TEXT NOT NULL,
+    "employeeId" TEXT NOT NULL,
+    "reviewerEmployeeId" TEXT NOT NULL,
+    "reviewType" TEXT NOT NULL DEFAULT 'post_mortem',
+    "deliveryQuality" INTEGER NOT NULL DEFAULT 3,
+    "communication" INTEGER NOT NULL DEFAULT 3,
+    "speed" INTEGER NOT NULL DEFAULT 3,
+    "overall" INTEGER,
+    "comments" TEXT,
+    "skillUpgradeSuggestion" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ProjectReview_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ProjectActivity" (
+    "id" TEXT NOT NULL,
+    "projectId" TEXT NOT NULL,
+    "employeeId" TEXT,
+    "type" TEXT NOT NULL,
+    "message" TEXT NOT NULL,
+    "meta" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ProjectActivity_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ProjectWorkflowConfig" (
+    "id" TEXT NOT NULL,
+    "tenantId" TEXT NOT NULL,
+    "companyId" TEXT,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "name" TEXT NOT NULL DEFAULT 'Project Delivery Workflow',
+    "description" TEXT,
+    "config" TEXT NOT NULL,
+    "createdBy" TEXT,
+    "updatedBy" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ProjectWorkflowConfig_pkey" PRIMARY KEY ("id")
+);
 
 -- CreateIndex
-CREATE INDEX "Document_type_idx" ON "Document"("type");
+CREATE INDEX "Sprint_projectId_idx" ON "Sprint"("projectId");
 
 -- CreateIndex
-CREATE INDEX "Document_expiryDate_idx" ON "Document"("expiryDate");
+CREATE INDEX "Sprint_status_idx" ON "Sprint"("status");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Sprint_projectId_sprintNumber_key" ON "Sprint"("projectId", "sprintNumber");
+
+-- CreateIndex
+CREATE INDEX "ProjectRoleRequirement_projectId_idx" ON "ProjectRoleRequirement"("projectId");
+
+-- CreateIndex
+CREATE INDEX "ProjectRoleRequirement_status_idx" ON "ProjectRoleRequirement"("status");
+
+-- CreateIndex
+CREATE INDEX "EmployeeCostRate_employeeId_idx" ON "EmployeeCostRate"("employeeId");
+
+-- CreateIndex
+CREATE INDEX "ProjectApprovalStep_projectId_gateType_idx" ON "ProjectApprovalStep"("projectId", "gateType");
+
+-- CreateIndex
+CREATE INDEX "ProjectApprovalStep_entityType_entityId_idx" ON "ProjectApprovalStep"("entityType", "entityId");
+
+-- CreateIndex
+CREATE INDEX "ProjectIntegration_projectId_idx" ON "ProjectIntegration"("projectId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ProjectIntegration_projectId_provider_key" ON "ProjectIntegration"("projectId", "provider");
+
+-- CreateIndex
+CREATE INDEX "ProjectReview_employeeId_idx" ON "ProjectReview"("employeeId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ProjectReview_projectId_employeeId_key" ON "ProjectReview"("projectId", "employeeId");
+
+-- CreateIndex
+CREATE INDEX "ProjectActivity_projectId_idx" ON "ProjectActivity"("projectId");
+
+-- CreateIndex
+CREATE INDEX "ProjectActivity_createdAt_idx" ON "ProjectActivity"("createdAt");
+
+-- CreateIndex
+CREATE INDEX "ProjectWorkflowConfig_tenantId_idx" ON "ProjectWorkflowConfig"("tenantId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ProjectWorkflowConfig_tenantId_companyId_key" ON "ProjectWorkflowConfig"("tenantId", "companyId");
 
 -- CreateIndex
 CREATE INDEX "LeaveType_companyId_idx" ON "LeaveType"("companyId");
 
 -- CreateIndex
 CREATE INDEX "LeaveType_employmentType_idx" ON "LeaveType"("employmentType");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Offer_accessToken_key" ON "Offer"("accessToken");
 
 -- CreateIndex
 CREATE INDEX "Policy_companyId_idx" ON "Policy"("companyId");
@@ -175,19 +406,58 @@ CREATE INDEX "Shift_companyId_idx" ON "Shift"("companyId");
 ALTER TABLE "LeaveType" ADD CONSTRAINT "LeaveType_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "EmployeeUpdateRequest" ADD CONSTRAINT "EmployeeUpdateRequest_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "EmployeeUpdateApprovalStep" ADD CONSTRAINT "EmployeeUpdateApprovalStep_updateRequestId_fkey" FOREIGN KEY ("updateRequestId") REFERENCES "EmployeeUpdateRequest"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "Policy" ADD CONSTRAINT "Policy_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PolicyDocumentVersion" ADD CONSTRAINT "PolicyDocumentVersion_policyId_fkey" FOREIGN KEY ("policyId") REFERENCES "Policy"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PolicyAcknowledgment" ADD CONSTRAINT "PolicyAcknowledgment_policyId_fkey" FOREIGN KEY ("policyId") REFERENCES "Policy"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PolicyAcknowledgment" ADD CONSTRAINT "PolicyAcknowledgment_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Holiday" ADD CONSTRAINT "Holiday_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Shift" ADD CONSTRAINT "Shift_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ProjectTask" ADD CONSTRAINT "ProjectTask_sprintId_fkey" FOREIGN KEY ("sprintId") REFERENCES "Sprint"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ProjectTask" ADD CONSTRAINT "ProjectTask_dependsOnId_fkey" FOREIGN KEY ("dependsOnId") REFERENCES "ProjectTask"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Sprint" ADD CONSTRAINT "Sprint_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "Project"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ProjectRoleRequirement" ADD CONSTRAINT "ProjectRoleRequirement_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "Project"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "EmployeeCostRate" ADD CONSTRAINT "EmployeeCostRate_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ProjectApprovalStep" ADD CONSTRAINT "ProjectApprovalStep_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "Project"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ProjectIntegration" ADD CONSTRAINT "ProjectIntegration_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "Project"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ProjectReview" ADD CONSTRAINT "ProjectReview_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "Project"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ProjectReview" ADD CONSTRAINT "ProjectReview_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ProjectReview" ADD CONSTRAINT "ProjectReview_reviewerEmployeeId_fkey" FOREIGN KEY ("reviewerEmployeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ProjectActivity" ADD CONSTRAINT "ProjectActivity_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "Project"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ProjectActivity" ADD CONSTRAINT "ProjectActivity_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "OKR" ADD CONSTRAINT "OKR_ownerId_fkey" FOREIGN KEY ("ownerId") REFERENCES "Employee"("id") ON DELETE SET NULL ON UPDATE CASCADE;
@@ -347,6 +617,9 @@ ALTER TABLE "TodoTask" ADD CONSTRAINT "TodoTask_createdById_fkey" FOREIGN KEY ("
 
 -- AddForeignKey
 ALTER TABLE "Note" ADD CONSTRAINT "Note_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "KanbanCard" ADD CONSTRAINT "KanbanCard_projectTaskId_fkey" FOREIGN KEY ("projectTaskId") REFERENCES "ProjectTask"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- RenameIndex
 ALTER INDEX "AIKnowledgeQuery_user_idx" RENAME TO "AIKnowledgeQuery_userId_idx";

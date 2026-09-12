@@ -944,6 +944,14 @@ export default function ProjectsPage() {
                       <FiEye className="w-3.5 h-3.5" />
                       View
                     </button>
+                    <a
+                      href={`/projects/${p.id}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="text-xs font-medium text-fuchsia-600 hover:text-fuchsia-700 flex items-center gap-1 transition-colors"
+                      title="Open the project delivery workspace (intake, planning, resources, board, sprints, approvals, integrations, closure)"
+                    >
+                      Workspace
+                    </a>
                     <div className="flex items-center gap-1">
                       <button
                         onClick={(e) => {

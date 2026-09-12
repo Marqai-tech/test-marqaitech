@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { ensureSchemaSynced, withSchemaSync } from '@/lib/schema-sync';
+import { resolveProjectWorkflowConfig } from '@/lib/project-workflow';
+import { notifyEmployee, logProjectActivity } from '@/lib/project-events';
 
 function corsHeaders() {
   return {
@@ -39,6 +41,44 @@ export async function GET(request: Request) {
     const locked = searchParams.get('locked');
     const dateFrom = searchParams.get('dateFrom');
     const dateTo = searchParams.get('dateTo');
+
+    // ── ?context=1 — pre-population context for the timesheet form:
+    // the employee's active allocations, their project tasks (with sprint/phase),
+    // and the current ACTIVE sprint per agile project. Powers "timesheet lines are
+    // pre-populated with the Current Active Sprint and User Stories assigned to them".
+    if (searchParams.get('context') === '1') {
+      const empId = employeeId || (await employeeIdForUser(db, (decoded as any).userId));
+      if (!empId) return NextResponse.json({ allocations: [], projects: [] }, { headers: corsHeaders() });
+      const allocations = await db.projectAllocation.findMany({
+        where: { employeeId: empId, status: { in: ['active', 'soft'] } },
+        include: { project: { select: { id: true, name: true, code: true, methodology: true, status: true } } },
+      }).catch(() => []);
+      const projectIds = allocations.map((a: any) => a.projectId);
+      const tasks = projectIds.length
+        ? await db.projectTask.findMany({
+            where: { projectId: { in: projectIds }, status: { in: ['todo', 'in_progress', 'review'] }, OR: [{ assignedToId: empId }, { assignedToId: null }] },
+            include: {
+              sprint: { select: { id: true, name: true, sprintNumber: true, status: true } },
+              milestone: { select: { id: true, name: true, sequence: true, isPhase: true, approvalStatus: true } },
+            },
+            take: 300,
+          }).catch(() => [])
+        : [];
+      const activeSprints = projectIds.length
+        ? await db.sprint.findMany({ where: { projectId: { in: projectIds }, status: 'active' } }).catch(() => [])
+        : [];
+      return NextResponse.json(
+        {
+          allocations,
+          tasks: tasks.map((t: any) => ({
+            id: t.id, projectId: t.projectId, name: t.name, status: t.status, storyPoints: t.storyPoints,
+            sprint: t.sprint, phase: t.milestone?.isPhase ? { id: t.milestone.id, name: t.milestone.name, sequence: t.milestone.sequence, approvalStatus: t.milestone.approvalStatus } : null,
+          })),
+          activeSprints: activeSprints.map((s: any) => ({ id: s.id, projectId: s.projectId, name: s.name, sprintNumber: s.sprintNumber, startDate: s.startDate, endDate: s.endDate })),
+        },
+        { headers: corsHeaders() }
+      );
+    }
 
     const where: Record<string, unknown> = {};
     if (status) where.status = status;
@@ -103,12 +143,43 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400, headers: corsHeaders() });
     }
 
+    // ── WATERFALL PHASE GATING: employees cannot log time to a task in phase N
+    // while the previous sequential phase has not been formally approved/closed.
+    let projectRow: any = null;
+    if (projectId) {
+      projectRow = await db.project.findUnique({ where: { id: projectId } });
+      if (!projectRow) return NextResponse.json({ error: 'Project not found' }, { status: 404, headers: corsHeaders() });
+    }
+    if (projectTaskId) {
+      const taskRow = await db.projectTask.findUnique({
+        where: { id: projectTaskId },
+        include: { milestone: { select: { id: true, name: true, sequence: true, isPhase: true, approvalStatus: true } } },
+      });
+      if (taskRow && taskRow.projectId !== projectId) {
+        return NextResponse.json({ error: 'Task does not belong to the selected project' }, { status: 400, headers: corsHeaders() });
+      }
+      const phase = taskRow?.milestone;
+      if (phase?.isPhase && (phase.sequence ?? 0) > 1) {
+        const config = await resolveProjectWorkflowConfig(db, (decoded as any).tenantId, projectRow?.companyId);
+        if (config.timesheets.enforceWaterfallPhaseGating) {
+          const prevPhase = await db.projectMilestone.findFirst({
+            where: { projectId: taskRow.projectId, isPhase: true, sequence: (phase.sequence ?? 0) - 1 },
+          });
+          if (prevPhase && prevPhase.approvalStatus !== 'approved') {
+            return NextResponse.json(
+              { error: `Phase gate: time cannot be logged to "${phase.name}" while the previous phase "${prevPhase.name}" has not been formally approved and closed by the project manager.` },
+              { status: 409, headers: corsHeaders() }
+            );
+          }
+        }
+      }
+    }
+
     // If projectId is provided, look up the project name for the legacy `project` text column
     let projectText = project;
     let taskText = task;
     if (projectId && !projectText) {
-      const p = await db.project.findUnique({ where: { id: projectId }, select: { name: true } });
-      if (p) projectText = p.name;
+      projectText = projectRow?.name;
     }
     if (projectTaskId && !taskText) {
       const t = await db.projectTask.findUnique({ where: { id: projectTaskId }, select: { name: true } });
@@ -136,9 +207,53 @@ export async function POST(request: Request) {
       })
     );
 
+    // ── MANAGER APPROVAL ROUTING: notify the configured approver for this project
+    if ((status || 'submitted') === 'submitted' && projectId) {
+      try {
+        const config = await resolveProjectWorkflowConfig(db, (decoded as any).tenantId, projectRow?.companyId);
+        let approverEmployeeId: string | null = null;
+        if (config.timesheets.approvalMode === 'allocation_approver') {
+          const alloc = await db.projectAllocation.findFirst({
+            where: { projectId, employeeId, status: { in: ['active', 'soft'] } },
+            select: { timesheetApprover: true },
+          });
+          approverEmployeeId = alloc?.timesheetApprover || projectRow?.projectManagerId || null;
+        } else if (config.timesheets.approvalMode === 'project_manager') {
+          approverEmployeeId = projectRow?.projectManagerId || null;
+        } // hr_admin → role-based approval via the existing PATCH (no single approver to ping)
+        if (approverEmployeeId) {
+          await notifyEmployee(db, {
+            tenantId: (decoded as any).tenantId,
+            employeeId: approverEmployeeId,
+            title: 'Timesheet awaiting approval',
+            message: `${timesheet.employee?.firstName || 'A team member'} logged ${timesheet.hours}h on "${timesheet.project?.name || projectText}" (${new Date(date).toISOString().slice(0, 10)}).`,
+            link: `/timesheets`,
+            type: 'workflow',
+          });
+          await logProjectActivity(db, projectId, {
+            type: 'timesheet',
+            employeeId,
+            message: `${timesheet.hours}h logged${timesheet.projectTask?.name ? ` against "${timesheet.projectTask.name}"` : ''}.`,
+          });
+        }
+      } catch (e) {
+        console.error('Timesheet approval routing failed (non-blocking):', e);
+      }
+    }
+
     return NextResponse.json({ timesheet }, { status: 201, headers: corsHeaders() });
   } catch (error) {
     console.error('Create timesheet error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() });
+  }
+}
+
+async function employeeIdForUser(db: any, userId?: string): Promise<string | null> {
+  if (!userId) return null;
+  try {
+    const emp = await db.employee.findUnique({ where: { userId }, select: { id: true } });
+    return emp?.id || null;
+  } catch {
+    return null;
   }
 }

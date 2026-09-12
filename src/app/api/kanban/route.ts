@@ -15,13 +15,18 @@ export async function GET(request: NextRequest) {
     await withSchemaSync(() => Promise.resolve());
     const { searchParams } = new URL(request.url);
     const boardId = searchParams.get('boardId');
+    const projectIdFilter = searchParams.get('projectId');
 
     const employee = await db.employee.findFirst({ where: { userId: decoded.userId as string } });
     if (!employee) return NextResponse.json({ boards: [], cards: [] });
 
-    // Get boards
+    // Get boards (projectId filter → delivery workspace boards for a project)
     const boards = await db.kanbanBoard.findMany({
-      where: { isActive: true, OR: [{ createdById: employee.id }, { companyId: employee.companyId }] },
+      where: {
+        isActive: true,
+        ...(projectIdFilter === 'none' ? { projectId: null } : projectIdFilter ? { projectId: projectIdFilter } : {}),
+        OR: [{ createdById: employee.id }, { companyId: employee.companyId }, ...(projectIdFilter && projectIdFilter !== 'none' ? [{ projectId: projectIdFilter }] : [])],
+      },
       orderBy: { createdAt: 'desc' },
     });
 
@@ -141,12 +146,34 @@ export async function PATCH(request: NextRequest) {
       if (updates.subtasks) updates.subtasks = JSON.stringify(updates.subtasks);
       if (updates.tags) updates.tags = JSON.stringify(updates.tags);
 
+      // ── PROJECT DELIVERY SYNC: cards linked to a ProjectTask push column
+      // moves back to the task status (two-way kanban ↔ project board link).
+      let syncInfo: { syncedTaskId?: string; syncedStatus?: string } = {};
+      try {
+        if (id && updates.column) {
+          const existing = await db.kanbanCard.findUnique({ where: { id }, select: { projectTaskId: true } });
+          if (existing?.projectTaskId) {
+            const { kanbanColumnToStatus } = await import('@/lib/project-events');
+            const newStatus = kanbanColumnToStatus(String(updates.column));
+            if (newStatus) {
+              await db.projectTask.update({
+                where: { id: existing.projectTaskId },
+                data: { status: newStatus, ...(newStatus === 'done' ? { completedAt: new Date() } : {}) },
+              }).catch(() => null);
+              syncInfo = { syncedTaskId: existing.projectTaskId, syncedStatus: newStatus };
+            }
+          }
+        }
+      } catch (syncErr) {
+        console.error('Kanban→task sync failed (non-blocking):', syncErr);
+      }
+
       const card = await db.kanbanCard.update({
         where: { id },
         data: updates,
         include: { assignee: { select: { id: true, firstName: true, lastName: true, avatar: true } } },
       });
-      return NextResponse.json({ card });
+      return NextResponse.json({ card, ...syncInfo });
     }
 
     // Update board

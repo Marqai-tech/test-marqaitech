@@ -623,6 +623,14 @@ model Employee {
   bankAccounts           BankAccount[]
   gratuityLedgers        GratuityLedger[]
 
+  // ─── Project Delivery Workflow back-references + geo/shift alignment ───
+  timezone            String?   // IANA timezone for cross-border scheduling alignment (null = tenant/company default)
+  defaultWeeklyHours  Int?      // Contracted weekly hours for capacity planning (fallback: 40)
+  costRates           EmployeeCostRate[]
+  projectReviewsReceived ProjectReview[] @relation("ProjectReviewEmployee")
+  projectReviewsGiven    ProjectReview[] @relation("ProjectReviewReviewer")
+  projectActivities       ProjectActivity[]
+
   // ─── Collaboration Productivity back-references ───
   calendarEvents         CalendarEvent[]     @relation("CalendarEvent_Creator")
   emailMessages          EmailMessage[]      @relation("EmailMessage_Sender")
@@ -2031,6 +2039,31 @@ model Project {
   description   String?
   progress      Int @default(0)
 
+  // ─── Project Delivery Workflow: intake + methodology + workspace ───
+  methodology        String?   // agile | waterfall (null = legacy project → waterfall behavior)
+  businessObjective  String?
+  executiveSponsor   String?
+  targetCompletionDate DateTime?
+  intakeStatus       String?   // draft | submitted | approved | rejected (null = legacy → treated approved)
+  submittedAt        DateTime?
+  approvedAt         DateTime?
+  approvedBy         String?
+  costCenter         String?
+  travelBudgetRequired Boolean @default(false)
+  sprintDuration     Int @default(14)  // sprint length in days (agile)
+  workspaceRoomId    String?   // auto-created collaboration chat room
+  workspaceBoardId   String?   // auto-created collaboration kanban board
+  closedAt           DateTime?
+  signOffBy          String?
+  signOffNotes       String?
+
+  sprints            Sprint[]
+  roleRequirements   ProjectRoleRequirement[]
+  approvalSteps      ProjectApprovalStep[]
+  integrations       ProjectIntegration[]
+  reviews            ProjectReview[]
+  activities         ProjectActivity[]
+
   tasks         ProjectTask[]
   milestones    ProjectMilestone[]
   allocations   ProjectAllocation[]
@@ -2074,6 +2107,15 @@ model ProjectTask {
   description   String?
   completedAt   DateTime?
 
+  // ─── Project Delivery Workflow: sprint/dependency/story-point support ───
+  sprintId     String?
+  sprint       Sprint?      @relation(fields: [sprintId], references: [id], onDelete: SetNull)
+  storyPoints  Int?
+  dependsOnId  String?
+  dependsOn    ProjectTask? @relation("TaskDependency", fields: [dependsOnId], references: [id], onDelete: SetNull)
+  dependents   ProjectTask[] @relation("TaskDependency")
+  kanbanCards  KanbanCard[]
+
   timesheets    Timesheet[]
 
   createdAt DateTime @default(now())
@@ -2095,6 +2137,10 @@ model ProjectMilestone {
   completionPct   Int @default(0)
   approvalStatus  String @default("pending") // pending, approved, rejected
   invoiceStatus   String @default("not_invoiced") // not_invoiced, invoiced, paid
+  // ─── Project Delivery Workflow: waterfall phase support ───
+  sequence        Int?      // phase order for waterfall (1=Requirements, 2=Design, ...)
+  isPhase         Boolean @default(false) // true = waterfall sequential phase milestone
+  budgetCap       Float?    // waterfall phase budget cap; warn when assigned cost rates exceed cap
   tasks           ProjectTask[]
 
   createdAt DateTime @default(now())
@@ -2134,6 +2180,187 @@ model ProjectAllocation {
 //   - ProjectMember     = "this employee has access to this project" (RBAC)
 // An employee can be a Member with role='viewer' without any allocation,
 // or be allocated but not a Member (no project-page access).
+
+// ============ PROJECT DELIVERY WORKFLOW (dynamic PM engine) ============
+
+model Sprint {
+  id        String @id @default(cuid())
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  name            String
+  goal            String?
+  sprintNumber    Int @default(1)
+  startDate       DateTime
+  endDate         DateTime
+  status          String @default("planned") // planned | active | completed
+  committedPoints Int @default(0)
+  completedPoints Int @default(0)
+  closedAt        DateTime?
+
+  tasks     ProjectTask[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([projectId, sprintNumber])
+  @@index([projectId])
+  @@index([status])
+}
+
+// Role requirements raised at project intake — drives algorithmic matchmaking
+model ProjectRoleRequirement {
+  id           String @id @default(cuid())
+  projectId    String
+  project      Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  title        String   // e.g. "Senior Developer", "QA Engineer", "Project Manager"
+  count        Int @default(1)
+  requiredSkills String? // JSON [{skill, level, minYears}]
+  estimatedHours Float @default(0)
+  allocationPct  Int?    // suggested allocation %
+  startDate    DateTime?
+  endDate      DateTime?
+  priority     String @default("medium") // low | medium | high | critical
+  status       String @default("open")  // open | soft_reserved | filled | cancelled
+  matchedEmployees String? // JSON cached matchmaking result [{employeeId, name, score, reasons}]
+  notes        String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([projectId])
+  @@index([status])
+}
+
+// Encrypted per-employee cost/billable rates (REQ: role-based backend fields)
+model EmployeeCostRate {
+  id          String @id @default(cuid())
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  hourlyCostRateEnc     String  // AES-256-GCM encrypted hourly cost rate
+  hourlyBillableRateEnc String? // AES-256-GCM encrypted target billable rate
+  weeklyHours Int @default(40)
+  currency    String @default("INR")
+  effectiveFrom DateTime @default(now())
+  isActive    Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([employeeId])
+}
+
+// Unified approval chain steps — intake approval, stage gates, closure sign-off
+model ProjectApprovalStep {
+  id        String @id @default(cuid())
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  gateType     String  // intake | stage_gate | closure
+  entityType   String? // project | milestone | task | deliverable
+  entityId     String?
+  level        Int @default(1)
+  name         String?
+  approverType String  // reporting_manager | department_head | hr_admin | tenant_admin | specific_user | specific_employee | project_sponsor
+  approverValue String? // employeeId/userId for specific_* / project_sponsor
+  status       String @default("pending") // pending | approved | rejected | skipped
+  decidedBy    String?
+  decidedAt    DateTime?
+  comments     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([projectId, gateType])
+  @@index([entityType, entityId])
+}
+
+// Third-party delivery tool integrations (Jira, Azure DevOps)
+model ProjectIntegration {
+  id        String @id @default(cuid())
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  provider    String  // jira | azure_devops
+  baseUrl     String?
+  projectKey  String? // Jira project key / Azure DevOps project name
+  username    String? // Jira account email / Azure DevOps user
+  tokenEnc    String? // AES-256-GCM encrypted API token / PAT
+  mapping     String? // JSON field mapping + sync options
+  status      String @default("connected") // connected | disabled | error
+  lastSyncAt  DateTime?
+  lastSyncResult String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([projectId, provider])
+  @@index([projectId])
+}
+
+// Project post-mortem / closure performance reviews (feeds appraisals)
+model ProjectReview {
+  id        String @id @default(cuid())
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  employeeId String
+  employee  Employee @relation("ProjectReviewEmployee", fields: [employeeId], references: [id], onDelete: Cascade)
+  reviewerEmployeeId String
+  reviewer  Employee @relation("ProjectReviewReviewer", fields: [reviewerEmployeeId], references: [id], onDelete: Cascade)
+
+  reviewType String @default("post_mortem") // post_mortem | closure_feedback
+  deliveryQuality Int @default(3) // 1-5
+  communication   Int @default(3) // 1-5
+  speed           Int @default(3) // 1-5
+  overall         Int?
+  comments  String?
+  skillUpgradeSuggestion String? // prompt HR to update master profile skills
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([projectId, employeeId])
+  @@index([employeeId])
+}
+
+// Project activity / collaboration feed
+model ProjectActivity {
+  id        String @id @default(cuid())
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  employeeId String?
+  employee  Employee? @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+
+  type      String // status_change | task_update | comment | milestone | allocation | workspace | approval | integration | closure | timesheet | capacity
+  message   String
+  meta      String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([projectId])
+  @@index([createdAt])
+}
+
+// Dynamic project delivery workflow configuration (admin-configurable)
+model ProjectWorkflowConfig {
+  id           String   @id @default(cuid())
+  tenantId     String
+  companyId    String?  // null = tenant-wide
+  isActive     Boolean  @default(true)
+  name         String   @default("Project Delivery Workflow")
+  description  String?
+  config       String   // JSON — intake chain, stage gates, capacity rules, workspace automation
+  createdBy    String?
+  updatedBy    String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([tenantId, companyId])
+  @@index([tenantId])
+}
 
 model ProjectMember {
   id          String   @id @default(cuid())
@@ -7702,6 +7929,7 @@ model KanbanBoard {
   creator       Employee @relation("KanbanBoard_Creator", fields: [createdById], references: [id], onDelete: Cascade)
   columns       String   @default("Backlog,To Do,In Progress,Done") // Comma-separated column names
   isActive      Boolean  @default(true)
+  projectId     String?  // when set, this board is the project's delivery workspace board
   cards         KanbanCard[]
 
   createdAt     DateTime @default(now())
@@ -7727,6 +7955,8 @@ model KanbanCard {
   tags          String?  // JSON array
   order         Int      @default(0) // For sorting within column
   isActive      Boolean  @default(true)
+  projectTaskId String?  // when set, column moves sync back to the linked ProjectTask status
+  projectTask   ProjectTask? @relation(fields: [projectTaskId], references: [id], onDelete: SetNull)
 
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt

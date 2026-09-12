@@ -527,11 +527,15 @@ export const navSections: NavSection[] = [
       // ── Management ──
       { label: 'Management', href: '#mgmt-divider', icon: <FiFolder className="w-3.5 h-3.5" />, moduleKey: 'projects', isDivider: true },
       { label: 'Projects', href: '/projects', icon: <FiFolder className="w-4 h-4" />, moduleKey: 'projects' },
+      { label: 'Sprints', href: '/project-management/sprints', icon: <FiZap className="w-4 h-4" />, moduleKey: 'projects', isNew: true },
+      { label: 'Tasks', href: '/project-management/tasks', icon: <FiCheckSquare className="w-4 h-4" />, moduleKey: 'projects', isNew: true },
       { label: 'Timesheets', href: '/timesheets', icon: <FiWatch className="w-4 h-4" />, moduleKey: 'attendance' },
+      { label: 'Capacity Planner', href: '/projects/capacity', icon: <FiUsers className="w-4 h-4" />, moduleKey: 'projects', isNew: true },
       { label: 'Utilization', href: '/projects/utilization', icon: <FiTrendingUp className="w-4 h-4" />, isNew: true },
 
       // ── Settings ──
       { label: 'Settings', href: '#settings-divider', icon: <FiSettings className="w-3.5 h-3.5" />, moduleKey: 'projects', isDivider: true },
+      { label: 'Workflow Configuration', href: '/project-management/workflow-config', icon: <FiGitBranch className="w-4 h-4" />, moduleKey: 'projects', isNew: true },
       { label: 'Project Settings', href: '/project-management/settings', icon: <FiSettings className="w-4 h-4" />, moduleKey: 'projects', isNew: true },
 
       // ── Reports ──

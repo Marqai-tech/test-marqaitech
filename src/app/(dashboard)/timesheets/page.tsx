@@ -95,6 +95,7 @@ const initialForm = {
   date: '',
   projectId: '',
   task: '',
+  projectTaskId: '',
   hours: '',
   description: '',
   status: 'draft',
@@ -127,6 +128,8 @@ export default function TimesheetsPage() {
   const [timesheets, setTimesheets] = useState<Timesheet[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
+  // Delivery workflow context — the employee's assigned tasks (with sprint/phase)
+  const [entryTasks, setEntryTasks] = useState<Array<{ id: string; name: string; sprint?: { name: string } | null; phase?: { sequence: number; name: string } | null }>>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -176,6 +179,21 @@ export default function TimesheetsPage() {
   }, [filterStatus, employees.length, projects.length]);
 
   useEffect(() => { queueMicrotask(() => fetchData()); }, [fetchData]);
+
+  // Pre-population context: fetch assigned tasks (with active sprint + phase info)
+  // whenever the selected project or employee changes.
+  useEffect(() => {
+    const empId = form.employeeId || employees.find(e => e.email === user?.email)?.id;
+    if (!empId) { setEntryTasks([]); return; }
+    const headers = getAuthHeaders();
+    fetch(`/api/timesheets?context=1&employeeId=${empId}`, { headers })
+      .then(r => (r.ok ? r.json() : null))
+      .then(j => {
+        const all = j?.tasks || [];
+        setEntryTasks(form.projectId ? all.filter((t: any) => t.projectId === form.projectId) : all);
+      })
+      .catch(() => setEntryTasks([]));
+  }, [form.projectId, form.employeeId, employees.length, user?.email]);
 
   /* Get unique projects for filter (use project.name from FK lookup, fall back to projectText) */
   const uniqueProjects = [...new Set(timesheets.map(t => t.project?.name || t.projectText).filter(Boolean))] as string[];
@@ -262,6 +280,7 @@ export default function TimesheetsPage() {
         employeeId: form.employeeId || employees.find(e => e.email === user?.email)?.id,
         date: form.date,
         projectId: form.projectId,
+        projectTaskId: form.projectTaskId || undefined,
         task: form.task, // free-text task name (legacy column)
         hours: parseFloat(form.hours),
         description: form.description,
@@ -475,6 +494,27 @@ export default function TimesheetsPage() {
               </div>
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Task <span className="text-red-500 font-bold">*</span></label>
+                {entryTasks.length > 0 && (
+                  <select
+                    value={form.projectTaskId}
+                    onChange={e => {
+                      const picked = entryTasks.find(t => t.id === e.target.value);
+                      setForm(p => ({
+                        ...p,
+                        projectTaskId: e.target.value,
+                        task: picked ? picked.name : p.task,
+                      }));
+                    }}
+                    className="w-full px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 mb-1.5"
+                  >
+                    <option value="">Quick pick — my assigned tasks…</option>
+                    {entryTasks.map(t => (
+                      <option key={t.id} value={t.id}>
+                        {t.name}{t.sprint ? ` · ${t.sprint.name}` : ''}{t.phase ? ` · Phase ${t.phase.sequence}: ${t.phase.name}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                )}
                 <input type="text" value={form.task} onChange={e => setForm(p => ({ ...p, task: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" placeholder="Task description" />
               </div>
               <div>

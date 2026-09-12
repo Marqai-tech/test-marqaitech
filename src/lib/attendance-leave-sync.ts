@@ -107,6 +107,21 @@ export async function syncAttendanceForLeave(
       result.dates.push(dateStr);
     }
 
+    // ── Project Delivery Workflow: BACKUP HAND-OFF check for extended leaves.
+    // Non-blocking; only fires when the approved leave spans >= the configured
+    // number of working days and the employee is allocated to active projects.
+    try {
+      const { runBackupHandoffCheck } = await import('@/lib/project-events');
+      await runBackupHandoffCheck(db, {
+        employeeId,
+        leaveStartDate: startDate,
+        leaveEndDate: endDate,
+        minWorkingDays: 5,
+      });
+    } catch (hookErr) {
+      console.warn('[attendance-leave-sync] Backup handoff check failed (non-fatal):', hookErr);
+    }
+
     return result;
   } catch (err) {
     // Attendance sync must never break the approval operation.

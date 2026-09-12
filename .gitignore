@@ -46,3 +46,4 @@ next-env.d.ts
 # Duplicate project directory
 nexus-hrms/
 tool-results/
+dev-verify.log
