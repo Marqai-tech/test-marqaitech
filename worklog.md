@@ -2215,3 +2215,22 @@ Stage Summary:
 - Project Management module now implements the full dynamic delivery workflow: standardized intake (title/objective/sponsor/target date/methodology) → configurable approval chain → AUTOMATED workspace trigger (chat room + kanban board + member notifications) → algorithmic resource matchmaking from live employee skills/availability → soft (bench) allocation with over-allocation protection → hybrid delivery (Agile: sprints/story points/velocity/say-do/burndown w/ one-active-sprint pod lock; Waterfall: sequential phases w/ budget caps + time-logging phase gate) → timesheets routed to allocation approver w/ sprint pre-fill → stage-gate review chains (Team Lead → Project Sponsor) → post-mortem ratings feeding the Performance/Appraisal module + skill upgrade prompts → formal sign-off with compliance checklist + readiness metrics (budget variance, milestone variance) → Jira/Azure DevOps two-way integrations (encrypted credentials, real REST sync) → collaboration kanban two-way linked to project tasks → capacity planner with live leaves/holidays/over-allocation alerts and backup hand-off on extended leave
 - Admin-configurable end-to-end via /project-management/workflow-config (per tenant or company); re-runnable: scripts/verify-project-workflow.mjs, seed scripts idempotent
 - Key endpoints for testing: /projects/{id} workspace, /projects/capacity, /project-management/workflow-config, /project-management/sprints
+
+---
+Task ID: 31 (deployment & UI verification addendum)
+Agent: Super Z (main agent)
+Task: Deploy, verify and fix the Project Delivery Workflow build
+
+Work Log:
+- Deployed commit 219a1511 to Vercel (demo). New endpoints reachable (workflow-config/capacity → 401 pre-auth).
+- E2E on DEMO DEPLOYMENT: scripts/verify-project-workflow.mjs with BASE_URL=https://nexus-hrms-mu.vercel.app → 33/33 checks PASS (incl. waterfall phase-3 gate after adding a phase-3 task to the seed + DB).
+- Browser E2E (agent-browser): workflow-config editor, sprints, capacity planner, projects list → PASS. FOUND: /project-management/tasks + workspace Delivery Board crashed with error boundary "s is not defined".
+- ROOT CAUSE of the crash + why QA missed it: two `S{s.sprint.sprintNumber}` typos (should be t.sprint) in the task cards; tsc NEVER checked the new files because legacy syntax-error files (currency.ts, cleanup-rbac-3roles.ts) abort full tsc — "0 errors" was a false negative. Proper check = temporarily move broken legacy files out, exclude .next generated validator noise, then tsc: surfaced 6 more real errors in new code (intake GET invalid projectManager relation select + missing approvalSteps include, resource-requests employeeCode select, reviews isActive on User, timesheets taskRow null-safety, timesheet form shape, capacity 999% denominator).
+- ALL FIXED: commit 3c8eb479 pushed → Vercel redeploy → browser re-verification: tasks board PASS, Delivery Board PASS (dependency chip emerald when blocker done / amber "(gate)" when pending = intended), Sprints PASS, Resources PASS (matchmaking form + requirement + 5 allocations), Closure PASS. No error boundaries anywhere. Residual PMWF-VERIFY test projects + orphaned sprints removed from demo DB.
+- LIVE (marqaitechgroup.3boxeshrms.com) after deploy: root 307, /login 200, new APIs 401 (auth-gated) — healthy; no live data touched anywhere in this task.
+
+Stage Summary:
+- Dynamic Project Delivery Workflow is LIVE on demo (nexus-hrms-mu.vercel.app) and fully verified: API E2E 33/33 + browser UI checks all green.
+- Demo tenant has 3 seeded sample projects (agile/waterfall-pending/closed), sprints, story-pointed tasks with dependency, linked kanban cards, encrypted cost rates, 79-skill inventory.
+- LIVE tenant: additive schema synced (required for the new code), zero data writes, site healthy.
+- KNOWNS: tsc is structurally crippled by legacy syntax-error files (currency.ts, cleanup-rbac-3roles.ts) — future tasks should use the move-aside + exclude-.next technique for real checks; PM_ENCRYPTION_KEY not set anywhere (fallback key in use — encrypted cost rates/integration tokens readable across demo+live consistently).
