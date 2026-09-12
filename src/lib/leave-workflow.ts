@@ -18,6 +18,8 @@
  */
 
 import type { PrismaClient } from '@/generated/prisma/client';
+import { computeWorkingDays, getHolidaysInRange, getWeekendDays, leaveDaysConsumed } from '@/lib/working-days';
+import { syncAttendanceForLeave } from '@/lib/attendance-leave-sync';
 
 export interface WorkflowTier {
   tier: number;
@@ -425,20 +427,46 @@ export async function advanceLeaveWorkflow(
     // deduction as a rescue, but centralizing it here ensures every caller
     // gets the deduction for free (and prevents double-deduction since the
     // PATCH route checks result.finalized before deducting).
+    //
+    // 2026-09 bug fixes:
+    //   - Deduction now uses VALIDATED WORKING DAYS (weekends + configured
+    //     holidays excluded) instead of raw calendar days.
+    //   - The approved leave is now reflected in Attendance (on_leave /
+    //     half_day rows) for the affected dates.
     try {
       const lr = await db.leaveRequest.findUnique({
         where: { id: leaveRequestId },
         select: { employeeId: true, leaveTypeId: true, startDate: true, endDate: true, halfDay: true },
       });
       if (lr) {
-        const daysDiff = Math.ceil(
-          (new Date(lr.endDate).getTime() - new Date(lr.startDate).getTime()) / (1000 * 60 * 60 * 24),
+        const startDay = new Date(lr.startDate);
+        const endDay = new Date(lr.endDate);
+        let days = lr.halfDay ? 0.5 : Math.ceil(
+          (endDay.getTime() - startDay.getTime()) / (1000 * 60 * 60 * 24),
         ) + 1;
-        const days = lr.halfDay ? 0.5 : daysDiff;
-        const year = new Date(lr.startDate).getFullYear();
+        let weekendDow: number[] | undefined;
+        try {
+          weekendDow = await getWeekendDays(db, tenantId);
+          const holidays = await getHolidaysInRange(db, startDay, endDay);
+          const walk = computeWorkingDays(startDay, endDay, weekendDow, new Set(holidays.map(h => h.date)));
+          days = leaveDaysConsumed(walk, lr.halfDay);
+        } catch (wdErr) {
+          console.warn(`[leave-workflow] Working-day computation failed (fallback to calendar days) for ${leaveRequestId}:`, wdErr);
+        }
+        const year = startDay.getFullYear();
         await db.leaveBalance.updateMany({
           where: { employeeId: lr.employeeId, leaveTypeId: lr.leaveTypeId, year },
           data: { used: { increment: days }, remaining: { decrement: days } },
+        });
+
+        // Reflect the approved leave in Attendance (non-fatal)
+        await syncAttendanceForLeave(db, {
+          employeeId: lr.employeeId,
+          startDate: lr.startDate,
+          endDate: lr.endDate,
+          halfDay: lr.halfDay,
+          leaveRequestId,
+          weekendDow,
         });
       }
     } catch (e) {

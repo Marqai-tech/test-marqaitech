@@ -22,6 +22,7 @@ interface Employee {
   firstName: string;
   lastName: string;
   email: string;
+  companyId?: string;
   avatar?: string | null;
   department?: { name: string } | null;
   designation?: { name: string } | null;
@@ -73,6 +74,8 @@ export default function ApplyLeaveByHRPage() {
   const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);
   const [leaveBalances, setLeaveBalances] = useState<LeaveBalance[]>([]);
   const [recentRequests, setRecentRequests] = useState<LeaveRequest[]>([]);
+  // Holiday calendar (for working-day duration display)
+  const [holidays, setHolidays] = useState<Array<{ id: string; name: string; date: string; type: string }>>([]);
 
   // Form state
   const [form, setForm] = useState({
@@ -104,18 +107,38 @@ export default function ApplyLeaveByHRPage() {
 
   useEffect(() => { fetchEmployees(); }, [fetchEmployees]);
 
+  // ─── Fetch holidays once (for weekend/holiday-aware day count) ──
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/api/holidays', { headers: getAuthHeaders() });
+        if (res.ok) {
+          const d = await res.json();
+          setHolidays(d.holidays || d.data || []);
+        }
+      } catch { /* non-fatal — day count just won't exclude holidays */ }
+    })();
+  }, []);
+
   // ─── Fetch Leave Types & Balances for selected employee ──────
-  const fetchLeaveData = useCallback(async (employeeId: string) => {
+  // BUG FIX: leave types are now fetched with the SELECTED EMPLOYEE's
+  // companyId so the dropdown only shows types configured for that
+  // employee's company (previously all child companies' types appeared).
+  const fetchLeaveData = useCallback(async (employee: Employee) => {
     setLoadingLeaveData(true);
     try {
+      const typesUrl = employee.companyId
+        ? `/api/leave-types?companyId=${encodeURIComponent(employee.companyId)}`
+        : '/api/leave-types';
       const [typesRes, balanceRes, requestsRes] = await Promise.all([
-        fetch('/api/leave-types', { headers: getAuthHeaders() }),
-        fetch(`/api/leave/balance?employeeId=${employeeId}`, { headers: getAuthHeaders() }),
-        fetch(`/api/leave?employeeId=${employeeId}&limit=5`, { headers: getAuthHeaders() }),
+        fetch(typesUrl, { headers: getAuthHeaders() }),
+        fetch(`/api/leave/balance?employeeId=${employee.id}`, { headers: getAuthHeaders() }),
+        fetch(`/api/leave?employeeId=${employee.id}&limit=5`, { headers: getAuthHeaders() }),
       ]);
 
       const typesData = await typesRes.json();
       if (typesRes.ok) setLeaveTypes(typesData.leaveTypes || typesData.data || []);
+      else setLeaveTypes([]);
 
       const balanceData = await balanceRes.json();
       if (balanceRes.ok) setLeaveBalances(balanceData.balances || []);
@@ -134,16 +157,31 @@ export default function ApplyLeaveByHRPage() {
     setSelectedEmployee(emp);
     setShowEmployeeDropdown(false);
     setEmployeeSearch('');
-    fetchLeaveData(emp.id);
+    setForm(prev => ({ ...prev, leaveTypeId: '' })); // types differ per company — reset selection
+    fetchLeaveData(emp);
   };
 
   // ─── Calculate Days ────────────────────────────
+  // BUG FIX: weekends (Sat+Sun) and configured holidays are excluded from
+  // the duration — matches the server-side working-day count used for the
+  // balance check and deduction.
   const calculateDays = () => {
     if (!form.startDate || !form.endDate) return 0;
-    const start = new Date(form.startDate);
-    const end = new Date(form.endDate);
-    const diff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-    return form.halfDay ? diff - 0.5 : diff;
+    const holidaySet = new Set(holidays.map(h => new Date(h.date).toISOString().split('T')[0]));
+    const start = new Date(`${form.startDate}T00:00:00Z`);
+    const end = new Date(`${form.endDate}T00:00:00Z`);
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) return 0;
+    let workingDays = 0;
+    const cursor = new Date(start.getTime());
+    let guard = 0;
+    while (cursor <= end && guard < 4000) {
+      guard++;
+      const dow = cursor.getUTCDay();
+      const dateStr = cursor.toISOString().split('T')[0];
+      if (dow !== 0 && dow !== 6 && !holidaySet.has(dateStr)) workingDays++;
+      cursor.setUTCDate(cursor.getUTCDate() + 1);
+    }
+    return form.halfDay ? 0.5 : workingDays;
   };
 
   // ─── Submit Leave on Behalf ────────────────────
@@ -162,6 +200,12 @@ export default function ApplyLeaveByHRPage() {
     }
     if (new Date(form.endDate) < new Date(form.startDate)) {
       toast.error('End date cannot be before start date');
+      return;
+    }
+    // BUG FIX: block past dates for HR-applied leave too
+    const todayStr = new Date().toLocaleDateString('en-CA');
+    if (form.startDate < todayStr) {
+      toast.error(`Leave cannot be applied for past dates. ${form.startDate} has already passed (today is ${todayStr}).`);
       return;
     }
 
@@ -183,7 +227,7 @@ export default function ApplyLeaveByHRPage() {
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'Failed');
 
-      toast.success(`Leave applied successfully for ${selectedEmployee.firstName} ${selectedEmployee.lastName}${d.autoApproval?.applied ? ' (Auto-approved)' : ''}`);
+      toast.success(`Leave applied successfully for ${selectedEmployee.firstName} ${selectedEmployee.lastName}${d.autoApproval?.applied ? ' (Auto-approved)' : ''}${d.days !== undefined ? ` — ${d.days} working day(s) counted` : ''}`);
       setForm({
         leaveTypeId: '',
         startDate: new Date().toISOString().split('T')[0],
@@ -192,7 +236,7 @@ export default function ApplyLeaveByHRPage() {
         halfDay: false,
         halfDaySlot: 'first_half',
       });
-      fetchLeaveData(selectedEmployee.id);
+      fetchLeaveData(selectedEmployee);
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : 'Failed to apply leave');
     } finally {
@@ -347,11 +391,11 @@ export default function ApplyLeaveByHRPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-medium text-slate-600 mb-1.5">Start Date <span className="text-red-500 font-bold">*</span></label>
-                    <input type="date" value={form.startDate} onChange={e => setForm({ ...form, startDate: e.target.value })} className="3boxes-input w-full" />
+                    <input type="date" value={form.startDate} min={new Date().toLocaleDateString('en-CA')} onChange={e => setForm({ ...form, startDate: e.target.value })} className="3boxes-input w-full" />
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-slate-600 mb-1.5">End Date <span className="text-red-500 font-bold">*</span></label>
-                    <input type="date" value={form.endDate} onChange={e => setForm({ ...form, endDate: e.target.value })} className="3boxes-input w1-full" />
+                    <input type="date" value={form.endDate} onChange={e => setForm({ ...form, endDate: e.target.value })} min={form.startDate || new Date().toLocaleDateString('en-CA')} className="3boxes-input w1-full" />
                   </div>
                 </div>
 
@@ -359,7 +403,7 @@ export default function ApplyLeaveByHRPage() {
                 {form.startDate && form.endDate && (
                   <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg flex items-center gap-2">
                     <FiClock className="w-4 h-4 text-slate-500" />
-                    <span className="text-sm text-slate-700">Duration: <strong>{calculateDays()} day{calculateDays() !== 1 ? 's' : ''}</strong></span>
+                    <span className="text-sm text-slate-700">Duration: <strong>{calculateDays()} working day{calculateDays() !== 1 ? 's' : ''}</strong> <span className="text-xs text-slate-400">(weekends & holidays excluded)</span></span>
                   </div>
                 )}
 

@@ -234,7 +234,7 @@ export default function PoliciesPage() {
                   {deleteConfirmId === p.id ? (
                     <td colSpan={6} className="px-4 py-3">
                       <div className="flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-2"><FiAlertTriangle className="w-4 h-4 text-red-500" /><span className="text-sm text-red-600">Delete <b>{p.title}</b>?</span></div>
+                        <div className="flex items-center gap-2"><FiAlertTriangle className="w-4 h-4 text-red-500" /><span className="text-sm text-red-600">Delete <b>{p.title}</b>? <span className="text-xs text-red-400">(policies in use — acknowledged by employees or assigned to rules — cannot be deleted)</span></span></div>
                         <div className="flex items-center gap-2">
                           <button onClick={() => { setDeleteConfirmId(null); setDeleteName('') }} className="px-3 py-1 text-xs font-medium rounded-lg border border-thb-border hover:bg-slate-50">Cancel</button>
                           <button onClick={handleDelete} disabled={deleting} className="px-3 py-1 text-xs font-medium rounded-lg bg-red-500 text-white hover:bg-red-600 disabled:opacity-50">{deleting ? 'Deleting...' : 'Delete'}</button>

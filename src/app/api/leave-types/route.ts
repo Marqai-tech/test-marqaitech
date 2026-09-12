@@ -73,10 +73,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Name must be 2–50 characters and contain only letters, spaces, hyphens, or apostrophes' }, { status: 400, headers: corsHeaders() });
     }
 
-    // ─── Validate code format (2-10 uppercase letters) ───
+    // ─── Validate code format (2-10 chars: uppercase letters, numbers and
+    // hyphens, starting with a letter — e.g. CL, EL, LT-TNS, WL-2) ───
+    // BUG FIX: previously /^[A-Z]{2,10}$/ rejected valid codes like LT-TNS.
     const upperCode = code.toUpperCase();
-    if (!/^[A-Z]{2,10}$/.test(upperCode)) {
-      return NextResponse.json({ error: 'Code must be 2–10 uppercase letters (A–Z) only' }, { status: 400, headers: corsHeaders() });
+    if (!/^[A-Z][A-Z0-9-]{1,9}$/.test(upperCode)) {
+      return NextResponse.json({ error: 'Code must be 2–10 characters, starting with a letter. Allowed: uppercase letters (A–Z), numbers (0–9) and hyphens — e.g. CL, EL, LT-TNS.' }, { status: 400, headers: corsHeaders() });
     }
 
     // ─── Validate defaultDays ───
@@ -110,7 +112,19 @@ export async function POST(req: NextRequest) {
       select: { id: true, name: true },
     });
     if (existingByCode) {
-      return NextResponse.json({ error: `A leave type with code "${upperCode}" already exists for this company` }, { status: 409, headers: corsHeaders() });
+      return NextResponse.json({ error: `A leave type with code "${upperCode}" already exists for this company ("${existingByCode.name}"). Please use a different code.` }, { status: 409, headers: corsHeaders() });
+    }
+
+    // ─── BUG FIX: codes are GLOBALLY unique (LeaveType.code @unique in the
+    // schema) — a code used by ANOTHER company would previously pass the
+    // per-company check and then die as a Prisma P2002 500. Fail fast with
+    // a clear message instead.
+    const existingByCodeOtherCompany = await db.leaveType.findFirst({
+      where: { code: upperCode, NOT: { companyId: resolvedCompanyId } },
+      select: { id: true, name: true },
+    });
+    if (existingByCodeOtherCompany) {
+      return NextResponse.json({ error: `Leave type code "${upperCode}" is already used by "${existingByCodeOtherCompany.name}" (another company). Codes must be unique across all companies — please choose a different code.` }, { status: 409, headers: corsHeaders() });
     }
 
     // ─── Check for duplicate name within the same company ───
@@ -144,8 +158,13 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({ leaveType }, { status: 201, headers: corsHeaders() });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Leave types POST error:', error);
+    // BUG FIX: unique-constraint violations now return a clear 409 instead
+    // of a generic 500 "Failed to create leave type".
+    if (error?.code === 'P2002') {
+      return NextResponse.json({ error: 'A leave type with this code or name already exists. Codes and names must be unique — please use different values.' }, { status: 409, headers: corsHeaders() });
+    }
     return NextResponse.json({ error: 'Failed to create leave type' }, { status: 500, headers: corsHeaders() });
   }
 }

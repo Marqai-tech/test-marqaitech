@@ -5,6 +5,8 @@ import { createNotification } from '@/lib/notifications';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { safeAuditLog } from '@/lib/audit-safe';
 import { sanitizeMultiLineText } from '@/lib/sanitize';
+import { computeWorkingDays, getHolidaysInRange, getWeekendDays, leaveDaysConsumed } from '@/lib/working-days';
+import { syncAttendanceForLeave } from '@/lib/attendance-leave-sync';
 
 function corsHeaders() {
   return {
@@ -367,10 +369,25 @@ export async function PATCH(
 
     // Update leave balance if approved
     if (status === 'approved') {
-      const daysDiff = Math.ceil(
+      // BUG FIX: deduct VALIDATED working days only (weekends + configured
+      // holidays excluded) and reflect the approved leave in Attendance.
+      let daysToDeduct = leaveRequest.halfDay ? 0.5 : Math.ceil(
         (new Date(leaveRequest.endDate).getTime() - new Date(leaveRequest.startDate).getTime()) / (1000 * 60 * 60 * 24)
       ) + 1;
-      const daysToDeduct = leaveRequest.halfDay ? 0.5 : daysDiff;
+      let weekendDow: number[] | undefined;
+      try {
+        weekendDow = await getWeekendDays(db, scope.tenantId, existingLeave.employee.companyId);
+        const holidays = await getHolidaysInRange(db, new Date(leaveRequest.startDate), new Date(leaveRequest.endDate));
+        const walk = computeWorkingDays(
+          new Date(leaveRequest.startDate),
+          new Date(leaveRequest.endDate),
+          weekendDow,
+          new Set(holidays.map(h => h.date)),
+        );
+        daysToDeduct = leaveDaysConsumed(walk, leaveRequest.halfDay);
+      } catch (wdErr) {
+        console.warn('[leave] Working-day computation failed (fallback to calendar days):', wdErr);
+      }
 
       const currentYear = new Date().getFullYear();
       await db.leaveBalance.updateMany({
@@ -384,6 +401,19 @@ export async function PATCH(
           remaining: { decrement: daysToDeduct },
         },
       }).catch(() => null);
+
+      // ─── Bug fix: reflect approved leave in Attendance ───
+      // The corresponding dates now get status on_leave (or half_day) so
+      // the attendance register shows the approved leave.
+      await syncAttendanceForLeave(db, {
+        employeeId: leaveRequest.employeeId,
+        startDate: leaveRequest.startDate,
+        endDate: leaveRequest.endDate,
+        halfDay: leaveRequest.halfDay,
+        leaveRequestId: leaveRequest.id,
+        leaveTypeName: leaveRequest.leaveType?.name,
+        weekendDow,
+      });
     }
 
     // Notify the employee about the leave decision

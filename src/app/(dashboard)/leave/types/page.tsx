@@ -89,6 +89,12 @@ function LeaveTypeDialog({ open, mode, editItem, onClose, onSaved }: {
 
   const handleSubmit = async () => {
     if (!name || !code) { toast.error('Name and code are required'); return; }
+    // BUG FIX: client-side code format validation mirrors the server rule
+    // (2–10 chars, starts with a letter, A–Z / 0–9 / hyphens — e.g. LT-TNS)
+    if (!/^[A-Z][A-Z0-9-]{1,9}$/.test(code)) {
+      toast.error('Code must be 2–10 characters, starting with a letter. Allowed: uppercase letters (A–Z), numbers (0–9) and hyphens — e.g. CL, EL, LT-TNS.');
+      return;
+    }
     setSaving(true);
     try {
       const body = {
@@ -129,7 +135,8 @@ function LeaveTypeDialog({ open, mode, editItem, onClose, onSaved }: {
             </div>
             <div>
               <label className="block text-sm font-medium text-thb-text-primary mb-1">Code *</label>
-              <input value={code} onChange={e => setCode(e.target.value.toUpperCase())} placeholder="CL" maxLength={10} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm font-mono focus:ring-2 focus:ring-green-500/20" />
+              <input value={code} onChange={e => setCode(e.target.value.toUpperCase())} placeholder="CL or LT-TNS" maxLength={10} className="w-full px-3 py-2 border border-thb-border rounded-lg text-sm font-mono focus:ring-2 focus:ring-green-500/20" />
+              <p className="text-[11px] text-thb-text-muted mt-1">2–10 chars: letters, numbers &amp; hyphens, starts with a letter (e.g. LT-TNS). Must be unique.</p>
             </div>
           </div>
           <div>
@@ -243,7 +250,7 @@ export default function LeaveTypesPage() {
   const handleEdit = (lt: LeaveTypeItem) => { setDialogMode('edit'); setEditItem(lt); setShowDialog(true); };
 
   const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`Delete leave type "${name}"? This will deactivate it (historical requests are preserved).`)) return;
+    if (!confirm(`Delete leave type "${name}"?\n\nNote: leave types that are currently in use (existing requests, balances, or policy-rule mappings) cannot be deleted — the system will show which records reference it.`)) return;
     try {
       const r = await fetch(`/api/leave-types/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
       const d = await r.json();

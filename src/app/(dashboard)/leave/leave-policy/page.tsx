@@ -121,16 +121,20 @@ function Toggle({ label, checked, onChange }: { label: string; checked: boolean;
 }
 
 /* ── Tab definitions ── */
-// NOTE: 'rules' tab was removed in the unification pass — all policy rule
-// fields (sandwich / pro-rata / probation / encashment / carry-forward) are
-// now configured inside the 'workflow' tab alongside the approval tiers.
+// NOTE: the rule toggle fields (sandwich / pro-rata / probation / encashment /
+// carry-forward) are configured inside the 'workflow' tab alongside the
+// approval tiers. The 'mapping' tab (restored 2026-09 — BUG FIX: the nav
+// "Leave Type Mapping" entry pointed to a removed tab and silently fell
+// back to Policy Documents for every role) hosts the Leave Type Mapping
+// panel plus the LeavePolicyRule management table.
 // The old LeavePolicyRule table is still read as a legacy fallback at runtime
 // (see lib/leave-workflow.ts loadWorkflowConfig) so existing saved rules
 // continue to apply until an admin saves a unified workflow config.
-type TabKey = 'documents' | 'workflow'
+type TabKey = 'documents' | 'mapping' | 'workflow'
 
 const TABS: { key: TabKey; label: string; icon: React.ReactNode }[] = [
   { key: 'documents', label: 'Policy Documents', icon: <FiFileText className="w-4 h-4" /> },
+  { key: 'mapping', label: 'Leave Type Mapping', icon: <FiLayers className="w-4 h-4" /> },
   { key: 'workflow', label: 'Policy Rules & Approval Workflow', icon: <FiSettings className="w-4 h-4" /> },
 ]
 
@@ -146,7 +150,7 @@ function LeavePolicyPageContent() {
 
   // ── Tab state (synced with URL) ──
   const tabFromUrl = searchParams.get('tab') as TabKey | null
-  const validTabs: TabKey[] = ['documents', 'workflow']
+  const validTabs: TabKey[] = ['documents', 'mapping', 'workflow']
   const defaultTab = (tabFromUrl && validTabs.includes(tabFromUrl)) ? tabFromUrl : 'documents'
   const [activeTab, setActiveTab] = useState<TabKey>(defaultTab)
 
@@ -709,13 +713,125 @@ function LeavePolicyPageContent() {
       )}
 
       {/* ═══════════════════════════════════════════════════════ */}
-      {/* TAB 2: Policy Rules — DISABLED in unification pass        */}
-      {/* All policy rule fields are now in the Approval Workflow   */}
-      {/* tab. The legacy LeavePolicyRule table is still read as a  */}
-      {/* fallback at runtime by lib/leave-workflow.ts.             */}
+      {/* TAB 2: Leave Type Mapping — RESTORED (2026-09 BUG FIX).   */}
+      {/* The nav "Leave Type Mapping" entry pointed to a removed    */}
+      {/* tab and silently fell back to Policy Documents for every  */}
+      {/* role. This tab hosts the mapping panel + the policy rules */}
+      {/* table. Toggle fields remain in the Approval Workflow tab. */}
       {/* ═══════════════════════════════════════════════════════ */}
-      {false && activeTab === 'rules' && (
+      {activeTab === 'mapping' && (
         <>
+          {/* ── Standalone Leave Type Mapping panel ── */}
+          <div className="thb-card border-l-4 border-l-teal-500">
+            <div className="p-6 space-y-5">
+              <div className="flex items-start justify-between gap-4 flex-wrap">
+                <div>
+                  <h2 className="text-lg font-semibold text-thb-text-primary flex items-center gap-2">
+                    <FiLink className="w-5 h-5 text-teal-500" /> Map Leave Types to Policy Rule
+                  </h2>
+                  <p className="text-xs text-thb-text-muted mt-1">
+                    Select a policy rule, then map leave types to it with their annual quotas and carry-forward limits. Saved mappings drive entitlements for matching employees.
+                  </p>
+                </div>
+                {isRoleAdmin && (
+                  <button onClick={openAddRule} className="inline-flex items-center gap-2 px-4 py-2.5 bg-teal-500 text-white rounded-lg hover:bg-teal-600 font-medium text-sm shadow-sm shadow-teal-500/25 transition-colors">
+                    <FiPlus className="w-4 h-4" /> Add Policy Rule
+                  </button>
+                )}
+              </div>
+
+              {/* Rule selector */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-thb-text-secondary mb-1">Policy Rule <span className="text-red-500 font-bold">*</span></label>
+                  <select
+                    value={selectedRuleId}
+                    onChange={e => setSelectedRuleId(e.target.value)}
+                    className={selectClass}
+                  >
+                    <option value="">— Select a policy rule —</option>
+                    {rules.map(r => (
+                      <option key={r.id} value={r.id}>{r.name} ({formatEmploymentType(r.employmentType)})</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {rulesLoading ? (
+                <div className="flex items-center gap-2 text-sm text-thb-text-muted"><FiRefreshCw className="w-4 h-4 animate-spin" /> Loading rules…</div>
+              ) : rules.length === 0 ? (
+                <div className="text-sm text-thb-text-muted bg-slate-50 rounded-lg p-4">
+                  No policy rules defined yet. Create a rule using the <b>Policy Rules</b> table below, then map leave types to it here.
+                </div>
+              ) : !selectedRuleId ? (
+                <div className="text-sm text-thb-text-muted bg-slate-50 rounded-lg p-4">
+                  Select a policy rule above (or click the link icon on a row in the table below) to view and edit its leave type mappings.
+                </div>
+              ) : (
+                <>
+                  {leaveTypesLoading ? (
+                    <div className="flex items-center gap-2 text-sm text-thb-text-muted"><FiRefreshCw className="w-4 h-4 animate-spin" /> Loading leave types…</div>
+                  ) : (
+                    <div className="space-y-2">
+                      {allocations.length === 0 && (
+                        <div className="text-sm text-thb-text-muted bg-slate-50 rounded-lg p-4">No leave types mapped to this rule yet — add one below.</div>
+                      )}
+                      {allocations.map(alloc => (
+                        <div key={alloc.leaveTypeId} className="flex items-center gap-3 bg-slate-50 rounded-lg p-3 flex-wrap">
+                          <div className="flex-1 min-w-[140px]">
+                            <p className="text-sm font-medium text-thb-text-primary">{alloc.leaveTypeName}</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <label className="text-xs text-thb-text-muted">Quota:</label>
+                            <input type="number" min={0} value={alloc.quota} onChange={e => updateAllocation(alloc.leaveTypeId, 'quota', parseInt(e.target.value) || 0)} className="w-20 px-2 py-1 rounded border border-thb-border text-sm" />
+                          </div>
+                          <Toggle label="CF" checked={alloc.carryForward} onChange={() => updateAllocation(alloc.leaveTypeId, 'carryForward', !alloc.carryForward)} />
+                          <div className="flex items-center gap-2">
+                            <label className="text-xs text-thb-text-muted">Max CF:</label>
+                            <input type="number" min={0} value={alloc.maxCarryForward} onChange={e => updateAllocation(alloc.leaveTypeId, 'maxCarryForward', parseInt(e.target.value) || 0)} disabled={!alloc.carryForward} className="w-16 px-2 py-1 rounded border border-thb-border text-sm disabled:bg-slate-100 disabled:text-slate-400" />
+                          </div>
+                          <button type="button" onClick={() => removeAllocation(alloc.leaveTypeId)} className="p-1.5 rounded-lg text-red-500 hover:bg-red-50" title="Remove mapping"><FiX className="w-4 h-4" /></button>
+                        </div>
+                      ))}
+                      {/* Add leave type dropdown */}
+                      {leaveTypes.length === 0 ? (
+                        <div className="text-sm text-thb-text-muted bg-slate-50 rounded-lg p-4">No leave types configured. Create leave types first in Leave → Leave Types.</div>
+                      ) : (
+                        <div className="relative max-w-md">
+                          <select
+                            value=""
+                            onChange={e => {
+                              const lt = leaveTypes.find(l => l.id === e.target.value)
+                              if (lt) addAllocation(lt)
+                              e.target.value = ''
+                            }}
+                            className={selectClass}
+                          >
+                            <option value="">+ Add leave type to this rule…</option>
+                            {leaveTypes.filter(lt => !allocations.some(a => a.leaveTypeId === lt.id)).map(lt => (
+                              <option key={lt.id} value={lt.id}>{lt.name} ({lt.code}) — {lt.defaultDays} days/year</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Save mapping */}
+                  <div className="flex items-center justify-end gap-3 pt-4 border-t border-thb-border">
+                    <button
+                      onClick={handleSaveMapping}
+                      disabled={mappingSaving}
+                      className="px-6 py-2.5 rounded-lg bg-teal-500 text-white text-sm font-medium hover:bg-teal-600 disabled:opacity-50 shadow-sm shadow-teal-500/25 transition-colors flex items-center gap-2"
+                    >
+                      <FiSave className="w-4 h-4" /> {mappingSaving ? 'Saving…' : 'Save Mapping'}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
           {/* Rule Form Dialog */}
           {showRuleForm && (
             <div className="thb-card border-l-4 border-l-teal-500">
@@ -1157,8 +1273,9 @@ function LeavePolicyPageContent() {
         </>
       )}
 
-      {/* Note: Leave Type Mapping and Global Config are now merged into the Policy Rules tab */}
-      {/* (previously separate tabs — now consolidated per user request) */}
+      {/* Note: policy toggle fields (sandwich/pro-rata/etc.) are configured */}
+      {/* in the Policy Rules & Approval Workflow tab; this tab hosts the    */}
+      {/* Leave Type Mapping panel and the policy rules table.               */}
 
       {/* ═══ APPROVAL WORKFLOW TAB ═══ */}
       {activeTab === 'workflow' && (

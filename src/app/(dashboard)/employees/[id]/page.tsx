@@ -64,9 +64,11 @@ function EmployeePoliciesTab({ employeeId }: { employeeId: string }) {
     try {
       const [polRes, lpRes, apRes, tpRes, ssRes] = await Promise.allSettled([
         fetch(`/api/employees/${employeeId}/policies?${sq}`, { headers: getAuthHeaders() }),
-        fetch(`/api/policies?${sq}category=leave`, { headers: getAuthHeaders() }),
-        fetch(`/api/policies?${sq}category=attendance`, { headers: getAuthHeaders() }),
-        fetch(`/api/policies?${sq}category=travel`, { headers: getAuthHeaders() }),
+        // BUG FIX: usable=1 excludes inactive and future-dated policies from
+        // the employee policy dropdowns.
+        fetch(`/api/policies?${sq}category=leave&usable=1`, { headers: getAuthHeaders() }),
+        fetch(`/api/policies?${sq}category=attendance&usable=1`, { headers: getAuthHeaders() }),
+        fetch(`/api/policies?${sq}category=travel&usable=1`, { headers: getAuthHeaders() }),
         fetch(`/api/salary-structures?${sq}`, { headers: getAuthHeaders() }),
       ]);
       if (polRes.status === 'fulfilled' && polRes.value.ok) { const d = await polRes.value.json(); setPolicies(d.data); }

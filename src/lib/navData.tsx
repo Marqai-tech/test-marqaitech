@@ -255,7 +255,7 @@ export const navSections: NavSection[] = [
       // ── Settings (admin-only) ──
       { label: 'Settings', href: '#settings-divider', icon: <FiSettings className="w-3.5 h-3.5" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin'], isDivider: true },
       { label: 'Leave Policy & Settings', href: '/leave/leave-policy', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin'] },
-      { label: 'Policy Rules', href: '/leave/leave-policy?tab=rules', icon: <FiSliders className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin'], isNew: true },
+      { label: 'Policy Rules', href: '/leave/leave-policy?tab=workflow', icon: <FiSliders className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin'], isNew: true },
       { label: 'Leave Type Mapping', href: '/leave/leave-policy?tab=mapping', icon: <FiLayers className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin'], isNew: true },
       { label: 'Leave Types', href: '/leave/types', icon: <FiLayers className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin'] },
 

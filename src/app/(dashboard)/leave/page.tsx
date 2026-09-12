@@ -76,10 +76,24 @@ function getStatusBadge(status: string) {
   return map[status] || { bg: 'bg-green-50 border-green-200', text: 'text-green-700', label: status };
 }
 
-function getDaysBetween(start: string, end: string) {
-  const s = new Date(start);
-  const e = new Date(end);
-  return Math.ceil((e.getTime() - s.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+function getDaysBetween(start: string, end: string, holidayDates: Set<string> = new Set()) {
+  // BUG FIX: exclude weekends (Sat+Sun) and configured holidays from the
+  // displayed duration — matches the server-side working-day computation
+  // that drives balance deduction.
+  const s = new Date(`${start}T00:00:00Z`);
+  const e = new Date(`${end}T00:00:00Z`);
+  if (isNaN(s.getTime()) || isNaN(e.getTime())) return 0;
+  let count = 0;
+  const cursor = new Date(s.getTime());
+  let guard = 0;
+  while (cursor <= e && guard < 4000) {
+    guard++;
+    const dow = cursor.getUTCDay();
+    const dateStr = cursor.toISOString().split('T')[0];
+    if (dow !== 0 && dow !== 6 && !holidayDates.has(dateStr)) count++;
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+  return count;
 }
 
 function getAvatarGradient(name: string) {
@@ -377,6 +391,10 @@ function LeavePageContent() {
     });
   })();
 
+  // BUG FIX: block past dates in the apply form (client-side guard — the
+  // server enforces the same rule authoritatively).
+  const todayStr = new Date().toLocaleDateString('en-CA');
+
   const handleApply = async () => {
     if (!form.leaveTypeId || !form.startDate || !form.endDate) {
       toast.error('Please fill in all required fields');
@@ -384,6 +402,14 @@ function LeavePageContent() {
     }
     if (!employee?.id) {
       toast.error('Employee record not found');
+      return;
+    }
+    if (form.startDate < todayStr) {
+      toast.error(`Leave cannot be applied for past dates. Please select today (${todayStr}) or a future date.`);
+      return;
+    }
+    if (form.endDate < form.startDate) {
+      toast.error('End date cannot be before start date');
       return;
     }
     try {
@@ -402,7 +428,8 @@ function LeavePageContent() {
         }),
       });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
-      toast.success('Leave request submitted successfully');
+      const d = await res.json().catch(() => ({}));
+      toast.success(d.days !== undefined ? `Leave request submitted successfully (${d.days} working day(s) counted)` : 'Leave request submitted successfully');
       handleCancelForm();
       fetchData();
     } catch (err: unknown) {
@@ -652,18 +679,22 @@ function LeavePageContent() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-slate-600 mb-1">From <span className="text-red-500 font-bold">*</span></label>
-                  <input type="date" value={form.startDate} onChange={e => setForm(p => ({ ...p, startDate: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
+                  <input type="date" value={form.startDate} min={todayStr} onChange={e => setForm(p => ({ ...p, startDate: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-slate-600 mb-1">To <span className="text-red-500 font-bold">*</span></label>
-                  <input type="date" value={form.endDate} onChange={e => setForm(p => ({ ...p, endDate: e.target.value }))} min={form.startDate} className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
+                  <input type="date" value={form.endDate} onChange={e => setForm(p => ({ ...p, endDate: e.target.value }))} min={form.startDate || todayStr} className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                 </div>
               </div>
               {form.startDate && form.endDate && (
                 <div className="flex items-center justify-between p-3 rounded-lg bg-green-50 border border-green-100">
                   <span className="text-sm text-green-700 font-medium">
                     <FiClock className="w-4 h-4 inline mr-1" />
-                    Duration: {getDaysBetween(form.startDate, form.endDate)} day(s){form.halfDay ? ' (0.5 for half day)' : ''}
+                    Duration: {(() => {
+                      const holidaySet = new Set(holidays.map(h => new Date(h.date).toISOString().split('T')[0]));
+                      const workingDays = getDaysBetween(form.startDate, form.endDate, holidaySet);
+                      return form.halfDay ? `${workingDays} working day(s) — 0.5 day for half day` : `${workingDays} working day(s)`;
+                    })()}
                   </span>
                   {/* Remaining days from balance */}
                   {form.leaveTypeId && leaveBalances.length > 0 && (

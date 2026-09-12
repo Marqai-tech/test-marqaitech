@@ -650,9 +650,12 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
       }
 
       const [lpRes, apRes, tpRes, ssRes] = await Promise.allSettled([
-        fetch('/api/policies?category=leave', { headers }),
-        fetch('/api/policies?category=attendance', { headers }),
-        fetch('/api/policies?category=travel', { headers }),
+        // BUG FIX: usable=1 excludes inactive and future-dated policies from
+        // the employee policy dropdowns (only active, effective policies are
+        // assignable).
+        fetch('/api/policies?category=leave&usable=1', { headers }),
+        fetch('/api/policies?category=attendance&usable=1', { headers }),
+        fetch('/api/policies?category=travel&usable=1', { headers }),
         fetch('/api/salary-structures', { headers }),
       ]);
       if (lpRes.status === 'fulfilled' && lpRes.value.ok) { const d = await lpRes.value.json(); setLeavePolicies(d.policies || d.data || []); }
