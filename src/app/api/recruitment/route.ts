@@ -4,6 +4,7 @@ import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { createNotification } from '@/lib/notifications';
 import { validateEmail, validatePhone } from '@/lib/validators';
 import { isSuperAdminWithoutScope } from '@/lib/superAdminGuard';
+import { resolveRecruitmentConfig } from '@/lib/recruitment-workflow';
 
 function corsHeaders() {
   return {
@@ -48,6 +49,17 @@ export async function OPTIONS() {
   return NextResponse.json({}, { headers: corsHeaders() });
 }
 
+function emptyStats() {
+  return {
+    openPositions: 0,
+    totalApplications: 0,
+    interviewsScheduled: 0,
+    offersPending: 0,
+    hiresThisMonth: 0,
+    avgTimeToHire: null as number | null,
+  };
+}
+
 export async function GET(request: Request) {
   const db = await getDb(request);
   try {
@@ -80,6 +92,12 @@ export async function GET(request: Request) {
     if (isSuperAdminWithoutScope(decoded, companyId, tenantId, request)) {
       return NextResponse.json({
         jobPostings: [],
+        stats: emptyStats(),
+        pipelineData: [],
+        sourceData: [],
+        monthlyTrend: [],
+        recentApplications: [],
+        upcomingInterviews: [],
         pagination: { page, limit, total: 0, totalPages: 0 },
       }, { headers: corsHeaders() });
     }
@@ -123,9 +141,125 @@ export async function GET(request: Request) {
       db.jobPosting.count({ where }),
     ]);
 
+    // ─── Dashboard aggregates (real data only — no fallbacks) ───
+    const appWhere = { jobPosting: where };
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+
+    const [
+      openCount,
+      totalApplications,
+      statusGroups,
+      sourceGroups,
+      interviewsScheduled,
+      offersPending,
+      hiresThisMonth,
+      recentHired,
+      recentInterviews,
+      trendApps,
+    ] = await Promise.all([
+      db.jobPosting.count({ where: { ...where, status: 'open' } }),
+      db.jobApplication.count({ where: appWhere }),
+      db.jobApplication.groupBy({ by: ['status'], where: appWhere, _count: { _all: true } }).catch(() => []),
+      db.jobApplication.groupBy({ by: ['source'], where: appWhere, _count: { _all: true } }).catch(() => []),
+      db.interview.count({ where: { jobApplication: { jobPosting: where }, status: 'scheduled' } }).catch(() => 0),
+      db.offer.count({ where: { status: { in: ['pending_approval', 'approved', 'sent'] } } }).catch(() => 0),
+      db.jobApplication.count({ where: { ...appWhere, status: 'hired', updatedAt: { gte: monthStart } } }).catch(() => 0),
+      db.jobApplication.findMany({
+        where: { ...appWhere, status: 'hired' },
+        select: { appliedDate: true, updatedAt: true },
+        orderBy: { updatedAt: 'desc' },
+        take: 20,
+      }).catch(() => []),
+      db.interview.findMany({
+        where: { jobApplication: { jobPosting: where }, status: 'scheduled', date: { gte: now } },
+        include: {
+          jobApplication: { select: { candidateName: true, jobPosting: { select: { title: true } } } },
+        },
+        orderBy: { date: 'asc' },
+        take: 5,
+      }).catch(() => []),
+      db.jobApplication.findMany({
+        where: { ...appWhere, appliedDate: { gte: sixMonthsAgo } },
+        select: { appliedDate: true, status: true },
+        take: 5000,
+      }).catch(() => []),
+    ]);
+
+    // Dynamic pipeline config → stage labels/order come from workflow config
+    const wfConfig = await resolveRecruitmentConfig(db, decodedRec.tenantId as string, companyId || null).catch(() => null);
+    const countByStatus = new Map<string, number>(
+      (statusGroups as Array<{ status: string; _count: { _all: number } }>).map((g) => [g.status, g._count._all])
+    );
+    const pipelineData = (wfConfig?.stages || [])
+      .filter((s) => s.enabled !== false)
+      .map((s) => ({ stage: s.label, key: s.key, count: countByStatus.get(s.key) || 0 }));
+
+    const sourceData = (sourceGroups as Array<{ source: string | null; _count: { _all: number } }>).map((g) => ({
+      source: g.source || 'other',
+      count: g._count._all,
+    }));
+
+    // Last-6-month application/hire trend
+    const monthlyTrend: Array<{ month: string; applications: number; hires: number }> = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      monthlyTrend.push({ month: d.toLocaleString('en-US', { month: 'short' }), applications: 0, hires: 0 });
+    }
+    for (const a of trendApps as Array<{ appliedDate: Date | string | null; status: string }>) {
+      if (!a.appliedDate) continue;
+      const d = new Date(a.appliedDate);
+      const idx = (now.getFullYear() - d.getFullYear()) * 12 + (now.getMonth() - d.getMonth());
+      if (idx >= 0 && idx <= 5) {
+        monthlyTrend[5 - idx].applications += 1;
+        if (a.status === 'hired') monthlyTrend[5 - idx].hires += 1;
+      }
+    }
+
+    // Average time-to-hire (applied → marked hired), last 20 hires
+    let avgTimeToHire: number | null = null;
+    if ((recentHired as Array<{ appliedDate: Date | string | null; updatedAt: Date | string }>).length) {
+      const samples = (recentHired as Array<{ appliedDate: Date | string | null; updatedAt: Date | string }>)
+        .filter((h) => h.appliedDate)
+        .map((h) => (new Date(h.updatedAt).getTime() - new Date(h.appliedDate as Date).getTime()) / 86_400_000)
+        .filter((days) => days >= 0);
+      if (samples.length) avgTimeToHire = Math.round(samples.reduce((a, b) => a + b, 0) / samples.length);
+    }
+
+    const recentApplications = jobPostings
+      .flatMap((j: any) => (j.applications || []).map((a: any) => ({ ...a, jobTitle: j.title })))
+      .sort((a: any, b: any) => new Date(b.appliedDate || 0).getTime() - new Date(a.appliedDate || 0).getTime())
+      .slice(0, 5);
+
+    const upcomingInterviews = (recentInterviews as Array<Record<string, any>>).map((iv) => ({
+      id: iv.id,
+      candidateName: iv.jobApplication?.candidateName || 'Candidate',
+      jobTitle: iv.jobApplication?.jobPosting?.title || '—',
+      date: iv.date,
+      time: iv.time,
+      type: iv.type,
+      interviewer: iv.interviewer,
+      meetingUrl: iv.meetingUrl,
+    }));
+
     return NextResponse.json(
       {
         jobPostings,
+        stats: {
+          openPositions: openCount,
+          totalApplications,
+          interviewsScheduled,
+          offersPending,
+          hiresThisMonth,
+          avgTimeToHire,
+        },
+        pipelineData,
+        sourceData,
+        monthlyTrend,
+        recentApplications,
+        upcomingInterviews,
+        workflowStages: wfConfig?.stages || [],
         pagination: {
           page,
           limit,

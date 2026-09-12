@@ -33,6 +33,8 @@ export interface ConvertResult {
   notificationsSent: number;
 }
 
+import { resolveOnboardingConfig, resolvePreboardingConfig, OnboardingWorkflowConfig } from '@/lib/recruitment-workflow';
+
 function pickStr(...vals: unknown[]): string {
   for (const v of vals) if (typeof v === 'string' && v.trim()) return v.trim();
   return '';
@@ -119,8 +121,15 @@ export async function convertCandidateToEmployee(db: Record<string, any>, input:
   });
   result.employeeId = employee.id;
 
-  // ── 3. Preboarding record ──
+  // ── 3. Preboarding record (initial stage from the tenant's preboarding workflow config) ──
   try {
+    // Start at the first enabled stage after offer acceptance (conversion implies offer accepted)
+    let startStage = 'document_collection';
+    try {
+      const pbConfig = await resolvePreboardingConfig(db, input.tenantId || null, companyId);
+      const enabled = pbConfig.stages.filter((s) => s.enabled !== false && s.key !== 'offer_accepted');
+      if (enabled.length) startStage = enabled[0].key;
+    } catch { /* default start stage */ }
     const preboarding = await (db as any).preboardingCandidate.create({
       data: {
         candidateName: `${firstName} ${lastName}`.trim(),
@@ -129,50 +138,57 @@ export async function convertCandidateToEmployee(db: Record<string, any>, input:
         offerDate: offer?.sentAt || new Date(),
         joiningDate,
         offerId: offer?.id || null,
-        status: 'document_collection',
+        status: startStage,
         employeeId: employee.id,
       },
     });
     result.preboardingCandidateId = preboarding?.id || null;
   } catch { /* non-critical */ }
 
-  // ── 4. Auto-generate onboarding tasks from templates ──
+  // ── 4. Auto-generate onboarding tasks (tenant's dynamic onboarding workflow config) ──
   const taskRows: Record<string, unknown>[] = [];
+  let onbConfig: OnboardingWorkflowConfig | null = null;
   try {
-    const templates = await (db as any).onboardingTaskTemplate.findMany({ where: { isActive: true } });
-    for (const t of templates) {
-      if (t.appliesToDepartment && departmentId && t.appliesToDepartment !== departmentId) continue;
-      const due = new Date(joiningDate);
-      due.setDate(due.getDate() + Number(t.dueOffsetDays || 0));
-      taskRows.push({
-        employeeId: employee.id,
-        task: t.task || t.name || 'Onboarding task',
-        category: t.category || 'general',
-        status: 'pending',
-        dueDate: due,
-        assignedBy: 'System (auto-generated)',
-        templateId: t.id || null,
-        preboardingCandidateId: result.preboardingCandidateId,
-      });
+    onbConfig = await resolveOnboardingConfig(db, input.tenantId || null, companyId);
+  } catch { onbConfig = null; }
+  try {
+    if (onbConfig?.generateFromTemplates !== false) {
+      const templates = await (db as any).onboardingTaskTemplate.findMany({ where: { isActive: true } });
+      for (const t of templates) {
+        if (t.appliesToDepartment && departmentId && t.appliesToDepartment !== departmentId) continue;
+        const due = new Date(joiningDate);
+        due.setDate(due.getDate() + Number(t.dueOffsetDays || 0));
+        taskRows.push({
+          employeeId: employee.id,
+          task: t.task || t.name || 'Onboarding task',
+          category: t.category || 'general',
+          status: 'pending',
+          dueDate: due,
+          assignedBy: 'System (auto-generated)',
+          templateId: t.id || null,
+          preboardingCandidateId: result.preboardingCandidateId,
+        });
+      }
     }
   } catch { /* templates optional */ }
 
-  // Baseline checklist when no templates exist
+  // Configured checklist (used when no templates exist)
   if (taskRows.length === 0) {
-    const base: Array<[string, string, number]> = [
-      ['Send digital paperwork pack (tax forms, direct deposit, employment agreement, emergency contact)', 'hr_docs', -3],
-      ['Collect signed NDA and policy acknowledgments', 'hr_docs', 0],
-      ['Create system access and corporate email account', 'it_setup', -1],
-      ['Allocate laptop / device and workstation', 'it_setup', -1],
-      ['Payroll setup and benefits enrollment', 'payroll_setup', 1],
-      ['Team introductions and office orientation', 'introduction', 0],
-      ['Assign initial training modules and KRAs', 'training', 7],
-      ['First check-in with buddy / mentor', 'buddy_setup', 1],
-    ];
-    for (const [task, category, offset] of base) {
-      const due = new Date(joiningDate);
-      due.setDate(due.getDate() + offset);
-      taskRows.push({ employeeId: employee.id, task, category, status: 'pending', dueDate: due, assignedBy: 'System (auto-generated)', preboardingCandidateId: result.preboardingCandidateId });
+    const phases = onbConfig?.phases || [];
+    for (const phase of phases) {
+      for (const t of phase.tasks || []) {
+        const due = new Date(joiningDate);
+        due.setDate(due.getDate() + Number(t.dueOffsetDays || 0));
+        taskRows.push({
+          employeeId: employee.id,
+          task: t.task,
+          category: t.category || 'general',
+          status: 'pending',
+          dueDate: due,
+          assignedBy: 'System (auto-generated)',
+          preboardingCandidateId: result.preboardingCandidateId,
+        });
+      }
     }
   }
 

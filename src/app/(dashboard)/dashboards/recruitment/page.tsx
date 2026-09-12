@@ -15,7 +15,6 @@ import {
 } from 'recharts';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
-import { getClientSiteMode } from '@/lib/site-mode';
 
 /* ═══════════════ helpers ═══════════════ */
 
@@ -25,6 +24,18 @@ function getAuthHeaders() {
     'Content-Type': 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
+}
+
+/** Pretty-print an application source value for charts. */
+function sourceLabel(source: string | null | undefined): string {
+  if (!source) return 'Other';
+  const map: Record<string, string> = {
+    linkedin: 'LinkedIn', naukri: 'Naukri', referral: 'Referral', website: 'Website',
+    indeed: 'Indeed', campus: 'Campus', portal: 'Portal', other: 'Other',
+  };
+  const key = source.toLowerCase();
+  if (map[key]) return map[key];
+  return source.charAt(0).toUpperCase() + source.slice(1);
 }
 
 const COLORS = {
@@ -41,59 +52,20 @@ const PIE_COLORS = [
   COLORS.pink, COLORS.cyan, COLORS.violet,
 ];
 
-/* ═══════════════ demo data ═══════════════ */
+/* ═══════════════ initial state — ALL data comes live from /api/recruitment ═══════════════
+   GOLDEN RULE: no demo/sample values anywhere. Stats start at 0, charts at empty,
+   and are overwritten exclusively by real tenant API data. */
 
-const DEMO_STATS = [
-  { key: 'openPositions', label: 'Open Positions', value: 24, trend: 12.5, icon: FiBriefcase, color: COLORS.indigo },
-  { key: 'totalApplications', label: 'Total Applications', value: 1847, trend: 23.1, icon: FiFileText, color: COLORS.emerald },
-  { key: 'interviewsScheduled', label: 'Interviews Scheduled', value: 68, trend: 8.7, icon: FiCalendar, color: COLORS.amber },
-  { key: 'offersPending', label: 'Offers Pending', value: 15, trend: -4.2, icon: FiClock, color: COLORS.pink },
-  { key: 'hiresThisMonth', label: 'Hires This Month', value: 9, trend: 28.6, icon: FiUserCheck, color: COLORS.cyan },
-  { key: 'avgTimeToHire', label: 'Avg Time-to-Hire', value: 21, trend: -6.3, suffix: ' days', icon: FiTrendingUp, color: COLORS.violet },
+const INITIAL_STATS = [
+  { key: 'openPositions', label: 'Open Positions', value: 0, trend: 0, icon: FiBriefcase, color: COLORS.indigo },
+  { key: 'totalApplications', label: 'Total Applications', value: 0, trend: 0, icon: FiFileText, color: COLORS.emerald },
+  { key: 'interviewsScheduled', label: 'Interviews Scheduled', value: 0, trend: 0, icon: FiCalendar, color: COLORS.amber },
+  { key: 'offersPending', label: 'Offers Pending', value: 0, trend: 0, icon: FiClock, color: COLORS.pink },
+  { key: 'hiresThisMonth', label: 'Hires This Month', value: 0, trend: 0, icon: FiUserCheck, color: COLORS.cyan },
+  { key: 'avgTimeToHire', label: 'Avg Time-to-Hire', value: 0, trend: 0, suffix: ' days', icon: FiTrendingUp, color: COLORS.violet },
 ];
 
-const DEMO_PIPELINE_DATA = [
-  { stage: 'Applied', count: 1847 },
-  { stage: 'Screened', count: 820 },
-  { stage: 'Interviewed', count: 340 },
-  { stage: 'Offered', count: 58 },
-  { stage: 'Hired', count: 28 },
-];
-
-const DEMO_SOURCE_DATA = [
-  { name: 'LinkedIn', value: 620 },
-  { name: 'Naukri', value: 440 },
-  { name: 'Referral', value: 310 },
-  { name: 'Direct', value: 270 },
-  { name: 'Campus', value: 207 },
-];
-
-const DEMO_MONTHLY_TREND = [
-  { month: 'Oct', applications: 245 },
-  { month: 'Nov', applications: 312 },
-  { month: 'Dec', applications: 288 },
-  { month: 'Jan', applications: 395 },
-  { month: 'Feb', applications: 460 },
-  { month: 'Mar', applications: 547 },
-];
-
-const DEMO_RECENT_APPLICATIONS = [
-  { id: '1', candidate: 'Aarav Patel', role: 'Senior Frontend Developer', source: 'LinkedIn', status: 'Screening', appliedDate: '2026-03-01' },
-  { id: '2', candidate: 'Meera Krishnan', role: 'Product Manager', source: 'Referral', status: 'Interview', appliedDate: '2026-02-28' },
-  { id: '3', candidate: 'Rohan Deshmukh', role: 'Data Analyst', source: 'Naukri', status: 'Shortlisted', appliedDate: '2026-02-26' },
-  { id: '4', candidate: 'Priya Nair', role: 'UX Designer', source: 'Direct', status: 'Offer Sent', appliedDate: '2026-02-24' },
-  { id: '5', candidate: 'Vikram Singh', role: 'Backend Engineer', source: 'Campus', status: 'New', appliedDate: '2026-02-22' },
-];
-
-const DEMO_UPCOMING_INTERVIEWS = [
-  { id: '1', date: '2026-03-04', time: '10:00 AM', candidate: 'Aarav Patel', interviewer: 'Sneha Iyer', type: 'Technical' },
-  { id: '2', date: '2026-03-04', time: '2:00 PM', candidate: 'Meera Krishnan', interviewer: 'Raj Malhotra', type: 'Behavioral' },
-  { id: '3', date: '2026-03-05', time: '11:00 AM', candidate: 'Sneha Gupta', interviewer: 'Amit Verma', type: 'Video' },
-  { id: '4', date: '2026-03-05', time: '3:30 PM', candidate: 'Arjun Reddy', interviewer: 'Kavita Sharma', type: 'Phone' },
-  { id: '5', date: '2026-03-06', time: '9:30 AM', candidate: 'Divya Menon', interviewer: 'Prakash Nair', type: 'Panel' },
-];
-
-const DEMO_QUICK_ACTIONS = [
+const QUICK_ACTIONS = [
   { label: 'Post New Job', icon: FiPlus, color: COLORS.indigo, href: '/recruitment' },
   { label: 'Schedule Interview', icon: FiCalendar, color: COLORS.emerald, href: '/recruitment' },
   { label: 'Review Applications', icon: FiEye, color: COLORS.amber, href: '/recruitment' },
@@ -346,16 +318,13 @@ function RecruitmentContent() {
   const { selectedCompany } = useCompanyContextStore();
 
   const [loading, setLoading] = useState(true);
-  // GOLDEN RULE: On the LIVE site, initialize with zeros (not demo data).
-  // Demo data is only appropriate on the demo/showcase site.
-  const isLiveSite = getClientSiteMode() === 'live';
-  const [stats, setStats] = useState<StatCard[]>(isLiveSite ? DEMO_STATS.map(s => ({ ...s, value: 0 })) : DEMO_STATS);
-  const [pipelineData, setPipelineData] = useState(isLiveSite ? [] : DEMO_PIPELINE_DATA);
-  const [sourceData, setSourceData] = useState(isLiveSite ? [] : DEMO_SOURCE_DATA);
-  const [monthlyTrend, setMonthlyTrend] = useState(isLiveSite ? [] : DEMO_MONTHLY_TREND);
-  const [recentApplications, setRecentApplications] = useState<Application[]>(isLiveSite ? [] : DEMO_RECENT_APPLICATIONS);
-  const [upcomingInterviews, setUpcomingInterviews] = useState<Interview[]>(isLiveSite ? [] : DEMO_UPCOMING_INTERVIEWS);
-  const [quickActions] = useState<QuickAction[]>(DEMO_QUICK_ACTIONS);
+  const [stats, setStats] = useState<StatCard[]>(INITIAL_STATS.map(s => ({ ...s })));
+  const [pipelineData, setPipelineData] = useState<Array<{ stage: string; count: number }>>([]);
+  const [sourceData, setSourceData] = useState<Array<{ name: string; value: number }>>([]);
+  const [monthlyTrend, setMonthlyTrend] = useState<Array<{ month: string; applications: number }>>([]);
+  const [recentApplications, setRecentApplications] = useState<Application[]>([]);
+  const [upcomingInterviews, setUpcomingInterviews] = useState<Interview[]>([]);
+  const [quickActions] = useState<QuickAction[]>(QUICK_ACTIONS);
 
   const companyName = selectedCompany?.name || user?.company?.name || '3Boxes Tech';
 
@@ -384,44 +353,35 @@ function RecruitmentContent() {
                 case 'interviewsScheduled': return { ...card, value: s.interviewsScheduled ?? card.value };
                 case 'offersPending':     return { ...card, value: s.offersPending ?? card.value };
                 case 'hiresThisMonth':    return { ...card, value: s.hiresThisMonth ?? card.value };
-                case 'avgTimeToHire':     return { ...card, value: s.avgTimeToHire ?? card.value };
+                case 'avgTimeToHire':     return { ...card, value: s.avgTimeToHire ?? 0 };
                 default: return card;
               }
             }));
           }
 
-          if (recJson.pipelineData?.length) {
-            setPipelineData(recJson.pipelineData);
-          }
-          if (recJson.sourceData?.length) {
-            setSourceData(recJson.sourceData);
-          }
-          if (recJson.monthlyTrend?.length) {
-            setMonthlyTrend(recJson.monthlyTrend);
-          }
-          if (recJson.recentApplications?.length) {
-            setRecentApplications(recJson.recentApplications.slice(0, 5));
-          }
-          if (recJson.upcomingInterviews?.length) {
-            setUpcomingInterviews(recJson.upcomingInterviews.slice(0, 5));
-          }
-        }
-
-        // Fetch jobs data for open positions & pipeline
-        const jobsRes = await fetch(`/api/jobs?limit=100${companyId ? `&companyId=${companyId}` : ''}`, { headers });
-        if (!cancelled && jobsRes.ok) {
-          const jobsJson = await jobsRes.json();
-          if (jobsJson.data?.length) {
-            const openJobs = jobsJson.data.filter((j: { status: string }) => j.status === 'open' || j.status === 'published');
-            if (openJobs.length) {
-              setStats(prev => prev.map(card =>
-                card.key === 'openPositions' ? { ...card, value: openJobs.length } : card
-              ));
-            }
-          }
+          // Overwrite unconditionally — empty API data must clear stale values
+          setPipelineData((recJson.pipelineData || []).map((p: { stage: string; count: number }) => ({ stage: p.stage, count: p.count })));
+          setSourceData((recJson.sourceData || []).map((s: { source: string; count: number }) => ({ name: sourceLabel(s.source), value: s.count })));
+          setMonthlyTrend((recJson.monthlyTrend || []).map((m: { month: string; applications: number }) => ({ month: m.month, applications: m.applications })));
+          setRecentApplications((recJson.recentApplications || []).slice(0, 5).map((a: Record<string, unknown>) => ({
+            id: String(a.id),
+            candidate: String(a.candidateName || 'Unknown'),
+            role: String(a.jobTitle || '—'),
+            source: String(a.source || 'other'),
+            status: String(a.status || 'applied'),
+            appliedDate: a.appliedDate ? String(a.appliedDate) : '',
+          })));
+          setUpcomingInterviews((recJson.upcomingInterviews || []).slice(0, 5).map((iv: Record<string, unknown>) => ({
+            id: String(iv.id),
+            date: iv.date ? String(iv.date) : '',
+            time: String(iv.time || ''),
+            candidate: String(iv.candidateName || 'Candidate'),
+            interviewer: String(iv.interviewer || '—'),
+            type: String(iv.type || 'Interview'),
+          })));
         }
       } catch {
-        // Silently use demo data fallback
+        // Keep zeros / empty lists — never fall back to sample data
       } finally {
         if (!cancelled) setLoading(false);
       }

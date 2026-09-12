@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { createNotification } from '@/lib/notifications';
+import { resolveRecruitmentConfig, ApprovalTier } from '@/lib/recruitment-workflow';
 
 function corsHeaders() {
   return {
@@ -81,12 +82,72 @@ export async function PATCH(
           { status: 400, headers: corsHeaders() }
         );
       }
-      updateData.status = status;
 
-      // Handle status-specific timestamps
+      // ─── Sequential tier approval, driven by the recruitment workflow config ───
       if (status === 'approved') {
-        updateData.approvedBy = decoded.userId as string;
-        updateData.approvedAt = new Date();
+        const wf = await resolveRecruitmentConfig(db, decoded.tenantId as string, null).catch(() => null);
+        const tiers: ApprovalTier[] = wf?.offerApproval?.enabled ? (wf.offerApproval.tiers || []) : [];
+
+        if (tiers.length > 0) {
+          let signed: Array<{ tier: number; userId: string; userName: string; at: string }> = [];
+          try {
+            const parsed = existing.approvalTiers ? JSON.parse(existing.approvalTiers) : [];
+            if (Array.isArray(parsed)) signed = parsed;
+          } catch { /* fresh trace */ }
+
+          const nextTierIdx = signed.length;
+          if (nextTierIdx >= tiers.length) {
+            // All tiers already signed — idempotent final approval
+            updateData.status = 'approved';
+          } else {
+            const tier = tiers[nextTierIdx];
+            const role = String(decoded.role || '');
+            const uid = String(decoded.userId || '');
+            const satisfies = (() => {
+              switch (tier.approverType) {
+                case 'specific_user': return !!tier.approverUserId && uid === tier.approverUserId;
+                case 'hr_admin': return ['hr_admin', 'company_hr_admin', 'admin', 'tenant_admin', 'super_admin'].includes(role);
+                case 'tenant_admin': return ['tenant_admin', 'admin', 'super_admin'].includes(role);
+                case 'finance': return ['finance', 'finance_admin', 'tenant_admin'].includes(role);
+                case 'reporting_manager':
+                case 'department_head':
+                default: return ['manager', 'department_head', 'hr_admin', 'company_hr_admin', 'admin', 'tenant_admin', 'super_admin'].includes(role);
+              }
+            })();
+            if (!satisfies) {
+              return NextResponse.json(
+                { error: `Approval blocked: tier ${tier.tier} of ${tiers.length} requires "${tier.label || tier.approverType.replace(/_/g, ' ')}" to approve before you can act.` },
+                { status: 403, headers: corsHeaders() }
+              );
+            }
+            // Record this tier's signature
+            signed.push({ tier: tier.tier, userId: uid, userName: String((decoded as Record<string, unknown>).name || decoded.email || uid), at: new Date().toISOString() });
+            updateData.approvalTiers = JSON.stringify(signed);
+
+            if (signed.length < tiers.length) {
+              // More tiers pending — keep the offer in pending_approval
+              updateData.status = 'pending_approval';
+            } else {
+              updateData.status = 'approved';
+              updateData.approvedBy = decoded.userId as string;
+              updateData.approvedAt = new Date();
+            }
+          }
+        } else {
+          // No tier chain configured — legacy behavior, but restrict to HR-level roles
+          const role = String(decoded.role || '');
+          if (!['admin', 'tenant_admin', 'hr_admin', 'company_hr_admin', 'super_admin'].includes(role)) {
+            return NextResponse.json(
+              { error: 'Not authorized to approve offers — HR/admin approval is required.' },
+              { status: 403, headers: corsHeaders() }
+            );
+          }
+          updateData.status = 'approved';
+          updateData.approvedBy = decoded.userId as string;
+          updateData.approvedAt = new Date();
+        }
+      } else {
+        updateData.status = status;
       }
       if (status === 'sent') {
         updateData.sentAt = new Date();
@@ -116,12 +177,14 @@ export async function PATCH(
       data: updateData,
     });
 
-    // Notify relevant users on status changes only
-    if (status && status !== existing.status) {
+    // Notify relevant users on status changes only (use the EFFECTIVE status —
+    // a mid-chain tier approval keeps the offer in pending_approval)
+    const effectiveStatus = String(updateData.status || status);
+    if (effectiveStatus && effectiveStatus !== existing.status) {
       const notificationMap: Record<string, { title: string; message: string; type: 'info' | 'success' | 'warning' | 'error' }> = {
         pending_approval: {
           title: 'Offer Pending Approval',
-          message: `Offer for ${existing.candidateName} is pending your approval.`,
+          message: `Offer for ${existing.candidateName} is awaiting approval.`,
           type: 'info',
         },
         approved: {
@@ -151,7 +214,7 @@ export async function PATCH(
         },
       };
 
-      const notificationInfo = notificationMap[status];
+      const notificationInfo = notificationMap[effectiveStatus];
       if (notificationInfo) {
         // Notify the HR admin / approvers
         const hrAdmins = await db.user.findMany({
@@ -177,7 +240,7 @@ export async function PATCH(
         userId: decoded.userId as string,
         action: 'UPDATE_OFFER_STATUS',
         module: 'offers',
-        details: `Updated offer ${id} status to ${status || existing.status}`,
+        details: `Updated offer ${id} status to ${effectiveStatus}${updateData.approvalTiers ? ' (tier approval recorded)' : ''}`,
       },
     });
 

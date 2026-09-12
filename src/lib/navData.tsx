@@ -404,6 +404,7 @@ export const navSections: NavSection[] = [
 
       // ── Settings ──
       { label: 'Settings', href: '#settings-divider', icon: <FiSettings className="w-3.5 h-3.5" />, moduleKey: 'recruitment', isDivider: true },
+      { label: 'Workflow Configuration', href: '/recruitment/workflow-config', icon: <FiGitBranch className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
       { label: 'Recruitment Settings', href: '/recruitment/settings', icon: <FiSettings className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
 
       // ── Reports ──

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, Suspense } from 'react';
+import { useEffect, useState, useCallback, useRef, Suspense } from 'react';
 import {
   FiUserPlus,
   FiCheckCircle,
@@ -19,10 +19,10 @@ import {
 } from 'react-icons/fi';
 import ModuleDashboardShell, { DashboardTabConfig } from '@/components/ModuleDashboardShell';
 import toast from 'react-hot-toast';
-import { isClientDemoMode } from '@/lib/site-mode';
 import { useAuthStore } from '@/store/authStore';
 import ModuleTips from '@/components/ModuleTips';
 import ModuleWorkflow from '@/components/ModuleWorkflow';
+import { DEFAULT_PREBOARDING_CONFIG } from '@/lib/recruitment-workflow';
 
 /* ── Types ── */
 interface PreboardingCandidate {
@@ -51,15 +51,10 @@ interface BGVRecord {
 }
 
 /* ── Constants ── */
-const STAGES = [
-  'Offer Accepted',
-  'Document Collection',
-  'Background Verification',
-  'Pre-boarding Kit',
-  'IT Setup',
-  'Orientation Scheduled',
-  'Day 1 Ready',
-];
+// NOTE: the preboarding stage ladder is now DYNAMIC — it is configured per
+// tenant in Recruitment → Workflow Configuration (/recruitment/workflow-config)
+// and resolved from DEFAULT_PREBOARDING_CONFIG at runtime.
+const STAGES = DEFAULT_PREBOARDING_CONFIG.stages.map(s => s.label);
 
 const DOC_TYPES = [
   'ID Proof',
@@ -140,15 +135,7 @@ const preboardingWorkflowSteps = [
   { step: 7, title: 'Confirm Joining', description: 'Verify all tasks complete and candidate is Day 1 ready' },
 ];
 
-/* ── Demo Data ── */
-const demoCandidates: PreboardingCandidate[] = isClientDemoMode() ? [
-  { id: '1', name: 'Aarav Sharma', email: 'aarav@demo.com', position: 'Senior Developer', stage: 'Day 1 Ready', startDate: '2026-03-10', documents: DOC_TYPES.map(t => ({ type: t, status: 'verified' as const })), bgv: { vendor: 'Sterling', status: 'completed', submittedDate: '2026-02-20', completedDate: '2026-03-01', notes: 'Clear' }, hrVerified: true },
-  { id: '2', name: 'Priya Patel', email: 'priya@demo.com', position: 'UX Designer', stage: 'Background Verification', startDate: '2026-03-15', documents: DOC_TYPES.map((t, i) => ({ type: t, status: (i < 4 ? 'verified' : 'pending') as 'verified' | 'pending' })), bgv: { vendor: 'First Advantage', status: 'in_progress', submittedDate: '2026-03-01', completedDate: null, notes: 'Awaiting employment verification' }, hrVerified: false },
-  { id: '3', name: 'Rahul Verma', email: 'rahul@demo.com', position: 'Product Manager', stage: 'Document Collection', startDate: '2026-03-20', documents: DOC_TYPES.map((t, i) => ({ type: t, status: (i < 2 ? 'uploaded' : 'pending') as 'uploaded' | 'pending' })), bgv: null, hrVerified: false },
-  { id: '4', name: 'Sneha Reddy', email: 'sneha@demo.com', position: 'Data Analyst', stage: 'IT Setup', startDate: '2026-03-12', documents: DOC_TYPES.map(t => ({ type: t, status: 'verified' as const })), bgv: { vendor: 'Sterling', status: 'completed', submittedDate: '2026-02-25', completedDate: '2026-03-05', notes: 'Clear' }, hrVerified: true },
-  { id: '5', name: 'Vikram Singh', email: 'vikram@demo.com', position: 'DevOps Engineer', stage: 'Offer Accepted', startDate: '2026-04-01', documents: DOC_TYPES.map(t => ({ type: t, status: 'pending' as const })), bgv: null, hrVerified: false },
-  { id: '6', name: 'Meera Joshi', email: 'meera@demo.com', position: 'HR Executive', stage: 'Orientation Scheduled', startDate: '2026-03-08', documents: DOC_TYPES.map(t => ({ type: t, status: 'verified' as const })), bgv: { vendor: 'HireRight', status: 'completed', submittedDate: '2026-02-15', completedDate: '2026-02-28', notes: 'Clear' }, hrVerified: true },
-] : [];
+/* ── Demo data removed (GOLDEN RULE): candidates come exclusively from /api/preboarding ── */
 
 const initialForm = {
   name: '',
@@ -211,8 +198,26 @@ function PreboardingContent() {
   const { user } = useAuthStore();
   const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
 
-  const [candidates, setCandidates] = useState<PreboardingCandidate[]>(demoCandidates);
+  const [candidates, setCandidates] = useState<PreboardingCandidate[]>([]);
   const [usingLiveData, setUsingLiveData] = useState(false);
+  // Dynamic workflow configuration (drives the stage ladder shown everywhere)
+  const [stageLabels, setStageLabels] = useState<string[]>(
+    DEFAULT_PREBOARDING_CONFIG.stages.filter(s => s.enabled !== false).map(s => s.label)
+  );
+  const [statusToLabel, setStatusToLabel] = useState<Record<string, string>>(() => {
+    const m: Record<string, string> = {};
+    for (const s of DEFAULT_PREBOARDING_CONFIG.stages) m[s.key] = s.label;
+    return m;
+  });
+  const [labelToStatus, setLabelToStatus] = useState<Record<string, string>>(() => {
+    const m: Record<string, string> = {};
+    for (const s of DEFAULT_PREBOARDING_CONFIG.stages) m[s.label] = s.key;
+    return m;
+  });
+  // Refs mirror the config maps so fetchData stays stable (runs once) while
+  // always mapping candidates with the latest configuration
+  const statusToLabelRef = useRef(statusToLabel);
+  const stageLabelsRef = useRef(stageLabels);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [filterStage, setFilterStage] = useState('');
@@ -226,25 +231,38 @@ function PreboardingContent() {
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  /* Fetch data — LIVE preboarding records from the conversion cascade;
-     demo examples are only shown when no real records exist yet */
+  /* Fetch data — LIVE preboarding records from the conversion cascade.
+     Stage ladder comes from the tenant's dynamic workflow configuration. */
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
+      // Load workflow config first (falls back to defaults on failure)
+      try {
+        const cfgRes = await fetch('/api/recruitment/workflow-config?type=preboarding', { headers: getAuthHeaders() });
+        if (cfgRes.ok) {
+          const cfgJson = await cfgRes.json();
+          const stages = (cfgJson.effective?.stages || []) as Array<{ key: string; label: string; enabled?: boolean }>;
+          const enabled = stages.filter(s => s.enabled !== false);
+          const labels = enabled.map(s => s.label);
+          const s2l: Record<string, string> = { cancelled: 'Cancelled' };
+          const l2s: Record<string, string> = { 'Cancelled': 'cancelled' };
+          for (const s of stages) { s2l[s.key] = s.label; l2s[s.label] = s.key; }
+          setStageLabels(labels);
+          setStatusToLabel(s2l);
+          setLabelToStatus(l2s);
+          statusToLabelRef.current = s2l;
+          stageLabelsRef.current = labels;
+        }
+      } catch { /* defaults already set */ }
+
       const res = await fetch('/api/preboarding?limit=100', { headers: getAuthHeaders() });
       if (res.ok) {
+        setUsingLiveData(true);
         const data = await res.json();
         const live = (data.candidates || []) as Array<Record<string, unknown>>;
         if (live.length > 0) {
-          const statusToStage: Record<string, string> = {
-            offer_accepted: 'Offer Accepted',
-            document_collection: 'Document Collection',
-            bgv: 'Background Verification',
-            provisioning: 'IT Setup',
-            asset_request: 'IT Setup',
-            joined: 'Day 1 Ready',
-            cancelled: 'Cancelled',
-          };
+          // status → display label comes from the workflow configuration
+          const statusToStage = statusToLabelRef.current;
           const docTypes = ['offer_letter', 'id_proof', 'tax_forms', 'direct_deposit', 'employment_agreement', 'emergency_contact'];
           const mapped: PreboardingCandidate[] = live.map((c) => {
             const status = String(c.status || 'offer_accepted');
@@ -264,7 +282,7 @@ function PreboardingContent() {
               name: String(c.candidateName || 'Unknown'),
               email: String(c.candidateEmail || ''),
               position: String(c.jobTitle || 'New Hire'),
-              stage: statusToStage[status] || 'Offer Accepted',
+              stage: statusToStage[status] || stageLabelsRef.current[0] || 'Offer Accepted',
               startDate: c.joiningDate ? String(c.joiningDate).slice(0, 10) : '',
               documents: docs,
               bgv: {
@@ -278,15 +296,12 @@ function PreboardingContent() {
             };
           });
           setCandidates(mapped);
-          setUsingLiveData(true);
           return;
         }
+        setCandidates([]);
       }
-      setUsingLiveData(false);
-      setCandidates(demoCandidates);
     } catch {
-      setUsingLiveData(false);
-      // Use demo data on error
+      // Keep current list — never fall back to sample data
     } finally {
       setLoading(false);
     }
@@ -296,9 +311,9 @@ function PreboardingContent() {
 
   /* Stats */
   const totalCandidates = candidates.length;
-  const inProgress = candidates.filter(c => !['Day 1 Ready', 'Offer Accepted'].includes(c.stage)).length;
+  const inProgress = candidates.filter(c => c.stage !== stageLabels[0] && c.stage !== stageLabels[stageLabels.length - 1]).length;
   const pendingBGV = candidates.filter(c => c.bgv && ['pending', 'in_progress'].includes(c.bgv.status)).length;
-  const readyDay1 = candidates.filter(c => c.stage === 'Day 1 Ready').length;
+  const readyDay1 = candidates.filter(c => c.stage === stageLabels[stageLabels.length - 1]).length;
 
   /* Filtered */
   const filtered = candidates.filter(c => {
@@ -307,8 +322,8 @@ function PreboardingContent() {
     return matchSearch && matchStage;
   });
 
-  /* Pipeline counts per stage */
-  const stageCounts = STAGES.map(stage => ({
+  /* Pipeline counts per stage (from workflow configuration) */
+  const stageCounts = stageLabels.map(stage => ({
     stage,
     count: candidates.filter(c => c.stage === stage).length,
   }));
@@ -366,16 +381,32 @@ function PreboardingContent() {
     setDeleting(false);
   };
 
-  const handleAdvanceStage = (id: string) => {
-    setCandidates(prev => prev.map(c => {
-      if (c.id !== id) return c;
-      const currentIdx = STAGES.indexOf(c.stage);
-      if (currentIdx < STAGES.length - 1) {
-        return { ...c, stage: STAGES[currentIdx + 1] };
+  const handleAdvanceStage = async (id: string) => {
+    const current = candidates.find(c => c.id === id);
+    if (!current) return;
+    const currentIdx = stageLabels.indexOf(current.stage);
+    if (currentIdx < 0 || currentIdx >= stageLabels.length - 1) return;
+    const nextLabel = stageLabels[currentIdx + 1];
+    const nextStatus = labelToStatus[nextLabel];
+    // Optimistic update
+    setCandidates(prev => prev.map(c => (c.id === id ? { ...c, stage: nextLabel } : c)));
+    // Persist to the workflow engine (status key from configuration)
+    if (nextStatus) {
+      try {
+        const res = await fetch(`/api/preboarding/${id}`, {
+          method: 'PATCH',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ status: nextStatus }),
+        });
+        if (!res.ok) throw new Error('save failed');
+        toast.success(`Stage advanced to "${nextLabel}"`);
+      } catch {
+        toast.error('Could not save the stage change — reverted');
+        setCandidates(prev => prev.map(c => (c.id === id ? { ...c, stage: current.stage } : c)));
       }
-      return c;
-    }));
-    toast.success('Stage advanced');
+    } else {
+      toast.success('Stage advanced');
+    }
   };
 
   const toggleHRVerify = (id: string) => {
@@ -399,8 +430,8 @@ function PreboardingContent() {
             Preboarding
           </h1>
           <p className="text-thb-text-secondary mt-1">Manage pre-boarding workflow for incoming employees</p>
-          <p className={`text-[11px] mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-full ${usingLiveData ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
-            {usingLiveData ? '● Live data — candidates converted from recruitment appear here' : '● Sample data — convert a hired candidate in Recruitment to see live records'}
+          <p className={`text-[11px] mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-full ${usingLiveData ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+            {usingLiveData ? '● Live data — candidates converted from recruitment appear here' : '● No preboarding records yet — convert a hired candidate in Recruitment'}
           </p>
         </div>
         {isAdmin && (
@@ -463,11 +494,11 @@ function PreboardingContent() {
         <div className="flex items-center gap-1 overflow-x-auto pb-2">
           {stageCounts.map((s, i) => (
             <div key={s.stage} className="flex items-center">
-              <div className={`flex flex-col items-center min-w-[100px] px-3 py-2 rounded-lg ${i <= STAGES.indexOf(filtered[0]?.stage || '') ? 'bg-emerald-50 border border-emerald-200' : 'bg-slate-50 border border-slate-200'}`}>
+              <div className={`flex flex-col items-center min-w-[100px] px-3 py-2 rounded-lg ${i <= stageLabels.indexOf(filtered[0]?.stage || '') ? 'bg-emerald-50 border border-emerald-200' : 'bg-slate-50 border border-slate-200'}`}>
                 <span className="text-[10px] text-thb-text-muted text-center leading-tight">{s.stage}</span>
                 <span className="text-sm font-bold text-thb-text-primary mt-1">{s.count}</span>
               </div>
-              {i < STAGES.length - 1 && <FiChevronRight className="w-4 h-4 text-thb-text-muted flex-shrink-0 mx-0.5" />}
+              {i < stageLabels.length - 1 && <FiChevronRight className="w-4 h-4 text-thb-text-muted flex-shrink-0 mx-0.5" />}
             </div>
           ))}
         </div>
@@ -493,7 +524,7 @@ function PreboardingContent() {
           <FiFilter className="w-4 h-4 text-thb-text-muted" />
           <select value={filterStage} onChange={e => setFilterStage(e.target.value)} className="px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400">
             <option value="">All Stages</option>
-            {STAGES.map(s => <option key={s} value={s}>{s}</option>)}
+            {stageLabels.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
         </div>
       </div>
@@ -522,7 +553,7 @@ function PreboardingContent() {
               <div>
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Stage</label>
                 <select value={form.stage} onChange={e => setForm(p => ({ ...p, stage: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400">
-                  {STAGES.map(s => <option key={s} value={s}>{s}</option>)}
+                  {stageLabels.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
               <div>
@@ -605,7 +636,7 @@ function PreboardingContent() {
                             {isAdmin && (
                               <td className="px-4 py-3">
                                 <div className="flex items-center justify-end gap-1">
-                                  {c.stage !== 'Day 1 Ready' && (
+                                  {c.stage !== stageLabels[stageLabels.length - 1] && (
                                     <button onClick={() => handleAdvanceStage(c.id)} className="p-2 rounded-lg text-thb-text-muted hover:text-emerald-500 hover:bg-emerald-50 transition-colors" title="Advance Stage">
                                       <FiChevronRight className="w-4 h-4" />
                                     </button>

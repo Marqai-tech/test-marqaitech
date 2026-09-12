@@ -1372,6 +1372,33 @@ model EmployeeWorkflowConfig {
   @@index([employmentType])
 }
 
+// ============ RECRUITMENT / PREBOARDING / ONBOARDING WORKFLOW CONFIG ============
+// ADDITIVE (2026-09): per-tenant dynamic workflow configuration.
+// workflowType: 'recruitment' (pipeline stages + offer approval chain)
+//             | 'preboarding'  (offer-acceptance → joining stage machine)
+//             | 'onboarding'   (post-joining checklist generated on convert)
+// config: JSON payload — see src/lib/recruitment-workflow.ts for the schema.
+model RecruitmentWorkflowConfig {
+  id           String   @id @default(cuid())
+  tenantId     String
+  companyId    String?  // null = tenant-wide
+  isActive     Boolean  @default(true)
+  workflowType String   @default("recruitment")
+  name         String   @default("Recruitment Workflow")
+  description  String?
+
+  // JSON config (shape depends on workflowType)
+  config       String
+
+  createdBy    String?
+  updatedBy    String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([tenantId, workflowType, companyId])
+  @@index([tenantId, workflowType])
+}
+
 // ============ INCIDENTS ============
 
 model IncidentReport {
@@ -2259,6 +2286,10 @@ model Offer {
   id                String @id @default(cuid())
   candidateId       String
   jobPostingId      String?
+
+  // ADDITIVE (2026-09): JSON trace of sequential approval tiers from the
+  // recruitment workflow config — [{ tier, userId, userName, at }]
+  approvalTiers     String?
 
   candidateName     String
   candidateEmail    String

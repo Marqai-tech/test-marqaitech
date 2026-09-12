@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { ensureSchemaSynced, withSchemaSync } from '@/lib/schema-sync';
+import { resolvePreboardingConfig } from '@/lib/recruitment-workflow';
 
 function corsHeaders() {
   return {
@@ -112,7 +113,32 @@ export async function PUT(
     if (body.joiningDate !== undefined) updateData.joiningDate = body.joiningDate ? new Date(body.joiningDate) : null;
     if (body.notes !== undefined) updateData.notes = body.notes;
     if (body.offerId !== undefined) updateData.offerId = body.offerId;
-    if (body.status !== undefined) updateData.status = body.status;
+    if (body.status !== undefined) {
+      // ─── Stage transition guard, driven by the preboarding workflow config ───
+      const newStatus = String(body.status);
+      const allowed = ['offer_accepted', 'document_collection', 'bgv', 'provisioning', 'asset_request', 'joined', 'cancelled'];
+      if (!allowed.includes(newStatus)) {
+        return NextResponse.json(
+          { error: `Invalid preboarding status "${newStatus}". Allowed: ${allowed.join(', ')}` },
+          { status: 400, headers: corsHeaders() }
+        );
+      }
+      if (newStatus !== existing.status) {
+        try {
+          const pbConfig = await resolvePreboardingConfig(db, decoded.tenantId as string, null);
+          const enabledKeys = pbConfig.stages.filter((s) => s.enabled !== false).map((s) => s.key);
+          // 'cancelled' is always allowed as an exit; disabled stages cannot be TARGETED
+          if (newStatus !== 'cancelled' && !enabledKeys.includes(newStatus)) {
+            const stageLabel = pbConfig.stages.find((s) => s.key === newStatus)?.label || newStatus;
+            return NextResponse.json(
+              { error: `Stage "${stageLabel}" is disabled in your preboarding workflow configuration.` },
+              { status: 400, headers: corsHeaders() }
+            );
+          }
+        } catch { /* config unavailable — fall through to update */ }
+      }
+      updateData.status = newStatus;
+    }
     if (body.documentsUploaded !== undefined) updateData.documentsUploaded = body.documentsUploaded;
     if (body.backgroundCheckStatus !== undefined) updateData.backgroundCheckStatus = body.backgroundCheckStatus;
     if (body.backgroundCheckNotes !== undefined) updateData.backgroundCheckNotes = body.backgroundCheckNotes;
