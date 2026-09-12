@@ -2171,3 +2171,26 @@ Work Log:
 
 Stage Summary:
 - Demo Vercel deployment CONFIRMED running the 12-bug fix build (fcfbbaa8). No data written (all test calls intentionally rejected server-side).
+
+---
+Task ID: 30
+Agent: Super Z (main agent)
+Task: Remove sample data from recruitment dashboard + live /offers page; build dynamic recruitment/preboarding/onboarding workflow configuration
+
+Work Log:
+- ROOT CAUSE of ghost "4 Open Positions": GET /api/jobs queried non-existent Job model -> always threw -> catch returned 6 fabricated jobs (4 open). Rewrote /api/jobs on real JobPosting model; demo fallback deleted; errors now 500 (never fake data)
+- dashboards/recruitment: DEMO_* constants (24 open/1847 apps/68 interviews/...) removed — zero-initialized + maps live /api/recruitment data only; latent ReferenceError (getClientSiteMode never imported) also eliminated
+- LIVE DB cleanup (user-requested): deleted 8 dummy Offers ("Candidate 1-8", candidate_N@email.com, exact seed signature of scripts/seed-remaining-tables.py) + 4 seed OfferTemplates from tenant_marqaitechgroup; reference-checked (0 PreboardingCandidate refs) and transactional; verified 0 rows after
+- /api/recruitment GET now returns real aggregates: stats {openPositions,totalApplications,interviewsScheduled,offersPending,hiresThisMonth,avgTimeToHire}, pipelineData (from configured stages), sourceData, 6-month trend, recent applications, upcoming interviews
+- NEW PRISMA MODEL RecruitmentWorkflowConfig (additive; @@unique tenantId+workflowType+companyId) + Offer.approvalTiers TEXT? (additive) — synced additive-only to tenant_3boxes-hrms-demo AND tenant_marqaitechgroup (0 destructive stmts; live employee rows verified unchanged: 10)
+- NEW src/lib/recruitment-workflow.ts: typed configs (recruitment/preboarding/onboarding), validation, resolveWorkflowConfig (company-scoped -> tenant-wide -> defaults)
+- NEW /api/recruitment/workflow-config GET/PUT/DELETE (RBAC admin/hr/super_admin; super_admin requires companyId scope to write; audit-logged; invalid config -> 400 with specific message)
+- NEW /recruitment/workflow-config 3-tab admin editor (pipeline stages + offer approval tiers / preboarding stage machine / onboarding checklist) + nav entry "Workflow Configuration" under Recruitment Settings
+- WIRING: dashboards read pipeline from config; preboarding page ladder + filters + advance action from config (advance now persists via PATCH with revert-on-failure; demo fallback "Aarav Sharma" etc removed); /api/preboarding/[id] rejects transitions to disabled stages (400); onboarding-cascade generates checklist from onboarding config (templates still take precedence) + initial preboarding stage from config; /api/offers/[id] enforces sequential tier approval from config (403 with clear tier message; trace in Offer.approvalTiers; legacy single-approval restricted to HR/admin roles)
+- VERIFIED demo (nexus-hrms-mu.vercel.app): scripts/verify-workflow-config.mjs 18/18 PASS (stats real: 6 open/38 apps/8d TTH; fabricated job-1..6 absent; PUT/DELETE + validation + disabled-stage guard); browser E2E: dashboard renders real stats, workflow-config editor saves (label change persisted), dashboard pipeline reflected custom label, then reset to defaults
+- VERIFIED LIVE: 0 offers, 0 templates, 0 postings; RecruitmentWorkflowConfig table + approvalTiers column exist; site healthy (401/200); no login performed on live
+
+Stage Summary:
+- Recruitment surfaces now 100% live-data only on both demo and LIVE; dynamic workflow configuration shipped end-to-end (lib + API + admin UI + wired into pipeline, preboarding transitions, offer approvals, conversion cascade)
+- Demo tenant left on default config (customization removed after E2E test); re-runnable scripts: verify-workflow-config.mjs, verify-live-clean.mjs, cleanup-live-offers.mjs, inspect-live-recruitment.mjs
+- No destructive schema changes anywhere; additive-only sync on both tenant DBs
