@@ -865,7 +865,7 @@ function BoardTab({ project, tasks, sprints, taskForm, setTaskForm, employeeList
                     <div className="flex flex-wrap items-center gap-1 mt-1.5">
                       <Badge tone={t.priority === 'critical' ? 'red' : t.priority === 'high' ? 'amber' : 'slate'}>{t.priority}</Badge>
                       {t.storyPoints != null && <Badge tone="violet">{t.storyPoints} pts</Badge>}
-                      {t.sprint && <Badge tone="sky">S{s.sprint.sprintNumber}</Badge>}
+                      {t.sprint && <Badge tone="sky">S{t.sprint.sprintNumber}</Badge>}
                       {t.dependsOn && <Badge tone={t.dependsOn.status === 'done' ? 'emerald' : 'amber'}>⛓ {t.dependsOn.name.slice(0, 14)}{t.dependsOn.status !== 'done' ? ' (gate)' : ''}</Badge>}
                     </div>
                     {t.assignedTo && (

@@ -207,7 +207,7 @@ export default function ProjectTasksPage() {
                         <div className="flex flex-wrap items-center gap-1 mt-1.5">
                           <span className={`thb-badge text-[9px] px-1.5 py-0.5 rounded ${t.priority === 'critical' ? 'bg-red-50 text-red-600' : t.priority === 'high' ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-500'}`}>{t.priority}</span>
                           {t.storyPoints != null && <span className="thb-badge text-[9px] px-1.5 py-0.5 rounded bg-violet-50 text-violet-700">{t.storyPoints} pts</span>}
-                          {t.sprint && <span className="thb-badge text-[9px] px-1.5 py-0.5 rounded bg-sky-50 text-sky-700">S{s.sprint.sprintNumber}</span>}
+                          {t.sprint && <span className="thb-badge text-[9px] px-1.5 py-0.5 rounded bg-sky-50 text-sky-700">S{t.sprint.sprintNumber}</span>}
                           {t.plannedEnd && <span className="text-[9px] text-slate-400">due {String(t.plannedEnd).slice(5, 10)}</span>}
                         </div>
                         {t.assignedTo && <p className="text-[10px] text-slate-400 mt-1.5">{t.assignedTo.firstName} {t.assignedTo.lastName}</p>}

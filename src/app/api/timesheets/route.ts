@@ -163,7 +163,7 @@ export async function POST(request: Request) {
         const config = await resolveProjectWorkflowConfig(db, (decoded as any).tenantId, projectRow?.companyId);
         if (config.timesheets.enforceWaterfallPhaseGating) {
           const prevPhase = await db.projectMilestone.findFirst({
-            where: { projectId: taskRow.projectId, isPhase: true, sequence: (phase.sequence ?? 0) - 1 },
+            where: { projectId: taskRow!.projectId, isPhase: true, sequence: (phase.sequence ?? 0) - 1 },
           });
           if (prevPhase && prevPhase.approvalStatus !== 'approved') {
             return NextResponse.json(

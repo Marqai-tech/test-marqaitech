@@ -251,6 +251,7 @@ export default function TimesheetsPage() {
       employeeId: ts.employeeId,
       date: ts.date ? new Date(ts.date).toISOString().split('T')[0] : '',
       projectId: ts.projectId || (ts.project ? ts.project.id : ''),
+      projectTaskId: ts.projectTaskId || '',
       task: ts.projectTask?.name || ts.taskText || '',
       hours: ts.hours?.toString() || '',
       description: ts.description || '',

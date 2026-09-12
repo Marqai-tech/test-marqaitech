@@ -220,8 +220,11 @@ export async function computeCapacity(
       }
 
       const scheduledHours = Math.max(0, weeklyHours - leaveHours - holidayHours);
-      const utilizationPct = scheduledHours > 0
-        ? Math.round(((allocatedHours + softReservedHours) / scheduledHours) * 100)
+      // Utilization vs scheduled hours; when the whole week is leave/holiday the
+      // denominator would be 0 — fall back to contracted hours for a meaningful figure.
+      const utilizationBase = scheduledHours > 0 ? scheduledHours : weeklyHours;
+      const utilizationPct = utilizationBase > 0
+        ? Math.round(((allocatedHours + softReservedHours) / utilizationBase) * 100)
         : allocatedHours + softReservedHours > 0 ? 999 : 0;
       const overAllocated = utilizationPct > thresholdPct;
       if (overAllocated) overWeeks++;

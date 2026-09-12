@@ -32,8 +32,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         businessObjective: true, executiveSponsor: true, targetCompletionDate: true,
         submittedAt: true, approvedAt: true, approvedBy: true,
         workspaceRoomId: true, workspaceBoardId: true, costCenter: true, travelBudgetRequired: true,
-        projectManager: { select: { id: true, firstName: true, lastName: true } },
-        approvalSteps: { orderBy: { level: 'asc' } },
+        projectManagerId: true,
       },
     });
     if (!project) return NextResponse.json({ error: 'Project not found' }, { status: 404, headers: corsHeaders() });
@@ -46,11 +45,24 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       myEmployeeId = emp?.id || null;
     }
 
-    const steps = project.approvalSteps || [];
-    const pendingStep = steps.find((s: any) => s.gateType === 'intake' && s.status === 'pending');
+    const [steps, sponsorEmployee, pmEmployee] = await Promise.all([
+      db.projectApprovalStep.findMany({ where: { projectId: id, gateType: 'intake' }, orderBy: { level: 'asc' } }),
+      project.executiveSponsor
+        ? db.employee.findUnique({ where: { id: project.executiveSponsor }, select: { id: true, firstName: true, lastName: true } }).catch(() => null)
+        : Promise.resolve(null),
+      project.projectManagerId
+        ? db.employee.findUnique({ where: { id: project.projectManagerId }, select: { id: true, firstName: true, lastName: true } }).catch(() => null)
+        : Promise.resolve(null),
+    ]);
+
+    const pendingStep = (steps || []).find((s: any) => s.status === 'pending');
     const canDecide = pendingStep ? await userCanDecideStep(db, pendingStep, myEmployeeId, (decoded as any).role) : false;
 
-    return NextResponse.json({ intake: project, myEmployeeId, canDecide }, { headers: corsHeaders() });
+    return NextResponse.json({
+      intake: { ...project, approvalSteps: steps, projectManager: pmEmployee, sponsorEmployee },
+      myEmployeeId,
+      canDecide,
+    }, { headers: corsHeaders() });
   } catch (error) {
     console.error('Get intake error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() });
@@ -177,7 +189,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       include: { approvalSteps: { orderBy: { level: 'asc' } } },
     });
 
-    return NextResponse.json({ project: updated }, { status: 201, headers: corsHeaders() });
+    return NextResponse.json({ project: { ...(updated as any), approvalSteps: (updated as any)?.approvalSteps } }, { status: 201, headers: corsHeaders() });
   } catch (error) {
     console.error('Submit intake error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() });
@@ -241,7 +253,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     if (next) {
       await notifyEmployee(db, {
         tenantId: (decoded as any).tenantId,
-        employeeId: next.approverValue,
+        employeeId: next.approverValue as string,
         title: 'Project intake awaiting your approval',
         message: `"${project.name}" cleared "${pending.name}" and now needs your review (Tier ${next.level}).`,
         link: `/projects/${id}?tab=approvals`,

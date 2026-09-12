@@ -138,7 +138,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
       // Skill level upgrade prompt → notify HR admins when a new skill was delivered
       if (r.skillUpgradeSuggestion) {
-        const hrUsers = await db.user.findMany({ where: { role: { in: ['hr_admin', 'admin', 'tenant_admin'] }, isActive: true }, select: { id: true } }).catch(() => []);
+        const hrUsers = await db.user.findMany({ where: { role: { in: ['hr_admin', 'admin', 'tenant_admin'] } }, select: { id: true } }).catch(() => []);
         for (const u of (hrUsers || []).slice(0, 5)) {
           const { createNotification } = await import('@/lib/notifications');
           const emp = await db.employee.findUnique({ where: { id: r.employeeId }, select: { userId: true, firstName: true, lastName: true } });

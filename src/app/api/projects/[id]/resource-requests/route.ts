@@ -37,7 +37,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     // live allocations for context
     const allocations = await db.projectAllocation.findMany({
       where: { projectId: id, status: { in: ['active', 'soft'] } },
-      include: { employee: { select: { id: true, firstName: true, lastName: true, employeeCode: true, designation: { select: { title: true } } } } },
+      include: { employee: { select: { id: true, firstName: true, lastName: true, employeeId: true, designation: { select: { title: true } } } } },
       orderBy: { createdAt: 'desc' },
     });
 
