@@ -2270,3 +2270,20 @@ Work Log:
 Stage Summary:
 - User manual covers: lifecycle overview + diagram, roles, full Workflow Configuration admin guide (6 sections), stage-by-stage SOPs (intake, planning/resourcing, execution, stage gates, closure/post-mortem), 4 role quick-ref cards, 17-action permission matrix, 12 FAQs, 25-term glossary; 12 embedded live screenshots + 1 process diagram.
 - Re-runnable: python3 scripts/gen_pm_manual.py && python3 scripts/merge_pm_manual.py (regenerates body+final; edit content files to update text).
+
+---
+Task ID: 33 (verification & polish addendum)
+Agent: Super Z (main agent)
+Task: Re-verify the delivered PM module User Manual PDF after session resume; fix metadata/outline gaps; confirm English-only delivery (new golden rule: all user-facing content in English)
+
+Work Log:
+- Session resumed with stale summary claiming manual not yet built; worklog Task 33 entry + disk check proved PDF already delivered (download/3Boxes-HRMS-Project-Management-User-Manual-SOP.pdf).
+- Verified deliverable via PyMuPDF: 31 pages A4 consistent, 13 embedded images (12 live demo screenshots + 1 lifecycle diagram), 110 internal TOC links, no blank pages, no U+FFFD corruption, keyword coverage of all 12 chapters confirmed (Introduction, Lifecycle, Workflow Configuration, Execution/Sprints/Waterfall, Stage Gates, Closure/Post-mortem, Quick-Reference Cards, Permission Matrix, FAQ, Glossary).
+- Fixed empty Subject metadata via pdf.py meta.set (Title/Author/Creator/Subject all set now).
+- Rebuilt missing PDF outline (sidebar bookmarks, 0 -> 55 hierarchical entries) from TOC named-destination links via scripts/fix-pm-manual-outline.py (set_toc + garbage=3 rewrite; links and metadata re-verified intact).
+- Final QA: pdf_qa --skip-cover 12/12 PASS. Remaining "TOC not clickable" warning confirmed FALSE POSITIVE (pdf_qa does not recognize kind=4 named-destination links; 110 links verified working on TOC pages 2-3: 60 + 50).
+
+Stage Summary:
+- User manual is FINAL and verified: download/3Boxes-HRMS-Project-Management-User-Manual-SOP.pdf (31 pages A4, ~2.1 MB) + editable cover source download/pm-manual-cover-source.html.
+- Re-runnable verification: scripts/verify-pm-manual.py; outline rebuild: scripts/fix-pm-manual-outline.py.
+- GOLDEN RULE logged per user instruction: all content, updates, reports, and deliverables for this project are in ENGLISH from now on.
