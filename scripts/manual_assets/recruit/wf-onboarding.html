@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  @page { size: 1200px 615px; margin: 0; }
+  html, body { margin: 0; padding: 0; width: 1200px; height: 615px; background: #ffffff; font-family: 'Helvetica Neue', Arial, sans-serif; }
+  .canvas { width: 1200px; height: 615px; position: relative; padding: 24px 30px; box-sizing: border-box; }
+  .trigger {
+    background: #f4f7f5; border: 1.5px solid #b9d0c4; border-radius: 10px;
+    padding: 12px 18px; box-sizing: border-box; display: flex; align-items: center; gap: 18px;
+  }
+  .trigger .t-title { font-size: 22px; font-weight: 800; color: #222523; white-space: nowrap; }
+  .trigger .t-desc { font-size: 18px; color: #4d5a53; line-height: 1.4; }
+  .trigger .t-desc b { color: #1d6b45; }
+  .down { display: flex; justify-content: center; padding: 8px 0; }
+  .phases { display: flex; gap: 20px; align-items: stretch; }
+  .phase {
+    flex: 1 1 0; background: #f4f7f5; border: 1.5px solid #b9d0c4; border-radius: 10px;
+    padding: 14px 15px 12px 15px; box-sizing: border-box;
+  }
+  .phase.gated { border-color: #288a59; border-width: 2px; }
+  .phase-num { display: inline-block; background: #365345; color: #ffffff; font-size: 14px; font-weight: 700; border-radius: 6px; padding: 3px 10px; }
+  .phase h3 { margin: 8px 0 4px 0; font-size: 23px; font-weight: 800; color: #222523; line-height: 1.15; }
+  .phase .sub { font-size: 17px; color: #6c7a72; margin-bottom: 8px; }
+  .phase ul { margin: 0; padding-left: 19px; }
+  .phase li { font-size: 18px; color: #4d5a53; line-height: 1.42; margin-bottom: 5px; }
+  .phase li .cat { color: #1d6b45; font-weight: 700; }
+  .note { margin-top: 14px; background: #eef4f0; border: 1.5px solid #288a59; border-radius: 9px; padding: 10px 14px; font-size: 18px; color: #1d6b45; line-height: 1.4; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="trigger">
+    <span class="t-title">Convert to Employee</span>
+    <span class="t-desc">One action on an accepted offer automatically creates <b>the employee record</b>, <b>starts preboarding</b> at the first enabled stage, and <b>generates the onboarding checklist</b> below &#8212; then notifies HR, IT, Admin and Finance.</span>
+  </div>
+  <div class="down"><svg width="24" height="22" viewBox="0 0 24 26"><line x1="12" y1="1" x2="12" y2="18" stroke="#478d6a" stroke-width="2.5"/><polygon points="5,17 12,25 19,17" fill="#478d6a"/></svg></div>
+  <div class="phases">
+    <div class="phase gated">
+      <span class="phase-num">PHASE 1</span>
+      <h3>Pre-Joining (before Day 1)</h3>
+      <div class="sub">due dates relative to joining date</div>
+      <ul>
+        <li>Paperwork pack &#8212; <span class="cat">HR Docs</span>, due &#8722;3d</li>
+        <li>NDA &amp; policy acknowledgments &#8212; <span class="cat">HR Docs</span>, due Day 0</li>
+        <li>System access &amp; email &#8212; <span class="cat">IT Setup</span>, due &#8722;1d</li>
+        <li>Laptop / workstation &#8212; <span class="cat">IT Setup</span>, due &#8722;1d</li>
+      </ul>
+    </div>
+    <div class="phase">
+      <span class="phase-num">PHASE 2</span>
+      <h3>Day 1 &amp; First Week</h3>
+      <div class="sub">first-week integration</div>
+      <ul>
+        <li>Payroll setup &amp; benefits &#8212; <span class="cat">Payroll</span>, due +1d</li>
+        <li>Team introductions &#8212; <span class="cat">Introduction</span>, due Day 0</li>
+        <li>Buddy check-in &#8212; <span class="cat">Buddy Setup</span>, due +1d</li>
+      </ul>
+    </div>
+    <div class="phase">
+      <span class="phase-num">PHASE 3</span>
+      <h3>Ramp-up (30 days)</h3>
+      <div class="sub">productivity &amp; goals</div>
+      <ul>
+        <li>Training modules &amp; KRAs &#8212; <span class="cat">Training</span>, due +7d</li>
+        <li>Project / team allocation review &#8212; <span class="cat">Allocation</span>, due +14d</li>
+      </ul>
+    </div>
+  </div>
+  <div class="note"><b>Template precedence:</b> if Onboarding Task Templates are configured and "generate from templates" is enabled, templates win over this checklist; otherwise these configurable phases/tasks are used.</div>
+</div>
+</body>
+</html>

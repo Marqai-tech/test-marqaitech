@@ -2287,3 +2287,25 @@ Stage Summary:
 - User manual is FINAL and verified: download/3Boxes-HRMS-Project-Management-User-Manual-SOP.pdf (31 pages A4, ~2.1 MB) + editable cover source download/pm-manual-cover-source.html.
 - Re-runnable verification: scripts/verify-pm-manual.py; outline rebuild: scripts/fix-pm-manual-outline.py.
 - GOLDEN RULE logged per user instruction: all content, updates, reports, and deliverables for this project are in ENGLISH from now on.
+
+---
+Task ID: 34
+Agent: Super Z (main agent)
+Task: Detailed Recruitment / Preboarding / Onboarding SOP / User Manual PDF with workflow configuration, module-wise workflows (English-only golden rule applies to all deliverables)
+
+Work Log:
+- Read full pdf-skill chain for Report route (report.md brief, cover.md, overflow.md, pagination.md, palette.md, typography.md, fill-engine.md, charts.md, cover-backgrounds.md, fonts.md).
+- Explore agent mapped the three modules exactly: nav entries, page structures, form fields, workflow-config editor (3 tabs), config shapes + defaults (recruitment-workflow.ts), API endpoints, RBAC (MANAGE_ROLES), offer tier enforcement (403 sequential gate), onboarding cascade (onboarding-cascade.ts).
+- Captured 9 live screenshots from demo tenant (nexus-hrms-mu.vercel.app, admin login, toasts dismissed via scripts/dismiss-toast.sh): recruitment dashboard, recruitment jobs, offers, preboarding (stage ladder), onboarding (honest empty state - live data, no fake rows), workflow-config tabs 1-3, onboarding templates. Demo only; zero writes, LIVE untouched.
+- Built 4 module-wise workflow diagrams via Playwright+CSS -> PNG @2x (scripts/manual_assets/recruit/wf-*.html/png): end-to-end lifecycle, recruitment pipeline + offer approval chain, preboarding stage machine + gates, onboarding cascade + 3 phases. Canvas heights trimmed to kill trailing voids / clipping after first render pass.
+- Content: talent_manual_content_1/2/3.py - 11 chapters (Introduction; Lifecycle; Recruitment; Preboarding; Onboarding; Workflow Configuration admin guide; Roles; 17-action Permission Matrix; 4 Role Quick-Reference cards; 12 FAQs; 25-term Glossary). Numbered SOPs use exact UI strings (Create Job, Advance, Convert, Advance Stage, Mark Complete, Save Configuration).
+- Body: talent_manual_kit.py (FreeSerif family + install_font_fallback, cascade palette seed 11 = same green family as PM manual, TocDocTemplate + multiBuild with bookmarkPage + addOutlineEntry, header/footer furniture, CondPageBreak, safe_keep_together, Paragraph-wrapped tables). gen_talent_manual.py assembles TOC + chapters (content numbering starts at 1).
+- FIX during build: multiBuild needed onFirstPage/onLaterPages=kit._furniture (page numbers were missing -> pdf_qa FAIL); merge switched to pypdf writer.append() so the 50-entry PDF outline survives (add_page drops outlines); cover mediabox normalized to exact A4 (0.3pt tolerance).
+- Cover: Template 01 HUD adapted from pm_cover.html (same brand family), poster_validate PASS + cover_validate.js PASS (0 overlaps), html2poster --width 794px.
+- QA: pdf_qa --skip-cover 12/12 PASS; font.check 0 issues; toc.check 0 errors; pages.clean 0 blank; 100 internal TOC links verified via PyMuPDF; single remaining warning is the known named-destination false positive (same as PM manual).
+- DELIVERED: download/3Boxes-HRMS-Recruitment-Preboarding-Onboarding-User-Manual-SOP.pdf (26 pages A4, ~2.3MB, 50 bookmarks, 100 clickable TOC links, 9 screenshots + 4 diagrams) + download/talent-manual-cover-source.html (editable cover source).
+
+Stage Summary:
+- Manual covers module-wise workflows as requested: Ch2 end-to-end lifecycle + one workflow diagram/narrative per module chapter + dedicated workflow-config chapter (field-by-field for all 3 tabs) + resolution order (company -> tenant -> defaults).
+- Re-runnable: python3 scripts/gen_talent_manual.py && python3 scripts/merge_talent_manual.py (edit content files to update text; re-render diagrams via scripts/manual_assets/recruit/wf-*.html).
+- GOLDEN RULE respected: entire manual + all updates in English.
