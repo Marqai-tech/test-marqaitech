@@ -2309,3 +2309,21 @@ Stage Summary:
 - Manual covers module-wise workflows as requested: Ch2 end-to-end lifecycle + one workflow diagram/narrative per module chapter + dedicated workflow-config chapter (field-by-field for all 3 tabs) + resolution order (company -> tenant -> defaults).
 - Re-runnable: python3 scripts/gen_talent_manual.py && python3 scripts/merge_talent_manual.py (edit content files to update text; re-render diagrams via scripts/manual_assets/recruit/wf-*.html).
 - GOLDEN RULE respected: entire manual + all updates in English.
+
+---
+Task ID: 35
+Agent: Super Z (main agent)
+Task: Make the PM User Manual PDF (and Recruitment manual) viewable in the preview panel (user request: "can i see this in the preview panel")
+
+Work Log:
+- Investigated serving options: no dev server running; standalone python http.server background processes are killed between tool calls (verified with setsid + same-call curl tests: server works on 127.0.0.1 but cannot persist).
+- Confirmed the platform runs `next dev -p 3000` for the preview panel (dev.log). Decided to serve via Next.js public/ folder.
+- Reviewed src/middleware.ts matcher + redirect logic: static files in public/ pass through; only `/` and `/landing*` redirect for tenant-like hosts, so direct PDF/HTML paths are safe.
+- Copied download/3Boxes-HRMS-Project-Management-User-Manual-SOP.pdf and download/3Boxes-HRMS-Recruitment-Preboarding-Onboarding-User-Manual-SOP.pdf into public/.
+- Created public/manual-preview.html: branded 3Boxes-green viewer page (header tabs PM / Recruitment-&-Onboarding, embedded iframe PDF viewer, Download PDF button, Open-in-new-tab link).
+- Verification (single call, temporary next dev boot): PM PDF -> HTTP 200; RPO PDF -> HTTP 206 application/pdf on range request (correct); manual-preview.html -> HTTP 200 text/html. Server stopped after test.
+
+Stage Summary:
+- Preview paths live on port 3000 (preview panel): /manual-preview.html (branded viewer, both manuals), /3Boxes-HRMS-Project-Management-User-Manual-SOP.pdf (direct), /3Boxes-HRMS-Recruitment-Preboarding-Onboarding-User-Manual-SOP.pdf (direct).
+- Source PDFs remain canonical in download/; public/ copies are for preview serving only. Re-copy after any future manual regeneration.
+- Helper artifacts: preview-server/ (earlier standalone attempt, kept for reference), scripts/pdf-verify.{log,pid} (verification run).
