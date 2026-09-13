@@ -257,6 +257,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ tenant }, { status: 201, headers: corsHeaders() });
   } catch (error) {
     console.error('Create tenant error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() });
+    return NextResponse.json(
+      { error: 'Internal server error', details: error instanceof Error ? error.message.slice(0, 400) : 'Unknown error' },
+      { status: 500, headers: corsHeaders() }
+    );
   }
 }
