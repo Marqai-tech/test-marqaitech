@@ -2250,3 +2250,23 @@ Stage Summary:
 - Task 32 (Tenant Management) is CONFIRMED DEPLOYED and fully verified on demo: API 25/25 + drawer/tabs/lifecycle UI green on the Vercel build.
 - ALL queued tasks from the original backlog are now complete: project delivery workflow (T31), recruitment dashboard/live-offers cleanup + recruitment/preboarding/onboarding workflow config (T30), tenant management console (T32).
 - No schema changes, no data writes anywhere in this session (verification-only).
+
+---
+Task ID: 33
+Agent: Super Z (main agent)
+Task: Detailed user SOP / user manual PDF for the Project Management module (incl. Workflow Configuration) — English, deep-dive, with live screenshots
+
+Work Log:
+- Loaded pdf skill full chain (SKILL.md, fonts.md, report.md brief, cover.md, palette.md, overflow.md, pagination.md, typography.md, fill-engine.md, cover-backgrounds.md, charts.md). Route: Report (ReportLab body) + Template 01 HUD cover (HTML/Playwright via html2poster.js) merged with pypdf.
+- Palette: design_engine palette-cascade --intent nature --harmony monochrome --seed 11 (green family matching 3Boxes brand); CSS + reportlab formats.
+- Live screenshots captured from demo deployment (agent-browser, logged in as admin, welcome/tour overlays + toasts dismissed): projects list, workspace Overview&Intake, Planning&Phases, Resources, Delivery Board, Sprints, Approvals, Integrations, Closure, Capacity Planner, Workflow Config, Timesheets (12 PNGs, 1440x900) in scripts/manual_assets/.
+- Found and CLEANED 11 leftover PMWF-VERIFY timesheet rows in tenant_3boxes-hrms-demo (legacy project-text snapshots from Task 31 E2E; SELECT before DELETE, transactional, verified 0 remaining; demo DB only, no live touch).
+- Built 5-stage lifecycle diagram via Playwright+CSS -> PNG @2x (low-saturation fills, adjacent-only arrows, no clipped labels after fix).
+- Body: scripts/gen_pm_manual.py + pm_manual_content(.2).py — 12 chapters, TocDocTemplate + multiBuild clickable TOC w/ PDF outline, FreeSerif + install_font_fallback, cascade palette, all table cells Paragraph(), repeatRows=1, safe_keep_together, CondPageBreak 25% H1 rule, header/footer furniture, callouts + nav strips + numbered steps. Chapter numbering plan output before code (cover/TOC unnumbered, content 1-12).
+- Cover: Template 01 HUD (green anchor line, grid bg 2%, kicker/hero/summary/meta drawers), poster_validate PASS, cover_validate PASS (after removing nested accent span flagged as text-text overlap), html2poster --width 794px.
+- QA: fixed cover page-size mismatch (normalize tolerance 2pt -> 0.3pt); pdf_qa 11/11 checks PASS (page size consistent, no overflow, fill adequate, margins symmetric, fonts embedded, full-bleed cover); toc.check pass; font.check 0 issues; pages.clean none. pdf_qa "TOC not clickable" warning proven FALSE POSITIVE via pypdf: 60/60 /Link annotations resolve to real pages. Retook 2 screenshots (intake overview had admin dropdown open; timesheets had toast + deleted test rows) and rebuilt.
+- DELIVERED: download/3Boxes-HRMS-Project-Management-User-Manual-SOP.pdf (31 pages A4, 2.53MB) + download/pm-manual-cover-source.html (editable cover source per HTML->PDF dual-delivery rule).
+
+Stage Summary:
+- User manual covers: lifecycle overview + diagram, roles, full Workflow Configuration admin guide (6 sections), stage-by-stage SOPs (intake, planning/resourcing, execution, stage gates, closure/post-mortem), 4 role quick-ref cards, 17-action permission matrix, 12 FAQs, 25-term glossary; 12 embedded live screenshots + 1 process diagram.
+- Re-runnable: python3 scripts/gen_pm_manual.py && python3 scripts/merge_pm_manual.py (regenerates body+final; edit content files to update text).
