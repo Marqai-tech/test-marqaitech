@@ -1,6 +1,15 @@
 import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
+import { getServerHiddenSlugs, LIVE_HIDDEN_SLUGS, DEMO_HIDDEN_SLUGS } from '@/lib/tenant-filter';
+import { isLiveMode } from '@/lib/site-mode';
+
+// ─── Hidden Tenant Slugs (GOLDEN RULE — FOOLPROOF, same as /api/tenants) ──
+function getHiddenSlugsForRequest(request: Request): string[] {
+  const foolproof = getServerHiddenSlugs(request);
+  const siteMode = isLiveMode(request) ? LIVE_HIDDEN_SLUGS : DEMO_HIDDEN_SLUGS;
+  return [...new Set([...foolproof, ...siteMode])];
+}
 
 /**
  * GET /api/tenant-database/list
@@ -12,13 +21,23 @@ export async function GET(request: Request) {
   const db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
-    const payload = token ? await verifyToken(token) : null;
-    if (!payload || payload.role !== 'super_admin') {
+    if (!token) {
+      return NextResponse.json({ error: 'No token provided' }, { status: 401 });
+    }
+    const payload = await verifyToken(token);
+    if (!payload) {
+      return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401 });
+    }
+    if (payload.role !== 'super_admin') {
       return NextResponse.json({ error: 'Only super admins can list tenant databases' }, { status: 403 });
     }
 
-    // Get all tenants with their database status
+    // Get all tenants with their database status.
+    // GOLDEN RULE: hidden tenants (demo/live per host) are excluded so this
+    // surface stays consistent with /api/tenants on every domain.
+    const hiddenSlugs = getHiddenSlugsForRequest(request);
     const tenants = await getPlatformDb().tenant.findMany({
+      where: { slug: { notIn: hiddenSlugs } },
       select: {
         id: true,
         name: true,

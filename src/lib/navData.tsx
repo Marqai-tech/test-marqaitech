@@ -103,7 +103,7 @@ export const navSections: NavSection[] = [
     ],
     items: [
       { label: 'Super Admin Dashboard', href: '/super-admin', icon: <FiGrid className="w-4 h-4" />, roles: ['super_admin'] },
-      { label: 'Companies', href: '/super-admin', icon: <FiBriefcase className="w-4 h-4" />, roles: ['super_admin'] },
+      { label: 'Tenant Management', href: '/super-admin/tenant-management', icon: <FiServer className="w-4 h-4" />, roles: ['super_admin'], isNew: true },
       { label: 'Subscriptions', href: '/super-admin/subscriptions', icon: <FiCreditCard className="w-4 h-4" />, roles: ['super_admin'], isNew: true },
       { label: 'Packages', href: '/super-admin/packages', icon: <FiPackage className="w-4 h-4" />, roles: ['super_admin'], isNew: true },
       { label: 'Domain Management', href: '/super-admin/domain', icon: <FiGlobe className="w-4 h-4" />, roles: ['super_admin'], isNew: true },

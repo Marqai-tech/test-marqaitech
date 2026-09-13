@@ -25,7 +25,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
-  const db = await getDb(request);
+  await getDb(request); // resolve tenant DB handle (shared-mode resolution side effect)
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -128,7 +128,21 @@ export async function POST(request: Request) {
       name, slug, domain, plan, country, currency, timezone, logo,
       adminName, adminEmail, adminPassword,
       maxCompaniesAllowed,
+      // Extended platform fields (SRS REQ-TA / REQ-GL): language, base
+      // currency, data residency region and plan seat/storage caps.
+      language, baseCurrency, dataRegion, subscriptionSeats, subscriptionStorage,
     } = body;
+
+    // Normalise slug: lowercase, trim, collapse non-alphanumerics to hyphens.
+    const normalisedSlug = typeof slug === 'string'
+      ? slug.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+      : '';
+    if (!normalisedSlug) {
+      return NextResponse.json(
+        { error: 'Slug is required (letters/numbers/hyphens)' },
+        { status: 400, headers: corsHeaders() }
+      );
+    }
 
     if (!name || !slug || !adminName || !adminEmail || !adminPassword) {
       return NextResponse.json(
@@ -138,13 +152,17 @@ export async function POST(request: Request) {
     }
 
     // Check for duplicate slug
-    const existingTenant = await getPlatformDb().tenant.findUnique({ where: { slug } });
+    const existingTenant = await getPlatformDb().tenant.findUnique({ where: { slug: normalisedSlug } });
     if (existingTenant) {
       return NextResponse.json({ error: 'Tenant slug already exists' }, { status: 409, headers: corsHeaders() });
     }
 
-    // Check for duplicate admin email
-    const existingUser = await db.user.findUnique({ where: { email: adminEmail } });
+    // Check for duplicate admin email.
+    // The admin user is created nested inside the platform Tenant record, so
+    // the duplicate check MUST run against the platform DB. (Resolving `db`
+    // via getDb() can land on a dedicated tenant DB when the caller's own
+    // tenant has one — checking there would miss platform users entirely.)
+    const existingUser = await getPlatformDb().user.findUnique({ where: { email: adminEmail } });
     if (existingUser) {
       return NextResponse.json({ error: 'Admin email already exists' }, { status: 409, headers: corsHeaders() });
     }
@@ -154,13 +172,20 @@ export async function POST(request: Request) {
     const tenant = await getPlatformDb().tenant.create({
       data: {
         name,
-        slug,
+        slug: normalisedSlug,
         domain,
         plan: plan || 'starter',
         country,
         currency: currency || 'INR',
         timezone: timezone || 'UTC',
         logo,
+        // Extended platform fields — guarded so legacy clients that omit them
+        // keep working with schema defaults.
+        ...(language ? { language } : {}),
+        ...(baseCurrency ? { baseCurrency } : {}),
+        ...(dataRegion !== undefined ? { dataRegion: dataRegion || null } : {}),
+        ...(Number.isFinite(Number(subscriptionSeats)) ? { subscriptionSeats: Math.max(0, Math.floor(Number(subscriptionSeats))) } : {}),
+        ...(Number.isFinite(Number(subscriptionStorage)) ? { subscriptionStorage: Math.max(0, Math.floor(Number(subscriptionStorage))) } : {}),
         // When a super admin creates a tenant directly, it's active immediately
         // (no approval step needed — the super admin IS the approver).
         // Previously this was 'pending_approval', which caused newly-created
@@ -192,11 +217,15 @@ export async function POST(request: Request) {
     // (Idempotent — if a group with the same name already exists under this
     // tenant, we skip the create.)
     try {
-      const existingGroup = await db.companyGroup.findFirst({
+      // CompanyGroup rows are Tenant-scoped platform data — the new Tenant row
+      // exists only in the platform DB, so the group MUST be created there.
+      // (Writing to a resolved tenant DB violates CompanyGroup_tenantId_fkey.)
+      const platformDb2 = getPlatformDb();
+      const existingGroup = await platformDb2.companyGroup.findFirst({
         where: { tenantId: tenant.id, name },
       });
       if (!existingGroup) {
-        await db.companyGroup.create({
+        await platformDb2.companyGroup.create({
           data: {
             name, // SAME name as the tenant — this is intentional
             tenantId: tenant.id,
@@ -214,12 +243,14 @@ export async function POST(request: Request) {
       console.error('[Tenants/Create] Auto-group-create failed (non-fatal):', groupErr);
     }
 
-    await db.auditLog.create({
+    // Audit log lives in the platform DB — the acting super admin's User row
+    // is a platform user, and tenant DBs would reject it on the userId FK.
+    await getPlatformDb().auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'CREATE_TENANT',
         module: 'tenants',
-        details: `Created tenant ${name} (${slug}) with admin ${adminEmail}. Auto-created a matching group company "${name}".`,
+        details: `Created tenant ${name} (${normalisedSlug}) with admin ${adminEmail}. Auto-created a matching group company "${name}".`,
       },
     });
 

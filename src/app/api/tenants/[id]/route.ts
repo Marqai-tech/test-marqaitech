@@ -49,7 +49,7 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const db = await getDb(request);
+  await getDb(request); // resolve tenant DB handle (shared-mode resolution side effect)
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -183,7 +183,8 @@ export async function GET(
     // 3b-2. Resolve company names for employees
     // Since Employee.companyId is a String? (no Prisma relation), we need
     // to look up the company name from the Company table.
-    const companyIds = [...new Set(employees.map((e: any) => e.companyId).filter(Boolean))] as string[];
+    type DetailEmployee = Awaited<ReturnType<typeof fetchEmployees>>[number];
+    const companyIds = [...new Set(employees.map((e: DetailEmployee) => e.companyId).filter(Boolean))] as string[];
     const companyMap = new Map<string, string>();
     if (companyIds.length > 0) {
       await safe('tenantDb.company.findMany(forEmployeeLookup)', async () => {
@@ -196,7 +197,7 @@ export async function GET(
       }, []);
     }
     // Attach company name to each employee
-    const employeesWithCompany = employees.map((e: any) => ({
+    const employeesWithCompany = employees.map((e: DetailEmployee) => ({
       ...e,
       department: e.department?.name || null,
       designation: e.designation?.title || null,
@@ -229,6 +230,9 @@ export async function GET(
     // ─── Step 5: Build response ───
     const tenant = {
       ...tenantBasic,
+      // Whether this tenant resolves to its own dedicated database (true) or
+      // falls back to the shared platform database (false).
+      hasDedicatedDb: hasTenantDb,
       companyGroups: normalisedCompanyGroups,
       employees: employeesWithCompany,
       users,
@@ -280,7 +284,9 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    let { status, name, domain, plan, country, currency, timezone, logo, maxCompaniesAllowed } = body;
+    const { status, name, domain, plan, country, currency, timezone, logo, maxCompaniesAllowed } = body;
+    // Extended platform fields (super_admin only, same guard as plan/status).
+    const { language, baseCurrency, dataRegion, subscriptionSeats, subscriptionStorage } = body;
 
     const existingTenant = await getPlatformDb().tenant.findUnique({ where: { id } });
     if (!existingTenant) {
@@ -296,15 +302,27 @@ export async function PATCH(
     if (timezone !== undefined) updateData.timezone = timezone;
     if (logo !== undefined) updateData.logo = logo;
 
-    // Super-admin-only fields: plan, status, maxCompaniesAllowed
+    // Super-admin-only fields: plan, status, maxCompaniesAllowed + extended
+    // platform fields (language / baseCurrency / dataRegion / seat & storage caps).
     if (userRole === 'super_admin') {
       if (plan !== undefined) updateData.plan = plan;
       if (maxCompaniesAllowed !== undefined) {
         const v = typeof maxCompaniesAllowed === 'number' && maxCompaniesAllowed >= 0 ? maxCompaniesAllowed : 0;
         updateData.maxCompaniesAllowed = v;
       }
+      if (language !== undefined) updateData.language = language || 'en';
+      if (baseCurrency !== undefined) updateData.baseCurrency = baseCurrency || currency || 'INR';
+      if (dataRegion !== undefined) updateData.dataRegion = dataRegion || null;
+      if (subscriptionSeats !== undefined && Number.isFinite(Number(subscriptionSeats))) {
+        updateData.subscriptionSeats = Math.max(0, Math.floor(Number(subscriptionSeats)));
+      }
+      if (subscriptionStorage !== undefined && Number.isFinite(Number(subscriptionStorage))) {
+        updateData.subscriptionStorage = Math.max(0, Math.floor(Number(subscriptionStorage)));
+      }
       if (status !== undefined) {
-        const validStatuses = ['active', 'suspended', 'pending_approval', 'inactive'];
+        // 'trial' is part of the real lifecycle vocabulary (set by trial
+        // approval) — super admins must be able to convert trial → active.
+        const validStatuses = ['active', 'suspended', 'pending_approval', 'inactive', 'trial'];
         if (!validStatuses.includes(status)) {
           return NextResponse.json(
             { error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` },
@@ -328,11 +346,18 @@ export async function PATCH(
       throw err;
     });
 
-    // Notify tenant admin of status changes
+    // Notify tenant admin of status changes. Tenant admin users live in the
+    // target tenant's own database when it has one (fallback = platform DB
+    // for shared-mode tenants) — resolve by the TARGET tenant's slug, not
+    // the caller's.
     if (status && status !== existingTenant.status) {
-      const tenantAdmins = await db.user.findMany({
+      let adminDb = db;
+      try {
+        if (existingTenant.slug) adminDb = await getDbForTenant(existingTenant.slug);
+      } catch { /* keep fallback */ }
+      const tenantAdmins = await adminDb.user.findMany({
         where: { tenantId: id, role: 'tenant_admin' },
-      });
+      }).catch(() => []);
 
       for (const admin of tenantAdmins) {
         await createNotification({
@@ -347,7 +372,8 @@ export async function PATCH(
       }
     }
 
-    await db.auditLog.create({
+    // Audit log lives in the platform DB (acting user is a platform user).
+    await getPlatformDb().auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'UPDATE_TENANT',
@@ -393,7 +419,8 @@ export async function DELETE(
 
     await getPlatformDb().tenant.delete({ where: { id } });
 
-    await db.auditLog.create({
+    // Audit log lives in the platform DB (acting user is a platform user).
+    await getPlatformDb().auditLog.create({
       data: {
         userId: decoded.userId as string,
         action: 'DELETE_TENANT',
