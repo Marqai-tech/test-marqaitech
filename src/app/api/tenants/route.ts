@@ -12,6 +12,38 @@ function getHiddenSlugsForRequest(request: Request): string[] {
   return [...new Set([...foolproof, ...siteMode])];
 }
 
+/**
+ * Best-effort audit write that follows the ACTING USER's home database.
+ *
+ * Platform users live in the platform DB, but on the demo deployment the
+ * super admin authenticates against the demo tenant DB (mirrored user row),
+ * so a userId-FK'd AuditLog row is only writable where that user exists.
+ * Strategy: prefer the platform DB when the acting user exists there,
+ * otherwise fall back to the request-resolved DB. Audit failures are logged
+ * but NEVER fail the tenant operation itself.
+ */
+async function writeTenantAudit(
+  requestDb: PrismaClientLike,
+  userId: string,
+  data: { action: string; module: string; details: string },
+) {
+  const platformDb = getPlatformDb();
+  let target = platformDb;
+  try {
+    const actingUser = await platformDb.user.findUnique({ where: { id: userId }, select: { id: true } });
+    if (!actingUser) target = requestDb;
+  } catch {
+    target = requestDb;
+  }
+  try {
+    await target.auditLog.create({ data: { userId, ...data } });
+  } catch (auditErr) {
+    console.error(`[Tenants] Audit write (${data.action}) failed (non-fatal):`, auditErr instanceof Error ? auditErr.message : auditErr);
+  }
+}
+
+type PrismaClientLike = { user: { findUnique: (args: unknown) => Promise<unknown> }; auditLog: { create: (args: unknown) => Promise<unknown> } };
+
 function corsHeaders() {
   return {
     'Access-Control-Allow-Origin': '*',
@@ -243,15 +275,11 @@ export async function POST(request: Request) {
       console.error('[Tenants/Create] Auto-group-create failed (non-fatal):', groupErr);
     }
 
-    // Audit log lives in the platform DB — the acting super admin's User row
-    // is a platform user, and tenant DBs would reject it on the userId FK.
-    await getPlatformDb().auditLog.create({
-      data: {
-        userId: decoded.userId as string,
-        action: 'CREATE_TENANT',
-        module: 'tenants',
-        details: `Created tenant ${name} (${normalisedSlug}) with admin ${adminEmail}. Auto-created a matching group company "${name}".`,
-      },
+    // Audit follows the acting user's home DB (see writeTenantAudit).
+    await writeTenantAudit(db, decoded.userId as string, {
+      action: 'CREATE_TENANT',
+      module: 'tenants',
+      details: `Created tenant ${name} (${normalisedSlug}) with admin ${adminEmail}. Auto-created a matching group company "${name}".`,
     });
 
     return NextResponse.json({ tenant }, { status: 201, headers: corsHeaders() });

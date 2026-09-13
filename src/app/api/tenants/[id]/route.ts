@@ -13,6 +13,32 @@ function getHiddenSlugsForRequest(request: Request): string[] {
   return [...new Set([...foolproof, ...siteMode])];
 }
 
+/**
+ * Best-effort audit write that follows the ACTING USER's home database
+ * (same rationale as writeTenantAudit in ../route.ts — on the demo
+ * deployment the super admin's user row lives in the demo tenant DB).
+ * Never throws: audit failures are logged and swallowed.
+ */
+async function writeTenantAudit(
+  requestDb: { auditLog: { create: (args: unknown) => Promise<unknown> } },
+  platformDb: { user: { findUnique: (args: unknown) => Promise<unknown> }; auditLog: { create: (args: unknown) => Promise<unknown> } },
+  userId: string,
+  data: { action: string; module: string; details: string },
+) {
+  let target: typeof platformDb | typeof requestDb = platformDb;
+  try {
+    const actingUser = await platformDb.user.findUnique({ where: { id: userId }, select: { id: true } });
+    if (!actingUser) target = requestDb;
+  } catch {
+    target = requestDb;
+  }
+  try {
+    await target.auditLog.create({ data: { userId, ...data } });
+  } catch (auditErr) {
+    console.error(`[Tenants] Audit write (${data.action}) failed (non-fatal):`, auditErr instanceof Error ? auditErr.message : auditErr);
+  }
+}
+
 function corsHeaders() {
   return {
     'Access-Control-Allow-Origin': '*',
@@ -372,14 +398,11 @@ export async function PATCH(
       }
     }
 
-    // Audit log lives in the platform DB (acting user is a platform user).
-    await getPlatformDb().auditLog.create({
-      data: {
-        userId: decoded.userId as string,
-        action: 'UPDATE_TENANT',
-        module: 'tenants',
-        details: `Updated tenant ${id}: ${JSON.stringify(updateData)}`,
-      },
+    // Audit follows the acting user's home DB; never fails the update.
+    await writeTenantAudit(db, getPlatformDb(), decoded.userId as string, {
+      action: 'UPDATE_TENANT',
+      module: 'tenants',
+      details: `Updated tenant ${id}: ${JSON.stringify(updateData)}`,
     });
 
     return NextResponse.json({ tenant }, { headers: corsHeaders() });
@@ -419,14 +442,11 @@ export async function DELETE(
 
     await getPlatformDb().tenant.delete({ where: { id } });
 
-    // Audit log lives in the platform DB (acting user is a platform user).
-    await getPlatformDb().auditLog.create({
-      data: {
-        userId: decoded.userId as string,
-        action: 'DELETE_TENANT',
-        module: 'tenants',
-        details: `Deleted tenant ${existingTenant.name} (${existingTenant.slug})`,
-      },
+    // Audit follows the acting user's home DB; never fails the delete.
+    await writeTenantAudit(db, getPlatformDb(), decoded.userId as string, {
+      action: 'DELETE_TENANT',
+      module: 'tenants',
+      details: `Deleted tenant ${existingTenant.name} (${existingTenant.slug})`,
     });
 
     return NextResponse.json({ message: 'Tenant deleted successfully' }, { headers: corsHeaders() });
