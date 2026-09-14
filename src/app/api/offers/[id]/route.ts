@@ -233,6 +233,69 @@ export async function PATCH(
           });
         }
       }
+
+      // ─── Notification Center (Task 36): multi-channel offer lifecycle events ───
+      try {
+        const { dispatchNotification, resolveRoleRecipients, resolveBaseUrl } = await import('@/lib/notification-center');
+        const tenantIdOff = decoded.tenantId as string;
+        const originOff = request.headers.get('origin') || undefined;
+
+        if (effectiveStatus === 'sent' && tenantIdOff) {
+          // Offer letter available → candidate email with the accept link
+          const offerUrl = offer.accessToken ? `${resolveBaseUrl(originOff)}/offer/${offer.accessToken}` : '';
+          await dispatchNotification({
+            tenantId: tenantIdOff,
+            module: 'recruitment',
+            eventKey: 'recruitment.offer.issued',
+            recipients: offer.candidateEmail ? [{ email: offer.candidateEmail, name: offer.candidateName }] : [],
+            vars: {
+              Candidate_Name: offer.candidateName || '',
+              Position: offer.position || '',
+              Offer_Url: offerUrl,
+            },
+            suppressInApp: true,
+            origin: originOff,
+          });
+        }
+        if (effectiveStatus === 'accepted' && tenantIdOff) {
+          // Recruiter/HR + IT & Admin provisioning trigger
+          const hrIds = await resolveRoleRecipients(db, ['admin', 'hr_admin', 'company_hr_admin', 'hr_manager', 'tenant_admin'], 10);
+          const itIds = await resolveRoleRecipients(db, ['it_admin', 'it_support', 'admin', 'system_admin'], 10);
+          const recipients = Array.from(new Set([...hrIds, ...itIds])).map((uid) => ({ userId: uid }));
+          await dispatchNotification({
+            tenantId: tenantIdOff,
+            module: 'recruitment',
+            eventKey: 'recruitment.offer.accepted',
+            recipients,
+            vars: {
+              Candidate_Name: existing.candidateName || '',
+              Position: existing.position || '',
+              Department: existing.department || '—',
+              Joining_Date: offer.joiningDate ? new Date(offer.joiningDate).toLocaleDateString('en-IN') : 'TBD',
+            },
+            entity: { type: 'offer', id, link: `/offers/${id}` },
+            origin: originOff,
+          });
+        }
+        if (effectiveStatus === 'rejected' && tenantIdOff) {
+          const hrIds = await resolveRoleRecipients(db, ['admin', 'hr_admin', 'company_hr_admin', 'hr_manager', 'tenant_admin'], 10);
+          await dispatchNotification({
+            tenantId: tenantIdOff,
+            module: 'recruitment',
+            eventKey: 'recruitment.offer.declined',
+            recipients: hrIds.map((uid) => ({ userId: uid })),
+            vars: {
+              Candidate_Name: existing.candidateName || '',
+              Position: existing.position || '',
+              Reason: responseNotes || '—',
+            },
+            entity: { type: 'offer', id, link: `/offers/${id}` },
+            origin: originOff,
+          });
+        }
+      } catch (e) {
+        console.warn('[offers] notification-center dispatch failed (non-fatal):', (e as Error).message);
+      }
     }
 
     await db.auditLog.create({

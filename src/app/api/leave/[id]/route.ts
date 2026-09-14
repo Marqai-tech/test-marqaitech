@@ -204,17 +204,10 @@ export async function PATCH(
           // Now the workflow engine ALWAYS deducts on finalize, so we
           // only need to notify the employee here.
 
-          // Notify the employee of final approval
+          // Notify the employee of final approval — multi-channel (Task 36)
           if (existingLeave.employee.userId) {
-            await createNotification({
-              tenantId: scope.tenantId,
-              userId: existingLeave.employee.userId,
-              title: 'Leave Request Approved',
-              message: `Your ${existingLeave.leaveType.name} leave request from ${existingLeave.startDate.toLocaleDateString()} to ${existingLeave.endDate.toLocaleDateString()} has been fully approved.`,
-              type: 'success',
-              category: 'leave',
-              link: `/leave/${id}`,
-            }).catch(() => null);
+            const { dispatchLeaveEvent } = await import('@/lib/leave-notify');
+            await dispatchLeaveEvent(db, scope.tenantId, 'leave.approved', existingLeave, scope.userId, comments, request).catch(() => null);
           }
 
           // Notify all HR admins (for record-keeping)
@@ -261,17 +254,11 @@ export async function PATCH(
             message: 'Leave request fully approved through all workflow tiers. Leave balance has been updated.',
           }, { headers: corsHeaders() });
         } else {
-          // ─── Advanced to next tier: notify the next approver ───
-          if (result.nextApproverId) {
-            await createNotification({
-              tenantId: scope.tenantId,
-              userId: result.nextApproverId,
-              title: `Leave Request — Tier ${result.nextTier} Approval Required`,
-              message: `${existingLeave.employee.firstName} ${existingLeave.employee.lastName}'s ${existingLeave.leaveType.name} leave request has passed tier ${result.nextTier! - 1} and now requires your approval (tier ${result.nextTier}).`,
-              type: 'workflow',
-              category: 'leave',
-              link: `/leave`,
-            }).catch(() => null);
+          // ─── Advanced to next tier: notify the next approver — multi-channel + actionable (Task 36) ───
+          // (falls back to HR/admin role recipients when no specific approver resolves)
+          {
+            const { dispatchLeaveEvent } = await import('@/lib/leave-notify');
+            await dispatchLeaveEvent(db, scope.tenantId, 'leave.applied', existingLeave, scope.userId, comments, request, result.nextApproverId ? [result.nextApproverId] : null).catch(() => null);
           }
 
           // Notify the employee that their request advanced a tier
@@ -315,17 +302,10 @@ export async function PATCH(
         const { rejectLeaveWorkflow } = await import('@/lib/leave-workflow');
         await rejectLeaveWorkflow(db, id, scope.userId || userId, comments || '');
 
-        // Notify the employee of rejection
+        // Notify the employee of rejection — multi-channel (Task 36)
         if (existingLeave.employee.userId) {
-          await createNotification({
-            tenantId: scope.tenantId,
-            userId: existingLeave.employee.userId,
-            title: 'Leave Request Rejected',
-            message: `Your ${existingLeave.leaveType.name} leave request from ${existingLeave.startDate.toLocaleDateString()} to ${existingLeave.endDate.toLocaleDateString()} has been rejected.`,
-            type: 'warning',
-            category: 'leave',
-            link: `/leave/${id}`,
-          }).catch(() => null);
+          const { dispatchLeaveEvent } = await import('@/lib/leave-notify');
+          await dispatchLeaveEvent(db, scope.tenantId, 'leave.rejected', existingLeave, scope.userId, comments, request).catch(() => null);
         }
 
         await safeAuditLog(db, {
@@ -416,17 +396,10 @@ export async function PATCH(
       });
     }
 
-    // Notify the employee about the leave decision
+    // Notify the employee about the leave decision — multi-channel (Task 36)
     if (leaveRequest.employee.userId) {
-      await createNotification({
-        tenantId: scope.tenantId,
-        userId: leaveRequest.employee.userId,
-        title: `Leave Request ${status === 'approved' ? 'Approved' : 'Rejected'}`,
-        message: `Your ${leaveRequest.leaveType.name} leave request from ${existingLeave.startDate.toLocaleDateString()} to ${existingLeave.endDate.toLocaleDateString()} has been ${status}.`,
-        type: status === 'approved' ? 'success' : 'warning',
-        category: 'leave',
-        link: `/leave/${leaveRequest.id}`,
-      });
+      const { dispatchLeaveEvent } = await import('@/lib/leave-notify');
+      await dispatchLeaveEvent(db, scope.tenantId, status === 'approved' ? 'leave.approved' : 'leave.rejected', leaveRequest, scope.userId, comments, request).catch(() => null);
     }
 
     await safeAuditLog(db, {

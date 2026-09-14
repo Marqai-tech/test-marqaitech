@@ -11,6 +11,7 @@ import {
   FiClock,
   FiSearch,
   FiFilter,
+  FiZap,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
@@ -28,6 +29,18 @@ interface Notification {
   isRead: boolean;
   createdAt: string;
 }
+
+/* Module-wise category chips (Task 36) */
+const MODULE_CATEGORIES = [
+  { key: 'recruitment', label: 'Recruitment' },
+  { key: 'leave', label: 'Leave' },
+  { key: 'payroll', label: 'Payroll' },
+  { key: 'performance', label: 'Performance' },
+  { key: 'workflow', label: 'Workflows' },
+  { key: 'system', label: 'Core HR & System' },
+  { key: 'auth', label: 'Auth' },
+  { key: 'alert', label: 'Alerts' },
+];
 
 /* ── Helpers ── */
 function getAuthHeaders() {
@@ -100,6 +113,7 @@ export default function NotificationsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState('');
+  const [filterCategory, setFilterCategory] = useState('');
   const [filterRead, setFilterRead] = useState<'all' | 'unread' | 'read'>('all');
   const [markingRead, setMarkingRead] = useState<string | null>(null);
 
@@ -164,10 +178,11 @@ export default function NotificationsPage() {
       n.title.toLowerCase().includes(search.toLowerCase()) ||
       n.message.toLowerCase().includes(search.toLowerCase());
     const matchType = !filterType || n.type === filterType;
+    const matchCategory = !filterCategory || n.category === filterCategory;
     const matchRead = filterRead === 'all' ||
       (filterRead === 'unread' && !n.isRead) ||
       (filterRead === 'read' && n.isRead);
-    return matchSearch && matchType && matchRead;
+    return matchSearch && matchType && matchCategory && matchRead;
   });
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
@@ -191,6 +206,10 @@ export default function NotificationsPage() {
             Mark All as Read
           </button>
         )}
+        <a href="/notifications/center" className="inline-flex items-center gap-2 px-4 py-2.5 border border-emerald-200 bg-emerald-50 text-emerald-700 rounded-lg hover:bg-emerald-100 font-medium text-sm transition-colors">
+          <FiZap className="w-4 h-4" />
+          Notification Center
+        </a>
       </div>
 
       {/* Module Tips & Workflow */}
@@ -240,6 +259,25 @@ export default function NotificationsPage() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Module-wise category chips (Task 36) */}
+      <div className="flex gap-1.5 overflow-x-auto pb-1">
+        <button
+          onClick={() => setFilterCategory('')}
+          className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors ${!filterCategory ? 'bg-green-500 text-white' : 'thb-card text-thb-text-secondary hover:text-thb-text-primary'}`}
+        >
+          All Modules
+        </button>
+        {MODULE_CATEGORIES.map((c) => (
+          <button
+            key={c.key}
+            onClick={() => setFilterCategory(filterCategory === c.key ? '' : c.key)}
+            className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors ${filterCategory === c.key ? 'bg-green-500 text-white' : 'thb-card text-thb-text-secondary hover:text-thb-text-primary'}`}
+          >
+            {c.label}
+          </button>
+        ))}
       </div>
 
       {/* Notifications List - Card-based */}

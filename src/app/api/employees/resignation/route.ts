@@ -300,6 +300,37 @@ export async function POST(request: Request) {
           }
         } catch { /* non-critical */ }
       }
+
+      // ─── Notification Center (Task 36): multi-channel resignation alerts ───
+      try {
+        const { dispatchNotification, resolveRoleRecipients } = await import('@/lib/notification-center');
+        const recipients: Array<{ userId: string }> = [];
+        try {
+          const mgrRows2 = await db.$queryRawUnsafe(
+            `SELECT u."id" AS "managerUserId" FROM "Employee" e LEFT JOIN "User" u ON u."id" = e."reportingManagerId" WHERE e."id" = $1 AND e."reportingManagerId" IS NOT NULL LIMIT 1`,
+            employeeId,
+          ) as any[];
+          if (mgrRows2?.[0]?.managerUserId) recipients.push({ userId: mgrRows2[0].managerUserId });
+        } catch { /* best-effort */ }
+        const hrIds = await resolveRoleRecipients(db, ['hr_admin', 'admin', 'company_hr_admin', 'tenant_admin'], 10);
+        for (const id of hrIds) if (!recipients.some((r) => r.userId === id)) recipients.push({ userId: id });
+        if (recipients.length) {
+          await dispatchNotification({
+            tenantId,
+            module: 'exit',
+            eventKey: 'exit.resignation.submitted',
+            recipients,
+            vars: {
+              Employee_Name: empName,
+              Resignation_Date: new Date().toLocaleDateString('en-IN'),
+              Proposed_LWD: lastWorkingDate ? new Date(lastWorkingDate).toLocaleDateString('en-IN') : 'TBD',
+              Reason: reasonCategory || '—',
+            },
+            entity: { type: 'resignation', id: employeeId, link: '/employees/resignation' },
+            origin: request.headers.get('origin') || undefined,
+          });
+        }
+      } catch { /* non-critical */ }
     } catch (e) {
       console.error('[Resignation POST] notification failed:', e);
     }

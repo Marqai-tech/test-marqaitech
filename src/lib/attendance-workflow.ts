@@ -923,12 +923,47 @@ export async function processSlaOverdue(
   return { processed: autoApproved + autoEscalated, autoApproved, autoEscalated };
 }
 
-// ─── Notifications (best-effort, platform DB) ───────────────────────────
+// ─── Notifications (best-effort, tenant DB + multi-channel) ─────────────
 
-export async function notifyApprover(db: PrismaClient, userId: string | null, tenantId: string | null, title: string, message: string, link?: string) {
+export interface AttendanceNotifyContext {
+  /** Notification Center event key (e.g. 'attendance.request.submitted') */
+  eventKey?: string;
+  entityType?: string;
+  entityId?: string;
+  /** Render variables for the notification templates */
+  vars?: Record<string, string>;
+  /** Recipient overrides (default: the passed userId) */
+  recipientUserIds?: string[];
+  origin?: string;
+}
+
+/**
+ * Notify an attendance workflow actor. With no ctx, sends an in-app
+ * notification only. With ctx, fans out through the Notification Center
+ * (in-app + email + SMS + Slack/Teams) and can carry actionable
+ * approve/reject links.
+ */
+export async function notifyApprover(
+  db: PrismaClient, userId: string | null, tenantId: string | null,
+  title: string, message: string, link?: string,
+  ctx?: AttendanceNotifyContext,
+) {
   if (!userId || !tenantId) return;
   try {
-    const { createNotification } = await import('@/lib/notifications');
-    await createNotification({ tenantId, userId, title, message, type: 'workflow', category: 'workflow', link });
+    if (!ctx?.eventKey) {
+      const { createNotification } = await import('@/lib/notifications');
+      await createNotification({ tenantId, userId, title, message, type: 'workflow', category: 'workflow', link });
+      return;
+    }
+    const { dispatchNotification } = await import('@/lib/notification-center');
+    await dispatchNotification({
+      tenantId,
+      module: 'attendance',
+      eventKey: ctx.eventKey,
+      recipients: (ctx.recipientUserIds?.length ? ctx.recipientUserIds : [userId]).map((id) => ({ userId: id })),
+      vars: { ...ctx.vars },
+      entity: ctx.entityType && ctx.entityId ? { type: ctx.entityType, id: ctx.entityId, link } : undefined,
+      origin: ctx.origin,
+    });
   } catch { /* notifications must never break the workflow */ }
 }

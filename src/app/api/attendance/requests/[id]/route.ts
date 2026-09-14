@@ -93,14 +93,53 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       sanitizeMultiLineText(body.comments, 2000),
     );
 
-    // Notify the requester of the final outcome
+    // Notify the requester of the final outcome — multi-channel (Task 36)
     if (result.finalized) {
       await notifyApprover(
         db, reqRow.employee.userId || null, (user as any).tenantId || null,
         `${REQUEST_TYPE_LABELS[reqRow.requestType as AttendanceRequestType]} ${result.status}`,
         `Your ${REQUEST_TYPE_LABELS[reqRow.requestType as AttendanceRequestType]?.toLowerCase()} request was ${result.status}.`,
         '/attendance/requests',
+        {
+          eventKey: 'attendance.request.result',
+          entityType: 'attendance_request',
+          entityId: id,
+          vars: {
+            Request_Type: REQUEST_TYPE_LABELS[reqRow.requestType as AttendanceRequestType] || reqRow.requestType,
+            Request_Date: reqRow.startDate ? new Date(reqRow.startDate).toLocaleDateString('en-IN') : '',
+            Status: result.status === 'approved' ? 'APPROVED' : 'REJECTED',
+            Approver_Name: user.name || '',
+            Comment: body.comments ? `Comments: ${body.comments}` : '',
+          },
+          origin: request.headers.get('origin') || undefined,
+        },
       );
+    } else {
+      // Mid-level approved — notify the next-level approver (multi-channel + actionable)
+      const nextStep = await (db as any).attendanceRequestApproval.findFirst({
+        where: { requestId: id, status: 'pending' },
+        orderBy: { level: 'asc' },
+      }).catch(() => null);
+      if (nextStep?.actorUserId) {
+        await notifyApprover(
+          db, nextStep.actorUserId, (user as any).tenantId || null,
+          `${REQUEST_TYPE_LABELS[reqRow.requestType as AttendanceRequestType]} request — level ${nextStep.level} approval`,
+          `${reqRow.employee.firstName} ${reqRow.employee.lastName}'s ${REQUEST_TYPE_LABELS[reqRow.requestType as AttendanceRequestType]?.toLowerCase()} request advanced to level ${nextStep.level}.`,
+          '/attendance/requests?scope=inbox',
+          {
+            eventKey: 'attendance.request.submitted',
+            entityType: 'attendance_request',
+            entityId: id,
+            vars: {
+              Employee_Name: `${reqRow.employee.firstName} ${reqRow.employee.lastName}`,
+              Request_Type: REQUEST_TYPE_LABELS[reqRow.requestType as AttendanceRequestType] || reqRow.requestType,
+              Request_Date: reqRow.startDate ? new Date(reqRow.startDate).toLocaleDateString('en-IN') : '',
+              Reason: reqRow.reason || '—',
+            },
+            origin: request.headers.get('origin') || undefined,
+          },
+        );
+      }
     }
 
     const approvals = await (db as any).attendanceRequestApproval.findMany({

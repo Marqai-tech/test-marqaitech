@@ -245,6 +245,18 @@ export async function POST(request: Request) {
         `New ${REQUEST_TYPE_LABELS[requestType]} request`,
         `${emp.firstName} ${emp.lastName} requested ${REQUEST_TYPE_LABELS[requestType]} — your approval is pending (Level ${init.currentLevel}).`,
         '/attendance/requests?scope=inbox',
+        {
+          eventKey: 'attendance.request.submitted',
+          entityType: 'attendance_request',
+          entityId: created.id,
+          vars: {
+            Employee_Name: `${emp.firstName} ${emp.lastName}`,
+            Request_Type: REQUEST_TYPE_LABELS[requestType] || requestType,
+            Request_Date: startDate ? new Date(startDate).toLocaleDateString('en-IN') : '',
+            Reason: reason || '—',
+          },
+          origin: request.headers.get('origin') || undefined,
+        },
       );
     }
 

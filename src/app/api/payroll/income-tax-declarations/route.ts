@@ -132,6 +132,29 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // ─── Notification Center (Task 36): declaration submitted → payroll team ───
+    try {
+      const decTenantId = (decoded as Record<string, unknown>).tenantId as string | undefined;
+      const empUser = await db.employee.findUnique({ where: { id: employeeId }, select: { firstName: true, lastName: true } });
+      if (decTenantId && (body.status || 'DRAFT') === 'SUBMITTED') {
+        const { dispatchNotification, resolveRoleRecipients } = await import('@/lib/notification-center');
+        const payrollIds = await resolveRoleRecipients(db, ['payroll_admin', 'payroll_manager', 'admin', 'hr_admin', 'tenant_admin'], 10);
+        if (payrollIds.length) {
+          await dispatchNotification({
+            tenantId: decTenantId,
+            module: 'payroll',
+            eventKey: 'payroll.declaration.submitted',
+            recipients: payrollIds.map((pid) => ({ userId: pid })),
+            vars: {
+              Employee_Name: empUser ? `${empUser.firstName || ''} ${empUser.lastName || ''}`.trim() : 'An employee',
+              Window_Name: body.financialYear || 'FY declaration',
+            },
+            entity: { type: 'income_tax_declaration', id: declaration.id, link: '/payroll/declarations' },
+          });
+        }
+      }
+    } catch { /* non-fatal */ }
+
     return Response.json({ data: declaration }, { status: 201, headers: corsHeaders });
   } catch (error: unknown) {
     console.error('Error creating declaration:', error);

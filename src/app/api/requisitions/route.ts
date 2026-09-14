@@ -166,15 +166,35 @@ export async function POST(request: Request) {
 
     // Notify department head / hiring manager
     if (hiringManagerId) {
-      await createNotification({
-        tenantId: decoded.tenantId as string,
-        userId: hiringManagerId,
-        title: 'New Requisition Created',
-        message: `Requisition ${requisitionId} has been created and requires your approval.`,
-        type: 'info',
-        category: 'recruitment',
-        link: `/requisitions/${requisition.id}`,
-      });
+      // Multi-channel + actionable (Task 36)
+      try {
+        const { dispatchNotification } = await import('@/lib/notification-center');
+        await dispatchNotification({
+          tenantId: decoded.tenantId as string,
+          module: 'recruitment',
+          eventKey: 'recruitment.requisition.approval_required',
+          recipients: [{ userId: hiringManagerId }],
+          vars: {
+            Requisition_Title: `${requisition.designation?.title || 'Position'} (${requisitionId})`,
+            Department: requisition.department?.name || '—',
+            Requested_By: decoded.name || decoded.email || 'Hiring manager',
+            Openings: String(numberOfOpenings ?? 1),
+          },
+          entity: { type: 'requisition', id: requisition.id, link: `/requisitions/${requisition.id}` },
+          origin: request.headers.get('origin') || undefined,
+        });
+      } catch (e) {
+        console.warn('[requisitions] approval notification failed (non-fatal):', (e as Error).message);
+        await createNotification({
+          tenantId: decoded.tenantId as string,
+          userId: hiringManagerId,
+          title: 'New Requisition Created',
+          message: `Requisition ${requisitionId} has been created and requires your approval.`,
+          type: 'info',
+          category: 'recruitment',
+          link: `/requisitions/${requisition.id}`,
+        }).catch(() => null);
+      }
     }
 
     return NextResponse.json({ requisition }, { status: 201, headers: corsHeaders() });

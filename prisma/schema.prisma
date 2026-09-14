@@ -8101,3 +8101,102 @@ model AttendanceRequestApproval {
   @@index([requestId])
   @@index([actorUserId, status])
 }
+
+// ============ NOTIFICATION CENTER (Task 36) ============
+// Multi-channel notification system: in-app, email, SMS, Slack/Teams.
+// Module-wise template catalog with {{placeholder}} support,
+// actionable approve/reject tokens, and escalation matrix.
+
+model NotificationTemplate {
+  id           String   @id @default(cuid())
+  tenantId     String?  // null = global default (seed); tenant-level overrides
+  module       String   // recruitment | onboarding | core_hr | leave | attendance | performance | learning | payroll | exit
+  eventKey     String   // e.g. "leave.applied"
+  name         String
+  description  String?
+  channels     String   @default("[\"in_app\",\"email\"]") // JSON array: in_app | email | sms | slack | teams
+  enabled      Boolean  @default(true)
+  subject      String?  // email subject with {{placeholders}}
+  bodyEmail    String?  // email HTML body with {{placeholders}}
+  bodyInApp    String?  // in-app message with {{placeholders}}
+  bodySms      String?  // SMS text with {{placeholders}}
+  bodySlack    String?  // Slack/Teams text with {{placeholders}}
+  actionable   Boolean  @default(false) // renders Approve/Reject buttons in email + chat
+  expiresHours Int      @default(168)   // action link validity window (hours)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([tenantId, module, eventKey])
+  @@index([tenantId])
+  @@index([module])
+}
+
+model NotificationDelivery {
+  id               String    @id @default(cuid())
+  tenantId         String
+  templateId       String?
+  module           String
+  eventKey         String
+  channel          String    // in_app | email | sms | slack | teams
+  recipientType    String    @default("user") // user | candidate | role | email | webhook
+  recipientId      String?
+  recipientName    String?
+  recipientAddress String?   // email address / phone / webhook target
+  subject          String?
+  status           String    @default("queued") // queued | sent | failed | skipped
+  error            String?
+  entityType       String?   // leave_request | attendance_request | employee_update_request | requisition | ...
+  entityId         String?
+  entityLink       String?
+  actionable       Boolean   @default(false)
+  actionToken      String?   // shared across channels for one recipient+entity; NOT unique (multi-channel rows share it)
+  actionExpiresAt  DateTime?
+  actionedAt       DateTime?
+  actionResult     String?   // approved | rejected
+  actionComment    String?
+  escalatedAt      DateTime?
+  escalationCount  Int       @default(0)
+  metadata         String?   // JSON snapshot of render vars
+  createdAt        DateTime  @default(now())
+
+  @@index([tenantId, createdAt])
+  @@index([module, eventKey])
+  @@index([entityType, entityId])
+  @@index([status])
+  @@index([channel, status])
+}
+
+model NotificationPreference {
+  id                String  @id @default(cuid())
+  tenantId          String
+  scope             String  @default("tenant") // tenant | role | user
+  role              String? // for scope = role
+  userId            String? // for scope = user
+  module            String
+  eventKey          String? // null = module-level default
+  channelsEnabled   String? // JSON array override
+  channelsDisabled  String? // JSON array
+  escalationEnabled Boolean @default(true)
+  escalationHours   Int     @default(48)
+  escalateToRole    String? // next-level role for escalation
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([tenantId, scope, role, userId, module, eventKey])
+  @@index([tenantId])
+}
+
+model IntegrationWebhook {
+  id             String  @id @default(cuid())
+  tenantId       String
+  type           String  // slack | teams | custom
+  name           String
+  webhookUrl     String
+  channel        String  @default("slack") // channel key this hook serves: slack | teams
+  defaultModule  String? // restrict to one module; null = all modules
+  enabled        Boolean @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([tenantId])
+}

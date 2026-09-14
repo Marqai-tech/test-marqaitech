@@ -1,0 +1,806 @@
+/**
+ * Notification Center — Module-wise Event Catalog (Task 36)
+ *
+ * The single source of truth for every notification event in the system,
+ * organized module-wise per the HRMS notification requirements:
+ *
+ *   1. recruitment  — Recruitment (sourcing → interviews → offers)
+ *   2. onboarding   — Onboarding & Preboarding (IT provisioning, tasks)
+ *   3. core_hr      — Core HR & Employee Self-Service (profile, documents)
+ *   4. leave        — Leave management
+ *   5. attendance   — Attendance (regularization, WFH, missing punches)
+ *   6. performance  — Performance & Goal management
+ *   7. learning     — Learning & Development (training, compliance)
+ *   8. payroll      — Payroll & Compensation
+ *   9. exit         — Separation & Exit (resignation, clearance, F&F)
+ *
+ * Templates use {{Placeholder}} syntax. Placeholder matching is normalized
+ * (case/underscore-insensitive): {{Employee_Name}}, {{employeeName}} and
+ * {{employee name}} all resolve to the same variable.
+ */
+
+export type NotificationChannel = 'in_app' | 'email' | 'sms' | 'slack' | 'teams';
+
+export const ALL_CHANNELS: NotificationChannel[] = ['in_app', 'email', 'sms', 'slack', 'teams'];
+
+export interface NotificationEventDef {
+  eventKey: string;
+  name: string;
+  description: string;
+  /** Default delivery channels when a tenant has not overridden them */
+  defaultChannels: NotificationChannel[];
+  /** true → approval-type notification; renders Approve/Reject action links */
+  actionable?: boolean;
+  /** Recipient description shown in the admin console */
+  recipients: string;
+  /** Placeholders documented for this event (informational, non-exhaustive) */
+  placeholders: string[];
+  /** Escalatable approval event (participates in the 48h escalation matrix) */
+  escalatable?: boolean;
+  subject: string;
+  body: string; // plain-text body; rendered into branded HTML for email
+  slack: string;
+  sms: string;
+}
+
+export interface NotificationModuleDef {
+  module: string;
+  label: string;
+  description: string;
+  color: string; // tailwind-ish hex for the console UI
+  events: NotificationEventDef[];
+}
+
+// Shared placeholder docs
+const STD = ['Company_Name', 'Recipient_Name', 'Today_Date', 'HRMS_Name'];
+
+export const NOTIFICATION_MODULES: NotificationModuleDef[] = [
+  // ════════════════════════ 1. RECRUITMENT ════════════════════════
+  {
+    module: 'recruitment',
+    label: 'Recruitment',
+    description: 'Job requisitions, candidate pipeline, interviews and offers',
+    color: '#10b981',
+    events: [
+      {
+        eventKey: 'recruitment.requisition.approval_required',
+        name: 'Job Requisition — Approval Request',
+        description: 'Hiring manager creates a job opening → Department Head / HR approves.',
+        defaultChannels: ['in_app', 'email'],
+        actionable: true,
+        escalatable: true,
+        recipients: 'Department Head / HR approvers',
+        placeholders: [...STD, 'Requisition_Title', 'Department', 'Requested_By', 'Openings'],
+        subject: 'Approval needed: Job requisition "{{Requisition_Title}}"',
+        body: 'Hi {{Recipient_Name}},\n\n{{Requested_By}} has raised a job requisition for {{Requisition_Title}} ({{Department}}) with {{Openings}} opening(s).\n\nPlease review and approve or reject it from the link below.',
+        slack: '📋 *Approval needed:* Job requisition *{{Requisition_Title}}* ({{Department}}) raised by {{Requested_By}} — {{Openings}} opening(s).',
+        sms: '3Boxes HRMS: Approval needed for job requisition "{{Requisition_Title}}". Action link: {{Action_Url}}',
+      },
+      {
+        eventKey: 'recruitment.requisition.approved',
+        name: 'Job Requisition — Approved',
+        description: 'Recruiter is alerted when a job requisition is approved.',
+        defaultChannels: ['in_app', 'email'],
+        recipients: 'Recruiter / Hiring manager',
+        placeholders: [...STD, 'Requisition_Title', 'Approved_By'],
+        subject: 'Requisition approved: {{Requisition_Title}}',
+        body: 'Hi {{Recipient_Name}},\n\nThe job requisition "{{Requisition_Title}}" was approved by {{Approved_By}}. You can now publish the job and start sourcing candidates.',
+        slack: '✅ Requisition *{{Requisition_Title}}* approved by {{Approved_By}} — ready for sourcing.',
+        sms: '3Boxes HRMS: Requisition "{{Requisition_Title}}" approved.',
+      },
+      {
+        eventKey: 'recruitment.candidate.applied',
+        name: 'New Candidate Applied',
+        description: 'Recruiter is alerted when a candidate applies to a job.',
+        defaultChannels: ['in_app', 'email'],
+        recipients: 'Recruiter / Hiring manager',
+        placeholders: [...STD, 'Candidate_Name', 'Job_Title', 'Job_Url'],
+        subject: 'New application: {{Candidate_Name}} → {{Job_Title}}',
+        body: 'Hi {{Recipient_Name}},\n\n{{Candidate_Name}} has applied for the {{Job_Title}} position. Review their profile and resume from the pipeline board.',
+        slack: '🆕 *{{Candidate_Name}}* applied for *{{Job_Title}}*.',
+        sms: '3Boxes HRMS: New application from {{Candidate_Name}} for {{Job_Title}}.',
+      },
+      {
+        eventKey: 'recruitment.candidate.acknowledgment',
+        name: 'Application Acknowledgment (to Candidate)',
+        description: 'Candidate receives an acknowledgment that their application was received.',
+        defaultChannels: ['email'],
+        recipients: 'Candidate (external email)',
+        placeholders: [...STD, 'Candidate_Name', 'Job_Title', 'Company_Name'],
+        subject: 'We received your application — {{Job_Title}} at {{Company_Name}}',
+        body: 'Hi {{Candidate_Name}},\n\nThank you for applying to the {{Job_Title}} position at {{Company_Name}}. Our recruitment team will review your profile and get back to you shortly.\n\n— {{Company_Name}} Talent Team',
+        slack: '',
+        sms: '{{Company_Name}}: We received your application for {{Job_Title}}. Thank you!',
+      },
+      {
+        eventKey: 'recruitment.interview.scheduled',
+        name: 'Interview Scheduled',
+        description: 'HR schedules an interview → Candidate and Interviewer are notified.',
+        defaultChannels: ['in_app', 'email'],
+        recipients: 'Interviewer(s) + Candidate',
+        placeholders: [...STD, 'Candidate_Name', 'Job_Title', 'Interview_Date', 'Interview_Time', 'Interview_Mode', 'Interviewer_Name'],
+        subject: 'Interview scheduled: {{Candidate_Name}} — {{Job_Title}} ({{Interview_Date}})',
+        body: 'Hi {{Recipient_Name}},\n\nAn interview has been scheduled:\n\n• Candidate: {{Candidate_Name}}\n• Position: {{Job_Title}}\n• Date & Time: {{Interview_Date}} at {{Interview_Time}}\n• Mode: {{Interview_Mode}}\n• Interviewer: {{Interviewer_Name}}\n\nPlease add it to your calendar. A reminder will be sent before the interview.',
+        slack: '📅 Interview: *{{Candidate_Name}}* × *{{Job_Title}}* on {{Interview_Date}} at {{Interview_Time}} ({{Interview_Mode}}). Interviewer: {{Interviewer_Name}}',
+        sms: '3Boxes HRMS: Interview for {{Candidate_Name}} on {{Interview_Date}} {{Interview_Time}} ({{Interview_Mode}}).',
+      },
+      {
+        eventKey: 'recruitment.interview.reminder',
+        name: 'Interview Reminder',
+        description: 'Reminder for upcoming interviews to interviewer and candidate.',
+        defaultChannels: ['in_app', 'email'],
+        recipients: 'Interviewer(s) + Candidate',
+        placeholders: [...STD, 'Candidate_Name', 'Job_Title', 'Interview_Date', 'Interview_Time', 'Interview_Mode'],
+        subject: 'Reminder: Interview {{Interview_Date}} — {{Candidate_Name}} ({{Job_Title}})',
+        body: 'Hi {{Recipient_Name}},\n\nThis is a reminder for the upcoming interview:\n\n• Candidate: {{Candidate_Name}}\n• Position: {{Job_Title}}\n• Date & Time: {{Interview_Date}} at {{Interview_Time}}\n• Mode: {{Interview_Mode}}',
+        slack: '⏰ Reminder: interview *{{Candidate_Name}}* — {{Interview_Date}} {{Interview_Time}}.',
+        sms: '3Boxes HRMS: Reminder — interview {{Interview_Date}} {{Interview_Time}}.',
+      },
+      {
+        eventKey: 'recruitment.interview.feedback_pending',
+        name: 'Interview Feedback Pending',
+        description: 'Prompt to the interviewer to submit interview feedback.',
+        defaultChannels: ['in_app', 'email'],
+        escalatable: true,
+        recipients: 'Interviewer',
+        placeholders: [...STD, 'Candidate_Name', 'Job_Title', 'Interview_Date'],
+        subject: 'Feedback pending: {{Candidate_Name}} — {{Job_Title}} interview',
+        body: 'Hi {{Recipient_Name}},\n\nPlease submit your interview feedback for {{Candidate_Name}} ({{Job_Title}}, interviewed on {{Interview_Date}}). Your input is required before the next stage can proceed.',
+        slack: '📝 Feedback pending for *{{Candidate_Name}}* ({{Job_Title}}) — please submit.',
+        sms: '3Boxes HRMS: Interview feedback pending for {{Candidate_Name}}.',
+      },
+      {
+        eventKey: 'recruitment.offer.issued',
+        name: 'Offer Letter Issued (to Candidate)',
+        description: 'HR generates the offer → Candidate is notified it is available.',
+        defaultChannels: ['email'],
+        recipients: 'Candidate (external email)',
+        placeholders: [...STD, 'Candidate_Name', 'Position', 'Company_Name', 'Offer_Url'],
+        subject: 'Your offer letter from {{Company_Name}} — {{Position}}',
+        body: 'Hi {{Candidate_Name}},\n\nCongratulations! Please find your offer letter for the {{Position}} position at {{Company_Name}} attached/linked below.\n\nView and respond to your offer here: {{Offer_Url}}\n\n— {{Company_Name}} Talent Team',
+        slack: '',
+        sms: '{{Company_Name}}: Your offer for {{Position}} is ready — {{Offer_Url}}',
+      },
+      {
+        eventKey: 'recruitment.offer.approval_required',
+        name: 'Offer Approval Request',
+        description: 'Tiered offer approval chain request (per workflow configuration).',
+        defaultChannels: ['in_app', 'email'],
+        actionable: true,
+        escalatable: true,
+        recipients: 'Offer approvers (tiered)',
+        placeholders: [...STD, 'Candidate_Name', 'Position', 'Salary', 'Requested_By'],
+        subject: 'Offer approval needed: {{Candidate_Name}} — {{Position}}',
+        body: 'Hi {{Recipient_Name}},\n\nAn offer for {{Candidate_Name}} ({{Position}}, {{Salary}}) raised by {{Requested_By}} awaits your approval in the tiered approval chain.',
+        slack: '🧾 Offer approval needed: *{{Candidate_Name}}* — {{Position}} ({{Salary}}).',
+        sms: '3Boxes HRMS: Offer approval needed for {{Candidate_Name}}.',
+      },
+      {
+        eventKey: 'recruitment.offer.accepted',
+        name: 'Offer Accepted',
+        description: 'Recruiter alerted + IT/Admin triggered to provision hardware, email ID and software access.',
+        defaultChannels: ['in_app', 'email'],
+        recipients: 'Recruiter / HR + IT & Admin team',
+        placeholders: [...STD, 'Candidate_Name', 'Position', 'Joining_Date', 'Department'],
+        subject: '🎉 Offer accepted: {{Candidate_Name}} — {{Position}}',
+        body: 'Hi {{Recipient_Name}},\n\n{{Candidate_Name}} has ACCEPTED the offer for {{Position}} ({{Department}}), joining on {{Joining_Date}}.\n\nIT/Admin: please initiate provisioning — hardware, email ID and software access — for the new joiner. Onboarding checklist items have been generated in the Onboarding module.',
+        slack: '🎉 *{{Candidate_Name}}* accepted the offer for *{{Position}}* — joining {{Joining_Date}}. IT/Admin: provisioning needed.',
+        sms: '3Boxes HRMS: Offer accepted by {{Candidate_Name}} ({{Position}}).',
+      },
+      {
+        eventKey: 'recruitment.offer.declined',
+        name: 'Offer Declined',
+        description: 'Recruiter is alerted when a candidate declines the offer.',
+        defaultChannels: ['in_app', 'email'],
+        recipients: 'Recruiter / HR',
+        placeholders: [...STD, 'Candidate_Name', 'Position', 'Reason'],
+        subject: 'Offer declined: {{Candidate_Name}} — {{Position}}',
+        body: 'Hi {{Recipient_Name}},\n\n{{Candidate_Name}} has declined the offer for {{Position}}.\nReason: {{Reason}}\n\nThe candidate may be added to the talent pool for future openings.',
+        slack: '❌ *{{Candidate_Name}}* declined the offer for *{{Position}}*. Reason: {{Reason}}',
+        sms: '3Boxes HRMS: Offer declined by {{Candidate_Name}}.',
+      },
+    ],
+  },
+
+  // ════════════════════════ 2. ONBOARDING ════════════════════════
+  {
+    module: 'onboarding',
+    label: 'Onboarding & Preboarding',
+    description: 'Preboarding stages, onboarding checklist, IT provisioning and welcome',
+    color: '#06b6d4',
+    events: [
+      {
+        eventKey: 'onboarding.it.provisioning_required',
+        name: 'IT Provisioning Request (Offer Accepted)',
+        description: 'IT/Admin team task list to provision hardware, email ID and software access.',
+        defaultChannels: ['in_app', 'email'],
+        escalatable: true,
+        recipients: 'IT / Admin team',
+        placeholders: [...STD, 'Candidate_Name', 'Position', 'Joining_Date'],
+        subject: 'Provisioning needed: {{Candidate_Name}} joins {{Joining_Date}}',
+        body: 'Hi {{Recipient_Name}},\n\nNew hire provisioning required:\n• Name: {{Candidate_Name}}\n• Position: {{Position}}\n• Joining date: {{Joining_Date}}\n\nPlease prepare hardware, email ID and software access from the Onboarding checklist.',
+        slack: '🖥️ IT provisioning needed for *{{Candidate_Name}}* ({{Position}}) — joining {{Joining_Date}}.',
+        sms: '3Boxes HRMS: IT provisioning needed for {{Candidate_Name}}.',
+      },
+      {
+        eventKey: 'onboarding.preboarding.stage_advanced',
+        name: 'Preboarding Stage Advanced',
+        description: 'HR/new hire progress through the preboarding stage machine.',
+        defaultChannels: ['in_app'],
+        recipients: 'HR + new hire',
+        placeholders: [...STD, 'New_Hire_Name', 'Stage_Name', 'Next_Stage'],
+        subject: 'Preboarding: {{New_Hire_Name}} completed "{{Stage_Name}}"',
+        body: 'Hi {{Recipient_Name}},\n\n{{New_Hire_Name}} has completed the "{{Stage_Name}}" preboarding stage. Next up: {{Next_Stage}}.',
+        slack: '🚀 Preboarding: {{New_Hire_Name}} completed *{{Stage_Name}}* → next: {{Next_Stage}}',
+        sms: '3Boxes HRMS: Preboarding stage completed for {{New_Hire_Name}}.',
+      },
+      {
+        eventKey: 'onboarding.task.assigned',
+        name: 'Onboarding Task Assigned',
+        description: 'An onboarding checklist item is assigned to an owner.',
+        defaultChannels: ['in_app', 'email'],
+        recipients: 'Task owner',
+        placeholders: [...STD, 'New_Hire_Name', 'Task_Name', 'Due_Date'],
+        subject: 'Onboarding task assigned: {{Task_Name}} — {{New_Hire_Name}}',
+        body: 'Hi {{Recipient_Name}},\n\nYou have been assigned the onboarding task "{{Task_Name}}" for {{New_Hire_Name}}, due {{Due_Date}}.',
+        slack: '✅ Onboarding task *{{Task_Name}}* assigned for {{New_Hire_Name}} (due {{Due_Date}}).',
+        sms: '3Boxes HRMS: Onboarding task "{{Task_Name}}" assigned ({{New_Hire_Name}}).',
+      },
+      {
+        eventKey: 'onboarding.task.reminder',
+        name: 'Onboarding Task Reminder',
+        description: 'Due-soon / overdue onboarding task reminder (daily cron).',
+        defaultChannels: ['in_app', 'email'],
+        recipients: 'Task owner + new hire + HR',
+        placeholders: [...STD, 'New_Hire_Name', 'Task_Name', 'Due_Date', 'Priority'],
+        subject: 'Reminder: onboarding task "{{Task_Name}}" ({{New_Hire_Name}})',
+        body: 'Hi {{Recipient_Name}},\n\nThe onboarding task "{{Task_Name}}" for {{New_Hire_Name}} is due {{Due_Date}}.{{Priority}}',
+        slack: '⏰ Onboarding task *{{Task_Name}}* for {{New_Hire_Name}} is due {{Due_Date}}.',
+        sms: '3Boxes HRMS: Onboarding task "{{Task_Name}}" due {{Due_Date}}.',
+      },
+      {
+        eventKey: 'onboarding.welcome.new_hire',
+        name: 'Welcome Message (to New Hire)',
+        description: 'Welcome message with first-day details when onboarding starts.',
+        defaultChannels: ['email'],
+        recipients: 'New hire (personal email)',
+        placeholders: [...STD, 'New_Hire_Name', 'Position', 'Joining_Date', 'Company_Name', 'Onboarding_Url'],
+        subject: 'Welcome to {{Company_Name}}, {{New_Hire_Name}}! 🎉',
+        body: 'Hi {{New_Hire_Name}},\n\nWelcome to {{Company_Name}}! We are excited to have you joining us as {{Position}} on {{Joining_Date}}.\n\nYour onboarding checklist is available here: {{Onboarding_Url}}\n\nSee you soon!\n— People Team, {{Company_Name}}',
+        slack: '',
+        sms: '{{Company_Name}}: Welcome aboard, {{New_Hire_Name}}! Onboarding: {{Onboarding_Url}}',
+      },
+    ],
+  },
+
+  // ════════════════════════ 3. CORE HR & ESS ════════════════════════
+  {
+    module: 'core_hr',
+    label: 'Core HR & Self-Service',
+    description: 'Profile updates, document expiry and company announcements',
+    color: '#8b5cf6',
+    events: [
+      {
+        eventKey: 'core_hr.profile.update_requested',
+        name: 'Profile Update — Approval Request',
+        description: 'Employee changes personal/bank details → HR approves (payroll-critical).',
+        defaultChannels: ['in_app', 'email'],
+        actionable: true,
+        escalatable: true,
+        recipients: 'Manager / HR approver',
+        placeholders: [...STD, 'Employee_Name', 'Field_Name', 'New_Value', 'Critical'],
+        subject: 'Approval needed: {{Employee_Name}} requested a profile update ({{Field_Name}})',
+        body: 'Hi {{Recipient_Name}},\n\n{{Employee_Name}} has requested to update "{{Field_Name}}" to "{{New_Value}}".{{Critical}}\n\nReview and approve or reject from the link below.',
+        slack: '👤 Profile update approval: *{{Employee_Name}}* — {{Field_Name}} → "{{New_Value}}".{{Critical}}',
+        sms: '3Boxes HRMS: Profile update approval needed ({{Employee_Name}} — {{Field_Name}}).',
+      },
+      {
+        eventKey: 'core_hr.profile.update_result',
+        name: 'Profile Update — Result',
+        description: 'Employee confirmation when their profile change is approved/rejected.',
+        defaultChannels: ['in_app', 'email'],
+        recipients: 'Requesting employee',
+        placeholders: [...STD, 'Field_Name', 'Status', 'Approver_Name', 'Comment'],
+        subject: 'Your profile update ({{Field_Name}}) was {{Status}}',
+        body: 'Hi {{Recipient_Name}},\n\nYour profile update request for "{{Field_Name}}" has been {{Status}} by {{Approver_Name}}.\n{{Comment}}',
+        slack: '👤 Profile update ({{Field_Name}}) {{Status}} for {{Recipient_Name}}.',
+        sms: '3Boxes HRMS: Your profile update ({{Field_Name}}) was {{Status}}.',
+      },
+      {
+        eventKey: 'core_hr.document.expiring',
+        name: 'Document Expiry Alert',
+        description: 'System detects expiring visas, certifications, or IDs (30/7/1 days).',
+        defaultChannels: ['in_app', 'email'],
+        recipients: 'Employee + HR admins',
+        placeholders: [...STD, 'Employee_Name', 'Document_Name', 'Expiry_Date', 'Days_Left'],
+        subject: 'Document expiring in {{Days_Left}} days: {{Document_Name}}',
+        body: 'Hi {{Recipient_Name}},\n\nThe document "{{Document_Name}}" for {{Employee_Name}} expires on {{Expiry_Date}} ({{Days_Left}} days left). Please renew it and upload the updated copy.',
+        slack: '📄 Document *{{Document_Name}}* ({{Employee_Name}}) expires {{Expiry_Date}} — {{Days_Left}} days left.',
+        sms: '3Boxes HRMS: Document "{{Document_Name}}" expires in {{Days_Left}} days.',
+      },
+      {
+        eventKey: 'core_hr.announcement.published',
+        name: 'Company Announcement',
+        description: 'Company-wide announcements to all employees.',
+        defaultChannels: ['in_app', 'email'],
+        recipients: 'All employees',
+        placeholders: [...STD, 'Announcement_Title', 'Announcement_Body'],
+        subject: '{{Announcement_Title}}',
+        body: 'Hi {{Recipient_Name}},\n\n{{Announcement_Body}}\n\n— {{Company_Name}}',
+        slack: '📢 *{{Announcement_Title}}*\n{{Announcement_Body}}',
+        sms: '{{Company_Name}}: {{Announcement_Title}}',
+      },
+    ],
+  },
+
+  // ════════════════════════ 4. LEAVE ════════════════════════
+  {
+    module: 'leave',
+    label: 'Leave',
+    description: 'Leave applications, approvals, balances and escalations',
+    color: '#f59e0b',
+    events: [
+      {
+        eventKey: 'leave.applied',
+        name: 'Leave Application — Pending Approval',
+        description: 'Employee requests time off → Manager receives immediate push/email.',
+        defaultChannels: ['in_app', 'email'],
+        actionable: true,
+        escalatable: true,
+        recipients: 'Reporting manager (tiered approvers)',
+        placeholders: [...STD, 'Employee_Name', 'Leave_Type', 'From_Date', 'To_Date', 'Days', 'Reason'],
+        subject: 'Leave request: {{Employee_Name}} ({{Leave_Type}}, {{From_Date}} → {{To_Date}})',
+        body: 'Hi {{Recipient_Name}},\n\n{{Employee_Name}} has applied for {{Days}} day(s) of {{Leave_Type}} leave:\n\n• From: {{From_Date}}\n• To: {{To_Date}}\n• Reason: {{Reason}}\n\nYou can approve or reject directly below.',
+        slack: '🏖️ Leave request: *{{Employee_Name}}* — {{Leave_Type}}, {{From_Date}} → {{To_Date}} ({{Days}} d).',
+        sms: '3Boxes HRMS: Leave request from {{Employee_Name}} ({{Leave_Type}}). Approve: {{Action_Url}}',
+      },
+      {
+        eventKey: 'leave.approved',
+        name: 'Leave Approved',
+        description: 'Real-time update to the employee; balance is updated.',
+        defaultChannels: ['in_app', 'email'],
+        recipients: 'Requesting employee',
+        placeholders: [...STD, 'Leave_Type', 'From_Date', 'To_Date', 'Days', 'Approver_Name', 'Comment'],
+        subject: 'Your {{Leave_Type}} leave was approved ✅',
+        body: 'Hi {{Recipient_Name}},\n\nYour {{Leave_Type}} leave from {{From_Date}} to {{To_Date}} ({{Days}} day(s)) has been APPROVED by {{Approver_Name}}.\n{{Comment}}\n\nYour leave balance has been updated.',
+        slack: '✅ Leave approved: {{Leave_Type}} {{From_Date}} → {{To_Date}} for {{Recipient_Name}}.',
+        sms: '3Boxes HRMS: Your {{Leave_Type}} leave ({{From_Date}} → {{To_Date}}) was APPROVED.',
+      },
+      {
+        eventKey: 'leave.rejected',
+        name: 'Leave Rejected',
+        description: 'Real-time update to the employee with approver comments.',
+        defaultChannels: ['in_app', 'email'],
+        recipients: 'Requesting employee',
+        placeholders: [...STD, 'Leave_Type', 'From_Date', 'To_Date', 'Approver_Name', 'Comment'],
+        subject: 'Your {{Leave_Type}} leave request was rejected',
+        body: 'Hi {{Recipient_Name}},\n\nUnfortunately your {{Leave_Type}} leave from {{From_Date}} to {{To_Date}} was REJECTED by {{Approver_Name}}.\n{{Comment}}',
+        slack: '❌ Leave rejected: {{Leave_Type}} {{From_Date}} → {{To_Date}} for {{Recipient_Name}}.',
+        sms: '3Boxes HRMS: Your {{Leave_Type}} leave was rejected.',
+      },
+      {
+        eventKey: 'leave.cancelled',
+        name: 'Leave Cancelled / Withdrawn',
+        description: 'Employee or manager cancels an approved/pending leave.',
+        defaultChannels: ['in_app'],
+        recipients: 'Employee + approver',
+        placeholders: [...STD, 'Leave_Type', 'From_Date', 'To_Date', 'Cancelled_By'],
+        subject: 'Leave cancelled: {{Leave_Type}} ({{From_Date}} → {{To_Date}})',
+        body: 'Hi {{Recipient_Name}},\n\nThe {{Leave_Type}} leave from {{From_Date}} to {{To_Date}} was cancelled by {{Cancelled_By}}. Leave balance restored where applicable.',
+        slack: '🚫 Leave cancelled: {{Leave_Type}} ({{From_Date}} → {{To_Date}}) by {{Cancelled_By}}.',
+        sms: '3Boxes HRMS: Leave cancelled ({{From_Date}} → {{To_Date}}).',
+      },
+      {
+        eventKey: 'leave.escalated',
+        name: 'Leave Approval Escalated (48h)',
+        description: 'Manager has not acted within the escalation window → escalated to next level.',
+        defaultChannels: ['in_app', 'email'],
+        actionable: true,
+        recipients: 'Next-level approver + original approver',
+        placeholders: [...STD, 'Employee_Name', 'Leave_Type', 'From_Date', 'To_Date', 'Pending_Hours', 'Original_Approver'],
+        subject: 'ESCALATION: leave approval pending {{Pending_Hours}}h — {{Employee_Name}}',
+        body: 'Hi {{Recipient_Name}},\n\nA leave request for {{Employee_Name}} ({{Leave_Type}}, {{From_Date}} → {{To_Date}}) has been pending with {{Original_Approver}} for {{Pending_Hours}} hours and has been escalated to you for action.',
+        slack: '🚨 ESCALATION: *{{Employee_Name}}* leave pending {{Pending_Hours}}h — now with {{Recipient_Name}}.',
+        sms: '3Boxes HRMS: ESCALATED leave approval for {{Employee_Name}}.',
+      },
+    ],
+  },
+
+  // ════════════════════════ 5. ATTENDANCE ════════════════════════
+  {
+    module: 'attendance',
+    label: 'Attendance',
+    description: 'Regularization, WFH, gatepass requests and missing punch alerts',
+    color: '#ef4444',
+    events: [
+      {
+        eventKey: 'attendance.request.submitted',
+        name: 'Attendance Request — Pending Approval',
+        description: 'Regularization / WFH / gatepass / permission request → Manager push/email.',
+        defaultChannels: ['in_app', 'email'],
+        actionable: true,
+        escalatable: true,
+        recipients: 'Reporting manager (tiered levels)',
+        placeholders: [...STD, 'Employee_Name', 'Request_Type', 'Request_Date', 'Reason'],
+        subject: '{{Request_Type}} request: {{Employee_Name}} ({{Request_Date}})',
+        body: 'Hi {{Recipient_Name}},\n\n{{Employee_Name}} submitted a {{Request_Type}} request for {{Request_Date}}.\nReason: {{Reason}}\n\nYou can approve or reject directly below.',
+        slack: '⏱️ {{Request_Type}} request from *{{Employee_Name}}* ({{Request_Date}}).',
+        sms: '3Boxes HRMS: {{Request_Type}} request from {{Employee_Name}}. Approve: {{Action_Url}}',
+      },
+      {
+        eventKey: 'attendance.request.result',
+        name: 'Attendance Request — Result',
+        description: 'Employee is notified when their attendance request is approved/rejected.',
+        defaultChannels: ['in_app', 'email'],
+        recipients: 'Requesting employee',
+        placeholders: [...STD, 'Request_Type', 'Request_Date', 'Status', 'Approver_Name', 'Comment'],
+        subject: 'Your {{Request_Type}} request ({{Request_Date}}) was {{Status}}',
+        body: 'Hi {{Recipient_Name}},\n\nYour {{Request_Type}} request for {{Request_Date}} has been {{Status}} by {{Approver_Name}}.\n{{Comment}}',
+        slack: '⏱️ {{Request_Type}} ({{Request_Date}}) {{Status}} for {{Recipient_Name}}.',
+        sms: '3Boxes HRMS: Your {{Request_Type}} request was {{Status}}.',
+      },
+      {
+        eventKey: 'attendance.missing_punch',
+        name: 'Missing Punch Alert',
+        description: 'Weekly alert for missing clock-in/out records.',
+        defaultChannels: ['in_app', 'email'],
+        recipients: 'Employee + reporting manager',
+        placeholders: [...STD, 'Employee_Name', 'Missed_Dates', 'Week_Range'],
+        subject: 'Missing punch records — week {{Week_Range}}',
+        body: 'Hi {{Recipient_Name}},\n\nThe following dates have missing punch-in/out records: {{Missed_Dates}}.\nPlease submit regularization requests to correct them.',
+        slack: '⚠️ Missing punches ({{Week_Range}}): {{Missed_Dates}} — {{Employee_Name}}',
+        sms: '3Boxes HRMS: Missing punch records for {{Missed_Dates}}. Please regularize.',
+      },
+      {
+        eventKey: 'attendance.sla.overdue',
+        name: 'Attendance SLA Overdue / Escalated',
+        description: 'Approval level exceeded its SLA — auto-escalated to the next level.',
+        defaultChannels: ['in_app', 'email'],
+        actionable: true,
+        recipients: 'Next-level approver',
+        placeholders: [...STD, 'Employee_Name', 'Request_Type', 'Request_Date', 'Overdue_Level'],
+        subject: 'ESCALATION: {{Request_Type}} approval overdue — {{Employee_Name}}',
+        body: 'Hi {{Recipient_Name}},\n\nThe {{Request_Type}} request for {{Employee_Name}} ({{Request_Date}}) exceeded its SLA at level {{Overdue_Level}} and has been escalated to you.',
+        slack: '🚨 SLA overdue: *{{Employee_Name}}* {{Request_Type}} — escalated.',
+        sms: '3Boxes HRMS: Escalated {{Request_Type}} approval ({{Employee_Name}}).',
+      },
+      {
+        eventKey: 'attendance.escalated',
+        name: 'Attendance Approval Escalated (48h)',
+        description: 'Notification-matrix escalation when a manager does not act in time.',
+        defaultChannels: ['in_app', 'email'],
+        actionable: true,
+        recipients: 'Next-level approver + original approver',
+        placeholders: [...STD, 'Employee_Name', 'Request_Type', 'Request_Date', 'Pending_Hours', 'Original_Approver'],
+        subject: 'ESCALATION: {{Request_Type}} approval pending {{Pending_Hours}}h — {{Employee_Name}}',
+        body: 'Hi {{Recipient_Name}},\n\nA {{Request_Type}} request for {{Employee_Name}} ({{Request_Date}}) has been pending with {{Original_Approver}} for {{Pending_Hours}} hours and has been escalated to you.',
+        slack: '🚨 ESCALATION: {{Request_Type}} for *{{Employee_Name}}* pending {{Pending_Hours}}h.',
+        sms: '3Boxes HRMS: ESCALATED {{Request_Type}} approval for {{Employee_Name}}.',
+      },
+    ],
+  },
+
+  // ════════════════════════ 6. PERFORMANCE ════════════════════════
+  {
+    module: 'performance',
+    label: 'Performance & Goals',
+    description: 'Goal setting, appraisal cycles, self-evaluations and sign-offs',
+    color: '#3b82f6',
+    events: [
+      {
+        eventKey: 'performance.goal.set',
+        name: 'Goal Set / Updated',
+        description: 'Employee sets goals → Manager review alert; employee alert on updates.',
+        defaultChannels: ['in_app'],
+        recipients: 'Employee + manager',
+        placeholders: [...STD, 'Employee_Name', 'Goal_Title', 'Period'],
+        subject: 'Goal {{Status_Or_Action}}: "{{Goal_Title}}" ({{Period}})',
+        body: 'Hi {{Recipient_Name}},\n\nThe goal "{{Goal_Title}}" ({{Period}}) for {{Employee_Name}} has been {{Status_Or_Action}}.',
+        slack: '🎯 Goal *{{Goal_Title}}* {{Status_Or_Action}} ({{Employee_Name}}).',
+        sms: '3Boxes HRMS: Goal "{{Goal_Title}}" {{Status_Or_Action}}.',
+      },
+      {
+        eventKey: 'performance.goal.locked',
+        name: 'Goals Locked',
+        description: 'Manager reviewed and locked the employee goals.',
+        defaultChannels: ['in_app', 'email'],
+        recipients: 'Employee',
+        placeholders: [...STD, 'Manager_Name', 'Period'],
+        subject: 'Your goals for {{Period}} have been locked',
+        body: 'Hi {{Recipient_Name}},\n\n{{Manager_Name}} has reviewed and locked your goals for {{Period}}. You can view them in the Performance module.',
+        slack: '🔒 Goals locked for {{Recipient_Name}} ({{Period}}).',
+        sms: '3Boxes HRMS: Your {{Period}} goals are locked.',
+      },
+      {
+        eventKey: 'performance.appraisal.cycle_launched',
+        name: 'Appraisal Cycle Launched',
+        description: 'HR launches the review cycle → all participants notified.',
+        defaultChannels: ['in_app', 'email'],
+        recipients: 'All cycle participants',
+        placeholders: [...STD, 'Cycle_Name', 'Self_Appraisal_Due', 'HRMS_Name'],
+        subject: 'Appraisal cycle "{{Cycle_Name}}" is now open',
+        body: 'Hi {{Recipient_Name}},\n\nThe appraisal cycle "{{Cycle_Name}}" has been launched. Please complete your self-appraisal by {{Self_Appraisal_Due}}.',
+        slack: '📊 Appraisal cycle *{{Cycle_Name}}* launched — self-appraisal due {{Self_Appraisal_Due}}.',
+        sms: '3Boxes HRMS: Appraisal "{{Cycle_Name}}" open — due {{Self_Appraisal_Due}}.',
+      },
+      {
+        eventKey: 'performance.self_appraisal.reminder',
+        name: 'Self-Appraisal Reminder',
+        description: 'Prompt to complete self-evaluation (pending or approaching due date).',
+        defaultChannels: ['in_app', 'email'],
+        recipients: 'Employee',
+        placeholders: [...STD, 'Cycle_Name', 'Due_Date'],
+        subject: 'Reminder: complete your self-appraisal ({{Cycle_Name}})',
+        body: 'Hi {{Recipient_Name}},\n\nYour self-appraisal for "{{Cycle_Name}}" is due on {{Due_Date}}. Please complete it so your manager review can proceed on time.',
+        slack: '📝 Self-appraisal due {{Due_Date}} ({{Cycle_Name}}) — {{Recipient_Name}}.',
+        sms: '3Boxes HRMS: Self-appraisal due {{Due_Date}}.',
+      },
+      {
+        eventKey: 'performance.self_appraisal.submitted',
+        name: 'Self-Appraisal Submitted (to Manager)',
+        description: 'Manager alert when an employee submits their self-assessment.',
+        defaultChannels: ['in_app', 'email'],
+        recipients: 'Reporting manager',
+        placeholders: [...STD, 'Employee_Name', 'Cycle_Name'],
+        subject: '{{Employee_Name}} submitted their self-appraisal ({{Cycle_Name}})',
+        body: 'Hi {{Recipient_Name}},\n\n{{Employee_Name}} has submitted their self-appraisal for "{{Cycle_Name}}". Please complete your manager review.',
+        slack: '📥 {{Employee_Name}} submitted self-appraisal ({{Cycle_Name}}).',
+        sms: '3Boxes HRMS: Self-appraisal submitted by {{Employee_Name}}.',
+      },
+      {
+        eventKey: 'performance.manager.review_reminder',
+        name: 'Manager Review Reminder',
+        description: 'Reminder for managers to complete team evaluations.',
+        defaultChannels: ['in_app', 'email'],
+        escalatable: true,
+        recipients: 'Reporting manager',
+        placeholders: [...STD, 'Cycle_Name', 'Pending_Count', 'Due_Date'],
+        subject: 'Reminder: {{Pending_Count}} team review(s) pending ({{Cycle_Name}})',
+        body: 'Hi {{Recipient_Name}},\n\nYou have {{Pending_Count}} pending team evaluation(s) in "{{Cycle_Name}}", due {{Due_Date}}.',
+        slack: '📊 {{Pending_Count}} team review(s) pending in *{{Cycle_Name}}* — due {{Due_Date}}.',
+        sms: '3Boxes HRMS: {{Pending_Count}} team reviews pending ({{Cycle_Name}}).',
+      },
+      {
+        eventKey: 'performance.review.signoff',
+        name: 'Review Sign-Off Request',
+        description: 'Employee notification to sign off on the final review.',
+        defaultChannels: ['in_app', 'email'],
+        recipients: 'Employee',
+        placeholders: [...STD, 'Cycle_Name', 'Manager_Name'],
+        subject: 'Action needed: sign off your {{Cycle_Name}} review',
+        body: 'Hi {{Recipient_Name}},\n\n{{Manager_Name}} has completed your {{Cycle_Name}} review. Please review and sign off in the Performance module.',
+        slack: '✍️ Sign-off pending: {{Cycle_Name}} review for {{Recipient_Name}}.',
+        sms: '3Boxes HRMS: Sign off your {{Cycle_Name}} review.',
+      },
+    ],
+  },
+
+  // ════════════════════════ 7. LEARNING ════════════════════════
+  {
+    module: 'learning',
+    label: 'Learning & Development',
+    description: 'Training assignments, compliance reminders and certifications',
+    color: '#14b8a6',
+    events: [
+      {
+        eventKey: 'learning.training.assigned',
+        name: 'Training Assigned / Enrollment Confirmed',
+        description: 'HR/Manager assigns a course → Employee enrollment confirmation.',
+        defaultChannels: ['in_app', 'email'],
+        recipients: 'Employee',
+        placeholders: [...STD, 'Course_Name', 'Assigned_By', 'Due_Date', 'Mandatory'],
+        subject: 'New training assigned: {{Course_Name}}',
+        body: 'Hi {{Recipient_Name}},\n\nYou have been enrolled in "{{Course_Name}}" by {{Assigned_By}}, due {{Due_Date}}.{{Mandatory}}\n\nStart the course from the Learning module.',
+        slack: '🎓 Training *{{Course_Name}}* assigned to {{Recipient_Name}} (due {{Due_Date}}).',
+        sms: '3Boxes HRMS: Training "{{Course_Name}}" assigned — due {{Due_Date}}.',
+      },
+      {
+        eventKey: 'learning.compliance.reminder',
+        name: 'Compliance Training Reminder (Weekly)',
+        description: 'Weekly reminder for incomplete mandatory compliance training.',
+        defaultChannels: ['in_app', 'email'],
+        recipients: 'Employee',
+        placeholders: [...STD, 'Course_Name', 'Due_Date', 'Days_Overdue'],
+        subject: 'Compliance training pending: {{Course_Name}}',
+        body: 'Hi {{Recipient_Name}},\n\nThe mandatory compliance course "{{Course_Name}}" is still incomplete (due {{Due_Date}}).{{Days_Overdue}}\n\nPlease complete it this week to stay compliant.',
+        slack: '⚠️ Compliance training *{{Course_Name}}* incomplete — {{Recipient_Name}} (due {{Due_Date}}).',
+        sms: '3Boxes HRMS: Compliance training "{{Course_Name}}" pending.',
+      },
+      {
+        eventKey: 'learning.training.completed',
+        name: 'Training Completed / Certificate Issued',
+        description: 'Employee completion + certificate; manager visibility.',
+        defaultChannels: ['in_app', 'email'],
+        recipients: 'Employee + manager',
+        placeholders: [...STD, 'Employee_Name', 'Course_Name', 'Certificate_Url'],
+        subject: '🎉 {{Employee_Name}} completed "{{Course_Name}}"',
+        body: 'Hi {{Recipient_Name}},\n\n{{Employee_Name}} has completed the course "{{Course_Name}}".{{Certificate_Url}}',
+        slack: '🎓 {{Employee_Name}} completed *{{Course_Name}}*.{{Certificate_Url}}',
+        sms: '3Boxes HRMS: {{Employee_Name}} completed "{{Course_Name}}".',
+      },
+      {
+        eventKey: 'learning.manager.completion_report',
+        name: 'Team Training Completion Alert (to Manager)',
+        description: 'Dashboard alert showing team training completion rates.',
+        defaultChannels: ['in_app', 'email'],
+        recipients: 'Reporting manager',
+        placeholders: [...STD, 'Period', 'Completion_Rate', 'Pending_Count'],
+        subject: 'Team training completion: {{Completion_Rate}} ({{Period}})',
+        body: 'Hi {{Recipient_Name}},\n\nYour team training completion rate for {{Period}} is {{Completion_Rate}}, with {{Pending_Count}} pending enrollment(s).',
+        slack: '📊 Team training completion {{Completion_Rate}} ({{Period}}) — {{Pending_Count}} pending.',
+        sms: '3Boxes HRMS: Team training completion {{Completion_Rate}}.',
+      },
+    ],
+  },
+
+  // ════════════════════════ 8. PAYROLL ════════════════════════
+  {
+    module: 'payroll',
+    label: 'Payroll & Compensation',
+    description: 'Tax declarations, payslips, bonuses and payroll data alerts',
+    color: '#eab308',
+    events: [
+      {
+        eventKey: 'payroll.declaration.opened',
+        name: 'Investment Declaration Window Opened',
+        description: 'HR opens the investment declaration window → all employees alerted.',
+        defaultChannels: ['in_app', 'email'],
+        recipients: 'All employees',
+        placeholders: [...STD, 'Window_Name', 'Opens_On', 'Closes_On'],
+        subject: 'Investment declaration window is now open ({{Window_Name}})',
+        body: 'Hi {{Recipient_Name}},\n\nThe tax investment declaration window "{{Window_Name}}" is open from {{Opens_On}} to {{Closes_On}}. Please submit your investment proofs before the deadline.',
+        slack: '💰 Investment declaration window open: {{Opens_On}} → {{Closes_On}}.',
+        sms: '3Boxes HRMS: Declaration window open until {{Closes_On}}.',
+      },
+      {
+        eventKey: 'payroll.declaration.closing',
+        name: 'Declaration Window Closing Reminder',
+        description: 'Reminder when the declaration window is about to close.',
+        defaultChannels: ['in_app', 'email'],
+        recipients: 'Employees with pending declarations',
+        placeholders: [...STD, 'Window_Name', 'Closes_On', 'Days_Left'],
+        subject: 'Last {{Days_Left}} day(s): investment declaration closes {{Closes_On}}',
+        body: 'Hi {{Recipient_Name}},\n\nThe investment declaration window closes on {{Closes_On}} ({{Days_Left}} day(s) left). Submit your proofs now to avoid tax deducting at the higher slab.',
+        slack: '⏳ Declaration window closes {{Closes_On}} — {{Days_Left}} day(s) left.',
+        sms: '3Boxes HRMS: Declaration closes {{Closes_On}} ({{Days_Left}} d left).',
+      },
+      {
+        eventKey: 'payroll.declaration.submitted',
+        name: 'Declaration Submitted (to Payroll Team)',
+        description: 'Payroll team notified when an employee submits proofs.',
+        defaultChannels: ['in_app'],
+        recipients: 'Payroll team',
+        placeholders: [...STD, 'Employee_Name', 'Window_Name'],
+        subject: 'Declaration submitted: {{Employee_Name}} ({{Window_Name}})',
+        body: 'Hi {{Recipient_Name}},\n\n{{Employee_Name}} has submitted their investment declaration for "{{Window_Name}}". Please verify the proofs.',
+        slack: '💰 {{Employee_Name}} submitted declaration ({{Window_Name}}).',
+        sms: '3Boxes HRMS: Declaration submitted by {{Employee_Name}}.',
+      },
+      {
+        eventKey: 'payroll.payslip.ready',
+        name: 'Payslip Ready (Monthly)',
+        description: 'Monthly notification when the payslip is released.',
+        defaultChannels: ['in_app', 'email'],
+        recipients: 'Each employee',
+        placeholders: [...STD, 'Pay_Period', 'Net_Pay', 'Payslip_Url'],
+        subject: 'Your payslip for {{Pay_Period}} is ready',
+        body: 'Hi {{Recipient_Name}},\n\nYour payslip for {{Pay_Period}} has been released.\nNet pay: {{Net_Pay}}\n\nView/download: {{Payslip_Url}}',
+        slack: '💸 Payslip for *{{Pay_Period}}* is available ({{Recipient_Name}}).',
+        sms: '3Boxes HRMS: Payslip for {{Pay_Period}} is ready.',
+      },
+      {
+        eventKey: 'payroll.data.conflict',
+        name: 'Payroll Data Conflict Alert',
+        description: 'System alerts for conflicting data (e.g., unpaid leave days not synced with payroll).',
+        defaultChannels: ['in_app', 'email'],
+        recipients: 'Payroll team + HR admins',
+        placeholders: [...STD, 'Conflict_Description', 'Affected_Count', 'Pay_Period'],
+        subject: 'Payroll data conflict detected ({{Pay_Period}})',
+        body: 'Hi {{Recipient_Name}},\n\n{{Conflict_Description}}\n\nAffected records: {{Affected_Count}}\nPlease resolve before payroll finalization for {{Pay_Period}}.',
+        slack: '🚨 Payroll data conflict ({{Pay_Period}}): {{Conflict_Description}} — {{Affected_Count}} record(s).',
+        sms: '3Boxes HRMS: Payroll data conflict detected ({{Pay_Period}}).',
+      },
+    ],
+  },
+
+  // ════════════════════════ 9. EXIT ════════════════════════
+  {
+    module: 'exit',
+    label: 'Separation & Exit',
+    description: 'Resignations, notice periods, clearance, exit interviews and F&F',
+    color: '#64748b',
+    events: [
+      {
+        eventKey: 'exit.resignation.submitted',
+        name: 'Resignation Submitted',
+        description: 'Manager & HR receive immediate notification of resignation submission.',
+        defaultChannels: ['in_app', 'email'],
+        recipients: 'Reporting manager + HR',
+        placeholders: [...STD, 'Employee_Name', 'Resignation_Date', 'Proposed_LWD', 'Reason'],
+        subject: 'Resignation submitted: {{Employee_Name}} (proposed LWD {{Proposed_LWD}})',
+        body: 'Hi {{Recipient_Name}},\n\n{{Employee_Name}} has submitted their resignation on {{Resignation_Date}} with a proposed Last Working Day of {{Proposed_LWD}}.\nReason: {{Reason}}\n\nTransition planning tasks will follow.',
+        slack: '👋 Resignation: *{{Employee_Name}}* — proposed LWD {{Proposed_LWD}}.',
+        sms: '3Boxes HRMS: Resignation submitted by {{Employee_Name}}.',
+      },
+      {
+        eventKey: 'exit.resignation.acknowledged',
+        name: 'Resignation Acknowledged (to Employee)',
+        description: 'Employee acknowledgment with notice period details and LWD.',
+        defaultChannels: ['in_app', 'email'],
+        recipients: 'Resigning employee',
+        placeholders: [...STD, 'LWD', 'Notice_Period_Days', 'Manager_Name'],
+        subject: 'Your resignation has been acknowledged — LWD {{LWD}}',
+        body: 'Hi {{Recipient_Name}},\n\nYour resignation has been acknowledged. Your Last Working Day is {{LWD}} (notice period: {{Notice_Period_Days}} days).\n\nYou will receive clearance tasks and your exit interview invite shortly.\n\n— {{Manager_Name}} & People Team',
+        slack: '👋 Resignation acknowledged for {{Recipient_Name}} — LWD {{LWD}}.',
+        sms: '3Boxes HRMS: Resignation acknowledged — LWD {{LWD}}.',
+      },
+      {
+        eventKey: 'exit.clearance.task',
+        name: 'Clearance Task Assigned (IT/Finance/Admin)',
+        description: 'Parallel clearance requests: revoke access, collect hardware, clear dues.',
+        defaultChannels: ['in_app', 'email'],
+        actionable: true,
+        escalatable: true,
+        recipients: 'IT / Finance / Admin / Legal departments',
+        placeholders: [...STD, 'Employee_Name', 'Department', 'LWD', 'Clearance_Item'],
+        subject: 'Clearance task: {{Employee_Name}} ({{Department}}) — LWD {{LWD}}',
+        body: 'Hi {{Recipient_Name}},\n\nA clearance task is assigned to your department for {{Employee_Name}} ({{Department}}), LWD {{LWD}}:\n{{Clearance_Item}}\n\nMark it complete once done, or act from the link below.',
+        slack: '🧹 Clearance task for *{{Employee_Name}}* ({{Department}}): {{Clearance_Item}}',
+        sms: '3Boxes HRMS: Clearance task for {{Employee_Name}} assigned.',
+      },
+      {
+        eventKey: 'exit.interview.invite',
+        name: 'Exit Interview Invite',
+        description: 'Exit interview invitation to the departing employee.',
+        defaultChannels: ['in_app', 'email'],
+        recipients: 'Resigning employee',
+        placeholders: [...STD, 'Interview_Date', 'Interview_Mode', 'HRMS_Name'],
+        subject: 'Exit interview invite — {{Interview_Date}}',
+        body: 'Hi {{Recipient_Name}},\n\nAs part of your offboarding, an exit interview is scheduled for {{Interview_Date}} ({{Interview_Mode}}). Your honest feedback helps us improve.\n\n— {{HRMS_Name}}',
+        slack: '🎤 Exit interview: {{Recipient_Name}} — {{Interview_Date}} ({{Interview_Mode}}).',
+        sms: '3Boxes HRMS: Exit interview on {{Interview_Date}}.',
+      },
+      {
+        eventKey: 'exit.fnf.ready',
+        name: 'F&F Statement Ready',
+        description: 'Full & Final settlement statement available to the employee.',
+        defaultChannels: ['in_app', 'email'],
+        recipients: 'Ex-employee',
+        placeholders: [...STD, 'LWD', 'Net_Amount', 'Fnf_Url'],
+        subject: 'Your Full & Final settlement is ready',
+        body: 'Hi {{Recipient_Name}},\n\nYour Full & Final (F&F) settlement statement is ready.\nNet payable: {{Net_Amount}}\n\nView details: {{Fnf_Url}}',
+        slack: '🧾 F&F statement ready for {{Recipient_Name}} — {{Net_Amount}}.',
+        sms: '3Boxes HRMS: Your F&F statement is ready — {{Net_Amount}}.',
+      },
+      {
+        eventKey: 'exit.escalated',
+        name: 'Clearance Escalated (48h)',
+        description: 'Clearance department has not completed the task in the escalation window.',
+        defaultChannels: ['in_app', 'email'],
+        actionable: true,
+        recipients: 'Department head + HR',
+        placeholders: [...STD, 'Employee_Name', 'Clearance_Item', 'Department', 'Pending_Hours'],
+        subject: 'ESCALATION: clearance pending {{Pending_Hours}}h — {{Employee_Name}} ({{Department}})',
+        body: 'Hi {{Recipient_Name}},\n\nThe clearance item "{{Clearance_Item}}" for {{Employee_Name}} ({{Department}}) has been pending for {{Pending_Hours}} hours and has been escalated to you.',
+        slack: '🚨 Clearance escalation: *{{Employee_Name}}* — {{Clearance_Item}} ({{Pending_Hours}}h).',
+        sms: '3Boxes HRMS: ESCALATED clearance for {{Employee_Name}}.',
+      },
+    ],
+  },
+];
+
+// ─── Lookup helpers ───────────────────────────────────────────────
+
+export function getModuleDef(module: string): NotificationModuleDef | undefined {
+  return NOTIFICATION_MODULES.find((m) => m.module === module);
+}
+
+export function getEventDef(module: string, eventKey: string): NotificationEventDef | undefined {
+  return getModuleDef(module)?.events.find((e) => e.eventKey === eventKey);
+}
+
+export function getAllEventDefs(): NotificationEventDef[] {
+  return NOTIFICATION_MODULES.flatMap((m) => m.events);
+}
+
+export const TOTAL_EVENT_COUNT = getAllEventDefs().length;

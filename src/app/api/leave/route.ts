@@ -565,17 +565,11 @@ export async function POST(request: Request) {
             leaveRequest.leaveType?.name,
           );
 
-          // Notify the first approver (if resolved)
-          if (workflowResult.currentApproverId) {
-            await createNotification({
-              tenantId: scope.tenantId,
-              userId: workflowResult.currentApproverId,
-              title: 'Leave Request Requires Your Approval',
-              message: `${leaveRequest.employee.firstName} ${leaveRequest.employee.lastName} has submitted a ${leaveRequest.leaveType.name} leave request from ${startDate} to ${endDate}. Please review and approve/reject.`,
-              type: 'workflow',
-              category: 'leave',
-              link: `/leave`,
-            }).catch(() => { /* non-fatal */ });
+          // Notify the first approver — multi-channel + actionable (Task 36)
+          // (falls back to HR/admin role recipients when no specific approver resolves)
+          {
+            const { dispatchLeaveEvent } = await import('@/lib/leave-notify');
+            await dispatchLeaveEvent(db, scope.tenantId, 'leave.applied', leaveRequest, workflowResult.currentApproverId, null, request, workflowResult.currentApproverId ? [workflowResult.currentApproverId] : null).catch(() => { /* non-fatal */ });
           }
         }
       } catch (wfErr) {

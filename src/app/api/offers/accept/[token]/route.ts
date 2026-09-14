@@ -126,6 +126,50 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
       }
     } catch { /* non-critical */ }
 
+    // ─── Notification Center (Task 36): offer accepted → recruiter/HR + IT provisioning ───
+    try {
+      const { getPlatformDb } = await import('@/lib/tenant-db');
+      const platformDbAcc = getPlatformDb();
+      const slugAcc = _req.headers.get('x-tenant-slug') || new URL(_req.url).searchParams.get('tenant') || '';
+      const tenantAcc = slugAcc ? await platformDbAcc.tenant.findUnique({ where: { slug: slugAcc }, select: { id: true } }) : null;
+      if (tenantAcc?.id) {
+        const { dispatchNotification, resolveRoleRecipients } = await import('@/lib/notification-center');
+        if (action === 'accept') {
+          const hrIds = await resolveRoleRecipients(db, ['admin', 'hr_admin', 'company_hr_admin', 'hr_manager', 'tenant_admin'], 10);
+          const itIds = await resolveRoleRecipients(db, ['it_admin', 'it_support', 'admin', 'system_admin'], 10);
+          await dispatchNotification({
+            tenantId: tenantAcc.id,
+            module: 'recruitment',
+            eventKey: 'recruitment.offer.accepted',
+            recipients: Array.from(new Set([...hrIds, ...itIds])).map((uid) => ({ userId: uid })),
+            vars: {
+              Candidate_Name: updated.candidateName || '',
+              Position: updated.position || '',
+              Department: updated.department || '—',
+              Joining_Date: updated.joiningDate ? new Date(updated.joiningDate).toLocaleDateString('en-IN') : 'TBD',
+            },
+            entity: { type: 'offer', id: updated.id, link: '/offers' },
+            origin: new URL(_req.url).origin,
+          });
+        } else {
+          const hrIds = await resolveRoleRecipients(db, ['admin', 'hr_admin', 'company_hr_admin', 'hr_manager', 'tenant_admin'], 10);
+          await dispatchNotification({
+            tenantId: tenantAcc.id,
+            module: 'recruitment',
+            eventKey: 'recruitment.offer.declined',
+            recipients: hrIds.map((uid) => ({ userId: uid })),
+            vars: {
+              Candidate_Name: updated.candidateName || '',
+              Position: updated.position || '',
+              Reason: comments || '—',
+            },
+            entity: { type: 'offer', id: updated.id, link: '/offers' },
+            origin: new URL(_req.url).origin,
+          });
+        }
+      }
+    } catch { /* non-critical */ }
+
     return NextResponse.json({
       message: action === 'accept' ? 'Offer accepted. Welcome aboard!' : 'Offer declined. Thank you for your response.',
       offer: {

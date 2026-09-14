@@ -116,6 +116,26 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         where: { id },
         data: { status: 'rejected', approverUserId: auth.userId, approverComments: comments, approvedAt: new Date() },
       });
+      // Notify the requester — multi-channel (Task 36)
+      try {
+        if (auth.tenantId) {
+          const { dispatchNotification } = await import('@/lib/notification-center');
+          await dispatchNotification({
+            tenantId: auth.tenantId,
+            module: 'core_hr',
+            eventKey: 'core_hr.profile.update_result',
+            recipients: updateRequest.requestedById ? [{ userId: updateRequest.requestedById }] : [],
+            vars: {
+              Field_Name: updateRequest.fieldLabel || updateRequest.fieldName,
+              Status: 'REJECTED',
+              Approver_Name: '',
+              Comment: comments ? `Comments: ${comments}` : '',
+            },
+            entity: { type: 'employee_update_request', id, link: '/profile' },
+            origin: request.headers.get('origin') || undefined,
+          });
+        }
+      } catch { /* non-fatal */ }
       return NextResponse.json({ message: 'Request rejected', finalized: true }, { headers: corsHeaders() });
     }
 
@@ -149,6 +169,26 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           where: { id },
           data: { status: 'applied', appliedAt: new Date() },
         });
+        // Notify the requester — multi-channel (Task 36)
+        try {
+          if (auth.tenantId) {
+            const { dispatchNotification } = await import('@/lib/notification-center');
+            await dispatchNotification({
+              tenantId: auth.tenantId,
+              module: 'core_hr',
+              eventKey: 'core_hr.profile.update_result',
+              recipients: updateRequest.requestedById ? [{ userId: updateRequest.requestedById }] : [],
+              vars: {
+                Field_Name: updateRequest.fieldLabel || updateRequest.fieldName,
+                Status: 'APPROVED & APPLIED',
+                Approver_Name: '',
+                Comment: comments ? `Comments: ${comments}` : '',
+              },
+              entity: { type: 'employee_update_request', id, link: '/profile' },
+              origin: request.headers.get('origin') || undefined,
+            });
+          }
+        } catch { /* non-fatal */ }
         return NextResponse.json({ message: 'Request approved and applied to employee record', finalized: true }, { headers: corsHeaders() });
       } catch (applyErr) {
         console.error('Failed to apply update:', applyErr);

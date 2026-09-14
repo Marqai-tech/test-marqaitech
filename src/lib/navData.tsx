@@ -859,6 +859,7 @@ export const navSections: NavSection[] = [
       { label: 'Workflows', href: '/workflows', icon: <FiGitBranch className="w-4 h-4" />, moduleKey: 'settings' },
       { label: 'Scheduled Reports', href: '/reports/schedules', icon: <FiClock className="w-4 h-4" />, isNew: true },
       { label: 'Notifications', href: '/notifications', icon: <FiBell className="w-4 h-4" /> },
+      { label: 'Notification Center', href: '/notifications/center', icon: <FiZap className="w-4 h-4" />, isNew: true },
 
       // ── Analytics ──
       { label: 'Analytics', href: '#analytics-divider', icon: <FiBarChart2 className="w-3.5 h-3.5" />, moduleKey: 'reports', isDivider: true },

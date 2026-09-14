@@ -348,6 +348,36 @@ export async function POST(request: Request) {
         },
       });
 
+      // ─── Notification Center (Task 36): recruiter alert + candidate acknowledgment ───
+      try {
+        const tenantIdRec = decodedRec.tenantId as string;
+        if (tenantIdRec) {
+          const { dispatchNotification, resolveRoleRecipients } = await import('@/lib/notification-center');
+          const recruiterIds = await resolveRoleRecipients(db, ['admin', 'hr_admin', 'company_hr_admin', 'hr_manager', 'tenant_admin'], 10);
+          await dispatchNotification({
+            tenantId: tenantIdRec,
+            module: 'recruitment',
+            eventKey: 'recruitment.candidate.applied',
+            recipients: recruiterIds.map((id) => ({ userId: id })),
+            vars: { Candidate_Name: candidateName, Job_Title: jobExists.title },
+            entity: { type: 'job_application', id: application.id, link: '/recruitment' },
+            origin: request.headers.get('origin') || undefined,
+          });
+          // Candidate acknowledgment (email-only, external)
+          await dispatchNotification({
+            tenantId: tenantIdRec,
+            module: 'recruitment',
+            eventKey: 'recruitment.candidate.acknowledgment',
+            recipients: [{ email: candidateEmail, name: candidateName }],
+            vars: { Candidate_Name: candidateName, Job_Title: jobExists.title },
+            suppressInApp: true,
+            origin: request.headers.get('origin') || undefined,
+          });
+        }
+      } catch (e) {
+        console.warn('[recruitment] application notifications failed (non-fatal):', (e as Error).message);
+      }
+
       await db.auditLog.create({
         data: {
           userId: decoded.userId as string,

@@ -124,17 +124,47 @@ export async function PATCH(
       },
     });
 
-    // Notify the hiring manager or requester (only for approval changes)
+    // Notify the hiring manager or requester (only for approval changes) — multi-channel (Task 36)
     if (approvalStatus && existing.hiringManagerId) {
-      await createNotification({
-        tenantId: decoded.tenantId as string,
-        userId: existing.hiringManagerId,
-        title: 'Requisition Status Updated',
-        message: `Requisition ${existing.requisitionId} has been ${approvalStatus}.`,
-        type: approvalStatus === 'rejected' ? 'warning' : 'success',
-        category: 'recruitment',
-        link: `/requisitions/${id}`,
-      });
+      const approvedEvents = ['manager_approved', 'hr_approved', 'budget_approved'];
+      if (approvedEvents.includes(approvalStatus) && decoded.tenantId) {
+        try {
+          const { dispatchNotification } = await import('@/lib/notification-center');
+          await dispatchNotification({
+            tenantId: decoded.tenantId as string,
+            module: 'recruitment',
+            eventKey: 'recruitment.requisition.approved',
+            recipients: [{ userId: existing.hiringManagerId }],
+            vars: {
+              Requisition_Title: `${requisition.designation?.title || existing.requisitionId}`,
+              Approved_By: decoded.name || decoded.email || 'Approver',
+            },
+            entity: { type: 'requisition', id, link: `/requisitions/${id}` },
+            origin: request.headers.get('origin') || undefined,
+          });
+        } catch (e) {
+          console.warn('[requisitions] approved notification failed (non-fatal):', (e as Error).message);
+          await createNotification({
+            tenantId: decoded.tenantId as string,
+            userId: existing.hiringManagerId,
+            title: 'Requisition Status Updated',
+            message: `Requisition ${existing.requisitionId} has been ${approvalStatus}.`,
+            type: 'success',
+            category: 'recruitment',
+            link: `/requisitions/${id}`,
+          }).catch(() => null);
+        }
+      } else {
+        await createNotification({
+          tenantId: decoded.tenantId as string,
+          userId: existing.hiringManagerId,
+          title: 'Requisition Status Updated',
+          message: `Requisition ${existing.requisitionId} has been ${approvalStatus}.`,
+          type: approvalStatus === 'rejected' ? 'warning' : 'success',
+          category: 'recruitment',
+          link: `/requisitions/${id}`,
+        });
+      }
     }
 
     await db.auditLog.create({

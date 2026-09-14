@@ -163,10 +163,29 @@ export async function POST(request: Request) {
       },
       include: {
         employee: {
-          select: { firstName: true, lastName: true, employeeId: true },
+          select: { firstName: true, lastName: true, employeeId: true, userId: true, tenantId: true },
         },
       },
     });
+
+    // ─── Notification Center (Task 36): review shared → sign-off request ───
+    try {
+      if ((status === 'completed' || status === 'reviewed') && review.employee.userId && review.employee.tenantId) {
+        const { dispatchNotification } = await import('@/lib/notification-center');
+        await dispatchNotification({
+          tenantId: review.employee.tenantId,
+          module: 'performance',
+          eventKey: 'performance.review.signoff',
+          recipients: [{ userId: review.employee.userId, name: `${review.employee.firstName || ''} ${review.employee.lastName || ''}`.trim() }],
+          vars: {
+            Cycle_Name: reviewCycle || reviewPeriod || 'Performance review',
+            Manager_Name: '',
+          },
+          entity: { type: 'performance_review', id: review.id, link: '/performance' },
+          origin: request.headers.get('origin') || undefined,
+        });
+      }
+    } catch { /* non-fatal */ }
 
     await db.auditLog.create({
       data: {

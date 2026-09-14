@@ -238,6 +238,34 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // Notify the tier-1 approver — multi-channel + actionable (Task 36)
+    try {
+      const firstStep = await (db as any).employeeUpdateApprovalStep.findFirst({
+        where: { updateRequestId: updateRequest.id, tier: 1 },
+      });
+      if (firstStep?.approverUserId && auth.tenantId) {
+        const { dispatchNotification } = await import('@/lib/notification-center');
+        const empRow = await db.employee.findUnique({ where: { id: employeeId }, select: { firstName: true, lastName: true } });
+        const critical = ['bank', 'account', 'salary', 'pan', 'aadhaar', 'ssn', 'tax'].some((k) => fieldName.toLowerCase().includes(k));
+        await dispatchNotification({
+          tenantId: auth.tenantId,
+          module: 'core_hr',
+          eventKey: 'core_hr.profile.update_requested',
+          recipients: [{ userId: firstStep.approverUserId }],
+          vars: {
+            Employee_Name: empRow ? `${empRow.firstName || ''} ${empRow.lastName || ''}`.trim() : 'An employee',
+            Field_Name: fieldConfig.label || fieldName,
+            New_Value: cleanNewValue,
+            Critical: critical ? ' This is a PAYROLL-CRITICAL change.' : '',
+          },
+          entity: { type: 'employee_update_request', id: updateRequest.id, link: '/employees/approval-config' },
+          origin: req.headers.get('origin') || undefined,
+        });
+      }
+    } catch (e) {
+      console.warn('[update-requests] approver notification failed (non-fatal):', (e as Error).message);
+    }
+
     return NextResponse.json({ request: updateRequest, message: 'Update request submitted for approval' }, { status: 201, headers: corsHeaders() });
   } catch (error) {
     console.error('Employee update request POST error:', error);

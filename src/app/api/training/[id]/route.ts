@@ -31,6 +31,33 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         data: { trainingId: id, employeeId: body.employeeId },
         include: { employee: { select: { firstName: true, lastName: true, employeeId: true } } },
       });
+
+      // ─── Notification Center (Task 36): training assigned ───
+      try {
+        const t = await db.training.findUnique({ where: { id }, select: { title: true } });
+        const empFull = await db.employee.findUnique({
+          where: { id: body.employeeId },
+          select: { tenantId: true, userId: true, firstName: true, lastName: true },
+        });
+        if (empFull?.tenantId && empFull?.userId) {
+          const { dispatchNotification } = await import('@/lib/notification-center');
+          await dispatchNotification({
+            tenantId: empFull.tenantId,
+            module: 'learning',
+            eventKey: 'learning.training.assigned',
+            recipients: [{ userId: empFull.userId, name: `${empFull.firstName || ''} ${empFull.lastName || ''}`.trim() }],
+            vars: {
+              Course_Name: t?.title || 'Training',
+              Assigned_By: 'L&D team',
+              Due_Date: '',
+              Mandatory: '',
+            },
+            entity: { type: 'training_enrollment', id: enrollment.id, link: '/learning' },
+            origin: request.headers.get('origin') || undefined,
+          });
+        }
+      } catch { /* non-fatal */ }
+
       return NextResponse.json({ enrollment }, { status: 201, headers: corsHeaders() });
     }
 
