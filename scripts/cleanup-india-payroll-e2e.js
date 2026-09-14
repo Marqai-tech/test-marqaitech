@@ -21,10 +21,10 @@ async function main() {
   const sql = neon(cs);
   console.log(`[cleanup] target DB: ${reg[0].db}`);
 
-  const RUN_ID = 'cmu1imykk002rvqu5c1jjj0dm';
-  const FNF_IDS = ['cmu1iq7zd0073vqu5vj9gpkvn', 'cmu1iuzs400abvqu55w7h55ej'];
-  const DECL_IDS = ['cmu1io654006jvqu5v372hf3o', 'cmu1isffm008rvqu5v0i9cjqm', 'cmu1ivhcl00bavqu5itiaud9o'];
-  const FILING_IDS = ['cmu1infa6005evqu5d9gf2qtg', 'cmu1irz0u0087vqu5ncccit2x', 'cmu1iuss400aavqu5i4hfo8z2'];
+  const RUN_ID = 'cmu1j5lkm000h04jkk7nrkgbu';
+  const FNF_IDS = ['cmu1j5qr5003r04jkgan8wk39'];
+  const DECL_IDS = ['cmu1j5sca004q04jk7xknrktg'];
+  const FILING_IDS = ['cmu1j5q3c003q04jkdtnaqteb'];
 
   // Pre-checks (SELECT before DELETE)
   const runExists = await sql.query(`SELECT id, "payrollPeriod", "runStatus" FROM "PayrollRun" WHERE id = $1`, [RUN_ID]);

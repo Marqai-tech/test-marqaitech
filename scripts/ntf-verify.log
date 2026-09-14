@@ -166,3 +166,325 @@ Unique constraint failed on the fields: (`"actionToken"`) P2002 Invalid `prisma.
  GET /api/notifications?limit=20 200 in 1778ms (next.js: 3ms, proxy.ts: 8ms, application-code: 1767ms)
  GET /api/notifications?limit=20 200 in 1740ms (next.js: 4ms, proxy.ts: 4ms, application-code: 1732ms)
  GET /api/notifications?limit=20 200 in 1803ms (next.js: 4ms, proxy.ts: 6ms, application-code: 1793ms)
+ GET /login 200 in 69ms (next.js: 4ms, proxy.ts: 3ms, application-code: 61ms)
+ GET /login 200 in 69ms (next.js: 3ms, proxy.ts: 4ms, application-code: 62ms)
+ GET /login 200 in 72ms (next.js: 3ms, proxy.ts: 4ms, application-code: 65ms)
+ GET /login 200 in 65ms (next.js: 3ms, proxy.ts: 4ms, application-code: 58ms)
+ GET /login 200 in 75ms (next.js: 4ms, proxy.ts: 4ms, application-code: 67ms)
+ GET /login 200 in 116ms (next.js: 6ms, proxy.ts: 5ms, application-code: 106ms)
+[3Boxes DB] Connecting to: postgresql://***:***@ep-blue-fire-aqk8jxd2-pooler.c-8.us-east-1.aws.neon.tech/ne...
+ POST /api/auth/login 403 in 1687ms (next.js: 249ms, proxy.ts: 42ms, application-code: 1397ms)
+ GET /api/companies 401 in 306ms (next.js: 297ms, proxy.ts: 5ms, application-code: 4ms)
+ POST /api/auth/login 403 in 722ms (next.js: 2ms, proxy.ts: 3ms, application-code: 716ms)
+[TenantDB] Routing to dedicated DB "tenant_3boxes-hrms-demo" for tenant "3boxes-hrms-demo"
+ POST /api/auth/login 200 in 5.2s (next.js: 2ms, proxy.ts: 3ms, application-code: 5.2s)
+ POST /api/auth/login 200 in 3.6s (next.js: 2ms, proxy.ts: 3ms, application-code: 3.6s)
+ POST /api/auth/login 403 in 1341ms (next.js: 3ms, proxy.ts: 3ms, application-code: 1335ms)
+ GET /api/companies 401 in 16ms (next.js: 3ms, proxy.ts: 7ms, application-code: 7ms)
+ POST /api/auth/login 200 in 4.9s (next.js: 2ms, proxy.ts: 3ms, application-code: 4.9s)
+ GET /api/companies 200 in 1561ms (next.js: 4ms, proxy.ts: 3ms, application-code: 1554ms)
+ POST /api/auth/login 200 in 3.6s (next.js: 3ms, proxy.ts: 4ms, application-code: 3.6s)
+ GET /api/companies 200 in 1549ms (next.js: 3ms, proxy.ts: 4ms, application-code: 1543ms)
+ POST /api/auth/login 200 in 4.9s (next.js: 2ms, proxy.ts: 3ms, application-code: 4.9s)
+ GET /api/companies 200 in 1731ms (next.js: 5ms, proxy.ts: 10ms, application-code: 1716ms)
+ POST /api/payroll/income-tax 200 in 254ms (next.js: 243ms, proxy.ts: 3ms, application-code: 7ms)
+ POST /api/payroll/income-tax 200 in 13ms (next.js: 1844µs, proxy.ts: 3ms, application-code: 8ms)
+ POST /api/payroll/income-tax 200 in 7ms (next.js: 1624µs, proxy.ts: 2ms, application-code: 3ms)
+ GET /api/payroll/statutory-config?companyId=cmtsczl66000304js8txtwhsq 200 in 736ms (next.js: 285ms, proxy.ts: 1732µs, application-code: 449ms)
+ PUT /api/payroll/statutory-config 200 in 440ms (next.js: 2ms, proxy.ts: 3ms, application-code: 435ms)
+ POST /api/payroll/ctc-templates/preset-india 201 in 1575ms (next.js: 248ms, proxy.ts: 3ms, application-code: 1325ms)
+ POST /api/payroll/runs 200 in 448ms (next.js: 209ms, proxy.ts: 3ms, application-code: 236ms)
+[3Boxes DB] Connecting to: postgresql://***:***@ep-blue-fire-aqk8jxd2-pooler.c-8.us-east-1.aws.neon.tech/ne...
+ POST /api/payroll/runs/cmu1imykk002rvqu5c1jjj0dm/calculate 200 in 5.6s (next.js: 1085ms, proxy.ts: 4ms, application-code: 4.6s)
+ GET /api/payroll/runs/cmu1imykk002rvqu5c1jjj0dm/transaction-lines 404 in 826ms (next.js: 726ms, proxy.ts: 3ms, application-code: 96ms)
+[3Boxes DB] Connecting to: postgresql://***:***@ep-blue-fire-aqk8jxd2-pooler.c-8.us-east-1.aws.neon.tech/ne...
+ GET /api/payroll/runs/cmu1imykk002rvqu5c1jjj0dm 200 in 2.1s (next.js: 981ms, proxy.ts: 2ms, application-code: 1148ms)
+Error computing payroll variance: ReferenceError: Cannot access 'prevRuns' before initialization
+    at GET (src/app/api/payroll/reports/variance/route.ts:62:7)
+  60 |       }),
+  61 |       db.payrollRun.findMany({ where: { payrollPeriod: prev, companyId: run.companyId || u...
+> 62 |       prevRuns.length
+     |       ^
+  63 |         ? db.payrollTransactionLine.findMany({
+  64 |             where: { payrollRunId: { in: prevRuns.map(r => r.id) }, isReversal: false },
+  65 |           })
+ GET /api/payroll/reports/variance?runId=cmu1imykk002rvqu5c1jjj0dm 500 in 1007ms (next.js: 317ms, proxy.ts: 3ms, application-code: 686ms)
+Error computing payroll variance: ReferenceError: Cannot access 'prevRuns' before initialization
+    at GET (src/app/api/payroll/reports/variance/route.ts:62:7)
+  60 |       }),
+  61 |       db.payrollRun.findMany({ where: { payrollPeriod: prev, companyId: run.companyId || u...
+> 62 |       prevRuns.length
+     |       ^
+  63 |         ? db.payrollTransactionLine.findMany({
+  64 |             where: { payrollRunId: { in: prevRuns.map(r => r.id) }, isReversal: false },
+  65 |           })
+ GET /api/payroll/reports/variance?runId=cmu1imykk002rvqu5c1jjj0dm 500 in 1341ms (next.js: 2ms, proxy.ts: 3ms, application-code: 1337ms)
+ POST /api/payroll/reports/variance 500 in 1786ms (next.js: 4ms, proxy.ts: 3ms, application-code: 1779ms)
+ GET /api/payroll/reports/india-formats?format=ECR&month=9&year=2026&companyId=cmtsczl66000304js8txtwhsq 200 in 1537ms (next.js: 211ms, proxy.ts: 3ms, application-code: 1323ms)
+ GET /api/payroll/reports/india-formats?format=FORM5&month=9&year=2026&companyId=cmtsczl66000304js8txtwhsq 200 in 1328ms (next.js: 8ms, proxy.ts: 3ms, application-code: 1317ms)
+ GET /api/payroll/reports/india-formats?format=FORM10&month=9&year=2026&companyId=cmtsczl66000304js8txtwhsq 200 in 1107ms (next.js: 2ms, proxy.ts: 2ms, application-code: 1102ms)
+ GET /api/payroll/reports/india-formats?format=ESI&month=9&year=2026&companyId=cmtsczl66000304js8txtwhsq 200 in 1108ms (next.js: 2ms, proxy.ts: 3ms, application-code: 1103ms)
+ GET /api/payroll/reports/india-formats?format=PT&month=9&year=2026&companyId=cmtsczl66000304js8txtwhsq 200 in 1107ms (next.js: 2ms, proxy.ts: 2ms, application-code: 1102ms)
+ GET /api/payroll/reports/india-formats?format=LWF&month=9&year=2026&companyId=cmtsczl66000304js8txtwhsq 200 in 1107ms (next.js: 2ms, proxy.ts: 2ms, application-code: 1102ms)
+ GET /api/payroll/reports/india-formats?format=24Q&month=9&year=2026&companyId=cmtsczl66000304js8txtwhsq 200 in 1107ms (next.js: 1994µs, proxy.ts: 3ms, application-code: 1103ms)
+ GET /api/payroll/reports/india-formats?format=FORM16&month=9&year=2026&companyId=cmtsczl66000304js8txtwhsq 200 in 1114ms (next.js: 4ms, proxy.ts: 3ms, application-code: 1108ms)
+ POST /api/payroll/reports/india-formats 201 in 710ms (next.js: 7ms, proxy.ts: 19ms, application-code: 684ms)
+ GET /api/employees?limit=5 200 in 9.3s (next.js: 289ms, proxy.ts: 4ms, application-code: 9.0s)
+[NotificationCenter] Seeded 5 global template(s)
+[EmailService] RESEND_API_KEY not set — emails will be logged only.
+[EmailService DEV] To: admin@3boxeshrms.com | Subject: Your Full & Final settlement is ready
+[EmailService DEV] From: onboarding@resend.dev
+[EmailService] RESEND_API_KEY not set — emails will be logged only.
+[EmailService DEV] To: admin@acme-global.com | Subject: Your Full & Final settlement is ready
+[EmailService DEV] From: onboarding@resend.dev
+[EmailService] RESEND_API_KEY not set — emails will be logged only.
+[EmailService DEV] To: admin@globalhr.com | Subject: Your Full & Final settlement is ready
+[EmailService DEV] From: onboarding@resend.dev
+[EmailService] RESEND_API_KEY not set — emails will be logged only.
+[EmailService DEV] To: admin@techstart.com | Subject: Your Full & Final settlement is ready
+[EmailService DEV] From: onboarding@resend.dev
+[EmailService] RESEND_API_KEY not set — emails will be logged only.
+[EmailService DEV] To: admin@marqaitechgroup.com | Subject: Your Full & Final settlement is ready
+[EmailService DEV] From: onboarding@resend.dev
+[EmailService] RESEND_API_KEY not set — emails will be logged only.
+[EmailService DEV] To: keer@3boxeshrms.com | Subject: Your Full & Final settlement is ready
+[EmailService DEV] From: onboarding@resend.dev
+ POST /api/payroll/fnf 200 in 12.7s (next.js: 271ms, proxy.ts: 4ms, application-code: 12.5s)
+[EmailService] RESEND_API_KEY not set — emails will be logged only.
+[EmailService DEV] To: admin@3boxeshrms.com | Subject: Bank file ready: 2026-09 — ₹9,67,458 (8 records)
+[EmailService DEV] From: onboarding@resend.dev
+[EmailService] RESEND_API_KEY not set — emails will be logged only.
+[EmailService DEV] To: admin@acme-global.com | Subject: Bank file ready: 2026-09 — ₹9,67,458 (8 records)
+[EmailService DEV] From: onboarding@resend.dev
+[EmailService] RESEND_API_KEY not set — emails will be logged only.
+[EmailService DEV] To: admin@globalhr.com | Subject: Bank file ready: 2026-09 — ₹9,67,458 (8 records)
+[EmailService DEV] From: onboarding@resend.dev
+[EmailService] RESEND_API_KEY not set — emails will be logged only.
+[EmailService DEV] To: admin@techstart.com | Subject: Bank file ready: 2026-09 — ₹9,67,458 (8 records)
+[EmailService DEV] From: onboarding@resend.dev
+[EmailService] RESEND_API_KEY not set — emails will be logged only.
+[EmailService DEV] To: admin@marqaitechgroup.com | Subject: Bank file ready: 2026-09 — ₹9,67,458 (8 records)
+[EmailService DEV] From: onboarding@resend.dev
+ POST /api/payroll/bank-files 200 in 12.2s (next.js: 428ms, proxy.ts: 6ms, application-code: 11.7s)
+ POST /api/payroll/income-tax-declarations 201 in 6.8s (next.js: 310ms, proxy.ts: 3ms, application-code: 6.5s)
+[3Boxes DB] Connecting to: postgresql://***:***@ep-blue-fire-aqk8jxd2-pooler.c-8.us-east-1.aws.neon.tech/ne...
+ PUT /api/payroll/income-tax-declarations/cmu1io654006jvqu5v372hf3o 200 in 1578ms (next.js: 1127ms, proxy.ts: 3ms, application-code: 447ms)
+[3Boxes DB] Connecting to: postgresql://***:***@ep-blue-fire-aqk8jxd2-pooler.c-8.us-east-1.aws.neon.tech/ne...
+[EmailService] RESEND_API_KEY not set — emails will be logged only.
+[EmailService DEV] To: keer@3boxeshrms.com | Subject: Your investment proofs for 2025-26: VERIFIED
+[EmailService DEV] From: onboarding@resend.dev
+ PUT /api/payroll/income-tax-declarations/cmu1io654006jvqu5v372hf3o 200 in 3.4s (next.js: 37ms, proxy.ts: 5ms, application-code: 3.4s)
+ DELETE /api/payroll/income-tax-declarations/cmu1io654006jvqu5v372hf3o 400 in 258ms (next.js: 35ms, proxy.ts: 3ms, application-code: 220ms)
+[3Boxes DB] Connecting to: postgresql://***:***@ep-blue-fire-aqk8jxd2-pooler.c-8.us-east-1.aws.neon.tech/ne...
+[3Boxes DB] Connecting to: postgresql://***:***@ep-blue-fire-aqk8jxd2-pooler.c-8.us-east-1.aws.neon.tech/ne...
+ DELETE /api/payroll/ctc-templates/cmu1imxjy002dvqu59h32fn1u 200 in 2.0s (next.js: 1550ms, proxy.ts: 8ms, application-code: 490ms)
+ DELETE /api/payroll/runs/cmu1imykk002rvqu5c1jjj0dm 400 in 258ms (next.js: 34ms, proxy.ts: 3ms, application-code: 221ms)
+[3Boxes DB] Connecting to: postgresql://***:***@ep-blue-fire-aqk8jxd2-pooler.c-8.us-east-1.aws.neon.tech/ne...
+[3Boxes DB] Connecting to: postgresql://***:***@ep-blue-fire-aqk8jxd2-pooler.c-8.us-east-1.aws.neon.tech/ne...
+ DELETE /api/payroll/fnf/cmu1inmw8005fvqu5ah2h1651 405 in 1458ms (next.js: 1435ms, proxy.ts: 3ms, application-code: 20ms)
+ POST /api/auth/login 200 in 4.7s (next.js: 4ms, proxy.ts: 4ms, application-code: 4.7s)
+ GET /api/payroll/runs?limit=5 200 in 223ms (next.js: 7ms, proxy.ts: 4ms, application-code: 213ms)
+Error computing payroll variance: ReferenceError: Cannot access 'prevRuns' before initialization
+    at GET (src/app/api/payroll/reports/variance/route.ts:62:7)
+  60 |       }),
+  61 |       db.payrollRun.findMany({ where: { payrollPeriod: prev, companyId: run.companyId || u...
+> 62 |       prevRuns.length
+     |       ^
+  63 |         ? db.payrollTransactionLine.findMany({
+  64 |             where: { payrollRunId: { in: prevRuns.map(r => r.id) }, isReversal: false },
+  65 |           })
+ GET /api/payroll/reports/variance?runId=cmu1imykk002rvqu5c1jjj0dm 500 in 516ms (next.js: 4ms, proxy.ts: 3ms, application-code: 509ms)
+ POST /api/auth/login 200 in 4.9s (next.js: 3ms, proxy.ts: 4ms, application-code: 4.9s)
+ GET /api/employees?limit=5 200 in 9.0s (next.js: 3ms, proxy.ts: 3ms, application-code: 9.0s)
+[EmailService] RESEND_API_KEY not set — emails will be logged only.
+[EmailService DEV] To: admin@3boxeshrms.com | Subject: Your Full & Final settlement is ready
+[EmailService DEV] From: onboarding@resend.dev
+[EmailService] RESEND_API_KEY not set — emails will be logged only.
+[EmailService DEV] To: admin@acme-global.com | Subject: Your Full & Final settlement is ready
+[EmailService DEV] From: onboarding@resend.dev
+[EmailService] RESEND_API_KEY not set — emails will be logged only.
+[EmailService DEV] To: admin@globalhr.com | Subject: Your Full & Final settlement is ready
+[EmailService DEV] From: onboarding@resend.dev
+[EmailService] RESEND_API_KEY not set — emails will be logged only.
+[EmailService DEV] To: admin@techstart.com | Subject: Your Full & Final settlement is ready
+[EmailService DEV] From: onboarding@resend.dev
+[EmailService] RESEND_API_KEY not set — emails will be logged only.
+[EmailService DEV] To: admin@marqaitechgroup.com | Subject: Your Full & Final settlement is ready
+[EmailService DEV] From: onboarding@resend.dev
+[EmailService] RESEND_API_KEY not set — emails will be logged only.
+[EmailService DEV] To: keer@3boxeshrms.com | Subject: Your Full & Final settlement is ready
+[EmailService DEV] From: onboarding@resend.dev
+ POST /api/payroll/fnf 200 in 11.6s (next.js: 4ms, proxy.ts: 3ms, application-code: 11.6s)
+ POST /api/auth/login 200 in 4.7s (next.js: 2ms, proxy.ts: 3ms, application-code: 4.7s)
+[3Boxes DB] Connecting to: postgresql://***:***@ep-blue-fire-aqk8jxd2-pooler.c-8.us-east-1.aws.neon.tech/ne...
+ GET /api/payroll/runs/cmu1imykk002rvqu5c1jjj0dm 200 in 1131ms (next.js: 47ms, proxy.ts: 3ms, application-code: 1082ms)
+ POST /api/auth/login 200 in 5.0s (next.js: 3ms, proxy.ts: 4ms, application-code: 5.0s)
+ GET /api/companies 200 in 1571ms (next.js: 3ms, proxy.ts: 4ms, application-code: 1565ms)
+ POST /api/payroll/income-tax 200 in 13ms (next.js: 3ms, proxy.ts: 3ms, application-code: 6ms)
+ POST /api/payroll/income-tax 200 in 12ms (next.js: 2ms, proxy.ts: 5ms, application-code: 5ms)
+ POST /api/payroll/income-tax 200 in 9ms (next.js: 1836µs, proxy.ts: 2ms, application-code: 5ms)
+ GET /api/payroll/statutory-config?companyId=cmtsczl66000304js8txtwhsq 200 in 231ms (next.js: 1823µs, proxy.ts: 3ms, application-code: 226ms)
+ PUT /api/payroll/statutory-config 200 in 459ms (next.js: 4ms, proxy.ts: 3ms, application-code: 451ms)
+ POST /api/payroll/ctc-templates/preset-india 201 in 1350ms (next.js: 3ms, proxy.ts: 3ms, application-code: 1344ms)
+PayrollRun create error: 
+Invalid `db.payrollRun.create()` invocation in
+/home/z/my-project/.next/dev/server/chunks/src_1clv3da._.js:931:42
+
+  928 };
+  929 let result;
+  930 try {
+→ 931     result = await db.payrollRun.create(
+Unique constraint failed on the fields: (`"legalEntityId"`, `"payrollPeriod"`, `"runType"`)
+ POST /api/payroll/runs 503 in 238ms (next.js: 2ms, proxy.ts: 3ms, application-code: 232ms)
+ GET /api/payroll/reports/india-formats?format=ECR&month=9&year=2026&companyId=cmtsczl66000304js8txtwhsq 200 in 2.6s (next.js: 4ms, proxy.ts: 3ms, application-code: 2.5s)
+ GET /api/payroll/reports/india-formats?format=FORM5&month=9&year=2026&companyId=cmtsczl66000304js8txtwhsq 200 in 1262ms (next.js: 3ms, proxy.ts: 3ms, application-code: 1257ms)
+ GET /api/payroll/reports/india-formats?format=FORM10&month=9&year=2026&companyId=cmtsczl66000304js8txtwhsq 200 in 1297ms (next.js: 3ms, proxy.ts: 3ms, application-code: 1291ms)
+ GET /api/payroll/reports/india-formats?format=ESI&month=9&year=2026&companyId=cmtsczl66000304js8txtwhsq 200 in 1085ms (next.js: 3ms, proxy.ts: 3ms, application-code: 1079ms)
+ GET /api/payroll/reports/india-formats?format=PT&month=9&year=2026&companyId=cmtsczl66000304js8txtwhsq 200 in 1093ms (next.js: 3ms, proxy.ts: 3ms, application-code: 1087ms)
+ GET /api/payroll/reports/india-formats?format=LWF&month=9&year=2026&companyId=cmtsczl66000304js8txtwhsq 200 in 1098ms (next.js: 3ms, proxy.ts: 3ms, application-code: 1092ms)
+ GET /api/payroll/reports/india-formats?format=24Q&month=9&year=2026&companyId=cmtsczl66000304js8txtwhsq 200 in 1169ms (next.js: 17ms, proxy.ts: 6ms, application-code: 1146ms)
+ GET /api/payroll/reports/india-formats?format=FORM16&month=9&year=2026&companyId=cmtsczl66000304js8txtwhsq 200 in 1095ms (next.js: 3ms, proxy.ts: 3ms, application-code: 1089ms)
+ POST /api/payroll/reports/india-formats 201 in 475ms (next.js: 3ms, proxy.ts: 3ms, application-code: 469ms)
+ GET /api/employees?limit=5 200 in 9.1s (next.js: 3ms, proxy.ts: 3ms, application-code: 9.1s)
+[EmailService] RESEND_API_KEY not set — emails will be logged only.
+[EmailService DEV] To: admin@3boxeshrms.com | Subject: Your Full & Final settlement is ready
+[EmailService DEV] From: onboarding@resend.dev
+[EmailService] RESEND_API_KEY not set — emails will be logged only.
+[EmailService DEV] To: admin@acme-global.com | Subject: Your Full & Final settlement is ready
+[EmailService DEV] From: onboarding@resend.dev
+[EmailService] RESEND_API_KEY not set — emails will be logged only.
+[EmailService DEV] To: admin@globalhr.com | Subject: Your Full & Final settlement is ready
+[EmailService DEV] From: onboarding@resend.dev
+[EmailService] RESEND_API_KEY not set — emails will be logged only.
+[EmailService DEV] To: admin@techstart.com | Subject: Your Full & Final settlement is ready
+[EmailService DEV] From: onboarding@resend.dev
+[EmailService] RESEND_API_KEY not set — emails will be logged only.
+[EmailService DEV] To: admin@marqaitechgroup.com | Subject: Your Full & Final settlement is ready
+[EmailService DEV] From: onboarding@resend.dev
+[EmailService] RESEND_API_KEY not set — emails will be logged only.
+[EmailService DEV] To: keer@3boxeshrms.com | Subject: Your Full & Final settlement is ready
+[EmailService DEV] From: onboarding@resend.dev
+ POST /api/payroll/fnf 200 in 11.9s (next.js: 4ms, proxy.ts: 4ms, application-code: 11.9s)
+ POST /api/payroll/income-tax-declarations 201 in 7.2s (next.js: 5ms, proxy.ts: 4ms, application-code: 7.2s)
+ PUT /api/payroll/income-tax-declarations/cmu1isffm008rvqu5v0i9cjqm 200 in 481ms (next.js: 49ms, proxy.ts: 4ms, application-code: 428ms)
+[3Boxes DB] Connecting to: postgresql://***:***@ep-blue-fire-aqk8jxd2-pooler.c-8.us-east-1.aws.neon.tech/ne...
+[EmailService] RESEND_API_KEY not set — emails will be logged only.
+[EmailService DEV] To: keer@3boxeshrms.com | Subject: Your investment proofs for 2025-26: VERIFIED
+[EmailService DEV] From: onboarding@resend.dev
+ PUT /api/payroll/income-tax-declarations/cmu1isffm008rvqu5v0i9cjqm 200 in 3.3s (next.js: 9ms, proxy.ts: 7ms, application-code: 3.3s)
+ DELETE /api/payroll/income-tax-declarations/cmu1isffm008rvqu5v0i9cjqm 400 in 270ms (next.js: 39ms, proxy.ts: 3ms, application-code: 228ms)
+[3Boxes DB] Connecting to: postgresql://***:***@ep-blue-fire-aqk8jxd2-pooler.c-8.us-east-1.aws.neon.tech/ne...
+ DELETE /api/payroll/ctc-templates/cmu1irpiy007svqu5h2fltwae 200 in 495ms (next.js: 40ms, proxy.ts: 3ms, application-code: 452ms)
+ DELETE /api/payroll/runs/undefined 404 in 395ms (next.js: 153ms, proxy.ts: 7ms, application-code: 234ms)
+[3Boxes DB] Connecting to: postgresql://***:***@ep-blue-fire-aqk8jxd2-pooler.c-8.us-east-1.aws.neon.tech/ne...
+[3Boxes DB] Connecting to: postgresql://***:***@ep-blue-fire-aqk8jxd2-pooler.c-8.us-east-1.aws.neon.tech/ne...
+ POST /api/auth/login 200 in 5.1s (next.js: 3ms, proxy.ts: 4ms, application-code: 5.1s)
+ GET /api/companies 200 in 1576ms (next.js: 3ms, proxy.ts: 3ms, application-code: 1570ms)
+ POST /api/payroll/income-tax 200 in 12ms (next.js: 3ms, proxy.ts: 4ms, application-code: 6ms)
+ POST /api/payroll/income-tax 200 in 10ms (next.js: 2ms, proxy.ts: 3ms, application-code: 5ms)
+ POST /api/payroll/income-tax 200 in 10ms (next.js: 2ms, proxy.ts: 2ms, application-code: 5ms)
+ GET /api/payroll/statutory-config?companyId=cmtsczl66000304js8txtwhsq 200 in 234ms (next.js: 1992µs, proxy.ts: 2ms, application-code: 230ms)
+ PUT /api/payroll/statutory-config 200 in 467ms (next.js: 5ms, proxy.ts: 4ms, application-code: 459ms)
+ POST /api/payroll/ctc-templates/preset-india 201 in 1374ms (next.js: 3ms, proxy.ts: 4ms, application-code: 1368ms)
+PayrollRun create error: 
+Invalid `db.payrollRun.create()` invocation in
+/home/z/my-project/.next/dev/server/chunks/src_1clv3da._.js:931:42
+
+  928 };
+  929 let result;
+  930 try {
+→ 931     result = await db.payrollRun.create(
+Unique constraint failed on the fields: (`"legalEntityId"`, `"payrollPeriod"`, `"runType"`)
+ POST /api/payroll/runs 503 in 239ms (next.js: 3ms, proxy.ts: 3ms, application-code: 233ms)
+ GET /api/payroll/runs?limit=25 200 in 855ms (next.js: 5ms, proxy.ts: 3ms, application-code: 847ms)
+ POST /api/payroll/runs/cmu1imykk002rvqu5c1jjj0dm/calculate 400 in 259ms (next.js: 37ms, proxy.ts: 3ms, application-code: 219ms)
+ GET /api/payroll/runs/cmu1imykk002rvqu5c1jjj0dm/transaction-lines 404 in 98ms (next.js: 14ms, proxy.ts: 3ms, application-code: 81ms)
+[3Boxes DB] Connecting to: postgresql://***:***@ep-blue-fire-aqk8jxd2-pooler.c-8.us-east-1.aws.neon.tech/ne...
+[3Boxes DB] Connecting to: postgresql://***:***@ep-blue-fire-aqk8jxd2-pooler.c-8.us-east-1.aws.neon.tech/ne...
+ GET /api/payroll/runs/cmu1imykk002rvqu5c1jjj0dm 200 in 1140ms (next.js: 49ms, proxy.ts: 4ms, application-code: 1088ms)
+ GET /api/payroll/reports/variance?runId=cmu1imykk002rvqu5c1jjj0dm 200 in 1503ms (next.js: 4ms, proxy.ts: 3ms, application-code: 1496ms)
+ GET /api/payroll/reports/variance?runId=cmu1imykk002rvqu5c1jjj0dm 200 in 1724ms (next.js: 3ms, proxy.ts: 3ms, application-code: 1717ms)
+[EmailService] RESEND_API_KEY not set — emails will be logged only.
+[EmailService DEV] To: admin@3boxeshrms.com | Subject: Payroll variance flagged for 2026-09 — 8 employee(s)
+[EmailService DEV] From: onboarding@resend.dev
+[EmailService] RESEND_API_KEY not set — emails will be logged only.
+[EmailService DEV] To: admin@acme-global.com | Subject: Payroll variance flagged for 2026-09 — 8 employee(s)
+[EmailService DEV] From: onboarding@resend.dev
+[EmailService] RESEND_API_KEY not set — emails will be logged only.
+[EmailService DEV] To: admin@globalhr.com | Subject: Payroll variance flagged for 2026-09 — 8 employee(s)
+[EmailService DEV] From: onboarding@resend.dev
+[EmailService] RESEND_API_KEY not set — emails will be logged only.
+[EmailService DEV] To: admin@techstart.com | Subject: Payroll variance flagged for 2026-09 — 8 employee(s)
+[EmailService DEV] From: onboarding@resend.dev
+[EmailService] RESEND_API_KEY not set — emails will be logged only.
+[EmailService DEV] To: admin@marqaitechgroup.com | Subject: Payroll variance flagged for 2026-09 — 8 employee(s)
+[EmailService DEV] From: onboarding@resend.dev
+ POST /api/payroll/reports/variance 201 in 11.6s (next.js: 3ms, proxy.ts: 4ms, application-code: 11.6s)
+ GET /api/payroll/reports/india-formats?format=ECR&month=9&year=2026&companyId=cmtsczl66000304js8txtwhsq 200 in 1307ms (next.js: 3ms, proxy.ts: 3ms, application-code: 1301ms)
+ GET /api/payroll/reports/india-formats?format=FORM5&month=9&year=2026&companyId=cmtsczl66000304js8txtwhsq 200 in 1084ms (next.js: 3ms, proxy.ts: 3ms, application-code: 1078ms)
+ GET /api/payroll/reports/india-formats?format=FORM10&month=9&year=2026&companyId=cmtsczl66000304js8txtwhsq 200 in 1117ms (next.js: 3ms, proxy.ts: 3ms, application-code: 1112ms)
+ GET /api/payroll/reports/india-formats?format=ESI&month=9&year=2026&companyId=cmtsczl66000304js8txtwhsq 200 in 1624ms (next.js: 4ms, proxy.ts: 4ms, application-code: 1616ms)
+ GET /api/payroll/reports/india-formats?format=PT&month=9&year=2026&companyId=cmtsczl66000304js8txtwhsq 200 in 1304ms (next.js: 3ms, proxy.ts: 3ms, application-code: 1298ms)
+ GET /api/payroll/reports/india-formats?format=LWF&month=9&year=2026&companyId=cmtsczl66000304js8txtwhsq 200 in 1109ms (next.js: 5ms, proxy.ts: 6ms, application-code: 1098ms)
+ GET /api/payroll/reports/india-formats?format=24Q&month=9&year=2026&companyId=cmtsczl66000304js8txtwhsq 200 in 1182ms (next.js: 5ms, proxy.ts: 3ms, application-code: 1174ms)
+ GET /api/payroll/reports/india-formats?format=FORM16&month=9&year=2026&companyId=cmtsczl66000304js8txtwhsq 200 in 1092ms (next.js: 3ms, proxy.ts: 4ms, application-code: 1086ms)
+ POST /api/payroll/reports/india-formats 201 in 448ms (next.js: 3ms, proxy.ts: 4ms, application-code: 442ms)
+ GET /api/employees?limit=5 200 in 8.8s (next.js: 3ms, proxy.ts: 3ms, application-code: 8.8s)
+[EmailService] RESEND_API_KEY not set — emails will be logged only.
+[EmailService DEV] To: admin@3boxeshrms.com | Subject: Your Full & Final settlement is ready
+[EmailService DEV] From: onboarding@resend.dev
+[EmailService] RESEND_API_KEY not set — emails will be logged only.
+[EmailService DEV] To: admin@acme-global.com | Subject: Your Full & Final settlement is ready
+[EmailService DEV] From: onboarding@resend.dev
+[EmailService] RESEND_API_KEY not set — emails will be logged only.
+[EmailService DEV] To: admin@globalhr.com | Subject: Your Full & Final settlement is ready
+[EmailService DEV] From: onboarding@resend.dev
+[EmailService] RESEND_API_KEY not set — emails will be logged only.
+[EmailService DEV] To: admin@techstart.com | Subject: Your Full & Final settlement is ready
+[EmailService DEV] From: onboarding@resend.dev
+[EmailService] RESEND_API_KEY not set — emails will be logged only.
+[EmailService DEV] To: admin@marqaitechgroup.com | Subject: Your Full & Final settlement is ready
+[EmailService DEV] From: onboarding@resend.dev
+[EmailService] RESEND_API_KEY not set — emails will be logged only.
+[EmailService DEV] To: keer@3boxeshrms.com | Subject: Your Full & Final settlement is ready
+[EmailService DEV] From: onboarding@resend.dev
+ POST /api/payroll/fnf 200 in 11.4s (next.js: 2ms, proxy.ts: 3ms, application-code: 11.4s)
+[EmailService] RESEND_API_KEY not set — emails will be logged only.
+[EmailService DEV] To: admin@3boxeshrms.com | Subject: Bank file ready: 2026-09 — ₹9,67,458 (8 records)
+[EmailService DEV] From: onboarding@resend.dev
+[EmailService] RESEND_API_KEY not set — emails will be logged only.
+[EmailService DEV] To: admin@acme-global.com | Subject: Bank file ready: 2026-09 — ₹9,67,458 (8 records)
+[EmailService DEV] From: onboarding@resend.dev
+[EmailService] RESEND_API_KEY not set — emails will be logged only.
+[EmailService DEV] To: admin@globalhr.com | Subject: Bank file ready: 2026-09 — ₹9,67,458 (8 records)
+[EmailService DEV] From: onboarding@resend.dev
+[EmailService] RESEND_API_KEY not set — emails will be logged only.
+[EmailService DEV] To: admin@techstart.com | Subject: Bank file ready: 2026-09 — ₹9,67,458 (8 records)
+[EmailService DEV] From: onboarding@resend.dev
+[EmailService] RESEND_API_KEY not set — emails will be logged only.
+[EmailService DEV] To: admin@marqaitechgroup.com | Subject: Bank file ready: 2026-09 — ₹9,67,458 (8 records)
+[EmailService DEV] From: onboarding@resend.dev
+ POST /api/payroll/bank-files 200 in 11.3s (next.js: 3ms, proxy.ts: 4ms, application-code: 11.3s)
+ POST /api/payroll/income-tax-declarations 201 in 6.6s (next.js: 11ms, proxy.ts: 3ms, application-code: 6.6s)
+ PUT /api/payroll/income-tax-declarations/cmu1ivhcl00bavqu5itiaud9o 200 in 480ms (next.js: 35ms, proxy.ts: 4ms, application-code: 441ms)
+[3Boxes DB] Connecting to: postgresql://***:***@ep-blue-fire-aqk8jxd2-pooler.c-8.us-east-1.aws.neon.tech/ne...
+[EmailService] RESEND_API_KEY not set — emails will be logged only.
+[EmailService DEV] To: keer@3boxeshrms.com | Subject: Your investment proofs for 2025-26: VERIFIED
+[EmailService DEV] From: onboarding@resend.dev
+ PUT /api/payroll/income-tax-declarations/cmu1ivhcl00bavqu5itiaud9o 200 in 3.3s (next.js: 15ms, proxy.ts: 7ms, application-code: 3.2s)
+ DELETE /api/payroll/income-tax-declarations/cmu1ivhcl00bavqu5itiaud9o 400 in 266ms (next.js: 42ms, proxy.ts: 4ms, application-code: 220ms)
+[3Boxes DB] Connecting to: postgresql://***:***@ep-blue-fire-aqk8jxd2-pooler.c-8.us-east-1.aws.neon.tech/ne...
+ DELETE /api/payroll/ctc-templates/cmu1iu7yx0098vqu5xzswx2of 200 in 485ms (next.js: 38ms, proxy.ts: 4ms, application-code: 444ms)
+ DELETE /api/payroll/runs/cmu1imykk002rvqu5c1jjj0dm 400 in 385ms (next.js: 152ms, proxy.ts: 6ms, application-code: 226ms)
+ DELETE /api/payroll/fnf/cmu1iuzs400abvqu55w7h55ej 405 in 114ms (next.js: 95ms, proxy.ts: 5ms, application-code: 14ms)
+[3Boxes DB] Connecting to: postgresql://***:***@ep-blue-fire-aqk8jxd2-pooler.c-8.us-east-1.aws.neon.tech/ne...
+[3Boxes DB] Connecting to: postgresql://***:***@ep-blue-fire-aqk8jxd2-pooler.c-8.us-east-1.aws.neon.tech/ne...
+[3Boxes DB] Connecting to: postgresql://***:***@ep-blue-fire-aqk8jxd2-pooler.c-8.us-east-1.aws.neon.tech/ne...
+ GET /payroll 200 in 1055ms (next.js: 897ms, proxy.ts: 4ms, application-code: 154ms)
+ GET /payroll/india-compliance 200 in 897ms (next.js: 805ms, proxy.ts: 2ms, application-code: 90ms)
+ GET /payroll/reports 200 in 778ms (next.js: 704ms, proxy.ts: 2ms, application-code: 72ms)
+ GET /payroll/bank-files 200 in 975ms (next.js: 910ms, proxy.ts: 8ms, application-code: 57ms)
+ GET /payroll/ctc-templates 200 in 715ms (next.js: 641ms, proxy.ts: 2ms, application-code: 72ms)
+ GET /payroll/fnf 200 in 724ms (next.js: 675ms, proxy.ts: 2ms, application-code: 47ms)
+ GET /login 200 in 232ms (next.js: 67ms, proxy.ts: 3ms, application-code: 162ms)
+ GET /login 200 in 100ms (next.js: 29ms, proxy.ts: 5ms, application-code: 66ms)
