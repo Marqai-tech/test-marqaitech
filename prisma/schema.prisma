@@ -281,6 +281,7 @@ model Company {
   minimumWageConfigs    MinimumWageConfig[]
   payrollAnomalies      PayrollAnomaly[]
   ghostEmployeeFlags    GhostEmployeeFlag[]
+  payrollStatutoryConfig PayrollStatutoryConfig?
 
   // ─── Client/Vendor Addendum back-references ───
   clientBranches        ClientBranch[] @relation("ClientBranchCompany")
@@ -2630,6 +2631,16 @@ model FNFCalculation {
   loanRecovery      Float @default(0)
   taxDeduction      Float @default(0)
   otherRecoveries   Float @default(0)
+
+  // ─── India F&F addendum: gratuity / encashment cap / notice buy-out ───
+  gratuityAmount        Float   @default(0)  // 15/26 × last drawn × years (cap ₹20L)
+  gratuityEligible      Boolean @default(false) // completed ≥ 5 years
+  leaveEncashmentExempt Float   @default(0)  // Sec 10(10AA) exempt slice
+  leaveEncashmentTaxable Float  @default(0)  // amount above ₹25,00,000 cap
+  noticeBuyoutDays      Float   @default(0)  // shortfall notice days being bought out
+  noticeBuyoutAmount    Float   @default(0)  // buy-out recovery (monthly salary/30 × days)
+  lwdDate               DateTime?            // last working date used for the calc
+  clearanceCleared      Boolean @default(false) // all department clearances signed
   totalEarnings     Float @default(0)
   totalDeductions   Float @default(0)
   netAmount         Float @default(0)
@@ -3838,6 +3849,52 @@ model GLAccountMapping {
 
 // ============ INDIAN PAYROLL - ADDITIONAL MODELS ============
 
+// ─── India Statutory Configuration (per company) ───
+// Single source of truth for the Indian payroll engine: which state's PT/LWF
+// slabs apply, whether EPF runs on statutory ceiling (₹15,000) or actual Basic,
+// ESI applicability, default tax regime, and the declaration/proof window
+// months that drive the Feb–Mar TDS true-up. One row per company.
+model PayrollStatutoryConfig {
+  id             String   @id @default(cuid())
+  companyId      String   @unique
+  company        Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  countryCode    String   @default("IN")
+
+  // Professional Tax & Labour Welfare Fund — state decides the slab table
+  ptState        String?  // ISO state code, e.g. "MH", "KA", "TN"
+  lwfState       String?
+
+  // EPF — statutory ceiling (₹15,000) or actual Basic + DA
+  pfOnActualBasic Boolean @default(false)
+  pfWageCeiling  Float    @default(15000)
+  pfAdminCharges Boolean  @default(true) // EPF admin 0.5% (min ₹500) + EDLI 0.5%
+
+  // ESIC — wage limit decides eligibility (₹21,000 default, ₹25,000 PwD)
+  esiEnabled     Boolean  @default(true)
+  esiWageLimit   Float    @default(21000)
+
+  // TDS — default regime for employees who have not elected
+  tdsRegimeDefault String @default("NEW") // NEW, OLD
+
+  // Declaration & proof verification windows (month numbers 1-12)
+  declarationWindowMonth Int @default(4)  // April — declarations open
+  proofWindowMonth       Int @default(1)  // January — proofs upload
+  proofDeadlineMonth     Int @default(1)  // January 31 — proof cut-off
+  tdsAdjustFromMonth     Int @default(2)  // Feb–Mar TDS true-up window
+
+  // Variance governance — >threshold % month-over-month needs Finance sign-off
+  varianceThresholdPct Float @default(5)
+
+  notes          String?
+  updatedBy      String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+}
+
 // Payroll Definition - Pay frequency, cut-off dates, payment methods at payroll level
 model PayrollDefinition {
   id                String   @id @default(cuid())
@@ -4090,6 +4147,16 @@ model IncomeTaxDeclaration {
   totalDeductions           Float @default(0)
   taxableIncome             Float @default(0)
   estimatedTax              Float @default(0)
+
+  // ─── Proof verification workflow (India) ───
+  // April: declaration submitted → PENDING_REVIEW. January: employee uploads
+  // proofs → HR/Finance verify per-section → VERIFIED / PARTIALLY_VERIFIED /
+  // REJECTED. Verified numbers drive the Feb–Mar TDS true-up.
+  proofStatus               String  @default("NOT_SUBMITTED") // NOT_SUBMITTED, PENDING_REVIEW, VERIFIED, PARTIALLY_VERIFIED, REJECTED
+  proofSubmittedAt          DateTime?
+  proofDocs                 String? // JSON: [{section, fileName, size, uploadedAt, status}]
+  sectionProofStatus        String? // JSON: {"80C":"VERIFIED","80D":"PENDING_REVIEW",...}
+  regimeElectionLocked      Boolean @default(false) // locked after proof verification (regime cannot switch mid-year)
 
   // Status
   status                    String @default("DRAFT") // DRAFT, SUBMITTED, APPROVED, REJECTED

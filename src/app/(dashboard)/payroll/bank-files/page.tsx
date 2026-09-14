@@ -64,6 +64,9 @@ function getFormatBadge(format: string) {
     NACH: 'bg-teal-100 text-teal-700',
     NEFT: 'bg-sky-100 text-sky-700',
     RTGS: 'bg-orange-100 text-orange-700',
+    HDFC: 'bg-indigo-100 text-indigo-700',
+    ICICI: 'bg-amber-100 text-amber-700',
+    SBI: 'bg-blue-100 text-blue-700',
     CUSTOM: 'bg-slate-100 text-slate-700',
   };
   return map[format] || 'bg-gray-100 text-gray-700';
@@ -398,6 +401,9 @@ export default function BankFilesPage() {
                 <option value="NACH">NACH</option>
                 <option value="NEFT">NEFT</option>
                 <option value="RTGS">RTGS</option>
+                <option value="HDFC">HDFC Salary Advice (CSV)</option>
+                <option value="ICICI">ICICI Salary Advice (CSV)</option>
+                <option value="SBI">SBI Salary Advice (CSV)</option>
                 <option value="CUSTOM">Custom</option>
               </select>
             </div>
@@ -476,6 +482,9 @@ export default function BankFilesPage() {
             <option value="NACH">NACH</option>
             <option value="NEFT">NEFT</option>
             <option value="RTGS">RTGS</option>
+            <option value="HDFC">HDFC</option>
+            <option value="ICICI">ICICI</option>
+            <option value="SBI">SBI</option>
             <option value="CUSTOM">Custom</option>
           </select>
         </div>

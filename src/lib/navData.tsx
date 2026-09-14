@@ -371,6 +371,7 @@ export const navSections: NavSection[] = [
       // ── Reports (admin/manager only) ──
       { label: 'Payroll Reports', href: '#reports-divider', icon: <FiFileText className="w-3.5 h-3.5" />, moduleKey: 'payroll', roles: ['super_admin', 'tenant_admin', 'admin', 'manager'], isDivider: true },
       { label: 'Reports & Dashboard', href: '/payroll/reports', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'payroll', roles: ['super_admin', 'tenant_admin', 'admin', 'manager'] },
+      { label: 'India Compliance Center', href: '/payroll/india-compliance', icon: <FiShield className="w-4 h-4" />, moduleKey: 'payroll', roles: ['super_admin', 'tenant_admin', 'admin'], isNew: true },
     ],
   },
 

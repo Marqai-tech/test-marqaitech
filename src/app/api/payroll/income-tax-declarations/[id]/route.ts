@@ -133,10 +133,87 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       updateData.status = 'DRAFT';
     }
 
+    // ─── INDIA: Proof verification workflow ───
+    // Employee (Jan): upload proofs → PENDING_REVIEW. HR/Finance: verify
+    // per-section → VERIFIED / PARTIALLY_VERIFIED / REJECTED. Verified
+    // deductions drive the Feb–Mar TDS true-up in the payroll engine.
+    if (body.proofSubmission) {
+      updateData.proofStatus = 'PENDING_REVIEW';
+      updateData.proofSubmittedAt = new Date();
+      updateData.proofDocs = JSON.stringify(body.proofSubmission.proofDocs || []);
+      updateData.sectionProofStatus = JSON.stringify(body.proofSubmission.sectionProofStatus || {});
+      if (body.proofSubmission.sections) {
+        // Employee may refine declared amounts together with proof upload
+        const s = body.proofSubmission.sections;
+        if (s.section80C !== undefined) updateData.section80C_Total = Math.min(Number(s.section80C) || 0, 150000);
+        if (s.section80D !== undefined) updateData.section80D_Total = Number(s.section80D) || 0;
+        if (s.section24b !== undefined) updateData.section24b_HomeLoanInterest = Math.min(Number(s.section24b) || 0, 200000);
+        if (s.hra_RentPaid !== undefined) updateData.hra_RentPaid = Number(s.hra_RentPaid) || 0;
+      }
+    }
+    if (body.proofVerification) {
+      if (userRole !== 'super_admin' && userRole !== 'tenant_admin' && userRole !== 'admin') {
+        return Response.json({ error: 'Only HR/Finance can verify proofs' }, { status: 403, headers: corsHeaders });
+      }
+      const pv = body.proofVerification;
+      const allowedStatuses = ['VERIFIED', 'PARTIALLY_VERIFIED', 'REJECTED'];
+      if (!allowedStatuses.includes(pv.proofStatus)) {
+        return Response.json({ error: `proofStatus must be one of ${allowedStatuses.join(', ')}` }, { status: 400, headers: corsHeaders });
+      }
+      updateData.proofStatus = pv.proofStatus;
+      if (pv.sectionProofStatus) updateData.sectionProofStatus = JSON.stringify(pv.sectionProofStatus);
+      updateData.reviewedBy = userId as string;
+      updateData.reviewedAt = new Date();
+      updateData.reviewComments = pv.comments || null;
+      updateData.regimeElectionLocked = true; // regime cannot switch after verification
+      // Apply HR-verified amounts so the engine true-up uses these figures
+      if (pv.verifiedDeductions) {
+        const v = pv.verifiedDeductions;
+        if (v.section80C !== undefined) updateData.section80C_Total = Math.min(Number(v.section80C) || 0, 150000);
+        if (v.section80D !== undefined) updateData.section80D_Total = Number(v.section80D) || 0;
+        if (v.section80CCD_NPS !== undefined) updateData.section80CCD_NPS = Math.min(Number(v.section80CCD_NPS) || 0, 50000);
+        if (v.section24b !== undefined) updateData.section24b_HomeLoanInterest = Math.min(Number(v.section24b) || 0, 200000);
+        if (v.hraExemption !== undefined) updateData.hra_ExemptionCalc = Math.max(0, Number(v.hraExemption) || 0);
+        // Recompute totalDeductions from verified components
+        updateData.totalDeductions =
+          (Number(updateData.section80C_Total) || existing.section80C_Total) +
+          (Number(updateData.section80D_Total) || existing.section80D_Total) +
+          (Number(updateData.section80CCD_NPS) || existing.section80CCD_NPS) +
+          (Number(updateData.section24b_HomeLoanInterest) || existing.section24b_HomeLoanInterest) +
+          (Number(updateData.hra_ExemptionCalc) || existing.hra_ExemptionCalc) +
+          existing.section80E_EducationLoan + existing.section80G_Donations +
+          existing.section80TTA_SavingsInterest + existing.otherDeductions;
+      }
+    }
+
     const updated = await db.incomeTaxDeclaration.update({
       where: { id },
       data: updateData,
     });
+
+    // Notifications to the employee for proof verification outcomes (non-fatal)
+    if (body.proofVerification) {
+      try {
+        const tenantId = (decoded as Record<string, unknown>).tenantId as string | undefined;
+        const emp = await db.employee.findUnique({ where: { id: updated.employeeId }, select: { userId: true, firstName: true, lastName: true } });
+        if (tenantId && emp?.userId) {
+          const { dispatchNotification } = await import('@/lib/notification-center');
+          await dispatchNotification({
+            tenantId,
+            module: 'payroll',
+            eventKey: updated.proofStatus === 'REJECTED' ? 'payroll.proof.rejected' : 'payroll.proof.verified',
+            recipients: [{ userId: emp.userId }],
+            vars: {
+              Employee_Name: `${emp.firstName || ''} ${emp.lastName || ''}`.trim(),
+              Window_Name: updated.financialYear || 'FY declaration',
+              Verification_Result: updated.proofStatus.replaceAll('_', ' '),
+              Comments: (body.proofVerification.comments || 'No comments').slice(0, 120),
+            },
+            entity: { type: 'income_tax_declaration', id: updated.id, link: '/payroll/income-tax' },
+          });
+        }
+      } catch { /* non-fatal */ }
+    }
 
     return Response.json({ data: updated }, { headers: corsHeaders });
   } catch (error: unknown) {

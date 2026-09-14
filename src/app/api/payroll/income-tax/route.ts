@@ -1,6 +1,13 @@
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { NextRequest } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
+import {
+  computeIndiaTaxBothRegimes,
+  calculateHRAExemption,
+  financialYearFor,
+  type AgeGroup,
+  type FY,
+} from '@/lib/payroll/india';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -10,100 +17,6 @@ const corsHeaders = {
 
 export async function OPTIONS() {
   return new Response(null, { status: 204, headers: corsHeaders });
-}
-
-// ─── Old Regime Tax Slabs (FY 2024-25) ───
-function calculateOldRegimeTax(annualIncome: number, ageGroup: string): number {
-  const basicExemption = ageGroup === 'ABOVE_80' ? 500000 : ageGroup === 'SENIOR' ? 300000 : 250000;
-  if (annualIncome <= basicExemption) return 0;
-
-  const slabs = ageGroup === 'ABOVE_80'
-    ? [
-        { limit: 500000, rate: 0 },
-        { limit: 1000000, rate: 0.20 },
-        { limit: Infinity, rate: 0.30 },
-      ]
-    : ageGroup === 'SENIOR'
-    ? [
-        { limit: 300000, rate: 0 },
-        { limit: 500000, rate: 0.05 },
-        { limit: 1000000, rate: 0.20 },
-        { limit: Infinity, rate: 0.30 },
-      ]
-    : [
-        { limit: 250000, rate: 0 },
-        { limit: 500000, rate: 0.05 },
-        { limit: 1000000, rate: 0.20 },
-        { limit: Infinity, rate: 0.30 },
-      ];
-
-  let tax = 0;
-  let remaining = annualIncome;
-  let prevLimit = 0;
-  for (const slab of slabs) {
-    if (remaining <= 0) break;
-    const taxableInSlab = Math.min(remaining, slab.limit - prevLimit);
-    tax += taxableInSlab * slab.rate;
-    remaining -= taxableInSlab;
-    prevLimit = slab.limit;
-  }
-
-  // Section 87A rebate: If income <= 5L, tax = 0
-  if (annualIncome <= 500000) tax = 0;
-
-  return Math.round(tax);
-}
-
-// ─── New Regime Tax Slabs (FY 2024-25) ───
-function calculateNewRegimeTax(annualIncome: number): number {
-  const slabs = [
-    { limit: 300000, rate: 0 },
-    { limit: 700000, rate: 0.05 },
-    { limit: 1000000, rate: 0.10 },
-    { limit: 1200000, rate: 0.15 },
-    { limit: 1500000, rate: 0.20 },
-    { limit: Infinity, rate: 0.30 },
-  ];
-
-  let tax = 0;
-  let remaining = annualIncome;
-  let prevLimit = 0;
-  for (const slab of slabs) {
-    if (remaining <= 0) break;
-    const taxableInSlab = Math.min(remaining, slab.limit - prevLimit);
-    tax += taxableInSlab * slab.rate;
-    remaining -= taxableInSlab;
-    prevLimit = slab.limit;
-  }
-
-  // Section 87A rebate: If income <= 7L, tax = 0 under new regime
-  if (annualIncome <= 700000) tax = 0;
-
-  return Math.round(tax);
-}
-
-// ─── Calculate Surcharge ───
-function calculateSurcharge(taxableIncome: number, tax: number, regime: string): number {
-  if (regime === 'NEW') {
-    if (taxableIncome > 20000000) return Math.round(tax * 0.25);
-    if (taxableIncome > 10000000) return Math.round(tax * 0.15);
-    if (taxableIncome > 5000000) return Math.round(tax * 0.10);
-  } else {
-    if (taxableIncome > 50000000) return Math.round(tax * 0.37);
-    if (taxableIncome > 20000000) return Math.round(tax * 0.25);
-    if (taxableIncome > 10000000) return Math.round(tax * 0.15);
-    if (taxableIncome > 5000000) return Math.round(tax * 0.10);
-  }
-  return 0;
-}
-
-// ─── HRA Exemption Calculation (Old Regime only) ───
-function calculateHRAExemption(actualHRA: number, basicSalary: number, rentPaid: number, isMetro: boolean): number {
-  const pctOfBasic = isMetro ? 0.50 : 0.40;
-  const hraExempt1 = actualHRA; // Actual HRA received
-  const hraExempt2 = (basicSalary * pctOfBasic) - (rentPaid - basicSalary * 0.10); // Rent - 10% of basic
-  const hraExempt3 = basicSalary * pctOfBasic; // 50%/40% of basic
-  return Math.max(0, Math.min(hraExempt1, Math.max(0, hraExempt2), hraExempt3));
 }
 
 export async function POST(request: NextRequest) {
@@ -118,6 +31,7 @@ export async function POST(request: NextRequest) {
       annualGrossIncome,
       ageGroup = 'BELOW_60',
       regime = 'NEW',
+      financialYear,
       // Old regime deductions
       section80C = 0,
       section80D = 0,
@@ -137,90 +51,79 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: 'Annual gross income is required' }, { status: 400, headers: corsHeaders });
     }
 
-    // ─── New Regime Calculation ───
-    const newRegimeStandardDeduction = 75000; // FY 2024-25
-    const newRegimeTaxableIncome = Math.max(0, annualGrossIncome - newRegimeStandardDeduction);
-    const newRegimeTax = calculateNewRegimeTax(newRegimeTaxableIncome);
-    const newRegimeSurcharge = calculateSurcharge(newRegimeTaxableIncome, newRegimeTax, 'NEW');
-    const newRegimeCess = Math.round((newRegimeTax + newRegimeSurcharge) * 0.04);
-    const newRegimeTotalTax = newRegimeTax + newRegimeSurcharge + newRegimeCess;
+    const fy: FY = financialYear && financialYear.includes('-') ? financialYear : financialYearFor(new Date().getMonth() + 1, new Date().getFullYear());
 
-    // ─── Old Regime Calculation ───
-    const oldRegimeStandardDeduction = 50000;
-    const hraExemption = regime === 'OLD' || regime === 'BOTH'
-      ? calculateHRAExemption(hraActual, basicSalary, hraRentPaid, hraIsMetro)
-      : 0;
-    const sec80C_Claimed = Math.min(section80C, 150000);
-    const sec80D_Claimed = Math.min(section80D, ageGroup === 'SENIOR' ? 100000 : 75000);
-    const sec80CCD_Claimed = Math.min(section80CCD, 50000);
-    const sec24b_Claimed = Math.min(section24b, 200000);
+    // HRA exemption — least-of-three (Section 10(13A)); annualized
+    const hraExemptionMonthly = calculateHRAExemption(hraActual / 12, basicSalary / 12, hraRentPaid / 12, hraIsMetro);
+    const hraExemption = hraExemptionMonthly.exempt * 12;
 
-    const oldRegimeTotalDeductions = oldRegimeStandardDeduction + hraExemption + sec80C_Claimed +
-      sec80D_Claimed + sec80CCD_Claimed + sec24b_Claimed + section80E + section80G +
-      Math.min(section80TTA, 10000) + otherDeductions;
-    const oldRegimeTaxableIncome = Math.max(0, annualGrossIncome - oldRegimeTotalDeductions);
-    const oldRegimeTax = calculateOldRegimeTax(oldRegimeTaxableIncome, ageGroup);
-    const oldRegimeSurcharge = calculateSurcharge(oldRegimeTaxableIncome, oldRegimeTax, 'OLD');
-    const oldRegimeCess = Math.round((oldRegimeTax + oldRegimeSurcharge) * 0.04);
-    const oldRegimeTotalTax = oldRegimeTax + oldRegimeSurcharge + oldRegimeCess;
+    const both = computeIndiaTaxBothRegimes({
+      annualGross: annualGrossIncome,
+      ageGroup: ageGroup as AgeGroup,
+      fy,
+      oldDeductions: {
+        section80C,
+        section80D,
+        section80CCD1B: section80CCD,
+        section24b,
+        hraExemption,
+        section80E,
+        section80G,
+        section80TTA,
+        otherExempt: otherDeductions,
+      },
+    });
 
-    // ─── Tax Slab Breakdown ───
-    const newRegimeSlabs = [
-      { from: 0, to: 300000, rate: 0, tax: 0 },
-      { from: 300001, to: 700000, rate: 5, tax: 0 },
-      { from: 700001, to: 1000000, rate: 10, tax: 0 },
-      { from: 1000001, to: 1200000, rate: 15, tax: 0 },
-      { from: 1200001, to: 1500000, rate: 20, tax: 0 },
-      { from: 1500001, to: null, rate: 30, tax: 0 },
-    ];
-    let remaining = newRegimeTaxableIncome;
-    let prevLimit = 0;
-    const slabLimits = [300000, 700000, 1000000, 1200000, 1500000, Infinity];
-    for (let i = 0; i < newRegimeSlabs.length; i++) {
-      if (remaining <= 0) break;
-      const taxableInSlab = Math.min(remaining, slabLimits[i] - prevLimit);
-      newRegimeSlabs[i].tax = Math.round(taxableInSlab * (newRegimeSlabs[i].rate / 100));
-      remaining -= taxableInSlab;
-      prevLimit = slabLimits[i];
-    }
+    const selected = regime === 'OLD' ? both.oldRegime : both.newRegime;
 
     const result = {
       annualGrossIncome,
       ageGroup,
       selectedRegime: regime,
+      financialYear: fy,
       newRegime: {
-        standardDeduction: newRegimeStandardDeduction,
-        totalDeductions: newRegimeStandardDeduction,
-        taxableIncome: newRegimeTaxableIncome,
-        tax: newRegimeTax,
-        surcharge: newRegimeSurcharge,
-        cess: newRegimeCess,
-        totalTax: newRegimeTotalTax,
-        monthlyTDS: Math.round(newRegimeTotalTax / 12),
-        slabBreakdown: newRegimeSlabs,
+        standardDeduction: both.newRegime.totalDeductions,
+        totalDeductions: both.newRegime.totalDeductions,
+        taxableIncome: both.newRegime.taxableIncome,
+        tax: both.newRegime.taxOnSlabs,
+        rebate87A: both.newRegime.rebate87A,
+        surcharge: both.newRegime.surcharge,
+        marginalRelief: both.newRegime.marginalRelief,
+        cess: both.newRegime.cess,
+        totalTax: both.newRegime.totalTax,
+        monthlyTDS: Math.round(both.newRegime.totalTax / 12),
+        slabBreakdown: both.newRegime.slabBreakdown,
       },
       oldRegime: {
-        standardDeduction: oldRegimeStandardDeduction,
+        standardDeduction: 50000,
         hraExemption,
-        section80C: sec80C_Claimed,
-        section80D: sec80D_Claimed,
-        section80CCD: sec80CCD_Claimed,
-        section24b: sec24b_Claimed,
+        section80C: Math.min(section80C, 150000),
+        section80D: Math.min(section80D, ageGroup === 'BELOW_60' ? 25000 : 50000),
+        section80CCD: Math.min(section80CCD, 50000),
+        section24b: Math.min(section24b, 200000),
         section80E,
         section80G,
         section80TTA: Math.min(section80TTA, 10000),
         otherDeductions,
-        totalDeductions: oldRegimeTotalDeductions,
-        taxableIncome: oldRegimeTaxableIncome,
-        tax: oldRegimeTax,
-        surcharge: oldRegimeSurcharge,
-        cess: oldRegimeCess,
-        totalTax: oldRegimeTotalTax,
-        monthlyTDS: Math.round(oldRegimeTotalTax / 12),
+        totalDeductions: both.oldRegime.totalDeductions,
+        taxableIncome: both.oldRegime.taxableIncome,
+        tax: both.oldRegime.taxOnSlabs,
+        rebate87A: both.oldRegime.rebate87A,
+        surcharge: both.oldRegime.surcharge,
+        marginalRelief: both.oldRegime.marginalRelief,
+        cess: both.oldRegime.cess,
+        totalTax: both.oldRegime.totalTax,
+        monthlyTDS: Math.round(both.oldRegime.totalTax / 12),
+      },
+      selected: {
+        taxableIncome: selected.taxableIncome,
+        totalTax: selected.totalTax,
+        monthlyTDS: Math.round(selected.totalTax / 12),
+        appliedDeductions: selected.totalDeductions,
       },
       comparison: {
-        betterRegime: newRegimeTotalTax < oldRegimeTotalTax ? 'NEW' : 'OLD',
-        savings: Math.abs(newRegimeTotalTax - oldRegimeTotalTax),
+        betterRegime: both.betterRegime,
+        savings: both.savings,
       },
     };
 

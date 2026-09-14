@@ -59,6 +59,7 @@ const routeMap: Record<string, PageInfo> = {
 
   // Reports
   '/payroll/reports':         { section: 'reports',       label: 'Reports & Dashboard' },
+  '/payroll/india-compliance': { section: 'reports',      label: 'India Compliance Center' },
 };
 
 const sectionMeta: Record<string, { href: string; label: string; icon: React.ComponentType<{ className?: string }> }> = {
@@ -78,7 +79,7 @@ function PayrollBreadcrumb() {
 
   // Determine active section from path or page info
   const currentSection = pageInfo?.section ??
-    (pathname?.startsWith('/payroll/reports') ? 'reports' :
+    (pathname?.startsWith('/payroll/reports') || pathname?.startsWith('/payroll/india-compliance') ? 'reports' :
      pathname?.startsWith('/payroll/inputs') || pathname?.startsWith('/payroll/validations') ||
      pathname?.startsWith('/payroll/processing') || pathname?.startsWith('/payroll/overtime') ||
      pathname?.startsWith('/payroll/loans') || pathname?.startsWith('/payroll/fnf') ||

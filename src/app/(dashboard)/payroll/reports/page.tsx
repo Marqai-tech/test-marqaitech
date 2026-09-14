@@ -74,7 +74,7 @@ interface Company {
 }
 
 // --- Tab Type ---
-type ReportTab = 'register' | 'statutory' | 'dashboard' | 'standard';
+type ReportTab = 'register' | 'statutory' | 'dashboard' | 'standard' | 'variance';
 type StatutoryType = 'PF' | 'ESI' | 'PT' | 'TDS' | 'LWF';
 
 // --- Currency ---
@@ -146,6 +146,51 @@ export default function PayrollReportsPage() {
 
   // Dashboard state
   const [dashboardCompanyId, setDashboardCompanyId] = useState('');
+
+  // Variance state
+  interface VarianceRow { employeeId: string; empCode: string; name: string; department: string; currentNet: number; previousNet: number; delta: number; variancePct: number; flagged: boolean }
+  const [varianceRunId, setVarianceRunId] = useState('');
+  const [varianceRuns, setVarianceRuns] = useState<Array<{ id: string; payrollPeriod: string; runStatus: string; runType: string }>>([]);
+  const [varianceData, setVarianceData] = useState<VarianceRow[]>([]);
+  const [varianceMeta, setVarianceMeta] = useState<{ payrollPeriod?: string; previousPeriod?: string; thresholdPct?: number; flaggedCount?: number; governance?: string }>({});
+  const [varianceLoading, setVarianceLoading] = useState(false);
+
+  const loadVarianceRuns = useCallback(async () => {
+    try {
+      const res = await fetch('/api/payroll/runs?limit=25', { headers: getAuthHeaders() });
+      const json = await res.json();
+      if (res.ok) setVarianceRuns((json.data || []).slice(0, 25));
+    } catch { /* non-fatal */ }
+  }, []);
+
+  const loadVariance = useCallback(async () => {
+    if (!varianceRunId) { toast.error('Select a payroll run first'); return; }
+    setVarianceLoading(true);
+    try {
+      const res = await fetch(`/api/payroll/reports/variance?runId=${varianceRunId}`, { headers: getAuthHeaders() });
+      const json = await res.json();
+      if (res.ok) {
+        setVarianceData(json.data || []);
+        setVarianceMeta(json);
+      } else toast.error(json.error || 'Failed to load variance');
+    } catch { toast.error('Failed to load variance'); }
+    finally { setVarianceLoading(false); }
+  }, [varianceRunId]);
+
+  const persistVarianceAnomalies = async () => {
+    if (!varianceRunId) return;
+    try {
+      const res = await fetch('/api/payroll/reports/variance', {
+        method: 'POST', headers: getAuthHeaders(),
+        body: JSON.stringify({ runId: varianceRunId, persist: true }),
+      });
+      const json = await res.json();
+      if (res.ok) toast.success(json.message || 'Anomalies recorded');
+      else toast.error(json.error || 'Failed to record anomalies');
+    } catch { toast.error('Failed to record anomalies'); }
+  };
+
+  useEffect(() => { if (activeTab === 'variance') loadVarianceRuns(); }, [activeTab, loadVarianceRuns]);
 
   // Sync company selections with global company switcher on hydration
   useEffect(() => {
@@ -325,6 +370,7 @@ export default function PayrollReportsPage() {
         {([
           { key: 'register', label: 'Salary Register', icon: FiDatabase },
           { key: 'statutory', label: 'Statutory Reports', icon: FiShield },
+          { key: 'variance', label: 'Variance Report', icon: FiAlertTriangle },
           { key: 'standard', label: 'Standard Reports', icon: FiFile },
           { key: 'dashboard', label: 'Payroll Dashboard', icon: FiBarChart2 },
         ] as { key: ReportTab; label: string; icon: React.ComponentType<{ className?: string }> }[]).map(tab => {
@@ -668,6 +714,101 @@ export default function PayrollReportsPage() {
       )}
 
       {/* ========== PAYROLL DASHBOARD ========== */}
+      {/* ========== VARIANCE REPORT ========== */}
+      {activeTab === 'variance' && (
+        <div className="space-y-4">
+          <div className="thb-card p-4">
+            <div className="flex flex-col sm:flex-row gap-3 items-end flex-wrap">
+              <div className="min-w-[280px] flex-1">
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Payroll Run</label>
+                <select
+                  value={varianceRunId}
+                  onChange={(e) => setVarianceRunId(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
+                >
+                  <option value="">— Select a payroll run —</option>
+                  {varianceRuns.map(r => (
+                    <option key={r.id} value={r.id}>{r.payrollPeriod} · {r.runType} · {r.runStatus}</option>
+                  ))}
+                </select>
+              </div>
+              <button
+                onClick={loadVariance}
+                disabled={varianceLoading}
+                className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 font-medium text-sm shadow-sm shadow-green-500/25 transition-colors whitespace-nowrap"
+              >
+                {varianceLoading ? <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" /> : <FiTrendingUp className="w-4 h-4" />}
+                Compare vs Previous Month
+              </button>
+              {varianceData.length > 0 && (
+                <button
+                  onClick={persistVarianceAnomalies}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-rose-500 text-white rounded-lg hover:bg-rose-600 font-medium text-sm shadow-sm shadow-rose-500/25 transition-colors whitespace-nowrap"
+                >
+                  <FiAlertTriangle className="w-4 h-4" />
+                  Record Flagged as Review Items
+                </button>
+              )}
+            </div>
+            {varianceMeta.governance && (
+              <p className={`mt-3 text-xs font-medium flex items-center gap-1.5 ${(varianceMeta.flaggedCount || 0) > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                <FiAlertTriangle className="w-3.5 h-3.5" />
+                {varianceMeta.governance}
+                {varianceMeta.previousPeriod && <span className="text-thb-text-muted font-normal ml-2">({varianceMeta.previousPeriod} → {varianceMeta.payrollPeriod} · threshold {varianceMeta.thresholdPct}%)</span>}
+              </p>
+            )}
+          </div>
+
+          {varianceData.length > 0 && (
+            <div className="thb-card overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-thb-border bg-slate-50/60">
+                      <th className="text-left px-4 py-2.5 text-xs font-semibold text-thb-text-secondary">Employee</th>
+                      <th className="text-left px-4 py-2.5 text-xs font-semibold text-thb-text-secondary">Department</th>
+                      <th className="text-right px-4 py-2.5 text-xs font-semibold text-thb-text-secondary">Previous Net ({varianceMeta.previousPeriod || '—'})</th>
+                      <th className="text-right px-4 py-2.5 text-xs font-semibold text-thb-text-secondary">Current Net ({varianceMeta.payrollPeriod || '—'})</th>
+                      <th className="text-right px-4 py-2.5 text-xs font-semibold text-thb-text-secondary">Δ (₹)</th>
+                      <th className="text-right px-4 py-2.5 text-xs font-semibold text-thb-text-secondary">Variance %</th>
+                      <th className="text-center px-4 py-2.5 text-xs font-semibold text-thb-text-secondary">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {varianceData.map(row => (
+                      <tr key={row.employeeId} className={`border-b border-thb-border/40 ${row.flagged ? 'bg-rose-50/60' : 'hover:bg-slate-50/50'}`}>
+                        <td className="px-4 py-2">
+                          <span className="font-medium text-thb-text-primary">{row.name || '—'}</span>
+                          <span className="block text-[11px] text-thb-text-muted">{row.empCode}</span>
+                        </td>
+                        <td className="px-4 py-2 text-thb-text-secondary">{row.department}</td>
+                        <td className="px-4 py-2 text-right text-thb-text-secondary">{fmtCurrency(row.previousNet)}</td>
+                        <td className="px-4 py-2 text-right font-medium text-thb-text-primary">{fmtCurrency(row.currentNet)}</td>
+                        <td className={`px-4 py-2 text-right font-medium ${row.delta < 0 ? 'text-rose-600' : 'text-emerald-600'}`}>{row.delta >= 0 ? '+' : ''}{fmtCurrency(row.delta)}</td>
+                        <td className={`px-4 py-2 text-right font-bold ${Math.abs(row.variancePct) > (varianceMeta.thresholdPct || 5) ? 'text-rose-600' : 'text-emerald-600'}`}>
+                          {row.variancePct >= 0 ? '+' : ''}{row.variancePct}%
+                        </td>
+                        <td className="px-4 py-2 text-center">
+                          {row.flagged ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 text-[11px] font-medium">
+                              <FiAlertTriangle className="w-3 h-3" /> Review + Finance Approval
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[11px] font-medium">
+                              <FiCheckCircle className="w-3 h-3" /> Within threshold
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {activeTab === 'dashboard' && (
         <div className="space-y-4">
           {/* Company Filter */}

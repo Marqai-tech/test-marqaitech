@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import {
   FiPlus, FiX, FiTrash2, FiEye, FiEdit2,
-  FiFileText, FiSearch, FiCheckCircle, FiClock, FiStar,
+  FiFileText, FiSearch, FiCheckCircle, FiClock, FiStar, FiShield,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
@@ -146,6 +146,7 @@ export default function CTCTemplatesPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [presetLoading, setPresetLoading] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [viewingTemplate, setViewingTemplate] = useState<CTCTemplate | null>(null);
@@ -202,6 +203,24 @@ export default function CTCTemplatesPage() {
   });
 
   // --- Handlers ---
+  const applyIndiaPreset = async () => {
+    const targetCompany = cid || (templates[0] as Record<string, unknown> | undefined)?.companyId;
+    if (!targetCompany) { toast.error('Select a company first'); return; }
+    setPresetLoading(true);
+    try {
+      const res = await fetch('/api/payroll/ctc-templates/preset-india', {
+        method: 'POST', headers: getAuthHeaders(),
+        body: JSON.stringify({ companyId: targetCompany, makeDefault: false }),
+      });
+      const json = await res.json();
+      if (res.ok) {
+        toast.success(json.message || 'India CTC preset created');
+        fetchData();
+      } else toast.error(json.error || 'Failed to create India preset');
+    } catch { toast.error('Failed to create India preset'); }
+    finally { setPresetLoading(false); }
+  };
+
   const handleAddNew = () => {
     setForm({ ...emptyForm });
     setMappings([{ ...emptyComponentMapping }]);
@@ -361,12 +380,21 @@ export default function CTCTemplatesPage() {
           <p className="text-thb-text-secondary mt-1">Configure CTC breakdown templates with component mappings</p>
         </div>
         {isAdmin && (
-          <button
-            onClick={handleAddNew}
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-500 text-white rounded-lg hover:bg-green-600 font-medium text-sm shadow-sm shadow-green-500/25 transition-colors"
-          >
-            <FiPlus className="w-4 h-4" /> Add Template
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={applyIndiaPreset}
+              disabled={presetLoading}
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-100 font-medium text-sm transition-colors disabled:opacity-50"
+            >
+              <FiShield className="w-4 h-4" /> {presetLoading ? 'Creating…' : 'Apply India Preset'}
+            </button>
+            <button
+              onClick={handleAddNew}
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-500 text-white rounded-lg hover:bg-green-600 font-medium text-sm shadow-sm shadow-green-500/25 transition-colors"
+            >
+              <FiPlus className="w-4 h-4" /> Add Template
+            </button>
+          </div>
         )}
       </div>
 

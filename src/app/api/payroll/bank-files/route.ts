@@ -1,6 +1,7 @@
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { NextRequest } from 'next/server';
+import { createHash } from 'crypto';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -57,6 +58,7 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const { payrollRunId, fileFormat = 'NACH', bankCode, companyId } = body;
+    const encrypt = body.encrypt === true;
 
     if (!payrollRunId) {
       return Response.json({ error: 'payrollRunId is required' }, { status: 400, headers: corsHeaders });
@@ -194,6 +196,47 @@ export async function POST(request: NextRequest) {
 
       fileContent = JSON.stringify({ header: headerRecord, records: fileRecords, trailer: { recordType: 'TRL', totalRecords, totalAmount: totalAmount.toFixed(2) } }, null, 2);
 
+    } else if (format === 'HDFC' || format === 'ICICI' || format === 'SBI') {
+      // ─── Bank-specific salary advice files (prevent manual tampering) ───
+      // CSV layout accepted by the bank's corporate portal bulk-upload:
+      //  HDFC  : Debit Account No, Beneficiary Name, Beneficiary A/C, IFSC, Amount, Narration, Payable Location Code, Ref No
+      //  ICICI : Sr No, Beneficiary Name, Beneficiary A/C, IFSC, Amount, Payment Date, Remarks, Payee Email, Payee Mobile
+      //  SBI   : Debit Account, Beneficiary Name, Beneficiary A/C, IFSC, Amount, Payment Mode, Purpose, Reference
+      const debitAccount = body.debitAccount || payrollRun.legalEntityId;
+      const payDate = (body.payDate || new Date().toISOString().slice(0, 10)).replace(/-/g, '');
+      const headerRow = format === 'HDFC'
+        ? 'Debit Account No,Beneficiary Name,Beneficiary Account No,IFSC Code,Amount,Narration,Payable Location Code,Reference No'
+        : format === 'ICICI'
+          ? 'Sr No,Beneficiary Name,Beneficiary Account No,IFSC Code,Amount,Payment Date,Remarks,Payee Email,Payee Mobile'
+          : 'Debit Account,Beneficiary Name,Beneficiary Account No,IFSC Code,Amount,Payment Mode,Purpose,Reference';
+      const csvRows: string[] = [headerRow];
+      let sr = 0;
+      for (const [empId, payData] of Object.entries(employeeMap)) {
+        const emp = employeeLookup[empId];
+        if (!emp || payData.net <= 0) continue;
+        const paymentMethod = emp.employeePaymentMethods?.[0];
+        const bankAccountNo = paymentMethod?.bankAccountNo || emp.bankAccountNo;
+        const bankIfscCode = paymentMethod?.bankIfscCode || emp.bankIfscCode;
+        if (!bankAccountNo || !bankIfscCode) continue;
+        totalAmount += payData.net;
+        totalRecords++;
+        sr++;
+        const ref = `SAL${payrollRun.payrollPeriod.replace('-', '')}${emp.employeeId}`;
+        if (format === 'HDFC') {
+          csvRows.push([debitAccount, `${emp.firstName} ${emp.lastName}`, bankAccountNo, bankIfscCode, payData.net.toFixed(2), `SALARY ${payrollRun.payrollPeriod}`, body.locationCode || 'MUM', ref].map(v => `,${v}`).join('').slice(1));
+        } else if (format === 'ICICI') {
+          csvRows.push([String(sr), `${emp.firstName} ${emp.lastName}`, bankAccountNo, bankIfscCode, payData.net.toFixed(2), payDate, `Salary ${payrollRun.payrollPeriod}`, emp.email || '', emp.phone || ''].map(v => `,${v}`).join('').slice(1));
+        } else {
+          csvRows.push([debitAccount, `${emp.firstName} ${emp.lastName}`, bankAccountNo, bankIfscCode, payData.net.toFixed(2), 'NEFT', 'SALARY', ref].map(v => `,${v}`).join('').slice(1));
+        }
+      }
+      // Trailer + SHA-256 checksum line (anti-tamper)
+      const trailer = `TRAILER,Records:${totalRecords},TotalAmount:${totalAmount.toFixed(2)},Period:${payrollRun.payrollPeriod}`;
+      const checksum = createHash('sha256').update([...csvRows, trailer].join('\n')).digest('hex');
+      csvRows.push(trailer);
+      csvRows.push(`CHECKSUM-SHA256,${checksum}`);
+      fileContent = csvRows.join('\n');
+
     } else if (format === 'NEFT') {
       // NEFT format
       for (const [empId, payData] of Object.entries(employeeMap)) {
@@ -265,7 +308,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Create the bank payment file record
-    const fileName = `${format}_${payrollRun.payrollPeriod}_${new Date().toISOString().split('T')[0]}.json`;
+    const ext = ['HDFC', 'ICICI', 'SBI'].includes(format) ? 'csv' : 'json';
+    const fileName = `${format}_${payrollRun.payrollPeriod}_${new Date().toISOString().split('T')[0]}.${ext}`;
     try {
       const bankFile = await db.bankPaymentFile.create({
         data: {
@@ -275,12 +319,36 @@ export async function POST(request: NextRequest) {
           bankCode: bankCode || null,
           totalAmount,
           totalRecords,
-          fileContent,
+          fileContent: encrypt ? Buffer.from(fileContent, 'utf-8').toString('base64') : fileContent,
           generatedBy: decoded.userId as string,
           status: 'generated',
           companyId: companyId || null,
         },
       });
+
+      // Notification: finance/payroll team alerted that the bank advice file is ready
+      try {
+        const tenantId = (decoded as Record<string, unknown>).tenantId as string | undefined;
+        if (tenantId) {
+          const { dispatchNotification, resolveRoleRecipients } = await import('@/lib/notification-center');
+          const financeIds = await resolveRoleRecipients(db, ['finance_head', 'finance_controller', 'payroll_admin', 'admin', 'tenant_admin'], 10);
+          if (financeIds.length) {
+            await dispatchNotification({
+              tenantId,
+              module: 'payroll',
+              eventKey: 'payroll.bankfile.ready',
+              recipients: financeIds.map((pid) => ({ userId: pid })),
+              vars: {
+                Pay_Period: payrollRun.payrollPeriod,
+                Bank_Name: format,
+                Record_Count: String(totalRecords),
+                Total_Amount: `₹${totalAmount.toLocaleString('en-IN')}`,
+              },
+              entity: { type: 'bank_payment_file', id: bankFile.id, link: '/payroll/bank-files' },
+            });
+          }
+        }
+      } catch { /* non-fatal */ }
 
       return Response.json({
         data: bankFile,
