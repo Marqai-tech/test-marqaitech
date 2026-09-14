@@ -1,0 +1,168 @@
+▲ Next.js 16.2.7 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://21.0.10.79:3000
+- Environments: .env
+✓ Ready in 331ms
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+
+[3Boxes DB] Connecting to: postgresql://***:***@ep-blue-fire-aqk8jxd2-pooler.c-8.us-east-1.aws.neon.tech/ne...
+[TenantDB] Routing to dedicated DB "tenant_3boxes-hrms-demo" for tenant "3boxes-hrms-demo"
+ POST /api/auth/login?tenant=3boxes-hrms-demo 200 in 6.2s (next.js: 406ms, proxy.ts: 64ms, application-code: 5.8s)
+[NotificationCenter] channel email failed for Admin: 
+Invalid `db.notificationDelivery.create()` invocation in
+/home/z/my-project/.next/dev/server/chunks/[root-of-the-server]__0cbf55b._.js:2267:52
+
+  2264 const smsText = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$notification$2d$render$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["renderPlaceholders"])(tpl.bodySms || tpl.body, vars);
+  2265 const link = ctx.actionUrl || (entity?.link ? `${ctx.baseUrl}${entity.link}` : '');
+  2266 // Record the delivery first (so tokens exist before the email is built)
+→ 2267 const delivery = await db.notificationDelivery.create(
+Unique constraint failed on the fields: (`"actionToken"`) P2002 Invalid `db.notificationDelivery.create()` invocation in
+[NotificationCenter] channel email failed for Admin (Acme Global): 
+Invalid `db.notificationDelivery.create()` invocation in
+/home/z/my-project/.next/dev/server/chunks/[root-of-the-server]__0cbf55b._.js:2267:52
+
+  2264 const smsText = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$notification$2d$render$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["renderPlaceholders"])(tpl.bodySms || tpl.body, vars);
+  2265 const link = ctx.actionUrl || (entity?.link ? `${ctx.baseUrl}${entity.link}` : '');
+  2266 // Record the delivery first (so tokens exist before the email is built)
+→ 2267 const delivery = await db.notificationDelivery.create(
+Unique constraint failed on the fields: (`"actionToken"`) P2002 Invalid `db.notificationDelivery.create()` invocation in
+[NotificationCenter] channel email failed for Admin (GlobalHR): 
+Invalid `db.notificationDelivery.create()` invocation in
+/home/z/my-project/.next/dev/server/chunks/[root-of-the-server]__0cbf55b._.js:2267:52
+
+  2264 const smsText = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$notification$2d$render$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["renderPlaceholders"])(tpl.bodySms || tpl.body, vars);
+  2265 const link = ctx.actionUrl || (entity?.link ? `${ctx.baseUrl}${entity.link}` : '');
+  2266 // Record the delivery first (so tokens exist before the email is built)
+→ 2267 const delivery = await db.notificationDelivery.create(
+Unique constraint failed on the fields: (`"actionToken"`) P2002 Invalid `db.notificationDelivery.create()` invocation in
+[NotificationCenter] channel email failed for Admin (TechStart): 
+Invalid `db.notificationDelivery.create()` invocation in
+/home/z/my-project/.next/dev/server/chunks/[root-of-the-server]__0cbf55b._.js:2267:52
+
+  2264 const smsText = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$notification$2d$render$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["renderPlaceholders"])(tpl.bodySms || tpl.body, vars);
+  2265 const link = ctx.actionUrl || (entity?.link ? `${ctx.baseUrl}${entity.link}` : '');
+  2266 // Record the delivery first (so tokens exist before the email is built)
+→ 2267 const delivery = await db.notificationDelivery.create(
+Unique constraint failed on the fields: (`"actionToken"`) P2002 Invalid `db.notificationDelivery.create()` invocation in
+[NotificationCenter] channel email failed for Tenant Admin: 
+Invalid `db.notificationDelivery.create()` invocation in
+/home/z/my-project/.next/dev/server/chunks/[root-of-the-server]__0cbf55b._.js:2267:52
+
+  2264 const smsText = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$notification$2d$render$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["renderPlaceholders"])(tpl.bodySms || tpl.body, vars);
+  2265 const link = ctx.actionUrl || (entity?.link ? `${ctx.baseUrl}${entity.link}` : '');
+  2266 // Record the delivery first (so tokens exist before the email is built)
+→ 2267 const delivery = await db.notificationDelivery.create(
+Unique constraint failed on the fields: (`"actionToken"`) P2002 Invalid `db.notificationDelivery.create()` invocation in
+ POST /api/leave?tenant=3boxes-hrms-demo 201 in 17.0s (next.js: 54ms, proxy.ts: 6ms, application-code: 16.9s)
+ GET /login 200 in 484ms (next.js: 130ms, proxy.ts: 8ms, application-code: 345ms)
+⚠ Blocked cross-origin request to Next.js dev resource /_next/static/chunks/%5Broot-of-the-server%5D__146d930._.css from an unknown source.
+Cross-origin access to Next.js dev resources is blocked by default for safety.
+
+This request did not include an allowlistable source host.
+If you need it to succeed, make sure the browser sends an Origin or Referer from a host listed in "allowedDevOrigins".
+
+Read more: https://nextjs.org/docs/app/api-reference/config/next-config-js/allowedDevOrigins
+ GET /login 200 in 77ms (next.js: 3ms, proxy.ts: 5ms, application-code: 68ms)
+ POST /api/auth/login?tenant=3boxes-hrms-demo 200 in 4.8s (next.js: 4ms, proxy.ts: 5ms, application-code: 4.8s)
+[NotificationCenter] delivery.create failed for email: {"message":"\nInvalid `prisma.notificationDelivery.create()` invocation:\n\n\nUnique constraint failed on the fields: (`\"actionToken\"`)","code":"P2002","meta":{"modelName":"NotificationDelivery","driverAdapterError":{"name":"DriverAdapterError","cause":{"originalCode":"23505","originalMessage":"duplicate key value violates unique constraint \"NotificationDelivery_actionToken_key\"","kind":"UniqueConstraintViolation","constraint":{"fields":["\"actionToken\""]}}}},"stack":"PrismaClientKnownRequestError: \nInvalid `prisma.notificationDelivery.create()` invocation:\n\n\nUnique constraint failed on the fields: (`\"actionToken\"`)\n    at zr.handleRequestError (/home/z/my-project/node_modules/@prisma/client/runtime/client.js:65:8286)\n    at zr.handleAndLogRequestError (/home/z/my-project/node_modules/@prisma/client/runtime/client.js:65:7581)\n    at zr.request (/home/z/my-proje"}
+[NotificationCenter] channel email failed for Admin: 
+Invalid `prisma.notificationDelivery.create()` invocation:
+
+
+Unique constraint failed on the fields: (`"actionToken"`) P2002 Invalid `prisma.notificationDelivery.create()` invocation:
+[NotificationCenter] delivery.create failed for email: {"message":"\nInvalid `prisma.notificationDelivery.create()` invocation:\n\n\nUnique constraint failed on the fields: (`\"actionToken\"`)","code":"P2002","meta":{"modelName":"NotificationDelivery","driverAdapterError":{"name":"DriverAdapterError","cause":{"originalCode":"23505","originalMessage":"duplicate key value violates unique constraint \"NotificationDelivery_actionToken_key\"","kind":"UniqueConstraintViolation","constraint":{"fields":["\"actionToken\""]}}}},"stack":"PrismaClientKnownRequestError: \nInvalid `prisma.notificationDelivery.create()` invocation:\n\n\nUnique constraint failed on the fields: (`\"actionToken\"`)\n    at zr.handleRequestError (/home/z/my-project/node_modules/@prisma/client/runtime/client.js:65:8286)\n    at zr.handleAndLogRequestError (/home/z/my-project/node_modules/@prisma/client/runtime/client.js:65:7581)\n    at zr.request (/home/z/my-proje"}
+[NotificationCenter] channel email failed for Admin (Acme Global): 
+Invalid `prisma.notificationDelivery.create()` invocation:
+
+
+Unique constraint failed on the fields: (`"actionToken"`) P2002 Invalid `prisma.notificationDelivery.create()` invocation:
+[NotificationCenter] delivery.create failed for email: {"message":"\nInvalid `prisma.notificationDelivery.create()` invocation:\n\n\nUnique constraint failed on the fields: (`\"actionToken\"`)","code":"P2002","meta":{"modelName":"NotificationDelivery","driverAdapterError":{"name":"DriverAdapterError","cause":{"originalCode":"23505","originalMessage":"duplicate key value violates unique constraint \"NotificationDelivery_actionToken_key\"","kind":"UniqueConstraintViolation","constraint":{"fields":["\"actionToken\""]}}}},"stack":"PrismaClientKnownRequestError: \nInvalid `prisma.notificationDelivery.create()` invocation:\n\n\nUnique constraint failed on the fields: (`\"actionToken\"`)\n    at zr.handleRequestError (/home/z/my-project/node_modules/@prisma/client/runtime/client.js:65:8286)\n    at zr.handleAndLogRequestError (/home/z/my-project/node_modules/@prisma/client/runtime/client.js:65:7581)\n    at zr.request (/home/z/my-proje"}
+[NotificationCenter] channel email failed for Admin (GlobalHR): 
+Invalid `prisma.notificationDelivery.create()` invocation:
+
+
+Unique constraint failed on the fields: (`"actionToken"`) P2002 Invalid `prisma.notificationDelivery.create()` invocation:
+[NotificationCenter] delivery.create failed for email: {"message":"\nInvalid `prisma.notificationDelivery.create()` invocation:\n\n\nUnique constraint failed on the fields: (`\"actionToken\"`)","code":"P2002","meta":{"modelName":"NotificationDelivery","driverAdapterError":{"name":"DriverAdapterError","cause":{"originalCode":"23505","originalMessage":"duplicate key value violates unique constraint \"NotificationDelivery_actionToken_key\"","kind":"UniqueConstraintViolation","constraint":{"fields":["\"actionToken\""]}}}},"stack":"PrismaClientKnownRequestError: \nInvalid `prisma.notificationDelivery.create()` invocation:\n\n\nUnique constraint failed on the fields: (`\"actionToken\"`)\n    at zr.handleRequestError (/home/z/my-project/node_modules/@prisma/client/runtime/client.js:65:8286)\n    at zr.handleAndLogRequestError (/home/z/my-project/node_modules/@prisma/client/runtime/client.js:65:7581)\n    at zr.request (/home/z/my-proje"}
+[NotificationCenter] channel email failed for Admin (TechStart): 
+Invalid `prisma.notificationDelivery.create()` invocation:
+
+
+Unique constraint failed on the fields: (`"actionToken"`) P2002 Invalid `prisma.notificationDelivery.create()` invocation:
+[NotificationCenter] delivery.create failed for email: {"message":"\nInvalid `prisma.notificationDelivery.create()` invocation:\n\n\nUnique constraint failed on the fields: (`\"actionToken\"`)","code":"P2002","meta":{"modelName":"NotificationDelivery","driverAdapterError":{"name":"DriverAdapterError","cause":{"originalCode":"23505","originalMessage":"duplicate key value violates unique constraint \"NotificationDelivery_actionToken_key\"","kind":"UniqueConstraintViolation","constraint":{"fields":["\"actionToken\""]}}}},"stack":"PrismaClientKnownRequestError: \nInvalid `prisma.notificationDelivery.create()` invocation:\n\n\nUnique constraint failed on the fields: (`\"actionToken\"`)\n    at zr.handleRequestError (/home/z/my-project/node_modules/@prisma/client/runtime/client.js:65:8286)\n    at zr.handleAndLogRequestError (/home/z/my-project/node_modules/@prisma/client/runtime/client.js:65:7581)\n    at zr.request (/home/z/my-proje"}
+[NotificationCenter] channel email failed for Tenant Admin: 
+Invalid `prisma.notificationDelivery.create()` invocation:
+
+
+Unique constraint failed on the fields: (`"actionToken"`) P2002 Invalid `prisma.notificationDelivery.create()` invocation:
+ POST /api/leave?tenant=3boxes-hrms-demo 201 in 16.6s (next.js: 6ms, proxy.ts: 4ms, application-code: 16.6s)
+[3Boxes DB] Connecting to: postgresql://***:***@ep-blue-fire-aqk8jxd2-pooler.c-8.us-east-1.aws.neon.tech/ne...
+[TenantDB] Routing to dedicated DB "tenant_3boxes-hrms-demo" for tenant "3boxes-hrms-demo"
+ POST /api/auth/login?tenant=3boxes-hrms-demo 200 in 5.1s (next.js: 5ms, proxy.ts: 7ms, application-code: 5.1s)
+[EmailService] RESEND_API_KEY not set — emails will be logged only.
+[EmailService DEV] To: admin@3boxeshrms.com | Subject: Leave request: Arjun Kumar (Sick Leave, 11 Oct 2027 → 12 Oct 2027)
+[EmailService DEV] From: onboarding@resend.dev
+[EmailService] RESEND_API_KEY not set — emails will be logged only.
+[EmailService DEV] To: admin@acme-global.com | Subject: Leave request: Arjun Kumar (Sick Leave, 11 Oct 2027 → 12 Oct 2027)
+[EmailService DEV] From: onboarding@resend.dev
+[EmailService] RESEND_API_KEY not set — emails will be logged only.
+[EmailService DEV] To: admin@globalhr.com | Subject: Leave request: Arjun Kumar (Sick Leave, 11 Oct 2027 → 12 Oct 2027)
+[EmailService DEV] From: onboarding@resend.dev
+[EmailService] RESEND_API_KEY not set — emails will be logged only.
+[EmailService DEV] To: admin@techstart.com | Subject: Leave request: Arjun Kumar (Sick Leave, 11 Oct 2027 → 12 Oct 2027)
+[EmailService DEV] From: onboarding@resend.dev
+[EmailService] RESEND_API_KEY not set — emails will be logged only.
+[EmailService DEV] To: admin@marqaitechgroup.com | Subject: Leave request: Arjun Kumar (Sick Leave, 11 Oct 2027 → 12 Oct 2027)
+[EmailService DEV] From: onboarding@resend.dev
+ POST /api/leave?tenant=3boxes-hrms-demo 201 in 16.6s (next.js: 4ms, proxy.ts: 6ms, application-code: 16.6s)
+ POST /api/auth/login?tenant=3boxes-hrms-demo 200 in 3.6s (next.js: 7ms, proxy.ts: 7ms, application-code: 3.6s)
+ GET /api/notifications/log?tenant=3boxes-hrms-demo&limit=25 200 in 1145ms (next.js: 45ms, proxy.ts: 3ms, application-code: 1097ms)
+ POST /api/auth/login?tenant=3boxes-hrms-demo 200 in 4.8s (next.js: 5ms, proxy.ts: 6ms, application-code: 4.8s)
+[3Boxes DB] Connecting to: postgresql://***:***@ep-blue-fire-aqk8jxd2-pooler.c-8.us-east-1.aws.neon.tech/ne...
+ GET /api/notifications/action/ntf_19214b4759d94ca2a1dc52d37294d01emu1g7ixc?tenant=3boxes-hrms-demo 200 in 2.4s (next.js: 1053ms, proxy.ts: 3ms, application-code: 1313ms)
+[3Boxes DB] Connecting to: postgresql://***:***@ep-blue-fire-aqk8jxd2-pooler.c-8.us-east-1.aws.neon.tech/ne...
+ POST /api/notifications/action/ntf_19214b4759d94ca2a1dc52d37294d01emu1g7ixc?tenant=3boxes-hrms-demo 200 in 3.1s (next.js: 30ms, proxy.ts: 3ms, application-code: 3.1s)
+ POST /api/notifications/action/ntf_19214b4759d94ca2a1dc52d37294d01emu1g7ixc?tenant=3boxes-hrms-demo 409 in 242ms (next.js: 26ms, proxy.ts: 3ms, application-code: 213ms)
+[3Boxes DB] Connecting to: postgresql://***:***@ep-blue-fire-aqk8jxd2-pooler.c-8.us-east-1.aws.neon.tech/ne...
+○ Compiling /notifications/action/[token] ...
+ GET /notifications/action/nonexistent?tenant=3boxes-hrms-demo 200 in 4.2s (next.js: 4.0s, proxy.ts: 8ms, application-code: 162ms)
+ GET /login 200 in 352ms (next.js: 19ms, proxy.ts: 39ms, application-code: 294ms)
+[3Boxes DB] Connecting to: postgresql://***:***@ep-blue-fire-aqk8jxd2-pooler.c-8.us-east-1.aws.neon.tech/ne...
+ GET /api/notifications/action/nonexistent?tenant=3boxes-hrms-demo 404 in 1089ms (next.js: 129ms, proxy.ts: 30ms, application-code: 931ms)
+ POST /api/auth/login?tenant=3boxes-hrms-demo 200 in 4.9s (next.js: 6ms, proxy.ts: 4ms, application-code: 4.9s)
+ GET /login?tenant=3boxes-hrms-demo 200 in 80ms (next.js: 3ms, proxy.ts: 3ms, application-code: 74ms)
+ POST /api/fix-tenant 200 in 717ms (next.js: 487ms, proxy.ts: 7ms, application-code: 223ms)
+○ Compiling /api/fix-tenant ...
+ GET /notifications/center?tenant=3boxes-hrms-demo 200 in 3.7s (next.js: 3.3s, proxy.ts: 26ms, application-code: 321ms)
+ GET /api/auth/me 200 in 3.1s (next.js: 379ms, proxy.ts: 58ms, application-code: 2.7s)
+ GET /api/auth/me 200 in 2.1s (next.js: 13ms, proxy.ts: 11ms, application-code: 2.0s)
+ GET /api/notifications/webhooks 200 in 2.0s (next.js: 1492ms, proxy.ts: 25ms, application-code: 513ms)
+ POST /api/fix-tenant 200 in 1300ms (next.js: 95ms, proxy.ts: 19ms, application-code: 1187ms)
+ GET /api/notifications/log?limit=25 200 in 1574ms (next.js: 203ms, proxy.ts: 25ms, application-code: 1346ms)
+[DB Push] Starting database schema push...
+ GET /api/notifications/summary 200 in 3.9s (next.js: 1733ms, proxy.ts: 7ms, application-code: 2.2s)
+ GET /api/notifications/webhooks 200 in 518ms (next.js: 19ms, proxy.ts: 17ms, application-code: 481ms)
+ GET /api/notifications/templates 200 in 4.1s (next.js: 2.4s, proxy.ts: 17ms, application-code: 1628ms)
+ GET /api/notifications/log?limit=25 200 in 483ms (next.js: 5ms, proxy.ts: 4ms, application-code: 475ms)
+ GET /api/notifications?limit=20 200 in 910ms (next.js: 419ms, proxy.ts: 12ms, application-code: 479ms)
+ GET /api/rbac/my-permissions 200 in 5.1s (next.js: 974ms, proxy.ts: 9ms, application-code: 4.1s)
+ PATCH /api/notifications 401 in 21ms (next.js: 2ms, proxy.ts: 14ms, application-code: 5ms)
+ GET /api/notifications/summary 200 in 1268ms (next.js: 56ms, proxy.ts: 6ms, application-code: 1206ms)
+ GET /api/notifications/templates 200 in 895ms (next.js: 4ms, proxy.ts: 3ms, application-code: 888ms)
+[me/context] GOLDEN RULE: Scrubbing hidden tenant "3boxes-hrms-demo" from response tenant field
+[me/context] GOLDEN RULE FINAL: siteMode=live, hiddenSlugs=[3boxes-hrms-demo,3boxeshrms,3boxes-corp,acme-global-demo,zenith-retail-demo,nova-tech-demo], tenants=0, groups=0, companies=0, tenantSlug=3boxes-hrms-demo, envMode=unset
+ GET /api/me/context 200 in 6.9s (next.js: 2.5s, proxy.ts: 6ms, application-code: 4.4s)
+ GET /api/rbac/my-permissions 200 in 2.9s (next.js: 7ms, proxy.ts: 6ms, application-code: 2.9s)
+ GET /api/notifications?limit=20 200 in 1754ms (next.js: 6ms, proxy.ts: 4ms, application-code: 1744ms)
+[browser] Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.
+[browser] Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.
+ POST /api/db-push 200 in 34.3s (next.js: 226ms, proxy.ts: 16ms, application-code: 34.0s)
+ GET /api/notifications?limit=20 200 in 1775ms (next.js: 17ms, proxy.ts: 3ms, application-code: 1754ms)
+ GET /api/notifications?limit=20 200 in 1771ms (next.js: 3ms, proxy.ts: 3ms, application-code: 1764ms)
+ GET /api/notifications?limit=20 200 in 1708ms (next.js: 4ms, proxy.ts: 7ms, application-code: 1696ms)
+ GET /api/notifications?limit=20 200 in 1737ms (next.js: 3ms, proxy.ts: 3ms, application-code: 1731ms)
+ GET /api/notifications?limit=20 200 in 1736ms (next.js: 3ms, proxy.ts: 5ms, application-code: 1728ms)
+ GET /api/notifications?limit=20 200 in 1782ms (next.js: 3ms, proxy.ts: 4ms, application-code: 1776ms)
+ GET /api/notifications?limit=20 200 in 1750ms (next.js: 3ms, proxy.ts: 4ms, application-code: 1743ms)
+ GET /api/notifications?limit=20 200 in 1778ms (next.js: 3ms, proxy.ts: 8ms, application-code: 1767ms)
+ GET /api/notifications?limit=20 200 in 1740ms (next.js: 4ms, proxy.ts: 4ms, application-code: 1732ms)
+ GET /api/notifications?limit=20 200 in 1803ms (next.js: 4ms, proxy.ts: 6ms, application-code: 1793ms)

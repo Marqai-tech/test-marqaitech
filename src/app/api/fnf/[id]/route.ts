@@ -146,6 +146,25 @@ export async function PATCH(
           link: `/fnf/${id}`,
         });
       }
+      // Multi-channel F&F statement ready (Task 36)
+      if ((status === 'approved' || status === 'paid') && decoded.tenantId) {
+        try {
+          const { dispatchNotification } = await import('@/lib/notification-center');
+          await dispatchNotification({
+            tenantId: decoded.tenantId as string,
+            module: 'exit',
+            eventKey: 'exit.fnf.ready',
+            recipients: [{ userId: fnfCalculation.employee.userId, name: `${fnfCalculation.employee.firstName || ''} ${fnfCalculation.employee.lastName || ''}`.trim() }],
+            vars: {
+              LWD: '',
+              Net_Amount: `${fnfCalculation.netAmount ?? ''} ${fnfCalculation.currency || ''}`.trim(),
+              Fnf_Url: '',
+            },
+            entity: { type: 'fnf_calculation', id, link: `/fnf/${id}` },
+            origin: request.headers.get('origin') || undefined,
+          });
+        } catch { /* non-fatal */ }
+      }
     }
 
     await db.auditLog.create({
