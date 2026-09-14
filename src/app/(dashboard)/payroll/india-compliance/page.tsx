@@ -56,8 +56,11 @@ const FILING_FORMATS: Array<{ key: string; label: string; desc: string; authorit
 ];
 
 export default function IndiaCompliancePage() {
+  // Subscribe to the whole store so company-switcher changes re-render this page
   const { companies, effectiveCompanyId } = useCompanyContextStore();
-  const companyId = effectiveCompanyId || companies?.[0]?.id || '';
+  // effectiveCompanyId may be a selector function or a plain value depending on store version
+  const resolvedCompanyId = typeof effectiveCompanyId === 'function' ? effectiveCompanyId() : effectiveCompanyId;
+  const companyId = resolvedCompanyId || companies?.[0]?.id || '';
 
   const [config, setConfig] = useState<StatutoryConfig | null>(null);
   const [refInfo, setRefInfo] = useState<{ ptStates: string[]; notes: Record<string, string> } | null>(null);
