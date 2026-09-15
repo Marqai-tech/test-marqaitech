@@ -2459,3 +2459,23 @@ Stage Summary:
 - Demo tenant now has a WORKING SMTP provider configured in Collaboration → Settings → SMTP Email Config, and ALL module email notifications (57 events / 9 modules) deliver through it — proven end-to-end on production with a real leave-apply workflow.
 - Two systemic bugs fixed and deployed: string-recipient crash in email-sender (tenant SMTP was never actually reachable before) and platform-DB user lookups in both settings APIs (settings UI never showed tenant config).
 - To switch to real inbox delivery: paste Gmail/Office365/Resend credentials in the SMTP Email Config UI (identical code path), or verify a domain in the existing Resend account to unlock the global fallback.
+
+---
+Task ID: 42
+Agent: Super Z (main agent)
+Task: Answer user question "from a demo link when I apply a leave application can I see the email alert in the collaboration inbox of employee?" — live end-to-end verification of leave -> notification flow on demo
+
+Work Log:
+- Traced the three delivery surfaces in code: (1) in-app notification center (NotificationDelivery channel=in_app, bell icon + /notifications page), (2) outbound SMTP email (notification-center -> email-sender -> tenant SMTP = Ethereal on demo, NotificationDelivery channel=email), (3) Collaboration -> Email internal inbox (separate EmailMessage table, only written by the /api/email compose feature — notification dispatcher does NOT mirror into it).
+- Confirmed demo SMTP config still present (emailIntegrationEnabled=true, smtp.ethereal.email). The saved smtpVerifyError "Invalid login: 535" was stale/transient — direct transport.verify() with the stored credentials PASSED; no credential refresh needed.
+- LIVE TEST on nexus-hrms-mu.vercel.app (demo tenant only): logged in as Bala Mukherjee (employee), submitted leave via the same API the UI uses (Casual Leave, Innovatech Systems, 17-18 Sep 2026) after the browser form's native date inputs proved unreliable for automation. Leave created cmu2ngiic000904kz2sw68c7w (pending).
+- RESULT (NotificationDelivery): email -> Amit Reddy <amit.reddy@innovatech.demo> status=sent, subject "Leave request: Bala Mukherjee (Casual Leave, 17 Sept 2026 -> 18 Sept 2026)"; in_app -> Amit Reddy status=sent. Both channels fired within seconds.
+- Browser proof: logged in as Amit (manager) — bell badge shows the leave alert; /notifications page shows full actionable card ("You can approve or reject directly below", tags workflow/leave); Ethereal webmail (hvimvrfvzccgkyuj@ethereal.email) inbox shows the branded 3Boxes HTML email with From/Reply-To/To headers and working Approve/Reject action buttons expiring 22 Sept.
+- ANSWER captured with screenshots in download/: leave-email-ethereal-inbox.png, leave-email-ethereal-message.png, leave-inapp-amit-bell.png, leave-inapp-amit-center.png, leave-inapp-amit-center2.png, leave-collab-email-inbox.png.
+- KEY FINDING: the Collaboration -> Email inbox ("Email Inbox — Manage your HR communications and notifications") shows "No emails found" (EmailMessage table = 0 rows) — HR notification emails are NOT mirrored into the internal collaboration inbox. They go out as real SMTP mail to the recipient's mailbox + an in-app bell notification.
+- Test artifacts left in demo intentionally so the user can see them live (1 pending leave from Bala, 2 delivery rows, 2 login welcome notifications); can be cleaned on request.
+
+Stage Summary:
+- Leave-application notifications work end-to-end on the demo: manager receives BOTH a real SMTP email (viewable in Ethereal webmail with Approve/Reject buttons) and an in-app notification; the employee will receive approved/rejected alerts the same way.
+- The "collaboration inbox" (Collaboration -> Email) does NOT receive these alerts today — it is a separate internal email client. Offered to build a mirroring feature (copy every notification email into the recipient's internal EmailMessage inbox) if the user wants alerts visible there.
+- Real-employee-inbox delivery (Gmail/Outlook) requires swapping the demo SMTP config for real credentials (Gmail app password / Office365 / Resend with verified domain) — same UI, same code path.
