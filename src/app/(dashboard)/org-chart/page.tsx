@@ -41,6 +41,7 @@ interface Employee {
   designationId?: string | null;
   branchId?: string | null;
   status?: string;
+  reportingManagerId?: string | null;
   department?: { id: string; name: string } | null;
   designation?: { id: string; title: string } | null;
   branch?: { id: string; name: string } | null;
@@ -83,6 +84,66 @@ function seniorityScore(emp: Employee): number {
 
 function buildOrgTree(employees: Employee[]): OrgNode[] {
   if (employees.length === 0) return [];
+
+  const buildNode = (emp: Employee, children: OrgNode[] = []): OrgNode => ({
+    id: emp.id,
+    employee: emp,
+    children,
+  });
+
+  /* ═══════════════════════════════════════════════════════════════
+     PRIMARY: reporting-manager driven tree.
+     Every employee is placed under their assigned reporting manager
+     (Employee.reportingManagerId — set from the Add/Edit Employee
+     form). Employees with no manager (or whose manager is outside
+     the visible set) become roots. Cycles in the data degrade
+     gracefully: members of a loop are shown as roots.
+     ═══════════════════════════════════════════════════════════════ */
+  const byId = new Map(employees.map(e => [e.id, e]));
+  const anyoneManaged = employees.some(
+    e => e.reportingManagerId && e.reportingManagerId !== e.id && byId.has(e.reportingManagerId)
+  );
+
+  if (anyoneManaged) {
+    const childrenOf = new Map<string, Employee[]>();
+    const roots: Employee[] = [];
+
+    for (const emp of employees) {
+      const mid = emp.reportingManagerId;
+      // No manager / self-reference / manager outside the visible set → root
+      if (!mid || mid === emp.id || !byId.has(mid)) {
+        roots.push(emp);
+        continue;
+      }
+      // Cycle guard: walk UP from the manager — if we reach emp again,
+      // this employee is part of a reporting loop → show as a root.
+      let cursor: string | null = mid;
+      const seen = new Set<string>([emp.id]);
+      let cyclic = false;
+      for (let depth = 0; depth < 50 && cursor; depth++) {
+        if (seen.has(cursor)) { cyclic = true; break; }
+        seen.add(cursor);
+        const parent = byId.get(cursor);
+        const next = parent?.reportingManagerId || null;
+        cursor = next && next !== parent!.id && byId.has(next) ? next : null;
+      }
+      if (cyclic) {
+        roots.push(emp);
+      } else {
+        if (!childrenOf.has(mid)) childrenOf.set(mid, []);
+        childrenOf.get(mid)!.push(emp);
+      }
+    }
+
+    const sortEmps = (a: Employee, b: Employee) => seniorityScore(b) - seniorityScore(a);
+    const toNode = (emp: Employee, depth: number): OrgNode => {
+      const kids = (childrenOf.get(emp.id) || []).sort(sortEmps);
+      return buildNode(emp, depth < 15 ? kids.map(k => toNode(k, depth + 1)) : []);
+    };
+    return roots.sort(sortEmps).map(r => toNode(r, 0));
+  }
+
+  /* ── FALLBACK: legacy department heuristic (no manager data yet) ── */
   const sorted = [...employees].sort((a, b) => seniorityScore(b) - seniorityScore(a));
   const topExecs = sorted.filter((e) => seniorityScore(e) >= 90);
   const roots: Employee[] = topExecs.length > 0 ? topExecs : [sorted[0]];
@@ -102,11 +163,6 @@ function buildOrgTree(employees: Employee[]): OrgNode[] {
       deptHeads.push({ head: headCandidate, members: sortedMembers.slice(1) });
     }
   }
-  const buildNode = (emp: Employee, children: OrgNode[] = []): OrgNode => ({
-    id: emp.id,
-    employee: emp,
-    children,
-  });
   const rootNodes: OrgNode[] = roots.map((r) => buildNode(r));
   deptHeads.forEach((dh, idx) => {
     const parentNode = rootNodes[idx % rootNodes.length];

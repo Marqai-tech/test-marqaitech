@@ -123,6 +123,7 @@ interface Employee {
   emergencyContactName?: string | null;
   emergencyContactPhone?: string | null;
   companyId?: string | null;
+  reportingManagerId?: string | null;
   leavePolicyId?: string | null;
   attendancePolicyId?: string | null;
   travelPolicyId?: string | null;
@@ -237,6 +238,7 @@ const initialForm = {
   departmentId: '',
   designationId: '',
   branchId: '',
+  reportingManagerId: '',   // drives leave approvals, module notifications & the org chart
   role: '',
   dateOfJoining: '',
   employeeStatus: 'confirmed', // confirmed, probation, contract, internship, consultant
@@ -943,6 +945,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
       departmentId: freshEmp.department?.id || '',
       designationId: freshEmp.designation?.id || '',
       branchId: freshEmp.branch?.id || '',
+      reportingManagerId: freshEmp.reportingManagerId || '',
       role: freshEmp.role || '',
       dateOfJoining: freshEmp.dateOfJoining ? freshEmp.dateOfJoining.split('T')[0] : '',
       employeeStatus: freshEmp.employeeStatus || 'confirmed',
@@ -1823,6 +1826,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                           updateForm('departmentId', '');
                           updateForm('designationId', '');
                           updateForm('branchId', '');
+                          updateForm('reportingManagerId', '');
                         }}
                         className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                       >
@@ -1853,6 +1857,27 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                         <option value="">Select Branch</option>
                         {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                       </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">
+                        Reporting Manager
+                        <span className="ml-1 text-[10px] font-normal text-thb-text-muted">(Approvals · notifications · org chart)</span>
+                      </label>
+                      <select
+                        value={form.reportingManagerId}
+                        onChange={e => updateForm('reportingManagerId', e.target.value)}
+                        className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
+                      >
+                        <option value="">No Reporting Manager</option>
+                        {allEmployees
+                          .filter(e => e.status === 'active' && e.id !== editingId && (!form.companyId || !e.companyId || e.companyId === form.companyId))
+                          .map(e => (
+                            <option key={e.id} value={e.id}>
+                              {e.firstName} {e.lastName}{e.employeeId ? ` · ${e.employeeId}` : ''}{e.designation?.title ? ` — ${e.designation.title}` : ''}
+                            </option>
+                          ))}
+                      </select>
+                      <p className="text-[10px] text-thb-text-muted mt-1">Leave approvals, workflow notifications and the org chart are routed through this person. Changing it later notifies both sides automatically.</p>
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">

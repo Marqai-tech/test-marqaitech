@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
+import { createNotification } from '@/lib/notifications';
+import { sendEmail } from '@/lib/email-sender';
 import type { PrismaClient } from '@prisma/client';
 
 function corsHeaders() {
@@ -9,6 +11,169 @@ function corsHeaders() {
     'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
   };
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   Reporting Manager change — shared validation + notification helper
+   Used by BOTH the focused PATCH (quick manager reassignment) and the
+   full PUT (Edit Employee form). The reporting manager drives leave
+   approvals, module notifications and the org chart, so every change
+   is validated (same company, active, no self-reference, no cycle),
+   audit-logged and announced to both the new manager and the employee.
+   ════════════════════════════════════════════════════════════════════ */
+
+type ManagerCheckResult = { ok: true; manager: { id: string; firstName: string; lastName: string; email: string; userId: string | null } | null } | { ok: false; error: string; status: number };
+
+async function validateReportingManagerChange(
+  db: PrismaClient,
+  employee: { id: string; firstName: string; lastName: string; companyId: string | null },
+  newManagerId: string | null | undefined
+): Promise<ManagerCheckResult> {
+  // Clearing the manager is always allowed
+  if (!newManagerId) return { ok: true, manager: null };
+
+  // Cannot report to yourself
+  if (newManagerId === employee.id) {
+    return { ok: false, error: 'An employee cannot be their own reporting manager', status: 400 };
+  }
+
+  let manager: { id: string; firstName: string; lastName: string; email: string; userId: string | null; status: string; companyId: string | null } | null = null;
+  try {
+    manager = await db.employee.findUnique({
+      where: { id: newManagerId },
+      select: { id: true, firstName: true, lastName: true, email: true, userId: true, status: true, companyId: true },
+    });
+  } catch {
+    return { ok: false, error: 'Reporting manager lookup failed', status: 500 };
+  }
+
+  if (!manager) return { ok: false, error: 'Selected reporting manager was not found', status: 400 };
+  if (manager.status && manager.status !== 'active') {
+    return { ok: false, error: 'Selected reporting manager is not an active employee', status: 400 };
+  }
+  // Same-company rule (when both sides have a company)
+  if (employee.companyId && manager.companyId && employee.companyId !== manager.companyId) {
+    return { ok: false, error: 'Reporting manager must belong to the same company as the employee', status: 400 };
+  }
+
+  // Cycle guard: walk UP the new manager's chain — if we reach the employee
+  // being edited, this assignment would create a reporting loop.
+  try {
+    let cursorId: string | null = newManagerId;
+    const seen = new Set<string>();
+    for (let depth = 0; depth < 25 && cursorId; depth++) {
+      if (cursorId === employee.id) {
+        return { ok: false, error: 'This assignment creates a reporting cycle (the manager already reports, directly or indirectly, to this employee)', status: 400 };
+      }
+      if (seen.has(cursorId)) break; // existing loop in data — stop walking
+      seen.add(cursorId);
+      const row: { reportingManagerId: string | null } | null = await db.employee.findUnique({
+        where: { id: cursorId },
+        select: { reportingManagerId: true },
+      });
+      cursorId = row?.reportingManagerId ?? null;
+    }
+  } catch { /* best-effort cycle check */ }
+
+  return { ok: true, manager };
+}
+
+/** Announce a reporting-manager change: in-app bells + real emails + audit log. */
+async function notifyReportingManagerChange(
+  db: PrismaClient,
+  opts: {
+    tenantId?: string;
+    actorUserId?: string;
+    employee: { id: string; firstName: string; lastName: string; email: string; userId: string | null };
+    oldManagerId: string | null;
+    newManagerId: string | null;
+    newManager?: { id: string; firstName: string; lastName: string; email: string; userId: string | null } | null;
+    source: 'PATCH' | 'PUT';
+  }
+) {
+  const { tenantId, employee, oldManagerId, newManagerId, newManager, source } = opts;
+  if (oldManagerId === newManagerId) return; // nothing changed
+
+  const empName = `${employee.firstName} ${employee.lastName}`.trim();
+
+  // Resolve names for messages
+  const nameOf = async (id: string | null | undefined) => {
+    if (!id) return '—';
+    try {
+      const m = await db.employee.findUnique({ where: { id }, select: { firstName: true, lastName: true } });
+      return m ? `${m.firstName} ${m.lastName}`.trim() : '—';
+    } catch { return '—'; }
+  };
+  const oldName = await nameOf(oldManagerId);
+  const newName = newManager ? `${newManager.firstName} ${newManager.lastName}`.trim() : await nameOf(newManagerId);
+
+  // 1. Audit log (best-effort)
+  try {
+    await db.auditLog.create({
+      data: {
+        userId: opts.actorUserId || employee.userId || null,
+        action: 'UPDATE_REPORTING_MANAGER',
+        module: 'employees',
+        details: `Reporting manager for ${empName} (${employee.id}) changed: ${oldName} → ${newName} (via ${source})`,
+      },
+    });
+  } catch (e) {
+    console.warn('[ReportingManager] audit log failed (non-critical):', e);
+  }
+
+  // 2. In-app notifications (tenant DB — bell icon)
+  if (tenantId) {
+    if (newManager?.userId) {
+      await createNotification({
+        tenantId,
+        userId: newManager.userId,
+        title: 'New team member assigned',
+        message: `${empName} now reports to you as their reporting manager.`,
+        type: 'info',
+        category: 'workflow',
+        link: '/employees',
+      }).catch(() => null);
+    }
+    if (employee.userId) {
+      await createNotification({
+        tenantId,
+        userId: employee.userId,
+        title: 'Reporting manager updated',
+        message: newManagerId ? `Your reporting manager is now ${newName}.` : 'Your reporting manager assignment has been cleared.',
+        type: 'info',
+        category: 'workflow',
+        link: '/employees',
+      }).catch(() => null);
+    }
+  }
+
+  // 3. Real email via tenant SMTP / global fallback (best-effort, non-blocking)
+  const brandRow = await (async () => {
+    try { return await db.tenant.findFirst({ select: { name: true } }); } catch { return null; }
+  })().catch(() => null);
+  const brand = brandRow?.name || '3Boxes HRMS';
+  const htmlWrap = (title: string, body: string) => `
+    <div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;padding:24px">
+      <h2 style="color:#10b981;margin:0 0 12px">${title}</h2>
+      <p style="color:#334155;font-size:14px;line-height:1.6">${body}</p>
+      <p style="color:#94a3b8;font-size:11px;margin-top:24px">This is an automated notification from ${brand}.</p>
+    </div>`;
+  if (newManager?.email) {
+    sendEmail({
+      to: newManager.email,
+      subject: `${empName} now reports to you`,
+      html: htmlWrap('New team member assigned', `<strong>${empName}</strong> has been assigned to report to you. You will now receive their approvals and workflow requests.`),
+      fromName: brand,
+    }).catch(() => null);
+  }
+  if (employee.email && newManagerId) {
+    sendEmail({
+      to: employee.email,
+      subject: `Your reporting manager is now ${newName}`,
+      html: htmlWrap('Reporting manager updated', `Hi <strong>${empName}</strong>, your reporting manager has been updated${oldName !== '—' ? ` (was ${oldName})` : ''} and is now <strong>${newName}</strong>. Future approvals and workflows will be routed to them.`),
+      fromName: brand,
+    }).catch(() => null);
+  }
 }
 
 export async function OPTIONS() {
@@ -275,7 +440,7 @@ export async function PUT(
         nationality, address, city, state, zipCode, country, bloodGroup,
         emergencyContactName, emergencyContactPhone, bankName, bankAccountNo,
         bankIfscCode, panNumber, aadhaarNumber, taxId, salary, salaryCurrency,
-        status, role, avatar,
+        status, role, avatar, reportingManagerId,
         employeeStatus, employeeType,
       } = body;
 
@@ -315,11 +480,40 @@ export async function PUT(
       if (avatar !== undefined) updateData.avatar = avatar || null;
       if (status !== undefined) updateData.status = status;
 
+      // ─── Reporting manager (validated: same company, active, no self/cycle) ───
+      let newManagerForNotify: { id: string; firstName: string; lastName: string; email: string; userId: string | null } | null = null;
+      if (reportingManagerId !== undefined) {
+        const check = await validateReportingManagerChange(db, existingEmployee, reportingManagerId || null);
+        if (!check.ok) {
+          return NextResponse.json({ error: check.error }, { status: check.status, headers: corsHeaders() });
+        }
+        updateData.reportingManagerId = reportingManagerId || null;
+        newManagerForNotify = check.manager;
+      }
+
       const employee = await db.employee.update({
         where: { id: actualId },
         data: updateData,
         include: coreInclude,
       });
+
+      // ─── Announce reporting-manager change (bell + email + audit) ───
+      if (reportingManagerId !== undefined) {
+        let decodedActor: { userId?: string; tenantId?: string } = {};
+        try {
+          const tok = getTokenFromHeaders(request);
+          if (tok) { const d = await verifyToken(tok); if (d) decodedActor = { userId: d.userId as string, tenantId: d.tenantId as string }; }
+        } catch { /* best-effort identity */ }
+        await notifyReportingManagerChange(db, {
+          tenantId: decodedActor.tenantId,
+          actorUserId: decodedActor.userId,
+          employee: { id: employee.id, firstName: employee.firstName, lastName: employee.lastName, email: employee.email, userId: employee.userId },
+          oldManagerId: existingEmployee.reportingManagerId ?? null,
+          newManagerId: (employee as { reportingManagerId?: string | null }).reportingManagerId ?? null,
+          newManager: newManagerForNotify,
+          source: 'PUT',
+        });
+      }
 
       // ─── Sync email to the linked User account ───
       // When the employee's official email is updated, also update the linked
@@ -533,6 +727,102 @@ export async function PUT(
     }
   } catch (error) {
     console.error('[Employee PUT] Unexpected error:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500, headers: corsHeaders() }
+    );
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   PATCH /api/employees/[id] — focused reporting-manager reassignment
+   (admin-only). Body: { reportingManagerId: string | null }
+
+   This is the quick "change manager" action used by the Edit Employee
+   modal on the Employees page. The reporting manager drives:
+     • Leave approvals (leave.applied → approver = reporting manager)
+     • All module notification/email routing for workflows
+     • The automatic org chart (/org-chart builds from this field)
+   Every change is validated (exists, active, same company, no self or
+   cycle), audit-logged, and announced to BOTH the new manager and the
+   employee via in-app bell + real email.
+   ════════════════════════════════════════════════════════════════════ */
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const db = await getDb(request);
+  try {
+    // ─── Admin-only gate ───
+    const token = getTokenFromHeaders(request);
+    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
+    const decoded = await verifyToken(token);
+    if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401, headers: corsHeaders() });
+    const callerRole = (decoded.role as string) || '';
+    const adminRoles = ['super_admin', 'tenant_admin', 'admin', 'hr_admin', 'company_hr_admin', 'hrhead'];
+    if (!adminRoles.includes(callerRole)) {
+      return NextResponse.json({ error: 'Only admins can update the reporting manager' }, { status: 403, headers: corsHeaders() });
+    }
+
+    const { id: rawId } = await params;
+    const id = decodeURIComponent(rawId);
+
+    // Ensure the column exists (defensive, mirrors PUT/POST schema-sync)
+    try {
+      await db.$executeRawUnsafe(`ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "reportingManagerId" TEXT`);
+    } catch { /* column already exists */ }
+
+    const body = await request.json().catch(() => ({}));
+    const { reportingManagerId } = body;
+    if (reportingManagerId === undefined) {
+      return NextResponse.json({ error: 'reportingManagerId is required (string employee id or null to clear)' }, { status: 400, headers: corsHeaders() });
+    }
+
+    // Resolve the employee (same strategies as GET)
+    let existingEmployee = await db.employee.findUnique({ where: { id } });
+    if (!existingEmployee) {
+      existingEmployee = await db.employee.findUnique({ where: { employeeId: id } });
+    }
+    if (!existingEmployee) {
+      return NextResponse.json({ error: 'Employee not found' }, { status: 404, headers: corsHeaders() });
+    }
+
+    // Validate the new assignment
+    const check = await validateReportingManagerChange(db, existingEmployee, reportingManagerId || null);
+    if (!check.ok) {
+      return NextResponse.json({ error: check.error }, { status: check.status, headers: corsHeaders() });
+    }
+
+    const updated = await db.employee.update({
+      where: { id: existingEmployee.id },
+      data: { reportingManagerId: reportingManagerId || null },
+      include: coreInclude,
+    });
+
+    // Announce (bell + email + audit) — only fires when the value actually changed
+    await notifyReportingManagerChange(db, {
+      tenantId: decoded.tenantId as string | undefined,
+      actorUserId: decoded.userId as string | undefined,
+      employee: { id: updated.id, firstName: updated.firstName, lastName: updated.lastName, email: updated.email, userId: updated.userId },
+      oldManagerId: existingEmployee.reportingManagerId ?? null,
+      newManagerId: (updated as { reportingManagerId?: string | null }).reportingManagerId ?? null,
+      newManager: check.manager,
+      source: 'PATCH',
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: (reportingManagerId ? 'Reporting manager updated' : 'Reporting manager cleared') + '. Manager and employee have been notified.',
+      employee: {
+        id: updated.id,
+        firstName: updated.firstName,
+        lastName: updated.lastName,
+        email: updated.email,
+        reportingManagerId: (updated as { reportingManagerId?: string | null }).reportingManagerId ?? null,
+      },
+    }, { headers: corsHeaders() });
+  } catch (error) {
+    console.error('[Employee PATCH] Unexpected error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500, headers: corsHeaders() }
