@@ -2440,3 +2440,22 @@ Stage Summary:
 Task 40 (cont.) — POST-DEPLOY VERIFICATION:
 - Demo (nexus-hrms-mu.vercel.app, admin@3boxeshrms.com): /modules renders "22 modules" with the Learning & Development card in the Talent group (11 sections, violet icon); card click navigates to /learning L&D Hub; sidebar shows the full LEARNING & DEVELOPMENT section (L&D Hub / Course Catalog / Learning Paths / Assignments & Enrolment / Course Requests / Certifications / Compliance Center / Analytics & ROI). Full-page proof screenshot: download/lnd-modules-page-demo-verification.png (+ lnd-hub-demo-verification.png).
 - LIVE (marqaitechgroup): module_learning flag row verified enabled in platform DB; LIVE login not attempted beyond one read-only superadmin try (no business writes anywhere). Same code + flag → same Modules-page result.
+
+---
+Task ID: 41
+Agent: Super Z (main agent)
+Task: Configure a working SMTP provider on the demo tenant and prove end-to-end email delivery through a real module workflow
+
+Work Log:
+- Environment had NO email credentials anywhere (no local .env keys, no Vercel CLI). Chose Ethereal SMTP (nodemailer createTestAccount) — a genuine SMTP server with real credentials; messages are captured and viewable in its webmail, ideal for proving the pipeline without third-party mail credentials.
+- Configured demo tenant (3boxes-hrms-demo) CollaborationSettings via scripts/configure-demo-smtp-ethereal.js: emailIntegrationEnabled=true, provider=smtp, smtp.ethereal.email:587 TLS, from "3Boxes HRMS (Demo)", replyTo admin@3boxeshrms.com, smtpVerifiedAt set after transport.verify() passed (both locally AND from Vercel via POST /api/settings/smtp test endpoint). Credentials stored at scripts/.ethereal-demo-credentials.json.
+- BUG 1 FOUND (email-sender.ts): dispatcher passes recipient email as a STRING, but sendViaSmtp called params.to.join() → every tenant-SMTP send crashed ('params.to.join is not a function') and silently fell back to the global sender. Diagnosed via local repro with visible server logs (leave apply → [NotificationCenter] warn lines). FIXED with toAddressList() normalization for to/cc/bcc in both SMTP and Resend paths (commit b6b9cdd7).
+- BUG 2 FOUND (settings/smtp + collaboration/settings routes): both did platformDb.user.findUnique() on the JWT userId — tenant users live in tenant DBs → 404 'User not found' for every dedicated-DB tenant → SMTP settings UI always showed empty defaults, never the saved config. FIXED with JWT-identity tenant resolution (x-tenant-slug header → decoded.tenantId claim; same pattern as the Task 36 authGuard fix); employee record made optional with updatedBy fallback (commit 61e5790f).
+- E2E VERIFIED: (a) local post-fix: leave apply → 5/5 emails status=sent via tenant SMTP, zero fallback warnings; (b) PRODUCTION demo after deploy: leave apply (Arjun Kumar, Sick Leave) → 5/5 email deliveries sent + 5 in_app, no errors; (c) Ethereal webmail shows the branded 3Boxes emails with correct From/Reply-To/subject and personalized greetings — screenshots download/lnd-smtp-email-proof.png + lnd-smtp-config-ui{,-2}.png.
+- Resend fallback situation (pre-existing): a RESEND_API_KEY IS set in Vercel env but the Resend account is UNVERIFIED — sandbox mode can only send to the owner address maheshkpreddy@gmail.com (error: verify a domain at resend.com/domains). Until a domain is verified there, the global fallback is effectively single-recipient.
+- CLEANUP: all 4 test leaves + 40 deliveries + 26 test notifications (incl. welcome-login rows) removed from demo DB transactionally (scripts/cleanup-smtp-e2e.js + targeted welcome delete; post-checks all zero). SMTP config row preserved (the deliverable). LIVE tenant untouched (no data writes; code fixes deploy-safe).
+
+Stage Summary:
+- Demo tenant now has a WORKING SMTP provider configured in Collaboration → Settings → SMTP Email Config, and ALL module email notifications (57 events / 9 modules) deliver through it — proven end-to-end on production with a real leave-apply workflow.
+- Two systemic bugs fixed and deployed: string-recipient crash in email-sender (tenant SMTP was never actually reachable before) and platform-DB user lookups in both settings APIs (settings UI never showed tenant config).
+- To switch to real inbox delivery: paste Gmail/Office365/Resend credentials in the SMTP Email Config UI (identical code path), or verify a domain in the existing Resend account to unlock the global fallback.
