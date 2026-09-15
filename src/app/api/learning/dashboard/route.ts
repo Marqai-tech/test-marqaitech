@@ -10,14 +10,17 @@ export async function GET(request: Request) {
   if (!auth) return json({ error: 'Unauthorized' }, 401);
   try {
     const scopeWhere = auth.companyId ? { OR: [{ companyId: auth.companyId }, { companyId: null }] } : {};
+    // Certificate & SkillGap have no companyId — scope them via the employee relation
+    const certScope = auth.companyId ? { employee: { companyId: auth.companyId } } : {};
+    const gapScope = auth.companyId ? { employee: { companyId: auth.companyId } } : {};
     const [courseCount, pathCount, enrollmentAgg, certCount, reqCount, pendingReqCount, gapCount, signoffCount] = await Promise.all([
       auth.db.course.count({ where: { ...scopeWhere, status: 'published' } }),
       auth.db.learningPath.count({ where: { ...scopeWhere, status: 'active' } }),
       auth.db.courseEnrollment.groupBy({ by: ['status'], where: scopeWhere, _count: { _all: true } }),
-      auth.db.certificate.count({ where: scopeWhere }),
+      auth.db.certificate.count({ where: certScope }),
       auth.db.complianceRequirement.count({ where: { ...scopeWhere, isActive: true } }),
       auth.db.trainingRequest.count({ where: { ...scopeWhere, status: 'pending' } }),
-      auth.db.skillGap.count({ where: { ...scopeWhere, status: { in: ['open', 'suggested'] } } }),
+      auth.db.skillGap.count({ where: { ...gapScope, status: { in: ['open', 'suggested'] } } }),
       auth.db.policySignOff.count({ where: { ...scopeWhere, status: 'published' } }),
     ]);
 

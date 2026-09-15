@@ -9,9 +9,11 @@ export async function GET(request: Request) {
   const auth = await lndAuth(request);
   if (!auth) return json({ error: 'Unauthorized' }, 401);
   try {
-    const where: Record<string, unknown> = { ...companyWhere(auth.companyId) };
+    // SkillGap has no companyId — scope via the employee relation
+    const where: Record<string, unknown> = {};
     const { searchParams } = new URL(request.url);
     if (searchParams.get('mine') === 'true' && auth.employeeId) where.employeeId = auth.employeeId;
+    else if (auth.companyId) where.employee = { companyId: auth.companyId };
     const status = searchParams.get('status');
     if (status && status !== 'all') where.status = status;
     const gaps = await auth.db.skillGap.findMany({

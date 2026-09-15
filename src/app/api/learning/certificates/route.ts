@@ -1,4 +1,4 @@
-import { lndAuth, companyWhere, json, CORS, nextCertificateNo } from '@/lib/lnd-core';
+import { lndAuth, json, CORS, nextCertificateNo } from '@/lib/lnd-core';
 
 export async function OPTIONS() {
   return new Response(null, { status: 204, headers: CORS });
@@ -9,9 +9,11 @@ export async function GET(request: Request) {
   const auth = await lndAuth(request);
   if (!auth) return json({ error: 'Unauthorized' }, 401);
   try {
-    const where: Record<string, unknown> = { ...companyWhere(auth.companyId) };
+    // Certificate has no companyId — scope via the employee relation
+    const where: Record<string, unknown> = {};
     const { searchParams } = new URL(request.url);
     if (searchParams.get('mine') === 'true' && auth.employeeId) where.employeeId = auth.employeeId;
+    else if (auth.companyId) where.employee = { companyId: auth.companyId };
 
     const certs = await auth.db.certificate.findMany({
       where,
