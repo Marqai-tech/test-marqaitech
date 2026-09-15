@@ -77,6 +77,7 @@ const C: Record<string, string> = {
   governance:   'from-gray-500 to-slate-600',
   superadmin:   'from-red-500 to-rose-600',
   accounts:     'from-emerald-500 to-green-600',
+  learning:     'from-violet-500 to-purple-600',
 };
 
 // ══════════════════════════════════════════════════════════════
@@ -937,9 +938,9 @@ export const MODULE_GROUPS: ModuleGroup[] = [
   },
   {
     groupLabel: 'Talent',
-    groupDescription: 'Recruitment, onboarding & preboarding',
+    groupDescription: 'Recruitment, onboarding, preboarding & learning',
     groupIcon: FiUserPlus,
-    sections: navSections.filter(s => ['recruitment', 'onboarding', 'preboarding'].includes(s.key)),
+    sections: navSections.filter(s => ['recruitment', 'onboarding', 'preboarding', 'learning'].includes(s.key)),
   },
   {
     groupLabel: 'Operations',

@@ -170,6 +170,7 @@ export const TENANT_MODULE_WHITELIST: Record<string, string[]> = {
     'recruitment',
     'onboarding',
     'preboarding',
+    'learning',
     // Operations
     'project',
     // Support & Intelligence

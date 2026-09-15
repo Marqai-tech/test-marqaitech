@@ -44,6 +44,7 @@ const MODULE_CATALOGUE: { key: string; label: string; description: string; enabl
   { key: 'onboarding',   label: 'Onboarding',          description: 'New hire onboarding & induction',                 enabled: true,  group: 'Talent' },
   { key: 'preboarding',  label: 'Preboarding',         description: 'Pre-hire preparation & documentation',            enabled: true,  group: 'Talent' },
   { key: 'appraisal',    label: 'Appraisal & Performance', description: 'Performance reviews & growth tracking',        enabled: true,  group: 'Talent' },
+  { key: 'learning',     label: 'Learning & Development',  description: 'Courses, learning paths, certifications & compliance training', enabled: true, group: 'Talent' },
 
   // Operations
   { key: 'project',      label: 'Project Management',  description: 'Projects, tasks & time tracking',                enabled: true,  group: 'Operations' },
