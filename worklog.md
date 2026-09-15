@@ -2553,3 +2553,28 @@ Stage Summary:
 - Reporting-manager lifecycle is now complete in-product: set at HIRE (Add Employee), changeable at any time (Edit Employee -> PATCH/PUT), validated (same company, active, no self/cycle), audited, and ANNOUNCED (bell + email to both sides). Leave approvals, all module notification routing and the org chart flow from this single field.
 - Org chart on /org-chart auto-populates from reportingManagerId the moment ANY employee has a manager assigned (demo now does); department heuristic remains as legacy fallback.
 - Demo-only note from Task 44 still open: Amit Reddy's User.role is 'employee'; promoting to 'manager' would let him approve leaves himself in the UI (his reporting-manager links are already correct for Innovatech).
+
+---
+Task ID: 46
+Agent: Super Z (main agent)
+Task: User report "whenever i edit a reporting manager and update it it is not updating in the tool; also the reporting manager field is not viewable in the view; the same fields should be there for add/edit/view"
+
+Work Log:
+- DIAGNOSIS (API repro scripts/repro-rm-edit-flow.js on demo): PUT persistence WORKS at the API layer (200 + DB persisted + restored). The real problems were all on the UI/visibility layer:
+  1. CRITICAL BUG — View→Edit path dropped the field: the editId URL effect in src/app/(dashboard)/employees/page.tsx (Edit button on the employee View Details page) built the form from an explicit field list that OMITTED reportingManagerId. Consequences: the Edit form's Reporting Manager dropdown showed "No Reporting Manager" even when a manager was assigned, and saving ANY edit through this path sent reportingManagerId:'' which the PUT applied as NULL — silently CLEARING the assignment. This is exactly why the user's manager "never stuck" (Task 45 had only fixed the list Action-menu path handleOpenEditForm).
+  2. View Details page (/employees/[id]) had ZERO reporting-manager display (grep confirmed).
+  3. Employees list had NO manager column; list API returned only the raw reportingManagerId (no name relation), so updates were invisible after save.
+- FIX (commits 64fd8aab + 181bbb61 -> origin/main -> Vercel):
+  * src/app/(dashboard)/employees/page.tsx: editId effect now pre-fills reportingManagerId (the critical fix); Employee interface + CSV export gained reportingManager; list table gained a "Reporting Manager" column (lg breakpoint, click-through to the manager's profile) with header/skeleton/colSpan 9->10 updates; grid cards gained a "Reports to <name>" line.
+  * src/app/api/employees/route.ts: main list query + super-admin multi-tenant aggregation now include reportingManager {id, firstName, lastName, employeeId}.
+  * src/app/api/employees/[id]/route.ts: coreInclude gained reportingManager (with designation title) + _count.directReports — served to the View page and both edit paths.
+  * src/app/(dashboard)/employees/[id]/page.tsx: InfoField extended with optional onNavigate (clickable value); NEW "Reporting & Team" card on the Overview tab (Reporting Manager click-through, Direct Reports, explanatory hint); Employment Details card gained Reporting Manager + Direct Reports fields.
+- E2E VERIFIED on demo (scripts/verify-rm-view-e2e.js): deployment poll -> list rows carry reportingManager (45/55 employees show a manager, e.g. Manu Tilak -> Keerthan Rao); detail GET returns manager + directReports; PUT change -> visible in list AND view -> restored.
+- BROWSER VERIFIED on demo as admin (full user flow): View page -> Edit -> Employment tab: dropdown initially showed "No Reporting Manager" (reproduced the bug live); after deploy the SAME flow pre-fills "Keerthan Rao - EMP-3BOX-007 - Executive" as SELECTED; changed to Mallesh Rao via the dropdown, stepped Personal->...->Policies, clicked "Update Employee" -> API confirmed manager=Mallesh Rao; list column and View page "Reporting & Team" card immediately show "Mallesh Rao - EMP-TNSL-016"; then restored to Keerthan Rao (Task 45 state) via API.
+- Screenshots in download/: rm-list-column.png, rm-list-updated.png, rm-view-overview.png, rm-view-employment2.png, rm-view-updated.png, rm-view-final-keerthan.png, rm-edit-saved.png.
+- Note: form tabs are step-gated (Next button through Personal/Address/Employment/Bank/Statutory/Emergency/Health/Overseas/Experience/Documents before the Policies tab holds the "Update Employee" submit); the Documents tab's "Save to Employee" button is the per-document upload, not the form submit (agent initially clicked it and hit a "Document name is required" toast — pre-existing UX, not a bug).
+
+Stage Summary:
+- The reported gaps are closed: reporting-manager changes now PERSIST through every edit path (the silent-clear bug on the View->Edit path is fixed) and the field is VISIBLE everywhere — Add form, Edit form, View Details (Overview + Employment tabs), employees list column, grid cards, CSV export and the org chart, all driven by the single Employee.reportingManagerId field.
+- Demo state: Manu Tilak reports to Keerthan Rao (restored); Mallesh Rao assignment used only as temporary proof during verification.
+- Add/Edit/View parity is complete: the same Reporting Manager field exists across all three surfaces with validation (same company, active, no self/cycle), audit logging and bell+email announcements on change.
