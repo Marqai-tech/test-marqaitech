@@ -527,6 +527,11 @@ model Employee {
   performanceReviews PerformanceReview[]
   goals             Goal[]
   trainings         TrainingEnrollment[]
+  lndEnrollments    CourseEnrollment[]
+  lndCertificates   Certificate[]
+  lndRequests       TrainingRequest[]
+  lndSkillGaps      SkillGap[]
+  signOffAcks       PolicySignOffAck[]
   assetAssignments  AssetAssignment[]
   incidentReports   IncidentReport[]
   travelRequests    TravelRequest[]
@@ -8266,4 +8271,302 @@ model IntegrationWebhook {
   updatedAt      DateTime @updatedAt
 
   @@index([tenantId])
+}
+
+// ============ LEARNING & DEVELOPMENT (L&D) ============
+// Course Catalog & Content Hub, Learning Paths, Assignment & Enrolment Engine,
+// Certifications & Renewals, Compliance Tracking, Policy Sign-offs, Skill Gaps (TNI)
+
+model Course {
+  id                 String   @id @default(cuid())
+  code               String?  // e.g. POSH-101
+  title              String
+  description        String?
+  category           String   @default("technical") // technical | soft_skills | compliance | leadership | onboarding | domain
+  mode               String   @default("e_learning") // e_learning | instructor_led | document | quiz | external_link | blended
+  provider           String?
+  contentUrl         String?
+  documentUrl        String?
+  externalUrl        String?
+  durationHours      Float    @default(1)
+  level              String   @default("beginner") // beginner | intermediate | advanced
+  skills             Json?    // ["React", "TypeScript"]
+  objectives         String?
+  isCompliance       Boolean  @default(false)
+  complianceCategory String?  // POSH | CYBERSECURITY | SAFETY | DATA_PRIVACY | OTHER
+  isPromotionGate    Boolean  @default(false)
+  passingScore       Float    @default(60)
+  cost               Float    @default(0)
+  currency           String   @default("INR")
+  status             String   @default("published") // draft | published | archived
+  companyId          String?
+  createdById        String?
+
+  modules      CourseModule[]
+  enrollments  CourseEnrollment[]
+  pathCourses  LearningPathCourse[]
+  certificates Certificate[]
+  assignments  CourseAssignment[]
+  trainingRequests     TrainingRequest[]
+  complianceRequirements ComplianceRequirement[]
+  suggestedForGaps     SkillGap[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([status])
+  @@index([category])
+}
+
+model CourseModule {
+  id           String  @id @default(cuid())
+  courseId     String
+  course       Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  title        String
+  type         String  @default("video") // video | document | quiz | link | live_session | on_job
+  contentUrl   String?
+  durationMins Int     @default(15)
+  order        Int     @default(1)
+  isAssessment Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([courseId])
+}
+
+model LearningPath {
+  id               String  @id @default(cuid())
+  name             String
+  code             String?
+  description      String?
+  category         String  @default("skill_upskilling") // onboarding | compliance | role_transition | promotion | skill_upskilling
+  targetRole       String? // designation title this path prepares for
+  durationWeeks    Int?
+  isPromotionTrack Boolean @default(false)
+  status           String  @default("active") // draft | active | archived
+  companyId        String?
+  createdById      String?
+
+  pathCourses LearningPathCourse[]
+  assignments CourseAssignment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+}
+
+model LearningPathCourse {
+  id         String       @id @default(cuid())
+  pathId     String
+  path       LearningPath @relation(fields: [pathId], references: [id], onDelete: Cascade)
+  courseId   String
+  course     Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  order      Int          @default(1)
+  isRequired Boolean      @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([pathId, courseId])
+  @@index([courseId])
+}
+
+model CourseAssignment {
+  id           String        @id @default(cuid())
+  courseId     String?
+  course       Course?       @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  pathId       String?
+  path         LearningPath? @relation(fields: [pathId], references: [id], onDelete: Cascade)
+  assigneeType String        @default("individual") // individual | department | company | team
+  employeeId   String?
+  departmentId String?
+  teamId       String?
+  targetCount  Int           @default(0) // enrollments actually created
+  dueDate      DateTime?
+  isMandatory  Boolean       @default(false)
+  reason       String?
+  status       String        @default("active") // active | completed | cancelled
+  companyId    String?
+  assignedById String?
+
+  enrollments CourseEnrollment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+}
+
+model CourseEnrollment {
+  id                 String            @id @default(cuid())
+  courseId           String
+  course             Course            @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  pathId             String?
+  employeeId         String
+  employee           Employee          @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  assignmentId       String?
+  assignment         CourseAssignment? @relation(fields: [assignmentId], references: [id], onDelete: SetNull)
+  source             String            @default("assigned") // assigned | self | request | manager_recommendation | compliance_auto
+  status             String            @default("assigned") // assigned | in_progress | completed | failed | expired
+  progress           Int               @default(0)
+  dueDate            DateTime?
+  startedAt          DateTime?
+  completedAt        DateTime?
+  score              Float?
+  preTestScore       Float?
+  postTestScore      Float?
+  attempts           Int               @default(0)
+  hoursSpent         Float             @default(0)
+  feedbackRating     Float?            // L1 Reaction: overall 1-5
+  feedbackInstructor Float?            // L1: instructor rating 1-5
+  feedbackContent    Float?            // L1: content relevance 1-5
+  feedbackComments   String?
+  goalId             String?           // IDP / development Goal link
+  okrId              String?
+  companyId          String?
+
+  modulesCompleted Json?
+  certificates     Certificate[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([courseId, employeeId])
+  @@index([employeeId])
+  @@index([status])
+  @@index([pathId])
+}
+
+model Certificate {
+  id            String            @id @default(cuid())
+  enrollmentId  String?
+  enrollment    CourseEnrollment? @relation(fields: [enrollmentId], references: [id], onDelete: SetNull)
+  courseId      String?
+  course        Course?           @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  employeeId    String
+  employee      Employee          @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  certificateNo String            @unique
+  title         String
+  score         Float?
+  skillAwarded  String?
+  issuedAt      DateTime          @default(now())
+  validFrom     DateTime?
+  validUntil    DateTime?
+  renewalMonths Int?              // null = lifetime validity
+  status        String            @default("active") // active | expired | revoked | renewed
+  lastRenewedAt DateTime?
+  remindersSent Json?             // { "60": ts, "30": ts, "15": ts }
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([employeeId])
+  @@index([validUntil])
+}
+
+model TrainingRequest {
+  id             String   @id @default(cuid())
+  employeeId     String
+  employee       Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  courseId       String?
+  course         Course?  @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  pathId         String?
+  title          String?  // ad-hoc title when requesting a course not in catalog
+  requestType    String   @default("self") // self | manager_suggested
+  reason         String?
+  expectedCost   Float?
+  status         String   @default("pending") // pending | approved | rejected | completed
+  reviewedById   String?
+  reviewComments String?
+  reviewedAt     DateTime?
+  companyId      String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([employeeId])
+  @@index([status])
+}
+
+model ComplianceRequirement {
+  id                   String  @id @default(cuid())
+  name                 String
+  category             String  // POSH | CYBERSECURITY | SAFETY | DATA_PRIVACY | HEALTHCARE | OTHER
+  description          String?
+  courseId             String?
+  course               Course? @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  frequency            String  @default("annual") // one_time | annual | biannual | quarterly
+  appliesToDepartments Json?   // ["all"] or [departmentId]
+  graceDays            Int     @default(0)
+  isActive             Boolean @default(true)
+  lastAssignedAt       DateTime?
+  companyId            String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+}
+
+model PolicySignOff {
+  id                String  @id @default(cuid())
+  title             String
+  policyVersion     String?
+  description       String?
+  documentUrl       String?
+  requiresSignature Boolean @default(true)
+  dueDate           DateTime?
+  status            String  @default("published") // draft | published | closed
+  companyId         String?
+  createdById       String?
+
+  acks PolicySignOffAck[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+}
+
+model PolicySignOffAck {
+  id            String        @id @default(cuid())
+  signOffId     String
+  signOff       PolicySignOff @relation(fields: [signOffId], references: [id], onDelete: Cascade)
+  employeeId    String
+  employee      Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  status        String        @default("pending") // pending | signed
+  signedAt      DateTime?
+  signatureName String?
+  remarks       String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([signOffId, employeeId])
+  @@index([employeeId])
+}
+
+model SkillGap {
+  id                   String   @id @default(cuid())
+  employeeId           String
+  employee             Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  skill                String
+  currentLevel         String?  // beginner | intermediate | advanced | expert
+  requiredLevel        String?
+  source               String   @default("performance_review") // performance_review | manager_feedback | compliance | self
+  reviewId             String?  // PerformanceReview id
+  suggestedCourseId    String?
+  suggestedCourse      Course?  @relation(fields: [suggestedCourseId], references: [id], onDelete: SetNull)
+  status               String   @default("open") // open | suggested | in_training | closed
+  resolvedEnrollmentId String?
+  notes                String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([employeeId])
+  @@index([status])
 }

@@ -18,6 +18,12 @@
  */
 import { PrismaClient } from '@/generated/prisma/client'
 import { PrismaNeon } from '@prisma/adapter-neon'
+import { neonConfig } from '@neondatabase/serverless'
+import wsModule from 'ws'
+
+// Node-side Neon fix: explicit WebSocket constructor for the serverless
+// driver (native WebSocket can be unavailable/shimmed in some runtimes).
+neonConfig.webSocketConstructor = wsModule as unknown as typeof WebSocket
 
 const globalForDb = globalThis as unknown as {
   db: PrismaClient | undefined

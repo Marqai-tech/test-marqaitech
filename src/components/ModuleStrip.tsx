@@ -198,6 +198,17 @@ const navSections: NavSection[] = [
     ],
   },
   {
+    sectionKey: 'learning',
+    sectionIcon: FiBookOpen,
+    label: 'Learning & Development',
+    items: [
+      { label: 'L&D Hub', href: '/learning', icon: <FiBookOpen className="w-5 h-5" />, moduleKey: 'learning', isNew: true },
+      { label: 'Course Catalog', href: '/learning/catalog', icon: <FiBookOpen className="w-5 h-5" />, moduleKey: 'learning', isNew: true },
+      { label: 'Certifications', href: '/learning/certifications', icon: <FiBookOpen className="w-5 h-5" />, moduleKey: 'learning', isNew: true },
+      { label: 'Analytics & ROI', href: '/learning/analytics', icon: <FiTrendingUp className="w-5 h-5" />, moduleKey: 'learning', isNew: true },
+    ],
+  },
+  {
     key: 'accounts-finance',
     sectionIcon: FiDollarSign,
     label: 'Accounts',

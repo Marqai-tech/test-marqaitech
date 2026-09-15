@@ -14,7 +14,7 @@ import {
   FiMonitor, FiShoppingCart, FiBarChart2, FiAlertCircle,
   FiHome, FiChevronLeft, FiChevronRight, FiChevronDown,
   FiLogOut, FiBell, FiZap, FiHardDrive, FiGitBranch,
-  FiMoreHorizontal, FiArrowRight, FiPieChart, FiAward,
+  FiMoreHorizontal, FiArrowRight, FiPieChart, FiAward, FiCheckCircle,
   FiSliders,
 } from 'react-icons/fi';
 
@@ -506,6 +506,28 @@ export const navSections: NavSection[] = [
       // ── Reports ──
       { label: 'Reports', href: '#reports-divider', icon: <FiFileText className="w-3.5 h-3.5" />, moduleKey: 'performance', isDivider: true },
       { label: 'Performance Reports', href: '/performance/reports', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'performance', isNew: true },
+    ],
+  },
+
+  // ─── 10b. LEARNING & DEVELOPMENT MODULE (Task 38) ───
+  {
+    key: 'learning',
+    label: 'Learning & Development',
+    sectionIcon: FiBookOpen,
+    sectionColor: C.learning,
+    description: 'Upskilling, compliance training & certifications',
+    items: [
+      { label: 'L&D Hub', href: '/learning', icon: <FiBookOpen className="w-4 h-4" />, moduleKey: 'learning', isNew: true },
+      { label: 'Catalog', href: '#lnd-catalog-divider', icon: <FiBookOpen className="w-3.5 h-3.5" />, moduleKey: 'learning', isDivider: true },
+      { label: 'Course Catalog', href: '/learning/catalog', icon: <FiBookOpen className="w-4 h-4" />, moduleKey: 'learning', isNew: true },
+      { label: 'Learning Paths', href: '/learning/paths', icon: <FiTarget className="w-4 h-4" />, moduleKey: 'learning', isNew: true },
+      { label: 'Learning', href: '#lnd-learn-divider', icon: <FiUsers className="w-3.5 h-3.5" />, moduleKey: 'learning', isDivider: true },
+      { label: 'Assignments & Enrolment', href: '/learning/enrollments', icon: <FiUsers className="w-4 h-4" />, moduleKey: 'learning', isNew: true },
+      { label: 'Course Requests', href: '/learning/requests', icon: <FiCheckCircle className="w-4 h-4" />, moduleKey: 'learning', isNew: true },
+      { label: 'Certifications', href: '/learning/certifications', icon: <FiAward className="w-4 h-4" />, moduleKey: 'learning', isNew: true },
+      { label: 'Governance', href: '#lnd-gov-divider', icon: <FiShield className="w-3.5 h-3.5" />, moduleKey: 'learning', isDivider: true },
+      { label: 'Compliance Center', href: '/learning/compliance', icon: <FiShield className="w-4 h-4" />, moduleKey: 'learning', isNew: true },
+      { label: 'Analytics & ROI', href: '/learning/analytics', icon: <FiTrendingUp className="w-4 h-4" />, moduleKey: 'learning', isNew: true },
     ],
   },
 

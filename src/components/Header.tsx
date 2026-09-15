@@ -126,6 +126,7 @@ const MODULE_SEARCH_MAP: Record<string, string> = {
   'performance-appraisal': '/performance',
   appraisal: '/performance',
   training: '/training',
+  learning: '/learning',
   assets: '/assets',
   projects: '/projects',
   project: '/projects',

@@ -1,51 +1,54 @@
+/**
+ * Legacy compat route — now backed by the real Course model (Task 38).
+ */
 import { NextResponse } from 'next/server';
-import { getDb, getPlatformDb } from '@/lib/tenant-db';
-import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
+import { lndAuth, companyWhere, CORS, ADMIN_ROLES } from '@/lib/lnd-core';
 
-function corsHeaders() {
-  return { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type, Authorization' };
-}
-export async function OPTIONS() { return NextResponse.json({}, { headers: corsHeaders() }); }
+function ch() { return CORS; }
+export async function OPTIONS() { return new Response(null, { status: 204, headers: ch() }); }
 
 export async function GET(request: Request) {
-  const db = await getDb(request);
+  const auth = await lndAuth(request);
+  if (!auth) return NextResponse.json({ error: 'Invalid token' }, { status: 401, headers: ch() });
   try {
-    const token = getTokenFromHeaders(request);
-    if (!token) return NextResponse.json({ error: 'No token' }, { status: 401, headers: corsHeaders() });
-    const decoded = await verifyToken(token);
-    if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401, headers: corsHeaders() });
-
-    const { searchParams } = new URL(request.url);
-    const courses = await db.course.findMany({
+    const courses = await auth.db.course.findMany({
+      where: companyWhere(auth.companyId),
       include: { _count: { select: { enrollments: true, modules: true } } },
       orderBy: { createdAt: 'desc' },
-      take: parseInt(searchParams.get('limit') || '50'),
+      take: 100,
     });
-    return NextResponse.json({ courses }, { headers: corsHeaders() });
+    return NextResponse.json({ courses }, { headers: ch() });
   } catch (error) {
     console.error('Courses GET error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() });
+    return NextResponse.json({ error: 'Failed to load courses' }, { status: 500, headers: ch() });
   }
 }
 
 export async function POST(request: Request) {
-  const db = await getDb(request);
+  const auth = await lndAuth(request);
+  if (!auth) return NextResponse.json({ error: 'Invalid token' }, { status: 401, headers: ch() });
+  if (!ADMIN_ROLES.includes(auth.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403, headers: ch() });
   try {
-    const token = getTokenFromHeaders(request);
-    if (!token) return NextResponse.json({ error: 'No token' }, { status: 401, headers: corsHeaders() });
-    const decoded = await verifyToken(token);
-    if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401, headers: corsHeaders() });
-
     const body = await request.json();
-    const { title, description, category, trainer, duration, mode, level, skills, status } = body;
-    if (!title) return NextResponse.json({ error: 'Title is required' }, { status: 400, headers: corsHeaders() });
-
-    const course = await db.course.create({
-      data: { title, description, category, trainer, duration, mode: mode || 'online', level: level || 'beginner', skills, status: status || 'draft' },
+    if (!body.title) return NextResponse.json({ error: 'title is required' }, { status: 400, headers: ch() });
+    const course = await auth.db.course.create({
+      data: {
+        title: body.title,
+        description: body.description || null,
+        category: body.category || 'technical',
+        provider: body.provider || null,
+        mode: body.mode || 'e_learning',
+        level: body.level || 'beginner',
+        durationHours: Number(body.duration) || Number(body.durationHours) || 1,
+        skills: Array.isArray(body.skills) ? body.skills : null,
+        status: body.status || 'published',
+        companyId: body.companyId || auth.companyId,
+        createdById: auth.userId,
+      },
     });
-    return NextResponse.json({ course }, { status: 201, headers: corsHeaders() });
+    return NextResponse.json({ course }, { status: 201, headers: ch() });
   } catch (error) {
     console.error('Courses POST error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() });
+    return NextResponse.json({ error: 'Failed to create course' }, { status: 500, headers: ch() });
   }
 }

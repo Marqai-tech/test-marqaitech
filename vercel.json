@@ -22,6 +22,10 @@
     {
       "path": "/api/cron/attendance-missing-punch?secret=3boxes-hrms-cron-2026",
       "schedule": "45 2 * * *"
+    },
+    {
+      "path": "/api/cron/learning-compliance?secret=3boxes-hrms-cron-2026",
+      "schedule": "0 3 * * *"
     }
   ]
 }

@@ -47,6 +47,13 @@
 
 import { PrismaClient } from '@/generated/prisma/client'
 import { PrismaNeon } from '@prisma/adapter-neon'
+import { neonConfig } from '@neondatabase/serverless'
+import wsModule from 'ws'
+
+// Node-side Neon fix: the serverless driver needs an explicit WebSocket
+// constructor outside edge runtimes. Native WebSocket can be unavailable or
+// shimmed in some Node/Next runtimes — the `ws` package is always reliable.
+neonConfig.webSocketConstructor = wsModule as unknown as typeof WebSocket
 import { db as platformDb } from '@/lib/db'
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth'
 
@@ -240,6 +247,13 @@ export async function getDbForTenant(tenantSlug: string): Promise<PrismaClient> 
     return tenantClient
   } catch (error) {
     console.error(`[TenantDB] Failed to get DB for tenant "${tenantSlug}":`, error)
+    try {
+      const props: Record<string, unknown> = {}
+      for (const k of Object.getOwnPropertyNames(error as object)) props[k] = (error as Record<string, unknown>)[k]
+      console.error('[TenantDB] failure detail:', JSON.stringify(props, (k, v) => (typeof v === 'bigint' ? String(v) : v), 2).slice(0, 1500))
+      const stack = (error as { stack?: string })?.stack || (props.error as { stack?: string })?.stack
+      if (stack) console.error('[TenantDB] failure stack:', String(stack).split('\n').slice(0, 8).join('\n'))
+    } catch { /* diagnostics only */ }
     // Fall back to platform DB on error
     return platformDb
   }

@@ -50,6 +50,7 @@ export const MODULE_ACCESS: Record<string, string[]> = {
   salary_structures: ['super_admin', 'tenant_admin', 'admin'],
   performance: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'],
   training: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'],
+  learning: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'],
   engagement: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'],
   reports: ['super_admin', 'tenant_admin', 'admin', 'manager'],
   settings: ['super_admin', 'tenant_admin', 'admin'],

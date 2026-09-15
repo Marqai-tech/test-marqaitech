@@ -1,54 +1,25 @@
+/**
+ * Legacy compat route — now backed by the real LearningPath model (Task 38).
+ */
 import { NextResponse } from 'next/server';
-import { getDb, getPlatformDb } from '@/lib/tenant-db';
-import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
+import { lndAuth, companyWhere, CORS } from '@/lib/lnd-core';
 
-function corsHeaders() {
-  return { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type, Authorization' };
-}
-export async function OPTIONS() { return NextResponse.json({}, { headers: corsHeaders() }); }
+function ch() { return CORS; }
+export async function OPTIONS() { return new Response(null, { status: 204, headers: ch() }); }
 
 export async function GET(request: Request) {
-  const db = await getDb(request);
+  const auth = await lndAuth(request);
+  if (!auth) return NextResponse.json({ error: 'Invalid token' }, { status: 401, headers: ch() });
   try {
-    const token = getTokenFromHeaders(request);
-    if (!token) return NextResponse.json({ error: 'No token' }, { status: 401, headers: corsHeaders() });
-    const decoded = await verifyToken(token);
-    if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401, headers: corsHeaders() });
-
-    const paths = await db.learningPath.findMany({
-      include: { _count: { select: { courses: true } } },
+    const paths = await auth.db.learningPath.findMany({
+      where: companyWhere(auth.companyId),
+      include: { _count: { select: { pathCourses: true } } },
       orderBy: { createdAt: 'desc' },
       take: 50,
     });
-    return NextResponse.json({ learningPaths: paths }, { headers: corsHeaders() });
+    return NextResponse.json({ learningPaths: paths.map((p: Record<string, unknown> & { _count: { pathCourses: number } }) => ({ ...p, courseCount: p._count.pathCourses })) }, { headers: ch() });
   } catch (error) {
     console.error('LearningPaths GET error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() });
-  }
-}
-
-export async function POST(request: Request) {
-  const db = await getDb(request);
-  try {
-    const token = getTokenFromHeaders(request);
-    if (!token) return NextResponse.json({ error: 'No token' }, { status: 401, headers: corsHeaders() });
-    const decoded = await verifyToken(token);
-    if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401, headers: corsHeaders() });
-
-    const body = await request.json();
-    const { title, description, category, level, duration, skills, status, courseIds } = body;
-    if (!title) return NextResponse.json({ error: 'Title is required' }, { status: 400, headers: corsHeaders() });
-
-    const path = await db.learningPath.create({
-      data: {
-        title, description, category, level, duration, skills, status: status || 'draft',
-        courses: courseIds ? { create: courseIds.map((cId: string, idx: number) => ({ courseId: cId, order: idx })) } : undefined,
-      },
-      include: { courses: true },
-    });
-    return NextResponse.json({ learningPath: path }, { status: 201, headers: corsHeaders() });
-  } catch (error) {
-    console.error('LearningPaths POST error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() });
+    return NextResponse.json({ error: 'Failed to load learning paths' }, { status: 500, headers: ch() });
   }
 }
