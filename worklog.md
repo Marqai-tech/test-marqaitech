@@ -2503,3 +2503,29 @@ Stage Summary:
 - Option A SHIPPED: all 57 notification events across 9 modules now ALSO land in the recipient's internal Collaboration -> Email inbox (scoped per employee; candidates excluded; legacy shared rows unaffected). Verified locally AND on the deployed demo with browser screenshots.
 - Option B PROVEN: real-inbox delivery works via the global Resend fallback (owner Gmail received the message). For ALL employees to receive real emails, either verify a sending domain in Resend (unlock any recipient) or paste Gmail/Office365 SMTP credentials in Collaboration -> Settings (tenant config wins over the global fallback). Demo tenant SMTP intentionally left as Ethereal so demo flows keep showing status=sent with webmail-viewable messages.
 - Demo state: 4 test leaves (17-18, 21-22, 23-24, 25-26 Sept, Bala->Amit), 2 mirrored inbox alerts for Amit, 1 real-delivery sent row, plus login welcome notifications — all visible for user inspection; offer cleanup.
+
+---
+Task ID: 44
+Agent: Super Z (main agent)
+Task: User report "collaboration module is not enabled for employee, check and update it for employee" — make the Collaboration module (incl. the internal Email inbox with mirrored HR alerts) visible to the employee role on demo
+
+Work Log:
+- Root cause (code-level, NOT tenant flags): the demo tenant's module_collaboration FeatureFlag was already enabled=true (verified read-only via scripts/inspect-collab-employee-access.js; RBAC Module/Role tables in the tenant DB are empty and unused by the sidebar). The real blocker: ALL collaboration nav items in navData.tsx carried NO moduleKey and NO roles, so the Sidebar/layout/Modules-page/ModuleStrip filters (4 identical gates) hit the safety rule "no moduleKey and no roles -> admin-only" and hid the entire section from manager+employee.
+- Fix (commit 315c9963 -> origin/main -> Vercel):
+  * src/lib/roleAccess.ts: MODULE_ACCESS gained collaboration: ['super_admin','tenant_admin','admin','manager','employee'].
+  * src/lib/navData.tsx: collaboration items tagged moduleKey='collaboration'. Employee/manager-visible: Hub, Chat, Calls, Calendar, Email, To Do, Notes, Social Feed, File Manager, Kanban Board. Explicitly admin-only via roles: Collaboration Settings, SMTP Email Config, Collaboration Reports.
+  * No page-level guards exist on any collaboration page (verified) and /api/email only requires a valid token + scopes by toEmployeeId — so enabling the nav gates was sufficient and privacy-safe.
+- E2E PROOF on demo (scripts/verify-collab-employee-e2e.js):
+  * Discovery: Amit Reddy's demo User.role is 'employee' (not manager as previously assumed — he is Bala's approver via Employee.reportingManagerId only), so approval was done as admin@3boxeshrms.com (tenant_admin) via PATCH /api/leave/{id}.
+  * Approved Bala's pending Casual Leave 25-26 Sept -> NotificationDelivery email+in_app sent -> EmailMessage MIRROR row created for Bala ("Your Casual Leave leave was approved", fromName='3 Boxes HRMS Demo', labels [Notification, leave], createdByFlow='notification').
+  * Bala (employee) GET /api/email inbox: total=1, mirror visible; scoped per recipient.
+- BROWSER VERIFICATION as Bala (nexus-hrms-mu.vercel.app): /modules shows the Collaboration card under Support & Intelligence; Collaboration Hub renders all sections; Email inbox shows the approval alert with detail view (from notifications@3boxeshrms.com, Reply/Forward available); sidebar COLLABORATION submenu lists exactly the 10 employee items — NO Settings/SMTP/Reports.
+- REGRESSION as admin@3boxeshrms.com: /collaboration/settings loads; sidebar shows full menu incl. Collaboration Settings, SMTP Email Config, Collaboration Reports.
+- Screenshots in download/: collab-modules-employee-bala.png, collab-employee-email-inbox.png, collab-employee-email-detail2.png (+detail-full), collab-employee-sidebar2.png (+sidebar/sidebar-full).
+- Demo state left for user inspection: Bala's leave 25-26 Sept now APPROVED (balance deducted), approval alert mirror in Bala's internal Email inbox, prior manager-side mirrors for Amit. Can be cleaned on request.
+- LIVE tenant: only shared code deployed; no data writes to LIVE. LIVE employees/managers will now also see the Collaboration suite (flag + whitelist already enabled there).
+
+Stage Summary:
+- Collaboration module is now ENABLED for the employee (and manager) role platform-wide: sidebar, Modules page and dashboard strip all resolve it through the central MODULE_ACCESS map; employees see the 10 self-service collaboration tools while tenant SMTP/collab governance and org-wide reports remain admin-only.
+- The full loop the user asked about across Tasks 42-44 now works for an EMPLOYEE: leave decision -> real SMTP email -> in-app notification -> mirrored alert in the employee's own Collaboration -> Email inbox (verified live as Bala with screenshots).
+- Follow-up noted: Amit Reddy's demo user role is 'employee'; if he should approve/reject leaves himself in the UI, his User.role needs to be set to 'manager' (or an admin does approvals) — not changed in this task.
