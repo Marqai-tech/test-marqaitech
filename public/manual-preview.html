@@ -109,6 +109,8 @@
     <div class="controls">
       <button class="tab active" id="tabPM" onclick="showDoc('pm')">Project Management</button>
       <button class="tab" id="tabRPO" onclick="showDoc('rpo')">Recruitment &amp; Onboarding</button>
+      <button class="tab" id="tabIND" onclick="showDoc('ind')">Indian Payroll</button>
+      <button class="tab" id="tabLND" onclick="showDoc('lnd')">Learning &amp; Development</button>
       <a class="download-btn" id="dlBtn" href="/3Boxes-HRMS-Project-Management-User-Manual-SOP.pdf" download>&#11015; Download PDF</a>
     </div>
   </header>
@@ -137,6 +139,16 @@
       file: '/3Boxes-HRMS-Recruitment-Preboarding-Onboarding-User-Manual-SOP.pdf',
       title: 'Recruitment · Preboarding · Onboarding — User Manual & SOP',
       meta: 'Detailed module-wise SOP with workflow configuration guides and workflow diagrams'
+    },
+    ind: {
+      file: '/3Boxes-HRMS-Indian-Payroll-Configuration-Operations-Manual-SOP.pdf',
+      title: 'Indian Payroll Configuration & Operations — Manual & SOP',
+      meta: '28 pages · A4 · 13 exhibits · CTC architecture · EPF/ESIC/PT/LWF/TDS · Stage A/B/C · filings · F&F · bank files'
+    },
+    lnd: {
+      file: '/3Boxes-HRMS-Learning-Development-User-Manual-SOP.pdf',
+      title: 'Learning & Development — User Manual & SOP',
+      meta: '29 pages · A4 · 13 exhibits · catalog · paths · enrolment engine · TNI · certifications · compliance · Kirkpatrick ROI'
     }
   };
   function showDoc(key) {
@@ -146,8 +158,10 @@
     document.getElementById('docMeta').textContent = d.meta;
     document.getElementById('dlBtn').href = d.file;
     document.getElementById('openBtn').href = d.file;
-    document.getElementById('tabPM').classList.toggle('active', key === 'pm');
-    document.getElementById('tabRPO').classList.toggle('active', key === 'rpo');
+    ['pm', 'rpo', 'ind', 'lnd'].forEach(function (k) {
+      var el = document.getElementById('tab' + k.toUpperCase());
+      if (el) el.classList.toggle('active', key === k);
+    });
   }
 </script>
 </body>
