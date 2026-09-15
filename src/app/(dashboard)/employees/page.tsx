@@ -722,6 +722,10 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
           departmentId: emp.department?.id || '',
           designationId: emp.designation?.id || '',
           branchId: emp.branch?.id || '',
+          // CRITICAL: pre-fill the current reporting manager. Without this the
+          // dropdown shows "No Reporting Manager" on the View→Edit path and any
+          // save silently CLEARS the assignment (PUT receives '').
+          reportingManagerId: (emp as Record<string, unknown>).reportingManagerId as string || '',
           dateOfJoining: emp.dateOfJoining ? emp.dateOfJoining.split('T')[0] : '',
           employeeStatus: (emp as Record<string, unknown>).employeeStatus as string || 'confirmed',
           employeeType: (emp as Record<string, unknown>).employeeType as string || 'full_time',
