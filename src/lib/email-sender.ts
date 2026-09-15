@@ -25,9 +25,10 @@ interface SmtpConfig {
 }
 
 interface SendEmailParams {
-  to: string[];
-  cc?: string[];
-  bcc?: string[];
+  /** Recipient(s) — a single address string or an array of addresses */
+  to: string | string[];
+  cc?: string | string[];
+  bcc?: string | string[];
   subject: string;
   html: string;
   text?: string;
@@ -69,6 +70,12 @@ function createSmtpTransport(config: SmtpConfig) {
   } as nodemailer.SendMailOptions);
 }
 
+/** Normalize a recipient field that may be a single address or a list */
+function toAddressList(v?: string | string[]): string[] {
+  if (!v) return [];
+  return Array.isArray(v) ? v : [v];
+}
+
 /** Send via custom SMTP */
 async function sendViaSmtp(config: SmtpConfig, params: SendEmailParams): Promise<SendResult> {
   const transport = createSmtpTransport(config);
@@ -80,9 +87,9 @@ async function sendViaSmtp(config: SmtpConfig, params: SendEmailParams): Promise
 
     const result = await transport.sendMail({
       from,
-      to: params.to.join(', '),
-      cc: params.cc?.join(', '),
-      bcc: params.bcc?.join(', '),
+      to: toAddressList(params.to).join(', '),
+      cc: toAddressList(params.cc).join(', ') || undefined,
+      bcc: toAddressList(params.bcc).join(', ') || undefined,
       subject: params.subject,
       html: params.html,
       text: params.text,
@@ -110,9 +117,9 @@ async function sendViaResend(apiKey: string, fromAddress: string, params: SendEm
 
     const result = await resend.emails.send({
       from,
-      to: params.to,
-      cc: params.cc,
-      bcc: params.bcc,
+      to: toAddressList(params.to),
+      cc: toAddressList(params.cc).length ? toAddressList(params.cc) : undefined,
+      bcc: toAddressList(params.bcc).length ? toAddressList(params.bcc) : undefined,
       subject: params.subject,
       html: params.html,
       text: params.text,
