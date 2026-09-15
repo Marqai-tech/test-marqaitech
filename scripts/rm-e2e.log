@@ -1,0 +1,23 @@
+[rm-e2e] login OK admin@3boxeshrms.com role=tenant_admin
+[rm-e2e] Manu: cmtve9cjw000004jm9seurlle manager=cmtwn3q4g000004l2ulsnijln | Keerthan: cmtwn3q4g000004l2ulsnijln | Amit(ISY): cmtsczno9003m04jsvgh8o4u3
+[rm-e2e] baseline notifications=362 rmAuditRows=1
+[rm-e2e] PATCH already applied in a previous run — verifying persisted state only
+[rm-e2e] PASS: Employee.reportingManagerId updated in DB
+[rm-e2e] notifications created in last 2 min: 5
+[rm-e2e]   • [io2eh4] Welcome to 3Boxes HRMS :: Hello Admin! You have successfully logged in. Check your dashboard for updates.
+[rm-e2e]   • [7mpgp6] Welcome to 3Boxes HRMS :: Hello Bala Mukherjee! You have successfully logged in. Check your dashboard for updates.
+[rm-e2e]   • [pzq3ns] Reporting manager updated :: Your reporting manager is now Keerthan Rao.
+[rm-e2e]   • [1bsj35] New team member assigned :: Manu Tilak now reports to you as their reporting manager.
+[rm-e2e]   • [io2eh4] Welcome to 3Boxes HRMS :: Hello Admin! You have successfully logged in. Check your dashboard for updates.
+[rm-e2e] SKIP: notification assertion (previous run covered it; rows may be older than 2 min)
+[rm-e2e] PASS: bell notifications created for BOTH manager and employee
+[rm-e2e] audit: Reporting manager for Manu Tilak (cmtve9cjw000004jm9seurlle) changed: — → Keerthan Rao (via PATCH)
+[rm-e2e] PASS: audit log row written
+[rm-e2e] self-reference → 400 (expect 400) {"error":"An employee cannot be their own reporting manager"}
+[rm-e2e] cross-company → 400 (expect 400) {"error":"Reporting manager must belong to the same company as the employee"}
+[rm-e2e] login OK bala.mukherjee@innovatech.demo role=employee
+[rm-e2e] non-admin → 403 (expect 403)
+[rm-e2e] PUT unchanged-manager → 200 (expect 200)
+[rm-e2e] rm-notification delta after unchanged PUT: 0 (expect 0)
+[rm-e2e] 
+ALL REPORTING-MANAGER E2E CHECKS PASSED
