@@ -813,31 +813,31 @@ export const navSections: NavSection[] = [
       { label: 'Overview', key: 'overview', icon: <FiGrid className="w-4 h-4" /> },
     ],
     items: [
-      { label: 'Collaboration Hub', href: '/collaboration', icon: <FiGrid className="w-4 h-4" />, isNew: true },
+      { label: 'Collaboration Hub', href: '/collaboration', icon: <FiGrid className="w-4 h-4" />, moduleKey: 'collaboration', isNew: true },
 
       // ── Communication ──
       { label: 'Communication', href: '#comm-divider', icon: <FiMessageCircle className="w-3.5 h-3.5" />, isDivider: true },
-      { label: 'Chat', href: '/collaboration/chat', icon: <FiMessageCircle className="w-4 h-4" />, isNew: true },
-      { label: 'Calls', href: '/collaboration/calls', icon: <FiVideo className="w-4 h-4" />, isNew: true },
-      { label: 'Calendar', href: '/calendar', icon: <FiCalendar className="w-4 h-4" />, isNew: true },
-      { label: 'Email', href: '/email', icon: <FiMail className="w-4 h-4" />, isNew: true },
+      { label: 'Chat', href: '/collaboration/chat', icon: <FiMessageCircle className="w-4 h-4" />, moduleKey: 'collaboration', isNew: true },
+      { label: 'Calls', href: '/collaboration/calls', icon: <FiVideo className="w-4 h-4" />, moduleKey: 'collaboration', isNew: true },
+      { label: 'Calendar', href: '/calendar', icon: <FiCalendar className="w-4 h-4" />, moduleKey: 'collaboration', isNew: true },
+      { label: 'Email', href: '/email', icon: <FiMail className="w-4 h-4" />, moduleKey: 'collaboration', isNew: true },
 
       // ── Productivity ──
       { label: 'Productivity', href: '#productivity-divider', icon: <FiCheckSquare className="w-3.5 h-3.5" />, isDivider: true },
-      { label: 'To Do', href: '/todo', icon: <FiCheckSquare className="w-4 h-4" />, isNew: true },
-      { label: 'Notes', href: '/notes', icon: <FiEdit3 className="w-4 h-4" />, isNew: true },
-      { label: 'Social Feed', href: '/social-feed', icon: <FiUsers className="w-4 h-4" />, isNew: true },
-      { label: 'File Manager', href: '/file-manager', icon: <FiFolder className="w-4 h-4" />, isNew: true },
-      { label: 'Kanban Board', href: '/kanban', icon: <FiLayers className="w-4 h-4" />, isNew: true },
+      { label: 'To Do', href: '/todo', icon: <FiCheckSquare className="w-4 h-4" />, moduleKey: 'collaboration', isNew: true },
+      { label: 'Notes', href: '/notes', icon: <FiEdit3 className="w-4 h-4" />, moduleKey: 'collaboration', isNew: true },
+      { label: 'Social Feed', href: '/social-feed', icon: <FiUsers className="w-4 h-4" />, moduleKey: 'collaboration', isNew: true },
+      { label: 'File Manager', href: '/file-manager', icon: <FiFolder className="w-4 h-4" />, moduleKey: 'collaboration', isNew: true },
+      { label: 'Kanban Board', href: '/kanban', icon: <FiLayers className="w-4 h-4" />, moduleKey: 'collaboration', isNew: true },
 
-      // ── Settings ──
+      // ── Settings (admin-only: tenant SMTP + collaboration governance) ──
       { label: 'Settings', href: '#settings-divider', icon: <FiSettings className="w-3.5 h-3.5" />, isDivider: true },
-      { label: 'Collaboration Settings', href: '/collaboration/settings', icon: <FiSettings className="w-4 h-4" />, isNew: true },
-      { label: 'SMTP Email Config', href: '/settings?tab=smtp', icon: <FiMail className="w-4 h-4" />, isNew: true },
+      { label: 'Collaboration Settings', href: '/collaboration/settings', icon: <FiSettings className="w-4 h-4" />, moduleKey: 'collaboration', roles: ['super_admin', 'tenant_admin', 'admin'], isNew: true },
+      { label: 'SMTP Email Config', href: '/settings?tab=smtp', icon: <FiMail className="w-4 h-4" />, moduleKey: 'collaboration', roles: ['super_admin', 'tenant_admin', 'admin'], isNew: true },
 
-      // ── Reports ──
+      // ── Reports (admin-only: org-wide collaboration analytics) ──
       { label: 'Reports', href: '#reports-divider', icon: <FiFileText className="w-3.5 h-3.5" />, isDivider: true },
-      { label: 'Collaboration Reports', href: '/collaboration/reports', icon: <FiFileText className="w-4 h-4" />, isNew: true },
+      { label: 'Collaboration Reports', href: '/collaboration/reports', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'collaboration', roles: ['super_admin', 'tenant_admin', 'admin'], isNew: true },
     ],
   },
 

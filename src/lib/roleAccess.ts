@@ -74,6 +74,12 @@ export const MODULE_ACCESS: Record<string, string[]> = {
   documents: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'],
   ai_assistant: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'],
   notifications: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'],
+  // Collaboration suite (Chat, Calls, Calendar, Email inbox, To Do, Notes,
+  // Social Feed, File Manager, Kanban) is available to every role — employees
+  // receive mirrored HR notification emails in the internal Email inbox.
+  // Admin-only sub-areas (Collaboration Settings, SMTP Email Config,
+  // Collaboration Reports) are restricted via per-item `roles` in navData.
+  collaboration: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'],
   requisitions: ['super_admin', 'tenant_admin', 'admin'],
   offers: ['super_admin', 'tenant_admin', 'admin'],
   job_portal: ['super_admin', 'tenant_admin', 'admin'],
