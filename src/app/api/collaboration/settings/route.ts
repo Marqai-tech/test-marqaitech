@@ -14,23 +14,15 @@ export async function GET(request: NextRequest) {
     if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
 
     await withSchemaSync(() => Promise.resolve());
-    // Get tenant ID from decoded token
-    const user = await platformDb.user.findUnique({ where: { id: decoded.userId as string } });
-    if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
-
-    const employee = await db.employee.findFirst({ where: { userId: decoded.userId } });
-    if (!employee) return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
-
-    // Find tenant through employee's company
+    // Tenant identity from JWT + header — tenant users live in tenant DBs,
+    // so the old platformDb.user lookup 404'd for every dedicated-DB tenant.
     const tenantSlug = request.headers.get('x-tenant-slug');
     let tenantId: string | null = null;
     if (tenantSlug) {
       const tenant = await platformDb.tenant.findUnique({ where: { slug: tenantSlug } });
       if (tenant) tenantId = tenant.id;
     }
-    if (!tenantId && user.tenantId) {
-      tenantId = user.tenantId;
-    }
+    if (!tenantId && decoded.tenantId) tenantId = decoded.tenantId as string;
 
     if (!tenantId) {
       // Return defaults if no tenant found
@@ -56,7 +48,7 @@ export async function GET(request: NextRequest) {
     if (!settings) {
       // Create default settings
       settings = await db.collaborationSettings.create({
-        data: { tenantId, updatedBy: employee.id },
+        data: { tenantId, updatedBy: decoded.userId as string },
       });
     }
 
@@ -81,8 +73,9 @@ export async function PATCH(request: NextRequest) {
     const decoded = await verifyToken(token);
     if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
 
+    // Employee record is optional (admin users may not have one)
     const employee = await db.employee.findFirst({ where: { userId: decoded.userId } });
-    if (!employee) return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
+    const updatedBy = employee?.id ?? (decoded.userId as string);
 
     const tenantSlug = request.headers.get('x-tenant-slug');
     let tenantId: string | null = null;
@@ -90,8 +83,7 @@ export async function PATCH(request: NextRequest) {
       const tenant = await platformDb.tenant.findUnique({ where: { slug: tenantSlug } });
       if (tenant) tenantId = tenant.id;
     }
-    const user = await platformDb.user.findUnique({ where: { id: decoded.userId as string } });
-    if (!tenantId && user?.tenantId) tenantId = user.tenantId;
+    if (!tenantId && decoded.tenantId) tenantId = decoded.tenantId as string;
 
     if (!tenantId) return NextResponse.json({ error: 'Tenant not found' }, { status: 404 });
 
@@ -143,7 +135,7 @@ export async function PATCH(request: NextRequest) {
         ...(maxCallDurationMin !== undefined && { maxCallDurationMin }),
         ...(allowExternalSharing !== undefined && { allowExternalSharing }),
         ...(watermarkEnabled !== undefined && { watermarkEnabled }),
-        updatedBy: employee.id,
+        updatedBy,
       },
       create: {
         tenantId,
@@ -168,7 +160,7 @@ export async function PATCH(request: NextRequest) {
         maxCallDurationMin: maxCallDurationMin ?? 60,
         allowExternalSharing: allowExternalSharing ?? true,
         watermarkEnabled: watermarkEnabled ?? false,
-        updatedBy: employee.id,
+        updatedBy,
       },
     });
 

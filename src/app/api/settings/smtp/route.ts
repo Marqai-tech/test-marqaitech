@@ -16,17 +16,15 @@ export async function GET(request: NextRequest) {
     const decoded = await verifyToken(token);
     if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
 
-    const user = await platformDb.user.findUnique({ where: { id: decoded.userId as string } });
-    if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
-
-    // Resolve tenant
+    // Tenant identity from JWT + header — tenant users live in tenant DBs,
+    // so the old platformDb.user lookup 404'd for every dedicated-DB tenant.
     const tenantSlug = request.headers.get('x-tenant-slug');
     let tenantId: string | null = null;
     if (tenantSlug) {
       const tenant = await platformDb.tenant.findUnique({ where: { slug: tenantSlug } });
       if (tenant) tenantId = tenant.id;
     }
-    if (!tenantId && user.tenantId) tenantId = user.tenantId;
+    if (!tenantId && decoded.tenantId) tenantId = decoded.tenantId as string;
     if (!tenantId) return NextResponse.json({ error: 'Tenant not found' }, { status: 404 });
 
     let settings = await db.collaborationSettings.findUnique({ where: { tenantId } });
@@ -62,17 +60,18 @@ export async function PATCH(request: NextRequest) {
     const decoded = await verifyToken(token);
     if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
 
+    // Employee record is optional here (admin users may not have one) —
+    // updatedBy falls back to the authenticated user id.
     const employee = await db.employee.findFirst({ where: { userId: decoded.userId as string } });
-    if (!employee) return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
+    const updatedBy = employee?.id ?? (decoded.userId as string);
 
-    const user = await platformDb.user.findUnique({ where: { id: decoded.userId as string } });
     const tenantSlug = request.headers.get('x-tenant-slug');
     let tenantId: string | null = null;
     if (tenantSlug) {
       const tenant = await platformDb.tenant.findUnique({ where: { slug: tenantSlug } });
       if (tenant) tenantId = tenant.id;
     }
-    if (!tenantId && user?.tenantId) tenantId = user.tenantId;
+    if (!tenantId && decoded.tenantId) tenantId = decoded.tenantId as string;
     if (!tenantId) return NextResponse.json({ error: 'Tenant not found' }, { status: 404 });
 
     const body = await request.json();
@@ -92,7 +91,7 @@ export async function PATCH(request: NextRequest) {
     } = body;
 
     // Build update data — skip password if it's the masked value
-    const updateData: Record<string, unknown> = { updatedBy: employee.id };
+    const updateData: Record<string, unknown> = { updatedBy };
     if (emailProvider !== undefined) updateData.emailProvider = emailProvider;
     if (emailIntegrationEnabled !== undefined) updateData.emailIntegrationEnabled = emailIntegrationEnabled;
     if (smtpHost !== undefined) updateData.smtpHost = smtpHost;
@@ -112,7 +111,7 @@ export async function PATCH(request: NextRequest) {
       create: {
         tenantId,
         ...updateData,
-        updatedBy: employee.id,
+        updatedBy,
       },
     });
 
@@ -161,14 +160,13 @@ export async function POST(request: NextRequest) {
     if (result.success) {
       const db = await getDb(request);
       const platformDb = getPlatformDb();
-      const user = await platformDb.user.findUnique({ where: { id: decoded.userId as string } });
       const tenantSlug = request.headers.get('x-tenant-slug');
       let tenantId: string | null = null;
       if (tenantSlug) {
         const tenant = await platformDb.tenant.findUnique({ where: { slug: tenantSlug } });
         if (tenant) tenantId = tenant.id;
       }
-      if (!tenantId && user?.tenantId) tenantId = user.tenantId;
+      if (!tenantId && decoded.tenantId) tenantId = decoded.tenantId as string;
       if (tenantId) {
         await db.collaborationSettings.upsert({
           where: { tenantId },
@@ -180,14 +178,13 @@ export async function POST(request: NextRequest) {
       // Save the error
       const db = await getDb(request);
       const platformDb = getPlatformDb();
-      const user = await platformDb.user.findUnique({ where: { id: decoded.userId as string } });
       const tenantSlug = request.headers.get('x-tenant-slug');
       let tenantId: string | null = null;
       if (tenantSlug) {
         const tenant = await platformDb.tenant.findUnique({ where: { slug: tenantSlug } });
         if (tenant) tenantId = tenant.id;
       }
-      if (!tenantId && user?.tenantId) tenantId = user.tenantId;
+      if (!tenantId && decoded.tenantId) tenantId = decoded.tenantId as string;
       if (tenantId) {
         await db.collaborationSettings.upsert({
           where: { tenantId },
