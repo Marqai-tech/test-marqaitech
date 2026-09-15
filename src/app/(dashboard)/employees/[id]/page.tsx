@@ -210,19 +210,31 @@ interface EmployeeData {
   skills?: Array<{ id: string; skill: string; level: string; yearsOfExp?: number | null }>;
   documents?: Array<{ id: string; name: string; type: string; fileUrl?: string | null; status: string; uploadedAt: string; expiryDate?: string | null }>;
   assetAssignments?: Array<{ id: string; status: string; assignedDate: string; asset: { id: string; name: string; assetTag: string; category: string } }>;
+  reportingManager?: { id: string; firstName: string; lastName: string; employeeId: string; designation?: { title: string } | null } | null;
+  _count?: { directReports: number } | null;
 }
 
 const tabs = ['Overview', 'Personal', 'Employment', 'Documents', 'Leave', 'Attendance', 'Payroll', 'Health', 'Policies', 'Company Mapping'] as const;
 type TabName = typeof tabs[number];
 
 // ─── Info Field Component ───
-function InfoField({ label, value, icon, accentColor }: { label: string; value?: string | null; icon?: React.ReactNode; accentColor?: string }) {
+function InfoField({ label, value, icon, accentColor, onNavigate, navigateHint }: { label: string; value?: string | null; icon?: React.ReactNode; accentColor?: string; onNavigate?: () => void; navigateHint?: string }) {
   return (
     <div className="flex items-start gap-3 py-3 pl-3 border-l-2 border-transparent hover:border-l-green-400 transition-colors group">
       {icon && <span className="mt-0.5 text-thb-text-muted flex-shrink-0 group-hover:text-green-500 transition-colors">{icon}</span>}
       <div className="min-w-0 flex-1">
         <p className="text-[11px] font-semibold uppercase tracking-wider text-thb-text-muted mb-0.5">{label}</p>
-        <p className="text-sm font-medium text-thb-text-primary break-words">{value || '—'}</p>
+        {onNavigate && value ? (
+          <button
+            onClick={onNavigate}
+            title={navigateHint || 'Open profile'}
+            className="text-sm font-medium text-green-600 hover:text-green-700 hover:underline break-words text-left transition-colors"
+          >
+            {value}
+          </button>
+        ) : (
+          <p className="text-sm font-medium text-thb-text-primary break-words">{value || '—'}</p>
+        )}
       </div>
     </div>
   );
@@ -616,6 +628,23 @@ export default function EmployeeDetailPage() {
                 </div>
               </SectionCard>
 
+              {/* Reporting & Team — mirrors the Reporting Manager field on the
+                  Add/Edit forms; drives leave approvals, notifications, org chart */}
+              <SectionCard title="Reporting & Team" icon={<FiUsers className="w-4 h-4 text-cyan-500" />} accentGradient="from-cyan-500 via-teal-400 to-emerald-400">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-0">
+                  <InfoField
+                    label="Reporting Manager"
+                    value={employee.reportingManager ? `${employee.reportingManager.firstName} ${employee.reportingManager.lastName}${employee.reportingManager.employeeId ? ` · ${employee.reportingManager.employeeId}` : ''}` : 'No Reporting Manager'}
+                    icon={<FiBriefcase className="w-3.5 h-3.5" />}
+                    onNavigate={employee.reportingManager ? () => router.push(`/employees/${employee.reportingManager!.id}`) : undefined}
+                    navigateHint="Open reporting manager profile"
+                  />
+                  <InfoField label="Direct Reports" value={employee._count?.directReports ? `${employee._count.directReports} team member${employee._count.directReports === 1 ? '' : 's'}` : '—'} icon={<FiUsers className="w-3.5 h-3.5" />} />
+                  <InfoField label="Designation" value={employee.designation?.title} icon={<FiUser className="w-3.5 h-3.5" />} />
+                </div>
+                <p className="text-xs text-thb-text-muted mt-2 ml-3">Leave approvals, workflow notifications and the org chart position are driven by the reporting manager. Admins can change it via Edit → Employment.</p>
+              </SectionCard>
+
               {/* Emergency Contact */}
               <SectionCard title="Emergency Contact" icon={<FiHeart className="w-4 h-4 text-rose-500" />} accentGradient="from-rose-500 via-pink-400 to-fuchsia-400">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-0">
@@ -718,6 +747,14 @@ export default function EmployeeDetailPage() {
                   <InfoField label="Employee ID" value={employee.employeeId} icon={<FiHash className="w-3.5 h-3.5" />} />
                   <InfoField label="Department" value={employee.department?.name} icon={<FiBriefcase className="w-3.5 h-3.5" />} />
                   <InfoField label="Designation" value={employee.designation?.title} icon={<FiUser className="w-3.5 h-3.5" />} />
+                  <InfoField
+                    label="Reporting Manager"
+                    value={employee.reportingManager ? `${employee.reportingManager.firstName} ${employee.reportingManager.lastName}${employee.reportingManager.employeeId ? ` · ${employee.reportingManager.employeeId}` : ''}` : 'No Reporting Manager'}
+                    icon={<FiUsers className="w-3.5 h-3.5" />}
+                    onNavigate={employee.reportingManager ? () => router.push(`/employees/${employee.reportingManager!.id}`) : undefined}
+                    navigateHint="Open reporting manager profile"
+                  />
+                  <InfoField label="Direct Reports" value={employee._count?.directReports ? `${employee._count.directReports} team member${employee._count.directReports === 1 ? '' : 's'}` : '—'} icon={<FiUsers className="w-3.5 h-3.5" />} />
                   <InfoField label="Branch" value={employee.branch?.name} icon={<FiBriefcase className="w-3.5 h-3.5" />} />
                   <InfoField label="Date of Joining" value={formatDate(employee.dateOfJoining)} icon={<FiCalendar className="w-3.5 h-3.5" />} />
                   <InfoField label="Status" value={badge.label} />

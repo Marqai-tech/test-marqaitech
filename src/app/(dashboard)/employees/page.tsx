@@ -124,6 +124,7 @@ interface Employee {
   emergencyContactPhone?: string | null;
   companyId?: string | null;
   reportingManagerId?: string | null;
+  reportingManager?: { id: string; firstName: string; lastName: string; employeeId: string } | null;
   leavePolicyId?: string | null;
   attendancePolicyId?: string | null;
   travelPolicyId?: string | null;
@@ -542,6 +543,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
       'Phone': emp.phone || '',
       'Department': emp.department?.name || '',
       'Designation': emp.designation?.title || '',
+      'Reporting Manager': emp.reportingManager ? `${emp.reportingManager.firstName} ${emp.reportingManager.lastName}` : '',
       'Branch': emp.branch?.name || '',
       'Status': emp.status || '',
       'Joining Date': emp.dateOfJoining ? new Date(emp.dateOfJoining).toLocaleDateString() : '',
@@ -2712,6 +2714,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                 <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-muted uppercase tracking-wider hidden md:table-cell">Email</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-muted uppercase tracking-wider hidden lg:table-cell">Phone</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-muted uppercase tracking-wider hidden sm:table-cell">Designation</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-muted uppercase tracking-wider hidden lg:table-cell">Reporting Manager</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-muted uppercase tracking-wider hidden xl:table-cell">Joining Date</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-muted uppercase tracking-wider">Status</th>
                 <th className="text-right px-4 py-3 text-xs font-semibold text-thb-text-muted uppercase tracking-wider w-16">Actions</th>
@@ -2727,6 +2730,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                     <td className="px-4 py-3 hidden md:table-cell"><div className="h-3 w-32 bg-slate-200 rounded" /></td>
                     <td className="px-4 py-3 hidden lg:table-cell"><div className="h-3 w-24 bg-slate-200 rounded" /></td>
                     <td className="px-4 py-3 hidden sm:table-cell"><div className="h-3 w-24 bg-slate-200 rounded" /></td>
+                    <td className="px-4 py-3 hidden lg:table-cell"><div className="h-3 w-24 bg-slate-200 rounded" /></td>
                     <td className="px-4 py-3 hidden xl:table-cell"><div className="h-3 w-24 bg-slate-200 rounded" /></td>
                     <td className="px-4 py-3"><div className="h-5 w-16 bg-slate-200 rounded-full" /></td>
                     <td className="px-4 py-3"><div className="h-3 w-6 bg-slate-200 rounded ml-auto" /></td>
@@ -2734,7 +2738,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                 ))
               ) : employees.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-16 text-center">
+                  <td colSpan={10} className="px-4 py-16 text-center">
                     <div className="flex flex-col items-center">
                       <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mb-4">
                         <FiUsers className="w-8 h-8 text-thb-text-muted" />
@@ -2755,7 +2759,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                   return (
                     <tr key={emp.id} className={`border-b border-thb-border/50 transition-colors ${isDeleting ? 'bg-red-50/80' : isSelected ? 'bg-green-50/50' : 'hover:bg-slate-50/50'}`}>
                       {isDeleting ? (
-                        <td colSpan={9} className="px-4 py-3">
+                        <td colSpan={10} className="px-4 py-3">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
                               <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">
@@ -2817,6 +2821,19 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                           </td>
                           <td className="px-4 py-3 hidden sm:table-cell">
                             <span className="text-sm text-thb-text-secondary">{emp.designation?.title || '—'}</span>
+                          </td>
+                          <td className="px-4 py-3 hidden lg:table-cell">
+                            {emp.reportingManager ? (
+                              <button
+                                onClick={() => emp.reportingManager && router.push(`/employees/${emp.reportingManager.id}`)}
+                                className="text-sm text-thb-text-secondary hover:text-green-600 hover:underline truncate max-w-[150px]"
+                                title="Open reporting manager profile"
+                              >
+                                {emp.reportingManager.firstName} {emp.reportingManager.lastName}
+                              </button>
+                            ) : (
+                              <span className="text-sm text-thb-text-muted">—</span>
+                            )}
                           </td>
                           <td className="px-4 py-3 hidden xl:table-cell">
                             <div className="flex items-center gap-1.5 text-sm text-thb-text-secondary">
@@ -3015,6 +3032,18 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                         <div className="flex items-center gap-2 text-xs text-thb-text-secondary">
                           <FiActivity className="w-3.5 h-3.5 text-thb-text-muted flex-shrink-0" />
                           <span className="truncate">{emp.department.name}</span>
+                        </div>
+                      )}
+                      {emp.reportingManager && (
+                        <div className="flex items-center gap-2 text-xs text-thb-text-secondary">
+                          <FiUsers className="w-3.5 h-3.5 text-thb-text-muted flex-shrink-0" />
+                          <button
+                            onClick={() => emp.reportingManager && router.push(`/employees/${emp.reportingManager.id}`)}
+                            className="truncate hover:text-green-600 hover:underline"
+                            title="Open reporting manager profile"
+                          >
+                            Reports to {emp.reportingManager.firstName} {emp.reportingManager.lastName}
+                          </button>
                         </div>
                       )}
                     </div>

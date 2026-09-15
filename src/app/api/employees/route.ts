@@ -210,6 +210,7 @@ export async function GET(request: Request) {
                 department: { select: { id: true, name: true } },
                 designation: { select: { id: true, title: true } },
                 branch: { select: { id: true, name: true } },
+                reportingManager: { select: { id: true, firstName: true, lastName: true, employeeId: true } },
               },
               take: 500,
             });
@@ -430,6 +431,8 @@ export async function GET(request: Request) {
             user: {
               select: { id: true, email: true, role: true, avatar: true },
             },
+            // Manager name for the Employees list "Reporting Manager" column
+            reportingManager: { select: { id: true, firstName: true, lastName: true, employeeId: true } },
           },
           orderBy: { createdAt: 'desc' },
           skip: (page - 1) * limit,

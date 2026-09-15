@@ -191,6 +191,15 @@ const coreInclude = {
   user: {
     select: { id: true, email: true, role: true, avatar: true },
   },
+  // Reporting hierarchy — surfaced on the View Details page (Employment/Overview
+  // tabs) so the assigned manager is always visible after add/edit.
+  reportingManager: {
+    select: {
+      id: true, firstName: true, lastName: true, employeeId: true,
+      designation: { select: { title: true } },
+    },
+  },
+  _count: { select: { directReports: true } },
 };
 
 /**
