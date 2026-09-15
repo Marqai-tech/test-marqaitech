@@ -2529,3 +2529,27 @@ Stage Summary:
 - Collaboration module is now ENABLED for the employee (and manager) role platform-wide: sidebar, Modules page and dashboard strip all resolve it through the central MODULE_ACCESS map; employees see the 10 self-service collaboration tools while tenant SMTP/collab governance and org-wide reports remain admin-only.
 - The full loop the user asked about across Tasks 42-44 now works for an EMPLOYEE: leave decision -> real SMTP email -> in-app notification -> mirrored alert in the employee's own Collaboration -> Email inbox (verified live as Bala with screenshots).
 - Follow-up noted: Amit Reddy's demo user role is 'employee'; if he should approve/reject leaves himself in the UI, his User.role needs to be set to 'manager' (or an admin does approvals) — not changed in this task.
+
+---
+Task ID: 45
+Agent: Super Z (main agent)
+Task: User approved "option a" + extension — build the COMPLETE reporting-manager workflow: Edit Employee + Add Employee form fields, admin-only PATCH API, and a reporting-manager-driven org chart; deploy to Vercel (demo)
+
+Work Log:
+- Context: Task 44 gap analysis found NO working UI to set Employee.reportingManagerId (Transfer form records but never applies — no approval endpoint; Update Requests UI lacks the field; POST /api/employees already persisted the field but the Add form never sent it; /org-chart ignored the field entirely, building from seniority+department).
+- Code changes (commit f7845472 -> origin/main -> Vercel):
+  * src/app/api/employees/[id]/route.ts:
+    - NEW shared helpers: validateReportingManagerChange (exists + active + same-company + no self-reference + cycle guard walking up to 25 chain levels) and notifyReportingManagerChange (audit log UPDATE_REPORTING_MANAGER + in-app bells via createNotification to BOTH new manager and employee + real emails via sendEmail tenant-SMTP chain; all best-effort/non-blocking).
+    - NEW PATCH /api/employees/[id] — admin-only focused reassignment { reportingManagerId: string|null }; 401/403 for non-admins (employee roles rejected; hr_admin legacy roles allowed); defensive column sync.
+    - PUT now accepts reportingManagerId with the SAME validation + announcement; only fires notifications when the value actually changed (PUT with unchanged manager -> zero notifications, verified).
+  * src/app/(dashboard)/employees/page.tsx: Employee interface + initialForm + handleOpenEditForm gained reportingManagerId; Employment tab of the shared Add/Edit form now renders a 'Reporting Manager (Approvals · notifications · org chart)' dropdown (active employees of the selected company, excluding the employee being edited; cleared when company changes; helper text explains approval/notification/org-chart routing). POST path already persisted it — Add Employee now sends it; Edit Employee full-save carries it through PUT.
+  * src/app/(dashboard)/org-chart/page.tsx: buildOrgTree rewritten — PRIMARY mode nests every employee under their reportingManagerId (managerless/out-of-set/loop members become roots; children sorted by seniority; depth-capped recursion); legacy seniority+department heuristic kept ONLY as fallback when no employee has a manager (so pre-existing tenants still render).
+- E2E VERIFIED on demo (scripts/verify-rm-workflow-e2e.js + inspect-demo-managers.js): PATCH Manu Tilak (EMP-3BOX-005, previously NO manager) -> Keerthan Rao (EMP-3BOX-007): 200 + DB persisted + 2 bell notifications ('New team member assigned' to Keerthan, 'Reporting manager updated' to Manu) + audit row 'changed: (none) -> Keerthan Rao (via PATCH)' + emails via tenant SMTP. Validation: self-reference 400, cross-company (3BOX->ISY) 400, employee-role caller 403. PUT with unchanged manager: 200 + ZERO duplicate notifications (first test run's false failure was a 1-minute-window timing bug in the test itself, fixed with a delta check).
+- BROWSER VERIFIED on demo as admin: /org-chart search 'Keerthan' shows Manu Tilak NESTED under Keerthan Rao (a11y tree child; Employee Details panel shows 'DIRECT REPORTS (1): Manu Tilak'); Employees -> Manu -> Edit Employee -> Employment tab shows the Reporting Manager dropdown with 'Keerthan Rao · EMP-3BOX-007 — Executive' SELECTED, 'No Reporting Manager' option present, self excluded from options.
+- Screenshots in download/: rm-orgchart-keerthan-node.png, rm-orgchart-tree.png, rm-orgchart-filtered.png, rm-orgchart-manu-nested.png, rm-orgchart-manu-under-keerthan.png, rm-orgchart-manu-final.png (DIRECT REPORTS panel), rm-edit-form-dropdown.png, rm-edit-form-full.png.
+- Demo state: Manu Tilak now permanently reports to Keerthan Rao (sensible org structure, left for user inspection). Full manager map dump: scripts/inspect-demo-managers.js.
+
+Stage Summary:
+- Reporting-manager lifecycle is now complete in-product: set at HIRE (Add Employee), changeable at any time (Edit Employee -> PATCH/PUT), validated (same company, active, no self/cycle), audited, and ANNOUNCED (bell + email to both sides). Leave approvals, all module notification routing and the org chart flow from this single field.
+- Org chart on /org-chart auto-populates from reportingManagerId the moment ANY employee has a manager assigned (demo now does); department heuristic remains as legacy fallback.
+- Demo-only note from Task 44 still open: Amit Reddy's User.role is 'employee'; promoting to 'manager' would let him approve leaves himself in the UI (his reporting-manager links are already correct for Innovatech).
