@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { sendEmail } from '@/lib/email-sender';
+import { sendEmail as sendGlobalEmail } from '@/lib/email';
 import { withSchemaSync } from '@/lib/schema-sync';
 
 /** GET /api/email?folder=inbox&page=1&limit=50 */
@@ -23,11 +24,19 @@ export async function GET(request: NextRequest) {
     const employee = await db.employee.findFirst({ where: { userId: decoded.userId as string } });
     if (!employee) return NextResponse.json({ emails: [], total: 0 });
 
+    // Per-recipient scoping (kept in AND so the search OR below can't clobber it):
+    //  - sent/drafts → authored by this employee (senderId)
+    //  - everything else → addressed to this employee (toEmployeeId) OR shared/legacy rows (null)
     const where: Record<string, unknown> = { isActive: true };
-    if (folder === 'starred') {
+    if (folder === 'sent' || folder === 'drafts') {
+      where.senderId = employee.id;
+      where.folder = folder;
+    } else if (folder === 'starred') {
       where.isStarred = true;
+      where.AND = [{ OR: [{ toEmployeeId: employee.id }, { toEmployeeId: null }] }];
     } else {
       where.folder = folder;
+      where.AND = [{ OR: [{ toEmployeeId: employee.id }, { toEmployeeId: null }] }];
     }
     if (search) {
       where.OR = [
@@ -126,13 +135,11 @@ export async function POST(request: NextRequest) {
 
         if (tenantId) {
           const settings = await db.collaborationSettings.findUnique({ where: { tenantId } });
+          const htmlBody = emailBody.includes('<') && emailBody.includes('>')
+            ? emailBody
+            : emailBody.replace(/\n/g, '<br/>');
 
           if (settings && settings.emailIntegrationEnabled) {
-            // Convert email body to HTML if it's plain text
-            const htmlBody = emailBody.includes('<') && emailBody.includes('>')
-              ? emailBody
-              : emailBody.replace(/\n/g, '<br/>');
-
             sendResult = await sendEmail(settings, {
               to: Array.isArray(toAddresses) ? toAddresses : [toAddresses],
               cc: ccAddresses ? (Array.isArray(ccAddresses) ? ccAddresses : [ccAddresses]) : undefined,
@@ -143,8 +150,20 @@ export async function POST(request: NextRequest) {
               fromName: `${employee.firstName} ${employee.lastName}`,
               fromAddress: employee.email,
             });
-          } else {
-            sendResult = { success: false, error: 'Email integration not enabled or not configured. Configure SMTP in Settings.', provider: 'none' };
+          }
+
+          // Tenant SMTP disabled/misconfigured/failed → global sender fallback
+          // (same chain the notification center uses, e.g. Resend when configured)
+          if (!sendResult || !sendResult.success) {
+            const tenantError = sendResult?.error || 'Email integration not enabled or not configured. Configure SMTP in Settings.';
+            const globalRes = await sendGlobalEmail({
+              to: Array.isArray(toAddresses) ? toAddresses : [toAddresses],
+              subject,
+              html: htmlBody,
+            });
+            sendResult = globalRes.success
+              ? { success: true, provider: 'resend-global', messageId: (globalRes as { messageId?: string }).messageId }
+              : { success: false, error: `${tenantError}; global fallback: ${globalRes.error || 'send failed'}`, provider: 'resend-global' };
           }
         } else {
           sendResult = { success: false, error: 'Tenant not found for SMTP configuration.', provider: 'none' };

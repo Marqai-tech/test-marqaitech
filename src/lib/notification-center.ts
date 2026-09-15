@@ -425,6 +425,13 @@ async function sendToChannel(ctx: SendContext): Promise<{ status: string; error?
         status = res.success ? 'sent' : 'failed';
         error = res.error;
         if (res.success && res.usedFallback) status = 'sent'; // still delivered (possibly sandbox)
+        // Mirror into the recipient's internal Collaboration → Email inbox so
+        // HR alerts are visible inside the app (not only in the mailbox).
+        if (res.success && recipient.userId) {
+          await mirrorToInternalInbox(db, ctx, recipient, title, bodyText).catch((mirrorErr: Error) => {
+            console.warn(`[NotificationCenter] inbox mirror failed for ${recipient.email || recipient.userId}: ${mirrorErr.message}`);
+          });
+        }
         break;
       }
       case 'sms': {
@@ -466,6 +473,41 @@ function moduleCategory(module: string): string {
     learning: 'system', payroll: 'payroll', exit: 'workflow',
   };
   return map[module] || 'system';
+}
+
+/**
+ * Mirror a successfully-sent notification email into the recipient's internal
+ * Collaboration → Email inbox (EmailMessage). Best-effort: never blocks or
+ * fails the notification pipeline. Plain-text body matches the inbox renderer.
+ */
+async function mirrorToInternalInbox(
+  db: PrismaClient,
+  ctx: SendContext,
+  recipient: ResolvedRecipient,
+  subject: string,
+  bodyText: string,
+): Promise<void> {
+  const emp = await db.employee.findFirst({
+    where: { userId: recipient.userId! },
+    select: { id: true, companyId: true },
+  });
+  if (!emp) return; // non-employee recipients (e.g. candidates) have no HR inbox
+
+  await (db as any).emailMessage.create({
+    data: {
+      subject,
+      body: bodyText,
+      fromAddress: 'notifications@3boxeshrms.com',
+      fromName: ctx.companyName || '3Boxes HRMS',
+      toAddresses: JSON.stringify(recipient.email ? [recipient.email] : []),
+      folder: 'inbox',
+      isRead: false,
+      labels: JSON.stringify(['Notification', ctx.module]),
+      toEmployeeId: emp.id,
+      companyId: emp.companyId || null,
+      createdByFlow: 'notification',
+    },
+  });
 }
 
 // ─── SMS (Twilio REST, env-driven) ───────────────────────────────────

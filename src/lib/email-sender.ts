@@ -123,7 +123,7 @@ async function sendViaResend(apiKey: string, fromAddress: string, params: SendEm
       subject: params.subject,
       html: params.html,
       text: params.text,
-      reply_to: params.replyTo,
+      replyTo: params.replyTo,
       attachments: params.attachments?.map(a => ({
         filename: a.filename,
         content: a.content?.toString(),

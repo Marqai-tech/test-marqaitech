@@ -7877,6 +7877,8 @@ model EmailMessage {
   priority      String   @default("normal") // low | normal | high | urgent
   companyId     String?
   isActive      Boolean  @default(true)
+  toEmployeeId  String?  // Recipient employee (internal HR-inbox mirror of notification emails; null = shared/legacy)
+  createdByFlow String?  // Origin flow for mirrored rows: 'notification' | 'compose' | null (legacy)
 
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -7886,6 +7888,7 @@ model EmailMessage {
   @@index([isRead])
   @@index([threadId])
   @@index([companyId])
+  @@index([toEmployeeId])
 }
 
 // ─── Todo Tasks ────────────────────────────────────────────
