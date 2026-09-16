@@ -223,7 +223,10 @@ function calculateBreakDuration(checkIn: string | null | undefined, checkOut: st
 /* ── Component ── */
 export default function AttendancePage() {
   const { user } = useAuthStore();
-  const isAdmin = user?.role === 'super_admin' || user?.role === 'admin' || user?.role === 'hr';
+  // tenant_admin is an admin-level role everywhere else in the app (navData,
+  // regularize page) — include it so Tenant Admins get the Admin View roster
+  // with the Present/Absent/Late/On-Leaves counters.
+  const isAdmin = ['super_admin', 'tenant_admin', 'admin', 'hr'].includes(user?.role || '');
   const scopeQuery = useCompanyContextStore(s => s.scopeQuery);
   const selectedTenantId = useCompanyContextStore(s => s.selectedTenantId);
 
