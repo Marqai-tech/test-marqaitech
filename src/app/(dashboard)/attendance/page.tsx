@@ -126,6 +126,7 @@ function getStatusConfig(status: string) {
     half_day: { label: 'Half Day', dotColor: 'bg-teal-500', bgColor: 'bg-teal-50', textColor: 'text-teal-700' },
     holiday: { label: 'Holiday', dotColor: 'bg-sky-500', bgColor: 'bg-sky-50', textColor: 'text-sky-700' },
     weekend: { label: 'Weekend', dotColor: 'bg-slate-400', bgColor: 'bg-slate-50', textColor: 'text-slate-600' },
+    not_marked: { label: 'Not Marked', dotColor: 'bg-slate-300', bgColor: 'bg-slate-50', textColor: 'text-slate-500' },
   };
   return configs[status] || { label: status, dotColor: 'bg-gray-400', bgColor: 'bg-gray-50', textColor: 'text-gray-600' };
 }
