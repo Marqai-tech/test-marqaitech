@@ -320,8 +320,6 @@ export async function GET(request: NextRequest) {
             let code = '—'; // future / before joining / not applicable
             if (dojStr && ds < dojStr) {
               code = '—';
-            } else if (ds > todayStr) {
-              code = '—';
             } else if (empAtt?.has(ds)) {
               const st = empAtt.get(ds)!;
               if (st === 'present') { code = 'P'; totals.P++; }
@@ -332,12 +330,14 @@ export async function GET(request: NextRequest) {
               else if (st === 'weekend') { code = 'WO'; totals.WO++; }
               else if (st === 'holiday') { code = 'H'; totals.H++; }
               else { code = 'A'; totals.A++; }
-            } else if (empLeaves?.has(ds)) {
-              code = 'L'; totals.L++;
             } else if (weekendSet.has(new Date(`${ds}T00:00:00.000Z`).getUTCDay())) {
               code = 'WO'; totals.WO++;
             } else if (holidaySet.has(ds)) {
               code = 'H'; totals.H++;
+            } else if (empLeaves?.has(ds)) {
+              code = 'L'; totals.L++; // approved leave — including future (planned) days
+            } else if (ds > todayStr) {
+              code = '—'; // future working day, not yet due
             } else {
               code = 'A'; totals.A++; // past working day with no punch/leave → absent
             }
