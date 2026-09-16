@@ -10,7 +10,7 @@ import {
   FiSun, FiMoon, FiZap, FiLayers, FiPieChart, FiRepeat,
   FiArrowRight, FiRefreshCw, FiDatabase, FiSliders,
   FiBook, FiCreditCard, FiPackage, FiFolder, FiHelpCircle,
-  FiTool, FiClipboard, FiMonitor,
+  FiTool, FiClipboard, FiMonitor, FiGrid, FiHome, FiKey, FiEdit3,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { isClientDemoMode } from '@/lib/site-mode';
@@ -36,6 +36,11 @@ const fmtCurrency = (amount: number, currency = 'INR') => {
 };
 
 const months = Array.from({ length: 12 }, (_, i) => ({ value: i + 1, label: new Date(2024, i).toLocaleString('default', { month: 'long' }) }));
+
+function fmtTimeCell(iso: string | null | undefined): string {
+  if (!iso) return '';
+  return new Date(iso).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+}
 
 /* ── Report Definitions ── */
 interface ReportDef {
@@ -97,11 +102,22 @@ const standardReports: { module: string; moduleIcon: React.ComponentType<{ class
     moduleIcon: FiClock,
     moduleColor: 'cyan',
     reports: [
-      { id: 'daily_attendance', name: 'Daily Attendance Summary', description: 'Day-wise attendance breakdown', module: 'Attendance', icon: FiSun, apiEndpoint: '/api/reports', apiType: 'attendance_report' },
-      { id: 'late_arrival', name: 'Late Arrival Report', description: 'Employees with frequent late arrivals', module: 'Attendance', icon: FiClock, apiEndpoint: '/api/reports', apiType: 'attendance_report' },
-      { id: 'overtime', name: 'Overtime Report', description: 'Overtime hours by employee and department', module: 'Attendance', icon: FiMoon, apiEndpoint: '/api/reports', apiType: 'attendance_report' },
-      { id: 'absenteeism', name: 'Absenteeism Report', description: 'Absenteeism rates and patterns', module: 'Attendance', icon: FiUserX, apiEndpoint: '/api/reports', apiType: 'attendance_report' },
+      { id: 'daily_attendance', name: 'Daily Attendance Summary', description: 'Day-wise attendance breakdown for the selected month', module: 'Attendance', icon: FiSun, apiEndpoint: '/api/reports', apiType: 'attendance_report' },
+      { id: 'muster_roll', name: 'Muster Roll', description: 'Day-by-day P/A/L/WO/H attendance matrix for every employee', module: 'Attendance', icon: FiGrid, apiEndpoint: '/api/reports', apiType: 'muster_roll' },
+      { id: 'attendance_dept_wise', name: 'Department-wise Attendance', description: 'Attendance, absence and punctuality grouped by department', module: 'Attendance', icon: FiLayers, apiEndpoint: '/api/reports', apiType: 'attendance_dept_wise' },
+      { id: 'attendance_designation_wise', name: 'Designation-wise Attendance', description: 'Attendance, absence and punctuality grouped by designation', module: 'Attendance', icon: FiTarget, apiEndpoint: '/api/reports', apiType: 'attendance_designation_wise' },
+      { id: 'late_arrival', name: 'Late Arrival Report', description: 'Employees with late check-ins for the selected month', module: 'Attendance', icon: FiClock, apiEndpoint: '/api/reports', apiType: 'attendance_report' },
+      { id: 'overtime', name: 'Overtime Hours Report', description: 'Overtime hours by employee and department', module: 'Attendance', icon: FiMoon, apiEndpoint: '/api/reports', apiType: 'attendance_report' },
+      { id: 'absenteeism', name: 'Absenteeism Report', description: 'Absenteeism rates and patterns for the selected month', module: 'Attendance', icon: FiUserX, apiEndpoint: '/api/reports', apiType: 'attendance_report' },
       { id: 'shift_compliance', name: 'Shift Compliance Report', description: 'Shift adherence and violations', module: 'Attendance', icon: FiLayers, comingSoon: false },
+      { id: 'wfh_report', name: 'WFH Report', description: 'Work-from-home requests, days and approvals', module: 'Attendance', icon: FiHome, apiEndpoint: '/api/reports', apiType: 'wfh_report' },
+      { id: 'gatepass_report', name: 'Gate Pass Report', description: 'Gate passes with movement times and approvals', module: 'Attendance', icon: FiKey, apiEndpoint: '/api/reports', apiType: 'gatepass_report' },
+      { id: 'regularization_report', name: 'Regularization Report', description: 'Attendance regularization requests and outcomes', module: 'Attendance', icon: FiEdit3, apiEndpoint: '/api/reports', apiType: 'regularization_report' },
+      { id: 'permission_report', name: 'Hourly Permission Report', description: 'Hourly permissions with duration and status', module: 'Attendance', icon: FiClock, apiEndpoint: '/api/reports', apiType: 'permission_report' },
+      { id: 'compoff_report', name: 'Comp-off Report', description: 'Comp-off credits, sources, usage and expiry', module: 'Attendance', icon: FiGift, apiEndpoint: '/api/reports', apiType: 'compoff_report' },
+      { id: 'overtime_request_report', name: 'OT Requests Report', description: 'Overtime requests with hours and payout preference', module: 'Attendance', icon: FiMoon, apiEndpoint: '/api/reports', apiType: 'overtime_request_report' },
+      { id: 'shift_report', name: 'Shift & Roster Report', description: 'Shift masters, rotational rosters and assignments', module: 'Attendance', icon: FiRepeat, apiEndpoint: '/api/reports', apiType: 'shift_report' },
+      { id: 'holiday_report', name: 'Holiday Calendar Report', description: 'Company holidays for the selected year by type', module: 'Attendance', icon: FiCalendar, apiEndpoint: '/api/reports', apiType: 'holiday_report' },
     ],
   },
   {
@@ -314,6 +330,7 @@ export default function ReportsPage() {
   const [filterYear, setFilterYear] = useState(new Date().getFullYear());
   const [filterCompany, setFilterCompany] = useState('');
   const [filterDepartment, setFilterDepartment] = useState('');
+  const [filterDesignation, setFilterDesignation] = useState('');
   const [reportLoading, setReportLoading] = useState(false);
   const [reportHistory, setReportHistory] = useState<{ report: ReportDef; data: Record<string, unknown> } | null>(null);
 
@@ -334,6 +351,9 @@ export default function ReportsPage() {
 
   // Companies
   const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
+  // Departments + designations (real tenant data for report filters)
+  const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
+  const [designations, setDesignations] = useState<{ id: string; title: string }[]>([]);
 
   // Fetch analytics
   const fetchAnalytics = useCallback(async () => {
@@ -355,9 +375,29 @@ export default function ReportsPage() {
     } catch { /* ignore */ }
   }, []);
 
+  // Fetch departments + designations for report filters (real tenant data)
+  const fetchFilterOptions = useCallback(async () => {
+    try {
+      const [dRes, gRes] = await Promise.all([
+        fetch('/api/departments?limit=100', { headers: getAuthHeaders() }),
+        fetch('/api/designations?limit=100', { headers: getAuthHeaders() }),
+      ]);
+      if (dRes.ok) {
+        const data = await dRes.json();
+        const list = (data.data || data.departments || []) as { id: string; name: string }[];
+        setDepartments(list.map(x => ({ id: x.id, name: x.name })));
+      }
+      if (gRes.ok) {
+        const data = await gRes.json();
+        const list = (data.data || data.designations || []) as { id: string; title: string }[];
+        setDesignations(list.map(x => ({ id: x.id, title: x.title })));
+      }
+    } catch { /* ignore */ }
+  }, []);
+
   useEffect(() => {
-    queueMicrotask(() => { fetchAnalytics(); fetchCompanies(); });
-  }, [fetchAnalytics, fetchCompanies]);
+    queueMicrotask(() => { fetchAnalytics(); fetchCompanies(); fetchFilterOptions(); });
+  }, [fetchAnalytics, fetchCompanies, fetchFilterOptions]);
 
   // Save favorites
   useEffect(() => {
@@ -401,7 +441,15 @@ export default function ReportsPage() {
         if (filterDepartment) params.set('departmentId', filterDepartment);
         url = `/api/payroll/reports/salary-register?${params}`;
       } else if (selectedReport.apiType) {
-        url = `/api/reports?type=${selectedReport.apiType}`;
+        const params = new URLSearchParams({
+          type: selectedReport.apiType,
+          month: String(filterMonth),
+          year: String(filterYear),
+        });
+        if (filterCompany) params.set('companyId', filterCompany);
+        if (filterDepartment) params.set('departmentId', filterDepartment);
+        if (filterDesignation) params.set('designationId', filterDesignation);
+        url = `/api/reports?${params}`;
       }
 
       if (!url) {
@@ -615,7 +663,7 @@ export default function ReportsPage() {
         r.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
         r.module.toLowerCase().includes(searchQuery.toLowerCase()))
         // For employees, filter out reports that require org-wide access
-        && (!isSelfOnly || ['leave_balance', 'daily_attendance', 'payroll_summary'].includes(r.id))
+        && (!isSelfOnly || ['leave_balance', 'daily_attendance', 'payroll_summary', 'muster_roll'].includes(r.id))
       ),
     })).filter(group => group.reports.length > 0);
 
@@ -750,31 +798,338 @@ export default function ReportsPage() {
     if (report.apiType === 'attendance_report') {
       const d = data as Record<string, unknown>;
       const byStatus = (d.byStatus || {}) as Record<string, number>;
+      const records = (d.records || []) as { employeeCode: string; name: string; department: string; designation: string; date: string; status: string; checkIn: string | null; checkOut: string | null; workHours: number | null; overtime: number | null }[];
+      const byDate = (d.byDate || {}) as Record<string, { present: number; late: number; absent: number; leave: number; wfh: number; other: number }>;
+
+      // Shared KPI strip
+      const kpiCards = (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          <div className="thb-card p-4 text-center"><p className="text-xs font-medium text-thb-text-secondary">Attendance Rate</p><p className="text-2xl font-bold text-emerald-700">{(d.attendanceRate as number) || 0}%</p></div>
+          <div className="thb-card p-4 text-center"><p className="text-xs font-medium text-thb-text-secondary">Present</p><p className="text-2xl font-bold text-emerald-700">{(byStatus['present'] || 0) + (byStatus['late'] || 0)}</p></div>
+          <div className="thb-card p-4 text-center"><p className="text-xs font-medium text-thb-text-secondary">Late Arrivals</p><p className="text-2xl font-bold text-amber-700">{(d.lateArrivals as number) || 0}</p></div>
+          <div className="thb-card p-4 text-center"><p className="text-xs font-medium text-thb-text-secondary">On Leave</p><p className="text-2xl font-bold text-sky-700">{byStatus['on_leave'] || 0}</p></div>
+          <div className="thb-card p-4 text-center"><p className="text-xs font-medium text-thb-text-secondary">WFH</p><p className="text-2xl font-bold text-violet-700">{byStatus['wfh'] || 0}</p></div>
+          <div className="thb-card p-4 text-center"><p className="text-xs font-medium text-thb-text-secondary">Total OT (h)</p><p className="text-2xl font-bold text-green-700">{((d.totalOvertime as number) || 0).toFixed(1)}</p></div>
+        </div>
+      );
+
+      const recordsTable = (rows: typeof records, extraCols: 'times' | 'hours' | 'none' = 'times', title = 'Employee Records') => (
+        <div className="thb-card overflow-hidden">
+          <div className="px-4 py-3 border-b border-thb-border flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-thb-text-primary">{title} <span className="text-thb-text-muted font-normal">({rows.length})</span></h3>
+            <button onClick={() => handleExportCSV(rows.map(r => ({ EmployeeID: r.employeeCode, Name: r.name, Department: r.department, Designation: r.designation, Date: r.date, Status: r.status, CheckIn: fmtTimeCell(r.checkIn), CheckOut: fmtTimeCell(r.checkOut), WorkHours: r.workHours ?? '', Overtime: r.overtime ?? '' })), `${report.id}_${filterYear}_${filterMonth}`)} className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-thb-border rounded-lg text-xs font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">
+              <FiDownload className="w-3.5 h-3.5" /> Export CSV
+            </button>
+          </div>
+          <div className="overflow-x-auto max-h-96 overflow-y-auto">
+            <table className="w-full min-w-[700px]">
+              <thead className="sticky top-0 z-10">
+                <tr className="border-b border-thb-border bg-slate-50">
+                  {['Emp Code', 'Name', 'Department', 'Date', 'Status', ...(extraCols === 'times' ? ['Check In', 'Check Out'] : []), ...(extraCols === 'hours' ? ['Work Hours', 'Overtime (h)'] : [])].map(h => (
+                    <th key={h} className="text-left px-3 py-2 text-xs font-semibold text-thb-text-secondary uppercase">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-thb-border/50">
+                {rows.slice(0, 200).map((r, i) => (
+                  <tr key={i} className="hover:bg-slate-50/50 transition-colors">
+                    <td className="px-3 py-2 text-sm font-medium text-thb-text-primary">{r.employeeCode}</td>
+                    <td className="px-3 py-2 text-sm text-thb-text-primary">{r.name}</td>
+                    <td className="px-3 py-2 text-sm text-thb-text-secondary">{r.department}</td>
+                    <td className="px-3 py-2 text-sm text-thb-text-secondary">{r.date}</td>
+                    <td className="px-3 py-2 text-sm capitalize text-thb-text-secondary">{r.status.replace('_', ' ')}</td>
+                    {extraCols === 'times' && (<>
+                      <td className="px-3 py-2 text-sm text-thb-text-secondary">{r.checkIn ? new Date(r.checkIn).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'}</td>
+                      <td className="px-3 py-2 text-sm text-thb-text-secondary">{r.checkOut ? new Date(r.checkOut).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'}</td>
+                    </>)}
+                    {extraCols === 'hours' && (<>
+                      <td className="px-3 py-2 text-sm text-thb-text-secondary">{r.workHours ?? '—'}</td>
+                      <td className="px-3 py-2 text-sm text-thb-text-secondary">{r.overtime ?? '—'}</td>
+                    </>)}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      );
+
+      /* Daily Attendance Summary — day-wise table */
+      if (report.id === 'daily_attendance') {
+        const days = Object.entries(byDate).sort(([a], [b]) => a.localeCompare(b));
+        return (
+          <div className="space-y-4">
+            {kpiCards}
+            {days.length > 0 ? (
+              <div className="thb-card overflow-hidden">
+                <div className="px-4 py-3 border-b border-thb-border flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-thb-text-primary">Day-wise Breakdown — {months[filterMonth - 1]?.label} {filterYear}</h3>
+                  <button onClick={() => handleExportCSV(days.map(([ds, v]) => ({ Date: ds, Present: v.present, Late: v.late, Absent: v.absent, OnLeave: v.leave, WFH: v.wfh })), `daily_attendance_${filterYear}_${filterMonth}`)} className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-thb-border rounded-lg text-xs font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">
+                    <FiDownload className="w-3.5 h-3.5" /> Export CSV
+                  </button>
+                </div>
+                <div className="overflow-x-auto max-h-96 overflow-y-auto">
+                  <table className="w-full min-w-[600px]">
+                    <thead className="sticky top-0 z-10">
+                      <tr className="border-b border-thb-border bg-slate-50">
+                        {['Date', 'Present', 'Late', 'Absent', 'On Leave', 'WFH'].map(h => (
+                          <th key={h} className={`px-3 py-2 text-xs font-semibold text-thb-text-secondary uppercase ${h === 'Date' ? 'text-left' : 'text-right'}`}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-thb-border/50">
+                      {days.map(([ds, v]) => (
+                        <tr key={ds} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="px-3 py-2 text-sm font-medium text-thb-text-primary">{new Date(`${ds}T00:00:00.000Z`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' })}</td>
+                          <td className="px-3 py-2 text-sm text-right text-emerald-700 font-medium">{v.present}</td>
+                          <td className="px-3 py-2 text-sm text-right text-amber-700 font-medium">{v.late}</td>
+                          <td className="px-3 py-2 text-sm text-right text-red-700 font-medium">{v.absent}</td>
+                          <td className="px-3 py-2 text-sm text-right text-sky-700 font-medium">{v.leave}</td>
+                          <td className="px-3 py-2 text-sm text-right text-violet-700 font-medium">{v.wfh}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : (
+              <div className="thb-card p-12 text-center">
+                <FiSun className="w-12 h-12 text-thb-text-muted mx-auto mb-3" />
+                <p className="text-thb-text-secondary font-medium">No attendance records for {months[filterMonth - 1]?.label} {filterYear}</p>
+                <p className="text-sm text-thb-text-muted mt-1">Try a different month, or check in from the Attendance module to populate data.</p>
+              </div>
+            )}
+          </div>
+        );
+      }
+
+      /* Late Arrival Report */
+      if (report.id === 'late_arrival') {
+        const lateRows = records.filter(r => r.status === 'late');
+        return (
+          <div className="space-y-4">
+            {kpiCards}
+            {lateRows.length > 0 ? recordsTable(lateRows, 'times', `Late Arrivals — ${months[filterMonth - 1]?.label} ${filterYear}`) : (
+              <div className="thb-card p-12 text-center">
+                <FiClock className="w-12 h-12 text-thb-text-muted mx-auto mb-3" />
+                <p className="text-thb-text-secondary font-medium">No late arrivals in {months[filterMonth - 1]?.label} {filterYear}</p>
+              </div>
+            )}
+          </div>
+        );
+      }
+
+      /* Overtime Hours Report — aggregate per employee */
+      if (report.id === 'overtime') {
+        const perEmp = new Map<string, { code: string; name: string; dept: string; hours: number; days: number }>();
+        records.forEach(r => {
+          if (r.status === 'absent' || r.status === 'on_leave') return;
+          const key = r.employeeCode;
+          const row = perEmp.get(key) || { code: r.employeeCode, name: r.name, dept: r.department, hours: 0, days: 0 };
+          row.hours += r.overtime || 0;
+          if ((r.overtime || 0) > 0) row.days++;
+          perEmp.set(key, row);
+        });
+        const otRows = Array.from(perEmp.values()).filter(r => r.hours > 0).sort((a, b) => b.hours - a.hours);
+        return (
+          <div className="space-y-4">
+            {kpiCards}
+            {otRows.length > 0 ? (
+              <div className="thb-card overflow-hidden">
+                <div className="px-4 py-3 border-b border-thb-border flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-thb-text-primary">Overtime by Employee — {months[filterMonth - 1]?.label} {filterYear}</h3>
+                  <button onClick={() => handleExportCSV(otRows.map(r => ({ EmployeeID: r.code, Name: r.name, Department: r.dept, OvertimeHours: Math.round(r.hours * 100) / 100, DaysWithOT: r.days })), `overtime_${filterYear}_${filterMonth}`)} className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-thb-border rounded-lg text-xs font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">
+                    <FiDownload className="w-3.5 h-3.5" /> Export CSV
+                  </button>
+                </div>
+                <div className="overflow-x-auto max-h-96 overflow-y-auto">
+                  <table className="w-full min-w-[600px]">
+                    <thead className="sticky top-0 z-10">
+                      <tr className="border-b border-thb-border bg-slate-50">
+                        {['Emp Code', 'Name', 'Department', 'OT Hours', 'Days with OT'].map((h, i) => (
+                          <th key={h} className={`px-3 py-2 text-xs font-semibold text-thb-text-secondary uppercase ${i < 2 ? 'text-left' : i === 2 ? 'text-left' : 'text-right'}`}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-thb-border/50">
+                      {otRows.map((r, i) => (
+                        <tr key={i} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="px-3 py-2 text-sm font-medium text-thb-text-primary">{r.code}</td>
+                          <td className="px-3 py-2 text-sm text-thb-text-primary">{r.name}</td>
+                          <td className="px-3 py-2 text-sm text-thb-text-secondary">{r.dept}</td>
+                          <td className="px-3 py-2 text-sm text-right text-green-700 font-semibold">{Math.round(r.hours * 100) / 100}</td>
+                          <td className="px-3 py-2 text-sm text-right text-thb-text-secondary">{r.days}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : (
+              <div className="thb-card p-12 text-center">
+                <FiMoon className="w-12 h-12 text-thb-text-muted mx-auto mb-3" />
+                <p className="text-thb-text-secondary font-medium">No overtime recorded in {months[filterMonth - 1]?.label} {filterYear}</p>
+              </div>
+            )}
+          </div>
+        );
+      }
+
+      /* Absenteeism Report */
+      if (report.id === 'absenteeism') {
+        const absRows = records.filter(r => r.status === 'absent' || r.status === 'on_leave');
+        return (
+          <div className="space-y-4">
+            {kpiCards}
+            {Object.keys(byStatus).length > 0 && (
+              <div className="thb-card p-6">
+                <h3 className="text-sm font-semibold text-thb-text-primary mb-4">Attendance by Status</h3>
+                <div className="space-y-3">{Object.entries(byStatus).map(([name, count]) => { const max = Math.max(...Object.values(byStatus), 1); return (<div key={name}><div className="flex justify-between mb-1"><span className="text-sm text-thb-text-secondary capitalize">{name.replace('_', ' ')}</span><span className="text-sm font-medium">{count as number}</span></div><div className="w-full h-5 bg-slate-100 rounded-full"><div className="h-full bg-cyan-500 rounded-full" style={{ width: `${((count as number) / max) * 100}%` }} /></div></div>); })}</div>
+              </div>
+            )}
+            {absRows.length > 0 ? recordsTable(absRows, 'none', `Absent / Leave Records — ${months[filterMonth - 1]?.label} ${filterYear}`) : (
+              <div className="thb-card p-12 text-center">
+                <FiUserX className="w-12 h-12 text-thb-text-muted mx-auto mb-3" />
+                <p className="text-thb-text-secondary font-medium">No absences recorded in {months[filterMonth - 1]?.label} {filterYear}</p>
+              </div>
+            )}
+          </div>
+        );
+      }
+
+      /* Default attendance view (any other attendance_report consumer) */
       return (
         <div className="space-y-4">
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-            <div className="thb-card p-4 text-center">
-              <p className="text-xs font-medium text-thb-text-secondary">Attendance Rate</p>
-              <p className="text-2xl font-bold text-emerald-700">{(d.attendanceRate as number) || 0}%</p>
-            </div>
-            <div className="thb-card p-4 text-center">
-              <p className="text-xs font-medium text-thb-text-secondary">Late Arrivals</p>
-              <p className="text-2xl font-bold text-amber-700">{(d.lateArrivals as number) || 0}</p>
-            </div>
-            <div className="thb-card p-4 text-center">
-              <p className="text-xs font-medium text-thb-text-secondary">Total Overtime (h)</p>
-              <p className="text-2xl font-bold text-green-700">{((d.totalOvertime as number) || 0).toFixed(1)}</p>
-            </div>
-          </div>
+          {kpiCards}
           {Object.keys(byStatus).length > 0 && (
             <div className="thb-card p-6">
               <h3 className="text-sm font-semibold text-thb-text-primary mb-4">Attendance by Status</h3>
               <div className="space-y-3">{Object.entries(byStatus).map(([name, count]) => { const max = Math.max(...Object.values(byStatus), 1); return (<div key={name}><div className="flex justify-between mb-1"><span className="text-sm text-thb-text-secondary capitalize">{name.replace('_', ' ')}</span><span className="text-sm font-medium">{count as number}</span></div><div className="w-full h-5 bg-slate-100 rounded-full"><div className="h-full bg-cyan-500 rounded-full" style={{ width: `${((count as number) / max) * 100}%` }} /></div></div>); })}</div>
             </div>
           )}
-          <button onClick={() => handleExportCSV(Object.entries(byStatus).map(([k, v]) => ({ Status: k, Count: v })), `attendance_report_${filterYear}_${filterMonth}`)} className="inline-flex items-center gap-1.5 px-3 py-2 border border-thb-border rounded-lg text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">
-            <FiDownload className="w-4 h-4" /> Export CSV
-          </button>
+          {records.length > 0 && recordsTable(records, 'times', `Attendance Records — ${months[filterMonth - 1]?.label} ${filterYear}`)}
+          {records.length === 0 && Object.keys(byStatus).length === 0 && (
+            <div className="thb-card p-12 text-center">
+              <FiClock className="w-12 h-12 text-thb-text-muted mx-auto mb-3" />
+              <p className="text-thb-text-secondary font-medium">No attendance records for {months[filterMonth - 1]?.label} {filterYear}</p>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    /* ── Muster Roll — day-by-day matrix ── */
+    if (report.apiType === 'muster_roll') {
+      const d = data as Record<string, unknown>;
+      const musterRows = (d.records || []) as { employeeCode: string; name: string; department: string; designation: string; company: string; days: string[]; presentDays: number; lateDays: number; absentDays: number; leaveDays: number; wfhDays: number; weekendDays: number; holidayDays: number }[];
+      const dayHeaders = (d.dayHeaders || []) as string[];
+      const summary = (d.summary || []) as { label: string; value: number | string; color?: string }[];
+      const holidays = (d.holidays || []) as { date: string; name: string }[];
+      const summaryColors: Record<string, string> = {
+        emerald: 'text-emerald-700', red: 'text-red-700', sky: 'text-sky-700', violet: 'text-violet-700', amber: 'text-amber-700', cyan: 'text-cyan-700', slate: 'text-slate-700',
+      };
+      const cellClass = (code: string): string => {
+        switch (code) {
+          case 'P': return 'bg-emerald-50 text-emerald-700';
+          case 'PL': return 'bg-amber-50 text-amber-700';
+          case 'A': return 'bg-red-50 text-red-700';
+          case 'HD': return 'bg-orange-50 text-orange-700';
+          case 'L': return 'bg-sky-50 text-sky-700';
+          case 'WFH': return 'bg-violet-50 text-violet-700';
+          case 'WO': return 'bg-slate-100 text-slate-500';
+          case 'H': return 'bg-cyan-50 text-cyan-700';
+          default: return 'bg-slate-50 text-slate-300';
+        }
+      };
+      const exportMuster = () => {
+        const rows = musterRows.map(r => {
+          const row: Record<string, unknown> = { EmpCode: r.employeeCode, Name: r.name, Department: r.department, Designation: r.designation };
+          dayHeaders.forEach((ds, i) => { row[`D${i + 1}`] = r.days[i]; });
+          row.Present = r.presentDays; row.Absent = r.absentDays; row.Leave = r.leaveDays; row.WFH = r.wfhDays;
+          return row;
+        });
+        handleExportCSV(rows, `muster_roll_${filterYear}_${filterMonth}`);
+      };
+      return (
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            {summary.map((s, i) => (
+              <div key={i} className="thb-card p-4 text-center">
+                <p className="text-xs font-medium text-thb-text-secondary">{s.label}</p>
+                <p className={`text-2xl font-bold ${summaryColors[s.color || ''] || 'text-thb-text-primary'}`}>{s.value}</p>
+              </div>
+            ))}
+          </div>
+          <div className="thb-card p-4">
+            <div className="flex flex-wrap items-center gap-3 text-xs">
+              <span className="font-semibold text-thb-text-primary">Legend:</span>
+              {[['P', 'Present'], ['PL', 'Present (Late)'], ['A', 'Absent'], ['HD', 'Half Day'], ['L', 'Leave'], ['WFH', 'Work From Home'], ['WO', 'Weekend Off'], ['H', 'Holiday'], ['—', 'Future / Not Applicable']].map(([code, label]) => (
+                <span key={code} className="inline-flex items-center gap-1.5">
+                  <span className={`inline-flex items-center justify-center min-w-[26px] px-1 py-0.5 rounded text-[10px] font-bold ${cellClass(code)}`}>{code}</span>
+                  <span className="text-thb-text-secondary">{label}</span>
+                </span>
+              ))}
+            </div>
+            {holidays.length > 0 && (
+              <p className="text-xs text-thb-text-muted mt-2">
+                Holidays this month: {holidays.map(h => `${h.date.slice(8)} ${h.name}`).join(' · ')}
+              </p>
+            )}
+          </div>
+          {musterRows.length > 0 ? (
+            <div className="thb-card overflow-hidden">
+              <div className="px-4 py-3 border-b border-thb-border flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-thb-text-primary">Muster Roll — {months[filterMonth - 1]?.label} {filterYear} <span className="text-thb-text-muted font-normal">({musterRows.length} employees)</span></h3>
+                <button onClick={exportMuster} className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-thb-border rounded-lg text-xs font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">
+                  <FiDownload className="w-3.5 h-3.5" /> Export CSV
+                </button>
+              </div>
+              <div className="overflow-x-auto max-h-[32rem] overflow-y-auto">
+                <table className="min-w-full">
+                  <thead className="sticky top-0 z-20">
+                    <tr className="border-b border-thb-border bg-slate-50">
+                      <th className="sticky left-0 z-30 bg-slate-50 text-left px-3 py-2 text-xs font-semibold text-thb-text-secondary uppercase whitespace-nowrap">Employee</th>
+                      <th className="sticky left-[180px] z-30 bg-slate-50 text-left px-3 py-2 text-xs font-semibold text-thb-text-secondary uppercase whitespace-nowrap">Dept</th>
+                      {dayHeaders.map((ds, i) => (
+                        <th key={ds} className="px-1 py-2 text-[10px] font-semibold text-thb-text-secondary text-center" title={ds}>
+                          <div>{i + 1}</div>
+                          <div className="text-slate-400">{new Date(`${ds}T00:00:00.000Z`).toLocaleDateString('en-US', { weekday: 'narrow', timeZone: 'UTC' })}</div>
+                        </th>
+                      ))}
+                      {['P', 'A', 'L', 'WFH'].map(h => (
+                        <th key={h} className="px-2 py-2 text-[10px] font-bold text-thb-text-secondary text-center">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-thb-border/50">
+                    {musterRows.map((r, ri) => (
+                      <tr key={ri} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="sticky left-0 z-10 bg-white px-3 py-1.5 text-sm whitespace-nowrap">
+                          <span className="font-medium text-thb-text-primary">{r.name}</span>
+                          <span className="block text-[10px] text-thb-text-muted">{r.employeeCode}</span>
+                        </td>
+                        <td className="sticky left-[180px] z-10 bg-white px-3 py-1.5 text-xs text-thb-text-secondary whitespace-nowrap">{r.department}</td>
+                        {r.days.map((code, di) => (
+                          <td key={di} className="px-0.5 py-1.5 text-center">
+                            <span className={`inline-flex items-center justify-center w-7 h-6 rounded text-[10px] font-bold ${cellClass(code)}`} title={`${dayHeaders[di]} — ${code}`}>{code}</span>
+                          </td>
+                        ))}
+                        <td className="px-2 py-1.5 text-center text-xs font-semibold text-emerald-700">{r.presentDays}</td>
+                        <td className="px-2 py-1.5 text-center text-xs font-semibold text-red-700">{r.absentDays}</td>
+                        <td className="px-2 py-1.5 text-center text-xs font-semibold text-sky-700">{r.leaveDays}</td>
+                        <td className="px-2 py-1.5 text-center text-xs font-semibold text-violet-700">{r.wfhDays}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : (
+            <div className="thb-card p-12 text-center">
+              <FiGrid className="w-12 h-12 text-thb-text-muted mx-auto mb-3" />
+              <p className="text-thb-text-secondary font-medium">No employees found for the selected filters</p>
+            </div>
+          )}
         </div>
       );
     }
@@ -1045,6 +1400,132 @@ export default function ReportsPage() {
           </button>
         </div>
       );
+    }
+
+    /* ── Generic records renderer (WFH / Gatepass / Regularization / Permission / Comp-off / OT / Shifts / Holidays / dept & designation wise) ── */
+    {
+      const d = data as Record<string, unknown>;
+      const rawRecords = d.records;
+      if (Array.isArray(rawRecords) && rawRecords.length > 0 && typeof rawRecords[0] === 'object' && rawRecords[0] !== null) {
+        const rows = rawRecords as Record<string, unknown>[];
+        const summary = (d.summary || []) as { label: string; value: number | string; color?: string }[];
+        const summaryColors: Record<string, string> = {
+          emerald: 'text-emerald-700', red: 'text-red-700', sky: 'text-sky-700', violet: 'text-violet-700', amber: 'text-amber-700', cyan: 'text-cyan-700', slate: 'text-slate-700',
+        };
+        const distMaps: Record<string, Record<string, number>> = {};
+        (['byStatus', 'byType', 'bySource', 'byPayout', 'byPunchType', 'byMonth'] as const).forEach(key => {
+          const val = d[key];
+          if (val && typeof val === 'object' && Object.keys(val as object).length > 0) distMaps[key] = val as Record<string, number>;
+        });
+
+        // Column list from first row — skip nested/array values (kept flat by the API)
+        const columns = Object.keys(rows[0]).filter(k => typeof rows[0][k] !== 'object' && !Array.isArray(rows[0][k])).slice(0, 14);
+
+        const labelFor = (key: string): string => {
+          const special: Record<string, string> = { employeeCode: 'Emp Code', id: 'ID', empCode: 'Emp Code' };
+          return special[key] || key.replace(/([A-Z])/g, ' $1').replace(/^./, c => c.toUpperCase()).trim();
+        };
+        const valueFor = (v: unknown): string => {
+          if (v === null || v === undefined || v === '') return '—';
+          if (typeof v === 'number') return Number.isInteger(v) ? v.toLocaleString() : (Math.round(v * 100) / 100).toString();
+          if (typeof v === 'string') {
+            if (/^\d{4}-\d{2}-\d{2}T/.test(v)) return `${v.slice(0, 10)} · ${fmtTimeCell(v)}`;
+            if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
+          }
+          return String(v);
+        };
+        const exportRows = () => rows.map(r => {
+          const out: Record<string, unknown> = {};
+          columns.forEach(c => { out[labelFor(c)] = valueFor(r[c]); });
+          return out;
+        });
+
+        return (
+          <div className="space-y-4">
+            {summary.length > 0 && (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {summary.map((s, i) => (
+                  <div key={i} className="thb-card p-4 text-center">
+                    <p className="text-xs font-medium text-thb-text-secondary">{s.label}</p>
+                    <p className={`text-2xl font-bold ${summaryColors[s.color || ''] || 'text-thb-text-primary'}`}>{s.value}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+            {Object.entries(distMaps).map(([key, map]) => (
+              <div key={key} className="thb-card p-6">
+                <h3 className="text-sm font-semibold text-thb-text-primary mb-4">{labelFor(key).replace('By ', '')} Distribution</h3>
+                <div className="space-y-3">
+                  {Object.entries(map).map(([name, count]) => {
+                    const max = Math.max(...Object.values(map), 1);
+                    return (
+                      <div key={name}>
+                        <div className="flex justify-between mb-1"><span className="text-sm text-thb-text-secondary capitalize">{String(name).replace('_', ' ')}</span><span className="text-sm font-medium">{count}</span></div>
+                        <div className="w-full h-5 bg-slate-100 rounded-full overflow-hidden"><div className="h-full bg-cyan-500 rounded-full transition-all" style={{ width: `${(Number(count) / max) * 100}%` }} /></div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+            <div className="thb-card overflow-hidden">
+              <div className="px-4 py-3 border-b border-thb-border flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-thb-text-primary">{report.name} — {rows.length} record{rows.length !== 1 ? 's' : ''} <span className="text-thb-text-muted font-normal">· {months[filterMonth - 1]?.label} {filterYear}</span></h3>
+                <button onClick={() => handleExportCSV(exportRows(), `${report.id}_${filterYear}_${filterMonth}`)} className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-thb-border rounded-lg text-xs font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">
+                  <FiDownload className="w-3.5 h-3.5" /> Export CSV
+                </button>
+              </div>
+              <div className="overflow-x-auto max-h-96 overflow-y-auto">
+                <table className="w-full min-w-[800px]">
+                  <thead className="sticky top-0 z-10">
+                    <tr className="border-b border-thb-border bg-slate-50">
+                      {columns.map(c => (
+                        <th key={c} className="text-left px-3 py-2 text-xs font-semibold text-thb-text-secondary uppercase whitespace-nowrap">{labelFor(c)}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-thb-border/50">
+                    {rows.slice(0, 300).map((r, i) => (
+                      <tr key={i} className="hover:bg-slate-50/50 transition-colors">
+                        {columns.map(c => (
+                          <td key={c} className="px-3 py-2 text-sm text-thb-text-secondary whitespace-nowrap">
+                            <span className={c === 'name' || c === 'employeeName' ? 'font-medium text-thb-text-primary' : ''}>{valueFor(r[c])}</span>
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {rows.length > 300 && (
+                <p className="px-4 py-2 text-xs text-thb-text-muted border-t border-thb-border">Showing first 300 of {rows.length} records — use filters to narrow down, or export to CSV for the full dataset.</p>
+              )}
+            </div>
+          </div>
+        );
+      }
+      if (Array.isArray(rawRecords) && rawRecords.length === 0) {
+        const summary = (d.summary || []) as { label: string; value: number | string; color?: string }[];
+        return (
+          <div className="space-y-4">
+            {summary.length > 0 && (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {summary.map((s, i) => (
+                  <div key={i} className="thb-card p-4 text-center">
+                    <p className="text-xs font-medium text-thb-text-secondary">{s.label}</p>
+                    <p className="text-2xl font-bold text-thb-text-primary">{s.value}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="thb-card p-12 text-center">
+              <FiBarChart2 className="w-12 h-12 text-thb-text-muted mx-auto mb-3" />
+              <p className="text-thb-text-secondary font-medium">No records found for {months[filterMonth - 1]?.label} {filterYear}</p>
+              <p className="text-sm text-thb-text-muted mt-1">Try a different month/year, or clear the department/designation filters.</p>
+            </div>
+          </div>
+        );
+      }
     }
 
     return (
@@ -1593,12 +2074,14 @@ export default function ReportsPage() {
                 <label className="block text-xs font-medium text-thb-text-secondary mb-1">Department</label>
                 <select value={filterDepartment} onChange={e => setFilterDepartment(e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                   <option value="">All Departments</option>
-                  <option value="engineering">Engineering</option>
-                  <option value="sales">Sales</option>
-                  <option value="marketing">Marketing</option>
-                  <option value="hr">HR</option>
-                  <option value="finance">Finance</option>
-                  <option value="operations">Operations</option>
+                  {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-thb-text-secondary mb-1">Designation</label>
+                <select value={filterDesignation} onChange={e => setFilterDesignation(e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
+                  <option value="">All Designations</option>
+                  {designations.map(g => <option key={g.id} value={g.id}>{g.title}</option>)}
                 </select>
               </div>
             </div>
