@@ -44,7 +44,7 @@ const REQUEST_TYPES: RequestTypeOption[] = [
   { key: 'gatepass', label: 'Gate Pass', icon: <FiLogOut className="w-4 h-4" />, description: 'Early departure / temporary exit request', apiEndpoint: '/api/attendance/gatepass' },
   { key: 'overtime', label: 'Overtime', icon: <FiZap className="w-4 h-4" />, description: 'Overtime work authorization', apiEndpoint: '/api/attendance/overtime-request' },
   { key: 'comp-off', label: 'Comp-Off', icon: <FiCalendar className="w-4 h-4" />, description: 'Compensatory off request', apiEndpoint: '/api/attendance/comp-off' },
-  { key: 'wfh', label: 'Work From Home', icon: <FiMapPin className="w-4 h-4" />, description: 'WFH request for a date range', apiEndpoint: '/api/attendance/regularize' },
+  { key: 'wfh', label: 'Work From Home', icon: <FiMapPin className="w-4 h-4" />, description: 'WFH request for a date range', apiEndpoint: '/api/attendance/wfh' },
 ];
 
 export default function ApplyAttendanceByHRPage() {
@@ -65,9 +65,9 @@ export default function ApplyAttendanceByHRPage() {
   // Forms for each type
   const [regularizeForm, setRegularizeForm] = useState({ date: new Date().toISOString().split('T')[0], punchType: 'check_in', requestedTime: '', reason: '' });
   const [permissionForm, setPermissionForm] = useState({ date: new Date().toISOString().split('T')[0], startTime: '', endTime: '', reason: '' });
-  const [gatepassForm, setGatepassForm] = useState({ date: new Date().toISOString().split('T')[0], outTime: '', expectedReturn: '', reason: '' });
+  const [gatepassForm, setGatepassForm] = useState({ date: new Date().toISOString().split('T')[0], type: 'early_departure', outTime: '', reason: '' });
   const [overtimeForm, setOvertimeForm] = useState({ date: new Date().toISOString().split('T')[0], startTime: '', endTime: '', reason: '' });
-  const [compoffForm, setCompoffForm] = useState({ date: new Date().toISOString().split('T')[0], reason: '' });
+  const [compoffForm, setCompoffForm] = useState({ date: new Date().toISOString().split('T')[0], hours: 8, reason: '' });
   const [wfhForm, setWfhForm] = useState({ date: new Date().toISOString().split('T')[0], endDate: '', reason: '' });
 
   const [submitting, setSubmitting] = useState(false);
@@ -139,7 +139,16 @@ export default function ApplyAttendanceByHRPage() {
             setSubmitting(false);
             return;
           }
-          body = { employeeId: selectedEmployee.id, date: permissionForm.date, startTime: permissionForm.startTime, endTime: permissionForm.endTime, reason: `[HR] ${permissionForm.reason.trim()}`, type: 'permission' };
+          // Build full local datetimes — the API parses Date values, and raw
+          // "HH:mm" strings would produce "Invalid start time format"
+          const permStart = new Date(`${permissionForm.date}T${permissionForm.startTime}`);
+          const permEnd = new Date(`${permissionForm.date}T${permissionForm.endTime}`);
+          if (isNaN(permStart.getTime()) || isNaN(permEnd.getTime())) {
+            toast.error('Invalid start/end time — please pick the times again');
+            setSubmitting(false);
+            return;
+          }
+          body = { employeeId: selectedEmployee.id, date: permissionForm.date, startTime: permStart, endTime: permEnd, reason: `[HR] ${permissionForm.reason.trim()}` };
           break;
         }
         case 'gatepass': {
@@ -150,7 +159,15 @@ export default function ApplyAttendanceByHRPage() {
             setSubmitting(false);
             return;
           }
-          body = { employeeId: selectedEmployee.id, date: gatepassForm.date, outTime: gatepassForm.outTime, expectedReturn: gatepassForm.expectedReturn || null, reason: `[HR] ${gatepassForm.reason.trim()}` };
+          // Full local datetime for requestedAt + explicit gatepass type —
+          // the API rejects submissions without a valid type
+          const gpAt = new Date(`${gatepassForm.date}T${gatepassForm.outTime}`);
+          if (isNaN(gpAt.getTime())) {
+            toast.error('Invalid out time — please pick the time again');
+            setSubmitting(false);
+            return;
+          }
+          body = { employeeId: selectedEmployee.id, type: gatepassForm.type, requestedAt: gpAt, date: gatepassForm.date, outTime: gatepassForm.outTime, reason: `[HR] ${gatepassForm.reason.trim()}` };
           break;
         }
         case 'overtime': {
@@ -161,7 +178,21 @@ export default function ApplyAttendanceByHRPage() {
             setSubmitting(false);
             return;
           }
-          body = { employeeId: selectedEmployee.id, date: overtimeForm.date, startTime: overtimeForm.startTime, endTime: overtimeForm.endTime, reason: `[HR] ${overtimeForm.reason.trim()}` };
+          // Full local datetimes — raw "HH:mm" strings produced
+          // Invalid Date / NaN estimatedHours on the server
+          const otStart = new Date(`${overtimeForm.date}T${overtimeForm.startTime}`);
+          const otEnd = new Date(`${overtimeForm.date}T${overtimeForm.endTime}`);
+          if (isNaN(otStart.getTime()) || isNaN(otEnd.getTime())) {
+            toast.error('Invalid start/end time — please pick the times again');
+            setSubmitting(false);
+            return;
+          }
+          if (otEnd <= otStart) {
+            toast.error('OT end time must be after the start time');
+            setSubmitting(false);
+            return;
+          }
+          body = { employeeId: selectedEmployee.id, date: overtimeForm.date, startTime: otStart, endTime: otEnd, reason: `[HR] ${overtimeForm.reason.trim()}` };
           break;
         }
         case 'comp-off': {
@@ -172,7 +203,7 @@ export default function ApplyAttendanceByHRPage() {
             setSubmitting(false);
             return;
           }
-          body = { employeeId: selectedEmployee.id, date: compoffForm.date, reason: `[HR] ${compoffForm.reason.trim()}` };
+          body = { employeeId: selectedEmployee.id, date: compoffForm.date, hours: compoffForm.hours, reason: `[HR] ${compoffForm.reason.trim()}` };
           break;
         }
         case 'wfh': {
@@ -183,7 +214,16 @@ export default function ApplyAttendanceByHRPage() {
             setSubmitting(false);
             return;
           }
-          body = { employeeId: selectedEmployee.id, date: wfhForm.date, endDate: wfhForm.endDate || wfhForm.date, punchType: 'wfh', requestedTime: new Date(), reason: `[HR WFH] ${wfhForm.reason.trim()}` };
+          // The WFH API requires the WfhRequest contract (startDate/endDate/
+          // requestType/reason) — posting to regularize with punchType 'wfh'
+          // used to fail with "Invalid punch type"
+          const wfhReason = `[HR WFH] ${wfhForm.reason.trim()}`;
+          if (wfhReason.length < 20) {
+            toast.error(`WFH reason must be at least 20 characters (currently ${wfhReason.length} including the [HR WFH] tag)`);
+            setSubmitting(false);
+            return;
+          }
+          body = { employeeId: selectedEmployee.id, startDate: wfhForm.date, endDate: wfhForm.endDate || wfhForm.date, requestType: 'full_day', reasonCategory: 'other', reason: wfhReason };
           break;
         }
       }
@@ -399,12 +439,15 @@ export default function ApplyAttendanceByHRPage() {
                       <input type="date" value={gatepassForm.date} onChange={e => setGatepassForm({ ...gatepassForm, date: e.target.value })} className="3boxes-input w-full" />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1.5">Out Time <span className="text-red-500 font-bold">*</span></label>
-                      <TimePickerAmPm value={gatepassForm.outTime} onChange={v => setGatepassForm({ ...gatepassForm, outTime: v })} className="w-full" />
+                      <label className="block text-xs font-medium text-slate-600 mb-1.5">Gate Pass Type <span className="text-red-500 font-bold">*</span></label>
+                      <select value={gatepassForm.type} onChange={e => setGatepassForm({ ...gatepassForm, type: e.target.value })} className="3boxes-input w-full">
+                        <option value="early_departure">Early Departure</option>
+                        <option value="late_arrival">Late Arrival</option>
+                      </select>
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1.5">Expected Return</label>
-                      <TimePickerAmPm value={gatepassForm.expectedReturn} onChange={v => setGatepassForm({ ...gatepassForm, expectedReturn: v })} className="w-full" />
+                      <label className="block text-xs font-medium text-slate-600 mb-1.5">{gatepassForm.type === 'late_arrival' ? 'Arrival Time' : 'Out Time'} <span className="text-red-500 font-bold">*</span></label>
+                      <TimePickerAmPm value={gatepassForm.outTime} onChange={v => setGatepassForm({ ...gatepassForm, outTime: v })} className="w-full" />
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-slate-600 mb-1.5">Reason <span className="text-red-500 font-bold">*</span></label>
@@ -444,6 +487,11 @@ export default function ApplyAttendanceByHRPage() {
                       <input type="date" value={compoffForm.date} onChange={e => setCompoffForm({ ...compoffForm, date: e.target.value })} className="3boxes-input w-full" />
                     </div>
                     <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1.5">Comp-Off Hours</label>
+                      <input type="number" min={0.5} max={12} step={0.5} value={compoffForm.hours} onChange={e => setCompoffForm({ ...compoffForm, hours: Number(e.target.value) || 8 })} className="3boxes-input w-full" />
+                      <p className="text-[10px] text-slate-400 mt-0.5">Credited hours (default 8h for a full day). Expires in 90 days.</p>
+                    </div>
+                    <div className="sm:col-span-2">
                       <label className="block text-xs font-medium text-slate-600 mb-1.5">Reason <span className="text-red-500 font-bold">*</span></label>
                       <input type="text" value={compoffForm.reason} onChange={e => setCompoffForm({ ...compoffForm, reason: e.target.value })} className="3boxes-input w-full" placeholder="e.g. Worked on holiday" />
                     </div>

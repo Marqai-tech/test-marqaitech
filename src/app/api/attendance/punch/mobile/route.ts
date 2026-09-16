@@ -121,7 +121,7 @@ export async function POST(request: Request) {
   if (!body) return fail('Invalid JSON');
 
   // 2. Resolve employee
-  const emp = await findEmployeeByEmail(user.email);
+  const emp = await findEmployeeByEmail(user.email, db);
   if (!emp) return fail('Employee record not found', 404);
 
   // REQ-ATT-05: Multi-country time sync — resolve the employee's local

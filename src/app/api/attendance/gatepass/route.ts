@@ -21,7 +21,7 @@ export async function GET(request: Request) {
     const q = getQuery(request);
     const where: Record<string, unknown> = {};
     if (!isAdminRole(user.role)) {
-      const emp = await findEmployeeByEmail(user.email);
+      const emp = await findEmployeeByEmail(user.email, db);
       if (!emp) return ok({ gatepasses: [] });
       where.employeeId = emp.id;
     } else if (q.employeeId) {
@@ -57,15 +57,46 @@ export async function POST(request: Request) {
     }
     const reason = sanitizeMultiLineText(body.reason, 2000);
     if (!reason) return fail('Reason is required');
-    const requestedAt = new Date(body.requestedAt as string);
+
+    // ─── Resolve requestedAt ───
+    // Preferred: the client sends a full ISO datetime (employee page and
+    // Apply-by-HR both build it from the picked local date + time).
+    // Fallback: combine `date` (YYYY-MM-DD) + `outTime` (HH:mm) for callers
+    // that only have separate fields.
+    let requestedAt = new Date(body.requestedAt as string);
+    if (isNaN(requestedAt.getTime())) {
+      const d = typeof body.date === 'string' ? body.date.trim() : '';
+      const t = typeof body.outTime === 'string' ? body.outTime.trim() : '';
+      if (d && t) requestedAt = new Date(`${d}T${t}`);
+    }
+    if (isNaN(requestedAt.getTime())) return fail('Invalid requested date/time — provide requestedAt or date + outTime');
 
     let employeeId: string | null = null;
     let empCompanyId: string | null = null;
     if (type === 'early_departure' || type === 'late_arrival') {
-      const emp = await findEmployeeByEmail(user.email);
-      if (!emp) return fail('Employee record not found', 404);
-      employeeId = emp.id;
-      empCompanyId = emp.companyId || null;
+      // Admins (Apply Attendance by HR) may submit on behalf of a selected
+      // employee via body.employeeId. Everyone else is always themselves.
+      // NOTE: findEmployeeByEmail MUST receive the tenant `db` — the legacy
+      // no-db fallback resolved the employee against the platform database,
+      // producing an id that violated Gatepass_employeeId_fkey on create.
+      const onBehalfId = typeof body.employeeId === 'string' ? body.employeeId.trim() : '';
+      if (onBehalfId && isAdminRole(user.role)) {
+        const target = await db.employee.findUnique({
+          where: { id: onBehalfId },
+          select: { id: true, companyId: true },
+        });
+        if (!target) return fail('Selected employee not found', 404);
+        employeeId = target.id;
+        empCompanyId = target.companyId || null;
+      } else {
+        if (onBehalfId && !isAdminRole(user.role)) {
+          return fail('You can only submit gatepass requests for yourself', 403);
+        }
+        const emp = await findEmployeeByEmail(user.email, db);
+        if (!emp) return fail('Employee record not found', 404);
+        employeeId = emp.id;
+        empCompanyId = emp.companyId || null;
+      }
     }
 
     // ─── Unified Rule Engine enforcement ─────────────────────────────

@@ -20,7 +20,7 @@ export async function GET(request: Request) {
     const q = getQuery(request);
     const where: Record<string, unknown> = {};
     if (!isAdminRole(user.role)) {
-      const emp = await findEmployeeByEmail(user.email);
+      const emp = await findEmployeeByEmail(user.email, db);
       if (!emp) return ok({ overtimeRequests: [] });
       where.employeeId = emp.id;
     } else if (q.employeeId) {
@@ -47,14 +47,40 @@ export async function POST(request: Request) {
   const body = await parseBody(request);
   if (!body) return fail('Invalid JSON');
   try {
-    const emp = await findEmployeeByEmail(user.email);
+    // ─── Resolve the target employee ───
+    // Admins (Apply Attendance by HR) may submit on behalf of a selected
+    // employee via body.employeeId. Everyone else is always themselves.
+    // NOTE: findEmployeeByEmail MUST receive the tenant `db` — the legacy
+    // no-db fallback resolved the employee against the platform database,
+    // producing an id that violated OvertimeRequest_employeeId_fkey on create.
+    let emp: { id: string; companyId: string | null; firstName: string; lastName: string } | null = null;
+    const onBehalfId = typeof body.employeeId === 'string' ? body.employeeId.trim() : '';
+    if (onBehalfId && isAdminRole(user.role)) {
+      emp = await db.employee.findUnique({
+        where: { id: onBehalfId },
+        select: { id: true, companyId: true, firstName: true, lastName: true },
+      });
+      if (!emp) return fail('Selected employee not found', 404);
+    } else {
+      if (onBehalfId && !isAdminRole(user.role)) {
+        return fail('You can only submit overtime requests for yourself', 403);
+      }
+      emp = await findEmployeeByEmail(user.email, db);
+    }
     if (!emp) return fail('Employee record not found', 404);
 
     const date = new Date(body.date as string);
     const startTime = new Date(body.startTime as string);
     const endTime = new Date(body.endTime as string);
     const reason = (body.reason as string) || '';
-    if (!startTime || !endTime || !reason) return fail('Missing required fields');
+    // Explicit guards — an Invalid Date is truthy, so the previous
+    // `!startTime || !endTime` check let invalid values through to Prisma
+    // (which surfaced as "Invalid Date" invocation errors and NaN hours).
+    if (isNaN(date.getTime())) return fail('Invalid date format');
+    if (isNaN(startTime.getTime())) return fail('Invalid start time format — select the start time again');
+    if (isNaN(endTime.getTime())) return fail('Invalid end time format — select the end time again');
+    if (endTime <= startTime) return fail('End time must be after start time');
+    if (!reason.trim()) return fail('Reason is required');
 
     const ms = endTime.getTime() - startTime.getTime();
     const estimatedHours = Math.max(0.25, Math.round((ms / (1000 * 60 * 60)) * 100) / 100);

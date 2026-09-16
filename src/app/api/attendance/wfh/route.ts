@@ -53,7 +53,23 @@ export async function POST(request: Request) {
   const body = await parseBody(request);
   if (!body) return fail('Invalid JSON');
   try {
-    const emp = await findEmployeeByEmail(user.email, db);
+    // ─── Resolve the target employee ───
+    // Admins (Apply Attendance by HR) may submit on behalf of a selected
+    // employee via body.employeeId. Everyone else is always themselves.
+    let emp: { id: string; companyId: string | null; firstName: string; lastName: string } | null = null;
+    const onBehalfId = typeof body.employeeId === 'string' ? body.employeeId.trim() : '';
+    if (onBehalfId && isAdminRole(user.role)) {
+      emp = await db.employee.findUnique({
+        where: { id: onBehalfId },
+        select: { id: true, companyId: true, firstName: true, lastName: true },
+      });
+      if (!emp) return fail('Selected employee not found', 404);
+    } else {
+      if (onBehalfId && !isAdminRole(user.role)) {
+        return fail('You can only submit WFH requests for yourself', 403);
+      }
+      emp = await findEmployeeByEmail(user.email, db);
+    }
     if (!emp) return fail('Employee record not found', 404);
 
     const requestType = String(body.requestType || 'full_day');
@@ -68,8 +84,31 @@ export async function POST(request: Request) {
 
     const reason = sanitizeMultiLineText(body.reason, 2000);
     if (!reason || reason.length < 20) return fail('Reason must be at least 20 characters');
-
     const reasonCategory = String(body.reasonCategory || 'personal');
+
+    // ─── Duplicate request guard (user report) ───
+    // Reject a second pending/approved WFH request whose date range overlaps
+    // the requested range for the same employee.
+    const rangeEnd = endDate || startDate;
+    const overlapping = await (db as any).wfhRequest.findFirst({
+      where: {
+        employeeId: emp.id,
+        status: { in: ['pending', 'approved'] },
+        OR: [
+          // overlap test: existing.start <= new.end AND (existing.end ?? existing.start) >= new.start
+          { startDate: { lte: rangeEnd }, endDate: { gte: startDate } },
+          { startDate: { lte: rangeEnd }, endDate: null },
+        ],
+      },
+      select: { id: true, startDate: true, endDate: true, status: true },
+    });
+    if (overlapping) {
+      const fmt = (d: Date | null) => d ? new Date(d).toLocaleDateString('en-CA') : '';
+      const existingRange = overlapping.endDate
+        ? `${fmt(overlapping.startDate)} to ${fmt(overlapping.endDate)}`
+        : `${fmt(overlapping.startDate)} (open-ended)`;
+      return fail(`A ${overlapping.status} WFH request already exists for this employee covering ${existingRange}. Duplicate requests for the same date range are not allowed.`, 409);
+    }
 
     // ─── Unified Rule Engine enforcement ─────────────────────────────
     try {
@@ -90,17 +129,33 @@ export async function POST(request: Request) {
       console.warn('[wfh] rule engine check failed (non-fatal):', ruleErr);
     }
 
-    // Calculate total days (working days, excluding weekends)
+    // Calculate total days (working days = excludes weekends AND company
+    // holidays for the employee's company — user report: holidays were
+    // previously counted as WFH days)
+    let holidayKeys: Set<string> = new Set();
+    try {
+      if (emp.companyId) {
+        const winStart = new Date(startDate); winStart.setDate(winStart.getDate() - 1); winStart.setHours(0, 0, 0, 0);
+        const winEnd = new Date(rangeEnd); winEnd.setDate(winEnd.getDate() + 1); winEnd.setHours(23, 59, 59, 999);
+        const holidays = await db.holiday.findMany({
+          where: { companyId: emp.companyId, date: { gte: winStart, lte: winEnd } },
+          select: { date: true },
+        });
+        holidayKeys = new Set(holidays.map(h => new Date(h.date).toDateString()));
+      }
+    } catch (holidayErr) {
+      console.warn('[wfh] holiday lookup failed (non-fatal):', holidayErr);
+    }
     const calcWorkingDays = (s: Date, e: Date | null): number => {
       if (!e) return 1;
       let count = 0;
       const cur = new Date(s);
       while (cur <= e) {
         const day = cur.getDay();
-        if (day !== 0 && day !== 6) count++;
+        if (day !== 0 && day !== 6 && !holidayKeys.has(cur.toDateString())) count++;
         cur.setDate(cur.getDate() + 1);
       }
-      return Math.max(1, count);
+      return count;
     };
     const totalDays = isPermanentOrHybrid ? 0 : calcWorkingDays(startDate, endDate);
     const requiresHrApproval = isPermanentOrHybrid || totalDays > 3;

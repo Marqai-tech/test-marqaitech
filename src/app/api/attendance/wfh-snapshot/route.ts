@@ -15,7 +15,7 @@ export async function GET(request: Request) {
   if (!user) return response;
   try {
     const q = getQuery(request);
-    const emp = await findEmployeeByEmail(user.email);
+    const emp = await findEmployeeByEmail(user.email, db);
     if (!emp) return ok({ snapshots: [] });
 
     const where: Record<string, unknown> = { employeeId: emp.id };
@@ -44,7 +44,7 @@ export async function POST(request: Request) {
   const body = await parseBody(request);
   if (!body) return fail('Invalid JSON');
   try {
-    const emp = await findEmployeeByEmail(user.email);
+    const emp = await findEmployeeByEmail(user.email, db);
     if (!emp) return fail('Employee record not found', 404);
 
     const punchType = body.punchType as string;

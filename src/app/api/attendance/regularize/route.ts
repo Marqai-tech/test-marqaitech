@@ -20,7 +20,7 @@ export async function GET(request: Request) {
     const q = getQuery(request);
     const where: Record<string, unknown> = {};
     if (!isAdminRole(user.role)) {
-      const emp = await findEmployeeByEmail(user.email);
+      const emp = await findEmployeeByEmail(user.email, db);
       if (!emp) return ok({ regularizations: [] });
       where.employeeId = emp.id;
     } else if (q.employeeId) {

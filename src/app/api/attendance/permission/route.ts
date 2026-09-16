@@ -20,7 +20,7 @@ export async function GET(request: Request) {
     const q = getQuery(request);
     const where: Record<string, unknown> = {};
     if (!isAdminRole(user.role)) {
-      const emp = await findEmployeeByEmail(user.email);
+      const emp = await findEmployeeByEmail(user.email, db);
       if (!emp) return ok({ permissions: [] });
       where.employeeId = emp.id;
     } else if (q.employeeId) {
@@ -48,7 +48,25 @@ export async function POST(request: Request) {
   const body = await parseBody(request);
   if (!body) return fail('Invalid JSON');
   try {
-    const emp = await findEmployeeByEmail(user.email, db);
+    // ─── Resolve the target employee ───
+    // Admins (Apply Attendance by HR) may submit on behalf of a selected
+    // employee via body.employeeId. Everyone else is always themselves —
+    // body.employeeId used to be silently IGNORED, so HR submissions were
+    // recorded under the HR's own employee record.
+    let emp: { id: string; companyId: string | null; firstName: string; lastName: string } | null = null;
+    const onBehalfId = typeof body.employeeId === 'string' ? body.employeeId.trim() : '';
+    if (onBehalfId && isAdminRole(user.role)) {
+      emp = await db.employee.findUnique({
+        where: { id: onBehalfId },
+        select: { id: true, companyId: true, firstName: true, lastName: true },
+      });
+      if (!emp) return fail('Selected employee not found', 404);
+    } else {
+      if (onBehalfId && !isAdminRole(user.role)) {
+        return fail('You can only submit permission requests for yourself', 403);
+      }
+      emp = await findEmployeeByEmail(user.email, db);
+    }
     if (!emp) return fail('Employee record not found. Please ensure your user account is linked to an employee record.', 404);
 
     const date = new Date(body.date as string);

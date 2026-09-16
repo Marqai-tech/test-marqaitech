@@ -21,7 +21,7 @@ interface WfhRequest {
   reason: string;
   reasonCategory: string;
   remoteLocation: string;
-  expectedHours: number;
+  expectedWorkingHours: number;
   availableForMeetings: boolean;
   emergencyContact: string;
   alternateEmail: string;
@@ -64,18 +64,38 @@ function fmtDate(d: string | null | undefined) {
   return new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
-/* Calculate working days between two dates (excluding weekends) */
-function calcWorkingDays(start: string, end: string): number {
+/* Local calendar-day key — immune to timezone shifts between a UTC-midnight
+   parse and holiday dates fetched from the API */
+function localDayKey(d: Date): string {
+  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+}
+
+/* Calculate working days between two dates (excluding weekends AND company holidays) */
+function calcWorkingDays(start: string, end: string, holidayKeys: Set<string>): number {
   const s = new Date(start);
   const e = new Date(end);
   let count = 0;
   const cur = new Date(s);
   while (cur <= e) {
     const day = cur.getDay();
-    if (day !== 0 && day !== 6) count++;
+    if (day !== 0 && day !== 6 && !holidayKeys.has(localDayKey(cur))) count++;
     cur.setDate(cur.getDate() + 1);
   }
   return count;
+}
+
+/* ── Validation helpers (user-reported WFH form issues) ── */
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function validateEmergencyContact(v: string): string | null {
+  const trimmed = v.trim();
+  if (!trimmed) return null; // optional field
+  if (/[a-zA-Z]/.test(trimmed)) return 'Emergency contact must contain digits only — letters are not allowed';
+  if (/[^0-9+()\-\s]/.test(trimmed)) return 'Emergency contact must contain digits only — special characters are not allowed';
+  const digits = trimmed.replace(/[^0-9]/g, '');
+  if (digits.length < 10) return `Emergency contact must have at least 10 digits (entered ${digits.length})`;
+  if (digits.length > 15) return `Emergency contact cannot exceed 15 digits (entered ${digits.length})`;
+  return null;
 }
 
 export default function WfhPage() {
@@ -124,6 +144,30 @@ export default function WfhPage() {
 
   useEffect(() => { fetchItems(); }, [fetchItems]);
 
+  // ─── Company holidays (excluded from the WFH day count) ───
+  const [holidayKeys, setHolidayKeys] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    const years = new Set<number>([new Date().getFullYear()]);
+    if (form.startDate) years.add(new Date(form.startDate).getFullYear());
+    if (form.endDate) years.add(new Date(form.endDate).getFullYear());
+    let cancelled = false;
+    (async () => {
+      try {
+        const keys = new Set<string>();
+        for (const y of years) {
+          const r = await fetch(`/api/holidays?year=${y}&limit=200`, { headers: getAuthHeaders() });
+          if (!r.ok) continue;
+          const d = await r.json();
+          for (const h of (d.data || [])) keys.add(localDayKey(new Date(h.date)));
+        }
+        if (!cancelled) setHolidayKeys(keys);
+      } catch {
+        // holiday lookup is a display nicety — never block the form
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [form.startDate, form.endDate]);
+
   // Auto-set end date for permanent/hybrid
   useEffect(() => {
     if (form.requestType === 'permanent' || form.requestType === 'hybrid') {
@@ -134,7 +178,7 @@ export default function WfhPage() {
     }
   }, [form.requestType]);
 
-  const workingDays = form.startDate && form.endDate ? calcWorkingDays(form.startDate, form.endDate) : 0;
+  const workingDays = form.startDate && form.endDate ? calcWorkingDays(form.startDate, form.endDate, holidayKeys) : 0;
   const needsHrApproval = workingDays > 3;
   const isPermanentOrHybrid = form.requestType === 'permanent' || form.requestType === 'hybrid';
 
@@ -145,6 +189,23 @@ export default function WfhPage() {
     }
     if (!isPermanentOrHybrid && !form.endDate) {
       toast.error('End date is required');
+      return;
+    }
+    // ─── Field validations (user-reported issues) ───
+    const phoneErr = validateEmergencyContact(form.emergencyContact);
+    if (phoneErr) {
+      toast.error(phoneErr);
+      setShowPreview(false);
+      return;
+    }
+    if (form.alternateEmail.trim() && !EMAIL_RE.test(form.alternateEmail.trim())) {
+      toast.error('Please enter a valid alternate email address (e.g. name@example.com)');
+      setShowPreview(false);
+      return;
+    }
+    if (!Number.isFinite(form.expectedHours) || form.expectedHours < 1 || form.expectedHours > 12) {
+      toast.error('Expected working hours must be a number between 1 and 12');
+      setShowPreview(false);
       return;
     }
     setSubmitting(true);
@@ -244,9 +305,9 @@ export default function WfhPage() {
           <div className="mb-5 p-3 bg-slate-50 rounded-lg">
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Employee Details</p>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
-              <div><span className="text-slate-500">Name:</span> <span className="font-medium text-slate-700">{user?.firstName || ''} {user?.lastName || ''}</span></div>
-              <div><span className="text-slate-500">ID:</span> <span className="font-medium text-slate-700">{user?.employeeId || '—'}</span></div>
-              <div><span className="text-slate-500">Department:</span> <span className="font-medium text-slate-700">{(user as Record<string, unknown>)?.departmentName as string || '—'}</span></div>
+              <div><span className="text-slate-500">Name:</span> <span className="font-medium text-slate-700">{user?.employee?.firstName || user?.name?.split(' ')[0] || '—'} {user?.employee?.lastName || ''}</span></div>
+              <div><span className="text-slate-500">ID:</span> <span className="font-medium text-slate-700">{user?.employee?.employeeId || '—'}</span></div>
+              <div><span className="text-slate-500">Department:</span> <span className="font-medium text-slate-700">{user?.employee?.department || '—'}</span></div>
               <div><span className="text-slate-500">Email:</span> <span className="font-medium text-slate-700">{user?.email || '—'}</span></div>
             </div>
           </div>
@@ -279,6 +340,7 @@ export default function WfhPage() {
                   ? <>Total: <strong>{workingDays} working day(s)</strong> — HR approval required (more than 3 days)</>
                   : <>Total: <strong>{workingDays} working day(s)</strong> — Manager approval only</>}
               </p>
+              <p className="text-[11px] text-slate-500 mt-1">Weekends and company holidays are excluded from the day count.</p>
             </div>
           )}
           {isPermanentOrHybrid && (
@@ -321,7 +383,8 @@ export default function WfhPage() {
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1 flex items-center gap-1"><FiPhone className="w-3 h-3" /> Emergency Contact Number</label>
-              <input type="tel" value={form.emergencyContact} onChange={e => setForm({ ...form, emergencyContact: e.target.value })} className="3boxes-input w-full" placeholder="+91 ..." />
+              <input type="tel" value={form.emergencyContact} onChange={e => setForm({ ...form, emergencyContact: e.target.value })} className="3boxes-input w-full" placeholder="e.g. 9876543210" inputMode="tel" />
+              <p className="text-[10px] text-slate-400 mt-0.5">10–15 digits, numbers only (spaces/dashes allowed)</p>
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1 flex items-center gap-1"><FiClock className="w-3 h-3" /> Alternate Email (optional)</label>
@@ -523,7 +586,7 @@ export default function WfhPage() {
                 </div>
                 <div>
                   <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Expected Hours/Day</p>
-                  <p className="text-sm text-slate-700">{viewTarget.expectedHours}h</p>
+                  <p className="text-sm text-slate-700">{typeof viewTarget.expectedWorkingHours === 'number' && viewTarget.expectedWorkingHours > 0 ? `${viewTarget.expectedWorkingHours}h` : '—'}</p>
                 </div>
                 <div>
                   <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Available for Meetings</p>
