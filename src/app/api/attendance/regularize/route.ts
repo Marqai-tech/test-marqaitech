@@ -47,12 +47,38 @@ export async function POST(request: Request) {
   const body = await parseBody(request);
   if (!body) return fail('Invalid JSON');
   try {
-    const emp = await findEmployeeByEmail(user.email, db);
+    // ─── Resolve the target employee ───
+    // Admins (Apply Attendance by HR) may submit on behalf of a selected
+    // employee via body.employeeId. Everyone else is always themselves —
+    // previously body.employeeId was silently IGNORED, so HR submissions
+    // were recorded under the HR's own employee record.
+    let emp: { id: string; companyId: string | null; firstName: string; lastName: string } | null = null;
+    const onBehalfId = typeof body.employeeId === 'string' ? body.employeeId.trim() : '';
+    if (onBehalfId && isAdminRole(user.role)) {
+      emp = await db.employee.findUnique({
+        where: { id: onBehalfId },
+        select: { id: true, companyId: true, firstName: true, lastName: true },
+      });
+      if (!emp) return fail('Selected employee not found', 404);
+    } else {
+      if (onBehalfId && !isAdminRole(user.role)) {
+        return fail('You can only submit regularization requests for yourself', 403);
+      }
+      emp = await findEmployeeByEmail(user.email, db);
+    }
     if (!emp) return fail('Employee record not found. Please ensure your user account is linked to an employee record.', 404);
 
     const date = new Date(body.date as string);
     const punchType = body.punchType as string;
     const requestedTime = new Date(body.requestedTime as string);
+    // ─── Whitespace-only reason guard (user report) ───
+    // Validate the RAW input before sanitization: sanitize trims, but callers
+    // that prefix the reason (e.g. "[HR] <reason>") would otherwise turn a
+    // whitespace-only reason into a non-empty string.
+    const rawReason = typeof body.reason === 'string' ? body.reason.trim() : '';
+    if (!rawReason || /^\s+$/.test(String(body.reason ?? ''))) {
+      return fail('Reason is required and cannot be empty or whitespace-only', 422);
+    }
     const reason = sanitizeMultiLineText(body.reason, 2000);
     if (!punchType || !['check_in', 'check_out'].includes(punchType)) return fail('Invalid punchType');
     if (!reason) return fail('Reason is required');
@@ -60,10 +86,41 @@ export async function POST(request: Request) {
     // ─── Validate dates ───
     if (isNaN(date.getTime())) return fail('Invalid date format');
     if (isNaN(requestedTime.getTime())) return fail('Invalid requested time format');
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    if (date > today) return fail('Cannot regularize a future date');
+    // Future-date guard: the server's UTC "today" lags behind the employee's
+    // local day in timezones ahead of UTC (e.g. IST 00:00–05:30). The client
+    // therefore sends its local date (clientToday) and either may vouch.
+    const serverToday = new Date();
+    serverToday.setUTCHours(0, 0, 0, 0);
+    const clientTodayKey = typeof body.clientToday === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(body.clientToday)
+      ? body.clientToday
+      : null;
+    const dateKey = date.toISOString().slice(0, 10);
+    const isFuture = date > serverToday && (!clientTodayKey || dateKey > clientTodayKey);
+    if (isFuture) return fail('Cannot regularize a future date');
     if (requestedTime > new Date()) return fail('Requested time cannot be in the future');
+
+    // ─── Duplicate request guard (user report) ───
+    // Reject a second PENDING or APPROVED regularization for the same
+    // employee + date + punch type. Rejected requests do NOT block resubmission.
+    {
+      const dayStart = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+      const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+      const duplicate = await db.attendanceRegularization.findFirst({
+        where: {
+          employeeId: emp.id,
+          punchType,
+          status: { in: ['pending', 'approved'] },
+          date: { gte: dayStart, lt: dayEnd },
+        },
+        select: { id: true, status: true, punchType: true },
+      });
+      if (duplicate) {
+        return fail(
+          `A ${duplicate.status} regularization request for this date (${punchType === 'check_in' ? 'Check-In' : 'Check-Out'}) already exists. Duplicate requests are not allowed.`,
+          409,
+        );
+      }
+    }
 
     // REQ-REG-03: detect weekend/holiday
     const day = date.getDay();

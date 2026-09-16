@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
 import ModuleTips from '@/components/ModuleTips';
+import TimePickerAmPm from '@/components/TimePickerAmPm';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -64,8 +65,11 @@ export default function RegularizePage() {
   useEffect(() => { fetchItems(); }, [fetchItems]);
 
   const handleSubmit = async () => {
-    if (!form.date || !form.requestedTime || !form.reason) {
-      toast.error('All fields are required');
+    // Trim-validate the reason — whitespace-only input must be rejected
+    if (!form.date || !form.requestedTime || !form.reason.trim()) {
+      toast.error(form.date && form.requestedTime && !form.reason.trim()
+        ? 'Reason is required and cannot be empty or whitespace-only'
+        : 'All fields are required');
       return;
     }
     setSubmitting(true);
@@ -74,7 +78,7 @@ export default function RegularizePage() {
       const r = await fetch('/api/attendance/regularize', {
         method: 'POST',
         headers: getAuthHeaders(),
-        body: JSON.stringify({ date: form.date, punchType: form.punchType, requestedTime: dt, reason: form.reason }),
+        body: JSON.stringify({ date: form.date, punchType: form.punchType, requestedTime: dt, reason: form.reason, clientToday: new Date().toLocaleDateString('en-CA') }),
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'Failed');
@@ -148,7 +152,7 @@ export default function RegularizePage() {
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Actual Time <span className="text-red-500 font-bold">*</span></label>
-              <input type="time" value={form.requestedTime} onChange={e => setForm({ ...form, requestedTime: e.target.value })} className="3boxes-input w-full" />
+              <TimePickerAmPm value={form.requestedTime} onChange={v => setForm({ ...form, requestedTime: v })} className="w-full" />
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Reason <span className="text-red-500 font-bold">*</span></label>

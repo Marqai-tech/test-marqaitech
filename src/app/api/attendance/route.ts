@@ -101,7 +101,7 @@ export async function GET(request: Request) {
     // If table/column doesn't exist, return empty data instead of 500
     if (/column .* does not exist|does not exist in the current database|table .* does not exist/i.test(errMsg)) {
       return NextResponse.json(
-        { attendance: [], pagination: { page, limit, total: 0, totalPages: 0 } },
+        { attendance: [], pagination: { page: 1, limit: 20, total: 0, totalPages: 0 } },
         { headers: corsHeaders() }
       );
     }
@@ -132,6 +132,33 @@ export async function POST(request: Request) {
         { status: 400, headers: corsHeaders() }
       );
     }
+
+    // ─── BUG FIX (user report: check-in on 15/09 displayed as 16/09) ───
+    // The attendance day must be the employee's LOCAL calendar date, not the
+    // server's UTC date. The client now sends its local date (YYYY-MM-DD) and
+    // local time (HH:mm). If absent, fall back to the UTC behavior.
+    const dateStr = typeof body.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(body.date)
+      ? body.date
+      : null;
+    const localTimeStr = typeof body.localTime === 'string' && /^\d{2}:\d{2}$/.test(body.localTime)
+      ? body.localTime
+      : null;
+
+    let today: Date;
+    if (dateStr) {
+      today = new Date(`${dateStr}T00:00:00.000Z`);
+      if (isNaN(today.getTime())) {
+        today = new Date();
+        today.setUTCHours(0, 0, 0, 0);
+      }
+    } else {
+      today = new Date();
+      today.setUTCHours(0, 0, 0, 0);
+    }
+    // Previous calendar day — used by checkout when the punch crosses midnight
+    const prevDay: Date | null = dateStr
+      ? new Date(new Date(`${dateStr}T00:00:00.000Z`).getTime() - 24 * 60 * 60 * 1000)
+      : null;
 
     // ─── Company-scoped data visibility for POST ───
     // Verify the target employee belongs to the same company as the user
@@ -166,10 +193,7 @@ export async function POST(request: Request) {
     }
     // scope === 'all' && no companyId → admin can access any employee
 
-    const today = new Date();
-    today.setUTCHours(0, 0, 0, 0);
-
-    const existingRecord = await db.attendance.findUnique({
+    const existingRecordToday = await db.attendance.findUnique({
       where: {
         employeeId_date: {
           employeeId,
@@ -179,7 +203,7 @@ export async function POST(request: Request) {
     });
 
     if (action === 'checkin') {
-      if (existingRecord && existingRecord.checkIn) {
+      if (existingRecordToday && existingRecordToday.checkIn) {
         return NextResponse.json(
           { error: 'Already checked in today' },
           { status: 400, headers: corsHeaders() }
@@ -187,26 +211,34 @@ export async function POST(request: Request) {
       }
 
       const now = new Date();
-      // Use policy config for late detection instead of hardcoded time
+      // Use policy config for late detection instead of hardcoded time.
+      // The comparison uses the CLIENT's local time (localTimeStr) when
+      // provided — the server runs in UTC so now.getHours() would be wrong
+      // for employees in other timezones.
       let isLate = false;
       try {
         const policyConfig = await db.attendancePolicyConfig.findFirst({
           where: { companyId: targetEmployee.companyId },
           select: { shiftStartDefault: true, lateGraceMinutes: true },
         });
+        const localMinutes = localTimeStr
+          ? (() => { const [h, m] = localTimeStr.split(':').map(Number); return h * 60 + m; })()
+          : now.getHours() * 60 + now.getMinutes();
         if (policyConfig?.shiftStartDefault) {
           const [shiftH, shiftM] = policyConfig.shiftStartDefault.split(':').map(Number);
           const graceMinutes = policyConfig.lateGraceMinutes || 15;
           const deadlineMinutes = shiftH * 60 + shiftM + graceMinutes;
-          const nowMinutes = now.getHours() * 60 + now.getMinutes();
-          isLate = nowMinutes > deadlineMinutes;
+          isLate = localMinutes > deadlineMinutes;
         } else {
           // Fallback: 9:00 shift + 15 min grace = 9:15
-          isLate = now.getHours() > 9 || (now.getHours() === 9 && now.getMinutes() > 15);
+          isLate = localMinutes > 9 * 60 + 15;
         }
       } catch {
         // Fallback if policy config query fails
-        isLate = now.getHours() > 9 || (now.getHours() === 9 && now.getMinutes() > 15);
+        const localMinutes = localTimeStr
+          ? (() => { const [h, m] = localTimeStr.split(':').map(Number); return h * 60 + m; })()
+          : now.getHours() * 60 + now.getMinutes();
+        isLate = localMinutes > 9 * 60 + 15;
       }
 
       const attendance = await db.attendance.upsert({
@@ -235,6 +267,21 @@ export async function POST(request: Request) {
         { status: 201, headers: corsHeaders() }
       );
     } else if (action === 'checkout') {
+      // Checkout normally targets today's record. If the punch crosses
+      // midnight (checked in yesterday evening, checking out after 00:00),
+      // fall back to the previous day's record when today has no open check-in.
+      let existingRecord = existingRecordToday;
+      let recordDate = today;
+      if ((!existingRecord || !existingRecord.checkIn || existingRecord.checkOut) && prevDay) {
+        const prevRecord = await db.attendance.findUnique({
+          where: { employeeId_date: { employeeId, date: prevDay } },
+        });
+        if (prevRecord && prevRecord.checkIn && !prevRecord.checkOut) {
+          existingRecord = prevRecord;
+          recordDate = prevDay;
+        }
+      }
+
       if (!existingRecord || !existingRecord.checkIn) {
         return NextResponse.json(
           { error: 'Must check in before checking out' },
@@ -257,7 +304,7 @@ export async function POST(request: Request) {
         where: {
           employeeId_date: {
             employeeId,
-            date: today,
+            date: recordDate,
           },
         },
         data: {

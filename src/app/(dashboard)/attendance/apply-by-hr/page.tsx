@@ -9,6 +9,7 @@ import {
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
+import TimePickerAmPm from '@/components/TimePickerAmPm';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -116,58 +117,73 @@ export default function ApplyAttendanceByHRPage() {
 
       switch (selectedRequestType) {
         case 'regularize': {
-          if (!regularizeForm.date || !regularizeForm.requestedTime || !regularizeForm.reason) {
-            toast.error('All fields are required');
+          // Trim-validate — whitespace-only reasons must be rejected (the raw
+          // reason is prefixed with "[HR] " before sending, which would
+          // otherwise mask an empty/whitespace value)
+          if (!regularizeForm.date || !regularizeForm.requestedTime || !regularizeForm.reason.trim()) {
+            toast.error(!regularizeForm.date || !regularizeForm.requestedTime
+              ? 'All fields are required'
+              : 'Reason is required and cannot be empty or whitespace-only');
             setSubmitting(false);
             return;
           }
           const dt = new Date(`${regularizeForm.date}T${regularizeForm.requestedTime}`);
-          body = { employeeId: selectedEmployee.id, date: regularizeForm.date, punchType: regularizeForm.punchType, requestedTime: dt, reason: `[HR] ${regularizeForm.reason}` };
+          body = { employeeId: selectedEmployee.id, date: regularizeForm.date, punchType: regularizeForm.punchType, requestedTime: dt, reason: `[HR] ${regularizeForm.reason.trim()}`, clientToday: new Date().toLocaleDateString('en-CA') };
           break;
         }
         case 'permission': {
-          if (!permissionForm.date || !permissionForm.startTime || !permissionForm.endTime || !permissionForm.reason) {
-            toast.error('All fields are required');
+          if (!permissionForm.date || !permissionForm.startTime || !permissionForm.endTime || !permissionForm.reason.trim()) {
+            toast.error(!permissionForm.date || !permissionForm.startTime || !permissionForm.endTime
+              ? 'All fields are required'
+              : 'Reason is required and cannot be empty or whitespace-only');
             setSubmitting(false);
             return;
           }
-          body = { employeeId: selectedEmployee.id, date: permissionForm.date, startTime: permissionForm.startTime, endTime: permissionForm.endTime, reason: `[HR] ${permissionForm.reason}`, type: 'permission' };
+          body = { employeeId: selectedEmployee.id, date: permissionForm.date, startTime: permissionForm.startTime, endTime: permissionForm.endTime, reason: `[HR] ${permissionForm.reason.trim()}`, type: 'permission' };
           break;
         }
         case 'gatepass': {
-          if (!gatepassForm.date || !gatepassForm.outTime || !gatepassForm.reason) {
-            toast.error('Date, out time, and reason are required');
+          if (!gatepassForm.date || !gatepassForm.outTime || !gatepassForm.reason.trim()) {
+            toast.error(!gatepassForm.date || !gatepassForm.outTime
+              ? 'Date, out time, and reason are required'
+              : 'Reason is required and cannot be empty or whitespace-only');
             setSubmitting(false);
             return;
           }
-          body = { employeeId: selectedEmployee.id, date: gatepassForm.date, outTime: gatepassForm.outTime, expectedReturn: gatepassForm.expectedReturn || null, reason: `[HR] ${gatepassForm.reason}` };
+          body = { employeeId: selectedEmployee.id, date: gatepassForm.date, outTime: gatepassForm.outTime, expectedReturn: gatepassForm.expectedReturn || null, reason: `[HR] ${gatepassForm.reason.trim()}` };
           break;
         }
         case 'overtime': {
-          if (!overtimeForm.date || !overtimeForm.startTime || !overtimeForm.endTime || !overtimeForm.reason) {
-            toast.error('All fields are required');
+          if (!overtimeForm.date || !overtimeForm.startTime || !overtimeForm.endTime || !overtimeForm.reason.trim()) {
+            toast.error(!overtimeForm.date || !overtimeForm.startTime || !overtimeForm.endTime
+              ? 'All fields are required'
+              : 'Reason is required and cannot be empty or whitespace-only');
             setSubmitting(false);
             return;
           }
-          body = { employeeId: selectedEmployee.id, date: overtimeForm.date, startTime: overtimeForm.startTime, endTime: overtimeForm.endTime, reason: `[HR] ${overtimeForm.reason}` };
+          body = { employeeId: selectedEmployee.id, date: overtimeForm.date, startTime: overtimeForm.startTime, endTime: overtimeForm.endTime, reason: `[HR] ${overtimeForm.reason.trim()}` };
           break;
         }
         case 'comp-off': {
-          if (!compoffForm.date || !compoffForm.reason) {
-            toast.error('Date and reason are required');
+          if (!compoffForm.date || !compoffForm.reason.trim()) {
+            toast.error(!compoffForm.date
+              ? 'Date and reason are required'
+              : 'Reason is required and cannot be empty or whitespace-only');
             setSubmitting(false);
             return;
           }
-          body = { employeeId: selectedEmployee.id, date: compoffForm.date, reason: `[HR] ${compoffForm.reason}` };
+          body = { employeeId: selectedEmployee.id, date: compoffForm.date, reason: `[HR] ${compoffForm.reason.trim()}` };
           break;
         }
         case 'wfh': {
-          if (!wfhForm.date || !wfhForm.reason) {
-            toast.error('Date and reason are required');
+          if (!wfhForm.date || !wfhForm.reason.trim()) {
+            toast.error(!wfhForm.date
+              ? 'Date and reason are required'
+              : 'Reason is required and cannot be empty or whitespace-only');
             setSubmitting(false);
             return;
           }
-          body = { employeeId: selectedEmployee.id, date: wfhForm.date, endDate: wfhForm.endDate || wfhForm.date, punchType: 'wfh', requestedTime: new Date(), reason: `[HR WFH] ${wfhForm.reason}` };
+          body = { employeeId: selectedEmployee.id, date: wfhForm.date, endDate: wfhForm.endDate || wfhForm.date, punchType: 'wfh', requestedTime: new Date(), reason: `[HR WFH] ${wfhForm.reason.trim()}` };
           break;
         }
       }
@@ -342,7 +358,7 @@ export default function ApplyAttendanceByHRPage() {
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-slate-600 mb-1.5">Actual Time <span className="text-red-500 font-bold">*</span></label>
-                        <input type="time" value={regularizeForm.requestedTime} onChange={e => setRegularizeForm({ ...regularizeForm, requestedTime: e.target.value })} className="3boxes-input w-full" />
+                        <TimePickerAmPm value={regularizeForm.requestedTime} onChange={v => setRegularizeForm({ ...regularizeForm, requestedTime: v })} className="w-full" />
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-slate-600 mb-1.5">Reason <span className="text-red-500 font-bold">*</span></label>
@@ -362,11 +378,11 @@ export default function ApplyAttendanceByHRPage() {
                     <div />
                     <div>
                       <label className="block text-xs font-medium text-slate-600 mb-1.5">Start Time <span className="text-red-500 font-bold">*</span></label>
-                      <input type="time" value={permissionForm.startTime} onChange={e => setPermissionForm({ ...permissionForm, startTime: e.target.value })} className="3boxes-input w-full" />
+                      <TimePickerAmPm value={permissionForm.startTime} onChange={v => setPermissionForm({ ...permissionForm, startTime: v })} className="w-full" />
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-slate-600 mb-1.5">End Time <span className="text-red-500 font-bold">*</span></label>
-                      <input type="time" value={permissionForm.endTime} onChange={e => setPermissionForm({ ...permissionForm, endTime: e.target.value })} className="3boxes-input w-full" />
+                      <TimePickerAmPm value={permissionForm.endTime} onChange={v => setPermissionForm({ ...permissionForm, endTime: v })} className="w-full" />
                     </div>
                     <div className="sm:col-span-2">
                       <label className="block text-xs font-medium text-slate-600 mb-1.5">Reason <span className="text-red-500 font-bold">*</span></label>
@@ -384,11 +400,11 @@ export default function ApplyAttendanceByHRPage() {
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-slate-600 mb-1.5">Out Time <span className="text-red-500 font-bold">*</span></label>
-                      <input type="time" value={gatepassForm.outTime} onChange={e => setGatepassForm({ ...gatepassForm, outTime: e.target.value })} className="3boxes-input w-full" />
+                      <TimePickerAmPm value={gatepassForm.outTime} onChange={v => setGatepassForm({ ...gatepassForm, outTime: v })} className="w-full" />
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-slate-600 mb-1.5">Expected Return</label>
-                      <input type="time" value={gatepassForm.expectedReturn} onChange={e => setGatepassForm({ ...gatepassForm, expectedReturn: e.target.value })} className="3boxes-input w-full" />
+                      <TimePickerAmPm value={gatepassForm.expectedReturn} onChange={v => setGatepassForm({ ...gatepassForm, expectedReturn: v })} className="w-full" />
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-slate-600 mb-1.5">Reason <span className="text-red-500 font-bold">*</span></label>
@@ -407,11 +423,11 @@ export default function ApplyAttendanceByHRPage() {
                     <div />
                     <div>
                       <label className="block text-xs font-medium text-slate-600 mb-1.5">OT Start Time <span className="text-red-500 font-bold">*</span></label>
-                      <input type="time" value={overtimeForm.startTime} onChange={e => setOvertimeForm({ ...overtimeForm, startTime: e.target.value })} className="3boxes-input w-full" />
+                      <TimePickerAmPm value={overtimeForm.startTime} onChange={v => setOvertimeForm({ ...overtimeForm, startTime: v })} className="w-full" />
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-slate-600 mb-1.5">OT End Time <span className="text-red-500 font-bold">*</span></label>
-                      <input type="time" value={overtimeForm.endTime} onChange={e => setOvertimeForm({ ...overtimeForm, endTime: e.target.value })} className="3boxes-input w-full" />
+                      <TimePickerAmPm value={overtimeForm.endTime} onChange={v => setOvertimeForm({ ...overtimeForm, endTime: v })} className="w-full" />
                     </div>
                     <div className="sm:col-span-2">
                       <label className="block text-xs font-medium text-slate-600 mb-1.5">Reason <span className="text-red-500 font-bold">*</span></label>

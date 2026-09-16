@@ -148,7 +148,16 @@ export async function GET(request: Request) {
         updatedAt: new Date(0),
       } as never;
     }
-    return ok({ config });
+    // Weekend configuration (from Setting table — company override first, then
+    // tenant-wide; default Sat+Sun). Exposed so the attendance calendar/table
+    // can mark weekends without a separate request.
+    const { getWeekendDays } = await import('@/lib/working-days');
+    const weekendDays = await getWeekendDays(
+      db,
+      null,
+      scope.companyId || scope.ownCompanyId || null,
+    );
+    return ok({ config, weekendDays });
   } catch (e: unknown) {
     return fail(e instanceof Error ? e.message : 'Failed to load', 500);
   }

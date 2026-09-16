@@ -8,7 +8,7 @@ import {
   FiAlertCircle, FiChevronRight, FiPlus, FiDownload,
   FiActivity, FiTarget, FiAward, FiBriefcase, FiFolder,
   FiSend, FiMessageCircle, FiShield, FiZap, FiHeart,
-  FiArrowRight, FiInfo,
+  FiArrowRight, FiInfo, FiRefreshCw,
 } from 'react-icons/fi';
 import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip,
@@ -122,6 +122,14 @@ interface DocumentRow {
   uploadedAt: string;
 }
 
+interface RegularizationRow {
+  id: string;
+  date: string;
+  punchType: string;
+  reason: string;
+  status: string;
+}
+
 /* ---------- skeleton ---------- */
 
 function SkeletonBlock({ className = '' }: { className?: string }) {
@@ -172,6 +180,7 @@ export default function ESSDashboardPage() {
   const [payslips, setPayslips] = useState<PayslipRow[]>([]);
   const [performance, setPerformance] = useState<PerformanceRow | null>(null);
   const [goals, setGoals] = useState<GoalRow[]>([]);
+  const [regularizations, setRegularizations] = useState<RegularizationRow[]>([]);
   const [training, setTraining] = useState<TrainingEnrollmentRow[]>([]);
   const [timesheets, setTimesheets] = useState<TimesheetRow[]>([]);
   const [tickets, setTickets] = useState<TicketRow[]>([]);
@@ -195,7 +204,7 @@ export default function ESSDashboardPage() {
       }
     };
 
-    const [leaveData, attData, leaveReqData, payslipData, perfData, goalsData, trainData, tsData, ticketData, docData] =
+    const [leaveData, attData, leaveReqData, payslipData, perfData, goalsData, trainData, tsData, ticketData, docData, regData] =
       await Promise.all([
         safe(`/api/leave/balance?${scopeQuery}limit=50`),
         safe(`/api/attendance?${scopeQuery}limit=100`),
@@ -207,6 +216,7 @@ export default function ESSDashboardPage() {
         safe(`/api/timesheets?${scopeQuery}limit=5`),
         safe(`/api/tickets?${scopeQuery}limit=5`),
         safe(`/api/documents?${scopeQuery}limit=5`),
+        safe(`/api/attendance/regularize?${scopeQuery}limit=6`),
       ]);
 
     /* leave balance */
@@ -303,6 +313,11 @@ export default function ESSDashboardPage() {
     /* documents */
     if (docData?.documents || docData?.data) {
       setDocuments((docData.documents || docData.data).slice(0, 5));
+    }
+
+    /* regularization requests — the employee's own submissions (date, reason, status) */
+    if (regData?.regularizations) {
+      setRegularizations((regData.regularizations as RegularizationRow[]).slice(0, 5));
     }
 
     setLoading(false);
@@ -568,7 +583,7 @@ export default function ESSDashboardPage() {
                   <p className="text-sm font-bold text-emerald-700">{attendanceRows.filter((a) => a.status === 'present').length}</p>
                 </div>
                 <div className="rounded-lg bg-amber-50 py-2">
-                  <p className="text-[11px] font-medium text-amber-700/70">Late</p>
+                  <p className="text-[11px] font-medium text-amber-700/70">Present (Late)</p>
                   <p className="text-sm font-bold text-amber-700">{attendanceRows.filter((a) => a.status === 'late').length}</p>
                 </div>
                 <div className="rounded-lg bg-rose-50 py-2">
@@ -579,6 +594,47 @@ export default function ESSDashboardPage() {
             </>
           )}
         </div>
+      </div>
+
+      {/* MY REGULARIZATION REQUESTS */}
+      <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <FiRefreshCw className="w-4 h-4 text-cyan-500" /> My Regularization Requests
+            </h2>
+            <p className="text-xs text-slate-500 mt-0.5">Missed-punch corrections you submitted</p>
+          </div>
+          <button onClick={() => router.push('/attendance/regularize')} className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 inline-flex items-center">
+            View all <FiChevronRight className="w-3 h-3" />
+          </button>
+        </div>
+        {loading ? (
+          <div className="space-y-2">{Array.from({ length: 2 }).map((_, i) => <SkeletonBlock key={i} className="h-12 w-full" />)}</div>
+        ) : regularizations.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-6 text-slate-400">
+            <FiInfo className="w-8 h-8 mb-2" />
+            <p className="text-sm">No regularization requests submitted yet</p>
+            <button onClick={() => router.push('/attendance/regularize')} className="mt-2 text-xs font-semibold text-cyan-600 hover:text-cyan-700">
+              Request a regularization
+            </button>
+          </div>
+        ) : (
+          <div className="divide-y divide-slate-100">
+            {regularizations.map((r) => (
+              <div key={r.id} className="flex items-center justify-between py-3 gap-4">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-slate-900">
+                    {fmtDate(r.date)}
+                    <span className="ml-2 text-xs font-medium text-slate-500 capitalize">{(r.punchType || '').replace('_', '-')}</span>
+                  </p>
+                  <p className="text-xs text-slate-500 mt-0.5 truncate">{r.reason || '—'}</p>
+                </div>
+                {statusBadge(r.status)}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* PAYSLIPS + PERFORMANCE */}

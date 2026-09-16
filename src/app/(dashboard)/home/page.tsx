@@ -624,26 +624,36 @@ function ManagerHome({ firstName, greeting, today }: { firstName: string; greeti
       } catch { return null; }
     };
 
-    const [empData, attData, leaveData] = await Promise.all([
+    const [empData, attData, pendingLeaveData, approvedLeaveData] = await Promise.all([
       safe(`/api/employees?limit=200&status=active${scopeQuery}`),
-      safe(`/api/attendance?limit=30${scopeQuery}`),
+      safe(`/api/attendance?limit=300${scopeQuery}`),
       safe(`/api/leave?status=pending&limit=20${scopeQuery}`),
+      safe(`/api/leave?status=approved&limit=500${scopeQuery}`),
     ]);
 
     const empRows = empData?.employees || empData?.data || [];
     // Use actual attendance data to compute presentToday — NOT a mocked percentage
     const attRows = attData?.attendance || attData?.records || [];
-    const todayStr = new Date().toISOString().split('T')[0];
+    // LOCAL calendar day (toISOString rolls back a day in timezones ahead of UTC)
+    const nowD = new Date();
+    const todayStr = `${nowD.getFullYear()}-${String(nowD.getMonth() + 1).padStart(2, '0')}-${String(nowD.getDate()).padStart(2, '0')}`;
     const todayRecords = attRows.filter((a: { date: string }) => {
       const d = typeof a.date === 'string' ? a.date.split('T')[0] : '';
       return d === todayStr;
     });
     const presentCount = todayRecords.filter((a: { status: string }) => ['present', 'late', 'half_day'].includes(a.status?.toLowerCase())).length;
+    // On Leave = approved leaves that cover TODAY (previously this counted all
+    // PENDING requests — a completely different metric)
+    const onLeaveToday = (approvedLeaveData?.leaveRequests || approvedLeaveData?.leaves || []).filter((l: { startDate: string; endDate: string }) => {
+      const s = typeof l.startDate === 'string' ? l.startDate.split('T')[0] : '';
+      const e = typeof l.endDate === 'string' ? l.endDate.split('T')[0] : '';
+      return s <= todayStr && todayStr <= e;
+    }).length;
     setStats({
       teamSize: empData?.pagination?.total || empRows.length,
       presentToday: presentCount > 0 ? presentCount : (todayRecords.length > 0 ? todayRecords.filter((a: { status: string }) => a.status !== 'absent').length : 0),
-      onLeave: leaveData?.pagination?.total || 0,
-      pendingApprovals: leaveData?.pagination?.total || 0,
+      onLeave: onLeaveToday,
+      pendingApprovals: pendingLeaveData?.pagination?.total || 0,
     });
 
     setTeamMembers(empRows.slice(0, 6));

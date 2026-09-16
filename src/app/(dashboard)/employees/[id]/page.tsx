@@ -937,6 +937,7 @@ export default function EmployeeDetailPage() {
                     <tbody>
                       {attendance.map(a => {
                         const statusMap: Record<string, string> = { present: 'thb-badge thb-badge-success', absent: 'thb-badge thb-badge-error', late: 'bg-orange-50 text-orange-700 thb-badge', half_day: 'thb-badge thb-badge-warning', holiday: 'thb-badge thb-badge-info', weekend: 'bg-slate-100 text-slate-600 thb-badge', on_leave: 'thb-badge thb-badge-warning' };
+                        const statusLabels: Record<string, string> = { present: 'Present', absent: 'Absent', late: 'Present (Late)', half_day: 'Half Day', holiday: 'Holiday', weekend: 'Weekend', on_leave: 'On Leave' };
                         return (
                           <tr key={a.id} className="border-b border-thb-border/50 hover:bg-slate-50/50 transition-colors">
                             <td className="py-3 text-sm font-medium text-thb-text-primary">{formatDate(a.date)}</td>
@@ -944,7 +945,7 @@ export default function EmployeeDetailPage() {
                             <td className="py-3 text-sm text-thb-text-secondary">{a.checkOut ? formatDateTime(a.checkOut) : '—'}</td>
                             <td className="py-3 text-sm text-thb-text-secondary">{a.workHours != null ? `${a.workHours}h` : '—'}</td>
                             <td className="py-3 text-sm text-thb-text-secondary">{a.overtime != null && a.overtime > 0 ? `${a.overtime}h` : '—'}</td>
-                            <td className="py-3"><span className={statusMap[a.status] || 'thb-badge thb-badge-info'}>{a.status.replace('_', ' ')}</span></td>
+                            <td className="py-3"><span className={statusMap[a.status] || 'thb-badge thb-badge-info'}>{statusLabels[a.status] || a.status.replace('_', ' ')}</span></td>
                           </tr>
                         );
                       })}
