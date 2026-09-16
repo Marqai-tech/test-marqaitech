@@ -33,6 +33,7 @@ function pct(part: number, total: number): number {
 }
 
 const empSelect = {
+  id: true,
   employeeId: true,
   firstName: true,
   lastName: true,
