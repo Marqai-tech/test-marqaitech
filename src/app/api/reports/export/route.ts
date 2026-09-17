@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getDb } from '@/lib/tenant-db';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import * as XLSX from 'xlsx';
 
@@ -546,7 +546,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { reportType, format, tenantId, data: inlineData } = body;
+    const { reportType, format, tenantId, data: inlineData, title: inlineTitle, summary: inlineSummary, filename: inlineFilename } = body;
 
     if (!reportType || !format) {
       return NextResponse.json({ error: 'reportType and format are required' }, { status: 400, headers: corsHeaders() });
@@ -563,8 +563,10 @@ export async function POST(request: Request) {
     if (inlineData && Array.isArray(inlineData) && inlineData.length > 0) {
       // Client-side data (e.g., leave module sends its own filtered data)
       reportData = {
-        title: `${reportType.charAt(0).toUpperCase() + reportType.slice(1)} Report`,
-        summary: { totalRecords: inlineData.length },
+        title: inlineTitle || `${reportType.charAt(0).toUpperCase() + reportType.slice(1)} Report`,
+        summary: (inlineSummary && typeof inlineSummary === 'object' && Object.keys(inlineSummary).length > 0)
+          ? inlineSummary
+          : { totalRecords: inlineData.length },
         rows: inlineData,
       };
     } else {
@@ -620,7 +622,10 @@ export async function POST(request: Request) {
     reportData.tenantName = tenantInfo.name;
     reportData.tenantLogo = tenantInfo.logo;
     reportData.tenantAddress = tenantInfo.address;
-    reportData.reportName = `${reportType.charAt(0).toUpperCase() + reportType.slice(1)} Report`;
+    reportData.reportName = inlineTitle || `${reportType.charAt(0).toUpperCase() + reportType.slice(1)} Report`;
+    const fileBase = (typeof inlineFilename === 'string' && inlineFilename.trim())
+      ? inlineFilename.trim().replace(/[^a-zA-Z0-9-_ ]/g, '').replace(/\s+/g, '_') || 'report'
+      : `${reportType}-report`;
 
     // Generate file based on format
     let fileBuffer: Buffer;
@@ -632,19 +637,19 @@ export async function POST(request: Request) {
         const csvContent = generateCSV(reportData);
         fileBuffer = Buffer.from(csvContent, 'utf-8');
         contentType = 'text/csv';
-        fileName = `${reportType}-report.csv`;
+        fileName = `${fileBase}.csv`;
         break;
       }
       case 'excel': {
         fileBuffer = generateExcel(reportData);
         contentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-        fileName = `${reportType}-report.xlsx`;
+        fileName = `${fileBase}.xlsx`;
         break;
       }
       case 'pdf': {
         fileBuffer = await generatePDF(reportData);
         contentType = 'application/pdf';
-        fileName = `${reportType}-report.pdf`;
+        fileName = `${fileBase}.pdf`;
         break;
       }
       default:
@@ -652,7 +657,7 @@ export async function POST(request: Request) {
     }
 
     // Return the file as a downloadable response
-    return new NextResponse(fileBuffer, {
+    return new NextResponse(new Uint8Array(fileBuffer), {
       status: 200,
       headers: {
         ...corsHeaders(),

@@ -8,9 +8,9 @@ import {
   FiAlertTriangle, FiCheckCircle, FiEye, FiActivity,
   FiUserCheck, FiUserX, FiGift, FiClock as FiClockIcon,
   FiSun, FiMoon, FiZap, FiLayers, FiPieChart, FiRepeat,
-  FiArrowRight, FiRefreshCw, FiDatabase, FiSliders,
+  FiArrowRight, FiArrowLeft, FiRefreshCw, FiDatabase, FiSliders,
   FiBook, FiCreditCard, FiPackage, FiFolder, FiHelpCircle,
-  FiTool, FiClipboard, FiMonitor, FiGrid, FiHome, FiKey, FiEdit3,
+  FiTool, FiClipboard, FiMonitor, FiGrid, FiHome, FiKey, FiEdit3, FiChevronRight,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { isClientDemoMode } from '@/lib/site-mode';
@@ -274,33 +274,6 @@ interface AIInsight {
   icon: React.ComponentType<{ className?: string }>;
 }
 
-/* ── CSV Export ── */
-function handleExportCSV(rows: Record<string, unknown>[], filename: string) {
-  if (rows.length === 0) {
-    toast.error('No data to export');
-    return;
-  }
-  const headers = Object.keys(rows[0]);
-  const csvContent = [
-    headers.join(','),
-    ...rows.map(row => headers.map(h => {
-      const val = row[h];
-      if (typeof val === 'object' && val !== null) return `"${JSON.stringify(val).replace(/"/g, '""')}"`;
-      return `"${String(val ?? '').replace(/"/g, '""')}"`;
-    }).join(',')),
-  ].join('\n');
-  const blob = new Blob([csvContent], { type: 'text/csv' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `${filename}.csv`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-  toast.success('CSV exported successfully');
-}
-
 /* ── Component ── */
 export default function ReportsPage() {
   const { user } = useAuthStore();
@@ -323,7 +296,7 @@ export default function ReportsPage() {
   });
 
   // Standard Report states
-  const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set(['Employee', 'Payroll']));
+  const [activeModule, setActiveModule] = useState<string>('Employee');
   const [showFilterDialog, setShowFilterDialog] = useState(false);
   const [selectedReport, setSelectedReport] = useState<ReportDef | null>(null);
   const [filterMonth, setFilterMonth] = useState(new Date().getMonth() + 1);
@@ -333,6 +306,7 @@ export default function ReportsPage() {
   const [filterDesignation, setFilterDesignation] = useState('');
   const [reportLoading, setReportLoading] = useState(false);
   const [reportHistory, setReportHistory] = useState<{ report: ReportDef; data: Record<string, unknown> } | null>(null);
+  const [exportingKey, setExportingKey] = useState<string | null>(null);
 
   // Statutory Report states
   const [selectedStatutory, setSelectedStatutory] = useState<StatutoryReportDef>(statutoryReports[0]);
@@ -413,14 +387,70 @@ export default function ReportsPage() {
     });
   };
 
-  const toggleModule = (module: string) => {
-    setExpandedModules(prev => {
-      const next = new Set(prev);
-      if (next.has(module)) next.delete(module);
-      else next.add(module);
-      return next;
-    });
+  const selectModule = (module: string) => {
+    setActiveModule(module);
+    setReportHistory(null);
+    setSearchQuery('');
   };
+
+  /* ── PDF / Excel / CSV export via branded server-side generator ── */
+  const exportViaAPI = async (
+    format: 'pdf' | 'excel' | 'csv',
+    payload: { title: string; summary?: Record<string, unknown>; rows: Record<string, unknown>[]; filename: string },
+  ) => {
+    const key = `${payload.filename}_${format}`;
+    setExportingKey(key);
+    try {
+      const res = await fetch('/api/reports/export', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          reportType: 'custom',
+          format,
+          title: payload.title,
+          summary: payload.summary,
+          filename: payload.filename,
+          data: payload.rows,
+        }),
+      });
+      if (!res.ok) throw new Error('Export failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${payload.filename}.${format === 'excel' ? 'xlsx' : format}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success(`Exported as ${format.toUpperCase()}`);
+    } catch {
+      toast.error('Export failed');
+    } finally {
+      setExportingKey(null);
+    }
+  };
+
+  const exportButtons = (payload: { title: string; summary?: Record<string, unknown>; rows: Record<string, unknown>[]; filename: string }) => (
+    <div className="flex items-center gap-2 flex-wrap">
+      {(['pdf', 'excel', 'csv'] as const).map((fmt) => {
+        const key = `${payload.filename}_${fmt}`;
+        const label = fmt === 'pdf' ? 'PDF' : fmt === 'excel' ? 'Excel' : 'CSV';
+        const Icon = fmt === 'pdf' ? FiFileText : fmt === 'excel' ? FiGrid : FiDownload;
+        return (
+          <button
+            key={fmt}
+            onClick={() => exportViaAPI(fmt, payload)}
+            disabled={exportingKey === key}
+            className="inline-flex items-center gap-1.5 px-3 py-2 border border-thb-border rounded-lg text-sm font-medium text-thb-text-secondary hover:bg-slate-50 hover:text-thb-text-primary transition-colors disabled:opacity-50"
+          >
+            {exportingKey === key ? <span className="animate-spin h-3.5 w-3.5 border-2 border-slate-300 border-t-green-500 rounded-full" /> : <Icon className="w-4 h-4" />}
+            {exportingKey === key ? 'Exporting…' : `Export ${label}`}
+          </button>
+        );
+      })}
+    </div>
+  );
 
   // Generate Standard Report
   const handleGenerateReport = async (report: ReportDef) => {
@@ -653,20 +683,6 @@ export default function ReportsPage() {
     return null; // null means no filter
   }, [isSelfOnly, reportAccess]);
 
-  // Filtered reports based on search AND role
-  const filteredStandardReports = standardReports
-    .filter(group => !roleFilteredModules || roleFilteredModules.has(group.module))
-    .map(group => ({
-      ...group,
-      reports: group.reports.filter(r =>
-        (r.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        r.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        r.module.toLowerCase().includes(searchQuery.toLowerCase()))
-        // For employees, filter out reports that require org-wide access
-        && (!isSelfOnly || ['leave_balance', 'daily_attendance', 'payroll_summary', 'muster_roll'].includes(r.id))
-      ),
-    })).filter(group => group.reports.length > 0);
-
   const filteredStatutoryReports = canSeeStatutory
     ? statutoryReports.filter(r =>
         r.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -681,8 +697,33 @@ export default function ReportsPage() {
       )
     : [];
 
+  // Left sub-menu: role-filtered modules (NOT search-filtered so the menu stays stable while typing)
+  const menuStandardReports = standardReports
+    .filter(group => !roleFilteredModules || roleFilteredModules.has(group.module))
+    .map(group => ({
+      ...group,
+      reports: group.reports.filter(r => !isSelfOnly || ['leave_balance', 'daily_attendance', 'payroll_summary', 'muster_roll'].includes(r.id)),
+    }))
+    .filter(group => group.reports.length > 0);
+
+  // Search matches across ALL modules (for the right pane while searching)
+  const searchMatches = searchQuery.trim()
+    ? standardReports
+        .filter(group => !roleFilteredModules || roleFilteredModules.has(group.module))
+        .flatMap(group => group.reports
+          .filter(r =>
+            (r.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            r.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            r.module.toLowerCase().includes(searchQuery.toLowerCase()))
+            && (!isSelfOnly || ['leave_balance', 'daily_attendance', 'payroll_summary', 'muster_roll'].includes(r.id))
+          )
+          .map(r => ({ report: r, groupModule: group.module })))
+    : [];
+
   // Favorite reports across all tabs
   const favoriteStandardReports = standardReports.flatMap(g => g.reports).filter(r => favorites.has(r.id));
+
+  const activeGroup = menuStandardReports.find(g => g.module === activeModule);
 
   const analyticsData = analytics as Record<string, Record<string, unknown>> | null;
 
@@ -755,9 +796,12 @@ export default function ReportsPage() {
               </div>
             </div>
           )}
-          <button onClick={() => handleExportCSV(employees.map(e => ({ EmployeeID: e.employeeId, Name: `${e.firstName} ${e.lastName}`, Email: e.email, Department: e.department?.name || '', Designation: e.designation?.title || '', Status: e.status })), `employee_report_${filterYear}_${filterMonth}`)} className="inline-flex items-center gap-1.5 px-3 py-2 border border-thb-border rounded-lg text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">
-            <FiDownload className="w-4 h-4" /> Export CSV
-          </button>
+          {exportButtons({
+            title: report.name,
+            summary: { Headcount: (d.headcount as number) || 0, 'New Hires (30d)': (d.newHires as number) || 0, Attrition: (d.attrition as number) || 0 },
+            rows: employees.map(e => ({ EmployeeID: e.employeeId, Name: `${e.firstName} ${e.lastName}`, Email: e.email, Department: e.department?.name || '', Designation: e.designation?.title || '', Status: e.status })),
+            filename: `employee_report_${filterYear}_${filterMonth}`,
+          })}
         </div>
       );
     }
@@ -788,9 +832,12 @@ export default function ReportsPage() {
               <div className="space-y-3">{Object.entries(byType).map(([name, count]) => { const max = Math.max(...Object.values(byType), 1); return (<div key={name}><div className="flex justify-between mb-1"><span className="text-sm text-thb-text-secondary">{name}</span><span className="text-sm font-medium">{count as number}</span></div><div className="w-full h-5 bg-slate-100 rounded-full"><div className="h-full bg-amber-500 rounded-full" style={{ width: `${((count as number) / max) * 100}%` }} /></div></div>); })}</div>
             </div>
           )}
-          <button onClick={() => handleExportCSV(Object.entries(byType).map(([k, v]) => ({ Type: k, Count: v })), `leave_report_${filterYear}_${filterMonth}`)} className="inline-flex items-center gap-1.5 px-3 py-2 border border-thb-border rounded-lg text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">
-            <FiDownload className="w-4 h-4" /> Export CSV
-          </button>
+          {exportButtons({
+            title: report.name,
+            summary: { 'Total Requests': (d.total as number) || 0, ...byType },
+            rows: Object.entries(byType).map(([k, v]) => ({ Type: k, Count: v })),
+            filename: `leave_report_${filterYear}_${filterMonth}`,
+          })}
         </div>
       );
     }
@@ -817,9 +864,12 @@ export default function ReportsPage() {
         <div className="thb-card overflow-hidden">
           <div className="px-4 py-3 border-b border-thb-border flex items-center justify-between">
             <h3 className="text-sm font-semibold text-thb-text-primary">{title} <span className="text-thb-text-muted font-normal">({rows.length})</span></h3>
-            <button onClick={() => handleExportCSV(rows.map(r => ({ EmployeeID: r.employeeCode, Name: r.name, Department: r.department, Designation: r.designation, Date: r.date, Status: r.status, CheckIn: fmtTimeCell(r.checkIn), CheckOut: fmtTimeCell(r.checkOut), WorkHours: r.workHours ?? '', Overtime: r.overtime ?? '' })), `${report.id}_${filterYear}_${filterMonth}`)} className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-thb-border rounded-lg text-xs font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">
-              <FiDownload className="w-3.5 h-3.5" /> Export CSV
-            </button>
+            {exportButtons({
+              title: report.name,
+              summary: { 'Attendance Rate': (d.attendanceRate as number) || 0, 'Late Arrivals': (d.lateArrivals as number) || 0, 'Total Overtime (h)': (d.totalOvertime as number) || 0 },
+              rows: rows.map(r => ({ EmployeeID: r.employeeCode, Name: r.name, Department: r.department, Designation: r.designation, Date: r.date, Status: r.status, CheckIn: fmtTimeCell(r.checkIn), CheckOut: fmtTimeCell(r.checkOut), WorkHours: r.workHours ?? '', Overtime: r.overtime ?? '' })),
+              filename: `${report.id}_${filterYear}_${filterMonth}`,
+            })}
           </div>
           <div className="overflow-x-auto max-h-96 overflow-y-auto">
             <table className="w-full min-w-[700px]">
@@ -864,9 +914,11 @@ export default function ReportsPage() {
               <div className="thb-card overflow-hidden">
                 <div className="px-4 py-3 border-b border-thb-border flex items-center justify-between">
                   <h3 className="text-sm font-semibold text-thb-text-primary">Day-wise Breakdown — {months[filterMonth - 1]?.label} {filterYear}</h3>
-                  <button onClick={() => handleExportCSV(days.map(([ds, v]) => ({ Date: ds, Present: v.present, Late: v.late, Absent: v.absent, OnLeave: v.leave, WFH: v.wfh })), `daily_attendance_${filterYear}_${filterMonth}`)} className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-thb-border rounded-lg text-xs font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">
-                    <FiDownload className="w-3.5 h-3.5" /> Export CSV
-                  </button>
+                  {exportButtons({
+                    title: report.name,
+                    rows: days.map(([ds, v]) => ({ Date: ds, Present: v.present, Late: v.late, Absent: v.absent, OnLeave: v.leave, WFH: v.wfh })),
+                    filename: `daily_attendance_${filterYear}_${filterMonth}`,
+                  })}
                 </div>
                 <div className="overflow-x-auto max-h-96 overflow-y-auto">
                   <table className="w-full min-w-[600px]">
@@ -938,9 +990,11 @@ export default function ReportsPage() {
               <div className="thb-card overflow-hidden">
                 <div className="px-4 py-3 border-b border-thb-border flex items-center justify-between">
                   <h3 className="text-sm font-semibold text-thb-text-primary">Overtime by Employee — {months[filterMonth - 1]?.label} {filterYear}</h3>
-                  <button onClick={() => handleExportCSV(otRows.map(r => ({ EmployeeID: r.code, Name: r.name, Department: r.dept, OvertimeHours: Math.round(r.hours * 100) / 100, DaysWithOT: r.days })), `overtime_${filterYear}_${filterMonth}`)} className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-thb-border rounded-lg text-xs font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">
-                    <FiDownload className="w-3.5 h-3.5" /> Export CSV
-                  </button>
+                  {exportButtons({
+                    title: report.name,
+                    rows: otRows.map(r => ({ EmployeeID: r.code, Name: r.name, Department: r.dept, OvertimeHours: Math.round(r.hours * 100) / 100, DaysWithOT: r.days })),
+                    filename: `overtime_${filterYear}_${filterMonth}`,
+                  })}
                 </div>
                 <div className="overflow-x-auto max-h-96 overflow-y-auto">
                   <table className="w-full min-w-[600px]">
@@ -1041,14 +1095,14 @@ export default function ReportsPage() {
           default: return 'bg-slate-50 text-slate-300';
         }
       };
-      const exportMuster = () => {
+      const musterExportRows = () => {
         const rows = musterRows.map(r => {
           const row: Record<string, unknown> = { EmpCode: r.employeeCode, Name: r.name, Department: r.department, Designation: r.designation };
           dayHeaders.forEach((ds, i) => { row[`D${i + 1}`] = r.days[i]; });
           row.Present = r.presentDays; row.Absent = r.absentDays; row.Leave = r.leaveDays; row.WFH = r.wfhDays;
           return row;
         });
-        handleExportCSV(rows, `muster_roll_${filterYear}_${filterMonth}`);
+        return rows;
       };
       return (
         <div className="space-y-4">
@@ -1080,9 +1134,11 @@ export default function ReportsPage() {
             <div className="thb-card overflow-hidden">
               <div className="px-4 py-3 border-b border-thb-border flex items-center justify-between">
                 <h3 className="text-sm font-semibold text-thb-text-primary">Muster Roll — {months[filterMonth - 1]?.label} {filterYear} <span className="text-thb-text-muted font-normal">({musterRows.length} employees)</span></h3>
-                <button onClick={exportMuster} className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-thb-border rounded-lg text-xs font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">
-                  <FiDownload className="w-3.5 h-3.5" /> Export CSV
-                </button>
+                {exportButtons({
+                  title: report.name,
+                  rows: musterExportRows(),
+                  filename: `muster_roll_${filterYear}_${filterMonth}`,
+                })}
               </div>
               <div className="overflow-x-auto max-h-[32rem] overflow-y-auto">
                 <table className="min-w-full">
@@ -1178,9 +1234,12 @@ export default function ReportsPage() {
                 </table>
               </div>
             </div>
-            <button onClick={() => handleExportCSV(registerData.map(r => ({ Code: r.empCode, Name: r.name, Department: r.department, Designation: r.designation, GrossPay: r.grossPay, Deductions: r.totalDeductions, NetPay: r.netPay })), `payroll_report_${filterYear}_${filterMonth}`)} className="inline-flex items-center gap-1.5 px-3 py-2 border border-thb-border rounded-lg text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">
-              <FiDownload className="w-4 h-4" /> Export CSV
-            </button>
+            {exportButtons({
+              title: report.name,
+              summary: summary as unknown as Record<string, unknown>,
+              rows: registerData.map(r => ({ Code: r.empCode, Name: r.name, Department: r.department, Designation: r.designation, GrossPay: r.grossPay, Deductions: r.totalDeductions, NetPay: r.netPay })),
+              filename: `payroll_report_${filterYear}_${filterMonth}`,
+            })}
           </div>
         );
       }
@@ -1210,9 +1269,12 @@ export default function ReportsPage() {
               </div>
             </div>
           )}
-          <button onClick={() => handleExportCSV(Object.entries(deptCosts).map(([k, v]) => ({ Department: k, Cost: v })), `payroll_report_${filterYear}_${filterMonth}`)} className="inline-flex items-center gap-1.5 px-3 py-2 border border-thb-border rounded-lg text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">
-            <FiDownload className="w-4 h-4" /> Export CSV
-          </button>
+          {exportButtons({
+            title: report.name,
+            summary: { 'Total Gross': (d.totalGross as number) || 0, 'Total Net': (d.totalNet as number) || 0, ...deptCosts },
+            rows: Object.entries(deptCosts).map(([k, v]) => ({ Department: k, Cost: v })),
+            filename: `payroll_report_${filterYear}_${filterMonth}`,
+          })}
         </div>
       );
     }
@@ -1240,9 +1302,12 @@ export default function ReportsPage() {
               <div className="space-y-2">{Object.entries(byStatus).map(([status, count]) => { const max = Math.max(...Object.values(byStatus), 1); return (<div key={status} className="flex items-center gap-3"><span className="text-xs text-thb-text-secondary w-24 capitalize">{status.replace('_', ' ')}</span><div className="flex-1 h-6 bg-slate-100 rounded-full"><div className="h-full bg-green-500 rounded-full" style={{ width: `${((count as number) / max) * 100}%` }} /></div><span className="text-xs font-medium text-thb-text-primary w-8">{count as number}</span></div>); })}</div>
             </div>
           )}
-          <button onClick={() => handleExportCSV(Object.entries(bySource).map(([k, v]) => ({ Source: k, Applications: v })), `recruitment_report_${filterYear}_${filterMonth}`)} className="inline-flex items-center gap-1.5 px-3 py-2 border border-thb-border rounded-lg text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">
-            <FiDownload className="w-4 h-4" /> Export CSV
-          </button>
+          {exportButtons({
+            title: report.name,
+            summary: { 'Open Positions': (d.openPositions as number) || 0, 'Total Applications': (d.totalApplications as number) || 0, 'Time to Fill': (d.timeToFill as string) || 'N/A', ...bySource },
+            rows: Object.entries(bySource).map(([k, v]) => ({ Source: k, Applications: v })),
+            filename: `recruitment_report_${filterYear}_${filterMonth}`,
+          })}
         </div>
       );
     }
@@ -1271,9 +1336,12 @@ export default function ReportsPage() {
               <div className="space-y-3">{Object.entries(byStatus).map(([name, count]) => { const max = Math.max(...Object.values(byStatus), 1); return (<div key={name}><div className="flex justify-between mb-1"><span className="text-sm text-thb-text-secondary capitalize">{name.replace('_', ' ')}</span><span className="text-sm font-medium">{count as number}</span></div><div className="w-full h-5 bg-slate-100 rounded-full"><div className="h-full bg-green-500 rounded-full" style={{ width: `${((count as number) / max) * 100}%` }} /></div></div>); })}</div>
             </div>
           )}
-          <button onClick={() => handleExportCSV([...Object.entries(byCategory).map(([k, v]) => ({ Category: k, Count: v })), ...Object.entries(byStatus).map(([k, v]) => ({ Status: k, Count: v }))], `training_report_${filterYear}_${filterMonth}`)} className="inline-flex items-center gap-1.5 px-3 py-2 border border-thb-border rounded-lg text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">
-            <FiDownload className="w-4 h-4" /> Export CSV
-          </button>
+          {exportButtons({
+            title: report.name,
+            summary: { 'Total Courses': (d.totalCourses as number) || 0, 'Completion Rate': `${(d.completionRate as number) || 0}%`, Overdue: (d.overdue as number) || 0, ...byStatus },
+            rows: [...Object.entries(byCategory).map(([k, v]) => ({ Category: k, Count: v })), ...Object.entries(byStatus).map(([k, v]) => ({ Status: k, Count: v }))],
+            filename: `training_report_${filterYear}_${filterMonth}`,
+          })}
         </div>
       );
     }
@@ -1302,9 +1370,12 @@ export default function ReportsPage() {
               <div className="space-y-3">{Object.entries(byStatus).map(([name, count]) => { const max = Math.max(...Object.values(byStatus), 1); return (<div key={name}><div className="flex justify-between mb-1"><span className="text-sm text-thb-text-secondary capitalize">{name.replace('_', ' ')}</span><span className="text-sm font-medium">{count as number}</span></div><div className="w-full h-5 bg-slate-100 rounded-full"><div className="h-full bg-emerald-500 rounded-full" style={{ width: `${((count as number) / max) * 100}%` }} /></div></div>); })}</div>
             </div>
           )}
-          <button onClick={() => handleExportCSV([...Object.entries(byCategory).map(([k, v]) => ({ Category: k, Amount: v })), ...Object.entries(byStatus).map(([k, v]) => ({ Status: k, Count: v }))], `expense_report_${filterYear}_${filterMonth}`)} className="inline-flex items-center gap-1.5 px-3 py-2 border border-thb-border rounded-lg text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">
-            <FiDownload className="w-4 h-4" /> Export CSV
-          </button>
+          {exportButtons({
+            title: report.name,
+            summary: { 'Total Claims': (d.totalClaims as number) || 0, 'Total Amount': (d.totalAmount as number) || 0, Approved: (d.approved as number) || 0 },
+            rows: [...Object.entries(byCategory).map(([k, v]) => ({ Category: k, Amount: v })), ...Object.entries(byStatus).map(([k, v]) => ({ Status: k, Count: v }))],
+            filename: `expense_report_${filterYear}_${filterMonth}`,
+          })}
         </div>
       );
     }
@@ -1333,9 +1404,12 @@ export default function ReportsPage() {
               <div className="space-y-3">{Object.entries(byStatus).map(([name, count]) => { const max = Math.max(...Object.values(byStatus), 1); return (<div key={name}><div className="flex justify-between mb-1"><span className="text-sm text-thb-text-secondary capitalize">{name.replace('_', ' ')}</span><span className="text-sm font-medium">{count as number}</span></div><div className="w-full h-5 bg-slate-100 rounded-full"><div className="h-full bg-green-500 rounded-full" style={{ width: `${((count as number) / max) * 100}%` }} /></div></div>); })}</div>
             </div>
           )}
-          <button onClick={() => handleExportCSV([...Object.entries(byType).map(([k, v]) => ({ Type: k, Count: v })), ...Object.entries(byStatus).map(([k, v]) => ({ Status: k, Count: v }))], `asset_report_${filterYear}_${filterMonth}`)} className="inline-flex items-center gap-1.5 px-3 py-2 border border-thb-border rounded-lg text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">
-            <FiDownload className="w-4 h-4" /> Export CSV
-          </button>
+          {exportButtons({
+            title: report.name,
+            summary: { 'Total Assets': (d.totalAssets as number) || 0, Allocated: (d.allocated as number) || 0, Available: (d.available as number) || 0 },
+            rows: [...Object.entries(byType).map(([k, v]) => ({ Type: k, Count: v })), ...Object.entries(byStatus).map(([k, v]) => ({ Status: k, Count: v }))],
+            filename: `asset_report_${filterYear}_${filterMonth}`,
+          })}
         </div>
       );
     }
@@ -1364,9 +1438,12 @@ export default function ReportsPage() {
               <div className="space-y-3">{Object.entries(byStatus).map(([name, count]) => { const max = Math.max(...Object.values(byStatus), 1); return (<div key={name}><div className="flex justify-between mb-1"><span className="text-sm text-thb-text-secondary capitalize">{name.replace('_', ' ')}</span><span className="text-sm font-medium">{count as number}</span></div><div className="w-full h-5 bg-slate-100 rounded-full"><div className="h-full bg-green-500 rounded-full" style={{ width: `${((count as number) / max) * 100}%` }} /></div></div>); })}</div>
             </div>
           )}
-          <button onClick={() => handleExportCSV([...Object.entries(utilization).map(([k, v]) => ({ Project: k, Utilization: v })), ...Object.entries(byStatus).map(([k, v]) => ({ Status: k, Count: v }))], `project_report_${filterYear}_${filterMonth}`)} className="inline-flex items-center gap-1.5 px-3 py-2 border border-thb-border rounded-lg text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">
-            <FiDownload className="w-4 h-4" /> Export CSV
-          </button>
+          {exportButtons({
+            title: report.name,
+            summary: { 'Active Projects': (d.activeProjects as number) || 0, 'Avg Utilization': `${(d.avgUtilization as number) || 0}%`, 'Team Members': (d.teamMembers as number) || 0 },
+            rows: [...Object.entries(utilization).map(([k, v]) => ({ Project: k, Utilization: v })), ...Object.entries(byStatus).map(([k, v]) => ({ Status: k, Count: v }))],
+            filename: `project_report_${filterYear}_${filterMonth}`,
+          })}
         </div>
       );
     }
@@ -1395,9 +1472,12 @@ export default function ReportsPage() {
               <div className="space-y-3">{Object.entries(byPriority).map(([name, count]) => { const max = Math.max(...Object.values(byPriority), 1); return (<div key={name}><div className="flex justify-between mb-1"><span className="text-sm text-thb-text-secondary capitalize">{name.replace('_', ' ')}</span><span className="text-sm font-medium">{count as number}</span></div><div className="w-full h-5 bg-slate-100 rounded-full"><div className="h-full bg-amber-500 rounded-full" style={{ width: `${((count as number) / max) * 100}%` }} /></div></div>); })}</div>
             </div>
           )}
-          <button onClick={() => handleExportCSV([...Object.entries(byCategory).map(([k, v]) => ({ Category: k, Count: v })), ...Object.entries(byPriority).map(([k, v]) => ({ Priority: k, Count: v }))], `helpdesk_report_${filterYear}_${filterMonth}`)} className="inline-flex items-center gap-1.5 px-3 py-2 border border-thb-border rounded-lg text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">
-            <FiDownload className="w-4 h-4" /> Export CSV
-          </button>
+          {exportButtons({
+            title: report.name,
+            summary: { 'Total Tickets': (d.totalTickets as number) || 0, Resolved: (d.resolved as number) || 0, 'Avg Resolution (h)': (d.avgResolutionTime as number) || 0 },
+            rows: [...Object.entries(byCategory).map(([k, v]) => ({ Category: k, Count: v })), ...Object.entries(byPriority).map(([k, v]) => ({ Priority: k, Count: v }))],
+            filename: `helpdesk_report_${filterYear}_${filterMonth}`,
+          })}
         </div>
       );
     }
@@ -1471,9 +1551,12 @@ export default function ReportsPage() {
             <div className="thb-card overflow-hidden">
               <div className="px-4 py-3 border-b border-thb-border flex items-center justify-between">
                 <h3 className="text-sm font-semibold text-thb-text-primary">{report.name} — {rows.length} record{rows.length !== 1 ? 's' : ''} <span className="text-thb-text-muted font-normal">· {months[filterMonth - 1]?.label} {filterYear}</span></h3>
-                <button onClick={() => handleExportCSV(exportRows(), `${report.id}_${filterYear}_${filterMonth}`)} className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-thb-border rounded-lg text-xs font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">
-                  <FiDownload className="w-3.5 h-3.5" /> Export CSV
-                </button>
+                {exportButtons({
+                  title: report.name,
+                  summary: Object.fromEntries(summary.map(s => [s.label, s.value])),
+                  rows: exportRows(),
+                  filename: `${report.id}_${filterYear}_${filterMonth}`,
+                })}
               </div>
               <div className="overflow-x-auto max-h-96 overflow-y-auto">
                 <table className="w-full min-w-[800px]">
@@ -1531,9 +1614,13 @@ export default function ReportsPage() {
     return (
       <div className="thb-card p-6 text-center">
         <p className="text-thb-text-secondary">Report generated. Export the data using the button below.</p>
-        <button onClick={() => { try { const d = data as Record<string, unknown>; const rows = Object.entries(d).map(([k, v]) => ({ Key: k, Value: typeof v === 'object' ? JSON.stringify(v) : String(v ?? '') })); handleExportCSV(rows, `${report.id}_${filterYear}_${filterMonth}`); } catch { toast.error('Export failed'); } }} className="mt-3 inline-flex items-center gap-1.5 px-3 py-2 border border-thb-border rounded-lg text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">
-          <FiDownload className="w-4 h-4" /> Export CSV
-        </button>
+        <div className="mt-3 flex justify-center">
+          {exportButtons({
+            title: report.name,
+            rows: Object.entries(data as Record<string, unknown>).map(([k, v]) => ({ Key: k, Value: typeof v === 'object' ? JSON.stringify(v) : String(v ?? '') })),
+            filename: `${report.id}_${filterYear}_${filterMonth}`,
+          })}
+        </div>
       </div>
     );
   };
@@ -1643,9 +1730,9 @@ export default function ReportsPage() {
           moduleKey="reports"
           title="Reports Tips"
           tips={[
-            { title: 'Filter by Period', description: 'Use month and year filters to narrow down report data to specific time periods for accurate analysis.' },
+            { title: 'Module Sub-menu', description: 'Use the left-hand module menu to jump straight to any module\'s reports — the reports list opens on the right.' },
             { title: 'Favorite Reports', description: 'Star frequently used reports to quickly access them from the favorites section without searching.' },
-            { title: 'Export to CSV', description: 'Export generated report data to CSV format for offline analysis, sharing, or integration with other tools.' },
+            { title: 'Export to PDF & Excel', description: 'Every generated report can be exported as a branded PDF, Excel workbook, or CSV — look for the export buttons under the report.' },
             { title: 'Statutory Compliance', description: 'Use the Statutory Reports tab to generate PF, ESI, PT, and TDS returns for regulatory compliance.' },
             { title: 'AI Insights', description: 'Leverage AI-powered reports for predictive analytics like attrition risk, compensation benchmarking, and anomaly detection.' },
           ]}
@@ -1662,7 +1749,7 @@ export default function ReportsPage() {
             { step: 3, title: 'Set Filter Parameters', description: 'Configure month, year, company, and department filters for the report data.' },
             { step: 4, title: 'Generate Report', description: 'Click generate to fetch and display the report data with visualizations and tables.' },
             { step: 5, title: 'Review Results', description: 'Analyze the generated data including summary cards, charts, and detailed tables.' },
-            { step: 6, title: 'Export to CSV', description: 'Download the report data as a CSV file for offline use or further processing.' },
+            { step: 6, title: 'Export PDF / Excel / CSV', description: 'Download the report as a branded PDF, an Excel workbook, or a CSV file for offline use.' },
             { step: 7, title: 'Schedule Generation', description: 'Set up regular report generation for recurring compliance and analytics needs.' },
           ]}
           userRole={user?.role}
@@ -1733,160 +1820,238 @@ export default function ReportsPage() {
         })}
       </div>
 
-      {/* ==================== STANDARD REPORTS TAB ==================== */}
+      {/* ==================== STANDARD REPORTS TAB — module sub-menu (left) + reports/output (right) ==================== */}
       {activeTab === 'standard' && (
-        <div className="space-y-4">
-          {/* Favorites Section */}
-          {favoriteStandardReports.length > 0 && !searchQuery && (
-            <div>
-              <h2 className="text-sm font-semibold text-thb-text-primary mb-3 flex items-center gap-2">
-                <FiStar className="w-4 h-4 text-amber-500" />
-                Favorite Reports
-              </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {favoriteStandardReports.map(report => {
+        <div className="grid grid-cols-1 lg:grid-cols-[240px_1fr] gap-5 items-start">
+          {/* LEFT — module sub-menu */}
+          <aside className="thb-card p-2 lg:sticky lg:top-24">
+            <p className="hidden lg:block px-3 pt-2 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-thb-text-muted">Modules</p>
+            <nav className="flex lg:flex-col gap-1 overflow-x-auto lg:overflow-x-visible pb-1 lg:pb-0">
+              {favoriteStandardReports.length > 0 && (
+                <button
+                  onClick={() => selectModule('__favorites')}
+                  className={`flex-shrink-0 lg:w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm transition-colors whitespace-nowrap ${
+                    activeModule === '__favorites' ? 'bg-green-50 text-green-700 font-semibold' : 'text-thb-text-secondary hover:bg-slate-50'
+                  }`}
+                >
+                  <FiStar className="w-4 h-4 flex-shrink-0 text-amber-500" />
+                  <span className="flex-1 truncate text-left">Favorites</span>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${activeModule === '__favorites' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-thb-text-muted'}`}>{favoriteStandardReports.length}</span>
+                </button>
+              )}
+              {menuStandardReports.map(group => {
+                const ModuleIcon = group.moduleIcon;
+                const isActive = activeModule === group.module && !searchQuery;
+                return (
+                  <button
+                    key={group.module}
+                    onClick={() => selectModule(group.module)}
+                    className={`flex-shrink-0 lg:w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm transition-colors whitespace-nowrap ${
+                      isActive ? 'bg-green-50 text-green-700 font-semibold' : 'text-thb-text-secondary hover:bg-slate-50'
+                    }`}
+                  >
+                    <ModuleIcon className="w-4 h-4 flex-shrink-0" />
+                    <span className="flex-1 truncate text-left">{group.module}</span>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${isActive ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-thb-text-muted'}`}>{group.reports.length}</span>
+                  </button>
+                );
+              })}
+            </nav>
+          </aside>
+
+          {/* RIGHT — report output / reports list */}
+          <section className="min-w-0 space-y-4">
+            {/* Generated report output view */}
+            {reportHistory ? (
+              <>
+                <div className="thb-card p-4 flex items-center gap-3">
+                  <button
+                    onClick={() => setReportHistory(null)}
+                    className="p-2 rounded-lg border border-thb-border text-thb-text-secondary hover:bg-slate-50 hover:text-thb-text-primary transition-colors flex-shrink-0"
+                    title="Back to reports list"
+                  >
+                    <FiArrowLeft className="w-4 h-4" />
+                  </button>
+                  <div className="min-w-0 flex-1">
+                    <h2 className="text-sm font-semibold text-thb-text-primary truncate">{reportHistory.report.name}</h2>
+                    <p className="text-xs text-thb-text-muted">
+                      {reportHistory.report.module} · {months.find(m => m.value === filterMonth)?.label} {filterYear}
+                    </p>
+                  </div>
+                  <span className={`hidden sm:inline-block px-2 py-0.5 rounded text-[10px] font-semibold ${moduleBadgeColors[reportHistory.report.module] || 'bg-slate-50 text-slate-700'}`}>{reportHistory.report.module}</span>
+                </div>
+                {renderStandardReportResults()}
+              </>
+            ) : searchQuery ? (
+              /* Search results across all modules */
+              <>
+                <div className="thb-card p-4">
+                  <h2 className="text-sm font-semibold text-thb-text-primary">Search Results</h2>
+                  <p className="text-xs text-thb-text-muted mt-0.5">{searchMatches.length} report{searchMatches.length !== 1 ? 's' : ''} matching “{searchQuery}”</p>
+                </div>
+                {searchMatches.length === 0 ? (
+                  <div className="thb-card p-12 text-center">
+                    <FiSearch className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+                    <p className="text-sm text-thb-text-muted">No reports match your search</p>
+                  </div>
+                ) : (
+                  searchMatches.map(({ report, groupModule }) => {
+                    const ReportIcon = report.icon;
+                    const isFav = favorites.has(report.id);
+                    return (
+                      <div key={`${groupModule}_${report.id}`} className="thb-card p-4 flex items-center gap-3">
+                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${moduleIconBg[report.module]}`}>
+                          <ReportIcon className="w-5 h-5" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-sm font-semibold text-thb-text-primary truncate">{report.name}</h3>
+                          <p className="text-xs text-thb-text-muted truncate">{report.description}</p>
+                        </div>
+                        <span className={`hidden sm:inline-block px-2 py-0.5 rounded text-[10px] font-semibold ${moduleBadgeColors[report.module]}`}>{groupModule}</span>
+                        <button onClick={() => toggleFavorite(report.id)} className={`p-1.5 rounded-lg hover:bg-slate-100 transition-colors ${isFav ? 'text-amber-500' : 'text-thb-text-muted hover:text-amber-500'}`}>
+                          <FiStar className={`w-4 h-4 ${isFav ? 'fill-current' : ''}`} />
+                        </button>
+                        {!report.comingSoon && (
+                          <button onClick={() => handleGenerateReport(report)} className="inline-flex items-center gap-1 px-3 py-1.5 bg-green-500 text-white rounded-lg text-xs font-medium hover:bg-green-600 shadow-sm shadow-green-500/25 transition-colors flex-shrink-0">
+                            <FiSliders className="w-3 h-3" /> Generate
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </>
+            ) : activeModule === '__favorites' ? (
+              /* Favorites view */
+              favoriteStandardReports.length === 0 ? (
+                <div className="thb-card p-12 text-center">
+                  <FiStar className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+                  <p className="text-sm text-thb-text-muted">No favorite reports yet — star a report to pin it here</p>
+                </div>
+              ) : (
+                favoriteStandardReports.map(report => {
                   const ReportIcon = report.icon;
                   return (
-                    <div key={report.id} className="thb-card thb-card-hover p-4 border-l-4 border-l-amber-400 cursor-pointer" onClick={() => handleGenerateReport(report)}>
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${moduleIconBg[report.module] || 'bg-slate-50 text-slate-500'}`}>
-                            <ReportIcon className="w-4 h-4" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-semibold text-thb-text-primary">{report.name}</p>
-                            <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-semibold ${moduleBadgeColors[report.module] || 'bg-slate-50 text-slate-700'}`}>{report.module}</span>
-                          </div>
-                        </div>
-                        <button onClick={(e) => { e.stopPropagation(); toggleFavorite(report.id); }} className="text-amber-500 hover:text-amber-600">
-                          <FiStar className="w-4 h-4 fill-current" />
-                        </button>
+                    <div key={report.id} className="thb-card p-4 flex items-center gap-3 border-l-4 border-l-amber-400">
+                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${moduleIconBg[report.module]}`}>
+                        <ReportIcon className="w-5 h-5" />
                       </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-sm font-semibold text-thb-text-primary truncate">{report.name}</h3>
+                        <p className="text-xs text-thb-text-muted truncate">{report.description}</p>
+                      </div>
+                      <span className={`hidden sm:inline-block px-2 py-0.5 rounded text-[10px] font-semibold ${moduleBadgeColors[report.module]}`}>{report.module}</span>
+                      <button onClick={() => toggleFavorite(report.id)} className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors text-amber-500">
+                        <FiStar className="w-4 h-4 fill-current" />
+                      </button>
+                      <button onClick={() => handleGenerateReport(report)} className="inline-flex items-center gap-1 px-3 py-1.5 bg-green-500 text-white rounded-lg text-xs font-medium hover:bg-green-600 shadow-sm shadow-green-500/25 transition-colors flex-shrink-0">
+                        <FiSliders className="w-3 h-3" /> Generate
+                      </button>
+                    </div>
+                  );
+                })
+              )
+            ) : activeGroup ? (
+              /* Reports list of the selected module */
+              <>
+                <div className="thb-card p-4 flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${moduleIconBg[activeGroup.module]}`}>
+                    <activeGroup.moduleIcon className="w-5 h-5" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h2 className="text-sm font-semibold text-thb-text-primary">{activeGroup.module} Reports</h2>
+                    <p className="text-xs text-thb-text-muted">{activeGroup.reports.length} report{activeGroup.reports.length !== 1 ? 's' : ''} available — select one to generate and export</p>
+                  </div>
+                </div>
+                {activeGroup.reports.map(report => {
+                  const ReportIcon = report.icon;
+                  const isFav = favorites.has(report.id);
+                  return (
+                    <div key={report.id} className="thb-card p-4 flex items-center gap-3">
+                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${moduleIconBg[report.module]}`}>
+                        <ReportIcon className="w-5 h-5" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-sm font-semibold text-thb-text-primary truncate">{report.name}</h3>
+                          {report.comingSoon && <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-thb-text-muted flex-shrink-0">Coming Soon</span>}
+                        </div>
+                        <p className="text-xs text-thb-text-muted truncate">{report.description}</p>
+                      </div>
+                      <button onClick={() => toggleFavorite(report.id)} className={`p-1.5 rounded-lg hover:bg-slate-100 transition-colors flex-shrink-0 ${isFav ? 'text-amber-500' : 'text-thb-text-muted hover:text-amber-500'}`} title={isFav ? 'Remove from favorites' : 'Add to favorites'}>
+                        <FiStar className={`w-4 h-4 ${isFav ? 'fill-current' : ''}`} />
+                      </button>
+                      {!report.comingSoon && (
+                        <button onClick={() => handleGenerateReport(report)} className="inline-flex items-center gap-1 px-3 py-1.5 bg-green-500 text-white rounded-lg text-xs font-medium hover:bg-green-600 shadow-sm shadow-green-500/25 transition-colors flex-shrink-0">
+                          <FiSliders className="w-3 h-3" /> Generate
+                        </button>
+                      )}
                     </div>
                   );
                 })}
+              </>
+            ) : (
+              <div className="thb-card p-12 text-center">
+                <FiGrid className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+                <p className="text-sm text-thb-text-muted">Select a module from the left to see its reports</p>
               </div>
-            </div>
-          )}
-
-          {/* Module-wise Report Sections */}
-          {filteredStandardReports.map(group => {
-            const ModuleIcon = group.moduleIcon;
-            const isExpanded = expandedModules.has(group.module);
-            return (
-              <div key={group.module} className="thb-card overflow-hidden">
-                <button
-                  onClick={() => toggleModule(group.module)}
-                  className="w-full flex items-center justify-between p-4 hover:bg-slate-50/50 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${moduleIconBg[group.module]}`}>
-                      <ModuleIcon className="w-4 h-4" />
-                    </div>
-                    <div className="text-left">
-                      <h2 className="text-sm font-semibold text-thb-text-primary">{group.module} Reports</h2>
-                      <p className="text-xs text-thb-text-muted">{group.reports.length} report{group.reports.length !== 1 ? 's' : ''} available</p>
-                    </div>
-                  </div>
-                  {isExpanded ? <FiChevronUp className="w-5 h-5 text-thb-text-muted" /> : <FiChevronDown className="w-5 h-5 text-thb-text-muted" />}
-                </button>
-
-                {isExpanded && (
-                  <div className="px-4 pb-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                      {group.reports.map(report => {
-                        const ReportIcon = report.icon;
-                        const isFav = favorites.has(report.id);
-                        return (
-                          <div key={report.id} className={`thb-card thb-card-hover p-4 border ${report.comingSoon ? 'opacity-70' : 'border-transparent'}`}>
-                            <div className="flex items-start justify-between mb-3">
-                              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${moduleIconBg[report.module]}`}>
-                                <ReportIcon className="w-5 h-5" />
-                              </div>
-                              <div className="flex items-center gap-1">
-                                <button onClick={() => toggleFavorite(report.id)} className={`p-1.5 rounded-lg hover:bg-slate-100 transition-colors ${isFav ? 'text-amber-500' : 'text-thb-text-muted hover:text-amber-500'}`}>
-                                  <FiStar className={`w-4 h-4 ${isFav ? 'fill-current' : ''}`} />
-                                </button>
-                              </div>
-                            </div>
-                            <h3 className="text-sm font-semibold text-thb-text-primary mb-1">{report.name}</h3>
-                            <p className="text-xs text-thb-text-muted mb-3 line-clamp-2">{report.description}</p>
-                            <div className="flex items-center justify-between">
-                              <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${moduleBadgeColors[report.module]}`}>{report.module}</span>
-                              {report.comingSoon ? (
-                                <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-100 text-thb-text-muted">Coming Soon</span>
-                              ) : (
-                                <button onClick={() => handleGenerateReport(report)} className="inline-flex items-center gap-1 px-3 py-1.5 bg-green-500 text-white rounded-lg text-xs font-medium hover:bg-green-600 shadow-sm shadow-green-500/25 transition-colors">
-                                  <FiSliders className="w-3 h-3" /> Generate
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-
-          {/* Report Results */}
-          {reportHistory && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-thb-text-primary flex items-center gap-2">
-                  <FiBarChart2 className="w-4 h-4 text-green-500" />
-                  {reportHistory.report.name} — Results
-                </h2>
-                <button onClick={() => setReportHistory(null)} className="p-2 rounded-lg text-thb-text-muted hover:text-thb-text-primary hover:bg-slate-100 transition-colors">
-                  <FiX className="w-4 h-4" />
-                </button>
-              </div>
-              {renderStandardReportResults()}
-            </div>
-          )}
+            )}
+          </section>
         </div>
       )}
 
-      {/* ==================== STATUTORY REPORTS TAB ==================== */}
+      {/* ==================== STATUTORY REPORTS TAB — list (left) + filters/output (right) ==================== */}
       {activeTab === 'statutory' && (
-        <div className="space-y-4">
-          {/* Statutory Report Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredStatutoryReports.map(report => {
-              const ReportIcon = report.icon;
-              const isSelected = selectedStatutory.id === report.id;
-              const isComingSoon = Boolean('comingSoon' in report && report.comingSoon);
-              return (
-                <div
-                  key={report.id}
-                  className={`thb-card thb-card-hover p-4 cursor-pointer border-2 transition-colors ${
-                    isSelected ? 'border-green-400 bg-green-50/30' : 'border-transparent'
-                  } ${isComingSoon ? 'opacity-70' : ''}`}
-                  onClick={() => !isComingSoon && setSelectedStatutory(report)}
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0">
-                      <ReportIcon className="w-5 h-5 text-thb-text-primary" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-sm font-semibold text-thb-text-primary">{report.name}</h3>
-                      <p className="text-xs text-thb-text-muted mt-0.5">{report.authorityShort} · {report.periodLabel}</p>
-                      {isComingSoon ? (
-                        <span className="inline-block mt-2 px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-100 text-thb-text-muted">Coming Soon</span>
-                      ) : null}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+        <div className="grid grid-cols-1 lg:grid-cols-[240px_1fr] gap-5 items-start">
+          {/* LEFT — statutory reports sub-menu */}
+          <aside className="thb-card p-2 lg:sticky lg:top-24">
+            <p className="hidden lg:block px-3 pt-2 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-thb-text-muted">Statutory</p>
+            <nav className="flex lg:flex-col gap-1 overflow-x-auto lg:overflow-x-visible pb-1 lg:pb-0">
+              {filteredStatutoryReports.map(report => {
+                const ReportIcon = report.icon;
+                const isActive = selectedStatutory.id === report.id;
+                const isComingSoon = Boolean('comingSoon' in report && report.comingSoon);
+                return (
+                  <button
+                    key={report.id}
+                    onClick={() => { if (!isComingSoon) { setSelectedStatutory(report); setStatutoryData([]); setStatutoryTotals({}); setStatutoryColumns([]); } }}
+                    className={`flex-shrink-0 lg:w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm transition-colors whitespace-nowrap ${
+                      isActive ? 'bg-green-50 text-green-700 font-semibold' : 'text-thb-text-secondary hover:bg-slate-50'
+                    } ${isComingSoon ? 'opacity-60' : ''}`}
+                  >
+                    <ReportIcon className="w-4 h-4 flex-shrink-0" />
+                    <span className="flex-1 truncate text-left">{report.authorityShort}</span>
+                    {isComingSoon ? (
+                      <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-slate-100 text-thb-text-muted">Soon</span>
+                    ) : (
+                      <FiChevronRight className={`w-3.5 h-3.5 flex-shrink-0 ${isActive ? 'text-green-600' : 'text-thb-text-muted'}`} />
+                    )}
+                  </button>
+                );
+              })}
+            </nav>
+          </aside>
 
-          {/* Statutory Filters & Results */}
-          {!('comingSoon' in selectedStatutory && selectedStatutory.comingSoon) && (
-            <div className="space-y-4">
-              <div className="thb-card p-4">
+          {/* RIGHT — selected statutory report: filters + results */}
+          <section className="min-w-0 space-y-4">
+            <div className="thb-card p-4 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0">
+                <selectedStatutory.icon className="w-5 h-5 text-thb-text-primary" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h2 className="text-sm font-semibold text-thb-text-primary">{selectedStatutory.name}</h2>
+                <p className="text-xs text-thb-text-muted">{selectedStatutory.authority} · {selectedStatutory.periodLabel}</p>
+              </div>
+            </div>
+
+            {'comingSoon' in selectedStatutory && selectedStatutory.comingSoon ? (
+              <div className="thb-card p-12 text-center">
+                <FiShield className="w-12 h-12 text-thb-text-muted mx-auto mb-3" />
+                <p className="text-thb-text-secondary font-medium">{selectedStatutory.name} — Coming Soon</p>
+              </div>
+            ) : (
+              <>
+                          <div className="thb-card p-4">
                 <div className="flex flex-col sm:flex-row gap-3 items-end">
                   <div>
                     <label className="block text-xs font-medium text-thb-text-secondary mb-1">Month</label>
@@ -1909,11 +2074,12 @@ export default function ReportsPage() {
                     {statutoryLoading ? <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" /> : <FiSearch className="w-4 h-4" />}
                     Generate
                   </button>
-                  {statutoryData.length > 0 && (
-                    <button onClick={() => handleExportCSV(statutoryData as unknown as Record<string, unknown>[], `${selectedStatutory.apiType}_report_${statutoryYear}_${statutoryMonth}`)} className="inline-flex items-center gap-1.5 px-3 py-2.5 border border-thb-border rounded-lg text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">
-                      <FiDownload className="w-4 h-4" /> Export CSV
-                    </button>
-                  )}
+                  {statutoryData.length > 0 && exportButtons({
+                    title: selectedStatutory.name,
+                    summary: statutoryTotals as Record<string, unknown>,
+                    rows: statutoryData as unknown as Record<string, unknown>[],
+                    filename: `${selectedStatutory.id}_${statutoryYear}_${statutoryMonth}`,
+                  })}
                 </div>
               </div>
 
@@ -1968,72 +2134,83 @@ export default function ReportsPage() {
                   <p className="text-sm text-thb-text-muted mt-1">Select period and click Generate to view {selectedStatutory.name}</p>
                 </div>
               )}
-            </div>
-          )}
+              </>
+            )}
+          </section>
         </div>
       )}
 
-      {/* ==================== AI REPORTS TAB ==================== */}
+      {/* ==================== AI REPORTS TAB — list (left) + insights (right) ==================== */}
       {activeTab === 'ai' && (
-        <div className="space-y-4">
-          {/* AI Report Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredAIReports.map(report => {
-              const ReportIcon = report.icon;
-              const colorMap: Record<string, { bg: string; iconBg: string; text: string }> = {
-                red: { bg: 'bg-red-50', iconBg: 'bg-red-100 text-red-600', text: 'text-red-700' },
-                emerald: { bg: 'bg-emerald-50', iconBg: 'bg-emerald-100 text-emerald-600', text: 'text-emerald-700' },
-                blue: { bg: 'bg-green-50', iconBg: 'bg-green-100 text-green-600', text: 'text-green-700' },
-                amber: { bg: 'bg-amber-50', iconBg: 'bg-amber-100 text-amber-600', text: 'text-amber-700' },
-                purple: { bg: 'bg-teal-50', iconBg: 'bg-teal-100 text-teal-600', text: 'text-teal-700' },
-                rose: { bg: 'bg-rose-50', iconBg: 'bg-rose-100 text-rose-600', text: 'text-rose-700' },
-              };
-              const colors = colorMap[report.color] || colorMap.blue;
-              const isActive = selectedAIReport?.id === report.id;
-              return (
-                <div
-                  key={report.id}
-                  className={`thb-card thb-card-hover p-4 cursor-pointer border-2 transition-colors ${
-                    isActive ? 'border-green-400' : 'border-transparent'
-                  }`}
-                  onClick={() => { setSelectedAIReport(report); setAiInsights([]); }}
-                >
+        <div className="grid grid-cols-1 lg:grid-cols-[240px_1fr] gap-5 items-start">
+          {/* LEFT — AI reports sub-menu */}
+          <aside className="thb-card p-2 lg:sticky lg:top-24">
+            <p className="hidden lg:block px-3 pt-2 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-thb-text-muted">AI Reports</p>
+            <nav className="flex lg:flex-col gap-1 overflow-x-auto lg:overflow-x-visible pb-1 lg:pb-0">
+              {filteredAIReports.map(report => {
+                const ReportIcon = report.icon;
+                const isActive = selectedAIReport?.id === report.id;
+                return (
+                  <button
+                    key={report.id}
+                    onClick={() => { setSelectedAIReport(report); setAiInsights([]); }}
+                    className={`flex-shrink-0 lg:w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm transition-colors whitespace-nowrap ${
+                      isActive ? 'bg-green-50 text-green-700 font-semibold' : 'text-thb-text-secondary hover:bg-slate-50'
+                    }`}
+                  >
+                    <ReportIcon className="w-4 h-4 flex-shrink-0" />
+                    <span className="flex-1 truncate text-left">{report.name}</span>
+                    <FiChevronRight className={`w-3.5 h-3.5 flex-shrink-0 ${isActive ? 'text-green-600' : 'text-thb-text-muted'}`} />
+                  </button>
+                );
+              })}
+            </nav>
+          </aside>
+
+          {/* RIGHT — selected AI report + insights */}
+          <section className="min-w-0 space-y-4">
+            {selectedAIReport ? (
+              <>
+                <div className="thb-card p-4">
                   <div className="flex items-start gap-3 mb-3">
-                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${colors.iconBg}`}>
-                      <ReportIcon className="w-5 h-5" />
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${selectedAIReport.color === 'red' ? 'bg-red-100 text-red-600' : selectedAIReport.color === 'emerald' ? 'bg-emerald-100 text-emerald-600' : selectedAIReport.color === 'amber' ? 'bg-amber-100 text-amber-600' : selectedAIReport.color === 'purple' ? 'bg-teal-100 text-teal-600' : selectedAIReport.color === 'rose' ? 'bg-rose-100 text-rose-600' : 'bg-green-100 text-green-600'}`}>
+                      <selectedAIReport.icon className="w-5 h-5" />
                     </div>
-                    <div className="flex-1 min-w-0">
+                    <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
-                        <h3 className="text-sm font-semibold text-thb-text-primary">{report.name}</h3>
+                        <h2 className="text-sm font-semibold text-thb-text-primary">{selectedAIReport.name}</h2>
                         <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded text-[10px] font-bold bg-gradient-to-r from-green-500 to-teal-500 text-white">
                           <FiCpu className="w-2.5 h-2.5" /> AI
                         </span>
                       </div>
-                      <p className="text-xs text-thb-text-muted mt-1 line-clamp-2">{report.description}</p>
+                      <p className="text-xs text-thb-text-muted mt-1">{selectedAIReport.description}</p>
                     </div>
                   </div>
                   <button
-                    onClick={(e) => { e.stopPropagation(); handleGenerateAI(report); }}
-                    className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-gradient-to-r from-green-500 to-teal-500 text-white rounded-lg text-xs font-medium hover:from-green-600 hover:to-teal-600 shadow-sm transition-colors"
+                    onClick={() => handleGenerateAI(selectedAIReport)}
+                    disabled={aiLoading}
+                    className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2.5 bg-gradient-to-r from-green-500 to-teal-500 text-white rounded-lg text-sm font-medium hover:from-green-600 hover:to-teal-600 shadow-sm transition-colors disabled:opacity-60"
                   >
-                    <FiCpu className="w-3.5 h-3.5" /> Generate AI Report
+                    <FiCpu className="w-4 h-4" /> {aiLoading ? 'Analyzing…' : 'Generate AI Report'}
                   </button>
                 </div>
-              );
-            })}
-          </div>
 
-          {/* AI Results */}
-          {renderAIResults()}
+                {renderAIResults()}
 
-          {/* Empty State for AI Reports */}
-          {!selectedAIReport && !aiLoading && (
-            <div className="thb-card p-12 text-center">
-              <FiCpu className="w-12 h-12 text-thb-text-muted mx-auto mb-3" />
-              <p className="text-thb-text-secondary font-medium">Select an AI report to generate</p>
-              <p className="text-sm text-thb-text-muted mt-1">AI-powered analytics will provide predictive insights and recommendations</p>
-            </div>
-          )}
+                {aiInsights.length > 0 && exportButtons({
+                  title: `${selectedAIReport.name} — AI Insights`,
+                  rows: aiInsights.map(i => ({ Insight: i.title, Severity: i.severity, Description: i.description, Recommendation: i.recommendation })),
+                  filename: `ai_${selectedAIReport.id}`,
+                })}
+              </>
+            ) : (
+              <div className="thb-card p-12 text-center">
+                <FiCpu className="w-12 h-12 text-thb-text-muted mx-auto mb-3" />
+                <p className="text-thb-text-secondary font-medium">Select an AI report from the left to generate</p>
+                <p className="text-sm text-thb-text-muted mt-1">AI-powered analytics will provide predictive insights and recommendations</p>
+              </div>
+            )}
+          </section>
         </div>
       )}
 
