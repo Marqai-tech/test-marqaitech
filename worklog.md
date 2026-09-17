@@ -2685,3 +2685,32 @@ Post-deploy verification (demo, after Vercel build of 76b69f78):
 - BROWSER VERIFIED as admin on /reports: master-detail layout live — LEFT sticky module sub-menu (Employee 6, Leave 4, Attendance 16, Payroll 6, Recruitment 4, Performance 3, Training 3, Expenses 3, Assets 3, Projects 3, Helpdesk 3); RIGHT reports list per module. Muster Roll: filter dialog (Sep 2026) → dedicated output view with back button, KPI cards, color-coded 54-employee day matrix (P/PL/A/HD/L/WO/H), Export PDF/Excel/CSV buttons. WFH Report: "WFH Report — 12 records · September 2026" output view with real employee rows (Suresh Mishra, Keerthan Rao, Bala Mukherjee) + success toast + export buttons. Statutory tab: LEFT statutory sub-menu (EPFO/ESIC/State Tax/IT Dept), PF Monthly Return generated with export buttons. AI tab: LEFT AI report list, Compensation Benchmarking insights with AI badge + export buttons. Back button returns to the reports list; search switches the right pane to cross-module results.
 - Screenshots in download/: t50-reports-initial.png, t50-attendance-module.png, t50-muster-output.png, t50-muster-output-view.png, t50-export-pdf-toast.png, t50-wfh-output.png, t50-wfh-output2.png, t50-statutory.png, t50-statutory-output.png, t50-ai-output.png.
 - No demo data was mutated: all verification used GET report queries + export generation only (the one Muster-Roll favorite star toggled during testing was un-starved immediately).
+---
+Task ID: 51
+Agent: Super Z (main agent)
+Task: User request — "in the attendance module - attendance reports are not projecting the output or no data pls check and update them now in vercel"
+
+Work Log:
+- ROOT CAUSE: The Attendance module's dedicated "Attendance Reports" page (/attendance/reports, distinct from the Governance > Reports & Analytics hub rebuilt in Tasks 49/50) was a stub:
+  (1) it fetched /api/attendance/summary — an endpoint that DOES NOT EXIST in the codebase (404 → res.ok false → dailyData stayed [], so even Daily Summary rendered an empty table forever);
+  (2) Monthly Attendance / Late Arrivals / Absenteeism Trends tabs were static placeholder cards ("This report will show…") with no data logic at all;
+  (3) the header "Export Report" button was fake — it only fired toast.success('Report exported successfully') with no export.
+- REBUILD (src/app/(dashboard)/attendance/reports/page.tsx, full rewrite 83→649 lines): wired ALL FOUR reports to the verified Task-49 backend /api/reports?type=attendance_report (GET, tenant-scoped, role-scoped via getDataScope) with month/year/department filters + companyId from useCompanyData; month/year selectors (default current month, year spans −2/+1), All Departments dropdown populated from /api/departments (30 tenant depts), Refresh button.
+  * KPI strip on every tab: Attendance Rate, Records, Present, Late, Absent, On Leave.
+  * Daily Summary: day-wise table (Date/Present/Late/Absent/On Leave/WFH) from byDate, sorted ascending, plus a stacked distribution bar per day.
+  * Monthly Attendance: Department Overview table (records/present/late/absent/leave/wfh/attendance-rate per department from byDepartment) + Per-Employee Summary table (client-side aggregation of records into per-employee present/late/absent/leave/wfh/halfDay/workHours/overtime, sticky header, 520px scroll).
+  * Late Arrivals: filtered records (status==='late') with employee/dept/date/check-in/check-out/work-hours columns (12-h formatted times).
+  * Absenteeism Trends: overall absenteeism rate card (absent+on_leave ÷ total, color-graded green/amber/red), day-of-month trend bar chart (per-day absent+leave %, hover tooltips), plus Absent & On-Leave records table.
+  * EXPORTS: every report table has branded Export PDF / Excel / CSV buttons via POST /api/reports/export (reportType 'custom' with title/summary/filename/data) — same helper pattern as the Task-50 hub; per-button spinner + "Exported as X" toast; fake header button removed. Status labels/colors normalized (present/late/absent/on_leave/wfh/half_day); data-scope footer line (Organization-wide / team / own records).
+- VERIFICATION:
+  * Scoped tsc: 0 errors in the touched file.
+  * Pushed e7ff09a7 → Vercel; waited for build.
+  * API E2E on demo (scripts/verify-attendance-reports-e2e.js): 13/13 PASS — attendance_report Sep 2026 = 268 records / 98.5% rate / 19 days / 5 depts; historical Aug = 783 records; departmentId filter narrows (Engineering, dept set = {Engineering}); departments list = 30; exports PDF 21.6KB + Excel 19.9KB + CSV 564B with correct content-types.
+  * BROWSER VERIFIED as admin on demo /attendance/reports: KPI strip (98.5% / 268), Daily Summary day-wise rows with distribution bars; Monthly tab Department Overview (work hours 2054.9 · overtime 160) + Per-Employee Summary (51 employees); Late Arrivals tab = 33 late check-ins with real times (e.g. 09:55 AM); Absenteeism tab = 1.5% rate + trend bars + 4 records; month selector → August re-fetches (783 records / 16 days); department filter → Engineering narrows August to 47 records; Export PDF click produced "Exported as PDF" toast + download.
+  * Screenshots in download/: t51-attendance-reports-daily.png, t51-daily-summary-data.png, t51-monthly-attendance.png, t51-late-arrivals.png, t51-absenteeism.png, t51-export-toast.png, t51-final-daily-sep.png.
+- No demo data mutated: all verification was GET report queries + export file generation only.
+
+Stage Summary:
+- The Attendance module's own reports page now projects real, period- and department-scoped data for all four report types (Daily Summary, Monthly Attendance, Late Arrivals, Absenteeism Trends) instead of an empty table + three placeholders, with genuine branded PDF/Excel/CSV exports on every table.
+- Root cause was client-side only (dead endpoint fetch + stub tabs); the underlying /api/reports backend from Task 49 was already correct, so the fix is additive UI work — zero risk to the LIVE tenant (same code, read-only).
+- Deployed to demo (nexus-hrms-mu.vercel.app) and verified end-to-end.
