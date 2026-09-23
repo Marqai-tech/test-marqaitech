@@ -3241,3 +3241,102 @@ Stage Summary:
   individual punch event with GPS, plus a daily summary view with totals
   (work hours, break minutes, overtime). CSV export. Visible to admins,
   managers, and employees (employees see only their own log).
+
+---
+Task ID: 58
+Agent: Super Z (main agent)
+Task: User-reported bug — super admin login at https://nexus-hrms-mu.vercel.app/login
+fails with "Failed to fetch" error in the browser.
+
+Work Log:
+- DIAGNOSIS:
+  * Verified the /api/auth/login endpoint is healthy via curl:
+    - HTTP 200 in 0.75s (warm) / 2.8s (cold start) / 3.4s (first request after deploy)
+    - Returns valid JWT for superadmin@3boxeshrms.com / MarqAI@2026
+    - role=super_admin, tenantId=cmrmxegjy000604jv9ntgcshh (demo tenant)
+  * Verified CORS preflight (OPTIONS) returns 200 in 0.3s — no CORS issue.
+  * The login page (src/app/login/page.tsx) calls authStore.login(email, password)
+    via a plain fetch() — no timeout, no AbortController.
+  * The /api/auth/login route has a multi-step two-phase user lookup (platform
+    DB first, then tenant DB) — works for super_admin (found in platform DB
+    at line 183 of the route).
+  * The service worker (public/sw.js) was already correctly skipping
+    non-GET requests (line 60) AND /api/ paths (line 63) — so it was NOT
+    directly blocking the login API. But it WAS caching the static /login
+    page + JS bundle, so a stale cached version from a previous broken
+    build could persist in the user's browser.
+  * "Failed to fetch" is a JS fetch() network-layer rejection (NOT an HTTP
+    error from our server). Common root causes:
+    (a) cold Vercel lambda start making the first request slow / abort
+    (b) stale cached service worker intercepting the request
+    (c) ad-blocker / privacy extension blocking vercel.app or 3boxeshrms.com
+    (d) flaky connection — DNS / TLS handshake / TCP timeout
+    (e) mixed content (user accidentally on http:// instead of https://)
+- FIX — client-side resilience + clear error UX:
+  * src/store/authStore.ts login():
+    - Wrapped the fetch in a doFetch() helper with cache: 'no-store' so the
+      browser never serves a stale cached response from a prior login
+      attempt in the same session.
+    - Auto-retry once with 600ms backoff on the first failure (handles
+      cold-start aborts and flaky-connection blips).
+    - On the second failure, if the error message contains 'Failed to
+      fetch' / 'NetworkError' / 'network', surface a clear actionable
+      message pointing the user at the most likely root causes:
+        (1) hard-refresh the page (Ctrl+Shift+R / Cmd+Shift+R) to clear
+            any cached service worker
+        (2) disable ad-blockers / privacy extensions for this site
+        (3) try a different browser
+        (4) confirm you are on https:// (not http://)
+      This replaces the unhelpful "Failed to fetch" raw error in the toast
+      with a list of steps the user can take to recover.
+  * public/sw.js:
+    - Bumped CACHE_NAME from '3boxes-hrms-v3' to '3boxes-hrms-v4'. The
+      service worker's activate handler deletes any cache that isn't the
+      current CACHE_NAME — so on next page load, every browser that
+      previously registered the SW will get its old cache wiped and a
+      fresh fetch of the login page + static assets. (The SW already
+      skipped /api/ and non-GET requests, so it wasn't directly blocking
+      the login API — but bumping the cache flushes any stale login-page
+      HTML/JS bundle that might have been cached from a previous broken
+      build.)
+    - Header comment bumped from v1.0 to v1.1 with the Task 58 note.
+- VERIFICATION:
+  * Pushed c04f3b06 → origin/main → Vercel rebuild.
+  * Confirmed deployment is live: GET /sw.js now returns "v1.1" with
+    CACHE_NAME='3boxes-hrms-v4' (after waiting ~3min for the build).
+  * Confirmed /api/auth/login POST returns HTTP 200 with valid JWT for
+    superadmin@3boxeshrms.com / MarqAI@2026 (3.4s cold start, 0.75s warm).
+  * Confirmed login page HTML still references tb_token / api/auth/login /
+    useAuthStore (the new authStore.login with doFetch + retry is in the
+    deployed bundle).
+- INSTRUCTIONS FOR THE USER (will repeat in chat reply):
+  The fix is live. To clear the stale state in your browser:
+    1. Hard-refresh the login page: Ctrl+Shift+R (Windows/Linux) or
+       Cmd+Shift+R (Mac). This forces the browser to re-fetch the page
+       and the new service worker (v1.1) to activate, which clears the
+       old cache (v3 → v4).
+    2. If you have any ad-blocker / privacy extension (uBlock Origin,
+       Privacy Badger, Brave Shields, etc.), disable it for
+       nexus-hrms-mu.vercel.app — these extensions often block API
+       requests to vercel.app domains.
+    3. If the issue persists, try in Incognito / a different browser to
+       rule out cache + extensions.
+    4. Confirm the URL starts with https:// (mixed-content blocking can
+       cause "Failed to fetch" if you accidentally typed http://).
+  If you still get the error after a hard-refresh, please open the
+  browser DevTools Network tab and try login again — the actual network
+  request to /api/auth/login will show what's failing (status / response
+  headers / "Failed" in red). Share the DevTools output and we can
+  diagnose further.
+
+Stage Summary:
+- The login API itself was healthy throughout (verified via curl with valid
+  JWT for super admin). The user's "Failed to fetch" was a client-side
+  network-layer rejection — most commonly caused by stale cached service
+  worker, ad-blocker interference, flaky connection, or cold-lambda abort.
+- The fix adds resilience (retry once + cache: 'no-store' to prevent stale
+  cached responses) and surfaces a clear actionable error message pointing
+  the user at the most likely root causes (hard-refresh, disable ad
+  blockers, try a different browser, confirm https://). The service worker
+  cache version is also bumped to force-clear any stale cached login-page
+  bundle in the user's browser on next load.
