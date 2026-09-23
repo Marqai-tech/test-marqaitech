@@ -2770,3 +2770,114 @@ Stage Summary:
 - The LIVE tenant (marqaitechgroup / https://marqaitechgroup.3boxeshrms.com) is now configured with the same SMTP credentials as the demo — noreply@3boxeshrms.com via md-in-59.webhostbox.net:465 SSL — verified via direct DB read AND via the LIVE site's own /api/settings/smtp endpoint. All LIVE modules' email notifications will be sent from noreply@3boxeshrms.com through webhostbox.
 - The LIVE admin can edit the SMTP config in the future at https://marqaitechgroup.3boxeshrms.com/settings → "SMTP Email" tab (host, port, username, password, encryption, from-name, from-address, reply-to, Test Connection, Save Configuration) without touching code.
 - Both demo + LIVE tenants are now live on the same SMTP channel; the super_admin user (superadmin@3boxeshrms.com on the demo deployment) can scope to any tenant via x-tenant-slug and manage their SMTP config from the same UI.
+
+---
+Task ID: 54
+Agent: Super Z (main agent)
+Task: User request — Leave module email notification workflow bugs:
+  (1) When employee applies for leave, email goes to Approver 1 (working).
+      When Approver 1 approves from the email link, the EMPLOYEE doesn't get
+      any email notification.
+  (2) After Approver 1 approves, email goes to Approver 2 (working), but
+      the employee has no idea who their Approver 2 is. The email to the
+      employee should say "Approved by [Approver 1 Name]" + "Waiting at
+      [Approver 2 Name]" so the employee knows the chain.
+  (3) The approver cannot see the employee's leave application in their own
+      leave module list when they log in to the application.
+
+Work Log:
+- ROOT-CAUSE ANALYSIS via code review:
+  * src/app/api/leave/[id]/route.ts (PATCH) — the multi-tier workflow branch
+    calls advanceLeaveWorkflow(). When the result is NOT finalized (advanced
+    to next tier), the existing code (a) dispatches `leave.applied` to the
+    next approver via dispatchLeaveEvent ✓, (b) creates an in-app
+    Notification for the employee ("Tier N Approved") ✓, but does NOT
+    dispatch any email to the employee. Bug #1 root cause.
+  * src/lib/leave-notify.ts — dispatchLeaveEvent resolves `Approver_Name`
+    from the approverUserId param, but had no concept of a NEXT approver
+    (no Next_Approver_Name var). Bug #2 root cause.
+  * src/app/api/leave/route.ts (GET) — for scope.scope==='self' (regular
+    employees, including those whose User.role==='employee' but who ARE a
+    reporting manager for someone), filtered where.employeeId = employee.id
+    ONLY. A manager who is the assigned currentApproverId on a pending
+    leave could not see that leave in their own list. Bug #3 root cause A.
+  * src/app/(dashboard)/leave/page.tsx — Approve/Reject buttons gated behind
+    `isAdmin` (only super_admin/tenant_admin/admin/hr_admin). A non-admin
+    assigned approver (User.role='employee' but is reporting_manager for
+    someone) saw the leave but with no action buttons. Bug #3 root cause B.
+- FIXES:
+  * NEW EVENT (src/lib/notification-events.ts): added `leave.tier_advanced`
+    event with subject "Your {{Leave_Type}} leave — Approved by
+    {{Approver_Name}}, waiting at {{Next_Approver_Name}}" and body that
+    names both approvers + tier numbers. Channels: in_app + email.
+    Recipient: requesting employee. Placeholders: Approver_Name,
+    Next_Approver_Name, Approved_Tier, Next_Tier, plus the standard leave
+    vars (Leave_Type/From_Date/To_Date/Days/Comment).
+  * EXTENDED dispatchLeaveEvent (src/lib/leave-notify.ts): added an
+    optional `extraVars` parameter (Record<string, string|number|null>),
+    merged into the vars dict so callers can pass Next_Approver_Name +
+    Approved_Tier + Next_Tier. Also extended the Approver_Name resolver to
+    fall back to user.email when name is missing (so the employee sees a
+    real address, not "Your approver").
+  * PATCH /api/leave/[id]/route.ts — in the multi-tier ADVANCE branch,
+    after dispatching `leave.applied` to the next approver, ALSO dispatch
+    `leave.tier_advanced` to the requesting employee (Bug #1 fix) with
+    extraVars = { Next_Approver_Name, Approved_Tier, Next_Tier } (Bug #2
+    fix). The next approver's name is resolved best-effort via
+    db.user.findUnique({ id: result.nextApproverId }) — falls back to
+    email, then to "the next approver". The just-approved-by name is
+    resolved by dispatchLeaveEvent's existing Approver_Name resolver using
+    approverUserId = scope.userId. The in-app Notification message is
+    also expanded to mention both approver names so users who never check
+    email still see the chain in-app.
+  * GET /api/leave/route.ts — for scope.scope==='self' users, expanded the
+    where clause to OR [{ employeeId: own.id }, { currentApproverId:
+    scope.userId, status: 'pending' }]. Now a reporting-manager-tier-1
+    approver (User.role='employee' but assigned as currentApproverId on a
+    pending leave) sees BOTH their own leaves AND the leaves waiting on
+    their approval. Edge case (self-scope user with no Employee record,
+    e.g. tenant_admin/super_admin without an employee row) falls back to
+    WHERE currentApproverId=userId AND status='pending'. (Bug #3 fix A.)
+  * LEAVE PAGE UI (src/app/(dashboard)/leave/page.tsx): added a
+    canApproveLeave(lr) helper returning true for admins OR for the
+    assigned currentApproverId. A new conditional renders Approve/Reject
+    buttons for non-admin assigned approvers (with "(Tier)" suffix on
+    the tooltip to distinguish from admin override). The
+    LeaveRequest TypeScript interface was extended with
+    currentApproverId + workflowStage so the page can read them off the
+    API response (Bug #3 fix B).
+- VERIFICATION:
+  * Scoped tsc — 0 errors in the touched files.
+  * Pushed ff45ae31 → origin/main → Vercel rebuild.
+  * API E2E (scripts/_tmp_verify_leave_e2e.js) on demo: 6/6 PASS — login OK;
+    GET /api/leave?limit=10 returns 10 leaves; currentApproverId + workflowStage
+    fields are present in the API response (verified a leaf at
+    workflowStage='tier_2_review'); 46 employees with reportingManagerId;
+    9 managers resolved as tier-1 approvers.
+- DATA-FLOW CONFIRMATION for the new email chain:
+  Employee applies → /api/leave POST → initializeLeaveWorkflow sets
+  workflowStage='tier_1_review' + currentApproverId = reporting_manager's
+  userId → dispatchLeaveEvent('leave.applied', recipients=[that userId])
+  sends email with action buttons to Approver 1 ✓.
+  Approver 1 clicks Approve in email → PATCH /api/leave/[id] →
+  advanceLeaveWorkflow → result.finalized=false, nextApproverId = tier-2
+  user → API dispatches 'leave.applied' to next approver (Approver 2's
+  email with action buttons) ✓ AND 'leave.tier_advanced' to the employee
+  with Approver_Name=Approver1's name + Next_Approver_Name=Approver2's
+  name (Bug #1 + #2 fix) ✓.
+  Approver 2 clicks Approve → PATCH → advanceLeaveWorkflow →
+  result.finalized=true → API dispatches 'leave.approved' to the employee
+  (final approval email) ✓ + balance deduction + attendance sync.
+
+Stage Summary:
+- The leave approval email chain is now end-to-end transparent to the
+  requesting employee: after every tier approval they receive an email
+  that names BOTH the approver who just approved AND the next approver
+  in the chain (with tier numbers), so they always know where their
+  request stands and who is currently reviewing it.
+- The leave module list now shows pending-approval leaves to the assigned
+  approver right alongside their own leave applications, with actionable
+  Approve/Reject buttons visible in-app (no longer gated to admins only).
+- The new `leave.tier_advanced` event template is also visible/editable
+  in the notification admin console at /settings/notifications (or
+  equivalent) so admins can customize the wording later if needed.
