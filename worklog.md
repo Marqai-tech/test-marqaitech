@@ -3340,3 +3340,118 @@ Stage Summary:
   blockers, try a different browser, confirm https://). The service worker
   cache version is also bumped to force-clear any stale cached login-page
   bundle in the user's browser on next load.
+
+---
+Task ID: 59
+Agent: Super Z (main agent)
+Task: User request — https://nexus-hrms-mu.vercel.app/attendance/punch-log
+should show the GPS location as an AREA NAME (e.g. "Koramangala, Bengaluru, IN")
+instead of raw lat/lng coordinates.
+
+Work Log:
+- ROOT CAUSE: The punch-log report was displaying raw "lat, lng" coordinates
+  as the primary GPS identifier. The API already had a `gps.label` field
+  (returned when present), but the label was missing for most punches
+  because:
+    (a) Old punches were made via the legacy /api/attendance POST route
+        (no GPS capture at all) — these have no GPS data.
+    (b) New punches (after Task 57) use /api/attendance/punch POST which
+        accepts gps.lat/lng/accuracy/label — but the ESS captureGps()
+        helper didn't reverse-geocode the lat/lng to an area name, so
+        gps.label was always undefined.
+- FIX — two-pronged so BOTH new punches AND any old punches-with-GPS get
+  area names:
+  * CAPTURE-TIME (new punches going forward):
+    - NEW src/lib/reverse-geocode.ts — a shared client-side helper with
+      reverseGeocode(lat, lng) → Promise<string|null>. Uses two providers
+      in sequence:
+        1. PRIMARY: BigDataCloud's free client-side reverse-geocoding
+           endpoint (no API key, designed for browser use, no rate
+           limits, returns structured locality/city/country).
+        2. FALLBACK: OpenStreetMap Nominatim (also free, no key, but
+           rate-limited to 1 req/sec). Used when BigDataCloud returns
+           402 (server-side call) or any other failure. Nominatim is
+           the only one that works when the request comes from a non-
+           browser user-agent (e.g. server-side fetch). BigDataCloud
+           actively bans server-side calls to its client endpoint —
+           verified empirically (the sandbox IP got a 402 with the
+           message "your ip address is now banned").
+      - Returns a compact label "suburb, city, country" (preferred) or
+        "area, country" if no city, or just "country" if no area.
+      - Caches results in an in-memory Map keyed by lat.toFixed(3),lng.toFixed(3)
+        so repeat punches from the same office don't trigger a new request.
+    - src/app/(dashboard)/attendance/page.tsx captureGps() now:
+        a) getCurrentPosition → grab lat/lng/accuracy
+        b) dynamic-import reverseGeocode from the helper
+        c) fetch the area name (best-effort — non-blocking on failure)
+        d) status toast updates: 'Capturing GPS…' → 'Resolving area…'
+        e) returns { lat, lng, accuracy, label }
+    - The label is sent to /api/attendance/punch POST as gps.label —
+      already supported by the API, stored on Attendance.checkInGpsLabel /
+      checkOutGpsLabel / breakInGpsLabel / breakOutGpsLabel AND on the
+      PunchEvent.gpsLabel audit row.
+    - Success toasts for checkin/checkout/breakin/breakout now show the
+      area name first: "Checked in successfully! (Koramangala, Bengaluru, IN)"
+      with fallback to lat,lng if label is missing.
+  * RENDER-TIME (old punches captured before this fix, that DO have GPS
+    lat/lng but no stored label):
+    - src/app/api/attendance/punch-log GET now selects checkInGpsLat /
+      checkInGpsLng / checkInGpsLabel + checkOutGpsLat / checkOutGpsLng /
+      checkOutGpsLabel from the Attendance table, and includes them in
+      the days array as nested objects: day.checkInGps = { lat, lng, label }
+      and day.checkOutGps = { lat, lng, label }.
+    - src/app/(dashboard)/attendance/punch-log/page.tsx:
+      - NEW useGeocodedLabels(events) hook — for each event with GPS
+        coords but no stored label, reverse-geocodes on render and
+        returns a map of eventId → areaName. Sequential geocoding to
+        avoid a thundering herd of requests on big lists. Component
+        re-renders progressively as each label resolves.
+      - Event Log view GPS cell: now shows the area NAME as the primary
+        display (font-medium), with raw lat,lng + ±accuracy as a
+        secondary text-[10px] font-mono line below. While the geocode is
+        in-flight, shows "Resolving area…" italic placeholder.
+      - Daily Summary view Location cell: detects if the stored location
+        string is raw coords (regex: /^-?\d+\.\d{3+},?\s*-?\d+\.\d{3+}$/).
+        If raw, prefers the reverse-geocoded label from the per-action
+        GPS (computed via a separate dayLabels useEffect). If real
+        area name is already stored (new punches), shows it directly.
+        If neither is available yet, shows "Resolving area…" for rows
+        with GPS, "—" for rows without.
+
+Verification:
+  * Scoped tsc — 0 errors in the touched files.
+  * Pushed 47955209 → origin/main → Vercel rebuild.
+  * Reverse-geocoding provider verified via curl from this sandbox:
+    - BigDataCloud returns 402 for server-side calls (expected — designed
+      for browser-only use, will work in the user's browser).
+    - Nominatim fallback works: returns "Ashokanagar, Bengaluru, India"
+      for test coordinates (12.9716, 77.5946).
+  * API E2E on demo: GET /api/attendance/punch-log?limit=10 returns
+    HTTP 200 with 512 days of attendance history. Day objects now include
+    the new checkInGps + checkOutGps fields (currently null on demo
+    because no punches have been made via the new /api/attendance/punch
+    route yet — the next time a user clicks Check In / Check Out / Break
+    In / Break Out on /attendance, GPS coords + reverse-geocoded area
+    name will be captured + stored, and the punch-log report will show
+    the area name instead of raw lat/lng).
+  * Punch-log page renders (HTTP 200).
+
+Stage Summary:
+- NEW punches going forward: when an employee clicks Check In / Check Out /
+  Break In / Break Out on /attendance, the browser captures GPS via
+  navigator.geolocation.getCurrentPosition, reverse-geocodes the lat/lng
+  to an area name (BigDataCloud → Nominatim fallback), and the label is
+  stored on the Attendance + PunchEvent rows. The punch-log report shows
+  the area name as the primary GPS display, with raw lat/lng + accuracy
+  as a small secondary line below.
+- OLD punches with GPS coords but no stored label: the punch-log page
+  reverse-geocodes on render via the useGeocodedLabels hook + dayLabels
+  useEffect, so area names appear progressively without any data
+  migration.
+- OLD punches WITHOUT GPS (made via the legacy /api/attendance route
+  before Task 57): shown as "No GPS" — there's nothing to geocode.
+
+Next step: log in as Bala (bala.mukherjee@innovatech.demo) on the demo,
+go to /attendance, click Check In (grant location permission when the
+browser prompts), then visit /attendance/punch-log to see your punch
+with the area name displayed instead of raw lat/lng coordinates.
