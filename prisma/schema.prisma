@@ -516,6 +516,7 @@ model Employee {
   leaveBalances     LeaveBalance[]
   leaveRequests     LeaveRequest[]
   attendance        Attendance[]
+  punchEvents       PunchEvent[]  // Task 57: per-event punch activity log (check-in/out/break-in/out + GPS)
   payrolls          Payroll[]
   documents         Document[]
   updateRequests    EmployeeUpdateRequest[]
@@ -1066,12 +1067,81 @@ model Attendance {
   notes      String?
   location   String?
 
+  // ─── Task 57: Break In / Break Out + GPS auto-capture ───
+  // Break tracking: an employee can pause for lunch/tea — breakMinutes is
+  // automatically computed as (breakOut − breakIn) and subtracted from
+  // total span to derive actual work hours.
+  breakIn       DateTime?
+  breakOut      DateTime?
+  breakMinutes  Int?
+  // GPS coordinates captured automatically by the browser's
+  // navigator.geolocation API on every check-in / check-out / break-in /
+  // break-out action. Used for the punch activity log + geofence
+  // compliance reports. Stored as Float (decimal degrees) + accuracy in
+  // meters + a reverse-geocoded label (best-effort).
+  checkInGpsLat       Float?
+  checkInGpsLng       Float?
+  checkInGpsAccuracy   Float?
+  checkInGpsLabel      String?
+  checkOutGpsLat       Float?
+  checkOutGpsLng       Float?
+  checkOutGpsAccuracy  Float?
+  checkOutGpsLabel     String?
+  breakInGpsLat        Float?
+  breakInGpsLng        Float?
+  breakInGpsAccuracy   Float?
+  breakInGpsLabel       String?
+  breakOutGpsLat       Float?
+  breakOutGpsLng       Float?
+  breakOutGpsAccuracy  Float?
+  breakOutGpsLabel     String?
+  // Punch method: mobile / biometric / web / manual — drives the audit log
+  punchMethod  String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([employeeId, date])
   @@index([employeeId])
   @@index([date])
+}
+
+// ─── Task 57: Punch Activity Log ───
+// One row per punch event (check-in / check-out / break-in / break-out /
+// biometric push / manual edit). Used to build the per-employee punch-log
+// report that shows the full timeline with GPS coordinates + work hours.
+model PunchEvent {
+  id          String @id @default(cuid())
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  // Type of punch event: 'checkin' | 'checkout' | 'breakin' | 'breakout' | 'biometric' | 'manual_edit'
+  type        String
+  // The calendar date the event belongs to (employee LOCAL date) —
+  // separate from `timestamp` (which is the precise instant) so cross-midnight
+  // shifts can be allocated to the correct working day for payroll.
+  date        DateTime
+  timestamp   DateTime
+  // GPS coordinates at the moment of the punch (best-effort — null when
+  // geolocation permission was denied or the punch came from a non-GPS source
+  // like a biometric device).
+  gpsLat       Float?
+  gpsLng       Float?
+  gpsAccuracy  Float?
+  gpsLabel     String?
+  // Source: 'mobile' (browser geolocation) / 'biometric' (device push) /
+  // 'web' (no GPS) / 'manual_edit' (admin override)
+  method       String
+  // Optional note (e.g. "Missed punch — corrected by admin")
+  notes        String?
+  // Reference to the device that pushed the event (for biometric sources)
+  deviceId     String?
+
+  createdAt DateTime @default(now())
+
+  @@index([employeeId])
+  @@index([date])
+  @@index([type])
 }
 
 // ============ PAYROLL ============
@@ -1824,10 +1894,43 @@ model Announcement {
 model Shift {
   id        String @id @default(cuid())
   name      String
+  // Task 57: short code (e.g. "MK-A" for Morning-A) + type
+  code      String?
+  // 'fixed' | 'flexible' | 'rotating' — drives the roster behavior
+  type      String @default("fixed")
+  // 24-hour HH:mm format (e.g. "22:00" for night shift start).
+  // Cross-midnight shifts (e.g. 22:00 → 06:00) are flagged via crossMidnight.
   startTime String
   endTime   String
+  crossMidnight Boolean @default(false)
+  // Total break duration in minutes (lunch + tea combined). For per-break
+  // detail (start/end/max), use the breakIntervals JSON column below.
   breakDuration Int @default(60)
-  graceTime Int @default(15)
+  // Task 57: structured break intervals — JSON array of
+  // [{ name: "Lunch", start: "13:00", end: "13:30", maxMinutes: 30, paid: false }, ...]
+  breakIntervals Json?
+  // Grace periods (minutes) — separate early-in / late-in / early-out / late-out
+  // thresholds before marking half-day or absent penalties. The legacy single
+  // `graceTime` column is preserved as the late-in default; new columns are
+  // additive so existing tenant DBs keep working without a migration.
+  graceTime       Int @default(15)
+  earlyInGrace    Int @default(15)
+  lateInGrace     Int @default(15)
+  earlyOutGrace   Int @default(15)
+  lateOutGrace    Int @default(15)
+  // Punch boundary limits (HH:mm) — earliest allowed check-in + latest
+  // allowed check-out to prevent anomalous data (e.g. someone clocking in
+  // at 03:00 for a 09:00 shift).
+  earliestCheckIn  String?
+  latestCheckOut   String?
+  // Overtime (OT) policy for this shift
+  otEnabled         Boolean @default(false)
+  otThresholdMinutes Int @default(480)  // OT starts after this many minutes worked (default 8h = 480m)
+  otMultiplier      Float @default(1.5) // 1.5x = time-and-half, 2.0x = double time
+  otApprovalRequired Boolean @default(true)
+  // Geofence / IP link for punch compliance
+  geofenceId  String?
+  allowedIpAddresses String?  // comma-separated CIDR or single IPs
   status    String @default("active")
 
   companyId String
