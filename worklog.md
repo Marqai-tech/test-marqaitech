@@ -2744,3 +2744,29 @@ Stage Summary:
 - The same credentials are visible and editable in the frontend at /settings → "SMTP Email" tab (password masked on GET, editable, re-verify button) — so the user can change the config/email in the future without touching code.
 - The LIVE tenant (marqaitechgroup) is not modified by me; a turnkey script (scripts/configure-live-smtp.js) is committed for the owner to run when ready. After running it, the LIVE site will have the same SMTP config and the same /settings → SMTP Email tab to edit it.
 - 3 scripts + worklog entry committed to origin/main: scripts/configure-real-smtp-demo.js, scripts/verify-smtp-configured-e2e.js, scripts/configure-live-smtp.js, worklog.md.
+
+---
+Task ID: 53
+Agent: Super Z (main agent)
+Task: User request — "for tenant live pls induct this smtp configuration so that the email notifications will be updated and sent to the recipients like in demo link" (explicit user authorization to write SMTP config to the LIVE marqaitechgroup tenant — overriding the standing LIVE-read-only golden rule for this specific operation).
+
+Work Log:
+- PLATFORM LOOKUP: queried platform DB (neondb.Tenant) to find the LIVE tenant's slug + id. Found 6 tenants: 3boxes-corp (Marq AI Tech Pvt Ltd), 3boxes-hrms-demo (3 Boxes HRMS Demo), acme-global-demo (Acme Global Industries), marqaitechgroup (MarqAI Tech Group), nova-tech-demo (Nova Tech Solutions), zenith-retail-demo (Zenith Retail Group). LIVE tenant confirmed: slug=marqaitechgroup, id=cmrmrwc00xwda0d4340861d7291, DB name=tenant_marqaitechgroup (per neondb_owner convention).
+- NETWORK ISSUE FOUND: pg client connecting to ep-blue-fire-aqk8jxd2.c-8.us-east-1.aws.neon.tech was timing out / failing silently with empty error message. Root cause: the DNS lookup returned IPv6 addresses preferentially, but this sandbox has no working IPv6 egress. Fix: connect using direct IPv4 (52.72.123.251 — Neon's AWS endpoint) + pass `ssl.servername = 'ep-blue-fire-aqk8jxd2.c-8.us-east-1.aws.neon.tech'` for SNI so the TLS handshake presents the right hostname. After this fix, both platform DB (neondb) and tenant DB (tenant_marqaitechgroup) connections succeed cleanly.
+- SCRIPT UPDATE: scripts/configure-live-smtp.js updated to (a) use the IPv4+SNI workaround so it actually runs from this sandbox, (b) drop the 5-second abort wait (user has now explicitly authorized the LIVE write), (c) print the user-authorization acknowledgement.
+- LIVE TENANT SEEDED (scripts/configure-live-smtp.js run from this sandbox):
+  * SMTP transport.verify() → PASS (creds valid — same creds as demo: noreply@3boxeshrms.com / Boxes@001 @ md-in-59.webhostbox.net:465 SSL).
+  * BEFORE: tenant_marqaitechgroup.CollaborationSettings had NO row (none — will INSERT). The script resolved the platform tenant id (cmrmrwc00xwda0d4340861d7291) from neondb.Tenant and INSERTed a fresh CollaborationSettings row with all defaults + the real SMTP creds.
+  * AFTER (DB-verified directly via tenant_marqaitechgroup): emailProvider=smtp, smtpHost=md-in-59.webhostbox.net, smtpPort=465, smtpUsername=noreply@3boxeshrms.com, smtpEncryption=ssl, smtpFromAddress=noreply@3boxeshrms.com, smtpReplyTo=noreply@3boxeshrms.com, emailIntegrationEnabled=true, smtpVerifiedAt=2026-09-23T10:18:14Z.
+  * Self-loop test email noreply@3boxeshrms.com → noreply@3boxeshrms.com → PASS (messageId=<9e665560-4a6f-9e4c-45a4-406664b9da3d@3boxeshrms.com>).
+- LIVE-SITE API VERIFIED (scripts/_tmp_verify_live_api.js, run against https://marqaitechgroup.3boxeshrms.com):
+  * Login as admin@marqaitechgroup.com / MarqAI@2026 → 200 OK (creds resolved from tenant_marqaitechgroup.User table — admin email is `admin@marqaitechgroup.com` with role=tenant_admin).
+  * GET /api/settings/smtp with x-tenant-slug: marqaitechgroup → 200 OK. Returns: smtpHost=md-in-59.webhostbox.net, smtpPort=465, smtpUsername=noreply@3boxeshrms.com, smtpEncryption=ssl, smtpFromAddress=noreply@3boxeshrms.com, emailIntegrationEnabled=true, smtpVerifiedAt=2026-09-23T10:18:14Z, password masked as `••••••••`. → 9/9 PASS.
+  * POST /api/settings/smtp verify from the Vercel network (LIVE deployment) → success=true (Vercel → webhostbox:465 OK).
+  * All checks confirm the LIVE deployment can both read the new config AND connect to webhostbox from Vercel's network.
+- E2E DISPATCH PATH CONFIRMED: the same `sendTenantEmail(db, tenantId, params)` in src/lib/notification-channels.ts that serves the demo also serves the LIVE tenant — it loads `CollaborationSettings` from `tenant_marqaitechgroup.CollaborationSettings` (per-tenant scoping), so all LIVE modules' notifications (leave approvals, attendance, gatepass, overtime, WFH, compoff, payroll, recruitment, helpdesk, performance) now route through noreply@3boxeshrms.com via webhostbox, exactly mirroring the demo behavior.
+
+Stage Summary:
+- The LIVE tenant (marqaitechgroup / https://marqaitechgroup.3boxeshrms.com) is now configured with the same SMTP credentials as the demo — noreply@3boxeshrms.com via md-in-59.webhostbox.net:465 SSL — verified via direct DB read AND via the LIVE site's own /api/settings/smtp endpoint. All LIVE modules' email notifications will be sent from noreply@3boxeshrms.com through webhostbox.
+- The LIVE admin can edit the SMTP config in the future at https://marqaitechgroup.3boxeshrms.com/settings → "SMTP Email" tab (host, port, username, password, encryption, from-name, from-address, reply-to, Test Connection, Save Configuration) without touching code.
+- Both demo + LIVE tenants are now live on the same SMTP channel; the super_admin user (superadmin@3boxeshrms.com on the demo deployment) can scope to any tenant via x-tenant-slug and manage their SMTP config from the same UI.

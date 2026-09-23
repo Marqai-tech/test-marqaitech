@@ -35,20 +35,19 @@ const SMTP = {
   encryption: 'ssl',
 };
 
-// ⚠️ EDIT THIS IF YOUR LIVE TENANT DB NAME IS DIFFERENT
+// LIVE tenant DB — using IPv4 + SNI to bypass IPv6 routing issues
 const LIVE_DB = {
-  host: 'ep-blue-fire-aqk8jxd2.c-8.us-east-1.aws.neon.tech',
+  host: '52.72.123.251',  // direct IPv4 (Neon endpoint)
   database: 'tenant_marqaitechgroup',
   user: 'neondb_owner',
   password: 'npg_pxZd8woKe4WB',
-  ssl: { rejectUnauthorized: false },
+  ssl: { rejectUnauthorized: false, servername: 'ep-blue-fire-aqk8jxd2.c-8.us-east-1.aws.neon.tech' },
+  connectionTimeout: 60000,
 };
 
 async function main() {
-  console.log('\n=== LIVE TENANT SMTP CONFIGURATION ===\n');
-  console.log('⚠️  This will modify the LIVE tenant (marqaitechgroup).');
-  console.log('⚠️  Press Ctrl+C within 5 seconds to abort...\n');
-  await new Promise(r => setTimeout(r, 5000));
+  console.log('\n=== LIVE TENANT SMTP CONFIGURATION (marqaitechgroup) ===\n');
+  console.log('User has explicitly authorized LIVE SMTP induction.\n');
 
   let pass = 0, fail = 0;
   const ok = (name, cond, extra = '') => {
