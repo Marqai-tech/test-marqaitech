@@ -127,11 +127,49 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   login: async (email: string, password: string): Promise<boolean> => {
     try {
       set({ isLoading: true });
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
+
+      // ─── Resilient fetch with auto-retry ───
+      // "Failed to fetch" is a network-layer rejection (not an HTTP error
+      // from our server). On flaky connections / cold Vercel lambda starts /
+      // service-worker handovers / ad-blocker interference, the first
+      // request can fail even though the API itself is healthy. We retry
+      // once with a small backoff before giving up — and produce a clear
+      // error message pointing the user at the most likely root causes.
+      const doFetch = async (): Promise<Response> => {
+        return await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+          // cache: 'no-store' prevents the browser from serving a stale
+          // cached response if the user previously attempted login from
+          // the same browser session.
+          cache: 'no-store',
+        });
+      };
+
+      let res: Response;
+      try {
+        res = await doFetch();
+      } catch (firstErr) {
+        // Wait 600ms then retry once
+        await new Promise((r) => setTimeout(r, 600));
+        try {
+          res = await doFetch();
+        } catch (retryErr) {
+          const msg = retryErr instanceof Error ? retryErr.message : String(retryErr);
+          // Surface a helpful, actionable error to the UI
+          if (msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('network')) {
+            throw new Error(
+              'Network error — the login request could not reach the server. ' +
+              'Please check your internet connection and try again. ' +
+              'If the issue persists: (1) hard-refresh the page (Ctrl+Shift+R / Cmd+Shift+R) ' +
+              'to clear any cached service worker, (2) disable ad-blockers / privacy extensions ' +
+              'for this site, (3) try a different browser, (4) confirm you are on https:// (not http://).'
+            );
+          }
+          throw new Error(`Login request failed: ${msg}`);
+        }
+      }
 
       const data = await res.json();
 

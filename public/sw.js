@@ -1,7 +1,10 @@
-// 3Boxes HRMS Service Worker v1.0
-// Enables offline support and auto-updates for the PWA
+// 3Boxes HRMS Service Worker v1.1
+// Enables offline support and auto-updates for the PWA.
+// v1.1 — Task 58: bump cache version to force-clear any stale cached
+// bundles / login page states that could cause "Failed to fetch" errors
+// on the login API for super admin (or any other role).
 
-const CACHE_NAME = '3boxes-hrms-v3';
+const CACHE_NAME = '3boxes-hrms-v4';
 const STATIC_ASSETS = [
   '/login',
   '/icon.png',
