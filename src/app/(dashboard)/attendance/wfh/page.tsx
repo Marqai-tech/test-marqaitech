@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
 import ModuleTips from '@/components/ModuleTips';
+import ApproverChainPreview from '@/components/ApproverChainPreview';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -454,6 +455,7 @@ export default function WfhPage() {
             </div>
           </div>
 
+          <ApproverChainPreview module="wfh" compact />
           <div className="flex justify-end gap-2 mt-5">
             <button onClick={() => setShowPreview(false)} className="3boxes-btn-secondary">← Edit</button>
             <button onClick={handleSubmit} disabled={submitting} className="3boxes-btn-primary flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700">

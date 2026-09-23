@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
 import ModuleTips from '@/components/ModuleTips';
+import ApproverChainPreview from '@/components/ApproverChainPreview';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -186,6 +187,7 @@ export default function OvertimeRequestPage() {
               <p className="text-sm text-green-700 font-medium">Estimated: {computedHours} hours</p>
             </div>
           )}
+          <ApproverChainPreview module="overtime" compact />
           <div className="flex justify-end gap-2 mt-4">
             <button onClick={() => setShowForm(false)} className="3boxes-btn-secondary">Cancel</button>
             <button onClick={handleSubmit} disabled={submitting} className="3boxes-btn-primary flex items-center gap-2">

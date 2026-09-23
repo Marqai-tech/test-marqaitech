@@ -14,6 +14,7 @@ import { sanitizeSearch } from '@/lib/validators';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
 import { isClientDemoMode } from '@/lib/site-mode';
+import ApproverChainPreview from '@/components/ApproverChainPreview';
 
 /* ── Types ── */
 interface LeaveRequest {
@@ -740,6 +741,8 @@ function LeavePageContent() {
                   )}
                 </div>
               )}
+              {/* Approver Chain Preview — shows the employee who will approve their leave at each tier */}
+              <ApproverChainPreview module="leave" leaveTypeId={form.leaveTypeId || undefined} compact />
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">Reason</label>
                 <textarea rows={3} value={form.reason} onChange={e => setForm(p => ({ ...p, reason: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 resize-none" placeholder="Provide a reason for your leave..." />

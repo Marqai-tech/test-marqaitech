@@ -7,6 +7,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
 import ModuleTips from '@/components/ModuleTips';
 import TimePickerAmPm from '@/components/TimePickerAmPm';
+import ApproverChainPreview from '@/components/ApproverChainPreview';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -165,6 +166,7 @@ export default function RegularizePage() {
               <strong>AI Suggestion:</strong> After submission, the system will suggest the most likely time based on your last 30 days of check-in history. You can accept the suggestion or keep your requested time.
             </p>
           </div>
+          <ApproverChainPreview module="regularize" compact />
           <div className="flex justify-end gap-2 mt-4">
             <button onClick={() => setShowForm(false)} className="3boxes-btn-secondary">Cancel</button>
             <button onClick={handleSubmit} disabled={submitting} className="3boxes-btn-primary flex items-center gap-2">
