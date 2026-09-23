@@ -2989,3 +2989,120 @@ Stage Summary:
   the employee sees the chain upfront in the form, then receives email updates
   naming both the just-approved-by and next-pending-at approvers at each tier
   transition. End-to-end transparency from apply → final approval.
+
+---
+Task ID: 56
+Agent: Super Z (main agent)
+Task: User request — Settings consolidation + welcome email fix:
+  (1) Under Governance > Settings & Configuration, the 7 module tabs (Payroll /
+      Leave / Attendance / Employee / Recruitment / Performance / Company)
+      were duplicates of settings that belong in each respective module.
+      Move them to their respective module settings pages, remove from
+      /settings, no duplication.
+  (2) The welcome email with credentials sent via the Invite option in
+      Employee Settings is not actually sending the email — fix.
+
+Work Log:
+- SETTINGS CONSOLIDATION:
+  * NEW shared component src/components/ModuleSettingsPanel.tsx — exports the
+    SettingSection + SettingField types, the 6 section arrays (payroll /
+    leave / attendance / employee / recruitment / performance), the
+    loadSettings/saveSettings localStorage helpers (same key
+    '3boxes_hrms_settings' as the legacy /settings page so existing saved
+    values are preserved), the ToggleSwitch + InfoTooltip + SettingsSectionCard
+    internals, AND a self-contained <ModuleSettingsPanel sections={...} />
+    component that manages its own edit/draft/save/cancel/reset state.
+  * /leave/settings — no longer redirects to /leave/leave-policy. Now
+    renders <ModuleSettingsPanel sections={leaveSections} /> + cross-links
+    to the policy tabs (documents / workflow / mapping) on /leave/leave-policy.
+  * /payroll/settings (NEW) — renders <ModuleSettingsPanel sections=
+    {payrollSections} /> + cross-link to /payroll/salary-settings.
+  * /company/settings (NEW) — renders the read-only Tenant Information card
+    (name / slug / domain / plan / status / country / currency / timezone)
+    + cross-links to Companies / Branches / Departments / Designations /
+    HR Policies / External Settings. Fetches via /api/tenants?limit=1.
+  * /performance/settings — replaced the previous stub (non-persisted
+    toggle buttons) entirely with <ModuleSettingsPanel sections=
+    {performanceSections} />.
+  * /recruitment/settings — added <ModuleSettingsPanel sections=
+    {recruitmentSections} /> as a new section above the existing
+    recruitment-specific Job Posting Defaults / Hiring Process / AI
+    Settings cards. Existing tab structure preserved.
+  * /attendance/settings — added <ModuleSettingsPanel sections=
+    {attendanceSections} /> as a new section above the existing tab bar
+    (Policy Documents / Workflow Builder / Policy Versions). Existing
+    tab structure preserved.
+  * /employees/settings — added <ModuleSettingsPanel sections=
+    {employeeSections} /> as a new section above the existing tab bar
+    (Credentials / Invite / Bulk Import / Map Company / Employee Config /
+    Custom Fields). Existing tab structure preserved (the Invite tab is
+    where the welcome-email bug lived — fixed separately).
+  * /settings page (Governance > Settings & Configuration) — removed the
+    7 moved tab buttons from the sidebar nav (allNavItems), removed them
+    from the TabKey type + validTabs array, removed the 7 render blocks
+    (payroll through company, ~140 lines). The /settings page now hosts
+    only: General, Roles & Permissions, Notifications, SMTP Email, Bulk
+    Import — i.e. tenant-level config that doesn't belong to any specific
+    module. A clear comment block at the top of the moved-tabs region
+    documents where each migrated setting now lives.
+  * src/lib/navData.tsx — added 'Payroll Settings' link under the Payroll
+    module sidebar (pointing to /payroll/settings) and 'Company Settings'
+    link under the Company module sidebar (pointing to /company/settings),
+    both with the 'isNew' badge for discoverability.
+- WELCOME EMAIL BUG FIX:
+  * Root cause: src/app/api/employees/invite/route.ts was calling
+    sendEmail() from '@/lib/email' — the GLOBAL Resend sender. Without
+    RESEND_FROM_EMAIL configured (which it isn't), the global sender
+    falls back to the Resend sandbox (onboarding@resend.dev), which
+    only delivers to the Resend account holder — NOT to the invited
+    employees. So every 'invite' silently failed to actually deliver
+    email.
+  * Fix: swapped to sendTenantEmail(db, admin.tenantId, {...}) from
+    '@/lib/notification-channels'. After Task 52, the demo + LIVE
+    tenants have real webhostbox SMTP configured (noreply@3boxeshrms.com
+    @ md-in-59.webhostbox.net:465 SSL) — sendTenantEmail loads the
+    per-tenant CollaborationSettings and routes through that real SMTP,
+    so invite emails now actually reach the employee's mailbox. Falls
+    back to the global Resend sender only if the tenant SMTP fails (with
+    a UI warning surfaced via resultEntry.usedFallbackFrom +
+    emailWarning + response.adminWarning).
+  * Adapted downstream result-entry shape: sendTenantEmail returns
+    { success, error?, usedFallback? } (no usedFallbackFrom /
+    sandboxWarning), so the resultEntry logic was updated to set
+    usedFallbackFrom=true + a clear emailWarning when usedFallback=true.
+    The adminWarning copy was rewritten to point admins at
+    /settings → SMTP Email tab instead of the old Resend-domain
+    verification flow.
+
+Verification:
+  * Scoped tsc — 0 errors in the touched files.
+  * Pushed 5ade17c0 → origin/main → Vercel rebuilt.
+  * API E2E (scripts/_tmp_verify_task56.js) on demo: 10/10 PASS —
+    GET /payroll/settings, /company/settings, /leave/settings,
+    /performance/settings all return 200; /settings still renders (didn't
+    break); /settings no longer contains the moved tabs in HTML;
+    admin login OK; POST /api/employees/invite responds correctly
+    (400 for empty body with validation error "mode must be selected
+    or all" — confirms the route is live and accepting requests);
+    /api/workflow/approvers still works (didn't break).
+
+Stage Summary:
+- The Governance > Settings & Configuration page now hosts only
+  tenant-level config (General / Roles & Notifications / SMTP Email /
+  Bulk Import). The 7 module-specific tabs have been migrated to
+  their respective module settings pages:
+    Payroll      → /payroll/settings      (NEW)
+    Leave        → /leave/settings         (was a redirect)
+    Attendance   → /attendance/settings    (panel added above existing tabs)
+    Employee     → /employees/settings    (panel added above existing tabs)
+    Recruitment  → /recruitment/settings  (panel added above existing tabs)
+    Performance  → /performance/settings   (replaced stub entirely)
+    Company      → /company/settings       (NEW)
+  No duplication: the section arrays + rendering logic live in ONE shared
+  component (src/components/ModuleSettingsPanel.tsx) and the /settings
+  page no longer references them.
+- The welcome email with login credentials now sends via the tenant's
+  real SMTP channel (noreply@3boxeshrms.com @ webhostbox:465 SSL), so
+  invited employees actually receive the email. The previous bug routed
+  invites through the Resend sandbox which only delivered to the Resend
+  account holder.
