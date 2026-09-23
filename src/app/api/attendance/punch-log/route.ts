@@ -149,6 +149,11 @@ export async function GET(request: NextRequest) {
           employeeId: true, date: true, checkIn: true, checkOut: true,
           workHours: true, overtime: true, breakIn: true, breakOut: true,
           breakMinutes: true, status: true, location: true,
+          // Task 59: include the per-action GPS lat/lng/label so the
+          // client can reverse-geocode on render when the stored location
+          // string is just raw "lat,lng" coords.
+          checkInGpsLat: true, checkInGpsLng: true, checkInGpsLabel: true,
+          checkOutGpsLat: true, checkOutGpsLng: true, checkOutGpsLabel: true,
         },
       }),
     ]);
@@ -175,6 +180,15 @@ export async function GET(request: NextRequest) {
         overtime: a.overtime ?? 0,
         status: a.status,
         location: a.location || null,
+        // Task 59: include the raw GPS lat/lng so the client can reverse-
+        // geocode if the stored location string is just "lat,lng" (i.e.
+        // captured before the area-name fix landed).
+        checkInGps: (a.checkInGpsLat != null && a.checkInGpsLng != null) ? {
+          lat: a.checkInGpsLat, lng: a.checkInGpsLng, label: a.checkInGpsLabel || null,
+        } : null,
+        checkOutGps: (a.checkOutGpsLat != null && a.checkOutGpsLng != null) ? {
+          lat: a.checkOutGpsLat, lng: a.checkOutGpsLng, label: a.checkOutGpsLabel || null,
+        } : null,
       });
     }
 

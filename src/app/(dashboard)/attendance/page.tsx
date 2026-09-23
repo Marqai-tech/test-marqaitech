@@ -443,8 +443,14 @@ export default function AttendancePage() {
    * the user denies location or the browser doesn't support it, we proceed
    * without GPS — the punch is still recorded (gps=null) and a toast warns
    * the user. The /api/attendance/punch endpoint accepts gps as optional.
+   *
+   * Task 59: after capturing coordinates, also reverse-geocode to a
+   * human-readable area name (e.g. "Koramangala, Bengaluru, IN") using
+   * BigDataCloud's free client-side endpoint. The label is stored on the
+   * Attendance + PunchEvent rows so the punch-log report shows the area
+   * name instead of raw lat/lng coordinates.
    */
-  const captureGps = (): Promise<{ lat: number; lng: number; accuracy: number; label?: string } | null> => {
+  const captureGps = async (): Promise<{ lat: number; lng: number; accuracy: number; label?: string } | null> => {
     return new Promise((resolve) => {
       if (typeof navigator === 'undefined' || !navigator.geolocation) {
         resolve(null);
@@ -456,14 +462,20 @@ export default function AttendancePage() {
         resolve(null); // timeout — proceed without GPS
       }, 8000);
       navigator.geolocation.getCurrentPosition(
-        (pos) => {
+        async (pos) => {
           clearTimeout(timeout);
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          const accuracy = pos.coords.accuracy;
+          // Reverse-geocode to an area name (best-effort — non-blocking on failure)
+          let label: string | undefined;
+          try {
+            setGpsStatus('Resolving area…');
+            const { reverseGeocode } = await import('@/lib/reverse-geocode');
+            label = (await reverseGeocode(lat, lng)) || undefined;
+          } catch { /* best-effort */ }
           setGpsStatus(null);
-          resolve({
-            lat: pos.coords.latitude,
-            lng: pos.coords.longitude,
-            accuracy: pos.coords.accuracy,
-          });
+          resolve({ lat, lng, accuracy, label });
         },
         (err) => {
           clearTimeout(timeout);
@@ -500,7 +512,7 @@ export default function AttendancePage() {
         }),
       });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
-      toast.success('Checked in successfully!' + (gps ? ` (${gps.lat.toFixed(4)}, ${gps.lng.toFixed(4)})` : ''));
+      toast.success('Checked in successfully!' + (gps?.label ? ` (${gps.label})` : gps ? ` (${gps.lat.toFixed(4)}, ${gps.lng.toFixed(4)})` : ''));
       await fetchAttendance();
       if (isAdmin) await fetchAdminAttendance();
     } catch (err: unknown) {
@@ -533,7 +545,7 @@ export default function AttendancePage() {
         }),
       });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
-      toast.success('Checked out successfully!' + (gps ? ` (${gps.lat.toFixed(4)}, ${gps.lng.toFixed(4)})` : ''));
+      toast.success('Checked out successfully!' + (gps?.label ? ` (${gps.label})` : gps ? ` (${gps.lat.toFixed(4)}, ${gps.lng.toFixed(4)})` : ''));
       await fetchAttendance();
       if (isAdmin) await fetchAdminAttendance();
     } catch (err: unknown) {
@@ -563,7 +575,7 @@ export default function AttendancePage() {
         }),
       });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
-      toast.success('Break started' + (gps ? ` (${gps.lat.toFixed(4)}, ${gps.lng.toFixed(4)})` : ''));
+      toast.success('Break started' + (gps?.label ? ` (${gps.label})` : gps ? ` (${gps.lat.toFixed(4)}, ${gps.lng.toFixed(4)})` : ''));
       await fetchAttendance();
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Break-in failed');
@@ -592,7 +604,7 @@ export default function AttendancePage() {
         }),
       });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
-      toast.success('Break ended' + (gps ? ` (${gps.lat.toFixed(4)}, ${gps.lng.toFixed(4)})` : ''));
+      toast.success('Break ended' + (gps?.label ? ` (${gps.label})` : gps ? ` (${gps.lat.toFixed(4)}, ${gps.lng.toFixed(4)})` : ''));
       await fetchAttendance();
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Break-out failed');

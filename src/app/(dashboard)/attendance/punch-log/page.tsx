@@ -3,12 +3,13 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import {
   FiList, FiRefreshCw, FiMapPin, FiClock, FiCoffee, FiLogIn, FiLogOut,
-  FiUser, FiFilter, FiDownload, FiCalendar,
+  FiUser, FiFilter, FiDownload, FiCalendar, FiMap,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
 import ModuleTips from '@/components/ModuleTips';
+import { reverseGeocode } from '@/lib/reverse-geocode';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -27,6 +28,34 @@ function fmtDate(ds?: string | null): string {
   const d = new Date(`${ds}T00:00:00Z`);
   if (Number.isNaN(d.getTime())) return ds;
   return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' });
+}
+
+/** Hook that reverse-geocodes any GPS coordinates missing a stored label.
+ * Returns a map of eventId → area name. Fetches in the background; the
+ * component re-renders when each geocode resolves so the user sees the
+ * area name appear progressively (without blocking the table render).
+ */
+function useGeocodedLabels(events: PunchEvent[]): Record<string, string> {
+  const [labels, setLabels] = useState<Record<string, string>>({});
+  useEffect(() => {
+    let cancelled = false;
+    const pending = events.filter(e => e.gps && e.gps.lat && e.gps.lng && !e.gps.label);
+    if (pending.length === 0) return;
+    // Sequentially geocode (BigDataCloud allows parallel but we keep it
+    // gentle — avoids a thundering herd of network requests on big lists).
+    (async () => {
+      for (const e of pending) {
+        if (cancelled) break;
+        if (!e.gps) continue;
+        const label = await reverseGeocode(e.gps.lat, e.gps.lng);
+        if (label && !cancelled) {
+          setLabels(prev => ({ ...prev, [e.id]: label }));
+        }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [events]);
+  return labels;
 }
 
 interface PunchEvent {
@@ -58,6 +87,9 @@ interface DaySummary {
   overtime: number;
   status: string;
   location: string | null;
+  // Task 59: per-action GPS so the client can reverse-geocode on render
+  checkInGps?: { lat: number; lng: number; label: string | null } | null;
+  checkOutGps?: { lat: number; lng: number; label: string | null } | null;
 }
 
 const EVENT_META: Record<string, { label: string; icon: React.ReactNode; color: string; bg: string }> = {
@@ -110,6 +142,47 @@ export default function PunchLogPage() {
     if (!selectedDate) return events;
     return events.filter(e => e.date === selectedDate);
   }, [events, selectedDate]);
+
+  // Task 59: reverse-geocode any events that have GPS coords but no stored label
+  // (e.g. punches captured before the area-name fix landed). Returns a map of
+  // eventId → area name; the table re-renders progressively as labels resolve.
+  const geocodedLabels = useGeocodedLabels(filteredEvents);
+
+  /** Detect if a stored location string is raw "lat,lng" coords (from old
+   *  punches captured before the area-name fix). If so, we prefer the
+   *  reverse-geocoded label from the per-action GPS instead. */
+  const looksLikeRawCoords = (s: string | null | undefined): boolean => {
+    if (!s) return false;
+    // "12.345678,89.012345" or "12.345678, 89.012345"
+    return /^-?\d+\.\d{3,},?\s*-?\d+\.\d{3,}$/.test(s.trim());
+  };
+
+  /** For the Daily Summary view, find the best display label for a day's
+   *  location. Priority: stored label > reverse-geocoded label > raw coords. */
+  const [dayLabels, setDayLabels] = useState<Record<string, string>>({});
+  useEffect(() => {
+    let cancelled = false;
+    // For each day row that has raw GPS but no usable location string,
+    // reverse-geocode the check-in GPS (most reliable per-day location).
+    (async () => {
+      for (const d of days) {
+        if (cancelled) break;
+        const hasUsableLocation = d.location && !looksLikeRawCoords(d.location);
+        if (hasUsableLocation) continue;
+        const gps = d.checkInGps || d.checkOutGps;
+        if (!gps || !gps.lat || !gps.lng) continue;
+        if (gps.label) {
+          setDayLabels(prev => ({ ...prev, [d.employeeId + '|' + d.date]: gps.label! }));
+          continue;
+        }
+        const label = await reverseGeocode(gps.lat, gps.lng);
+        if (label && !cancelled) {
+          setDayLabels(prev => ({ ...prev, [d.employeeId + '|' + d.date]: label }));
+        }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [days]);
 
   const fmtHours = (h: number) => {
     const total = Math.round(h * 60);
@@ -263,14 +336,28 @@ export default function PunchLogPage() {
                         <td className="py-2.5 px-4 text-xs text-thb-text-secondary capitalize">{e.method || '—'}</td>
                         <td className="py-2.5 px-4">
                           {e.gps ? (
-                            <div className="flex items-start gap-1.5 text-xs">
-                              <FiMapPin className="w-3.5 h-3.5 text-emerald-500 mt-0.5" />
-                              <div>
-                                <p className="text-thb-text-primary font-mono">{e.gps.lat.toFixed(5)}, {e.gps.lng.toFixed(5)}</p>
-                                {e.gps.label && <p className="text-thb-text-muted">{e.gps.label}</p>}
-                                {e.gps.accuracy != null && <p className="text-thb-text-muted text-[10px]">±{e.gps.accuracy.toFixed(0)}m</p>}
-                              </div>
-                            </div>
+                            (() => {
+                              // Use the stored label if present, else the on-the-fly
+                              // reverse-geocoded label from the geocodedLabels map.
+                              // Fallback to the raw coordinates only if both are missing.
+                              const areaName = e.gps.label || geocodedLabels[e.id] || '';
+                              return (
+                                <div className="flex items-start gap-1.5 text-xs">
+                                  <FiMapPin className="w-3.5 h-3.5 text-emerald-500 mt-0.5" />
+                                  <div>
+                                    {areaName ? (
+                                      <p className="text-thb-text-primary font-medium">{areaName}</p>
+                                    ) : (
+                                      <p className="text-thb-text-muted italic">Resolving area…</p>
+                                    )}
+                                    <p className="text-thb-text-muted text-[10px] font-mono">
+                                      {e.gps.lat.toFixed(5)}, {e.gps.lng.toFixed(5)}
+                                      {e.gps.accuracy != null && ` · ±${e.gps.accuracy.toFixed(0)}m`}
+                                    </p>
+                                  </div>
+                                </div>
+                              );
+                            })()
                           ) : (
                             <span className="text-xs text-thb-text-muted">No GPS</span>
                           )}
@@ -327,12 +414,27 @@ export default function PunchLogPage() {
                       <td className="py-2.5 px-4 text-right text-emerald-700 font-medium">{fmtHours(d.workHours)}</td>
                       <td className="py-2.5 px-4 text-right text-rose-700 font-medium">{d.overtime > 0 ? fmtHours(d.overtime) : '—'}</td>
                       <td className="py-2.5 px-4 text-xs text-thb-text-muted">
-                        {d.location ? (
-                          <div className="flex items-start gap-1">
-                            <FiMapPin className="w-3.5 h-3.5 text-emerald-500 mt-0.5" />
-                            <span>{d.location}</span>
-                          </div>
-                        ) : '—'}
+                        {(() => {
+                          const dayKey = d.employeeId + '|' + d.date;
+                          // Prefer stored location if it's NOT raw coords (i.e. it's a real area name).
+                          // Otherwise use the reverse-geocoded dayLabel. If neither, show raw coords
+                          // or "—" if no GPS at all.
+                          const storedIsRaw = looksLikeRawCoords(d.location);
+                          const areaName = (!storedIsRaw && d.location) ? d.location : (dayLabels[dayKey] || (storedIsRaw ? d.location : ''));
+                          if (areaName) {
+                            return (
+                              <div className="flex items-start gap-1">
+                                <FiMapPin className="w-3.5 h-3.5 text-emerald-500 mt-0.5" />
+                                <span>{areaName}</span>
+                              </div>
+                            );
+                          }
+                          // No stored label AND we haven't geocoded yet — show "Resolving…" if we have GPS, else "—"
+                          const hasGps = (d.checkInGps && d.checkInGps.lat) || (d.checkOutGps && d.checkOutGps.lat);
+                          return hasGps ? (
+                            <span className="text-thb-text-muted italic text-xs">Resolving area…</span>
+                          ) : '—';
+                        })()}
                       </td>
                     </tr>
                   ))}
