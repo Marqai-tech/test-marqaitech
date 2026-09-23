@@ -17,6 +17,41 @@ export async function OPTIONS() {
 }
 
 /**
+ * Ensure the Task 57 columns exist on the Attendance table before we run
+ * any Prisma findMany that references them. Without this, the demo tenant
+ * DB (which hasn't been migrated) throws "column (not available) does not
+ * exist" the first time the route is hit. Idempotent ALTER TABLE ADD COLUMN
+ * IF NOT EXISTS — runs in ~10ms after the first call.
+ */
+async function ensureAttendanceColumns(db: any) {
+  const cols: [string, string][] = [
+    ['"breakIn"', 'TIMESTAMP(3)'],
+    ['"breakOut"', 'TIMESTAMP(3)'],
+    ['"breakMinutes"', 'INTEGER'],
+    ['"checkInGpsLat"', 'DOUBLE PRECISION'],
+    ['"checkInGpsLng"', 'DOUBLE PRECISION'],
+    ['"checkInGpsAccuracy"', 'DOUBLE PRECISION'],
+    ['"checkInGpsLabel"', 'TEXT'],
+    ['"checkOutGpsLat"', 'DOUBLE PRECISION'],
+    ['"checkOutGpsLng"', 'DOUBLE PRECISION'],
+    ['"checkOutGpsAccuracy"', 'DOUBLE PRECISION'],
+    ['"checkOutGpsLabel"', 'TEXT'],
+    ['"breakInGpsLat"', 'DOUBLE PRECISION'],
+    ['"breakInGpsLng"', 'DOUBLE PRECISION'],
+    ['"breakInGpsAccuracy"', 'DOUBLE PRECISION'],
+    ['"breakInGpsLabel"', 'TEXT'],
+    ['"breakOutGpsLat"', 'DOUBLE PRECISION'],
+    ['"breakOutGpsLng"', 'DOUBLE PRECISION'],
+    ['"breakOutGpsAccuracy"', 'DOUBLE PRECISION'],
+    ['"breakOutGpsLabel"', 'TEXT'],
+    ['"punchMethod"', 'TEXT'],
+  ];
+  for (const [col, type] of cols) {
+    await db.$executeRawUnsafe(`ALTER TABLE "Attendance" ADD COLUMN IF NOT EXISTS ${col} ${type}`).catch(() => null);
+  }
+}
+
+/**
  * GET /api/attendance/punch-log?employeeId=...&from=YYYY-MM-DD&to=YYYY-MM-DD&limit=...
  *
  * Returns the per-employee punch activity log: one row per punch event
@@ -38,6 +73,11 @@ export async function GET(request: NextRequest) {
 
     const scope = await resolveCompanyScope(request);
     if (!scope) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
+
+    // Idempotent schema sync — the demo tenant DB may not have the Task 57
+    // columns (breakIn, breakOut, GPS, punchMethod) yet. ALTER TABLE ADD
+    // COLUMN IF NOT EXISTS is safe to run on every request.
+    await ensureAttendanceColumns(db);
 
     const { searchParams } = new URL(request.url);
     const filterEmployeeId = searchParams.get('employeeId') || '';
