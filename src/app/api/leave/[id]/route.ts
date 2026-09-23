@@ -261,13 +261,58 @@ export async function PATCH(
             await dispatchLeaveEvent(db, scope.tenantId, 'leave.applied', existingLeave, scope.userId, comments, request, result.nextApproverId ? [result.nextApproverId] : null).catch(() => null);
           }
 
-          // Notify the employee that their request advanced a tier
+          // ─── Bug fix: email the EMPLOYEE that tier N was approved + who the next approver is ───
+          // Previously: only an in-app Notification was created (no email). The user complained
+          // that after Approver 1 approved via the email link, the employee received no email
+          // and didn't know who Approver 2 was. We now dispatch the new `leave.tier_advanced`
+          // event to the employee with both Approver_Name (tier N, who just approved) and
+          // Next_Approver_Name (tier N+1, who is currently reviewing).
           if (existingLeave.employee.userId) {
+            // Resolve next approver's display name (best-effort)
+            let nextApproverName = 'the next approver';
+            if (result.nextApproverId) {
+              try {
+                const nextUser = await db.user.findUnique({
+                  where: { id: result.nextApproverId },
+                  select: { name: true, email: true },
+                });
+                if (nextUser?.name) nextApproverName = nextUser.name;
+                else if (nextUser?.email) nextApproverName = nextUser.email;
+              } catch { /* best-effort */ }
+            }
+            const approvedTierNum = (result.nextTier || 1) - 1;
+            const nextTierNum = result.nextTier || 1;
+
+            const { dispatchLeaveEvent } = await import('@/lib/leave-notify');
+            await dispatchLeaveEvent(
+              db,
+              scope.tenantId,
+              'leave.tier_advanced',
+              existingLeave,
+              scope.userId,        // → resolves Approver_Name (the user who just approved)
+              comments,
+              request,
+              [existingLeave.employee.userId],  // recipient = the requesting employee
+              {
+                Next_Approver_Name: nextApproverName,
+                Approved_Tier: String(approvedTierNum),
+                Next_Tier: String(nextTierNum),
+              },
+            ).catch(() => null);
+
+            // Keep the in-app Notification (in addition to the email) for users
+            // who never look at email but log in to the app regularly.
+            let justApproverName = 'your approver';
+            try {
+              const u = await db.user.findUnique({ where: { id: scope.userId }, select: { name: true, email: true } });
+              if (u?.name) justApproverName = u.name;
+              else if (u?.email) justApproverName = u.email;
+            } catch { /* best-effort */ }
             await createNotification({
               tenantId: scope.tenantId,
               userId: existingLeave.employee.userId,
-              title: `Leave Request — Tier ${result.nextTier! - 1} Approved`,
-              message: `Your ${existingLeave.leaveType.name} leave request has been approved at tier ${result.nextTier! - 1} and is now pending tier ${result.nextTier} review.`,
+              title: `Leave Request — Tier ${approvedTierNum} Approved`,
+              message: `Your ${existingLeave.leaveType?.name || 'leave'} request was approved at Tier ${approvedTierNum} by ${justApproverName}. It is now waiting for approval at Tier ${nextTierNum} from ${nextApproverName}.`,
               type: 'info',
               category: 'leave',
               link: `/leave/${id}`,

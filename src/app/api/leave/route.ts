@@ -101,13 +101,23 @@ export async function GET(request: Request) {
         select: { id: true },
       });
       if (employee) {
-        where.employeeId = employee.id;
+        // Bug fix: also show leave requests where THIS user is the assigned
+        // workflow approver (currentApproverId = scope.userId). Previously a
+        // reporting-manager-tier-1-approver (whose User.role is still 'employee')
+        // could not see the leave requests pending their approval in their own
+        // leave list — they only got the email, and the in-app leave module
+        // page showed nothing actionable. Now we OR with currentApproverId so
+        // approvers see: (their own leaves) + (leaves waiting on their approval).
+        where.OR = [
+          { employeeId: employee.id },
+          { currentApproverId: scope.userId, status: 'pending' },
+        ];
       } else {
-        // No employee record — return empty
-        return NextResponse.json(
-          { leaveRequests: [], pagination: { page, limit, total: 0, totalPages: 0 } },
-          { headers: corsHeaders() }
-        );
+        // No employee record — but they may still be a user-level approver
+        // (e.g. tenant_admin/super_admin without an Employee row). Show only
+        // leaves pending their approval as currentApproverId.
+        where.currentApproverId = scope.userId;
+        where.status = 'pending';
       }
     } else if (scope.companyId) {
       // Admin with a specific company selected via CompanySwitcher

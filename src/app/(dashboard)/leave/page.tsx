@@ -28,6 +28,9 @@ interface LeaveRequest {
   leaveType?: { id: string; name: string; code: string };
   employeeId: string;
   leaveTypeId: string;
+  // Workflow fields (added by Task 36 multi-tier approval workflow)
+  currentApproverId?: string | null;
+  workflowStage?: string | null;
 }
 
 interface LeaveBalance {
@@ -121,6 +124,14 @@ function LeavePageContent() {
   const router = useRouter();
   const { user } = useAuthStore();
   const isAdmin = ['super_admin', 'tenant_admin', 'admin', 'hr_admin'].includes(user?.role || '');
+  // Bug fix: a non-admin user can still be the assigned workflow approver for
+  // a pending leave request (currentApproverId === user.id). They need to see
+  // the Approve/Reject buttons in their own leave list — otherwise they only
+  // get the email and can act via the action link, but the in-app leave module
+  // page would show no actionable buttons.
+  const canApproveLeave = (lr: any) =>
+    lr?.status === 'pending' &&
+    (isAdmin || lr?.currentApproverId === user?.id);
   const scopeQuery = useCompanyContextStore(s => s.scopeQuery);
   const selectedTenantId = useCompanyContextStore(s => s.selectedTenantId);
 
@@ -916,6 +927,18 @@ function LeavePageContent() {
                                   <FiCheck className="w-4 h-4" />
                                 </button>
                                 <button onClick={() => handleOpenAction(lr.id, 'rejected')} className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors" title="Reject">
+                                  <FiX className="w-4 h-4" />
+                                </button>
+                              </>
+                            )}
+                            {/* Bug fix: non-admin ASSIGNED APPROVER (currentApproverId === me)
+                                can also approve/reject from their own leave list — same buttons. */}
+                            {!isAdmin && canApproveLeave(lr) && lr.employeeId !== employee?.id && (
+                              <>
+                                <button onClick={() => handleOpenAction(lr.id, 'approved')} className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 transition-colors" title="Approve (Tier)">
+                                  <FiCheck className="w-4 h-4" />
+                                </button>
+                                <button onClick={() => handleOpenAction(lr.id, 'rejected')} className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors" title="Reject (Tier)">
                                   <FiX className="w-4 h-4" />
                                 </button>
                               </>

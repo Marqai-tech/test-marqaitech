@@ -367,6 +367,18 @@ export const NOTIFICATION_MODULES: NotificationModuleDef[] = [
         sms: '3Boxes HRMS: Your {{Leave_Type}} leave ({{From_Date}} → {{To_Date}}) was APPROVED.',
       },
       {
+        eventKey: 'leave.tier_advanced',
+        name: 'Leave — Tier Approved, Waiting at Next Approver',
+        description: 'Mid-workflow update: tier N approver approved; request now waits at tier N+1. Sent to the requesting employee so they know who approved and who is next in the chain.',
+        defaultChannels: ['in_app', 'email'],
+        recipients: 'Requesting employee',
+        placeholders: [...STD, 'Leave_Type', 'From_Date', 'To_Date', 'Days', 'Approver_Name', 'Next_Approver_Name', 'Approved_Tier', 'Next_Tier', 'Comment'],
+        subject: 'Your {{Leave_Type}} leave — Approved by {{Approver_Name}}, waiting at {{Next_Approver_Name}}',
+        body: 'Hi {{Recipient_Name}},\n\nYour {{Leave_Type}} leave request from {{From_Date}} to {{To_Date}} ({{Days}} day(s)) has been APPROVED at Tier {{Approved_Tier}} by {{Approver_Name}}.\n\nIt is now waiting for approval at Tier {{Next_Tier}} from {{Next_Approver_Name}}.\n{{Comment}}\n\nYou will receive another notification once the next-tier approver acts on your request.',
+        slack: '✅ Tier {{Approved_Tier}} approved by {{Approver_Name}} → now waiting at {{Next_Approver_Name}} (Tier {{Next_Tier}}) for {{Recipient_Name}}.',
+        sms: '3Boxes HRMS: Leave approved at Tier {{Approved_Tier}} by {{Approver_Name}}. Now waiting at {{Next_Approver_Name}} (Tier {{Next_Tier}}).',
+      },
+      {
         eventKey: 'leave.rejected',
         name: 'Leave Rejected',
         description: 'Real-time update to the employee with approver comments.',

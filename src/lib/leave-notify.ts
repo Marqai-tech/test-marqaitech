@@ -25,6 +25,7 @@ export async function dispatchLeaveEvent(
   comments?: string | null,
   request?: Request | null,
   recipientUserIds?: (string | null | undefined)[] | null,
+  extraVars?: Record<string, string | number | null | undefined>,
 ): Promise<void> {
   try {
     const employee = leaveRequest.employee || {};
@@ -37,8 +38,9 @@ export async function dispatchLeaveEvent(
     let approverName = 'Your approver';
     if (approverUserId) {
       try {
-        const approver = await (db as any).user.findUnique({ where: { id: approverUserId }, select: { name: true } });
+        const approver = await (db as any).user.findUnique({ where: { id: approverUserId }, select: { name: true, email: true } });
         if (approver?.name) approverName = approver.name;
+        else if (approver?.email) approverName = approver.email;
       } catch { /* best-effort */ }
     }
 
@@ -78,6 +80,7 @@ export async function dispatchLeaveEvent(
         Reason: leaveRequest.reason || '—',
         Approver_Name: approverName,
         Comment: comments ? `Approver comments: ${comments}` : '',
+        ...extraVars,
       },
       entity: { type: 'leave_request', id: leaveRequest.id, link: '/leave' },
       origin,
