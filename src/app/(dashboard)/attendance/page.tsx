@@ -26,6 +26,7 @@ import {
   FiGrid,
   FiRefreshCw,
   FiDatabase,
+  FiCoffee,
 } from 'react-icons/fi';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
@@ -82,6 +83,19 @@ interface AttendanceRecord {
   status: string;
   notes?: string | null;
   location?: string | null;
+  // Task 57: break + GPS fields (returned by /api/attendance/punch)
+  breakIn?: string | null;
+  breakOut?: string | null;
+  breakMinutes?: number | null;
+  punchMethod?: string | null;
+  checkInGpsLat?: number | null;
+  checkInGpsLng?: number | null;
+  checkInGpsLabel?: string | null;
+  checkOutGpsLat?: number | null;
+  checkOutGpsLng?: number | null;
+  checkOutGpsLabel?: string | null;
+  breakInGpsLabel?: string | null;
+  breakOutGpsLabel?: string | null;
   employee?: {
     id: string;
     firstName: string;
@@ -254,6 +268,10 @@ export default function AttendancePage() {
   const [loading, setLoading] = useState(true);
   const [checkingIn, setCheckingIn] = useState(false);
   const [seeding, setSeeding] = useState(false);
+  // Task 57: break + GPS state
+  const [breakingIn, setBreakingIn] = useState(false);
+  const [breakingOut, setBreakingOut] = useState(false);
+  const [gpsStatus, setGpsStatus] = useState<string | null>(null);
 
   const handleSeedData = async () => {
     try {
@@ -419,6 +437,46 @@ export default function AttendancePage() {
   useEffect(() => { queueMicrotask(() => fetchOrgContext()); }, [fetchOrgContext]);
   useEffect(() => { queueMicrotask(() => fetchApprovedLeaves()); }, [fetchApprovedLeaves]);
 
+  /* ── Task 57: GPS capture helper ──
+   * Uses navigator.geolocation.getCurrentPosition to grab lat/lng/accuracy
+   * before every punch (check-in / check-out / break-in / break-out). If
+   * the user denies location or the browser doesn't support it, we proceed
+   * without GPS — the punch is still recorded (gps=null) and a toast warns
+   * the user. The /api/attendance/punch endpoint accepts gps as optional.
+   */
+  const captureGps = (): Promise<{ lat: number; lng: number; accuracy: number; label?: string } | null> => {
+    return new Promise((resolve) => {
+      if (typeof navigator === 'undefined' || !navigator.geolocation) {
+        resolve(null);
+        return;
+      }
+      setGpsStatus('Capturing GPS…');
+      const timeout = setTimeout(() => {
+        setGpsStatus(null);
+        resolve(null); // timeout — proceed without GPS
+      }, 8000);
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          clearTimeout(timeout);
+          setGpsStatus(null);
+          resolve({
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+            accuracy: pos.coords.accuracy,
+          });
+        },
+        (err) => {
+          clearTimeout(timeout);
+          setGpsStatus(null);
+          // Permission denied / unavailable — proceed without GPS
+          console.warn('[GPS] capture failed:', err.message);
+          resolve(null);
+        },
+        { enableHighAccuracy: true, timeout: 7000, maximumAge: 60000 },
+      );
+    });
+  };
+
   /* ── Check In ── */
   const handleCheckIn = async () => {
     if (!employee) {
@@ -428,20 +486,21 @@ export default function AttendancePage() {
     try {
       setCheckingIn(true);
       const now = new Date();
-      const res = await fetch('/api/attendance', {
+      const gps = await captureGps();
+      if (!gps) toast('Location unavailable — punch recorded without GPS', { icon: '⚠️' });
+      const res = await fetch('/api/attendance/punch', {
         method: 'POST',
         headers: getAuthHeaders(),
-        // Send the browser's LOCAL date + time — the server previously used its
-        // UTC clock, which misdated punches for employees ahead of UTC.
         body: JSON.stringify({
           employeeId: employee.id,
           action: 'checkin',
           date: localDateKey(now),
           localTime: `${pad2(now.getHours())}:${pad2(now.getMinutes())}`,
+          gps,
         }),
       });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
-      toast.success('Checked in successfully!');
+      toast.success('Checked in successfully!' + (gps ? ` (${gps.lat.toFixed(4)}, ${gps.lng.toFixed(4)})` : ''));
       await fetchAttendance();
       if (isAdmin) await fetchAdminAttendance();
     } catch (err: unknown) {
@@ -460,7 +519,9 @@ export default function AttendancePage() {
     try {
       setCheckingOut(true);
       const now = new Date();
-      const res = await fetch('/api/attendance', {
+      const gps = await captureGps();
+      if (!gps) toast('Location unavailable — punch recorded without GPS', { icon: '⚠️' });
+      const res = await fetch('/api/attendance/punch', {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({
@@ -468,16 +529,75 @@ export default function AttendancePage() {
           action: 'checkout',
           date: localDateKey(now),
           localTime: `${pad2(now.getHours())}:${pad2(now.getMinutes())}`,
+          gps,
         }),
       });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
-      toast.success('Checked out successfully!');
+      toast.success('Checked out successfully!' + (gps ? ` (${gps.lat.toFixed(4)}, ${gps.lng.toFixed(4)})` : ''));
       await fetchAttendance();
       if (isAdmin) await fetchAdminAttendance();
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Check-out failed');
     } finally {
       setCheckingOut(false);
+    }
+  };
+
+  /* ── Task 57: Break In (start lunch/tea break) ── */
+  const handleBreakIn = async () => {
+    if (!employee) return;
+    try {
+      setBreakingIn(true);
+      const now = new Date();
+      const gps = await captureGps();
+      if (!gps) toast('Location unavailable — break recorded without GPS', { icon: '⚠️' });
+      const res = await fetch('/api/attendance/punch', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          employeeId: employee.id,
+          action: 'breakin',
+          date: localDateKey(now),
+          localTime: `${pad2(now.getHours())}:${pad2(now.getMinutes())}`,
+          gps,
+        }),
+      });
+      if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
+      toast.success('Break started' + (gps ? ` (${gps.lat.toFixed(4)}, ${gps.lng.toFixed(4)})` : ''));
+      await fetchAttendance();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Break-in failed');
+    } finally {
+      setBreakingIn(false);
+    }
+  };
+
+  /* ── Task 57: Break Out (end lunch/tea break) ── */
+  const handleBreakOut = async () => {
+    if (!employee) return;
+    try {
+      setBreakingOut(true);
+      const now = new Date();
+      const gps = await captureGps();
+      if (!gps) toast('Location unavailable — break recorded without GPS', { icon: '⚠️' });
+      const res = await fetch('/api/attendance/punch', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          employeeId: employee.id,
+          action: 'breakout',
+          date: localDateKey(now),
+          localTime: `${pad2(now.getHours())}:${pad2(now.getMinutes())}`,
+          gps,
+        }),
+      });
+      if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
+      toast.success('Break ended' + (gps ? ` (${gps.lat.toFixed(4)}, ${gps.lng.toFixed(4)})` : ''));
+      await fetchAttendance();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Break-out failed');
+    } finally {
+      setBreakingOut(false);
     }
   };
 
@@ -491,6 +611,10 @@ export default function AttendancePage() {
   });
   const isCheckedIn = !!todayRecord?.checkIn;
   const isCheckedOut = !!todayRecord?.checkOut;
+  // Task 57: break state derived from today's record
+  const isOnBreak = !!todayRecord?.breakIn && !todayRecord?.breakOut;
+  const hasBreakEnded = !!todayRecord?.breakIn && !!todayRecord?.breakOut;
+  const breakMinutesToday = todayRecord?.breakMinutes ?? 0;
 
   /* ── Leaves covering the selected admin date (per-employee) ── */
   const adminLeaveEmpIds = useMemo(() => {
@@ -691,6 +815,51 @@ export default function AttendancePage() {
             <FiLogOut className="w-4 h-4" />
             {checkingOut ? 'Checking...' : isCheckedOut ? '✓ Checked Out' : 'Check Out'}
           </button>
+          {/* Task 57: Break In / Break Out buttons (self-service lunch/tea break) */}
+          {isCheckedIn && !isCheckedOut && (
+            <>
+              <button
+                onClick={handleBreakIn}
+                disabled={breakingIn || isOnBreak || hasBreakEnded}
+                className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all ${
+                  isOnBreak || hasBreakEnded
+                    ? 'bg-slate-50 text-slate-400 border border-slate-200 cursor-not-allowed'
+                    : 'bg-amber-500 text-white hover:bg-amber-600 shadow-sm shadow-amber-500/25 hover:shadow-md'
+                }`}
+                title="Start a lunch or tea break — break-in time + GPS will be recorded"
+              >
+                <FiCoffee className="w-4 h-4" />
+                {breakingIn ? 'Starting...' : isOnBreak ? 'On Break' : hasBreakEnded ? '✓ Break Done' : 'Break In'}
+              </button>
+              <button
+                onClick={handleBreakOut}
+                disabled={breakingOut || !isOnBreak}
+                className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all ${
+                  !isOnBreak
+                    ? 'bg-slate-50 text-slate-400 border border-slate-200 cursor-not-allowed'
+                    : 'bg-teal-500 text-white hover:bg-teal-600 shadow-sm shadow-teal-500/25 hover:shadow-md'
+                }`}
+                title="End the current break — break-out time + GPS will be recorded"
+              >
+                <FiCoffee className="w-4 h-4" />
+                {breakingOut ? 'Ending...' : 'Break Out'}
+              </button>
+            </>
+          )}
+          {/* GPS status indicator while capturing */}
+          {gpsStatus && (
+            <span className="inline-flex items-center gap-1.5 px-3 py-2 text-xs text-slate-500">
+              <FiMapPin className="w-3.5 h-3.5 animate-pulse text-emerald-500" />
+              {gpsStatus}
+            </span>
+          )}
+          {/* Show today's break duration if break ended */}
+          {hasBreakEnded && breakMinutesToday > 0 && (
+            <span className="inline-flex items-center gap-1.5 px-3 py-2 text-xs text-amber-700 bg-amber-50 rounded-lg border border-amber-200">
+              <FiCoffee className="w-3.5 h-3.5" />
+              Break: {Math.floor(breakMinutesToday / 60)}h {breakMinutesToday % 60}m
+            </span>
+          )}
         </div>
       </div>
 
