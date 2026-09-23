@@ -2881,3 +2881,111 @@ Stage Summary:
 - The new `leave.tier_advanced` event template is also visible/editable
   in the notification admin console at /settings/notifications (or
   equivalent) so admins can customize the wording later if needed.
+
+---
+Task ID: 55
+Agent: Super Z (main agent)
+Task: User request — show the approver chain (Approver 1, Approver 2, ...) on the apply form itself so the employee knows upfront who will approve their request at each tier. Same for all module workflows (leave + attendance family).
+
+Work Log:
+- DISCOVERY: Two workflow engines exist in the codebase with the same pattern
+  (tier/level + approverType → resolve to concrete user):
+  * src/lib/leave-workflow.ts — `loadWorkflowConfig` + `resolveApproverForTier`.
+    Per-tenant, per-leave-type config. Tiers: reporting_manager / department_head /
+    hr_admin / tenant_admin / specific_user / specific_employee. Default chain:
+    Reporting Manager → HR Admin.
+  * src/lib/attendance-workflow.ts — `loadWorkflowConfig` + `resolveActorForLevel`.
+    Per-tenant, per-request-type, per-employment-type/branch/department config.
+    Levels: reporting_manager / department_head / hr_admin / project_manager /
+    vp_director / security. DEFAULT_WORKFLOW_CONFIGS has entries for
+    REGULARIZATION, WFH, HOURLY_PERMISSION, GATE_PASS. OVERTIME and COMP_OFF
+    have NO entry — synthesized a sensible default (reporting_manager → hr_admin)
+    so those apply forms still show a chain.
+- NEW API ENDPOINT — GET /api/workflow/approvers?module=...&leaveTypeId=...
+  (src/app/api/workflow/approvers/route.ts):
+  * Authenticates the user (Bearer token) and resolves their Employee record
+    (needed to look up reportingManagerId, departmentId, department.headId for
+    tier resolution).
+  * For module=leave: imports loadWorkflowConfig + resolveApproverForTier from
+    leave-workflow, walks config.tiers, resolves each to a concrete User
+    (id + name + email) via db.user.findUnique. Passes the optional
+    leaveTypeId so per-leave-type workflow configs are honored.
+  * For module in {wfh, gatepass, permission, regularize, overtime, compoff}:
+    imports loadWorkflowConfig + resolveActorForLevel from
+    attendance-workflow, walks config.levels, resolves each actor to a User.
+  * Returns: { module, tiers: [{ tier, label, approverType, user:
+    {id,name,email} | null }], source: 'tenant_config' | 'default' }. The
+    'source' field tells the UI whether the chain came from a saved tenant
+    config (admins have customized it) or the blueprint default.
+  * Edge case: user with no Employee record (e.g. tenant_admin without an
+    emp row) returns an empty tiers array + a note explaining why.
+- NEW REUSABLE COMPONENT — src/components/ApproverChainPreview.tsx:
+  * Props: module ('leave'|'wfh'|'gatepass'|'permission'|'regularize'|
+    'overtime'|'compoff'), optional leaveTypeId, optional compact.
+  * Fetches the chain on mount; refetches when leaveTypeId changes (so the
+    leave apply form re-resolves when the user picks a different leave type
+    with its own workflow config).
+  * Renders a green-bordered card with a numbered vertical chain: each tier
+    shows a green numbered badge, the label (Reporting Manager / HR Admin /
+    Department Head / VP / Security / etc.), and the resolved user's name +
+    email. Unresolved tiers render an amber "Not yet resolved — will be
+    assigned at runtime" note (e.g. when the user has no reporting manager
+    assigned). Compact mode for tight modal layouts. Loading + error + empty
+    states handled gracefully (no preview = no blocker for submission).
+  * Footer line: "Your request will be routed through this chain once
+    submitted. You will receive an email after each tier is approved."
+- WIRED INTO every apply form:
+  * /leave apply form (inline modal in src/app/(dashboard)/leave/page.tsx)
+    — placed after the AI Collaborative Check, before the Reason field, so
+    the chain is visible as soon as the form opens. Passes leaveTypeId from
+    form state so the chain re-resolves when the employee picks a different
+    leave type (per-leave-type workflow configs are supported).
+  * /attendance/gatepass — compact preview before the submit row.
+  * /attendance/wfh — compact preview before the submit row (in the preview
+    step of the 2-step WFH form).
+  * /attendance/overtime — compact preview before the submit row.
+  * /attendance/permission — compact preview before the submit row.
+  * /attendance/regularize — compact preview before the submit row.
+  * (comp-off has no separate apply form — comp-offs are EARNED via the
+    overtime request flow, and consumed via the leave apply form when the
+    employee picks the 'comp-off' leave type, so the leave form's preview
+    already covers that path.)
+- VERCEL-SIDE VERIFICATION (scripts/_tmp_verify_chain2.js on demo):
+  * 33/33 PASS — login OK; all 7 modules (leave, wfh, gatepass, permission,
+    regularize, overtime, compoff) return HTTP 200 with proper tier arrays:
+    - leave: 2 tiers (Reporting Manager → HR Admin) ✓
+    - wfh: 3 tiers (Reporting Manager → Department Head → VP/Director) ✓
+    - gatepass: 3 tiers (Reporting Manager → HR Admin → Security) ✓
+    - permission: 1 tier (Reporting Manager) ✓
+    - regularize: 2 tiers (Reporting Manager → HR Admin) ✓
+    - overtime: 2 tiers (Reporting Manager → HR Admin, synthesized default) ✓
+    - compoff: 2 tiers (Reporting Manager → HR Admin, synthesized default) ✓
+  * Admin user (admin@3boxeshrms.com) has no reportingManagerId → tier 1
+    user is null (correctly shown as "not yet resolved" in UI).
+  * Employee Bala (bala.mukherjee@innovatech.demo): tier 1 (Reporting
+    Manager) resolves to Amit Reddy <amit.reddy@innovatech.demo> ✓, tier 2
+    label = "HR Admin" ✓.
+- BROWSER VERIFIED on demo as Bala → /leave → "Add Leave" button:
+  * ApproverChainPreview renders inside the form: green card titled
+    "Approval Chain", tier 1 shows numbered badge + "Reporting Manager" +
+    "Amit Reddy · amit.reddy@innovatech.demo", footer reads "Your request
+    will be routed through this chain once submitted. You will receive an
+    email after each tier is approved."
+  * Screenshot: download/t55-leave-approver-chain-preview.png.
+- PUSHED: 7889c26b → origin/main → Vercel rebuild.
+
+Stage Summary:
+- Employees can now see exactly who will approve their request at each tier
+  BEFORE they submit it — across leave + every attendance workflow module
+  (gatepass, wfh, overtime, permission, regularize). Comp-off is implicitly
+  covered via the leave apply form's chain when picking a comp-off leave type.
+- The chain is dynamic: it resolves the actual user (name + email) for each
+  tier based on the requesting employee's reportingManagerId, department.headId,
+  and tenant HR/admin user lookups. Unresolved tiers are clearly marked so
+  admins can see when an employee is missing a reporting manager assignment.
+- Per-leave-type workflow configs are honored — picking a different leave
+  type in the apply form re-fetches the chain.
+- The new event `leave.tier_advanced` from Task 54 complements this perfectly:
+  the employee sees the chain upfront in the form, then receives email updates
+  naming both the just-approved-by and next-pending-at approvers at each tier
+  transition. End-to-end transparency from apply → final approval.
