@@ -37,7 +37,7 @@ self.addEventListener('install', (event) => {
 
 // Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
-  console.log('[3Boxes SW] Activating service worker v1...');
+  console.log(`[3Boxes SW] Activating service worker ${CACHE_NAME}...`);
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
