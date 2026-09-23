@@ -13,6 +13,7 @@ import { useCompanyContextStore } from '@/store/companyContextStore';
 import { useCompanyData, apiFetch, fmtDate, getStatusBadge } from '@/components/company/useCompanyData';
 import type { PolicyRecord } from '@/components/company/useCompanyData';
 import { PolicyFileUploadField, PolicyFileDownloadLink } from '@/components/hrms/PolicyFileField';
+import ModuleSettingsPanel, { attendanceSections } from '@/components/ModuleSettingsPanel';
 import { PolicyVersionHistoryButton, PolicyAcknowledgeButton, PolicyAcknowledgmentTracker } from '@/components/hrms/PolicyVersionHistory';
 import WorkflowBuilderTab from './WorkflowBuilderTab';
 
@@ -165,6 +166,9 @@ function AttendanceSettingsContent() {
           <p className="text-sm text-thb-text-secondary">Manage policy documents, scoped rules, and global configuration</p>
         </div>
       </div>
+
+      {/* General Attendance Settings — migrated from /settings > Attendance tab in Task 56 */}
+      <ModuleSettingsPanel sections={attendanceSections} />
 
       {/* Tab Bar */}
       <div className="flex gap-1 p-1 bg-slate-100 rounded-xl">

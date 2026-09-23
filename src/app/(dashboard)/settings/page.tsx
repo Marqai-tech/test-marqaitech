@@ -1110,7 +1110,7 @@ function SmtpConfigTab() {
 /* ──────────────────────────────────────────────
    Sidebar Navigation Item
    ────────────────────────────────────────────── */
-type TabKey = 'general' | 'payroll' | 'leave' | 'attendance' | 'employee' | 'recruitment' | 'performance' | 'company' | 'roles' | 'notifications' | 'smtp' | 'import';
+type TabKey = 'general' | 'roles' | 'notifications' | 'smtp' | 'import';
 
 interface NavItem {
   key: TabKey;
@@ -1120,17 +1120,20 @@ interface NavItem {
 
 const allNavItems: NavItem[] = [
   { key: 'general', label: 'General', icon: <FiSettings className="w-4 h-4" /> },
-  { key: 'payroll', label: 'Payroll', icon: <FiDollarSign className="w-4 h-4" /> },
-  { key: 'leave', label: 'Leave', icon: <FiCalendar className="w-4 h-4" /> },
-  { key: 'attendance', label: 'Attendance', icon: <FiClock className="w-4 h-4" /> },
-  { key: 'employee', label: 'Employee', icon: <FiUsers className="w-4 h-4" /> },
-  { key: 'recruitment', label: 'Recruitment', icon: <FiBriefcase className="w-4 h-4" /> },
-  { key: 'performance', label: 'Performance', icon: <FiTrendingUp className="w-4 h-4" /> },
-  { key: 'company', label: 'Company', icon: <FiDatabase className="w-4 h-4" /> },
   { key: 'roles', label: 'Roles & Permissions', icon: <FiShield className="w-4 h-4" /> },
   { key: 'notifications', label: 'Notifications', icon: <FiBell className="w-4 h-4" /> },
   { key: 'smtp', label: 'SMTP Email', icon: <FiMail className="w-4 h-4" /> },
   { key: 'import', label: 'Bulk Import', icon: <FiUpload className="w-4 h-4" /> },
+  // ─── Module-specific tabs (Payroll / Leave / Attendance / Employee /
+  //     Recruitment / Performance / Company) were MOVED to their respective
+  //     module settings pages in Task 56 to avoid duplication. ───
+  //   Payroll      → /payroll/settings
+  //   Leave        → /leave/settings
+  //   Attendance   → /attendance/settings
+  //   Employee     → /employees/settings
+  //   Recruitment  → /recruitment/settings
+  //   Performance  → /performance/settings
+  //   Company      → /company/settings
 ];
 
 /* ──────────────────────────────────────────────
@@ -1155,7 +1158,7 @@ function SettingsContent() {
   // Read tab from URL query parameter
   const tabFromUrl = searchParams.get('tab') as TabKey | null;
   const navItems = allNavItems;
-  const validTabs: TabKey[] = ['general', 'payroll', 'leave', 'attendance', 'employee', 'recruitment', 'performance', 'company', 'roles', 'notifications', 'smtp', 'import'];
+  const validTabs: TabKey[] = ['general', 'roles', 'notifications', 'smtp', 'import'];
   const defaultTab = (tabFromUrl && validTabs.includes(tabFromUrl)) ? tabFromUrl : 'general';
 
   const [activeTab, setActiveTab] = useState<TabKey>(defaultTab);
@@ -1599,143 +1602,17 @@ function SettingsContent() {
             </div>
           )}
 
-          {/* Payroll Tab */}
-          {activeTab === 'payroll' && (
-            <div className="space-y-2">
-              <div className="mb-4">
-                <h2 className="text-lg font-semibold text-thb-text-primary flex items-center gap-2">
-                  <FiDollarSign className="w-5 h-5 text-emerald-500" />
-                  Payroll Settings
-                </h2>
-                <p className="text-xs text-thb-text-muted mt-0.5">Configure payroll processing, tax, and calculation rules</p>
-              </div>
-              {renderModuleSections(payrollSections)}
-            </div>
-          )}
-
-          {/* Leave Tab */}
-          {activeTab === 'leave' && (
-            <div className="space-y-2">
-              <div className="mb-4">
-                <h2 className="text-lg font-semibold text-thb-text-primary flex items-center gap-2">
-                  <FiCalendar className="w-5 h-5 text-green-500" />
-                  Leave Settings
-                </h2>
-                <p className="text-xs text-thb-text-muted mt-0.5">Manage leave policies, carry forward rules, and special leaves</p>
-              </div>
-              {renderModuleSections(leaveSections)}
-            </div>
-          )}
-
-          {/* Attendance Tab */}
-          {activeTab === 'attendance' && (
-            <div className="space-y-2">
-              <div className="mb-4">
-                <h2 className="text-lg font-semibold text-thb-text-primary flex items-center gap-2">
-                  <FiClock className="w-5 h-5 text-orange-500" />
-                  Attendance Settings
-                </h2>
-                <p className="text-xs text-thb-text-muted mt-0.5">Define work hours, attendance thresholds, and geofencing rules</p>
-              </div>
-              {renderModuleSections(attendanceSections)}
-            </div>
-          )}
-
-          {/* Employee Tab */}
-          {activeTab === 'employee' && (
-            <div className="space-y-2">
-              <div className="mb-4">
-                <h2 className="text-lg font-semibold text-thb-text-primary flex items-center gap-2">
-                  <FiUsers className="w-5 h-5 text-emerald-500" />
-                  Employee Settings
-                </h2>
-                <p className="text-xs text-thb-text-muted mt-0.5">Configure employee code generation, probation, and access policies</p>
-              </div>
-              {renderModuleSections(employeeSections)}
-            </div>
-          )}
-
-          {/* Recruitment Tab */}
-          {activeTab === 'recruitment' && (
-            <div className="space-y-2">
-              <div className="mb-4">
-                <h2 className="text-lg font-semibold text-thb-text-primary flex items-center gap-2">
-                  <FiBriefcase className="w-5 h-5 text-amber-500" />
-                  Recruitment Settings
-                </h2>
-                <p className="text-xs text-thb-text-muted mt-0.5">Configure hiring pipeline, offer letters, and application defaults</p>
-              </div>
-              {renderModuleSections(recruitmentSections)}
-            </div>
-          )}
-
-          {/* Performance Tab */}
-          {activeTab === 'performance' && (
-            <div className="space-y-2">
-              <div className="mb-4">
-                <h2 className="text-lg font-semibold text-thb-text-primary flex items-center gap-2">
-                  <FiTrendingUp className="w-5 h-5 text-teal-500" />
-                  Performance Settings
-                </h2>
-                <p className="text-xs text-thb-text-muted mt-0.5">Configure review cycles, appraisal methods, and feedback settings</p>
-              </div>
-              {renderModuleSections(performanceSections)}
-            </div>
-          )}
-
-          {/* Company Tab */}
-          {activeTab === 'company' && (
-            <div className="space-y-4">
-              <div className="thb-card">
-                <div className="p-6">
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-500">
-                      <FiDatabase className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <h2 className="text-lg font-semibold text-thb-text-primary">Company Information</h2>
-                      <p className="text-xs text-thb-text-muted">Current tenant configuration</p>
-                    </div>
-                  </div>
-
-                  {tenant ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                      <div>
-                        <label className="block text-xs font-medium text-thb-text-secondary mb-1">Company Name</label>
-                        <p className="px-3 py-2.5 text-sm text-thb-text-primary bg-slate-50 rounded-lg border border-thb-border/50">{tenant.name || 'Your Organization'}</p>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-thb-text-secondary mb-1">Slug</label>
-                        <p className="px-3 py-2.5 text-sm text-thb-text-primary bg-slate-50 rounded-lg border border-thb-border/50 font-mono">{tenant.slug}</p>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-thb-text-secondary mb-1">Domain</label>
-                        <p className="px-3 py-2.5 text-sm text-thb-text-primary bg-slate-50 rounded-lg border border-thb-border/50">{tenant.domain || '—'}</p>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-thb-text-secondary mb-1">Plan</label>
-                        <p className="px-3 py-2.5 text-sm text-thb-text-primary bg-slate-50 rounded-lg border border-thb-border/50 capitalize">{tenant.plan}</p>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-thb-text-secondary mb-1">Status</label>
-                        <span className={`thb-badge ${tenant.status === 'active' ? 'thb-badge-success' : 'thb-badge-warning'}`}>{tenant.status}</span>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-thb-text-secondary mb-1">Country</label>
-                        <p className="px-3 py-2.5 text-sm text-thb-text-primary bg-slate-50 rounded-lg border border-thb-border/50">{tenant.country || '—'}</p>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="text-center py-8">
-                      <FiDatabase className="w-10 h-10 text-thb-text-muted mx-auto mb-3" />
-                      <p className="text-thb-text-secondary font-medium">No tenant information available</p>
-                      <p className="text-sm text-thb-text-muted mt-1">Tenant data will appear once configured</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
+          {/* ─── Module-specific tabs (Payroll / Leave / Attendance / Employee /
+                Recruitment / Performance / Company) were MOVED to their
+                respective module settings pages in Task 56 to avoid
+                duplication. Visit:
+                  /payroll/settings      for Payroll config
+                  /leave/settings        for Leave config
+                  /attendance/settings   for Attendance config
+                  /employees/settings    for Employee config
+                  /recruitment/settings  for Recruitment config
+                  /performance/settings  for Performance config
+                  /company/settings      for Company / Tenant info ─── */}
 
           {/* Roles & Permissions Tab */}
           {activeTab === 'roles' && (

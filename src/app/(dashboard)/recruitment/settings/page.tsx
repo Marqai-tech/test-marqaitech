@@ -6,6 +6,7 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import ModuleSettingsPanel, { recruitmentSections } from '@/components/ModuleSettingsPanel';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -127,6 +128,8 @@ export default function RecruitmentSettingsPage() {
             <p className="text-sm text-thb-text-secondary">Loading settings...</p>
           </div>
         </div>
+        {/* General Recruitment Settings — migrated from /settings > Recruitment tab in Task 56 */}
+        <ModuleSettingsPanel sections={recruitmentSections} />
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {Array.from({ length: 2 }).map((_, i) => (
             <div key={i} className="thb-card p-6 animate-pulse space-y-4">
@@ -174,6 +177,9 @@ export default function RecruitmentSettingsPage() {
           )}
         </div>
       </div>
+
+      {/* General Recruitment Settings — migrated from /settings > Recruitment tab in Task 56 */}
+      <ModuleSettingsPanel sections={recruitmentSections} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Job Posting Defaults */}

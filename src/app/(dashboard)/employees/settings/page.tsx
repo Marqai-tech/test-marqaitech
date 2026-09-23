@@ -12,6 +12,7 @@ import {
 import toast from 'react-hot-toast'
 import { useAuthStore } from '@/store/authStore'
 import { useCompanyContextStore } from '@/store/companyContextStore'
+import ModuleSettingsPanel, { employeeSections } from '@/components/ModuleSettingsPanel'
 
 /* ── Types ── */
 interface EmployeeCredential {
@@ -1038,6 +1039,9 @@ export default function EmployeeSettingsPage() {
           ))}
         </div>
       </div>
+
+      {/* General Employee Settings — migrated from /settings > Employee tab in Task 56 */}
+      <ModuleSettingsPanel sections={employeeSections} />
 
       {/* ═══ CREDENTIALS TAB ═══ */}
       {activeTab === 'credentials' && (

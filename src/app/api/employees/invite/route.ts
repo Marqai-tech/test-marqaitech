@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { hashPassword, getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { getDataScope } from '@/lib/roleAccess';
-import { sendEmail } from '@/lib/email';
+import { sendTenantEmail } from '@/lib/notification-channels';
 
 function corsHeaders() {
   return {
@@ -274,7 +274,7 @@ export async function POST(request: Request) {
           adminName: admin.name,
         });
 
-        const emailResult = await sendEmail({
+        const emailResult = await sendTenantEmail(db, admin.tenantId!, {
           to: emp.email,
           subject: `You're invited to join ${admin.tenant?.name || '3Boxes HRMS'} HRMS`,
           html: emailHtml,
@@ -293,7 +293,7 @@ export async function POST(request: Request) {
 
         console.log(
           `[INVITE] Invite ${emailResult.success ? 'sent' : 'failed'} for ${emp.email} (tenant: ${admin.tenant?.name})` +
-          `${emailResult.usedFallbackFrom ? ' [FALLBACK FROM — sandbox sender used]' : ''}`,
+          `${emailResult.usedFallback ? ' [TENANT SMTP FAILED — fell back to global Resend sender]' : ''}`,
         );
 
         const resultEntry: (typeof results)[number] = {
@@ -306,12 +306,18 @@ export async function POST(request: Request) {
           error: emailResult.error,
         };
 
-        // If the email was sent using the Resend sandbox fallback, flag it
-        // so the UI can warn the admin that the employee likely didn't receive it.
-        if (emailResult.usedFallbackFrom) {
+        // If the tenant SMTP config failed and the email fell back to the
+        // global Resend sender, flag it so the UI can warn the admin.
+        // (After Task 52, the tenant has real webhostbox SMTP configured —
+        // this fallback path is rare, but if it triggers, the email may
+        // end up in the Resend sandbox which only delivers to the Resend
+        // account holder.)
+        if (emailResult.usedFallback) {
           resultEntry.usedFallbackFrom = true;
-          resultEntry.emailWarning = emailResult.sandboxWarning
-            || 'Email was sent via Resend sandbox and was likely only delivered to the Resend account holder — not to this employee. Verify your sending domain at https://resend.com/domains and set RESEND_FROM_EMAIL.';
+          resultEntry.emailWarning =
+            'Tenant SMTP failed and the email was sent via the global fallback sender. ' +
+            'If the global sender is the Resend sandbox, the email was likely only delivered to the Resend ' +
+            'account holder — not to this employee. Verify the tenant SMTP config at /settings → SMTP Email.';
         }
 
         results.push(resultEntry);
@@ -351,12 +357,12 @@ export async function POST(request: Request) {
     // so the UI can display a prominent notice to the administrator.
     if (fallbackCount > 0) {
       response.adminWarning =
-        `${fallbackCount} invite email(s) were sent via the Resend sandbox sender (onboarding@resend.dev) ` +
-        `because your configured FROM domain is not verified. Sandbox emails can ONLY be delivered to the ` +
-        `email address registered with your Resend account — the intended employees did NOT receive them. ` +
-        `To fix this: (1) Verify your sending domain at https://resend.com/domains, ` +
-        `(2) Set the RESEND_FROM_EMAIL environment variable to an address on your verified domain, ` +
-        `(3) Redeploy your application.`;
+        `${fallbackCount} invite email(s) could not be sent via the tenant's configured SMTP server ` +
+        `and fell back to the global Resend sender. If the global sender is the Resend sandbox, these emails were ` +
+        `only delivered to the Resend account holder — not to the intended employees. ` +
+        `To fix this: verify the tenant SMTP configuration at /settings → SMTP Email tab ` +
+        `(host, port, username, password, encryption), then use the "Test Connection" button to confirm ` +
+        `Vercel can reach the SMTP server.`;
     }
 
     return NextResponse.json(response, { headers: corsHeaders() });

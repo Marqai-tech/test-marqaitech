@@ -354,6 +354,9 @@ export const navSections: NavSection[] = [
       { label: 'Gratuity', href: '/payroll/gratuity', icon: <FiDollarSign className="w-4 h-4" />, moduleKey: 'payroll', roles: ['super_admin', 'tenant_admin', 'admin'] },
       { label: 'Currency & FX', href: '/payroll/currency', icon: <FiGlobe className="w-4 h-4" />, moduleKey: 'payroll', roles: ['super_admin', 'tenant_admin', 'admin'] },
 
+      // ── Payroll Settings (admin only) ──
+      { label: 'Payroll Settings', href: '/payroll/settings', icon: <FiSettings className="w-4 h-4" />, moduleKey: 'payroll', roles: ['super_admin', 'tenant_admin', 'admin'], isNew: true },
+
       // ── Payroll Transactions ──
       { label: 'Payroll Transactions', href: '#transactions-divider', icon: <FiEdit3 className="w-3.5 h-3.5" />, moduleKey: 'payroll', roles: ['super_admin', 'tenant_admin', 'admin', 'manager'], isDivider: true },
       { label: 'Employee Salary Type', href: '/payroll/salary-settings', icon: <FiEdit3 className="w-4 h-4" />, moduleKey: 'payroll', roles: ['super_admin', 'tenant_admin', 'admin'] },
@@ -744,6 +747,7 @@ export const navSections: NavSection[] = [
       // ── Settings ──
       { label: 'Settings', href: '#settings-divider', icon: <FiSettings className="w-3.5 h-3.5" />, moduleKey: 'company', isDivider: true },
       { label: 'External Settings', href: '/clients/settings', icon: <FiSettings className="w-4 h-4" />, moduleKey: 'company', isNew: true },
+      { label: 'Company Settings', href: '/company/settings', icon: <FiDatabase className="w-4 h-4" />, moduleKey: 'company', roles: ['super_admin', 'tenant_admin', 'admin'], isNew: true },
 
       // ── Reports ──
       { label: 'Reports', href: '#reports-divider', icon: <FiFileText className="w-3.5 h-3.5" />, moduleKey: 'company', isDivider: true },
