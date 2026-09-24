@@ -125,6 +125,10 @@ export default function ResignationPage() {
   const validate = (): string | null => {
     if (!form.resignationDate) return 'Resignation Date is required';
     if (!form.lastWorkingDate) return 'Last Working Date is required';
+    // Task 65 FIX: Last Working Date must NOT be earlier than Resignation Date
+    if (form.lastWorkingDate < form.resignationDate) {
+      return `Last Working Date (${form.lastWorkingDate}) cannot be earlier than the Resignation Date (${form.resignationDate}). Please correct the date.`;
+    }
     if (!form.reasonCategory) return 'Reason Category is required';
     if (!form.detailedReason.trim() || form.detailedReason.trim().length < 20) return 'Detailed reason must be at least 20 characters';
     if (form.isNoticePeriodWaived && !form.waiverReason.trim()) return 'Waiver reason is required when notice period is waived';

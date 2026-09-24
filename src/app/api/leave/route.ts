@@ -659,6 +659,24 @@ export async function POST(request: Request) {
       details: `Created leave request for employee ${employeeId}`,
     });
 
+    // ─── Task 65: notify the employee when HR applies leave on their behalf ───
+    // If the submitter (scope.userId) is different from the employee's linked
+    // user (targetEmployee.userId), this is a proxy leave application. The
+    // employee must receive a notification with the leave details.
+    if (targetEmployee.userId && targetEmployee.userId !== scope.userId) {
+      try {
+        await createNotification({
+          tenantId: scope.tenantId,
+          userId: targetEmployee.userId,
+          title: 'Leave Applied on Your Behalf',
+          message: `A ${leaveRequest.leaveType?.name || 'leave'} request has been submitted on your behalf by HR/Admin. Leave dates: ${new Date(leaveRequest.startDate).toLocaleDateString()} to ${new Date(leaveRequest.endDate).toLocaleDateString()}. Status: ${leaveRequest.status}. You can view the details in the Leave module.`,
+          type: 'info',
+          category: 'leave',
+          link: `/leave/${leaveRequest.id}`,
+        });
+      } catch { /* non-critical */ }
+    }
+
     return NextResponse.json(
       {
         leaveRequest,

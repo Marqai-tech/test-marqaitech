@@ -281,7 +281,10 @@ export function validatePhone(value: string): { valid: boolean; error?: string; 
 export function validateName(value: string, field = 'Name'): { valid: boolean; error?: string } {
   if (!value || !value.trim()) return { valid: false, error: `${field} is required` };
   const trimmed = value.trim();
-  if (trimmed.length < 2) return { valid: false, error: `${field} must be at least 2 characters` };
+  // Task 65 FIX: allow single-character names (was min 2 chars — blocked
+  // valid names like "Y", "O", "E", etc. which are real last names in
+  // some cultures, e.g., Chinese/Vietnamese single-syllable romanized names).
+  if (trimmed.length < 1) return { valid: false, error: `${field} is required` };
   if (trimmed.length > 100) return { valid: false, error: `${field} is too long (max 100 characters)` };
   // Allow letters, spaces, hyphens, apostrophes, dots (for names like O'Brien, J. Smith, etc.)
   if (!/^[a-zA-Z\s\-'.]+$/.test(trimmed)) return { valid: false, error: `${field} can only contain letters, spaces, hyphens, and apostrophes` };

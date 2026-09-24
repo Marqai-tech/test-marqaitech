@@ -200,6 +200,26 @@ export async function POST(request: Request) {
       );
     }
 
+    // ─── Task 65: Server-side Last Working Date validation ───
+    // Last Working Date must NOT be earlier than Resignation Date
+    if (lastWorkingDate && resignationDate) {
+      const lwd = new Date(lastWorkingDate);
+      const rd = new Date(resignationDate);
+      if (lwd < rd) {
+        return NextResponse.json(
+          { error: `Last Working Date (${lastWorkingDate}) cannot be earlier than the Resignation Date (${resignationDate}).` },
+          { status: 400, headers: corsHeaders() }
+        );
+      }
+    }
+
+    // ─── Task 65: Sanitize free-text fields to prevent script injection ───
+    const { sanitizeMultiLineText } = await import('@/lib/sanitize');
+    const cleanDetailedReason = sanitizeMultiLineText(detailedReason, 5000);
+    const cleanWaiverReason = sanitizeMultiLineText(waiverReason, 2000);
+    const cleanHandoverPlan = sanitizeMultiLineText(handoverPlan, 5000);
+    const cleanPendingTasks = sanitizeMultiLineText(pendingTasks, 5000);
+
     // ─── Inline schema-sync for Resignation table ───
     try {
       const syncStatements = [
@@ -234,12 +254,12 @@ export async function POST(request: Request) {
         resignationDate ? new Date(resignationDate) : null,
         lastWorkingDate ? new Date(lastWorkingDate) : null,
         reasonCategory || null,
-        detailedReason || null,
+        cleanDetailedReason || null,
         Number(noticePeriodDays) || 0,
         Boolean(isNoticePeriodWaived),
-        waiverReason || null,
-        handoverPlan || null,
-        pendingTasks || null,
+        cleanWaiverReason || null,
+        cleanHandoverPlan || null,
+        cleanPendingTasks || null,
         submittedById,
       );
     } catch (insertErr) {

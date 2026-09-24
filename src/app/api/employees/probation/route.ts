@@ -251,6 +251,45 @@ export async function POST(request: Request) {
       );
     }
 
+    // ─── Task 65 BUG FIX: prevent duplicate probation reviews ───
+    // Check if an active (non-archived) probation review already exists for
+    // this employee. If so, reject with a clear validation message.
+    const existingReview = await db.performanceReview.findFirst({
+      where: {
+        employeeId,
+        reviewCycle: 'Probation',
+        status: { in: ['pending', 'approved', 'active'] }, // NOT rejected/archived
+      },
+      select: { id: true, status: true, createdAt: true },
+    }).catch(() => null);
+    if (existingReview) {
+      return NextResponse.json(
+        { error: `An active probation review already exists for this employee (status: ${existingReview.status}, created: ${new Date(existingReview.createdAt).toLocaleDateString()}). Please resolve or archive the existing review before submitting a new one.` },
+        { status: 409, headers: corsHeaders() }
+      );
+    }
+
+    // ─── Task 65 BUG FIX: block normal review for confirmed employees ───
+    // If the employee's status is 'confirmed' (probation completed), they
+    // should not be eligible for another normal probation review.
+    const employee = await db.employee.findUnique({
+      where: { id: employeeId },
+      select: { id: true, employeeStatus: true, status: true, firstName: true, lastName: true },
+    }).catch(() => null);
+    if (employee) {
+      const empStatus = employee.employeeStatus || employee.status;
+      if (empStatus === 'confirmed' && decision !== 'extend' && decision !== 'terminate') {
+        return NextResponse.json(
+          { error: `${employee.firstName} ${employee.lastName} has already completed probation (status: confirmed). A normal probation review cannot be submitted for confirmed employees. Use "Extend" or "Terminate" if you need to take action.` },
+          { status: 400, headers: corsHeaders() }
+        );
+      }
+    }
+
+    // ─── Task 65: sanitize free-text fields (reviewComments, etc.) ───
+    const { sanitizeMultiLineText } = await import('@/lib/sanitize');
+    const cleanReviewComments = sanitizeMultiLineText(reviewComments, 5000);
+
     // ─── Inline schema-sync for PerformanceReview table ───
     try {
       const syncStatements = [
@@ -269,7 +308,7 @@ export async function POST(request: Request) {
       probationPeriod,
       extensionPeriod: extensionPeriod || 0,
       performanceRating: performanceRating || 0,
-      reviewComments: reviewComments || '',
+      reviewComments: cleanReviewComments || '',
       kpiStatus: kpiStatus || 'pending',
       decision: decision || 'pending',
       effectiveDate: effectiveDate || null,
@@ -316,6 +355,68 @@ export async function POST(request: Request) {
           details: `Created probation review for ${(review as any).employee?.firstName} ${(review as any).employee?.lastName} - Decision: ${decision}`,
         },
       });
+    } catch { /* non-critical */ }
+
+    // ─── Task 65 FIX: update Employee status when terminated via probation ───
+    // When an employee is marked as Terminated through the probation review,
+    // the employee's status should be updated to 'terminated' consistently
+    // across the system (Employee List, Dashboard, etc.).
+    if (decision === 'terminate' && employee) {
+      try {
+        await db.employee.update({
+          where: { id: employeeId },
+          data: { status: 'terminated', employeeStatus: 'terminated' },
+        });
+        console.log(`[Probation POST] Employee ${employeeId} status updated to 'terminated' via probation review`);
+      } catch (statusErr) {
+        console.warn('[Probation POST] Failed to update employee status to terminated:', statusErr);
+      }
+    }
+
+    // ─── Task 65: send notifications based on decision ───
+    // Probation Review Submitted → notify Employee + HR
+    // (For extend/terminate/confirm, the [id] route handles the follow-up
+    // notifications to MD/Employee. Here we just notify that the review
+    // was submitted.)
+    try {
+      const { createNotification } = await import('@/lib/notifications');
+      const { dispatchNotification, resolveRoleRecipients } = await import('@/lib/notification-center');
+      const empName = `${(review as any).employee?.firstName || ''} ${(review as any).employee?.lastName || ''}`.trim();
+      const tenantId = (decoded as any).tenantId as string;
+
+      // Notify the employee
+      if (employee && employee.id) {
+        // Get employee.userId for notification
+        const empUser = await db.employee.findUnique({
+          where: { id: employeeId },
+          select: { userId: true },
+        }).catch(() => null);
+        if (empUser?.userId) {
+          await createNotification({
+            tenantId,
+            userId: empUser.userId,
+            title: 'Probation Review Submitted',
+            message: `Your probation review has been submitted. Decision: ${decision || 'pending'}. HR will review and process it shortly.`,
+            type: 'info',
+            category: 'employees',
+            link: '/employees/probation',
+          }).catch(() => null);
+        }
+      }
+
+      // Notify HR admins
+      const hrRecipients = await resolveRoleRecipients(db, tenantId, ['admin', 'hr_admin', 'tenant_admin']);
+      for (const r of hrRecipients) {
+        await createNotification({
+          tenantId,
+          userId: r.userId,
+          title: 'Probation Review Submitted',
+          message: `A probation review has been submitted for ${empName}. Decision: ${decision || 'pending'}. Please review.`,
+          type: 'info',
+          category: 'employees',
+          link: '/employees/probation',
+        }).catch(() => null);
+      }
     } catch { /* non-critical */ }
 
     return NextResponse.json(

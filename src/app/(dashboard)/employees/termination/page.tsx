@@ -181,6 +181,10 @@ export default function TerminationPage() {
     if (!form.terminationType) return 'Termination Type is required';
     if (!form.terminationDate) return 'Termination Date is required';
     if (!form.lastWorkingDate) return 'Last Working Date is required';
+    // Task 65 FIX: Last Working Date must NOT be earlier than Termination Date
+    if (form.lastWorkingDate < form.terminationDate) {
+      return `Last Working Date (${form.lastWorkingDate}) cannot be earlier than the Termination Date (${form.terminationDate}). Please correct the date.`;
+    }
     if (!form.reasonCategory) return 'Reason Category is required';
     if (!form.detailedReason.trim() || form.detailedReason.trim().length < 20) return 'Detailed reason must be at least 20 characters';
     return null;

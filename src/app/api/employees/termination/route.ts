@@ -178,6 +178,24 @@ export async function POST(request: Request) {
       );
     }
 
+    // ─── Task 65: Server-side Last Working Date validation ───
+    // Last Working Date must NOT be earlier than Termination Date
+    if (lastWorkingDate && terminationDate) {
+      const lwd = new Date(lastWorkingDate);
+      const td = new Date(terminationDate);
+      if (lwd < td) {
+        return NextResponse.json(
+          { error: `Last Working Date (${lastWorkingDate}) cannot be earlier than the Termination Date (${terminationDate}).` },
+          { status: 400, headers: corsHeaders() }
+        );
+      }
+    }
+
+    // ─── Task 65: Sanitize free-text fields to prevent script injection ───
+    const { sanitizeMultiLineText } = await import('@/lib/sanitize');
+    const cleanDetailedReason = sanitizeMultiLineText(detailedReason, 5000);
+    const cleanAssetsToReturn = sanitizeMultiLineText(assetsToReturn, 500);
+
     // ─── Inline schema-sync for Termination table ───
     try {
       const syncStatements = [
@@ -250,8 +268,8 @@ export async function POST(request: Request) {
         lastWorkingDate ? new Date(lastWorkingDate) : null,
         Boolean(noticePeriodServed),
         reasonCategory || null,
-        detailedReason || null,
-        assetsToReturn || null,
+        cleanDetailedReason || null,
+        cleanAssetsToReturn || null,
         Boolean(finalSettlementRequired),
         submittedById,
       );
