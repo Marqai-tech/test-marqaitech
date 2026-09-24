@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, Suspense } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   FiCalendar, FiPlus, FiCheck, FiX, FiClock,
   FiMessageSquare, FiAlertCircle, FiGrid, FiFileText, FiEye,
@@ -123,8 +123,14 @@ const initialForm = {
 /* ── Component ── */
 function LeavePageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user } = useAuthStore();
   const isAdmin = ['super_admin', 'tenant_admin', 'admin', 'hr_admin'].includes(user?.role || '');
+
+  // Task 66: read URL params for auto-open form + self-view filtering
+  const actionParam = searchParams.get('action'); // 'apply' → auto-open the form
+  const viewParam = searchParams.get('view'); // 'self' → show only MY applications (even for admins)
+
   // Bug fix: a non-admin user can still be the assigned workflow approver for
   // a pending leave request (currentApproverId === user.id). They need to see
   // the Approve/Reject buttons in their own leave list — otherwise they only
@@ -208,7 +214,10 @@ function LeavePageContent() {
       setLoading(true);
       const headers = getAuthHeaders();
       const sq = scopeQuery();
-      const leaveRes = await fetch(`/api/leave?limit=100${sq ? `&${sq}` : ''}`, { headers });
+      // Task 66: when view=self, add &view=self to the API call so the server
+      // returns only the current user's own leave applications (even for admins).
+      const viewParamStr = viewParam === 'self' ? '&view=self' : '';
+      const leaveRes = await fetch(`/api/leave?limit=100${sq ? `&${sq}` : ''}${viewParamStr}`, { headers });
       if (leaveRes.ok) {
         const data = await leaveRes.json();
         setLeaveRequests(data.leaveRequests || []);
@@ -266,9 +275,16 @@ function LeavePageContent() {
     } finally {
       setLoading(false);
     }
-  }, [user?.email, scopeQuery, selectedTenantId]);
+  }, [user?.email, scopeQuery, selectedTenantId, viewParam]);
 
   useEffect(() => { queueMicrotask(() => fetchData()); }, [fetchData]);
+
+  // Task 66: auto-open the Apply Leave form when ?action=apply is in the URL
+  useEffect(() => {
+    if (actionParam === 'apply') {
+      setShowForm(true);
+    }
+  }, [actionParam]);
 
   /* Holiday overlay */
   useEffect(() => {
@@ -533,13 +549,13 @@ function LeavePageContent() {
       {/* Breadcrumb Header - SmartHR Style */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-slate-900 mb-1">Leaves</h2>
+          <h2 className="text-xl font-bold text-slate-900 mb-1">{viewParam === 'self' ? 'My Leave Applications' : 'Leaves'}</h2>
           <nav className="flex items-center gap-1.5 text-sm text-slate-500">
             <button onClick={() => router.push('/')} className="hover:text-green-600 transition-colors">Home</button>
             <span>/</span>
             <button onClick={() => router.push('/leave')} className="hover:text-green-600 transition-colors">Leave</button>
             <span>/</span>
-            <span className="text-slate-700 font-medium">Leaves Admin</span>
+            <span className="text-slate-700 font-medium">{viewParam === 'self' ? 'My Applications' : 'Leaves Admin'}</span>
           </nav>
         </div>
         <div className="flex items-center gap-2">

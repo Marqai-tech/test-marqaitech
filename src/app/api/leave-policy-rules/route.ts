@@ -134,19 +134,40 @@ export async function PUT(req: NextRequest) {
       updateData.leaveTypeAllocations = JSON.stringify(updateData.leaveTypeAllocations);
     }
 
+    // Task 66 FIX: strip undefined values from updateData (Prisma throws on
+    // undefined for optional fields). Also strip null values for relation
+    // fields that might cause FK violations.
+    const cleanData: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(updateData)) {
+      if (value !== undefined) {
+        cleanData[key] = value;
+      }
+    }
+
     const rule = await db.leavePolicyRule.update({
       where: { id },
-      data: updateData,
+      data: cleanData,
       include: {
         branch: { select: { id: true, name: true } },
         department: { select: { id: true, name: true } },
       },
+    }).catch((updateErr: any) => {
+      console.error('[LeavePolicyRules PUT] Prisma update failed:', updateErr?.message || updateErr);
+      // Check for common Prisma errors
+      if (updateErr?.code === 'P2025') {
+        throw new Error('Leave policy rule not found. It may have been deleted. Please refresh the page and try again.');
+      }
+      if (updateErr?.code === 'P2002') {
+        throw new Error('A rule with this name already exists. Please use a unique name.');
+      }
+      throw new Error(`Failed to update: ${updateErr?.message || 'Unknown Prisma error'}`);
     });
 
     return NextResponse.json({ rule }, { headers: corsHeaders() });
   } catch (error) {
     console.error('Leave policy rules PUT error:', error);
-    return NextResponse.json({ error: 'Failed to update leave policy rule' }, { status: 500, headers: corsHeaders() });
+    const msg = error instanceof Error ? error.message : 'Failed to update leave policy rule';
+    return NextResponse.json({ error: msg }, { status: 500, headers: corsHeaders() });
   }
 }
 

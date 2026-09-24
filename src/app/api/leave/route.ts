@@ -93,8 +93,16 @@ export async function GET(request: Request) {
 
     const where: Record<string, unknown> = {};
 
+    // ─── Task 66: view=self param overrides scope to 'self' for admins ───
+    // When an admin clicks "My Leave Applications" in the sidebar, the URL
+    // is /leave?view=self. The client passes view=self to the API. Here we
+    // check for it and force the self-scope lookup even for admin roles,
+    // so the admin sees only THEIR OWN leave applications (not all employees').
+    const viewSelf = searchParams.get('view') === 'self';
+    const effectiveScope = viewSelf ? 'self' : scope.scope;
+
     // ─── Company-scoped data visibility ───
-    if (scope.scope === 'self') {
+    if (effectiveScope === 'self') {
       // Employees can only see their own leave requests
       const employee = await db.employee.findFirst({
         where: { userId: scope.userId, status: 'active' },
