@@ -20,7 +20,6 @@ import {
   FiMenu,
   FiBriefcase,
   FiTrendingUp,
-  FiUpload,
   FiMail,
   FiSend,
   FiCheckCircle,
@@ -33,7 +32,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
 import ModuleTips from '@/components/ModuleTips';
 import ModuleWorkflow from '@/components/ModuleWorkflow';
-import BulkImportTab from '@/components/BulkImportTab';
+// BulkImportTab was moved to /employees/bulk-import in Task 60 (no longer used here)
 
 /* ──────────────────────────────────────────────
    Types
@@ -1110,7 +1109,7 @@ function SmtpConfigTab() {
 /* ──────────────────────────────────────────────
    Sidebar Navigation Item
    ────────────────────────────────────────────── */
-type TabKey = 'general' | 'roles' | 'notifications' | 'smtp' | 'import';
+type TabKey = 'general' | 'roles' | 'notifications' | 'smtp';
 
 interface NavItem {
   key: TabKey;
@@ -1123,7 +1122,6 @@ const allNavItems: NavItem[] = [
   { key: 'roles', label: 'Roles & Permissions', icon: <FiShield className="w-4 h-4" /> },
   { key: 'notifications', label: 'Notifications', icon: <FiBell className="w-4 h-4" /> },
   { key: 'smtp', label: 'SMTP Email', icon: <FiMail className="w-4 h-4" /> },
-  { key: 'import', label: 'Bulk Import', icon: <FiUpload className="w-4 h-4" /> },
   // ─── Module-specific tabs (Payroll / Leave / Attendance / Employee /
   //     Recruitment / Performance / Company) were MOVED to their respective
   //     module settings pages in Task 56 to avoid duplication. ───
@@ -1134,6 +1132,9 @@ const allNavItems: NavItem[] = [
   //   Recruitment  → /recruitment/settings
   //   Performance  → /performance/settings
   //   Company      → /company/settings
+  // ─── Bulk Import was MOVED to /employees/bulk-import in Task 60 (it's
+  //     employee-data-centric — imports employees, designations, departments,
+  //     branches, etc. — so it belongs under the Employee module). ───
 ];
 
 /* ──────────────────────────────────────────────
@@ -1158,7 +1159,7 @@ function SettingsContent() {
   // Read tab from URL query parameter
   const tabFromUrl = searchParams.get('tab') as TabKey | null;
   const navItems = allNavItems;
-  const validTabs: TabKey[] = ['general', 'roles', 'notifications', 'smtp', 'import'];
+  const validTabs: TabKey[] = ['general', 'roles', 'notifications', 'smtp'];
   const defaultTab = (tabFromUrl && validTabs.includes(tabFromUrl)) ? tabFromUrl : 'general';
 
   const [activeTab, setActiveTab] = useState<TabKey>(defaultTab);
@@ -1167,6 +1168,12 @@ function SettingsContent() {
   // Sync activeTab with URL search params ONLY when URL actually changes
   useEffect(() => {
     const tabFromUrlUpdate = searchParams.get('tab') as TabKey | null;
+    // Task 60: redirect old /settings?tab=import URLs to the new
+    // /employees/bulk-import page (Bulk Import was moved out of Governance).
+    if (tabFromUrlUpdate === 'import' as any) {
+      router.replace('/employees/bulk-import');
+      return;
+    }
     if (tabFromUrlUpdate && validTabs.includes(tabFromUrlUpdate)) {
       setActiveTab(tabFromUrlUpdate);
     }
@@ -1676,19 +1683,9 @@ function SettingsContent() {
           {/* SMTP Email Configuration Tab */}
           {activeTab === 'smtp' && <SmtpConfigTab />}
 
-          {/* Bulk Import Tab */}
-          {activeTab === 'import' && (
-            <div className="space-y-2">
-              <div className="mb-4">
-                <h2 className="text-lg font-semibold text-thb-text-primary flex items-center gap-2">
-                  <FiUpload className="w-5 h-5 text-green-500" />
-                  Bulk Import
-                </h2>
-                <p className="text-xs text-thb-text-muted mt-0.5">Upload Excel sheets to import master data for initial setup</p>
-              </div>
-              <BulkImportTab module="employees" />
-            </div>
-          )}
+          {/* ─── Bulk Import tab was MOVED to /employees/bulk-import in Task 60.
+              Visit https://.../employees/bulk-import for the importer UI.
+              Old /settings?tab=import URLs auto-redirect there. ─── */}
 
           {activeTab === 'notifications' && (
             <div className="space-y-4">
