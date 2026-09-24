@@ -45,7 +45,7 @@ export default function DepartmentsPage() {
   )
 
   const getDefaultForm = (): Record<string, string> => ({
-    name: '', code: '', companyId: companies[0]?.id || '', status: 'active'
+    name: '', code: '', companyId: companies.find(c => c.status === 'active' || c.status === undefined)?.id || companies[0]?.id || '', status: 'active'
   })
 
   const getFormFromRecord = (r: DepartmentRecord): Record<string, string> => {
@@ -65,6 +65,12 @@ export default function DepartmentsPage() {
     // Duplicate name/code check within same company
     const isEdit = !!editingId
     if (form.companyId) {
+      // Task 63: reject selection of inactive company
+      const selectedCompany = companies.find(c => c.id === form.companyId)
+      if (selectedCompany && selectedCompany.status === 'inactive') {
+        toast.error(`Cannot add a department to inactive company "${selectedCompany.name}". Please re-activate the company first.`)
+        return
+      }
       const duplicateName = departments.find(d => d.name.toLowerCase() === form.name.toLowerCase() && d.companyId === form.companyId && d.id !== editingId)
       if (duplicateName) { toast.error('A department with this name already exists for this company'); return }
       if (form.code) {
@@ -177,7 +183,7 @@ export default function DepartmentsPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Name <span className="text-red-500 font-bold">*</span></label><input type="text" value={form.name || ''} onChange={e => updateForm('name', e.target.value)} required className={inputClass} placeholder="Department name" /></div>
                 <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Code</label><input type="text" value={form.code || ''} onChange={e => updateForm('code', onlyAlphanumeric(e.target.value))} className={inputClass} placeholder="e.g. ENG" /></div>
-                <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Company <span className="text-red-500 font-bold">*</span></label><select value={form.companyId || ''} onChange={e => updateForm('companyId', e.target.value)} required className={inputClass}><option value="">Select Company</option>{companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
+                <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Company <span className="text-red-500 font-bold">*</span></label><select value={form.companyId || ''} onChange={e => updateForm('companyId', e.target.value)} required className={inputClass}><option value="">Select Company</option>{companies.filter(c => c.status === 'active' || c.status === undefined).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}{companies.some(c => c.status === 'inactive') && <optgroup label="— Inactive (re-activate to use) —">{companies.filter(c => c.status === 'inactive').map(c => <option key={c.id} value={c.id} disabled>{c.name} (Inactive)</option>)}</optgroup>}</select></div>
                 <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Status</label><select value={form.status || 'active'} onChange={e => updateForm('status', e.target.value)} className={inputClass}><option value="active">Active</option><option value="inactive">Inactive</option></select></div>
               </div>
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-thb-border">

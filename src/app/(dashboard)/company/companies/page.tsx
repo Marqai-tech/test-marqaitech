@@ -5,7 +5,7 @@ import { FiHome, FiPlus, FiSearch, FiEye, FiEdit2, FiTrash2, FiX, FiLayers, FiIn
 import toast from 'react-hot-toast'
 import { useCompanyData, apiFetch, fmtSalary, fmtDate, fmtDay, fmtTime, gradeCode, gradeName, getStatusBadge } from '@/components/company/useCompanyData'
 import { CompanyRecord } from '@/components/company/useCompanyData'
-import { validatePhone, validateEmail, validateWebsite, phoneInputFilter, onlyDigits } from '@/lib/validators'
+import { validatePhone, validateEmail, validateWebsite, validateZipCode, phoneInputFilter, zipInputFilter, onlyDigits } from '@/lib/validators'
 import { useCompanyContextStore } from '@/store/companyContextStore'
 import { useAuthStore } from '@/store/authStore'
 
@@ -97,6 +97,12 @@ export default function CompaniesPage() {
     if (form.website) {
       const websiteResult = validateWebsite(form.website)
       if (!websiteResult.valid) { toast.error(websiteResult.error || 'Invalid website URL'); return }
+    }
+
+    // ZIP code validation (Task 63 — was missing entirely)
+    if (form.zipCode) {
+      const zipResult = validateZipCode(form.zipCode)
+      if (!zipResult.valid) { toast.error(zipResult.error || 'Invalid ZIP / postal code'); return }
     }
 
     // Group company required for tenant_admin (only super_admin can auto-create groups)
@@ -293,7 +299,7 @@ export default function CompaniesPage() {
                 <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Email</label><input type="email" value={form.email || ''} onChange={e => updateForm('email', e.target.value)} placeholder="info@company.com" className={inputClass} /></div>
                 <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Website</label><input type="url" value={form.website || ''} onChange={e => updateForm('website', e.target.value)} className={inputClass} /></div>
                 <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Tax ID / GST</label><input type="text" value={form.taxId || ''} onChange={e => updateForm('taxId', e.target.value)} className={inputClass} /></div>
-                <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">ZIP Code</label><input type="text" value={form.zipCode || ''} onChange={e => updateForm('zipCode', e.target.value)} className={inputClass} /></div>
+                <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">ZIP Code</label><input type="text" value={form.zipCode || ''} onChange={e => updateForm('zipCode', zipInputFilter(e.target.value))} maxLength={12} placeholder="e.g., 560001 or 10001-6789" className={inputClass} /></div>
                 <div><label className="block text-xs font-medium text-thb-text-secondary mb-1">Status</label><select value={form.status || 'active'} onChange={e => updateForm('status', e.target.value)} className={inputClass}><option value="active">Active</option><option value="inactive">Inactive</option></select></div>
               </div>
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-thb-border">

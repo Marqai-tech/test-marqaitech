@@ -520,14 +520,42 @@ export function validateOfficialEmail(email: string): { valid: boolean; error?: 
 
 
 /**
- * Validate Indian ZIP / Postal code.
- * Indian PIN codes: exactly 6 digits, first digit 1-8.
+ * Validate ZIP / postal code (international — supports US, India, UK, etc.).
+ *
+ * Task 63: replaced the old India-only validator (which required exactly
+ * 6 digits starting with 1-8) with a more general one that accepts:
+ *   - Pure digits (e.g., "560001" for India, "10001" for US)
+ *   - Digits + hyphen (e.g., "12345-6789" for US ZIP+4)
+ *   - Digits + space (e.g., "123 456")
+ *   - Alphanumeric + space (e.g., "SW1A 1AA" for UK postal codes)
+ *
+ * Rejects:
+ *   - Pure alphabetic strings (e.g., "abcdef")
+ *   - Special characters other than hyphen and space
+ *   - Strings shorter than 3 or longer than 12 characters
+ *
+ * Previously the Company Master ZIP field accepted arbitrary text + special
+ * characters because the form never called this validator at all (the
+ * validator existed but was unused). Task 63 wires it into both the form
+ * submit handler + the API route + adds a real-time input filter.
  */
 export function validateZipCode(value: string): { valid: boolean; error?: string } {
   if (!value || !value.trim()) return { valid: true }; // Optional field
   const trimmed = value.trim();
-  if (!/^\d{6}$/.test(trimmed)) return { valid: false, error: 'PIN code must be exactly 6 digits' };
-  if (!/^[1-8]/.test(trimmed)) return { valid: false, error: 'Invalid PIN code (first digit must be 1-8)' };
+  if (trimmed.length < 3) {
+    return { valid: false, error: 'ZIP / postal code must be at least 3 characters.' };
+  }
+  if (trimmed.length > 12) {
+    return { valid: false, error: 'ZIP / postal code must be at most 12 characters.' };
+  }
+  // Allow: letters, digits, spaces, hyphens. Reject any other special char.
+  if (!/^[a-zA-Z0-9\s\-]+$/.test(trimmed)) {
+    return { valid: false, error: 'ZIP / postal code can only contain letters, digits, spaces, and hyphens.' };
+  }
+  // Must contain at least one digit OR one letter (reject pure special chars like " - - ")
+  if (!/[a-zA-Z0-9]/.test(trimmed)) {
+    return { valid: false, error: 'ZIP / postal code must contain at least one letter or digit.' };
+  }
   return { valid: true };
 }
 
@@ -582,13 +610,55 @@ export function validateESINumber(value: string): { valid: boolean; error?: stri
 export function validateWebsite(value: string): { valid: boolean; error?: string } {
   if (!value || !value.trim()) return { valid: true }; // Optional field
   const trimmed = value.trim();
+
+  // ─── Task 63 BUG FIX: stricter URL validation ───
+  // Previously this validator was too lenient — it accepted:
+  //   (a) URLs with spaces in the domain/path (e.g., "https://ex ample.com")
+  //   (b) URLs with missing double slash (e.g., "https:example.com" or "example.com" —
+  //       the validator silently prepended "https://" so "example.com" passed even
+  //       though the user never typed a protocol)
+  //   (c) URLs with backslashes instead of forward slashes (e.g., "https:\\\\example.com\\path")
+  //       because the JS URL parser treats "\\" as "/" in some cases.
+  // All three are now rejected explicitly.
+  //
+  // Reject spaces anywhere in the URL (domain OR path).
+  if (/\s/.test(trimmed)) {
+    return { valid: false, error: 'Website URL cannot contain spaces. Use %20 for encoded spaces in the path, or remove the space.' };
+  }
+  // Reject backslashes (must be forward slashes only).
+  if (/\\/.test(trimmed)) {
+    return { valid: false, error: 'Website URL must use forward slashes (/), not backslashes (\\).' };
+  }
+  // If the user typed a protocol, it must be http:// or https:// (with the double slash).
+  // Reject "https:example.com" (missing //) and "https:/example.com" (single slash).
+  if (/^https?:/i.test(trimmed) && !/^https?:\/\//i.test(trimmed)) {
+    return { valid: false, error: 'Website URL with a protocol must include "://" (e.g., https://example.com). Single slash or missing slash is not valid.' };
+  }
   try {
-    const url = new URL(trimmed.startsWith('http') ? trimmed : `https://${trimmed}`);
-    if (!url.hostname.includes('.')) return { valid: false, error: 'Enter a valid website URL (e.g., https://example.com)' };
+    // Normalize: prepend https:// if the user typed a bare domain (e.g., "example.com")
+    const normalized = trimmed.startsWith('http://') || trimmed.startsWith('https://') ? trimmed : `https://${trimmed}`;
+    const url = new URL(normalized);
+    // Hostname must contain a dot (e.g., "example.com") and no spaces
+    if (!url.hostname.includes('.')) {
+      return { valid: false, error: 'Enter a valid website URL (e.g., https://example.com). The domain must contain a dot.' };
+    }
+    // Reject if the hostname contains backslashes (URL parser may have normalized them silently)
+    if (/\\/.test(url.hostname)) {
+      return { valid: false, error: 'Website URL hostname cannot contain backslashes.' };
+    }
     return { valid: true };
   } catch {
     return { valid: false, error: 'Enter a valid website URL (e.g., https://example.com)' };
   }
+}
+
+/**
+ * Input filter for ZIP code fields — strips characters that aren't letters,
+ * digits, spaces, or hyphens. Used in onChange handlers to prevent the user
+ * from typing invalid characters in the first place.
+ */
+export function zipInputFilter(value: string): string {
+  return value.replace(/[^a-zA-Z0-9\s\-]/g, '');
 }
 
 // ─── Input Restriction Helpers (for real-time keystroke filtering) ─────

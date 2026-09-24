@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDb, getPlatformDb, getDbForTenantById } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { checkTenantStatusOrBlock } from '@/lib/tenant-guard';
-import { validateEmail, validatePhone } from '@/lib/validators';
+import { validateEmail, validatePhone, validateWebsite, validateZipCode } from '@/lib/validators';
 
 function corsHeaders() {
   return {
@@ -251,6 +251,19 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: emailResult.error }, { status: 400, headers: corsHeaders() });
       }
     }
+    // Task 63: server-side website + ZIP code validation (mirror the client-side checks)
+    if (website && typeof website === 'string') {
+      const websiteResult = validateWebsite(website);
+      if (!websiteResult.valid) {
+        return NextResponse.json({ error: websiteResult.error }, { status: 400, headers: corsHeaders() });
+      }
+    }
+    if (zipCode && typeof zipCode === 'string') {
+      const zipResult = validateZipCode(zipCode);
+      if (!zipResult.valid) {
+        return NextResponse.json({ error: zipResult.error }, { status: 400, headers: corsHeaders() });
+      }
+    }
 
     // Coerce per-company employee cap + planned strength
     const maxEmployees = typeof bodyMaxEmployees === 'number' && bodyMaxEmployees > 0 ? bodyMaxEmployees : null;
@@ -474,6 +487,19 @@ export async function PUT(req: NextRequest) {
       const emailResult = validateEmail(updateData.email);
       if (!emailResult.valid) {
         return NextResponse.json({ error: emailResult.error }, { status: 400, headers: corsHeaders() });
+      }
+    }
+    // Task 63: server-side website + ZIP code validation on PATCH too
+    if (updateData.website && typeof updateData.website === 'string') {
+      const websiteResult = validateWebsite(updateData.website);
+      if (!websiteResult.valid) {
+        return NextResponse.json({ error: websiteResult.error }, { status: 400, headers: corsHeaders() });
+      }
+    }
+    if (updateData.zipCode && typeof updateData.zipCode === 'string') {
+      const zipResult = validateZipCode(updateData.zipCode);
+      if (!zipResult.valid) {
+        return NextResponse.json({ error: zipResult.error }, { status: 400, headers: corsHeaders() });
       }
     }
 
