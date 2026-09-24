@@ -16,7 +16,6 @@ import {
   FiHome, FiChevronLeft, FiChevronRight, FiChevronDown,
   FiLogOut, FiBell, FiZap, FiHardDrive, FiGitBranch,
   FiMoreHorizontal, FiArrowRight, FiPieChart, FiAward, FiCheckCircle,
-  FiSliders,
 } from 'react-icons/fi';
 
 export interface NavItem {
