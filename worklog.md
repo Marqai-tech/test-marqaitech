@@ -3605,3 +3605,52 @@ Stage Summary:
 - High-risk personal + employment + financial + KYC fields go through admin approval — the Employee record is NOT updated until approved, so updated data is invisible until then.
 - Low-risk contact fields (phone, address, etc.) update directly + create an audit log entry.
 - A new /employees/edit-log page shows the full audit trail (visible to both employees and admins) with filters + CSV export for compliance and future communication.
+
+---
+Task ID: 63
+Agent: Super Z (main agent)
+Task: User-reported 3 bugs in the Company module:
+  1. Company Master — Website URL validation accepts spaces, missing double-slash, backslashes
+  2. Company Master — ZIP Code field accepts text/alphabetic and special characters
+  3. Branch + Department — Inactive companies are listed in the Company dropdown with no validation/warning
+
+Work Log:
+- BUG 1 FIX — WEBSITE URL VALIDATION (was too lenient):
+  * Old validateWebsite() in src/lib/validators.ts was too permissive — it silently prepended 'https://' to bare domains (so 'example.com' passed even without the user typing a protocol), and the JS URL parser was lenient about spaces in paths and backslashes.
+  * Strengthened validateWebsite():
+    - Reject URLs containing spaces anywhere (domain OR path)
+    - Reject URLs containing backslashes (must use forward slashes only)
+    - If user typed a protocol, require '://' (reject 'https:example.com' missing the double slash, reject single-slash 'https:/example.com')
+    - Verify hostname contains a dot + no backslashes after URL parsing
+  * Same validation mirrored on server-side POST + PATCH handlers in /api/companies/route.ts (was only validating phone + email before).
+
+- BUG 2 FIX — ZIP CODE VALIDATION (was missing entirely):
+  * Old validateZipCode() was India-only (exactly 6 digits, first digit 1-8) — too restrictive for an international Company Master. AND the Company form NEVER called it, so the field accepted arbitrary text + special characters.
+  * Replaced with a general international validator that accepts:
+    - Pure digits (e.g., 560001 India, 10001 US)
+    - Digits + hyphen (e.g., 12345-6789 US ZIP+4)
+    - Alphanumeric + space (e.g., SW1A 1AA UK)
+  * Rejects: pure alphabetic, special chars other than hyphen/space, strings shorter than 3 or longer than 12 chars.
+  * NEW zipInputFilter() for real-time keystroke filtering (strips invalid chars as the user types).
+  * Wired into the Company form: submit-time validation + onChange input filter + maxLength=12 + helpful placeholder.
+  * Server-side validation on POST + PATCH in /api/companies/route.ts.
+
+- BUG 3 FIX — INACTIVE COMPANY SELECTION IN BRANCH + DEPARTMENT FORMS:
+  * Old behavior: the Company dropdown in /company/branches and /company/departments listed ALL companies (including inactive ones) with no warning. Users could select an inactive company and submit successfully.
+  * Fix: filter the dropdown options to show only active companies by default. Inactive companies are still listed but in a separate <optgroup label='— Inactive (re-activate to use) —'> with disabled attributes (visible but not selectable).
+  * Default form companyId now picks the first ACTIVE company (was companies[0] which could be inactive).
+  * Added submit-time validation: if the user somehow selects an inactive company (e.g., via URL param or stale form state), the submit handler rejects with a clear toast: 'Cannot add a branch to inactive company "X". Please re-activate the company first.'
+
+Verification:
+  * Scoped tsc — 0 errors in the touched files (also fixed an accidental duplicate validateZipCode declaration that broke the build on first push).
+  * 'next build' succeeds locally.
+  * Pushed e70ccab2 → origin/main → Vercel rebuilt (state: success).
+  * Pages verified on LIVE tenant (marqaitechgroup.3boxeshrms.com):
+    - /company/companies → HTTP 200 ✓
+    - /company/branches → HTTP 200 ✓
+    - /company/departments → HTTP 200 ✓
+
+Stage Summary:
+- Website URL field now rejects spaces, backslashes, and missing-double-slash URLs with clear error messages. Server-side mirrors the client-side checks.
+- ZIP code field now rejects alphabetic-only and special-character inputs. Accepts international formats (digits, digits+hyphen, alphanumeric+space for UK). Real-time input filter prevents invalid chars from being typed.
+- Branch + Department forms no longer list inactive companies in the selectable dropdown options. Inactive companies are visible (in a disabled optgroup) but cannot be selected. Submit-time validation rejects any stale inactive selection with a clear toast.
