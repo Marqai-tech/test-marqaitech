@@ -46,8 +46,10 @@ const modules = [
   { key: 'departments', label: 'Departments', icon: <FiBriefcase />, description: 'Import department codes and names' },
   { key: 'designations', label: 'Designations', icon: <FiUserCheck />, description: 'Import job titles, grades, and salary bands' },
   { key: 'branches', label: 'Branches', icon: <FiGlobe />, description: 'Import office locations and addresses' },
-  { key: 'leave-types', label: 'Leave Types', icon: <FiCalendar />, description: 'Import leave type definitions and default allocations' },
-  { key: 'salary-structures', label: 'Salary Structures', icon: <FiDollarSign />, description: 'Import salary structure templates' },
+  // Task 64: removed 'leave-types' and 'salary-structures' — they belong to
+  // the Leave module and Payroll module respectively, not the Employee module.
+  // The Bulk Import page now lives at /employees/bulk-import (Employee module)
+  // so only employee-related entities are listed here.
 ];
 
 /* ──────────────────────────────────────────────

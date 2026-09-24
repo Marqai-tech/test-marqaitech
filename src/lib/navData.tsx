@@ -220,10 +220,6 @@ export const navSections: NavSection[] = [
       // ── Settings ──
       { label: 'Settings', href: '#settings-divider', icon: <FiSettings className="w-3.5 h-3.5" />, moduleKey: 'employees', roles: ['super_admin', 'tenant_admin', 'admin'], isDivider: true },
       { label: 'Employee Settings', href: '/employees/settings', icon: <FiSettings className="w-4 h-4" />, moduleKey: 'employees', roles: ['super_admin', 'tenant_admin', 'admin'], isNew: true },
-      { label: 'Policy', href: '/employees/settings?tab=policy', icon: <FiFileText className="w-3.5 h-3.5" />, moduleKey: 'employees', roles: ['super_admin', 'tenant_admin', 'admin'] },
-      { label: 'Rules', href: '/employees/settings?tab=rules', icon: <FiSliders className="w-3.5 h-3.5" />, moduleKey: 'employees', roles: ['super_admin', 'tenant_admin', 'admin'] },
-      { label: 'Configuration', href: '/employees/settings?tab=configuration', icon: <FiSettings className="w-3.5 h-3.5" />, moduleKey: 'employees', roles: ['super_admin', 'tenant_admin', 'admin'] },
-      { label: 'Approver Workflow', href: '/employees/settings?tab=approver-workflow', icon: <FiCheckSquare className="w-3.5 h-3.5" />, moduleKey: 'employees', roles: ['super_admin', 'tenant_admin', 'admin'] },
       { label: 'Bulk Import', href: '/employees/bulk-import', icon: <FiUpload className="w-4 h-4" />, moduleKey: 'employees', roles: ['super_admin', 'tenant_admin', 'admin'], isNew: true },
       { label: 'Approval Workflows', href: '/employees/approval-config', icon: <FiCheckSquare className="w-4 h-4" />, moduleKey: 'employees', roles: ['super_admin', 'tenant_admin', 'admin'], isNew: true },
 
@@ -251,6 +247,7 @@ export const navSections: NavSection[] = [
       // Self-service: employee can apply for leave and view their own balance/applications
       { label: 'Leave Dashboard', href: '/leave', icon: <FiGrid className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'], isNew: true },
       { label: 'Apply Leave', href: '/leave/apply', icon: <FiCalendar className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'], isNew: true },
+      { label: 'My Leave Applications', href: '/leave?view=self', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'], isNew: true },
       // HR-only: Apply leave on behalf of employees
       { label: 'Apply Leave by HR', href: '/leave/apply-by-hr', icon: <FiUserPlus className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin'], isNew: true },
       { label: 'Leave Encashment', href: '/leave/encashment', icon: <FiDollarSign className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'] },
@@ -264,8 +261,6 @@ export const navSections: NavSection[] = [
       { label: 'Leave Settings', href: '/leave/settings', icon: <FiSettings className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin'], isNew: true },
       { label: 'Policy', href: '/leave/leave-policy?tab=documents', icon: <FiFileText className="w-3.5 h-3.5" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin'] },
       { label: 'Rules', href: '/leave/leave-policy?tab=workflow', icon: <FiSliders className="w-3.5 h-3.5" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin'] },
-      { label: 'Configuration', href: '/leave/settings?tab=configuration', icon: <FiSettings className="w-3.5 h-3.5" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin'] },
-      { label: 'Approver Workflow', href: '/leave/settings?tab=approver-workflow', icon: <FiCheckSquare className="w-3.5 h-3.5" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin'] },
       { label: 'Leave Type Mapping', href: '/leave/leave-policy?tab=mapping', icon: <FiLayers className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin'], isNew: true },
       { label: 'Leave Types', href: '/leave/types', icon: <FiLayers className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin'] },
 
@@ -319,10 +314,6 @@ export const navSections: NavSection[] = [
       // ── Settings (admin only) ──
       { label: 'Settings', href: '#settings-divider', icon: <FiSettings className="w-3.5 h-3.5" />, moduleKey: 'attendance', roles: ['super_admin', 'tenant_admin', 'admin'], isDivider: true },
       { label: 'Attendance Settings', href: '/attendance/settings', icon: <FiSettings className="w-4 h-4" />, moduleKey: 'attendance', roles: ['super_admin', 'tenant_admin', 'admin'], isNew: true },
-      { label: 'Policy', href: '/attendance/settings?tab=policy', icon: <FiFileText className="w-3.5 h-3.5" />, moduleKey: 'attendance', roles: ['super_admin', 'tenant_admin', 'admin'] },
-      { label: 'Rules', href: '/attendance/settings?tab=rules', icon: <FiSliders className="w-3.5 h-3.5" />, moduleKey: 'attendance', roles: ['super_admin', 'tenant_admin', 'admin'] },
-      { label: 'Configuration', href: '/attendance/settings?tab=configuration', icon: <FiSettings className="w-3.5 h-3.5" />, moduleKey: 'attendance', roles: ['super_admin', 'tenant_admin', 'admin'] },
-      { label: 'Approver Workflow', href: '/attendance/settings?tab=approver-workflow', icon: <FiCheckSquare className="w-3.5 h-3.5" />, moduleKey: 'attendance', roles: ['super_admin', 'tenant_admin', 'admin'] },
 
       // ── Reports (admin/manager only) ──
       { label: 'Reports', href: '#reports-divider', icon: <FiFileText className="w-3.5 h-3.5" />, moduleKey: 'attendance', roles: ['super_admin', 'tenant_admin', 'admin', 'manager'], isDivider: true },
@@ -369,10 +360,6 @@ export const navSections: NavSection[] = [
 
       // ── Payroll Settings (admin only) ──
       { label: 'Payroll Settings', href: '/payroll/settings', icon: <FiSettings className="w-4 h-4" />, moduleKey: 'payroll', roles: ['super_admin', 'tenant_admin', 'admin'], isNew: true },
-      { label: 'Policy', href: '/payroll/settings?tab=policy', icon: <FiFileText className="w-3.5 h-3.5" />, moduleKey: 'payroll', roles: ['super_admin', 'tenant_admin', 'admin'] },
-      { label: 'Rules', href: '/payroll/settings?tab=rules', icon: <FiSliders className="w-3.5 h-3.5" />, moduleKey: 'payroll', roles: ['super_admin', 'tenant_admin', 'admin'] },
-      { label: 'Configuration', href: '/payroll/settings?tab=configuration', icon: <FiSettings className="w-3.5 h-3.5" />, moduleKey: 'payroll', roles: ['super_admin', 'tenant_admin', 'admin'] },
-      { label: 'Approver Workflow', href: '/payroll/settings?tab=approver-workflow', icon: <FiCheckSquare className="w-3.5 h-3.5" />, moduleKey: 'payroll', roles: ['super_admin', 'tenant_admin', 'admin'] },
 
       // ── Payroll Transactions ──
       { label: 'Payroll Transactions', href: '#transactions-divider', icon: <FiEdit3 className="w-3.5 h-3.5" />, moduleKey: 'payroll', roles: ['super_admin', 'tenant_admin', 'admin', 'manager'], isDivider: true },
@@ -428,10 +415,6 @@ export const navSections: NavSection[] = [
       { label: 'Settings', href: '#settings-divider', icon: <FiSettings className="w-3.5 h-3.5" />, moduleKey: 'recruitment', isDivider: true },
       { label: 'Workflow Configuration', href: '/recruitment/workflow-config', icon: <FiGitBranch className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
       { label: 'Recruitment Settings', href: '/recruitment/settings', icon: <FiSettings className="w-4 h-4" />, moduleKey: 'recruitment', isNew: true },
-      { label: 'Policy', href: '/recruitment/settings?tab=policy', icon: <FiFileText className="w-3.5 h-3.5" />, moduleKey: 'recruitment' },
-      { label: 'Rules', href: '/recruitment/settings?tab=rules', icon: <FiSliders className="w-3.5 h-3.5" />, moduleKey: 'recruitment' },
-      { label: 'Configuration', href: '/recruitment/settings?tab=configuration', icon: <FiSettings className="w-3.5 h-3.5" />, moduleKey: 'recruitment' },
-      { label: 'Approver Workflow', href: '/recruitment/settings?tab=approver-workflow', icon: <FiCheckSquare className="w-3.5 h-3.5" />, moduleKey: 'recruitment' },
 
       // ── Reports ──
       { label: 'Reports', href: '#reports-divider', icon: <FiFileText className="w-3.5 h-3.5" />, moduleKey: 'recruitment', isDivider: true },
@@ -527,10 +510,6 @@ export const navSections: NavSection[] = [
       // ── Settings ──
       { label: 'Settings', href: '#settings-divider', icon: <FiSettings className="w-3.5 h-3.5" />, moduleKey: 'performance', isDivider: true },
       { label: 'Performance Settings', href: '/performance/settings', icon: <FiSettings className="w-4 h-4" />, moduleKey: 'performance', isNew: true },
-      { label: 'Policy', href: '/performance/settings?tab=policy', icon: <FiFileText className="w-3.5 h-3.5" />, moduleKey: 'performance' },
-      { label: 'Rules', href: '/performance/settings?tab=rules', icon: <FiSliders className="w-3.5 h-3.5" />, moduleKey: 'performance' },
-      { label: 'Configuration', href: '/performance/settings?tab=configuration', icon: <FiSettings className="w-3.5 h-3.5" />, moduleKey: 'performance' },
-      { label: 'Approver Workflow', href: '/performance/settings?tab=approver-workflow', icon: <FiCheckSquare className="w-3.5 h-3.5" />, moduleKey: 'performance' },
 
       // ── Reports ──
       { label: 'Reports', href: '#reports-divider', icon: <FiFileText className="w-3.5 h-3.5" />, moduleKey: 'performance', isDivider: true },
@@ -774,9 +753,6 @@ export const navSections: NavSection[] = [
       { label: 'External Settings', href: '/clients/settings', icon: <FiSettings className="w-4 h-4" />, moduleKey: 'company', isNew: true },
       { label: 'Company Settings', href: '/company/settings', icon: <FiDatabase className="w-4 h-4" />, moduleKey: 'company', roles: ['super_admin', 'tenant_admin', 'admin'], isNew: true },
       { label: 'Policy', href: '/company/policies', icon: <FiFileText className="w-3.5 h-3.5" />, moduleKey: 'company', roles: ['super_admin', 'tenant_admin', 'admin'] },
-      { label: 'Rules', href: '/company/settings?tab=rules', icon: <FiSliders className="w-3.5 h-3.5" />, moduleKey: 'company', roles: ['super_admin', 'tenant_admin', 'admin'] },
-      { label: 'Configuration', href: '/company/settings?tab=configuration', icon: <FiSettings className="w-3.5 h-3.5" />, moduleKey: 'company', roles: ['super_admin', 'tenant_admin', 'admin'] },
-      { label: 'Approver Workflow', href: '/company/settings?tab=approver-workflow', icon: <FiCheckSquare className="w-3.5 h-3.5" />, moduleKey: 'company', roles: ['super_admin', 'tenant_admin', 'admin'] },
 
       // ── Reports ──
       { label: 'Reports', href: '#reports-divider', icon: <FiFileText className="w-3.5 h-3.5" />, moduleKey: 'company', isDivider: true },

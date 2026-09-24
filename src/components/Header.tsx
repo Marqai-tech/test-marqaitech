@@ -181,7 +181,7 @@ const MODULE_SEARCH_MAP: Record<string, string> = {
 export default function Header({ onSidebarToggle }: HeaderProps) {
   const router = useRouter();
   const { user, logout } = useAuthStore();
-  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotificationStore();
+  const { notifications, unreadCount, fetchNotifications, markAsRead, markAllAsRead } = useNotificationStore();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -190,6 +190,21 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
   const notifRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLDivElement>(null);
+
+  // Task 64 FIX: fetch notifications on mount + poll every 30 seconds.
+  // Previously, fetchNotifications was destructured from the store but NEVER
+  // called — so the unreadCount badge on the bell was always 0 even when
+  // there were unread notifications in the DB.
+  const token = useAuthStore.getState().token;
+  useEffect(() => {
+    if (!token) return;
+    fetchNotifications();
+    // Poll every 30 seconds for live unread-count updates
+    const interval = setInterval(() => {
+      fetchNotifications();
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [token, fetchNotifications]);
 
   // Compute search suggestions based on query
   const searchSuggestions = useMemo(() => {
