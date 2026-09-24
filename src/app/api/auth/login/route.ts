@@ -217,8 +217,35 @@ export async function POST(request: Request) {
     // (the standard seed password), the stored hash is likely stale from an
     // old seed. We re-hash the entered password, update the user's password
     // in BOTH the tenant DB and platform DB, and allow login.
-    // This is a one-time self-healing fix — after this, the password will match.
-    if (!isValid && password === 'MarqAI@2026') {
+    //
+    // ─── Task 61 BUG FIX: do NOT self-heal for recently-invited users ───
+    // Previously, when an admin invited an employee (which generated a random
+    // password + emailed it + stored the hash), the FIRST login attempt with
+    // 'MarqAI@2026' (the standard seed password the user remembered) would
+    // trigger self-healing — which OVERWROTE the random invite password with
+    // 'MarqAI@2026'. The invite email password then stopped working, and
+    // users reported "invalid login credentials" when trying the invite email
+    // password.
+    //
+    // Fix: check the Employee record's credentialsInvitedAt field. If the
+    // user was invited within the last 7 days, skip self-healing and surface
+    // a clear error pointing them at the invite email (or admin re-invite).
+    let recentlyInvited = false;
+    try {
+      const linkedEmp = await db.employee.findFirst({
+        where: { userId: user.id },
+        select: { credentialsInvitedAt: true, credentialsStatus: true },
+      });
+      if (linkedEmp?.credentialsStatus === 'invited' && linkedEmp.credentialsInvitedAt) {
+        const invitedAt = new Date(linkedEmp.credentialsInvitedAt).getTime();
+        const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+        if (Date.now() - invitedAt < sevenDaysMs) {
+          recentlyInvited = true;
+        }
+      }
+    } catch { /* best-effort — don't block self-heal if Employee lookup fails */ }
+
+    if (!isValid && password === 'MarqAI@2026' && !recentlyInvited) {
       console.log(`[Login] Password mismatch for ${email}. Attempting self-healing reset...`);
       try {
         const newHash = await hashPassword(password);
@@ -258,6 +285,22 @@ export async function POST(request: Request) {
       } catch (healErr) {
         console.error('[Login] Self-healing failed:', healErr);
       }
+    }
+
+    // ─── Task 61: clear error message for recently-invited users ───
+    // If the user was invited within the last 7 days AND their login fails,
+    // surface a specific error pointing them at the invite email (instead of
+    // the generic "Invalid email or password" message). This helps them
+    // realize they should use the password from the invite email, not the
+    // standard seed password.
+    if (!isValid && recentlyInvited) {
+      return NextResponse.json(
+        {
+          error: 'Invalid email or password. Your account was recently invited — please use the password from the invite email (check spam folder if you can\'t find it). If you no longer have the invite email, ask an admin to re-send the invite to generate a new password.',
+          code: 'RECENTLY_INVITED_LOGIN_FAILED',
+        },
+        { status: 401, headers: corsHeaders() }
+      );
     }
 
     if (!isValid) {
