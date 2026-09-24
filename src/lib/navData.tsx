@@ -206,6 +206,7 @@ export const navSections: NavSection[] = [
       { label: 'Add Employee', href: '/employees/add', icon: <FiUserPlus className="w-4 h-4" />, moduleKey: 'employees', roles: ['super_admin', 'tenant_admin', 'admin'], isNew: true },
       { label: 'Probation', href: '/employees/probation', icon: <FiClock className="w-4 h-4" />, moduleKey: 'employees', roles: ['super_admin', 'tenant_admin', 'admin', 'manager'], isNew: true },
       { label: 'Update Requests', href: '/employees/update-requests', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'employees', roles: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'], isNew: true },
+      { label: 'Edit Log', href: '/employees/edit-log', icon: <FiList className="w-4 h-4" />, moduleKey: 'employees', roles: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'], isNew: true },
       { label: 'Transfer', href: '/employees/transfer', icon: <FiRefreshCw className="w-4 h-4" />, moduleKey: 'employees', roles: ['super_admin', 'tenant_admin', 'admin'], isNew: true },
       // Employee can apply for resignation (self-service)
       { label: 'Apply Resignation', href: '/employees/resignation', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'employees', roles: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'], isNew: true },

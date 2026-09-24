@@ -1,0 +1,255 @@
+'use client';
+
+import { useEffect, useState, useCallback } from 'react';
+import {
+  FiList, FiRefreshCw, FiDownload, FiFilter, FiCheckCircle, FiXCircle,
+  FiClock, FiArrowRight, FiUser, FiFileText,
+} from 'react-icons/fi';
+import toast from 'react-hot-toast';
+import { useAuthStore } from '@/store/authStore';
+import { useCompanyContextStore } from '@/store/companyContextStore';
+import ModuleTips from '@/components/ModuleTips';
+
+function getAuthHeaders() {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
+  return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+}
+
+interface UpdateRequest {
+  id: string;
+  employeeId: string;
+  employee?: { id: string; firstName: string; lastName: string; employeeId: string; department?: { name: string } | null } | null;
+  fieldName: string;
+  fieldLabel: string;
+  category: string;
+  oldValue: string;
+  newValue: string;
+  reason: string | null;
+  status: string;
+  currentTier: number;
+  requestedById: string;
+  requestedAt: string;
+  reviewedById: string | null;
+  reviewedAt: string | null;
+  reviewComments: string | null;
+  appliedAt: string | null;
+  documentId: string | null;
+}
+
+function fmtTime(iso?: string | null): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '—';
+  return d.toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
+}
+
+const STATUS_META: Record<string, { label: string; color: string; bg: string; icon: React.ReactNode }> = {
+  pending:    { label: 'Pending',     color: 'text-amber-700',   bg: 'bg-amber-50 border-amber-200',    icon: <FiClock className="w-3.5 h-3.5" /> },
+  approved:   { label: 'Approved',    color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200', icon: <FiCheckCircle className="w-3.5 h-3.5" /> },
+  rejected:   { label: 'Rejected',    color: 'text-rose-700',   bg: 'bg-rose-50 border-rose-200',       icon: <FiXCircle className="w-3.5 h-3.5" /> },
+  applied:    { label: 'Applied',     color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200', icon: <FiCheckCircle className="w-3.5 h-3.5" /> },
+};
+
+const CATEGORY_LABEL: Record<string, string> = {
+  contact: 'Contact', personal: 'Personal', employment: 'Employment', financial: 'Financial', kyc: 'KYC', system: 'System',
+};
+
+export default function EmployeeEditLogPage() {
+  const { user } = useAuthStore();
+  const scopeQuery = useCompanyContextStore(s => s.scopeQuery);
+  const isAdmin = ['super_admin', 'tenant_admin', 'admin', 'hr_admin'].includes(user?.role || '');
+
+  const [requests, setRequests] = useState<UpdateRequest[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [filterCategory, setFilterCategory] = useState<string>('all');
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (filterStatus !== 'all') params.set('status', filterStatus);
+      if (filterCategory !== 'all') params.set('category', filterCategory);
+      const sq = scopeQuery();
+      const url = `/api/employees/update-requests?limit=200${sq ? `&${sq}` : ''}${params.toString() ? `&${params.toString()}` : ''}`;
+      const res = await fetch(url, { headers: getAuthHeaders() });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const j = await res.json();
+      // The API returns either { requests } or { inbox, mine, all } based on role
+      const list = j.requests || j.all || j.inbox || j.mine || [];
+      setRequests(list);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to load edit log');
+      setRequests([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [filterStatus, filterCategory, scopeQuery]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Stats
+  const stats = {
+    total: requests.length,
+    pending: requests.filter(r => r.status === 'pending').length,
+    approved: requests.filter(r => r.status === 'approved' || r.status === 'applied').length,
+    rejected: requests.filter(r => r.status === 'rejected').length,
+  };
+
+  const exportCSV = () => {
+    if (requests.length === 0) { toast.error('Nothing to export'); return; }
+    let csv = 'Employee,Field,Category,Old Value,New Value,Status,Requested At,Reviewed At,Review Comments,Reason\n';
+    for (const r of requests) {
+      const emp = r.employee ? `${r.employee.firstName} ${r.employee.lastName} (${r.employee.employeeId})` : r.employeeId;
+      csv += `"${emp}","${r.fieldLabel}","${CATEGORY_LABEL[r.category] || r.category}","${(r.oldValue || '').replace(/"/g, '""')}","${(r.newValue || '').replace(/"/g, '""')}","${r.status}","${fmtTime(r.requestedAt)}","${fmtTime(r.reviewedAt)}","${(r.reviewComments || '').replace(/"/g, '""')}","${(r.reason || '').replace(/"/g, '""')}"\n`;
+    }
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `employee_edit_log_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success('CSV exported');
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-teal-50 text-teal-600">
+            <FiList className="w-5 h-5" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold text-thb-text-primary">Employee Info Edit Log</h1>
+            <p className="text-sm text-thb-text-secondary">
+              {isAdmin ? 'All employee profile-change requests — for audit, compliance, and future communication.' : 'Your profile-change requests + their approval status.'}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <button onClick={fetchData} className="inline-flex items-center gap-2 px-3 py-2 border border-thb-border rounded-lg text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">
+            <FiRefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
+          </button>
+          <button onClick={exportCSV} className="inline-flex items-center gap-2 px-3 py-2 border border-thb-border rounded-lg text-sm font-medium text-thb-text-secondary hover:bg-slate-50 transition-colors">
+            <FiDownload className="w-4 h-4" /> Export CSV
+          </button>
+        </div>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="thb-card p-4"><p className="text-xs font-medium text-thb-text-muted uppercase tracking-wide">Total Requests</p><p className="text-2xl font-bold text-thb-text-primary mt-1">{stats.total}</p></div>
+        <div className="thb-card p-4"><p className="text-xs font-medium text-thb-text-muted uppercase tracking-wide">Pending</p><p className="text-2xl font-bold text-amber-600 mt-1">{stats.pending}</p></div>
+        <div className="thb-card p-4"><p className="text-xs font-medium text-thb-text-muted uppercase tracking-wide">Approved</p><p className="text-2xl font-bold text-emerald-600 mt-1">{stats.approved}</p></div>
+        <div className="thb-card p-4"><p className="text-xs font-medium text-thb-text-muted uppercase tracking-wide">Rejected</p><p className="text-2xl font-bold text-rose-600 mt-1">{stats.rejected}</p></div>
+      </div>
+
+      {/* Filters */}
+      <div className="thb-card p-4 flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-1.5">
+          <FiFilter className="w-4 h-4 text-thb-text-muted" />
+          <label className="text-xs font-medium text-thb-text-secondary">Status</label>
+          <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="px-2.5 py-1.5 border border-thb-border rounded-lg text-sm bg-white">
+            <option value="all">All</option>
+            <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+            <option value="applied">Applied</option>
+          </select>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <label className="text-xs font-medium text-thb-text-secondary">Category</label>
+          <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)} className="px-2.5 py-1.5 border border-thb-border rounded-lg text-sm bg-white">
+            <option value="all">All</option>
+            <option value="contact">Contact</option>
+            <option value="personal">Personal</option>
+            <option value="employment">Employment</option>
+            <option value="financial">Financial</option>
+            <option value="kyc">KYC</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="thb-card overflow-hidden">
+        <div className="p-4 border-b border-thb-border">
+          <h3 className="text-sm font-semibold text-thb-text-primary">Edit Log ({requests.length})</h3>
+        </div>
+        {loading ? (
+          <div className="p-12 text-center">
+            <div className="animate-spin inline-block h-8 w-8 border-4 border-slate-200 border-t-teal-500 rounded-full mb-3" />
+            <p className="text-sm text-thb-text-secondary">Loading edit log…</p>
+          </div>
+        ) : requests.length === 0 ? (
+          <div className="p-10 text-center">
+            <FiList className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+            <p className="text-sm text-thb-text-muted">No edit requests found. {isAdmin ? 'When employees submit profile changes, they\'ll appear here.' : 'When you submit a profile change, it\'ll appear here.'}</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto max-h-[640px]">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50 sticky top-0 z-10">
+                <tr>
+                  <th className="text-left py-3 px-4 font-semibold text-thb-text-secondary">Employee</th>
+                  <th className="text-left py-3 px-4 font-semibold text-thb-text-secondary">Field</th>
+                  <th className="text-left py-3 px-4 font-semibold text-thb-text-secondary">Change</th>
+                  <th className="text-left py-3 px-4 font-semibold text-thb-text-secondary">Status</th>
+                  <th className="text-left py-3 px-4 font-semibold text-thb-text-secondary">Requested</th>
+                  <th className="text-left py-3 px-4 font-semibold text-thb-text-secondary">Reviewed</th>
+                </tr>
+              </thead>
+              <tbody>
+                {requests.map(r => {
+                  const meta = STATUS_META[r.status] || { label: r.status, color: 'text-slate-700', bg: 'bg-slate-50 border-slate-200', icon: <FiClock className="w-3.5 h-3.5" /> };
+                  const emp = r.employee ? `${r.employee.firstName} ${r.employee.lastName}` : r.employeeId;
+                  const empCode = r.employee?.employeeId || '—';
+                  const dept = r.employee?.department?.name || '—';
+                  return (
+                    <tr key={r.id} className="border-b border-slate-50 hover:bg-slate-50/50">
+                      <td className="py-2.5 px-4">
+                        <p className="font-medium text-thb-text-primary">{emp}</p>
+                        <p className="text-xs text-thb-text-muted">{empCode} · {dept}</p>
+                      </td>
+                      <td className="py-2.5 px-4">
+                        <p className="font-medium text-thb-text-primary">{r.fieldLabel}</p>
+                        <p className="text-xs text-thb-text-muted">{CATEGORY_LABEL[r.category] || r.category}</p>
+                      </td>
+                      <td className="py-2.5 px-4">
+                        <div className="flex items-center gap-2 text-xs">
+                          <span className="px-2 py-0.5 bg-rose-50 text-rose-700 rounded border border-rose-200 font-mono max-w-[180px] truncate" title={r.oldValue}>{r.oldValue || '—'}</span>
+                          <FiArrowRight className="w-3 h-3 text-thb-text-muted" />
+                          <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded border border-emerald-200 font-mono max-w-[180px] truncate" title={r.newValue}>{r.newValue || '—'}</span>
+                        </div>
+                        {r.reason && <p className="text-xs text-thb-text-muted mt-1 italic truncate max-w-[280px]" title={r.reason}>"{r.reason}"</p>}
+                      </td>
+                      <td className="py-2.5 px-4">
+                        <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium border ${meta.bg} ${meta.color}`}>
+                          {meta.icon} {meta.label}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-4 whitespace-nowrap text-thb-text-secondary text-xs">{fmtTime(r.requestedAt)}</td>
+                      <td className="py-2.5 px-4 whitespace-nowrap text-thb-text-secondary text-xs">{fmtTime(r.reviewedAt)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <ModuleTips
+        moduleKey="employees-edit-log"
+        title="Edit Log Tips"
+        tips={[
+          { title: 'Approval Workflow', description: 'High-risk fields (name, DOB, gender, marital status, bank, KYC, employment details) require admin approval. Low-risk fields (phone, address, personal email) update directly.' },
+          { title: 'Restricted Fields', description: 'Official email, employee ID, salary, joining date, and company are restricted — employees can NEVER change them via self-service. Only admin can edit these.' },
+          { title: 'Future Communication', description: 'Use the CSV export to attach the audit trail to performance reviews, compliance reports, or HR communications.' },
+          { title: 'Re-review', description: 'Once a request is approved or rejected, it cannot be re-reviewed. The employee can submit a new request if circumstances change.' },
+        ]}
+      />
+    </div>
+  );
+}

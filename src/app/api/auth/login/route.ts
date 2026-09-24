@@ -34,37 +34,47 @@ export async function POST(request: Request) {
   const platformDb = getPlatformDb();
   try {
     const body = await request.json();
-    const { email, password } = body;
+    const { email: rawEmail, employeeId: rawEmployeeId, password } = body;
 
-    if (!email || !password) {
+    // Task 62: Allow login with either email OR employee ID. The UI sends
+    // whatever the user typed in the username field. We detect which it is:
+    //   - looks like an email (contains '@') → email lookup
+    //   - else → employee ID lookup (resolve to the linked User via Employee row)
+    const looksLikeEmail = String(rawEmail || '').includes('@');
+    const email = looksLikeEmail ? String(rawEmail || '').trim().toLowerCase() : '';
+    const employeeIdInput = !looksLikeEmail ? String(rawEmail || rawEmployeeId || '').trim() : '';
+
+    if (!(email || employeeIdInput) || !password) {
       return NextResponse.json(
-        { error: 'Email and password are required' },
+        { error: 'Email or Employee ID and password are required' },
         { status: 400, headers: corsHeaders() }
       );
     }
 
-    // ─── Official email validation ───
+    // ─── Official email validation (skip if logging in by employee ID) ───
     // Only official/company email addresses are allowed for login.
     // Personal email addresses (gmail, yahoo, outlook, etc.) are blocked.
     // EXCEPTION: Candidate logins can use personal emails — they don't have
     // company accounts. We detect candidate logins by checking if the email
     // is from a known candidate domain or if the login is on a recruitment
     // portal path.
-    const { isPersonal, domain } = isPersonalEmail(email);
-    if (isPersonal) {
-      // Check if this is a candidate login — candidates ARE allowed to use
-      // personal emails. We detect this by checking if the user exists in the
-      // DB with role 'candidate'. If they do, we allow the login.
-      // For now, we block personal emails at the login gate and show a helpful
-      // message. If the user is a candidate, they should use the candidate
-      // portal which has its own login endpoint.
-      return NextResponse.json(
-        {
-          error: `Personal email addresses (${domain}) are not allowed for login. Please use your official/company email address. If you are a job candidate, please use the candidate portal.`,
-          code: 'PERSONAL_EMAIL_BLOCKED',
-        },
-        { status: 403, headers: corsHeaders() }
-      );
+    if (email) {
+      const { isPersonal, domain } = isPersonalEmail(email);
+      if (isPersonal) {
+        // Check if this is a candidate login — candidates ARE allowed to use
+        // personal emails. We detect this by checking if the user exists in the
+        // DB with role 'candidate'. If they do, we allow the login.
+        // For now, we block personal emails at the login gate and show a helpful
+        // message. If the user is a candidate, they should use the candidate
+        // portal which has its own login endpoint.
+        return NextResponse.json(
+          {
+            error: `Personal email addresses (${domain}) are not allowed for login. Please use your official/company email address. If you are a job candidate, please use the candidate portal.`,
+            code: 'PERSONAL_EMAIL_BLOCKED',
+          },
+          { status: 403, headers: corsHeaders() }
+        );
+      }
     }
 
     // ─── Subdomain-based tenant validation ───
@@ -159,10 +169,30 @@ export async function POST(request: Request) {
     if (tenantSlug) {
       try {
         const tenantDbForLogin = await getDbForTenant(tenantSlug);
-        const tenantUser = await tenantDbForLogin.user.findUnique({
-          where: { email },
-          select: userSelect,
-        });
+        // Task 62: support login by employee ID OR email. If the user typed
+        // something that doesn't look like an email (no '@'), we resolve via
+        // the Employee table — find the Employee by employeeId, then load the
+        // linked User by userId. Otherwise, the original email-based lookup.
+        let tenantUser = null;
+        if (email) {
+          tenantUser = await tenantDbForLogin.user.findUnique({
+            where: { email },
+            select: userSelect,
+          });
+        } else if (employeeIdInput) {
+          // Employee ID lookup — case-insensitive match on Employee.employeeId
+          // Resolve to userId, then load the User
+          const emp = await tenantDbForLogin.employee.findFirst({
+            where: { employeeId: { equals: employeeIdInput, mode: 'insensitive' } },
+            select: { userId: true },
+          }).catch(() => null);
+          if (emp?.userId) {
+            tenantUser = await tenantDbForLogin.user.findUnique({
+              where: { id: emp.userId },
+              select: userSelect,
+            });
+          }
+        }
         if (tenantUser) {
           user = tenantUser;
           db = tenantDbForLogin;
@@ -179,7 +209,8 @@ export async function POST(request: Request) {
     }
 
     // Platform DB lookup (primary on the platform domain, fallback on tenant domains)
-    if (!user) {
+    // Email-based only — Employee rows don't live in the platform DB.
+    if (!user && email) {
       const platformUser = await platformDb.user.findUnique({
         where: { email },
         select: { ...userSelect, tenant: tenantSelect },
@@ -197,7 +228,7 @@ export async function POST(request: Request) {
 
     if (!user) {
       return NextResponse.json(
-        { error: 'Invalid email or password' },
+        { error: 'Invalid email, employee ID, or password' },
         { status: 401, headers: corsHeaders() }
       );
     }
@@ -247,7 +278,7 @@ export async function POST(request: Request) {
     } catch { /* best-effort — don't block self-heal if Employee lookup fails */ }
 
     if (!isValid && password === 'MarqAI@2026' && !recentlyInvited) {
-      console.log(`[Login] Password mismatch for ${email}. Attempting self-healing reset...`);
+      console.log(`[Login] Password mismatch for ${email || employeeIdInput}. Attempting self-healing reset...`);
       try {
         const newHash = await hashPassword(password);
         // Update in the DB that authenticated the user (db variable)
@@ -280,7 +311,7 @@ export async function POST(request: Request) {
         // Verify the new hash works
         isValid = await verifyPassword(password, newHash);
         if (isValid) {
-          console.log(`[Login] Self-healing successful for ${email}. Password updated.`);
+          console.log(`[Login] Self-healing successful for ${email || employeeIdInput}. Password updated.`);
           user.status = 'active'; // Ensure login proceeds
         }
       } catch (healErr) {
@@ -310,7 +341,7 @@ export async function POST(request: Request) {
       // recently-invited check ran but didn't match (user not recently invited)
       return NextResponse.json(
         {
-          error: 'Invalid email or password',
+          error: 'Invalid email, employee ID, or password',
           _diag: { recentlyInvitedChecked: true, recentlyInvitedResult: recentlyInvited },
         },
         { status: 401, headers: corsHeaders() }
