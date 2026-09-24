@@ -231,8 +231,9 @@ export async function POST(request: Request) {
     // user was invited within the last 7 days, skip self-healing and surface
     // a clear error pointing them at the invite email (or admin re-invite).
     let recentlyInvited = false;
+    let linkedEmp: { credentialsInvitedAt?: Date | null; credentialsStatus?: string | null } | null = null;
     try {
-      const linkedEmp = await db.employee.findFirst({
+      linkedEmp = await db.employee.findFirst({
         where: { userId: user.id },
         select: { credentialsInvitedAt: true, credentialsStatus: true },
       });
@@ -298,14 +299,20 @@ export async function POST(request: Request) {
         {
           error: 'Invalid email or password. Your account was recently invited — please use the password from the invite email (check spam folder if you can\'t find it). If you no longer have the invite email, ask an admin to re-send the invite to generate a new password.',
           code: 'RECENTLY_INVITED_LOGIN_FAILED',
+          // Task 61 diagnostic — confirms the recently-invited code path fired
+          _diag: { recentlyInvited: true, invitedAt: linkedEmp?.credentialsInvitedAt },
         },
         { status: 401, headers: corsHeaders() }
       );
     }
-
     if (!isValid) {
+      // Task 61 diagnostic — confirms self-healing was skipped and the
+      // recently-invited check ran but didn't match (user not recently invited)
       return NextResponse.json(
-        { error: 'Invalid email or password' },
+        {
+          error: 'Invalid email or password',
+          _diag: { recentlyInvitedChecked: true, recentlyInvitedResult: recentlyInvited },
+        },
         { status: 401, headers: corsHeaders() }
       );
     }
