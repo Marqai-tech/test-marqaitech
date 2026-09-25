@@ -50,80 +50,138 @@ function buildInviteEmailHtml(params: {
 <!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
-<body style="margin:0;padding:0;background-color:#f4f5f7;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f5f7;padding:40px 0;">
+<body style="margin:0;padding:0;background-color:#f0fdf4;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f0fdf4;padding:32px 0;">
     <tr><td align="center">
-      <table width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
-        <!-- Header -->
+      <!-- ═══ Greeting Card ═══ -->
+      <table width="560" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:20px;overflow:hidden;box-shadow:0 8px 32px rgba(16,185,129,0.15);border:1px solid #d1fae5;">
+
+        <!-- ═══ Top Banner — Green Gradient with Confetti-style Dots ═══ -->
         <tr>
-          <td style="background:linear-gradient(135deg,#4f46e5 0%,#7c3aed 100%);padding:32px 40px;text-align:center;">
-            ${tenantLogo ? `<img src="${tenantLogo}" alt="${tenantName}" style="height:36px;margin-bottom:12px;border-radius:6px;" />` : ''}
-            <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:700;">Welcome to ${tenantName} HRMS</h1>
-            <p style="margin:8px 0 0;color:rgba(255,255,255,0.85);font-size:14px;">Your login credentials are ready</p>
+          <td style="background:linear-gradient(135deg,#065f46 0%,#10b981 50%,#34d399 100%);padding:40px 40px 32px;text-align:center;position:relative;">
+            <!-- Decorative dots -->
+            <div style="position:absolute;top:12px;left:20px;width:8px;height:8px;background:rgba(255,255,255,0.3);border-radius:50%;"></div>
+            <div style="position:absolute;top:24px;left:40px;width:6px;height:6px;background:rgba(255,255,255,0.2);border-radius:50%;"></div>
+            <div style="position:absolute;top:16px;right:30px;width:10px;height:10px;background:rgba(255,255,255,0.25);border-radius:50%;"></div>
+            <div style="position:absolute;top:36px;right:50px;width:5px;height:5px;background:rgba(255,255,255,0.15);border-radius:50%;"></div>
+
+            ${tenantLogo ? `<img src="${tenantLogo}" alt="${tenantName}" style="height:40px;margin-bottom:16px;border-radius:8px;background:rgba(255,255,255,0.9);padding:4px 12px;" />` : ''}
+            <p style="margin:0 0 4px;color:rgba(255,255,255,0.7);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:2px;">You're Invited</p>
+            <h1 style="margin:0;color:#ffffff;font-size:26px;font-weight:800;line-height:1.3;">Welcome to<br/>${tenantName} HRMS</h1>
+            <div style="width:60px;height:3px;background:rgba(255,255,255,0.5);border-radius:2px;margin:16px auto 0;"></div>
           </td>
         </tr>
-        <!-- Body -->
+
+        <!-- ═══ Greeting + HRMS Tool Description (2 lines) ═══ -->
         <tr>
-          <td style="padding:36px 40px;">
-            <p style="margin:0 0 16px;font-size:16px;color:#1e293b;">Hi <strong>${employeeName}</strong>,</p>
-            <p style="margin:0 0 24px;font-size:14px;color:#475569;line-height:1.6;">
-              ${adminName} has invited you to join the <strong>${tenantName}</strong> HRMS platform.
-              You can now access your employee dashboard, apply for leave, view payslips, and more.
+          <td style="padding:32px 40px 20px;">
+            <p style="margin:0 0 8px;font-size:18px;color:#065f46;font-weight:700;">Dear ${employeeName},</p>
+            <p style="margin:0 0 20px;font-size:14px;color:#334155;line-height:1.7;">
+              We're delighted to welcome you to <strong>${tenantName}</strong>! Your account on our <strong>3Boxes HRMS</strong> platform is now ready.
+              3Boxes HRMS is a comprehensive Human Resource Management System that streamlines your daily HR tasks —
+              from attendance tracking and leave management to payroll and performance reviews — all in one place.
             </p>
-            <!-- Credentials Card -->
-            <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:24px;">
-              <tr><td style="padding:20px 24px;">
-                <p style="margin:0 0 12px;font-size:12px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">Your Login Credentials</p>
-                <table cellpadding="0" cellspacing="0">
-                  <tr>
-                    <td style="padding:4px 0;font-size:14px;color:#64748b;width:100px;">Email:</td>
-                    <td style="padding:4px 0;font-size:14px;color:#1e293b;font-weight:600;">${email}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding:4px 0;font-size:14px;color:#64748b;">Password:</td>
-                    <td style="padding:4px 0;font-size:14px;color:#1e293b;font-weight:600;font-family:'Courier New',monospace;background:#e0e7ff;padding:2px 8px;border-radius:4px;">${password}</td>
-                  </tr>
-                </table>
-              </td></tr>
-            </table>
-            <!-- CTA Button -->
-            <table cellpadding="0" cellspacing="0" style="margin:0 auto;">
+
+            <!-- ═══ Credentials Card ═══ -->
+            <table width="100%" cellpadding="0" cellspacing="0" style="background:linear-gradient(135deg,#ecfdf5 0%,#f0fdf4 100%);border:1.5px solid #10b981;border-radius:12px;margin-bottom:20px;">
               <tr>
-                <td style="background:linear-gradient(135deg,#4f46e5 0%,#7c3aed 100%);border-radius:8px;padding:0;">
-                  <a href="${loginUrl}" style="display:inline-block;padding:14px 36px;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;border-radius:8px;">Login to HRMS &rarr;</a>
+                <td style="padding:20px 24px;">
+                  <table cellpadding="0" cellspacing="0" width="100%">
+                    <tr>
+                      <td colspan="2" style="padding:0 0 12px;text-align:center;">
+                        <p style="margin:0;font-size:11px;font-weight:700;color:#065f46;text-transform:uppercase;letter-spacing:1.5px;">Your Login Credentials</p>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding:6px 0;font-size:13px;color:#64748b;width:90px;text-align:right;padding-right:12px;">Email:</td>
+                      <td style="padding:6px 0;font-size:14px;color:#0f172a;font-weight:600;font-family:'Courier New',monospace;">${email}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding:6px 0;font-size:13px;color:#64748b;text-align:right;padding-right:12px;">Password:</td>
+                      <td style="padding:6px 0;">
+                        <span style="font-size:14px;color:#0f172a;font-weight:700;font-family:'Courier New',monospace;background:#d1fae5;padding:3px 10px;border-radius:6px;border:1px solid #10b981;">${password}</span>
+                      </td>
+                    </tr>
+                  </table>
                 </td>
               </tr>
             </table>
-            <p style="margin:20px 0 0;font-size:13px;color:#94a3b8;text-align:center;">
-              If the button doesn't work, copy and paste this link:<br/>
-              <a href="${loginUrl}" style="color:#4f46e5;word-break:break-all;">${loginUrl}</a>
+
+            <!-- ═══ Login Button ═══ -->
+            <table cellpadding="0" cellspacing="0" style="margin:0 auto 16px;">
+              <tr>
+                <td style="background:linear-gradient(135deg,#10b981 0%,#059669 100%);border-radius:10px;padding:0;box-shadow:0 4px 12px rgba(16,185,129,0.3);">
+                  <a href="${loginUrl}" style="display:inline-block;padding:14px 40px;color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;border-radius:10px;">Login to Your HRMS Account &rarr;</a>
+                </td>
+              </tr>
+            </table>
+
+            <p style="margin:12px 0 0;font-size:12px;color:#94a3b8;text-align:center;">
+              Or copy this link: <a href="${loginUrl}" style="color:#10b981;word-break:break-all;text-decoration:none;">${loginUrl}</a>
             </p>
           </td>
         </tr>
-        <!-- Security Notice -->
+
+        <!-- ═══ Quick Features Strip ═══ -->
         <tr>
-          <td style="padding:0 40px 32px;">
+          <td style="padding:0 40px 24px;">
+            <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f8fafc;border-radius:10px;">
+              <tr>
+                <td style="padding:14px 16px;text-align:center;width:33%;">
+                  <div style="font-size:22px;margin-bottom:4px;">&#128197;</div>
+                  <p style="margin:0;font-size:11px;color:#64748b;font-weight:600;">Attendance</p>
+                </td>
+                <td style="padding:14px 16px;text-align:center;width:33%;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;">
+                  <div style="font-size:22px;margin-bottom:4px;">&#9728;</div>
+                  <p style="margin:0;font-size:11px;color:#64748b;font-weight:600;">Leave</p>
+                </td>
+                <td style="padding:14px 16px;text-align:center;width:33%;">
+                  <div style="font-size:22px;margin-bottom:4px;">&#128176;</div>
+                  <p style="margin:0;font-size:11px;color:#64748b;font-weight:600;">Payroll</p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- ═══ Security Notice ═══ -->
+        <tr>
+          <td style="padding:0 40px 20px;">
             <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#fffbeb;border:1px solid #fde68a;border-radius:8px;">
-              <tr><td style="padding:16px 20px;">
+              <tr><td style="padding:14px 18px;">
                 <p style="margin:0;font-size:12px;color:#92400e;line-height:1.5;">
-                  <strong>Security Notice:</strong> Please change your password after your first login.
-                  Never share your credentials with anyone. If you did not expect this invitation,
-                  please contact your HR administrator.
+                  <strong>&#128274; Security Notice:</strong> Please change your password after your first login.
+                  Never share your credentials with anyone. If you did not expect this invitation, please contact your HR administrator.
                 </p>
               </td></tr>
             </table>
           </td>
         </tr>
-        <!-- Footer -->
+
+        <!-- ═══ Divider ═══ -->
         <tr>
-          <td style="background-color:#f8fafc;padding:20px 40px;text-align:center;border-top:1px solid #e2e8f0;">
-            <p style="margin:0;font-size:12px;color:#94a3b8;">
-              Powered by <strong>3Boxes HRMS</strong> &middot; People &middot; Process &middot; Technology<br/>
+          <td style="padding:0 40px;">
+            <div style="height:1px;background:linear-gradient(90deg,transparent,#d1fae5,transparent);margin:0 0 16px;"></div>
+          </td>
+        </tr>
+
+        <!-- ═══ Footer ═══ -->
+        <tr>
+          <td style="padding:0 40px 28px;text-align:center;">
+            <p style="margin:0 0 4px;font-size:13px;color:#065f46;font-weight:600;">${tenantName}</p>
+            <p style="margin:0 0 8px;font-size:11px;color:#94a3b8;line-height:1.5;">
+              Sent by ${adminName} via <strong>3Boxes HRMS</strong> &middot; People &middot; Process &middot; Technology<br/>
               A Proud Product of Marq AI Tech Pvt Ltd
             </p>
           </td>
         </tr>
+
       </table>
+      <!-- ═══ End Greeting Card ═══ -->
+
+      <p style="margin:16px 0 0;font-size:10px;color:#86efac;text-align:center;">
+        This is an automated email from 3Boxes HRMS. Please do not reply to this address.
+      </p>
     </td></tr>
   </table>
 </body>
