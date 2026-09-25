@@ -37,14 +37,21 @@ export async function OPTIONS() {
   return NextResponse.json({}, { headers: corsHeaders() });
 }
 
-/** Build a Date object from a YYYY-MM-DD + HH:mm in the employee's LOCAL timezone */
+/** Build a Date object from a YYYY-MM-DD + HH:mm.
+ * Task 69 FIX: the old code used `new Date('YYYY-MM-DDTHH:mm:00')` which
+ * parses as the SERVER's local timezone (UTC on Vercel). This caused the
+ * IST time sent by the client (e.g., 12:08 PM IST) to be interpreted as
+ * 12:08 PM UTC. When the browser read it back, it added +5:30 → displayed
+ * 5:38 PM instead of 12:08 PM.
+ *
+ * The fix: the client now also sends `utcTimestamp` (the result of
+ * `new Date().toISOString()` in the browser, which is the correct UTC
+ * representation of the current instant). The server prefers this field.
+ * For backward compatibility, if `utcTimestamp` is not present, we fall
+ * back to `buildLocalTimestamp(date, localTime)` — but this path has the
+ * timezone bug and should be avoided.
+ */
 function buildLocalTimestamp(dateStr: string, timeStr: string): Date {
-  // dateStr = '2026-09-23', timeStr = '14:35'
-  // We construct an ISO string with NO timezone suffix so JS parses it as LOCAL
-  // (browser-side local) — but on the server, Date parses 'YYYY-MM-DDTHH:mm' as LOCAL.
-  // To make it consistent with the existing /api/attendance POST behavior, we
-  // store it as UTC midnight + offset. Easier: just construct new Date(`YYYY-MM-DDTHH:mm:ss`)
-  // and let Prisma store it as UTC.
   return new Date(`${dateStr}T${timeStr}:00`);
 }
 
@@ -114,11 +121,11 @@ export async function POST(request: NextRequest) {
     if (!scope) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
 
     const body = await request.json();
-    const { employeeId, action, date, localTime, gps, notes } = body;
+    const { employeeId, action, date, localTime, utcTimestamp, gps, notes } = body;
 
-    if (!employeeId || !action || !date || !localTime) {
+    if (!employeeId || !action || !date || (!localTime && !utcTimestamp)) {
       return NextResponse.json(
-        { error: 'Missing required fields: employeeId, action, date, localTime' },
+        { error: 'Missing required fields: employeeId, action, date, localTime (or utcTimestamp)' },
         { status: 400, headers: corsHeaders() },
       );
     }
@@ -147,7 +154,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'You can only punch for yourself' }, { status: 403, headers: corsHeaders() });
     }
 
-    const timestamp = buildLocalTimestamp(date, localTime);
+    // Task 69 FIX: prefer utcTimestamp (sent by the browser as
+    // new Date().toISOString()) which correctly represents the instant in UTC.
+    // Fallback to buildLocalTimestamp(date, localTime) for backward compat
+    // (this path has the timezone bug — server interprets IST time as UTC).
+    const timestamp = utcTimestamp ? new Date(utcTimestamp) : buildLocalTimestamp(date, localTime);
     if (Number.isNaN(timestamp.getTime())) {
       return NextResponse.json({ error: 'Invalid date/time' }, { status: 400, headers: corsHeaders() });
     }

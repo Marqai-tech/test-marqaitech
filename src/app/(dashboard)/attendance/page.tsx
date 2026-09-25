@@ -126,7 +126,11 @@ function formatDate(d: string | null | undefined) {
 
 function formatTime(d: string | null | undefined) {
   if (!d) return '—';
-  return new Date(d).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+  // Task 69: explicitly use 12-hour format with AM/PM for clarity.
+  // The browser's toLocaleTimeString converts from UTC to the browser's
+  // local timezone (e.g., IST) automatically — so the displayed time
+  // matches the employee's actual local check-in time.
+  return new Date(d).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone });
 }
 
 function getStatusConfig(status: string) {
@@ -507,7 +511,7 @@ export default function AttendancePage() {
           employeeId: employee.id,
           action: 'checkin',
           date: localDateKey(now),
-          localTime: `${pad2(now.getHours())}:${pad2(now.getMinutes())}`,
+          localTime: `${pad2(now.getHours())}:${pad2(now.getMinutes())}`, utcTimestamp: now.toISOString(),
           gps,
         }),
       });
@@ -540,7 +544,7 @@ export default function AttendancePage() {
           employeeId: employee.id,
           action: 'checkout',
           date: localDateKey(now),
-          localTime: `${pad2(now.getHours())}:${pad2(now.getMinutes())}`,
+          localTime: `${pad2(now.getHours())}:${pad2(now.getMinutes())}`, utcTimestamp: now.toISOString(),
           gps,
         }),
       });
@@ -570,7 +574,7 @@ export default function AttendancePage() {
           employeeId: employee.id,
           action: 'breakin',
           date: localDateKey(now),
-          localTime: `${pad2(now.getHours())}:${pad2(now.getMinutes())}`,
+          localTime: `${pad2(now.getHours())}:${pad2(now.getMinutes())}`, utcTimestamp: now.toISOString(),
           gps,
         }),
       });
@@ -599,7 +603,7 @@ export default function AttendancePage() {
           employeeId: employee.id,
           action: 'breakout',
           date: localDateKey(now),
-          localTime: `${pad2(now.getHours())}:${pad2(now.getMinutes())}`,
+          localTime: `${pad2(now.getHours())}:${pad2(now.getMinutes())}`, utcTimestamp: now.toISOString(),
           gps,
         }),
       });
