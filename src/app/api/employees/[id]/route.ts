@@ -530,6 +530,145 @@ export async function PUT(
         include: coreInclude,
       });
 
+      // ─── Task 73: Audit log — record all employment detail changes ───
+      // Every time an admin edits an employee via PUT, we log each changed
+      // field to the EmployeeUpdateRequest table with status='applied' (no
+      // approval needed for admin-level changes). This creates a complete
+      // history visible in the Edit Log report (/employees/edit-log).
+      try {
+        // Resolve the actor (who made the change)
+        let actorUserId: string | null = null;
+        let actorTenantId: string | null = null;
+        try {
+          const tok = getTokenFromHeaders(request);
+          if (tok) { const d = await verifyToken(tok); if (d) { actorUserId = d.userId as string; actorTenantId = d.tenantId as string; } }
+        } catch { /* best-effort */ }
+
+        // Compact field-label map for audit entries
+        const FIELD_LABELS: Record<string, { label: string; category: string }> = {
+          employeeId:          { label: 'Employee ID',           category: 'system' },
+          email:               { label: 'Official Email',        category: 'system' },
+          firstName:           { label: 'First Name',            category: 'personal' },
+          lastName:            { label: 'Last Name',              category: 'personal' },
+          dateOfBirth:         { label: 'Date of Birth',          category: 'personal' },
+          gender:              { label: 'Gender',                 category: 'personal' },
+          maritalStatus:       { label: 'Marital Status',        category: 'personal' },
+          nationality:         { label: 'Nationality',           category: 'personal' },
+          departmentId:        { label: 'Department',            category: 'employment' },
+          designationId:       { label: 'Designation',           category: 'employment' },
+          branchId:            { label: 'Branch',                category: 'employment' },
+          reportingManagerId:  { label: 'Reporting Manager',     category: 'employment' },
+          employeeType:        { label: 'Employee Type',          category: 'employment' },
+          employeeStatus:      { label: 'Employee Status',       category: 'employment' },
+          companyId:           { label: 'Company',               category: 'employment' },
+          dateOfJoining:       { label: 'Date of Joining',       category: 'employment' },
+          status:              { label: 'Status',                category: 'employment' },
+          phone:               { label: 'Phone Number',           category: 'contact' },
+          personalEmail:       { label: 'Personal Email',         category: 'contact' },
+          address:             { label: 'Address',                category: 'contact' },
+          city:                { label: 'City',                   category: 'contact' },
+          state:               { label: 'State',                  category: 'contact' },
+          zipCode:             { label: 'ZIP Code',               category: 'contact' },
+          country:             { label: 'Country',               category: 'contact' },
+          bloodGroup:          { label: 'Blood Group',            category: 'personal' },
+          emergencyContactName: { label: 'Emergency Contact Name', category: 'contact' },
+          emergencyContactPhone: { label: 'Emergency Contact Phone', category: 'contact' },
+          bankName:            { label: 'Bank Name',             category: 'financial' },
+          bankAccountNo:       { label: 'Bank Account Number',  category: 'financial' },
+          bankIfscCode:        { label: 'Bank IFSC Code',        category: 'financial' },
+          panNumber:           { label: 'PAN Number',            category: 'kyc' },
+          aadhaarNumber:       { label: 'Aadhaar Number',        category: 'kyc' },
+          taxId:               { label: 'Tax ID',                category: 'kyc' },
+          salary:              { label: 'Salary',                category: 'system' },
+          salaryCurrency:      { label: 'Salary Currency',       category: 'system' },
+          role:                { label: 'User Role',             category: 'system' },
+        };
+
+        // Resolve department/designation/branch names for readable old/new values
+        let oldDeptName = existingEmployee.departmentId || '';
+        let newDeptName = updateData.departmentId as string || '';
+        let oldDesigName = existingEmployee.designationId || '';
+        let newDesigName = updateData.designationId as string || '';
+        let oldBranchName = existingEmployee.branchId || '';
+        let newBranchName = updateData.branchId as string || '';
+        let oldMgrName = existingEmployee.reportingManagerId || '';
+        let newMgrName = updateData.reportingManagerId as string || '';
+        try {
+          if (oldDeptName || newDeptName) {
+            const depts = await db.department.findMany({ where: { id: { in: [oldDeptName, newDeptName].filter(Boolean) } }, select: { id: true, name: true } });
+            const m = new Map(depts.map(d => [d.id, d.name]));
+            oldDeptName = m.get(oldDeptName) || oldDeptName;
+            newDeptName = m.get(newDeptName) || newDeptName;
+          }
+          if (oldDesigName || newDesigName) {
+            const desigs = await db.designation.findMany({ where: { id: { in: [oldDesigName, newDesigName].filter(Boolean) } }, select: { id: true, title: true } });
+            const m = new Map(desigs.map(d => [d.id, d.title]));
+            oldDesigName = m.get(oldDesigName) || oldDesigName;
+            newDesigName = m.get(newDesigName) || newDesigName;
+          }
+          if (oldMgrName || newMgrName) {
+            const mgrs = await db.employee.findMany({ where: { id: { in: [oldMgrName, newMgrName].filter(Boolean) } }, select: { id: true, firstName: true, lastName: true } });
+            const m = new Map(mgrs.map(e => [e.id, `${e.firstName} ${e.lastName}`.trim()]));
+            oldMgrName = m.get(oldMgrName) || oldMgrName;
+            newMgrName = m.get(newMgrName) || newMgrName;
+          }
+        } catch { /* best-effort name resolution */ }
+
+        // Map FK field IDs to resolved names for the audit log
+        const resolveValue = (field: string, val: unknown): string => {
+          if (val === null || val === undefined) return '';
+          if (val instanceof Date) return val.toISOString().split('T')[0];
+          const s = String(val);
+          if (field === 'departmentId') return field === 'departmentId' && oldDeptName && s === String(existingEmployee.departmentId) ? oldDeptName : (s === String(updateData.departmentId) ? newDeptName : s);
+          if (field === 'designationId') return field === 'designationId' && oldDesigName && s === String(existingEmployee.designationId) ? oldDesigName : (s === String(updateData.designationId) ? newDesigName : s);
+          if (field === 'reportingManagerId') return field === 'reportingManagerId' && oldMgrName && s === String(existingEmployee.reportingManagerId) ? oldMgrName : (s === String(updateData.reportingManagerId) ? newMgrName : s);
+          return s;
+        };
+
+        // For each field in updateData, compare with the old value and create an audit entry
+        const auditEntries: Array<{ fieldName: string; fieldLabel: string; category: string; oldValue: string; newValue: string }> = [];
+        for (const [field, newVal] of Object.entries(updateData)) {
+          if (field === 'updatedAt' || field === 'avatar') continue;
+          const meta = FIELD_LABELS[field];
+          if (!meta) continue;
+          const oldVal = (existingEmployee as Record<string, unknown>)[field];
+          const oldStr = resolveValue(field, oldVal);
+          const newStr = resolveValue(field, newVal);
+          // Only log if the value actually changed
+          if (oldStr !== newStr) {
+            auditEntries.push({ fieldName: field, fieldLabel: meta.label, category: meta.category, oldValue: oldStr, newValue: newStr });
+          }
+        }
+
+        // Create EmployeeUpdateRequest entries for each changed field
+        if (auditEntries.length > 0 && actorTenantId) {
+          for (const entry of auditEntries) {
+            try {
+              await db.employeeUpdateRequest.create({
+                data: {
+                  employeeId: actualId,
+                  fieldName: entry.fieldName,
+                  fieldLabel: entry.fieldLabel,
+                  category: entry.category,
+                  oldValue: entry.oldValue || '',
+                  newValue: entry.newValue || '',
+                  reason: `Admin edit via PUT /api/employees/[id]`,
+                  status: 'applied',
+                  currentTier: 0,
+                  requestedById: actorUserId || 'system',
+                  requestedAt: new Date(),
+                  appliedAt: new Date(),
+                  documentId: null,
+                },
+              }).catch(() => null); // non-critical — don't block the update if logging fails
+            } catch { /* per-field — continue to next */ }
+          }
+          console.log(`[Employee PUT] Audit log: ${auditEntries.length} field change(s) logged for employee ${actualId}`);
+        }
+      } catch (auditErr) {
+        console.warn('[Employee PUT] Audit logging failed (non-critical):', auditErr);
+      }
+
       // ─── Announce reporting-manager change (bell + email + audit) ───
       if (reportingManagerId !== undefined) {
         let decodedActor: { userId?: string; tenantId?: string } = {};
