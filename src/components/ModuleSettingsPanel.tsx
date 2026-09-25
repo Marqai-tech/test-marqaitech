@@ -241,6 +241,7 @@ export const employeeSections: SettingSection[] = [
       { key: 'employee_self_service_access', label: 'Employee Self-Service Access', type: 'toggle', defaultValue: true, description: 'Allow employees to access the self-service portal' },
       { key: 'employee_profile_edit_permissions', label: 'Profile Edit Permissions', type: 'select', defaultValue: 'limited', description: 'What profile fields employees can edit themselves', options: [{ value: 'none', label: 'None' }, { value: 'limited', label: 'Limited (Contact Info)' }, { value: 'full', label: 'Full (All Fields)' }] },
       { key: 'employee_max_reporting_levels', label: 'Maximum Reporting Manager Levels', type: 'number', defaultValue: 3, description: 'Maximum depth of the reporting hierarchy', min: 1, max: 10 },
+      { key: 'employee_data_locked', label: 'Lock Employee Data', type: 'toggle', defaultValue: false, description: 'When ON, employee ID, official email, and employment details (department, designation, branch, reporting manager, employee type/status) are read-only for ALL employees. Only the tenant admin can unlock to make changes.' },
     ],
   },
 ];

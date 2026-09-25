@@ -441,6 +441,28 @@ export async function PUT(
         );
       }
 
+      // ─── Task 72: Employee Data Lock check ───
+      // If the tenant admin has locked employee data (via Employee Settings >
+      // Lock Employee Data toggle), changes to employeeId, email, and
+      // employment details are rejected with a clear error message.
+      // The lock is stored in CollaborationSettings.employeeDataLocked.
+      try {
+        await db.$executeRawUnsafe(`ALTER TABLE "CollaborationSettings" ADD COLUMN IF NOT EXISTS "employeeDataLocked" BOOLEAN NOT NULL DEFAULT false`);
+      } catch { /* column may already exist */ }
+      const lockRows = await db.$queryRawUnsafe(`SELECT "employeeDataLocked" FROM "CollaborationSettings" LIMIT 1`).catch(() => []) as any[];
+      const isLocked = lockRows?.[0]?.employeeDataLocked === true || lockRows?.[0]?.employeedatalocked === true;
+      if (isLocked) {
+        // Check if any locked fields are being changed
+        const lockedFields = ['employeeId', 'email', 'departmentId', 'designationId', 'branchId', 'reportingManagerId', 'employeeType', 'employeeStatus', 'companyId', 'dateOfJoining', 'status'];
+        const attemptedChanges = lockedFields.filter(f => body[f] !== undefined && body[f] !== (existingEmployee as any)[f]);
+        if (attemptedChanges.length > 0) {
+          return NextResponse.json(
+            { error: `Employee data is locked by the tenant admin. The following fields cannot be changed: ${attemptedChanges.join(', ')}. Please unlock employee data in Employee Settings > Access & Permissions > Lock Employee Data to make changes.` },
+            { status: 403, headers: corsHeaders() }
+          );
+        }
+      }
+
       const actualId = existingEmployee.id;
 
       const {

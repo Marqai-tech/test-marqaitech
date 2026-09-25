@@ -831,10 +831,11 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
           autoGeneration: settings.employee_code_auto_generation !== false,
           prefix: settings.employee_code_prefix || 'EMP',
           sequence: settings.employee_code_sequence || 1001,
+          dataLocked: settings.employee_data_locked === true,
         };
       }
     } catch { /* ignore */ }
-    return { autoGeneration: true, prefix: 'EMP', sequence: 1001 };
+    return { autoGeneration: true, prefix: 'EMP', sequence: 1001, dataLocked: false };
   }, []);
 
   /* Read the probation period (months) from employee settings (localStorage).
@@ -1722,14 +1723,14 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                         value={form.employeeId}
                         onChange={e => updateForm('employeeId', e.target.value)}
                         required
-                        disabled={getEmployeeCodeSettings().autoGeneration}
+                        disabled={getEmployeeCodeSettings().autoGeneration || getEmployeeCodeSettings().dataLocked}
                         placeholder={getEmployeeCodeSettings().autoGeneration ? 'Auto-generated on save' : 'Enter employee ID'}
                         className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 disabled:bg-slate-50"
                       />
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Official Email ID <span className="text-red-500 font-bold">*</span></label>
-                      <input type="email" value={form.email} onChange={e => updateForm('email', e.target.value)} required placeholder="e.g., yourname@company.com" className={`w-full px-3 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 ${stepErrors.email ? 'border-red-400 bg-red-50' : 'border-thb-border'}`} />
+                      <input type="email" value={form.email} onChange={e => updateForm('email', e.target.value)} required disabled={getEmployeeCodeSettings().dataLocked} placeholder="e.g., yourname@company.com" className={`w-full px-3 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 ${stepErrors.email ? 'border-red-400 bg-red-50' : 'border-thb-border'}`} />
                       <p className="text-[10px] text-thb-text-muted mt-0.5">Use company/official email only (no gmail, yahoo, etc.)</p>
                       {stepErrors.email && <p className="text-xs text-red-500 mt-1">{stepErrors.email}</p>}
                     </div>
@@ -1848,21 +1849,21 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Department <span className="text-red-500 font-bold">*</span></label>
-                      <select value={form.departmentId} onChange={e => updateForm('departmentId', e.target.value)} required className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
+                      <select value={form.departmentId} onChange={e => updateForm('departmentId', e.target.value)} required disabled={getEmployeeCodeSettings().dataLocked} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                         <option value="">Select Department</option>
                         {departments.map(d => <option key={d.id} value={d.id}>{d.name}{d.company ? ` (${d.company.name})` : ''}</option>)}
                       </select>
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Designation <span className="text-red-500 font-bold">*</span></label>
-                      <select value={form.designationId} onChange={e => updateForm('designationId', e.target.value)} required className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
+                      <select value={form.designationId} onChange={e => updateForm('designationId', e.target.value)} required disabled={getEmployeeCodeSettings().dataLocked} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                         <option value="">Select Designation</option>
                         {designations.map(d => <option key={d.id} value={d.id}>{d.title}{d.department ? ` — ${d.department.name}` : ''}</option>)}
                       </select>
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Branch</label>
-                      <select value={form.branchId} onChange={e => updateForm('branchId', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
+                      <select value={form.branchId} onChange={e => updateForm('branchId', e.target.value)} disabled={getEmployeeCodeSettings().dataLocked} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                         <option value="">Select Branch</option>
                         {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                       </select>
@@ -1948,7 +1949,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Employee Status <span className="text-red-500 font-bold">*</span></label>
-                      <select value={form.employeeStatus} onChange={e => updateForm('employeeStatus', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
+                      <select value={form.employeeStatus} onChange={e => updateForm('employeeStatus', e.target.value)} disabled={getEmployeeCodeSettings().dataLocked} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                         <option value="confirmed">Confirmed</option>
                         <option value="probation">Probation</option>
                         <option value="contract">Contract</option>
@@ -1988,7 +1989,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Employee Type <span className="text-red-500 font-bold">*</span></label>
-                      <select value={form.employeeType} onChange={e => updateForm('employeeType', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
+                      <select value={form.employeeType} onChange={e => updateForm('employeeType', e.target.value)} disabled={getEmployeeCodeSettings().dataLocked} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                         <option value="full_time">Full Time</option>
                         <option value="part_time">Part Time</option>
                         <option value="contract">Contract</option>
