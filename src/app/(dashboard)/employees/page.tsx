@@ -1713,13 +1713,16 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                         {!getEmployeeCodeSettings().autoGeneration && !editingId && (
                           <span className="ml-1.5 text-[10px] font-normal text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">Manual</span>
                         )}
+                        {editingId && !getEmployeeCodeSettings().autoGeneration && (
+                          <span className="ml-1.5 text-[10px] font-normal text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">Editable</span>
+                        )}
                       </label>
                       <input
                         type="text"
                         value={form.employeeId}
                         onChange={e => updateForm('employeeId', e.target.value)}
                         required
-                        disabled={!!editingId || (getEmployeeCodeSettings().autoGeneration && !editingId)}
+                        disabled={getEmployeeCodeSettings().autoGeneration}
                         placeholder={getEmployeeCodeSettings().autoGeneration ? 'Auto-generated on save' : 'Enter employee ID'}
                         className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 disabled:bg-slate-50"
                       />

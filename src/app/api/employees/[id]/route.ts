@@ -450,10 +450,12 @@ export async function PUT(
         emergencyContactName, emergencyContactPhone, bankName, bankAccountNo,
         bankIfscCode, panNumber, aadhaarNumber, taxId, salary, salaryCurrency,
         status, role, avatar, reportingManagerId,
-        employeeStatus, employeeType,
+        employeeStatus, employeeType, employeeId,
       } = body;
 
       const updateData: Record<string, unknown> = {};
+      // Task 71: allow updating employeeId when auto-generation is disabled
+      if (employeeId !== undefined) updateData.employeeId = employeeId;
       if (firstName !== undefined) updateData.firstName = firstName;
       if (lastName !== undefined) updateData.lastName = lastName;
       if (email !== undefined) updateData.email = email;
