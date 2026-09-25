@@ -270,8 +270,15 @@ export async function POST(request: Request) {
       });
       if (linkedEmp?.credentialsStatus === 'invited' && linkedEmp.credentialsInvitedAt) {
         const invitedAt = new Date(linkedEmp.credentialsInvitedAt).getTime();
-        const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
-        if (Date.now() - invitedAt < sevenDaysMs) {
+        // Task 68 FIX: shortened from 7 days to 1 hour. The 7-day block was
+        // too aggressive — users who couldn't access their invite email
+        // (or had the wrong password) were locked out for a full week with
+        // no way to login. The 1-hour window is enough to prevent the
+        // immediate race condition (user types MarqAI@2026 right after
+        // being invited, before checking the email) but allows self-healing
+        // after an hour so users aren't permanently locked out.
+        const oneHourMs = 60 * 60 * 1000;
+        if (Date.now() - invitedAt < oneHourMs) {
           recentlyInvited = true;
         }
       }
@@ -328,7 +335,7 @@ export async function POST(request: Request) {
     if (!isValid && recentlyInvited) {
       return NextResponse.json(
         {
-          error: 'Invalid email or password. Your account was recently invited — please use the password from the invite email (check spam folder if you can\'t find it). If you no longer have the invite email, ask an admin to re-send the invite to generate a new password.',
+          error: 'Invalid email or password. Your account was recently invited (within the last hour) — please use the password from the invite email (check spam folder if you can\'t find it). If you don\'t have the invite email, wait 1 hour after the invite was sent and try again with your standard password, or ask an admin to re-send the invite.',
           code: 'RECENTLY_INVITED_LOGIN_FAILED',
           // Task 61 diagnostic — confirms the recently-invited code path fired
           _diag: { recentlyInvited: true, invitedAt: linkedEmp?.credentialsInvitedAt },
