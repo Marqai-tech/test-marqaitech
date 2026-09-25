@@ -473,6 +473,16 @@ export async function PUT(
         bankIfscCode, panNumber, aadhaarNumber, taxId, salary, salaryCurrency,
         status, role, avatar, reportingManagerId,
         employeeStatus, employeeType, employeeId,
+        // Task 74: add missing fields that were silently dropped
+        pfUAN, leavePolicyId, attendancePolicyId, travelPolicyId, salaryStructureId,
+        healthInsuranceProvider, healthInsurancePolicyNo,
+        primaryPhysicianName, primaryPhysicianPhone,
+        hasChronicIllness, chronicIllnessDetails,
+        hasAllergies, allergyDetails,
+        hasDisability, disabilityDetails,
+        isOnMedication, medicationDetails,
+        hasHadSurgery, surgeryDetails,
+        emergencyMedicalCondition,
       } = body;
 
       const updateData: Record<string, unknown> = {};
@@ -512,6 +522,27 @@ export async function PUT(
       if (salaryCurrency !== undefined) updateData.salaryCurrency = salaryCurrency;
       if (avatar !== undefined) updateData.avatar = avatar || null;
       if (status !== undefined) updateData.status = status;
+      // Task 74: persist health + insurance + policy fields that were silently dropped
+      if (pfUAN !== undefined) updateData.pfUAN = pfUAN || null;
+      if (leavePolicyId !== undefined) updateData.leavePolicyId = leavePolicyId || null;
+      if (attendancePolicyId !== undefined) updateData.attendancePolicyId = attendancePolicyId || null;
+      if (travelPolicyId !== undefined) updateData.travelPolicyId = travelPolicyId || null;
+      if (salaryStructureId !== undefined) updateData.salaryStructureId = salaryStructureId || null;
+      if (healthInsuranceProvider !== undefined) updateData.healthInsuranceProvider = healthInsuranceProvider || null;
+      if (healthInsurancePolicyNo !== undefined) updateData.healthInsurancePolicyNo = healthInsurancePolicyNo || null;
+      if (primaryPhysicianName !== undefined) updateData.primaryPhysicianName = primaryPhysicianName || null;
+      if (primaryPhysicianPhone !== undefined) updateData.primaryPhysicianPhone = primaryPhysicianPhone || null;
+      if (hasChronicIllness !== undefined) updateData.hasChronicIllness = hasChronicIllness || null;
+      if (chronicIllnessDetails !== undefined) updateData.chronicIllnessDetails = chronicIllnessDetails || null;
+      if (hasAllergies !== undefined) updateData.hasAllergies = hasAllergies || null;
+      if (allergyDetails !== undefined) updateData.allergyDetails = allergyDetails || null;
+      if (hasDisability !== undefined) updateData.hasDisability = hasDisability || null;
+      if (disabilityDetails !== undefined) updateData.disabilityDetails = disabilityDetails || null;
+      if (isOnMedication !== undefined) updateData.isOnMedication = isOnMedication || null;
+      if (medicationDetails !== undefined) updateData.medicationDetails = medicationDetails || null;
+      if (hasHadSurgery !== undefined) updateData.hasHadSurgery = hasHadSurgery || null;
+      if (surgeryDetails !== undefined) updateData.surgeryDetails = surgeryDetails || null;
+      if (emergencyMedicalCondition !== undefined) updateData.emergencyMedicalCondition = emergencyMedicalCondition || null;
 
       // ─── Reporting manager (validated: same company, active, no self/cycle) ───
       let newManagerForNotify: { id: string; firstName: string; lastName: string; email: string; userId: string | null } | null = null;

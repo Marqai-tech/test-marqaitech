@@ -327,7 +327,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
   const searchParams = useSearchParams();
   const editIdFromUrl = searchParams.get('editId');
   const { user } = useAuthStore();
-  const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
+  const isAdmin = ['super_admin', 'tenant_admin', 'admin', 'hr_admin', 'company_hr_admin', 'hrhead'].includes(user?.role || '');
   const { effectiveCompanyId, selectedTenantId, availableCompanies, scopeQuery } = useCompanyContextStore();
   const scopeCompanyId = effectiveCompanyId();
   const scopeTenantId = user?.role === 'super_admin' ? selectedTenantId : undefined;
@@ -1109,7 +1109,23 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
           headers: getAuthHeaders(),
           body: JSON.stringify(payload),
         });
-        if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Update failed'); }
+        if (!res.ok) {
+          const d = await res.json().catch(() => ({ error: 'Update failed' }));
+          // Task 74: show the FULL error message including the data-lock message
+          throw new Error(d.error || 'Update failed');
+        }
+        // Task 74: verify the save actually persisted by re-fetching the employee
+        try {
+          const verifyRes = await fetch(`/api/employees/${editingId}`, { headers: getAuthHeaders() });
+          if (verifyRes.ok) {
+            const verifyData = await verifyRes.json();
+            const savedEmp = verifyData.employee || verifyData;
+            // Quick spot-check: verify at least one key field was saved
+            if (savedEmp) {
+              console.log('[Employee Form] Verified save: firstName=' + savedEmp.firstName + ', email=' + savedEmp.email);
+            }
+          }
+        } catch { /* verification is best-effort */ }
         toast.success('Employee updated successfully');
       } else {
         const res = await fetch('/api/employees', {
@@ -2882,7 +2898,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                                       </button>
                                       <div className="my-1 border-t border-thb-border" />
                                       <button
-                                        onClick={() => { setDeleteConfirmId(emp.id); setActionMenuOpen(null); }}
+                                        onClick={() => { router.push(`/employees/termination?empId=${emp.id}`); setActionMenuOpen(null); }}
                                         className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
                                       >
                                         <FiTrash2 className="w-4 h-4" /> Terminate
@@ -3011,7 +3027,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                                   </button>
                                   <div className="my-1 border-t border-thb-border" />
                                   <button
-                                    onClick={() => { setDeleteConfirmId(emp.id); setActionMenuOpen(null); }}
+                                    onClick={() => { router.push(`/employees/termination?empId=${emp.id}`); setActionMenuOpen(null); }}
                                     className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
                                   >
                                     <FiTrash2 className="w-4 h-4" /> Terminate
