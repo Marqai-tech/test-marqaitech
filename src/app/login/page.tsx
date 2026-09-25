@@ -157,11 +157,26 @@ export default function LoginPage() {
     e.preventDefault();
     setError('');
 
-    const emailResult = validateEmail(email);
-    if (!emailResult.valid) {
-      setError(emailResult.error!);
-      toast.error(emailResult.error!);
-      return;
+    // Task 70 FIX: the old code called validateEmail() on every login
+    // attempt, which REJECTED employee IDs (no '@') with "Invalid email
+    // format". Now we only validate as email if the input looks like an
+    // email (contains '@'). If it doesn't, we skip email validation and
+    // let the server handle the employee-ID-based lookup.
+    const looksLikeEmail = email.includes('@');
+    if (looksLikeEmail) {
+      const emailResult = validateEmail(email);
+      if (!emailResult.valid) {
+        setError(emailResult.error!);
+        toast.error(emailResult.error!);
+        return;
+      }
+    } else {
+      // Input is an employee ID (no '@'). Basic validation: non-empty + min length.
+      if (!email.trim() || email.trim().length < 2) {
+        setError('Employee ID is too short (minimum 2 characters).');
+        toast.error('Employee ID is too short (minimum 2 characters).');
+        return;
+      }
     }
 
     const passwordResult = validatePasswordRequired(password);
