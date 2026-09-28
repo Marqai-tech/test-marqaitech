@@ -82,7 +82,14 @@ export async function POST(request: Request) {
     // marqaitechgroup.3boxeshrms.com), we verify that the user
     // belongs to that specific tenant. Super admins can log in
     // from any domain. All other roles must match the subdomain tenant.
-    const tenantSlug = request.headers.get('x-tenant-slug') || '';
+    const hostHeader = (request.headers.get('x-tenant-domain') || request.headers.get('host') || '').split(':')[0].toLowerCase();
+    let tenantSlug = request.headers.get('x-tenant-slug') || '';
+    // A *.vercel.app host is not a tenant subdomain. Middleware used to turn
+    // 3-boxes-hrms.vercel.app into slug "3-boxes-hrms", which made super admin
+    // login fail. Drop that false slug; known demo hosts keep their own slug.
+    if (hostHeader.endsWith('.vercel.app') && tenantSlug === hostHeader.split('.')[0]) {
+      tenantSlug = '';
+    }
     let subdomainTenantId: string | null = null;
 
     if (tenantSlug) {

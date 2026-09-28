@@ -90,9 +90,16 @@ function extractTenantSlug(request: NextRequest): string {
   const host = request.headers.get('host') || '';
   const hostname = host.split(':')[0];
 
-  // 2. Demo domain detection — resolves Vercel URLs to the demo tenant
+  // 2. Demo domain detection — resolves known demo Vercel URLs to the demo tenant
   if (DEMO_DOMAINS.includes(hostname)) {
     return DEMO_SLUG;
+  }
+
+  // Project deployment URLs (3-boxes-hrms.vercel.app and preview URLs) are the
+  // platform login, not a tenant. Without this, the first hostname label
+  // ("3-boxes-hrms") is treated as a tenant slug and super admin login is rejected.
+  if (hostname.endsWith('.vercel.app')) {
+    return '';
   }
 
   // 3. Subdomain of root domain (e.g., marqaitechgroup.3boxeshrms.com)
@@ -106,11 +113,6 @@ function extractTenantSlug(request: NextRequest): string {
   if (parts.length >= 3) {
     const sub = parts[0].toLowerCase();
     if (sub && !RESERVED_SUBDOMAINS.includes(sub)) return sub;
-  }
-
-  // 5. Any *.vercel.app that isn't the demo domain — treat as demo
-  if (hostname.endsWith('.vercel.app') && !DEMO_DOMAINS.includes(hostname)) {
-    return DEMO_SLUG;
   }
 
   return '';
