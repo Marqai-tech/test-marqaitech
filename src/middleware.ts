@@ -102,9 +102,15 @@ function extractTenantSlug(request: NextRequest): string {
     return '';
   }
 
-  // 3. Subdomain of root domain (e.g., marqaitechgroup.3boxeshrms.com)
+  // 3. Subdomain of root domain.
+  // marqaitechgroup.3boxeshrms.com → tenant "marqaitechgroup" (production)
+  // test.3boxeshrms.com → platform test site (super admin)
+  // marqaitechgroup.test.3boxeshrms.com → tenant "marqaitechgroup" on the test site
   if (hostname.endsWith(`.${ROOT_DOMAIN}`)) {
-    const sub = hostname.replace(`.${ROOT_DOMAIN}`, '').toLowerCase();
+    let sub = hostname.replace(`.${ROOT_DOMAIN}`, '').toLowerCase();
+    if (sub.endsWith('.test')) {
+      sub = sub.slice(0, -'.test'.length);
+    }
     if (sub && !RESERVED_SUBDOMAINS.includes(sub)) return sub;
   }
 

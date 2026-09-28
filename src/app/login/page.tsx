@@ -66,7 +66,7 @@ export default function LoginPage() {
         const parts = hostname.split('.');
         if (parts.length >= 3) {
           const sub = parts[0].toLowerCase();
-          if (!['www', 'api', 'app', 'admin', 'mail', 'ftp', 'localhost'].includes(sub)) {
+          if (!['www', 'api', 'app', 'admin', 'mail', 'ftp', 'localhost', 'test', 'staging', 'dev'].includes(sub)) {
             const res = await fetch(`/api/public/tenant-info?slug=${encodeURIComponent(sub)}`);
             if (res.ok) {
               const data = await res.json();
