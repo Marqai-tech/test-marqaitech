@@ -16,9 +16,37 @@ export async function OPTIONS() {
   return NextResponse.json({}, { headers: corsHeaders() });
 }
 
+// Older tenant databases have the original Shift columns only. Prisma still
+// writes the newer fields (type, grace windows, overtime), so create fails
+// with "column does not exist" until those columns are added.
+async function ensureShiftColumns(db: { $executeRawUnsafe: (sql: string) => Promise<unknown> }) {
+  const statements = [
+    `ALTER TABLE "Shift" ADD COLUMN IF NOT EXISTS "code" TEXT`,
+    `ALTER TABLE "Shift" ADD COLUMN IF NOT EXISTS "type" TEXT NOT NULL DEFAULT 'fixed'`,
+    `ALTER TABLE "Shift" ADD COLUMN IF NOT EXISTS "crossMidnight" BOOLEAN NOT NULL DEFAULT false`,
+    `ALTER TABLE "Shift" ADD COLUMN IF NOT EXISTS "breakIntervals" JSONB`,
+    `ALTER TABLE "Shift" ADD COLUMN IF NOT EXISTS "earlyInGrace" INTEGER NOT NULL DEFAULT 15`,
+    `ALTER TABLE "Shift" ADD COLUMN IF NOT EXISTS "lateInGrace" INTEGER NOT NULL DEFAULT 15`,
+    `ALTER TABLE "Shift" ADD COLUMN IF NOT EXISTS "earlyOutGrace" INTEGER NOT NULL DEFAULT 15`,
+    `ALTER TABLE "Shift" ADD COLUMN IF NOT EXISTS "lateOutGrace" INTEGER NOT NULL DEFAULT 15`,
+    `ALTER TABLE "Shift" ADD COLUMN IF NOT EXISTS "earliestCheckIn" TEXT`,
+    `ALTER TABLE "Shift" ADD COLUMN IF NOT EXISTS "latestCheckOut" TEXT`,
+    `ALTER TABLE "Shift" ADD COLUMN IF NOT EXISTS "otEnabled" BOOLEAN NOT NULL DEFAULT false`,
+    `ALTER TABLE "Shift" ADD COLUMN IF NOT EXISTS "otThresholdMinutes" INTEGER NOT NULL DEFAULT 480`,
+    `ALTER TABLE "Shift" ADD COLUMN IF NOT EXISTS "otMultiplier" DOUBLE PRECISION NOT NULL DEFAULT 1.5`,
+    `ALTER TABLE "Shift" ADD COLUMN IF NOT EXISTS "otApprovalRequired" BOOLEAN NOT NULL DEFAULT true`,
+    `ALTER TABLE "Shift" ADD COLUMN IF NOT EXISTS "geofenceId" TEXT`,
+    `ALTER TABLE "Shift" ADD COLUMN IF NOT EXISTS "allowedIpAddresses" TEXT`,
+  ];
+  for (const sql of statements) {
+    try { await db.$executeRawUnsafe(sql); } catch { /* column already exists or table is locked */ }
+  }
+}
+
 export async function GET(req: NextRequest) {
   try {
     const db = await getDb(req);
+    await ensureShiftColumns(db);
     const companyFilter = await getCompanyFilter(req);
     if (companyFilter === null) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
@@ -78,6 +106,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const db = await getDb(req);
+    await ensureShiftColumns(db);
     const auth = await getAuthInfo(req);
     if (!auth) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
@@ -151,6 +180,7 @@ export async function POST(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   try {
     const db = await getDb(req);
+    await ensureShiftColumns(db);
     const auth = await getAuthInfo(req);
     if (!auth) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
@@ -192,6 +222,7 @@ export async function PUT(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   try {
     const db = await getDb(req);
+    await ensureShiftColumns(db);
     const auth = await getAuthInfo(req);
     if (!auth) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
