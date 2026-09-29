@@ -10,6 +10,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { getDb } from '@/lib/tenant-db';
+import { getDataScope } from '@/lib/roleAccess';
 
 export const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -69,9 +70,9 @@ export async function findEmployeeByEmail(email: string | undefined | null, db?:
   });
 }
 
-/** True if the user role is admin-level. */
+/** True if the user role is HR/admin-level (not employee/manager self-service). */
 export function isAdminRole(role: string | undefined | null) {
-  return !!role && ['super_admin', 'tenant_admin', 'admin'].includes(role);
+  return getDataScope(role || '') === 'all';
 }
 
 /** Parse a JSON body safely. */
