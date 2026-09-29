@@ -48,6 +48,41 @@ async function main() {
 
   const sql = neon(connectionString);
 
+  // Skip the full statement list when the schema files have not changed.
+  // The first publish after a real schema change still runs every statement.
+  let sourceHash = '';
+  try {
+    const crypto = require('crypto');
+    const fs = require('fs');
+    const path = require('path');
+    const hash = crypto.createHash('sha256');
+    for (const file of [
+      path.join(__dirname, '..', 'prisma', 'schema.prisma'),
+      path.join(__dirname, 'schema-sync.js'),
+      path.join(__dirname, '_generated-tables.js'),
+      path.join(__dirname, '_timestamp-fix.js'),
+      path.join(__dirname, '_init-table-fixes.js'),
+    ]) {
+      hash.update(fs.readFileSync(file));
+    }
+    sourceHash = hash.digest('hex');
+    await sql.query(
+      `CREATE TABLE IF NOT EXISTS "SchemaSyncState" (
+        "id" TEXT PRIMARY KEY,
+        "sourceHash" TEXT NOT NULL,
+        "syncedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )`,
+    );
+    const saved = await sql.query(`SELECT "sourceHash" FROM "SchemaSyncState" WHERE "id" = $1`, ['platform']);
+    const previous = saved && saved[0] && saved[0].sourceHash;
+    if (previous && previous === sourceHash) {
+      console.log('[schema-sync] Database structure is already up to date — skipping.');
+      return;
+    }
+  } catch (err) {
+    console.warn('[schema-sync] Could not check previous sync (will run full sync):', err && err.message ? err.message : err);
+  }
+
   // Each statement uses IF NOT EXISTS / CREATE TABLE IF NOT EXISTS so the
   // script is safe to re-run. We only ADD columns — never drop, never rename,
   // never change types. This means it cannot cause data loss.
@@ -2547,6 +2582,19 @@ async function main() {
         console.warn(`[schema-sync] FK statement failed (non-fatal): ${msg.substring(0, 120)}`);
       }
       skipped++;
+    }
+  }
+
+  if (sourceHash) {
+    try {
+      await sql.query(
+        `INSERT INTO "SchemaSyncState" ("id", "sourceHash", "syncedAt")
+         VALUES ($1, $2, CURRENT_TIMESTAMP)
+         ON CONFLICT ("id") DO UPDATE SET "sourceHash" = $2, "syncedAt" = CURRENT_TIMESTAMP`,
+        ['platform', sourceHash],
+      );
+    } catch (err) {
+      console.warn('[schema-sync] Could not save sync marker:', err && err.message ? err.message : err);
     }
   }
 
