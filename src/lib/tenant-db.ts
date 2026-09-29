@@ -56,7 +56,7 @@ import wsModule from 'ws'
 neonConfig.webSocketConstructor = wsModule as unknown as typeof WebSocket
 import { db as platformDb } from '@/lib/db'
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth'
-import { isTestPlatformHost } from '@/lib/tenant-filter'
+import { DEMO_HIDDEN_SLUGS, isTestPlatformHost } from '@/lib/tenant-filter'
 
 // Cache tenant DB clients to avoid recreating on every request
 const tenantDbCache = new Map<string, { client: PrismaClient; lastAccess: number }>()
@@ -132,7 +132,8 @@ export async function getDb(request?: Request | null): Promise<PrismaClient> {
       tenantSlug = headerSlug
     }
     const reqHost = request.headers.get('x-tenant-domain') || request.headers.get('host') || ''
-    if (isTestPlatformHost(reqHost) || tenantSlug === 'test') {
+    const testPlatform = isTestPlatformHost(reqHost) || tenantSlug === 'test'
+    if (testPlatform) {
       tenantSlug = ''
     } else if (!tenantSlug) {
       // 2. Try demo domain detection from host header
@@ -144,7 +145,9 @@ export async function getDb(request?: Request | null): Promise<PrismaClient> {
     }
 
     // 3. Try JWT token's tenantId
-    if (!tenantSlug) {
+    // On test Super Admin, ignore JWT tenant — it often points at MarqAI or
+    // the platform placeholder and would load live employees instead of samples.
+    if (!tenantSlug && !testPlatform) {
       try {
         const token = getTokenFromHeaders(request)
         if (token) {
@@ -178,7 +181,7 @@ export async function getDb(request?: Request | null): Promise<PrismaClient> {
             where: { id: queryTenantId },
             select: { slug: true },
           })
-          if (tenant?.slug) {
+          if (tenant?.slug && !(testPlatform && DEMO_HIDDEN_SLUGS.includes(tenant.slug))) {
             tenantSlug = tenant.slug
           }
         }

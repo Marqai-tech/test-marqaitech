@@ -186,7 +186,16 @@ export const useCompanyContextStore = create<CompanyContextState>()(
           // to scope the groups/companies to. Otherwise, on page reload or
           // navigation, the switcher shows the wrong tenant's groups/companies
           // or none at all if the default tenant has no groups.
-          const persistedTenantId = state.selectedTenantId;
+          const persistedTenantId = (() => {
+            const id = state.selectedTenantId;
+            if (!id) return null;
+            if (typeof window !== 'undefined' && isTestPlatformHost(window.location.hostname)) {
+              const hidden = getHiddenSlugs();
+              const t = state.availableTenants.find((x) => x.id === id);
+              if (t && hidden.includes(t.slug)) return null;
+            }
+            return id;
+          })();
           const contextUrl = persistedTenantId
             ? `/api/me/context?tenantId=${encodeURIComponent(persistedTenantId)}`
             : '/api/me/context';

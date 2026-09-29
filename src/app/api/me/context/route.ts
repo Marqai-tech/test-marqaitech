@@ -274,7 +274,7 @@ export async function GET(request: Request) {
         availableTenants[0]?.id;
 
       // Debug log: verify filtering is working (AFTER effectiveTenantId is declared)
-      console.log(`[me/context] siteMode=${siteMode}, host=${request.headers.get('host')}, filteredTenants=${availableTenants.length}, slugs=[${availableTenants.map((t: { slug: string }) => t.slug).join(',')}]`);
+      console.log(`[me/context] host=${request.headers.get('host')}, filteredTenants=${availableTenants.length}, slugs=[${availableTenants.map((t: { slug: string }) => t.slug).join(',')}]`);
       console.log(`[me/context] GOLDEN RULE: requestedTenantId=${requestedTenantId || 'none'}, callerTenantId=${callerTenantId || 'none'}, requestedVisible=${requestedTenantIsVisible}, callerVisible=${callerTenantIsVisible}, effectiveTenantId=${effectiveTenantId || 'none'}`);
       if (effectiveTenantId) {
         // AUTO-HEAL: Ensure the target tenant has at least one default group
