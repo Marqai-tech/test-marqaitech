@@ -706,3 +706,62 @@ export async function POST(request: Request) {
     );
   }
 }
+
+/**
+ * DELETE /api/leave
+ * Clears this tenant's leave applications, balances, and encashment rows.
+ * Leave types and approval workflow settings stay.
+ * Body: { "confirm": "clear-leave-sample" }
+ */
+export async function DELETE(request: Request) {
+  const db = await getDb(request);
+  try {
+    const scope = await resolveCompanyScope(request);
+    if (!scope) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
+    }
+    if (!['super_admin', 'tenant_admin', 'admin', 'hr_admin'].includes(scope.role)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403, headers: corsHeaders() });
+    }
+    const body = await request.json().catch(() => ({}));
+    if (body?.confirm !== 'clear-leave-sample') {
+      return NextResponse.json({ error: 'Confirmation required' }, { status: 400, headers: corsHeaders() });
+    }
+
+    const requests = await db.leaveRequest.findMany({ select: { id: true } });
+    const requestIds = requests.map((r: { id: string }) => r.id);
+
+    let approvalSteps = 0;
+    let attachments = 0;
+    if (requestIds.length > 0) {
+      const steps = await db.leaveApprovalStep.deleteMany({ where: { leaveRequestId: { in: requestIds } } });
+      approvalSteps = steps.count;
+      try {
+        const files = await db.leaveAttachment.deleteMany({ where: { leaveRequestId: { in: requestIds } } });
+        attachments = files.count;
+      } catch { /* table may be unused */ }
+    }
+    const leaveRequests = await db.leaveRequest.deleteMany({});
+    const balances = await db.leaveBalance.deleteMany({});
+    let encashment = 0;
+    try {
+      const enc = await db.leaveEncashmentRequest.deleteMany({});
+      encashment = enc.count;
+    } catch { /* table may be unused */ }
+
+    return NextResponse.json(
+      {
+        cleared: true,
+        leaveRequests: leaveRequests.count,
+        approvalSteps,
+        attachments,
+        leaveBalances: balances.count,
+        encashment,
+      },
+      { headers: corsHeaders() }
+    );
+  } catch (error) {
+    console.error('Clear leave data error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() });
+  }
+}
