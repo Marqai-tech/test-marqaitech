@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getPlatformDb, getDbForTenant, getDbForTenantById } from '@/lib/tenant-db';
 import { verifyPassword, createToken, hashPassword } from '@/lib/auth';
 import { getHiddenSlugsForRequest, isTestPlatformHost } from '@/lib/tenant-filter';
+import { isPersonalEmail } from '@/lib/validators';
 
 function corsHeaders() {
   return {
