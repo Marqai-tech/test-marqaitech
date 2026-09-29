@@ -4,7 +4,7 @@
 // bundles / login page states that could cause "Failed to fetch" errors
 // on the login API for super admin (or any other role).
 
-const CACHE_NAME = '3boxes-hrms-v4';
+const CACHE_NAME = '3boxes-hrms-v5';
 const STATIC_ASSETS = [
   '/login',
   '/icon.png',
@@ -50,8 +50,8 @@ self.addEventListener('activate', (event) => {
       );
     })
   );
-  // Take control of all pages immediately
-  self.clients.claim();
+  // Do not call clients.claim(). Taking control mid-load makes Chrome
+  // replace the page with "This page couldn't load".
 });
 
 // Fetch event - network-first strategy with cache fallback
@@ -62,35 +62,15 @@ self.addEventListener('fetch', (event) => {
   // Skip non-GET requests
   if (request.method !== 'GET') return;
 
+  // Never intercept page loads. A failed or empty service-worker response
+  // makes Chrome show "This page couldn't load".
+  if (request.mode === 'navigate' || request.destination === 'document') return;
+
   // Skip API calls and authentication - always use network
   if (url.pathname.startsWith('/api/')) return;
 
-  // Skip Next.js hot reload and dev resources
-  if (url.pathname.startsWith('/_next/') && !url.pathname.includes('/static/')) return;
-
-  // For navigation requests (HTML pages) - network first, cache fallback
-  if (request.mode === 'navigate') {
-    event.respondWith(
-      fetch(request)
-        .then((response) => {
-          // Cache successful responses
-          if (response.ok) {
-            const responseClone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(request, responseClone);
-            });
-          }
-          return response;
-        })
-        .catch(() => {
-          // Network failed, try cache
-          return caches.match(request).then((cachedResponse) => {
-            return cachedResponse || caches.match('/login');
-          });
-        })
-    );
-    return;
-  }
+  // Skip Next.js bundles and data requests
+  if (url.pathname.startsWith('/_next/')) return;
 
   // For static assets - cache first, network fallback
   if (
@@ -133,23 +113,6 @@ self.addEventListener('fetch', (event) => {
     );
     return;
   }
-
-  // Default: network first
-  event.respondWith(
-    fetch(request)
-      .then((response) => {
-        if (response.ok) {
-          const responseClone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(request, responseClone);
-          });
-        }
-        return response;
-      })
-      .catch(() => {
-        return caches.match(request);
-      })
-  );
 });
 
 // Handle messages from the app
