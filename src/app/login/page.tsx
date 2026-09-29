@@ -234,6 +234,14 @@ export default function LoginPage() {
       });
       const d = await r.json();
       if (!r.ok) {
+        if (d.code === 'USE_EMPLOYEE_LOGIN') {
+          setEmail(candidateEmail);
+          setPassword(candidatePassword);
+          setLoginMode('user');
+          setError(d.error || 'Use Employee / HR to sign in.');
+          toast.error(d.error || 'Use Employee / HR to sign in.');
+          return;
+        }
         if (d.needsPasswordSetup) {
           setCandidateError('Please set up a password first via OTP.');
           setCandidateTab('otp');
@@ -581,7 +589,7 @@ export default function LoginPage() {
               }`}
             >
               <span className="flex items-center justify-center gap-1.5">
-                <FiGrid className="w-4 h-4" /> HR / Admin
+                <FiGrid className="w-4 h-4" /> Employee / HR
               </span>
             </button>
             <button
@@ -591,7 +599,7 @@ export default function LoginPage() {
               }`}
             >
               <span className="flex items-center justify-center gap-1.5">
-                <FiBriefcase className="w-4 h-4" /> Candidate
+                <FiBriefcase className="w-4 h-4" /> Job candidate
               </span>
             </button>
           </div>

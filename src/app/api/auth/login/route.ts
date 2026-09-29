@@ -234,13 +234,24 @@ export async function POST(request: Request) {
     }
 
     if (user.role === 'candidate') {
-      return NextResponse.json(
-        {
-          error: 'This account signs in as a Candidate. Select Candidate on the login page.',
-          code: 'USE_CANDIDATE_LOGIN',
+      const hired = await db.employee.findFirst({
+        where: {
+          OR: [
+            { userId: user.id },
+            ...(user.email ? [{ email: user.email }, { personalEmail: user.email }] : []),
+          ],
         },
-        { status: 403, headers: corsHeaders() }
-      );
+        select: { id: true },
+      }).catch(() => null);
+      if (!hired) {
+        return NextResponse.json(
+          {
+            error: 'This account signs in as a Candidate. Select Candidate on the login page.',
+            code: 'USE_CANDIDATE_LOGIN',
+          },
+          { status: 403, headers: corsHeaders() }
+        );
+      }
     }
 
     if (user.status !== 'active') {

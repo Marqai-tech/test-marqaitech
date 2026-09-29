@@ -11,7 +11,7 @@
  * so the client can redirect the user to OTP login first.
  */
 import { NextResponse } from 'next/server';
-import { getDb, getPlatformDb } from '@/lib/tenant-db';
+import { getDb } from '@/lib/tenant-db';
 import { verifyPassword, createToken } from '@/lib/auth';
 
 const CORS = {
@@ -35,17 +35,33 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'email and password are required' }, { status: 400, headers: CORS });
     }
 
+    const staff = await db.user.findUnique({
+      where: { email },
+      select: { name: true, password: true, role: true },
+    }).catch(() => null);
+
+    const hired = await db.employee.findFirst({
+      where: {
+        OR: [{ email }, { personalEmail: email }],
+      },
+      select: { id: true },
+    }).catch(() => null);
+
+    // Hired staff (Divya Rani and others) must use Employee / HR, not this portal.
+    if (hired || (staff && staff.role && staff.role !== 'candidate')) {
+      await db.candidatePortalUser.deleteMany({ where: { candidateEmail: email } }).catch(() => {});
+      return NextResponse.json({
+        error: 'This is an employee account. Select Employee / HR on the login page.',
+        code: 'USE_EMPLOYEE_LOGIN',
+      }, { status: 403, headers: CORS });
+    }
+
     let user = await db.candidatePortalUser.findUnique({
       where: { candidateEmail: email },
     });
 
-    // A staff user marked as a candidate signs in here with the same password.
-    // Create the candidate portal account on the first successful attempt.
+    // Job candidates with a staff row still marked candidate can sign in here.
     if (!user || !user.passwordHash) {
-      const staff = await db.user.findUnique({
-        where: { email },
-        select: { name: true, password: true, role: true },
-      }).catch(() => null);
       if (staff?.role === 'candidate' && staff.password && await verifyPassword(password, staff.password)) {
         user = await db.candidatePortalUser.upsert({
           where: { candidateEmail: email },
