@@ -571,6 +571,9 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
     a.remove();
     URL.revokeObjectURL(url);
     toast.success('CSV exported successfully');
+    } catch {
+      toast.error('Export failed');
+    }
   };
 
   /* Fetch employees */
