@@ -93,7 +93,8 @@ export default function LoginPage() {
     const hostname = window.location.hostname;
     setIsDemoSite(
       hostname === 'nexus-hrms-mu.vercel.app' ||
-      hostname === '3boxes-hrms-mu.vercel.app'
+      hostname === '3boxes-hrms-mu.vercel.app' ||
+      hostname === 'test.3boxeshrms.com'
     );
     setIsPlatformSite(
       hostname === '3boxeshrms.com' ||

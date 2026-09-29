@@ -134,10 +134,8 @@ export async function getDb(request?: Request | null): Promise<PrismaClient> {
     const reqHost = request.headers.get('x-tenant-domain') || request.headers.get('host') || ''
     if (isTestPlatformHost(reqHost) || tenantSlug === 'test') {
       tenantSlug = ''
-    }
-
-    // 2. Try demo domain detection from host header
-    if (!tenantSlug) {
+    } else if (!tenantSlug) {
+      // 2. Try demo domain detection from host header
       const host = request.headers.get('host') || ''
       const demoSlug = resolveDemoSlug(host)
       if (demoSlug) {
