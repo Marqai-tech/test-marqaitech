@@ -149,13 +149,13 @@ export default function TenantModulesPage() {
   }, []);
 
   useEffect(() => {
-    if (activeTenantId) {
-      fetchModules(activeTenantId);
-      // Find tenant slug for the active tenant
-      const t = tenants.find((t) => t.id === activeTenantId);
-      if (t) setActiveTenantSlug(t.slug);
-    }
-  }, [activeTenantId, fetchModules, tenants]);
+    if (activeTenantId) void fetchModules(activeTenantId);
+  }, [activeTenantId, fetchModules]);
+
+  useEffect(() => {
+    const t = tenants.find((row) => row.id === activeTenantId);
+    if (t) setActiveTenantSlug(t.slug);
+  }, [activeTenantId, tenants]);
 
   const handleToggle = async (module: ModuleEntry, nextEnabled: boolean) => {
     setSavingKey(module.key);

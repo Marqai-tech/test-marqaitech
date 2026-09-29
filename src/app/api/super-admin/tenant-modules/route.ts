@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
-import { ensureSchemaSynced } from '@/lib/schema-sync';
 
 function corsHeaders() {
   return {
@@ -138,8 +137,6 @@ export async function GET(request: Request) {
     if (!tenantId) {
       return NextResponse.json({ error: 'tenantId query parameter is required' }, { status: 400, headers: corsHeaders() });
     }
-
-    await ensureSchemaSynced();
 
     // Get tenant slug for defaults
     const tenant = await getPlatformDb().tenant.findUnique({

@@ -15,6 +15,9 @@ export async function OPTIONS() {
   return NextResponse.json({}, { headers: corsHeaders() });
 }
 
+let dashboardCache: { at: number; key: string; body: unknown } | null = null;
+const DASHBOARD_CACHE_MS = 45_000;
+
 export async function GET(request: Request) {
   try {
     const token = getTokenFromHeaders(request);
@@ -30,6 +33,11 @@ export async function GET(request: Request) {
     const userRole = decoded.role as string;
     if (userRole !== 'super_admin') {
       return NextResponse.json({ error: 'Only super admins can view platform dashboard' }, { status: 403, headers: corsHeaders() });
+    }
+
+    const cacheKey = request.headers.get('host') || 'default';
+    if (dashboardCache && dashboardCache.key === cacheKey && Date.now() - dashboardCache.at < DASHBOARD_CACHE_MS) {
+      return NextResponse.json(dashboardCache.body, { headers: corsHeaders() });
     }
 
     const platformDb = getPlatformDb();
@@ -284,7 +292,7 @@ export async function GET(request: Request) {
     const currencySymbol = '₹';
     const currencyCode = 'INR';
 
-    return NextResponse.json({
+    const payload = {
       totalTenants,
       activeTenants,
       suspendedTenants,
@@ -295,7 +303,6 @@ export async function GET(request: Request) {
       totalRevenue,
       platformHealth: totalTenants > 0 ? Math.round((activeTenants / totalTenants) * 100) : 0,
       recentActivity,
-      // New dynamic data
       companiesByMonth,
       revenueByMonth,
       topPlans,
@@ -304,7 +311,9 @@ export async function GET(request: Request) {
       expiringSubscriptions,
       currencySymbol,
       currencyCode,
-    }, { headers: corsHeaders() });
+    };
+    dashboardCache = { at: Date.now(), key: cacheKey, body: payload };
+    return NextResponse.json(payload, { headers: corsHeaders() });
   } catch (error) {
     console.error('Super admin dashboard error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() });

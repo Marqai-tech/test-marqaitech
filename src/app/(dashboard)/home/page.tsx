@@ -282,17 +282,17 @@ function SuperAdminHome({ firstName, greeting, today }: { firstName: string; gre
       } catch { return null; }
     };
 
-    const [empData, deptData, branchData, usersData, logsData] = await Promise.all([
-      safe(`/api/employees?limit=1&status=active${scopeQuery ? '&' + scopeQuery.slice(1) : ''}`),
+    const [empData, deptData, branchData, logsData] = await Promise.all([
+      safe(`/api/employees?limit=1&status=active&includeStats=1${scopeQuery ? '&' + scopeQuery.slice(1) : ''}`),
       safe(`/api/departments?limit=1${scopeQuery ? '&' + scopeQuery.slice(1) : ''}`),
       safe(`/api/branches?limit=1${scopeQuery ? '&' + scopeQuery.slice(1) : ''}`),
-      safe('/api/super-admin/dashboard'),
       safe(`/api/super-admin/audit-logs?limit=8`),
     ]);
 
+    const employeeTotal = empData?.stats?.total ?? empData?.pagination?.total ?? empData?.total ?? 0;
     setStats({
-      totalEmployees: empData?.pagination?.total || empData?.total || 0,
-      totalUsers: usersData?.totalEmployees || 0,
+      totalEmployees: employeeTotal,
+      totalUsers: empData?.stats?.active ?? employeeTotal,
       totalDepartments: deptData?.pagination?.total || deptData?.total || 0,
       totalBranches: branchData?.pagination?.total || branchData?.total || 0,
     });
