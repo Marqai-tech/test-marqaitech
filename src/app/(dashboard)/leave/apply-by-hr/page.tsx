@@ -9,6 +9,8 @@ import {
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
+import { getDataScope } from '@/lib/roleAccess';
+import { useRouter } from 'next/navigation';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -60,8 +62,17 @@ interface LeaveRequest {
 
 export default function ApplyLeaveByHRPage() {
   const { user } = useAuthStore();
+  const router = useRouter();
   const scopeQuery = useCompanyContextStore(s => s.scopeQuery);
   const selectedTenantId = useCompanyContextStore(s => s.selectedTenantId);
+
+  useEffect(() => {
+    if (!user) return;
+    if (getDataScope(user.role) !== 'all') {
+      toast.error('This page is for HR only');
+      router.replace('/home');
+    }
+  }, [user, router]);
 
   // Employee search & selection
   const [employees, setEmployees] = useState<Employee[]>([]);

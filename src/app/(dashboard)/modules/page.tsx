@@ -9,7 +9,7 @@ import {
 } from 'react-icons/fi';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
-import { canRoleAccessModule, isModuleEnabledForTenant, LEGACY_ROLE_MAP } from '@/lib/roleAccess';
+import { canRoleAccessModule, isModuleEnabledForTenant, LEGACY_ROLE_MAP, navRoleOrLeastPrivilege } from '@/lib/roleAccess';
 import { sanitizeSearch } from '@/lib/validators';
 import { navSections, MODULE_GROUPS } from '@/lib/navData';
 import type { NavSection, ModuleGroup, DashboardTab } from '@/lib/navData';
@@ -19,7 +19,7 @@ export default function ModulesPage() {
   const router = useRouter();
   const pathname = usePathname();
   const { user } = useAuthStore();
-  const userRole = user?.role || 'admin';
+  const userRole = navRoleOrLeastPrivilege(user?.role);
   const tenantSlug = useCompanyContextStore(s => s.tenant?.slug) || '';
   const tenantId = useCompanyContextStore(s => s.tenant?.id) || '';
   const { fetchModules } = useTenantModuleStore();

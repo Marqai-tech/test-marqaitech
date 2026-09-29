@@ -9,7 +9,7 @@ import {
   FiShoppingBag,
 } from 'react-icons/fi';
 import { useAuthStore } from '@/store/authStore';
-import { canRoleAccessModule, LEGACY_ROLE_MAP } from '@/lib/roleAccess';
+import { canRoleAccessModule, LEGACY_ROLE_MAP, navRoleOrLeastPrivilege } from '@/lib/roleAccess';
 
 interface NavItem {
   label: string;
@@ -392,7 +392,7 @@ interface ModuleStripProps {
 
 export default function ModuleStrip({ currentModuleKey, onModuleSelect }: ModuleStripProps) {
   const { user } = useAuthStore();
-  const userRole = user?.role || 'admin';
+  const userRole = navRoleOrLeastPrivilege(user?.role);
 
   // Filter sections based on user role
   // Per-item role filtering: must pass BOTH module-level AND per-item role checks.

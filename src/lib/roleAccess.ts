@@ -232,6 +232,14 @@ export function isModuleEnabledForTenant(tenantSlug: string, moduleKey: string):
 }
 
 /**
+ * Sidebar / layout role when JWT user is not loaded yet.
+ * Must be least privilege so employees never flash HR menus.
+ */
+export function navRoleOrLeastPrivilege(role?: string | null): string {
+  return role && role.trim() ? role : 'employee';
+}
+
+/**
  * Check if a role can access a module.
  * Super admin always returns true.
  *

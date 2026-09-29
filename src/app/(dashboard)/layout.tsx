@@ -17,7 +17,7 @@ import WelcomeGreeting from '@/components/WelcomeGreeting';
 import OnboardingWalkthrough from '@/components/OnboardingWalkthrough';
 import SafeRender from '@/components/SafeRender';
 import { useSessionTimeout } from '@/hooks/useSessionTimeout';
-import { canRoleAccessModule, LEGACY_ROLE_MAP } from '@/lib/roleAccess';
+import { canRoleAccessModule, canSeeAllEmployees, LEGACY_ROLE_MAP, navRoleOrLeastPrivilege } from '@/lib/roleAccess';
 import toast from 'react-hot-toast';
 import {
   FiUsers, FiBriefcase, FiClock, FiMenu,
@@ -26,15 +26,6 @@ import {
 } from 'react-icons/fi';
 
 // PICKER_ROUTES now imported from navData
-
-// Mobile bottom navigation items
-const mobileNavItems = [
-  { label: 'Home', href: '/home', icon: FiGrid },
-  { label: 'People', href: '/employees', icon: FiUsers },
-  { label: 'Recruit', href: '/recruitment', icon: FiBriefcase },
-  { label: 'AI Interview', href: '/ai-interview', icon: FiCpu },
-  { label: 'More', href: '#more', icon: FiMoreHorizontal },
-];
 
 export default function DashboardLayout({
   children,
@@ -55,7 +46,24 @@ export default function DashboardLayout({
 
   // Module selection state
   const [explicitModuleKey, setExplicitModuleKey] = useState<string | null>(null);
-  const userRole = user?.role || 'admin';
+  const userRole = navRoleOrLeastPrivilege(user?.role);
+
+  const mobileNavItems = useMemo(() => {
+    const items: { label: string; href: string; icon: typeof FiGrid }[] = [
+      { label: 'Home', href: '/home', icon: FiGrid },
+    ];
+    if (canSeeAllEmployees(userRole) || userRole === 'manager' || LEGACY_ROLE_MAP[userRole] === 'manager') {
+      items.push({ label: 'People', href: '/employees', icon: FiUsers });
+    } else {
+      items.push({ label: 'Me', href: '/employees?view=self', icon: FiUser });
+    }
+    if (canRoleAccessModule(userRole, 'recruitment')) {
+      items.push({ label: 'Recruit', href: '/recruitment', icon: FiBriefcase });
+      items.push({ label: 'AI Interview', href: '/ai-interview', icon: FiCpu });
+    }
+    items.push({ label: 'More', href: '#more', icon: FiMoreHorizontal });
+    return items;
+  }, [userRole]);
 
   // Filter sections based on user role
   // Per-item role filtering: must pass BOTH module-level AND per-item role checks.
