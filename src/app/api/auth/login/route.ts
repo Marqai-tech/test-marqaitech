@@ -240,6 +240,16 @@ export async function POST(request: Request) {
       );
     }
 
+    if (user.role === 'candidate') {
+      return NextResponse.json(
+        {
+          error: 'This account signs in as a Candidate. Select Candidate on the login page.',
+          code: 'USE_CANDIDATE_LOGIN',
+        },
+        { status: 403, headers: corsHeaders() }
+      );
+    }
+
     if (user.status !== 'active') {
       // ─── Self-healing: auto-activate stale accounts ───
       // If the user's status is not 'active', but they're trying to log in

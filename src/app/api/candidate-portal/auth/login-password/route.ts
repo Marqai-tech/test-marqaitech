@@ -35,9 +35,35 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'email and password are required' }, { status: 400, headers: CORS });
     }
 
-    const user = await db.candidatePortalUser.findUnique({
+    let user = await db.candidatePortalUser.findUnique({
       where: { candidateEmail: email },
     });
+
+    // A staff user marked as a candidate signs in here with the same password.
+    // Create the candidate portal account on the first successful attempt.
+    if (!user || !user.passwordHash) {
+      const staff = await db.user.findUnique({
+        where: { email },
+        select: { name: true, password: true, role: true },
+      }).catch(() => null);
+      if (staff?.role === 'candidate' && staff.password && await verifyPassword(password, staff.password)) {
+        user = await db.candidatePortalUser.upsert({
+          where: { candidateEmail: email },
+          create: {
+            candidateEmail: email,
+            candidateName: staff.name || email,
+            passwordHash: staff.password,
+            passwordSetAt: new Date(),
+          },
+          update: {
+            candidateName: staff.name || email,
+            passwordHash: staff.password,
+            passwordSetAt: new Date(),
+          },
+        });
+      }
+    }
+
     if (!user) {
       // Don't leak whether the email exists — same error as wrong password
       return NextResponse.json({ error: 'Invalid email or password' }, { status: 401, headers: CORS });

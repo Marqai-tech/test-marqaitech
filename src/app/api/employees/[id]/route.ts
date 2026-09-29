@@ -750,6 +750,14 @@ export async function PUT(
             where: { id: employee.userId },
             data: { role: effectiveRole },
           });
+          try {
+            const { getPlatformDb } = await import('@/lib/tenant-db');
+            const platformDb = getPlatformDb();
+            await platformDb.user.update({
+              where: { id: employee.userId },
+              data: { role: effectiveRole },
+            }).catch(() => null);
+          } catch { /* platform copy is best-effort */ }
 
           // Also update UserRoleAssignment if a Role record exists
           try {
