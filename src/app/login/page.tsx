@@ -902,11 +902,9 @@ export default function LoginPage() {
                 <label htmlFor="password" className="block text-sm font-semibold text-slate-700">
                   Password <span className="text-red-500 font-bold">*</span>
                 </label>
-                {(!isPlatformSite || userRole !== 'candidate') && (
-                  <Link href="/forgot-password" className="text-xs font-medium text-green-500 hover:text-green-700 transition-colors hover:underline">
-                    Forgot password?
-                  </Link>
-                )}
+                <Link href="/forgot-password" className="text-xs font-medium text-green-500 hover:text-green-700 transition-colors hover:underline">
+                  Forgot password?
+                </Link>
               </div>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
