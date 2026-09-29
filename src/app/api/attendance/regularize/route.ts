@@ -9,6 +9,7 @@ import { requireUser, findEmployeeByEmail, isAdminRole, parseBody, getQuery, ok,
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { loadWorkflowConfig, buildRequestContext, checkRules } from '@/lib/attendance-workflow';
 import { sanitizeMultiLineText } from '@/lib/sanitize';
+import { DEFAULT_SHIFT_END, DEFAULT_SHIFT_START, minutesInTimeZone, validatePunchTime } from '@/lib/punch-time-validation';
 
 export { OPTIONS };
 
@@ -98,6 +99,52 @@ export async function POST(request: Request) {
     const isFuture = date > serverToday && (!clientTodayKey || dateKey > clientTodayKey);
     if (isFuture) return fail('Cannot regularize a future date');
     if (requestedTime > new Date()) return fail('Requested time cannot be in the future');
+
+    // Punch type and clock time must fit the shift window and any punch already
+    // recorded for that day. Check-in at 8:00 PM is rejected for a day shift.
+    {
+      let shiftStart = DEFAULT_SHIFT_START;
+      let shiftEnd = DEFAULT_SHIFT_END;
+      try {
+        const policies = await db.attendancePolicyConfig.findMany({
+          where: emp.companyId ? { OR: [{ companyId: emp.companyId }, { companyId: null }] } : {},
+          select: { companyId: true, shiftStartDefault: true, shiftEndDefault: true },
+          take: 20,
+        });
+        const policy = policies.find(row => row.companyId === emp.companyId) || policies[0];
+        if (policy?.shiftStartDefault) shiftStart = policy.shiftStartDefault;
+        if (policy?.shiftEndDefault) shiftEnd = policy.shiftEndDefault;
+      } catch (policyErr) {
+        console.warn('[regularize] shift window lookup failed (using defaults):', policyErr);
+      }
+
+      const toHHmm = (value: Date) => {
+        const mins = minutesInTimeZone(value);
+        return `${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`;
+      };
+      let existingCheckIn: string | null = null;
+      let existingCheckOut: string | null = null;
+      try {
+        const attendance = await db.attendance.findFirst({
+          where: { employeeId: emp.id, date: new Date(`${dateKey}T00:00:00.000Z`) },
+          select: { checkIn: true, checkOut: true },
+        });
+        if (attendance?.checkIn) existingCheckIn = toHHmm(new Date(attendance.checkIn));
+        if (attendance?.checkOut) existingCheckOut = toHHmm(new Date(attendance.checkOut));
+      } catch (attendanceErr) {
+        console.warn('[regularize] existing punch lookup failed (non-fatal):', attendanceErr);
+      }
+
+      const punchCheck = validatePunchTime({
+        punchType: punchType as 'check_in' | 'check_out',
+        time: toHHmm(requestedTime),
+        shiftStart,
+        shiftEnd,
+        existingCheckIn,
+        existingCheckOut,
+      });
+      if (!punchCheck.ok) return fail(punchCheck.error, 422);
+    }
 
     // ─── Duplicate request guard (user report) ───
     // Reject a second PENDING or APPROVED regularization for the same

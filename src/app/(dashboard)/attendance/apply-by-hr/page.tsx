@@ -10,6 +10,7 @@ import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
 import TimePickerAmPm from '@/components/TimePickerAmPm';
+import { validatePunchTime } from '@/lib/punch-time-validation';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -124,6 +125,15 @@ export default function ApplyAttendanceByHRPage() {
             toast.error(!regularizeForm.date || !regularizeForm.requestedTime
               ? 'All fields are required'
               : 'Reason is required and cannot be empty or whitespace-only');
+            setSubmitting(false);
+            return;
+          }
+          const punchCheck = validatePunchTime({
+            punchType: regularizeForm.punchType === 'check_out' ? 'check_out' : 'check_in',
+            time: regularizeForm.requestedTime,
+          });
+          if (!punchCheck.ok) {
+            toast.error(punchCheck.error);
             setSubmitting(false);
             return;
           }
