@@ -56,6 +56,7 @@ import wsModule from 'ws'
 neonConfig.webSocketConstructor = wsModule as unknown as typeof WebSocket
 import { db as platformDb } from '@/lib/db'
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth'
+import { isTestPlatformHost } from '@/lib/tenant-filter'
 
 // Cache tenant DB clients to avoid recreating on every request
 const tenantDbCache = new Map<string, { client: PrismaClient; lastAccess: number }>()
@@ -129,6 +130,10 @@ export async function getDb(request?: Request | null): Promise<PrismaClient> {
     const headerSlug = request.headers.get('x-tenant-slug')
     if (headerSlug) {
       tenantSlug = headerSlug
+    }
+    const reqHost = request.headers.get('x-tenant-domain') || request.headers.get('host') || ''
+    if (isTestPlatformHost(reqHost) || tenantSlug === 'test') {
+      tenantSlug = ''
     }
 
     // 2. Try demo domain detection from host header
@@ -381,9 +386,12 @@ export function disconnectTenantDb(tenantSlug: string) {
  * Returns the slug or empty string.
  */
 export async function getTenantSlugFromRequest(request: Request): Promise<string> {
+  const reqHost = request.headers.get('x-tenant-domain') || request.headers.get('host') || ''
+  if (isTestPlatformHost(reqHost)) return ''
+
   // 1. Header from middleware
   const headerSlug = request.headers.get('x-tenant-slug')
-  if (headerSlug) return headerSlug
+  if (headerSlug && headerSlug !== 'test') return headerSlug
 
   // 2. Demo domain
   const host = request.headers.get('host') || ''

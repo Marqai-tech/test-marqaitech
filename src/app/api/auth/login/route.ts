@@ -1,18 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getPlatformDb, getDbForTenant, getDbForTenantById } from '@/lib/tenant-db';
 import { verifyPassword, createToken, hashPassword } from '@/lib/auth';
-import { isLiveMode, isDemoMode } from '@/lib/site-mode';
-import { getServerHiddenSlugs, LIVE_HIDDEN_SLUGS, DEMO_HIDDEN_SLUGS } from '@/lib/tenant-filter';
-import { isPersonalEmail } from '@/lib/validators';
-
-// ─── Hidden Tenant Slugs (GOLDEN RULE — FOOLPROOF) ──────────────────
-// Uses tenant-filter.ts as PRIMARY (direct hostname check), then
-// isLiveMode() as SECONDARY. A slug is hidden if EITHER says so.
-function getHiddenSlugsForRequest(request: Request): string[] {
-  const foolproof = getServerHiddenSlugs(request);
-  const siteMode = isLiveMode(request) ? LIVE_HIDDEN_SLUGS : DEMO_HIDDEN_SLUGS;
-  return [...new Set([...foolproof, ...siteMode])];
-}
+import { getHiddenSlugsForRequest, isTestPlatformHost } from '@/lib/tenant-filter';
 
 function corsHeaders() {
   return {
@@ -88,6 +77,9 @@ export async function POST(request: Request) {
     // 3-boxes-hrms.vercel.app into slug "3-boxes-hrms", which made super admin
     // login fail. Drop that false slug; known demo hosts keep their own slug.
     if (hostHeader.endsWith('.vercel.app') && tenantSlug === hostHeader.split('.')[0]) {
+      tenantSlug = '';
+    }
+    if (isTestPlatformHost(hostHeader) || tenantSlug === 'test') {
       tenantSlug = '';
     }
     let subdomainTenantId: string | null = null;

@@ -2,13 +2,14 @@
 
 import { create } from 'zustand';
 import { isClientLiveMode, getClientSiteMode } from '@/lib/site-mode';
-import { isTenantHiddenClient, LIVE_HIDDEN_SLUGS, DEMO_HIDDEN_SLUGS } from '@/lib/tenant-filter';
+import { isTenantHiddenClient, LIVE_HIDDEN_SLUGS, DEMO_HIDDEN_SLUGS, isTestPlatformHost } from '@/lib/tenant-filter';
 
 // ─── Hidden Tenant Slugs (GOLDEN RULE) ────────────────────────────
 // PRIMARY: tenant-filter.ts (FOOLPROOF hostname-based detection)
 // SECONDARY: site-mode.ts (env var + host header, may fail on Vercel)
 function getAuthHiddenSlugs(): string[] {
   if (typeof window === 'undefined') return [];
+  if (isTestPlatformHost(window.location.hostname)) return [...DEMO_HIDDEN_SLUGS];
   // PRIMARY: FOOLPROOF hostname check
   const foolproofSlugs = isTenantHiddenClient('3boxeshrms') // dummy check to see if client is live
     ? LIVE_HIDDEN_SLUGS
@@ -20,6 +21,7 @@ function getAuthHiddenSlugs(): string[] {
 
 function isAuthHiddenTenant(slug: string): boolean {
   if (typeof window === 'undefined') return false;
+  if (isTestPlatformHost(window.location.hostname)) return DEMO_HIDDEN_SLUGS.includes(slug);
   // PRIMARY: FOOLPROOF check (direct hostname, no env vars)
   if (isTenantHiddenClient(slug)) return true;
   // SECONDARY: site-mode based check

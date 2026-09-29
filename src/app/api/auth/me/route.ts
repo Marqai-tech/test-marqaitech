@@ -2,16 +2,7 @@ import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb, getDbForTenant, getDbForTenantById } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { isLiveMode, isDemoMode } from '@/lib/site-mode';
-import { getServerHiddenSlugs, LIVE_HIDDEN_SLUGS, DEMO_HIDDEN_SLUGS } from '@/lib/tenant-filter';
-
-// ─── Hidden Tenant Slugs (GOLDEN RULE — FOOLPROOF) ──────────────────
-// Uses tenant-filter.ts as PRIMARY (direct hostname check), then
-// isLiveMode() as SECONDARY. A slug is hidden if EITHER says so.
-function getHiddenSlugsForRequest(request: Request): string[] {
-  const foolproof = getServerHiddenSlugs(request);
-  const siteMode = isLiveMode(request) ? LIVE_HIDDEN_SLUGS : DEMO_HIDDEN_SLUGS;
-  return [...new Set([...foolproof, ...siteMode])];
-}
+import { getHiddenSlugsForRequest } from '@/lib/tenant-filter';
 
 function corsHeaders() {
   return {

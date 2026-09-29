@@ -2,15 +2,7 @@ import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders, hashPassword } from '@/lib/auth';
 import { ensureSchemaSynced } from '@/lib/schema-sync';
-import { isLiveMode } from '@/lib/site-mode';
-import { getServerHiddenSlugs, LIVE_HIDDEN_SLUGS, DEMO_HIDDEN_SLUGS, PLATFORM_PLACEHOLDER_NAME } from '@/lib/tenant-filter';
-
-// ─── Hidden Tenant Slugs (GOLDEN RULE — FOOLPROOF) ──────────────────
-function getHiddenSlugsForRequest(request: Request): string[] {
-  const foolproof = getServerHiddenSlugs(request);
-  const siteMode = isLiveMode(request) ? LIVE_HIDDEN_SLUGS : DEMO_HIDDEN_SLUGS;
-  return [...new Set([...foolproof, ...siteMode])];
-}
+import { getHiddenSlugsForRequest, PLATFORM_PLACEHOLDER_NAME } from '@/lib/tenant-filter';
 
 /**
  * Best-effort audit write that follows the ACTING USER's home database.

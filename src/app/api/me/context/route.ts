@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb, getDbForTenantById } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
-import { isLiveMode } from '@/lib/site-mode';
-import { isServerLiveSite, getServerHiddenSlugs, LIVE_HIDDEN_SLUGS as FOOLPROOF_LIVE_HIDDEN, DEMO_HIDDEN_SLUGS as FOOLPROOF_DEMO_HIDDEN, PLATFORM_PLACEHOLDER_NAME } from '@/lib/tenant-filter';
+import { getHiddenSlugsForRequest, PLATFORM_PLACEHOLDER_NAME } from '@/lib/tenant-filter';
 
 function corsHeaders() {
   return {
@@ -242,10 +241,7 @@ export async function GET(request: Request) {
       // FOOLPROOF: Use tenant-filter.ts as PRIMARY (direct hostname check),
       // then ALSO check isLiveMode() as SECONDARY. A slug is hidden if
       // EITHER method says so. This prevents Vercel internal routing bugs.
-      const siteMode = isLiveMode(request) ? 'live' : 'demo';
-      const foolproofSlugs = getServerHiddenSlugs(request);
-      const siteModeSlugs = siteMode === 'live' ? ['3boxes-hrms-demo', '3boxeshrms'] : ['marqaitechgroup'];
-      const allHiddenSlugs = [...new Set([...foolproofSlugs, ...siteModeSlugs])];
+      const allHiddenSlugs = getHiddenSlugsForRequest(request);
       const liveTenantFilter = {
         slug: { notIn: allHiddenSlugs },
         NOT: { name: { contains: PLATFORM_PLACEHOLDER_NAME } },
@@ -623,13 +619,7 @@ export async function GET(request: Request) {
     // hidden tenant data ever reaches the client.
     // FOOLPROOF: Use tenant-filter.ts (direct hostname check) as PRIMARY,
     // then ALSO check isLiveMode() as SECONDARY.
-    const siteModeFinal = isLiveMode(request) ? 'live' : 'demo';
-    const foolproofSlugsFinal = getServerHiddenSlugs(request);
-    const siteModeSlugsFinal = siteModeFinal === 'live'
-      ? ['3boxes-hrms-demo', '3boxeshrms']
-      : ['marqaitechgroup'];
-    // Union: a slug is hidden if EITHER method says so
-    const hiddenSlugsFinal = [...new Set([...foolproofSlugsFinal, ...siteModeSlugsFinal])];
+    const hiddenSlugsFinal = getHiddenSlugsForRequest(request);
 
     // 1. Scrub tenant/tenantId if they point to a hidden slug
     if (effectiveTenant && effectiveTenant.slug && hiddenSlugsFinal.includes(effectiveTenant.slug)) {
@@ -700,7 +690,7 @@ export async function GET(request: Request) {
       (mc) => visibleGroupIdSet.has(mc.companyGroupId)
     );
 
-    console.log(`[me/context] GOLDEN RULE FINAL: siteMode=${siteModeFinal}, hiddenSlugs=[${hiddenSlugsFinal.join(',')}], tenants=${finalAvailableTenants.length}, groups=${finalAvailableCompanyGroups.length}, companies=${finalAvailableCompanies.length}, tenantSlug=${effectiveTenant?.slug || 'null'}, envMode=${process.env.SITE_MODE || 'unset'}`);
+    console.log(`[me/context] GOLDEN RULE FINAL: hiddenSlugs=[${hiddenSlugsFinal.join(',')}], tenants=${finalAvailableTenants.length}, groups=${finalAvailableCompanyGroups.length}, companies=${finalAvailableCompanies.length}, tenantSlug=${effectiveTenant?.slug || 'null'}, envMode=${process.env.SITE_MODE || 'unset'}`);
 
     return NextResponse.json({
       role,

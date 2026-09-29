@@ -97,7 +97,8 @@ export default function LoginPage() {
     );
     setIsPlatformSite(
       hostname === '3boxeshrms.com' ||
-      hostname === 'www.3boxeshrms.com'
+      hostname === 'www.3boxeshrms.com' ||
+      hostname === 'test.3boxeshrms.com'
     );
   }, []);
 

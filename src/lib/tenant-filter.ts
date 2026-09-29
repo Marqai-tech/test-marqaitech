@@ -20,6 +20,8 @@
  * ═══════════════════════════════════════════════════════════════════
  */
 
+import { isLiveMode } from '@/lib/site-mode';
+
 // ─── Known LIVE (production) domains ────────────────────────────────
 // Any request arriving on these domains is ALWAYS in LIVE mode.
 const LIVE_DOMAINS = [
@@ -47,6 +49,12 @@ export const LIVE_HIDDEN_SLUGS = [
 ];
 export const DEMO_HIDDEN_SLUGS = ['marqaitechgroup'];
 
+/** Test Super Admin host (develop). Sample tenants stay visible; MarqAI is hidden. */
+export function isTestPlatformHost(host: string): boolean {
+  const h = (host || '').split(':')[0].toLowerCase();
+  return h === 'test.3boxeshrms.com' || h === 'www.test.3boxeshrms.com';
+}
+
 // ─── The "Marq AI Tech Pvt Ltd" tenant — the specific leak we're fixing
 export const PLATFORM_PLACEHOLDER_SLUG = '3boxeshrms';
 export const PLATFORM_PLACEHOLDER_NAME = 'Marq AI Tech Pvt Ltd';
@@ -56,6 +64,7 @@ export const PLATFORM_PLACEHOLDER_NAME = 'Marq AI Tech Pvt Ltd';
 export function isClientLiveSite(): boolean {
   if (typeof window === 'undefined') return false; // SSR safety
   const h = window.location.hostname.toLowerCase();
+  if (isTestPlatformHost(h)) return false;
   // Exact match on known live domains
   if (LIVE_DOMAINS.includes(h)) return true;
   // Any *.3boxeshrms.com subdomain (tenant subdomains) is also live
@@ -67,6 +76,7 @@ export function isClientLiveSite(): boolean {
 // Checks the request host DIRECTLY — no env vars, no fallbacks
 export function isServerLiveSite(request: Request): boolean {
   const host = (request.headers.get('x-tenant-domain') || request.headers.get('host') || '').split(':')[0].toLowerCase();
+  if (isTestPlatformHost(host)) return false;
   if (LIVE_DOMAINS.includes(host)) return true;
   if (host.endsWith('.3boxeshrms.com')) return true;
   return false;
@@ -76,6 +86,9 @@ export function isServerLiveSite(request: Request): boolean {
 // Uses FOOLPROOF hostname detection as the PRIMARY method,
 // falls back to site-mode.ts for edge cases.
 export function getClientHiddenSlugs(): string[] {
+  if (typeof window !== 'undefined' && isTestPlatformHost(window.location.hostname)) {
+    return DEMO_HIDDEN_SLUGS;
+  }
   if (isClientLiveSite()) return LIVE_HIDDEN_SLUGS;
   // On non-live sites, check if we're on a demo Vercel URL
   if (typeof window !== 'undefined') {
@@ -88,8 +101,9 @@ export function getClientHiddenSlugs(): string[] {
 
 // ─── Get hidden slugs (server-side) ─────────────────────────────────
 export function getServerHiddenSlugs(request: Request): string[] {
-  if (isServerLiveSite(request)) return LIVE_HIDDEN_SLUGS;
   const host = (request.headers.get('x-tenant-domain') || request.headers.get('host') || '').split(':')[0].toLowerCase();
+  if (isTestPlatformHost(host)) return DEMO_HIDDEN_SLUGS;
+  if (isServerLiveSite(request)) return LIVE_HIDDEN_SLUGS;
   if (host.endsWith('.vercel.app')) return DEMO_HIDDEN_SLUGS;
   return LIVE_HIDDEN_SLUGS;
 }
@@ -112,6 +126,15 @@ export function filterHiddenTenantsClient<T extends { slug: string }>(tenants: T
 
 // ─── Filter an array of tenant objects (server-side) ───────────────
 export function filterHiddenTenantsServer<T extends { slug: string }>(tenants: T[], request: Request): T[] {
-  const hidden = getServerHiddenSlugs(request);
+  const hidden = getHiddenSlugsForRequest(request);
   return tenants.filter(t => !hidden.includes(t.slug));
+}
+
+/** Union of hostname rules and SITE_MODE, except test.3boxeshrms.com which is sample-only. */
+export function getHiddenSlugsForRequest(request: Request): string[] {
+  const host = (request.headers.get('x-tenant-domain') || request.headers.get('host') || '').split(':')[0];
+  if (isTestPlatformHost(host)) return [...DEMO_HIDDEN_SLUGS];
+  const foolproof = getServerHiddenSlugs(request);
+  const siteMode = isLiveMode(request) ? LIVE_HIDDEN_SLUGS : DEMO_HIDDEN_SLUGS;
+  return [...new Set([...foolproof, ...siteMode])];
 }
