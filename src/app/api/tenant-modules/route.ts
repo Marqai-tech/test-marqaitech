@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
-import { ensureSchemaSynced } from '@/lib/schema-sync';
 
 function corsHeaders() {
   return {
@@ -38,8 +37,6 @@ export async function GET(request: Request) {
 
     // Any authenticated user can read module flags for their own tenant
     // (they can only see which modules are enabled, not toggle them)
-
-    await ensureSchemaSynced();
 
     const flags = await getPlatformDb().featureFlag.findMany({
       where: { tenantId, key: { startsWith: 'module_' } },

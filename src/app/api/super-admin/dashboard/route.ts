@@ -62,37 +62,34 @@ export async function GET(request: Request) {
     let totalCompanies = 0;
     let totalEmployees = 0;
 
-    // FIX: Only aggregate from per-tenant databases that have a dedicated
-    // TenantDatabase record. Tenants WITHOUT a dedicated DB (including the
-    // hidden placeholder "3boxeshrms" / "3boxes-hrms-demo") fall back to
-    // platformDb when queried via getDbForTenant — which would re-count the
-    // shared seed rows for every such tenant, inflating totals. We skip those.
-    for (const tenant of tenants) {
-      if (!tenant.slug) continue;
-      try {
-        // Only count if this tenant has a dedicated TenantDatabase record
-        const tenantDbRecord = await platformDb.tenantDatabase.findFirst({
-          where: { tenant: { slug: tenant.slug }, isActive: true },
-          select: { id: true },
-        });
-        if (!tenantDbRecord) {
-          console.log(`[SuperAdmin Dashboard] Skipping tenant "${tenant.slug}" — no dedicated DB (would re-count shared platform rows)`);
-          continue;
+    // One lookup of dedicated DBs, then count tenants in parallel.
+    // Sequential findFirst + counts per sample tenant was ~8s on tester.
+    const dedicatedDbs = await platformDb.tenantDatabase.findMany({
+      where: { isActive: true, tenant: { slug: { in: tenants.map((t) => t.slug).filter(Boolean) as string[] } } },
+      select: { tenant: { select: { slug: true } } },
+    });
+    const dedicatedSlugs = [...new Set(dedicatedDbs.map((r) => r.tenant?.slug).filter(Boolean) as string[])];
+
+    const tenantTotals = await Promise.all(
+      dedicatedSlugs.map(async (slug) => {
+        try {
+          const tenantDb = await getDbForTenant(slug);
+          const [groupCount, companyCount, employeeCount] = await Promise.all([
+            tenantDb.companyGroup.count(),
+            tenantDb.company.count(),
+            tenantDb.employee.count({ where: { status: 'active' } }),
+          ]);
+          return { groupCount, companyCount, employeeCount };
+        } catch (e) {
+          console.error(`[SuperAdmin Dashboard] Failed to count data for tenant "${slug}":`, e);
+          return { groupCount: 0, companyCount: 0, employeeCount: 0 };
         }
-
-        const tenantDb = await getDbForTenant(tenant.slug);
-        const [groupCount, companyCount, employeeCount] = await Promise.all([
-          tenantDb.companyGroup.count(),
-          tenantDb.company.count(),
-          tenantDb.employee.count({ where: { status: 'active' } }),
-        ]);
-
-        totalGroupCompanies += groupCount;
-        totalCompanies += companyCount;
-        totalEmployees += employeeCount;
-      } catch (e) {
-        console.error(`[SuperAdmin Dashboard] Failed to count data for tenant "${tenant.slug}":`, e);
-      }
+      }),
+    );
+    for (const t of tenantTotals) {
+      totalGroupCompanies += t.groupCount;
+      totalCompanies += t.companyCount;
+      totalEmployees += t.employeeCount;
     }
 
     // ─── Revenue from active subscriptions (exclude hidden tenants) ───
@@ -116,44 +113,50 @@ export async function GET(request: Request) {
     // ─── Companies by Month (last 6 months) ───
     // Derived from tenant creation dates as a proxy for company onboarding
     const now = new Date();
-    const companiesByMonth: { month: string; companies: number }[] = [];
-    for (let i = 5; i >= 0; i--) {
+    const monthWindows = Array.from({ length: 6 }, (_, idx) => {
+      const i = 5 - idx;
       const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const nextMonth = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
-      const monthLabel = monthDate.toLocaleString('en', { month: 'short' });
-      try {
-        const count = await platformDb.tenant.count({
-          where: {
-            ...tenantFilter,
-            createdAt: { gte: monthDate, lt: nextMonth },
-          },
-        });
-        companiesByMonth.push({ month: monthLabel, companies: count });
-      } catch {
-        companiesByMonth.push({ month: monthLabel, companies: 0 });
-      }
-    }
+      return {
+        monthLabel: monthDate.toLocaleString('en', { month: 'short' }),
+        monthDate,
+        nextMonth,
+      };
+    });
+    const companiesByMonth = await Promise.all(
+      monthWindows.map(async ({ monthLabel, monthDate, nextMonth }) => {
+        try {
+          const count = await platformDb.tenant.count({
+            where: {
+              ...tenantFilter,
+              createdAt: { gte: monthDate, lt: nextMonth },
+            },
+          });
+          return { month: monthLabel, companies: count };
+        } catch {
+          return { month: monthLabel, companies: 0 };
+        }
+      }),
+    );
 
     // ─── Revenue by Month (last 6 months) ───
-    const revenueByMonth: { month: string; revenue: number }[] = [];
-    for (let i = 5; i >= 0; i--) {
-      const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const nextMonth = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
-      const monthLabel = monthDate.toLocaleString('en', { month: 'short' });
-      try {
-        const subs = await platformDb.subscription.findMany({
-          where: {
-            ...subscriptionFilter,
-            createdAt: { gte: monthDate, lt: nextMonth },
-          },
-          select: { amount: true },
-        });
-        const monthRevenue = subs.reduce((sum, s) => sum + (s.amount || 0), 0);
-        revenueByMonth.push({ month: monthLabel, revenue: monthRevenue });
-      } catch {
-        revenueByMonth.push({ month: monthLabel, revenue: 0 });
-      }
-    }
+    const revenueByMonth = await Promise.all(
+      monthWindows.map(async ({ monthLabel, monthDate, nextMonth }) => {
+        try {
+          const subs = await platformDb.subscription.findMany({
+            where: {
+              ...subscriptionFilter,
+              createdAt: { gte: monthDate, lt: nextMonth },
+            },
+            select: { amount: true },
+          });
+          const monthRevenue = subs.reduce((sum, s) => sum + (s.amount || 0), 0);
+          return { month: monthLabel, revenue: monthRevenue };
+        } catch {
+          return { month: monthLabel, revenue: 0 };
+        }
+      }),
+    );
 
     // ─── Top Plans (from SubscriptionPlan + subscription counts) ───
     let topPlans: { name: string; planType: string; count: number; total: number }[] = [];

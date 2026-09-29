@@ -50,7 +50,6 @@ async function ensureShiftColumns(db: { $executeRawUnsafe: (sql: string) => Prom
 export async function GET(req: NextRequest) {
   try {
     const db = await getDb(req);
-    await ensureShiftColumns(db);
     const companyFilter = await getCompanyFilter(req);
     if (companyFilter === null) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });

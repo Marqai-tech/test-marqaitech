@@ -172,6 +172,9 @@ export async function GET(request: Request) {
     }
 
     let employeeData = null;
+    if (user.role === 'super_admin' || user.role === 'tenant_admin') {
+      employeeData = null;
+    } else {
     try {
       const employee = await dataDb.employee.findUnique({
         where: { userId: user.id },
@@ -226,6 +229,7 @@ export async function GET(request: Request) {
     } catch (empErr) {
       console.error('[Auth/Me] Employee fetch error (non-fatal):', empErr);
       // Continue without employee data — user can still be authenticated
+    }
     }
 
     // ─── GOLDEN RULE: Scrub hidden tenant from API response ───

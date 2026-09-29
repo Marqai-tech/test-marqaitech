@@ -86,11 +86,11 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const requestedTenantId = searchParams.get('tenantId');
 
-    // Resolve the caller's own company from their Employee record (if any).
-    // Wrap in safe() — super_admin and tenant_admin typically have NO Employee
-    // record, and if the Employee table has a schema mismatch this would
-    // otherwise crash the whole endpoint.
-    const employee = await safe(
+    // Super admin / tenant admin are not employees. Skip the Employee lookup
+    // on the header context call (this was ~1 extra Neon hop on every page).
+    const employee = ['super_admin', 'tenant_admin'].includes(role)
+      ? null
+      : await safe(
       'employee.findFirst',
       () => db.employee.findFirst({
         where: { userId },
@@ -277,38 +277,8 @@ export async function GET(request: Request) {
       console.log(`[me/context] host=${request.headers.get('host')}, filteredTenants=${availableTenants.length}, slugs=[${availableTenants.map((t: { slug: string }) => t.slug).join(',')}]`);
       console.log(`[me/context] GOLDEN RULE: requestedTenantId=${requestedTenantId || 'none'}, callerTenantId=${callerTenantId || 'none'}, requestedVisible=${requestedTenantIsVisible}, callerVisible=${callerTenantIsVisible}, effectiveTenantId=${effectiveTenantId || 'none'}`);
       if (effectiveTenantId) {
-        // AUTO-HEAL: Ensure the target tenant has at least one default group
-        // company. Legacy tenants created before the auto-group feature would
-        // otherwise show no groups, making the switcher look broken.
-        // FIX: Use tenant-specific DB for the existence check, because
-        // CompanyGroup lives in the tenant DB, not the platform DB.
-        await safe(
-          'ensureDefaultGroup(super_admin)',
-          async () => {
-            const healCheckDb = await getDbForTenantById(effectiveTenantId);
-            const existingGroups = await healCheckDb.companyGroup.findFirst({
-              where: { tenantId: effectiveTenantId },
-              select: { id: true },
-            });
-            if (!existingGroups) {
-              const tenantInfo = await getPlatformDb().tenant.findUnique({
-                where: { id: effectiveTenantId },
-                select: { name: true },
-              });
-              await healCheckDb.companyGroup.create({
-                data: {
-                  name: tenantInfo?.name || 'Default Group',
-                  tenantId: effectiveTenantId,
-                  employeeLimitMode: 'group_total',
-                  maxEmployees: null,
-                  maxCompanies: null,
-                  notes: `Default group company auto-created for tenant "${tenantInfo?.name || 'Unknown'}".`,
-                },
-              });
-            }
-          },
-          undefined as unknown as void,
-        );
+        // Do not auto-create groups on GET /api/me/context — that opened a
+        // second tenant DB on every header load. Create groups from tenant APIs.
 
         // CRITICAL FIX: For super_admin, we must query the TARGET tenant's
         // database, not the request's default DB (which may be the platform
@@ -356,34 +326,6 @@ export async function GET(request: Request) {
         // CompanyGroup lives in the tenant DB, not the platform DB. Previously
         // this used getPlatformDb() which would never find groups in the tenant
         // DB, causing auto-heal to either fail silently or create duplicates.
-        const healCheckDb = await getDbForTenantById(callerTenantId);
-        await safe(
-          'ensureDefaultGroup(tenant_admin)',
-          async () => {
-            const existingGroups = await healCheckDb.companyGroup.findFirst({
-              where: { tenantId: callerTenantId },
-              select: { id: true },
-            });
-            if (!existingGroups) {
-              const tenantInfo = await getPlatformDb().tenant.findUnique({
-                where: { id: callerTenantId },
-                select: { name: true },
-              });
-              await healCheckDb.companyGroup.create({
-                data: {
-                  name: tenantInfo?.name || 'Default Group',
-                  tenantId: callerTenantId,
-                  employeeLimitMode: 'group_total',
-                  maxEmployees: null,
-                  maxCompanies: null,
-                  notes: `Default group company auto-created for tenant "${tenantInfo?.name || 'Unknown'}". Shares the tenant name per the parent/child identity rule.`,
-                },
-              });
-            }
-          },
-          undefined as unknown as void,
-        );
-
         // FIX: Use tenant-specific DB for tenant_admin too, in case
         // getDb(request) routed to the wrong DB (e.g., platform DB fallback).
         const tenantAdminDb = await getDbForTenantById(callerTenantId);
@@ -499,31 +441,14 @@ export async function GET(request: Request) {
         )
       : null;
 
-    // Compute tenant-level company quota usage for tenant_admin
+    // Quota from companies already loaded for the switcher — no extra DB hop.
     let tenantQuota: {
       maxCompanies: number;
       used: number;
       remaining: number | null;
     } | null = null;
     if (callerTenant && (role === 'tenant_admin' || role === 'super_admin')) {
-      // FIX: Use tenant-specific DB for quota queries too
-      const quotaDb = await getDbForTenantById(callerTenant.id);
-      const groupsForQuota = await safe(
-        'companyGroup.findMany(quota)',
-        () => quotaDb.companyGroup.findMany({
-          where: { tenantId: callerTenant.id },
-          select: { id: true },
-        }),
-        [],
-      );
-      const groupIdsForQuota = groupsForQuota.map((g) => g.id);
-      const usedCompanies = groupIdsForQuota.length
-        ? await safe(
-            'company.count(quota)',
-            () => quotaDb.company.count({ where: { companyGroupId: { in: groupIdsForQuota } } }),
-            0,
-          )
-        : 0;
+      const usedCompanies = availableCompanies.length;
       tenantQuota = {
         maxCompanies: callerTenant.maxCompaniesAllowed,
         used: usedCompanies,
@@ -558,28 +483,8 @@ export async function GET(request: Request) {
       }
     }
 
-    // ─── FIX: Recompute tenantQuota from effectiveTenant if overridden ───
-    // Previously, tenantQuota was computed from callerTenant (the hidden tenant).
-    // After override, we must recompute from effectiveTenant so the quota
-    // reflects the visible tenant, not the hidden one.
     if (tenantWasOverridden && effectiveTenant) {
-      const quotaDb = await getDbForTenantById(effectiveTenant.id);
-      const groupsForQuota = await safe(
-        'companyGroup.findMany(quota-override)',
-        () => quotaDb.companyGroup.findMany({
-          where: { tenantId: effectiveTenant!.id },
-          select: { id: true },
-        }),
-        [],
-      );
-      const groupIdsForQuota = groupsForQuota.map((g) => g.id);
-      const usedCompanies = groupIdsForQuota.length
-        ? await safe(
-            'company.count(quota-override)',
-            () => quotaDb.company.count({ where: { companyGroupId: { in: groupIdsForQuota } } }),
-            0,
-          )
-        : 0;
+      const usedCompanies = availableCompanies.length;
       tenantQuota = {
         maxCompanies: effectiveTenant.maxCompaniesAllowed,
         used: usedCompanies,

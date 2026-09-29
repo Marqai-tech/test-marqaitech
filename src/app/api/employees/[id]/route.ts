@@ -366,28 +366,6 @@ export async function PUT(
     const { id: rawId } = await params;
     const id = decodeURIComponent(rawId);
 
-    // ─── Inline schema-sync: ensure ALL Employee columns exist ───
-    try {
-      const syncStatements = [
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "avatar" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "personalEmail" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "employeeStatus" TEXT NOT NULL DEFAULT 'confirmed'`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "employeeType" TEXT NOT NULL DEFAULT 'full_time'`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "maritalStatus" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "reportingManagerId" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "status" TEXT NOT NULL DEFAULT 'active'`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "leavePolicyId" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "attendancePolicyId" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "travelPolicyId" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "salaryStructureId" TEXT`,
-      ];
-      for (const sql of syncStatements) {
-        try { await db.$executeRawUnsafe(sql); } catch { /* column already exists */ }
-      }
-    } catch (syncErr) {
-      console.warn('[Employee PUT] Inline schema-sync failed (non-fatal):', syncErr);
-    }
-
     const body = await request.json();
 
     try {

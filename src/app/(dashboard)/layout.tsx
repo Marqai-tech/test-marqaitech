@@ -8,7 +8,6 @@ import { useAuthStore } from '@/store/authStore';
 // This redirects localStorage['tb_token'] to sessionStorage so that two tabs
 // in the same browser don't share/overwrite each other's sessions.
 import '@/lib/token-storage';
-import { useNotificationStore } from '@/store/notificationStore';
 import Sidebar from '@/components/Sidebar';
 import { navSections, PICKER_ROUTES } from '@/lib/navData';
 import Header from '@/components/Header';
@@ -35,7 +34,6 @@ export default function DashboardLayout({
   const router = useRouter();
   const pathname = usePathname();
   const { isAuthenticated, isLoading, fetchUser, token, user, logout } = useAuthStore();
-  const { fetchNotifications } = useNotificationStore();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -187,15 +185,6 @@ export default function DashboardLayout({
       window.removeEventListener('unhandledrejection', handleUnhandledRejection);
     };
   }, []);
-
-  // Fetch notifications
-  useEffect(() => {
-    if (isAuthenticated) {
-      const initialTimeout = setTimeout(() => fetchNotifications(), 3000);
-      const interval = setInterval(fetchNotifications, 30000);
-      return () => { clearTimeout(initialTimeout); clearInterval(interval); };
-    }
-  }, [isAuthenticated, fetchNotifications]);
 
   useSessionTimeout();
 

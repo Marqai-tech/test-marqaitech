@@ -37,13 +37,20 @@ export async function OPTIONS() {
   return NextResponse.json({}, { headers: corsHeaders() });
 }
 
+let employeePostColumnsReady = false;
+
 export async function GET(request: Request) {
   const db = await getDb(request);
 
   try {
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '20');
+    const rawLimit = parseInt(searchParams.get('limit') || '20');
+    const exportMode = searchParams.get('export') === '1';
+    const includeStats = searchParams.get('includeStats') === '1';
+    const limit = exportMode
+      ? Math.min(Math.max(rawLimit || 20, 1), 500)
+      : Math.min(Math.max(rawLimit || 20, 1), 100);
     const departmentId = searchParams.get('departmentId');
     const status = searchParams.get('status');
     const search = searchParams.get('search');
@@ -374,13 +381,12 @@ export async function GET(request: Request) {
         queryDb.employee.findMany({
           where,
           include: {
-            department: true,
-            designation: true,
-            branch: true,
+            department: { select: { id: true, name: true } },
+            designation: { select: { id: true, title: true } },
+            branch: { select: { id: true, name: true } },
             user: {
               select: { id: true, email: true, role: true, avatar: true },
             },
-            // Manager name for the Employees list "Reporting Manager" column
             reportingManager: { select: { id: true, firstName: true, lastName: true, employeeId: true } },
           },
           orderBy: { createdAt: 'desc' },
@@ -389,6 +395,18 @@ export async function GET(request: Request) {
         }),
         queryDb.employee.count({ where }),
       ]);
+
+      let stats: { total: number; active: number; inactive: number; newJoiners: number } | undefined;
+      if (includeStats) {
+        const monthAgo = new Date();
+        monthAgo.setMonth(monthAgo.getMonth() - 1);
+        const [active, inactive, newJoiners] = await Promise.all([
+          queryDb.employee.count({ where: { ...where, status: 'active' } }),
+          queryDb.employee.count({ where: { ...where, status: { not: 'active' } } }),
+          queryDb.employee.count({ where: { ...where, dateOfJoining: { gte: monthAgo } } }),
+        ]);
+        stats = { total, active, inactive, newJoiners };
+      }
 
       if (employees.length > 0 || total > 0) {
         return NextResponse.json(
@@ -400,6 +418,7 @@ export async function GET(request: Request) {
               total,
               totalPages: Math.ceil(total / limit),
             },
+            ...(stats ? { stats } : {}),
             dataScope: isAuthed ? scope : 'all',
           },
           { headers: corsHeaders() }
@@ -442,6 +461,7 @@ export async function POST(request: Request) {
     // when the DB schema hasn't been synced yet. We add every column the Prisma
     // client expects, with IF NOT EXISTS so re-runs are safe. This runs on EVERY
     // POST request but is fast (~50ms) because PostgreSQL short-circuits IF NOT EXISTS.
+    if (!employeePostColumnsReady) {
     try {
       const syncStatements = [
         `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "avatar" TEXT`,
@@ -494,6 +514,8 @@ export async function POST(request: Request) {
       // Schema sync failure is non-fatal — the create will fail with a
       // detailed Prisma error if a column is missing, which is fine.
       console.warn('[Employees POST] Inline schema-sync failed (non-fatal):', syncErr);
+    }
+    employeePostColumnsReady = true;
     }
 
     // Try auth but allow demo mode

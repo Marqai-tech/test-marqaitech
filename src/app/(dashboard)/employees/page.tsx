@@ -334,6 +334,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
 
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [allEmployees, setAllEmployees] = useState<Employee[]>([]);
+  const [listStats, setListStats] = useState({ total: 0, active: 0, inactive: 0, newJoiners: 0 });
   const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0, totalPages: 0 });
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -509,16 +510,10 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
 
   // Stats calculations
   const stats = {
-    total: allEmployees.length,
-    active: allEmployees.filter(e => e.status === 'active').length,
-    inactive: allEmployees.filter(e => e.status !== 'active').length,
-    newJoiners: allEmployees.filter(e => {
-      if (!e.dateOfJoining) return false;
-      const joinDate = new Date(e.dateOfJoining);
-      const now = new Date();
-      const monthDiff = (now.getFullYear() - joinDate.getFullYear()) * 12 + now.getMonth() - joinDate.getMonth();
-      return monthDiff <= 1;
-    }).length,
+    total: listStats.total || pagination.total,
+    active: listStats.active,
+    inactive: listStats.inactive,
+    newJoiners: listStats.newJoiners,
   };
 
   /* Close action menu on outside click */
@@ -533,8 +528,14 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
   }, []);
 
   /* Export CSV */
-  const handleExportCSV = () => {
-    const rows = allEmployees.map(emp => ({
+  const handleExportCSV = async () => {
+    try {
+      const params = new URLSearchParams({ limit: '500', export: '1' });
+      const sq = scopeQuery();
+      const res = await fetch(`/api/employees?${params.toString()}${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
+      const data = res.ok ? await res.json() : { employees: allEmployees };
+      const exportRows = data.employees || allEmployees;
+      const rows = exportRows.map((emp: Employee) => ({
       'Employee ID': emp.employeeId || '',
       'First Name': emp.firstName || '',
       'Last Name': emp.lastName || '',
@@ -576,7 +577,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
   const fetchEmployees = useCallback(async (page = 1) => {
     try {
       setLoading(true);
-      const params = new URLSearchParams({ page: String(page), limit: '10' });
+      const params = new URLSearchParams({ page: String(page), limit: '10', includeStats: '1' });
       if (search) params.set('search', search);
       if (filterDept) params.set('departmentId', filterDept);
       if (filterStatus) params.set('status', filterStatus);
@@ -586,6 +587,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
       if (!res.ok) throw new Error('Failed to fetch');
       const data = await res.json();
       const fetched = data.employees || [];
+      if (data.stats) setListStats(data.stats);
       if (fetched.length === 0) {
         setEmployees([]);
         setPagination(data.pagination || { page: 1, limit: 10, total: 0, totalPages: 0 });
@@ -605,7 +607,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
   /* Fetch all employees for stats */
   const fetchAllEmployees = useCallback(async () => {
     try {
-      const params = new URLSearchParams({ limit: '500' });
+      const params = new URLSearchParams({ limit: '100', status: 'active' });
       const sq = scopeQuery();
       const res = await fetch(`/api/employees?${params.toString()}${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
       if (res.ok) {
@@ -685,10 +687,6 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
       queueMicrotask(() => fetchDropdowns(form.companyId));
     }
   }, [form.companyId, fetchDropdowns]);
-
-  useEffect(() => {
-    queueMicrotask(() => fetchAllEmployees());
-  }, [fetchAllEmployees]);
 
   /* Handle editId from URL (navigated from employee view page Edit button) */
   useEffect(() => {
@@ -906,6 +904,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
     setStagedDocs([]); setDocDraft(emptyDocDraft());
     setDeleteConfirmId(null);
     setActionMenuOpen(null);
+    void fetchAllEmployees();
     setTimeout(() => document.getElementById('crud-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
   };
 
@@ -916,6 +915,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
     setStagedDocs([]); setDocDraft(emptyDocDraft()); setEditDocs([]);
     setDeleteConfirmId(null);
     setActionMenuOpen(null);
+    void fetchAllEmployees();
 
     // Fetch FRESH employee data from the API to ensure we get the latest
     // employeeStatus, employeeType, personalEmail, etc.
