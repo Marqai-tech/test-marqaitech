@@ -130,9 +130,6 @@ export default function LoginPage() {
       || (window.navigator as unknown as { standalone?: boolean }).standalone === true;
     setIsStandalone(standalone);
 
-    // Auto-fix EH2R branding in database on login page load
-    fetch('/api/fix-tenant', { method: 'POST' }).catch(() => {});
-
     const handler = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);

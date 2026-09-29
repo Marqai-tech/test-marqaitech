@@ -19,7 +19,10 @@ export async function OPTIONS() {
 // Older tenant databases have the original Shift columns only. Prisma still
 // writes the newer fields (type, grace windows, overtime), so create fails
 // with "column does not exist" until those columns are added.
+let shiftColumnsReady = false;
+
 async function ensureShiftColumns(db: { $executeRawUnsafe: (sql: string) => Promise<unknown> }) {
+  if (shiftColumnsReady) return;
   const statements = [
     `ALTER TABLE "Shift" ADD COLUMN IF NOT EXISTS "code" TEXT`,
     `ALTER TABLE "Shift" ADD COLUMN IF NOT EXISTS "type" TEXT NOT NULL DEFAULT 'fixed'`,
@@ -41,6 +44,7 @@ async function ensureShiftColumns(db: { $executeRawUnsafe: (sql: string) => Prom
   for (const sql of statements) {
     try { await db.$executeRawUnsafe(sql); } catch { /* column already exists or table is locked */ }
   }
+  shiftColumnsReady = true;
 }
 
 export async function GET(req: NextRequest) {

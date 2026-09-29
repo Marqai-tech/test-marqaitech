@@ -41,59 +41,6 @@ export async function GET(request: Request) {
   const db = await getDb(request);
 
   try {
-    // ─── Inline schema-sync: ensure ALL Employee columns exist (fixes P2022) ───
-    try {
-      const syncStatements = [
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "avatar" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "personalEmail" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "employeeStatus" TEXT NOT NULL DEFAULT 'confirmed'`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "employeeType" TEXT NOT NULL DEFAULT 'full_time'`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "maritalStatus" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "nationality" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "address" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "city" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "state" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "zipCode" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "country" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "status" TEXT NOT NULL DEFAULT 'active'`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT NOW()`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT NOW()`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "reportingManagerId" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "designationId" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "dateOfJoining" TIMESTAMP(3)`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "bloodGroup" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "emergencyContactName" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "emergencyContactPhone" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "bankName" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "bankAccountNo" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "bankIfscCode" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "panNumber" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "aadhaarNumber" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "taxId" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "salary" DOUBLE PRECISION`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "salaryCurrency" TEXT NOT NULL DEFAULT 'INR'`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "leavePolicyId" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "attendancePolicyId" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "travelPolicyId" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "salaryStructureId" TEXT`,
-        // Credential-invite columns (added to schema.prisma 2026-09-07). A
-        // tenant DB missing these made EVERY Prisma employee query fail with
-        // P2022 -> /api/employees returned 503 -> dashboard showed 0 employees
-        // even though the data was intact. Keep this list in sync with the
-        // schema whenever new Employee columns are added.
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "credentialsStatus" TEXT DEFAULT 'not_invited'`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "credentialsInvitedAt" TIMESTAMP(3)`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "credentialsInvitedBy" TEXT`,
-      ];
-      for (const sql of syncStatements) {
-        try {
-          await db.$executeRawUnsafe(sql);
-        } catch { /* column already exists — safe to ignore */ }
-      }
-    } catch (syncErr) {
-      console.warn('[Employees GET] Inline schema-sync failed (non-fatal):', syncErr);
-    }
-
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '20');
@@ -127,7 +74,9 @@ export async function GET(request: Request) {
     // When super_admin has NO company selected (companyId is null), aggregate
     // employee counts. If tenantId is provided, aggregate from that specific
     // tenant DB. If tenantId is also null, aggregate across ALL visible tenants.
-    if (jwtRole === 'super_admin' && !queryCompanyId) {
+    // Production loads one tenant DB via getDb(?tenantId=). Do not fan out
+    // across every sample tenant on tester Super Admin — that is the 13s path.
+    if (jwtRole === 'super_admin' && !queryCompanyId && false) {
       try {
         const { getServerHiddenSlugs, PLATFORM_PLACEHOLDER_NAME } = await import('@/lib/tenant-filter');
         const hiddenSlugs = getServerHiddenSlugs(request);

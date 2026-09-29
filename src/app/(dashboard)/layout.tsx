@@ -140,14 +140,6 @@ export default function DashboardLayout({
     if (token && !isAuthenticated && isLoading) fetchUser();
   }, [token, isAuthenticated, isLoading, router, fetchUser]);
 
-  // Auto-fix tenant branding on first load
-  useEffect(() => {
-    if (isAuthenticated) {
-      fetch('/api/fix-tenant', { method: 'POST' }).catch(() => {});
-      fetch('/api/db-push', { method: 'POST' }).catch(() => {});
-    }
-  }, [isAuthenticated]);
-
   // ─── Chunk-loading error auto-recovery ───
   // When Vercel deploys a new build, old browser tabs try to load JavaScript
   // chunks that no longer exist → "Failed to load chunk" error.
