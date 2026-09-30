@@ -14,6 +14,8 @@ import { getDb } from '@/lib/tenant-db';
 import { getAuthInfo } from '@/lib/companyScope';
 import { sanitizeMultiLineText } from '@/lib/sanitize';
 import { loadWorkflowConfig, resolveTierApprovers } from '@/lib/approverResolve';
+import { canEditEmployeeRecords } from '@/lib/roleAccess';
+import { profilePhotoPayloadError } from '@/lib/profile-photo';
 
 function corsHeaders() {
   return {
@@ -39,6 +41,7 @@ const FIELD_SENSITIVITY: Record<string, { sensitivity: 'low' | 'high' | 'restric
   emergencyContactName: { sensitivity: 'low', category: 'contact',    label: 'Emergency Contact Name' },
   emergencyContactPhone: { sensitivity: 'low', category: 'contact',   label: 'Emergency Contact Phone' },
   personalEmail:       { sensitivity: 'low',  category: 'contact',    label: 'Personal Email' },
+  avatar:              { sensitivity: 'high', category: 'personal',   label: 'Profile Photo' },
 
   // Personal (high-risk — approval required)
   firstName:           { sensitivity: 'high', category: 'personal',   label: 'First Name' },
@@ -133,6 +136,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'employeeId, fieldName, and newValue are required' }, { status: 400, headers: corsHeaders() });
     }
 
+    const ownEmployee = await db.employee.findFirst({ where: { userId: auth.userId }, select: { id: true } });
+    if (!canEditEmployeeRecords(auth.role) && ownEmployee?.id !== employeeId) {
+      return NextResponse.json({ error: 'You can only submit changes for your own profile' }, { status: 403, headers: corsHeaders() });
+    }
+
     // Check field sensitivity
     const fieldConfig = FIELD_SENSITIVITY[fieldName];
     if (!fieldConfig) {
@@ -140,6 +148,20 @@ export async function POST(req: NextRequest) {
     }
     if (fieldConfig.sensitivity === 'restricted') {
       return NextResponse.json({ error: `Field "${fieldConfig.label}" is restricted and cannot be changed via self-service.` }, { status: 403, headers: corsHeaders() });
+    }
+
+    if (fieldName === 'avatar') {
+      const photoError = profilePhotoPayloadError(newValue);
+      if (photoError) {
+        return NextResponse.json({ error: photoError }, { status: 400, headers: corsHeaders() });
+      }
+      const pendingPhoto = await db.employeeUpdateRequest.findFirst({
+        where: { employeeId, fieldName: 'avatar', status: 'pending' },
+        select: { id: true },
+      });
+      if (pendingPhoto) {
+        return NextResponse.json({ error: 'A profile photo is already waiting for approval. Cancel it or wait for HR to decide.' }, { status: 409, headers: corsHeaders() });
+      }
     }
 
     // Get the current value
@@ -153,7 +175,12 @@ export async function POST(req: NextRequest) {
     }
 
     const cleanReason = sanitizeMultiLineText(reason, 500);
-    const cleanNewValue = sanitizeMultiLineText(newValue, 2000);
+    const cleanNewValue = fieldName === 'avatar'
+      ? String(newValue)
+      : sanitizeMultiLineText(newValue, 2000);
+    const storedOldValue = fieldName === 'avatar'
+      ? (oldValue ? '(current photo)' : '')
+      : oldValue;
 
     // For LOW-risk fields: apply directly (no approval needed)
     if (fieldConfig.sensitivity === 'low') {
@@ -165,7 +192,7 @@ export async function POST(req: NextRequest) {
       const req = await db.employeeUpdateRequest.create({
         data: {
           employeeId, fieldName, fieldLabel: fieldConfig.label, category: fieldConfig.category,
-          oldValue, newValue: cleanNewValue, reason: cleanReason,
+          oldValue: storedOldValue, newValue: cleanNewValue, reason: cleanReason,
           status: 'applied', currentTier: 0,
           requestedById: auth.userId, requestedAt: new Date(),
           appliedAt: new Date(),
@@ -196,7 +223,7 @@ export async function POST(req: NextRequest) {
     const updateRequest = await db.employeeUpdateRequest.create({
       data: {
         employeeId, fieldName, fieldLabel: fieldConfig.label, category: fieldConfig.category,
-        oldValue, newValue: cleanNewValue, reason: cleanReason,
+        oldValue: storedOldValue, newValue: cleanNewValue, reason: cleanReason,
         status: 'pending', currentTier: 1,
         configSnapshot,
         requestedById: auth.userId,
@@ -255,7 +282,7 @@ export async function POST(req: NextRequest) {
           vars: {
             Employee_Name: empRow ? `${empRow.firstName || ''} ${empRow.lastName || ''}`.trim() : 'An employee',
             Field_Name: fieldConfig.label || fieldName,
-            New_Value: cleanNewValue,
+            New_Value: fieldName === 'avatar' ? 'New profile photo' : cleanNewValue,
             Critical: critical ? ' This is a PAYROLL-CRITICAL change.' : '',
           },
           entity: { type: 'employee_update_request', id: updateRequest.id, link: '/employees/approval-config' },
