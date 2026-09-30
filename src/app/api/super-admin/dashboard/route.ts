@@ -1,7 +1,8 @@
-import { NextResponse } from 'next/server';
-import { getPlatformDb, getDbForTenant } from '@/lib/tenant-db';
+import { NextResponse, after } from 'next/server';
+import { getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { getServerHiddenSlugs, PLATFORM_PLACEHOLDER_NAME } from '@/lib/tenant-filter';
+import { getTenantDashboardCounts } from '@/lib/tenant-aggregates';
 
 function corsHeaders() {
   return {
@@ -73,40 +74,14 @@ export async function GET(request: Request) {
     let payload: Record<string, unknown>;
 
     if (wantFull && liteHit) {
-      let totalGroupCompanies = 0;
-      let totalCompanies = 0;
-      let totalEmployees = 0;
-      const tenants = await platformDb.tenant.findMany({
-        where: tenantFilter,
-        select: { slug: true },
-      });
-      const dedicatedDbs = await platformDb.tenantDatabase.findMany({
-        where: { isActive: true, tenant: { slug: { in: tenants.map((t) => t.slug).filter(Boolean) as string[] } } },
-        select: { tenant: { select: { slug: true } } },
-      });
-      const dedicatedSlugs = [...new Set(dedicatedDbs.map((r) => r.tenant?.slug).filter(Boolean) as string[])];
-      const tenantTotals = await Promise.all(
-        dedicatedSlugs.map(async (slug) => {
-          try {
-            const tenantDb = await getDbForTenant(slug);
-            const [groupCount, companyCount, employeeCount] = await Promise.all([
-              tenantDb.companyGroup.count(),
-              tenantDb.company.count(),
-              tenantDb.employee.count({ where: { status: 'active' } }),
-            ]);
-            return { groupCount, companyCount, employeeCount };
-          } catch (e) {
-            console.error(`[SuperAdmin Dashboard] Failed to count data for tenant "${slug}":`, e);
-            return { groupCount: 0, companyCount: 0, employeeCount: 0 };
-          }
-        }),
-      );
-      for (const t of tenantTotals) {
-        totalGroupCompanies += t.groupCount;
-        totalCompanies += t.companyCount;
-        totalEmployees += t.employeeCount;
-      }
-      payload = { ...liteHit, totalGroupCompanies, totalCompanies, totalEmployees };
+      const counts = await getTenantDashboardCounts(platformDb, tenantFilter, { allowRefresh: true });
+      payload = {
+        ...liteHit,
+        totalGroupCompanies: counts.groups,
+        totalCompanies: counts.companies,
+        totalEmployees: counts.employees,
+        _agg: { tenantDbs: counts.tenantDbs, source: counts.source },
+      };
     } else {
     const now = new Date();
     const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
@@ -261,36 +236,16 @@ export async function GET(request: Request) {
     let totalEmployees = 0;
 
     if (wantFull) {
-      const tenants = await platformDb.tenant.findMany({
-        where: tenantFilter,
-        select: { id: true, slug: true, status: true },
+      const counts = await getTenantDashboardCounts(platformDb, tenantFilter, { allowRefresh: true });
+      totalGroupCompanies = counts.groups;
+      totalCompanies = counts.companies;
+      totalEmployees = counts.employees;
+    } else {
+      after(() => {
+        getTenantDashboardCounts(platformDb, tenantFilter, { allowRefresh: true }).catch((e) => {
+          console.error('[SuperAdmin Dashboard] Background tenant aggregate refresh failed:', e);
+        });
       });
-      const dedicatedDbs = await platformDb.tenantDatabase.findMany({
-        where: { isActive: true, tenant: { slug: { in: tenants.map((t) => t.slug).filter(Boolean) as string[] } } },
-        select: { tenant: { select: { slug: true } } },
-      });
-      const dedicatedSlugs = [...new Set(dedicatedDbs.map((r) => r.tenant?.slug).filter(Boolean) as string[])];
-      const tenantTotals = await Promise.all(
-        dedicatedSlugs.map(async (slug) => {
-          try {
-            const tenantDb = await getDbForTenant(slug);
-            const [groupCount, companyCount, employeeCount] = await Promise.all([
-              tenantDb.companyGroup.count(),
-              tenantDb.company.count(),
-              tenantDb.employee.count({ where: { status: 'active' } }),
-            ]);
-            return { groupCount, companyCount, employeeCount };
-          } catch (e) {
-            console.error(`[SuperAdmin Dashboard] Failed to count data for tenant "${slug}":`, e);
-            return { groupCount: 0, companyCount: 0, employeeCount: 0 };
-          }
-        }),
-      );
-      for (const t of tenantTotals) {
-        totalGroupCompanies += t.groupCount;
-        totalCompanies += t.companyCount;
-        totalEmployees += t.employeeCount;
-      }
     }
 
     const payloadInner = {

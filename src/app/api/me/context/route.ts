@@ -15,6 +15,9 @@ export async function OPTIONS() {
   return NextResponse.json({}, { headers: corsHeaders() });
 }
 
+const contextResponseCache = new Map<string, { at: number; body: unknown }>();
+const CONTEXT_CACHE_MS = 30_000;
+
 /**
  * Safe wrapper — runs a query and returns a default value on failure instead
  * of throwing. The error is logged with a label so we can pinpoint which
@@ -85,6 +88,16 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const requestedTenantId = searchParams.get('tenantId');
+    const host = request.headers.get('host') || '';
+    const ctxCacheKey = `${role}:${requestedTenantId || callerTenantId || ''}:${host}`;
+    if (role === 'super_admin' || role === 'tenant_admin') {
+      const hit = contextResponseCache.get(ctxCacheKey);
+      if (hit && Date.now() - hit.at < CONTEXT_CACHE_MS) {
+        return NextResponse.json(hit.body, {
+          headers: { ...corsHeaders(), 'Server-Timing': `cache;desc="hit",total;dur=${Date.now() - t0}` },
+        });
+      }
+    }
 
     // Super admin / tenant admin never use Employee rows. Opening getDb() first
     // was an extra Neon hop on every header load (measured /api/me/context TTFB 4273ms).
@@ -600,7 +613,7 @@ export async function GET(request: Request) {
 
     console.log(`[me/context] GOLDEN RULE FINAL: hiddenSlugs=[${hiddenSlugsFinal.join(',')}], tenants=${finalAvailableTenants.length}, groups=${finalAvailableCompanyGroups.length}, companies=${finalAvailableCompanies.length}, tenantSlug=${effectiveTenant?.slug || 'null'}, envMode=${process.env.SITE_MODE || 'unset'}`);
 
-    return NextResponse.json({
+    const body = {
       role,
       tenantId: effectiveTenantId,
       tenant: effectiveTenant,
@@ -611,7 +624,11 @@ export async function GET(request: Request) {
       availableCompanyGroups: finalAvailableCompanyGroups,
       availableCompanies: finalAvailableCompanies,
       mappedCompanies: finalMappedCompanies,
-    }, { headers: { ...corsHeaders(), 'Server-Timing': `total;dur=${Date.now() - t0}` } });
+    };
+    if (role === 'super_admin' || role === 'tenant_admin') {
+      contextResponseCache.set(ctxCacheKey, { at: Date.now(), body });
+    }
+    return NextResponse.json(body, { headers: { ...corsHeaders(), 'Server-Timing': `total;dur=${Date.now() - t0}` } });
   } catch (error) {
     // Log the FULL error so we can debug from Vercel logs.
     const msg = error instanceof Error ? error.message : String(error);

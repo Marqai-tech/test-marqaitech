@@ -17,6 +17,7 @@ export async function OPTIONS() {
 }
 
 export async function POST(request: Request) {
+  const t0 = Date.now();
   // ⚠️ IMPORTANT: Authentication uses the platform DB first, then falls
   // back to the tenant-specific DB if the user is not found in the platform DB.
   // This ensures login works for both platform users (super_admin) AND
@@ -716,7 +717,7 @@ export async function POST(request: Request) {
           company: companyData,
         },
       },
-      { headers: corsHeaders() }
+      { headers: { ...corsHeaders(), 'Server-Timing': `total;dur=${Date.now() - t0}` } }
     );
   } catch (error) {
     console.error('Login error:', error);
