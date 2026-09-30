@@ -198,12 +198,14 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
   const token = useAuthStore.getState().token;
   useEffect(() => {
     if (!token) return;
-    fetchNotifications();
-    // Poll every 30 seconds for live unread-count updates
+    const start = window.setTimeout(() => fetchNotifications(), 2000);
     const interval = setInterval(() => {
       fetchNotifications();
     }, 30000);
-    return () => clearInterval(interval);
+    return () => {
+      clearTimeout(start);
+      clearInterval(interval);
+    };
   }, [token, fetchNotifications]);
 
   // Compute search suggestions based on query

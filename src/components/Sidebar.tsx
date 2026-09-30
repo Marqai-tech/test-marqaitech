@@ -194,6 +194,7 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false, cur
               <li key={item.href}>
                 <Link
                   href={item.href}
+                  prefetch={false}
                   onClick={() => {
                     onModuleSelect(null);
                     if (isMobileMenu) onToggle();
@@ -265,6 +266,7 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false, cur
                   <li key={item.href}>
                     <Link
                       href={item.href}
+                      prefetch={false}
                       onClick={() => { if (isMobileMenu) onToggle(); }}
                       className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 group relative ${
                         isActive

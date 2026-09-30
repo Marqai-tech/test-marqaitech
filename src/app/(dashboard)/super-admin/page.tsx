@@ -231,8 +231,12 @@ export default function SuperAdminPage() {
         const data = await res.json();
         setDashboard(data);
       }
-    } catch { toast.error('Failed to load dashboard'); }
-    finally { setDashLoading(false); }
+      setDashLoading(false);
+      const fullRes = await fetch('/api/super-admin/dashboard?full=1', { headers: getAuthHeaders() });
+      if (fullRes.ok) {
+        setDashboard(await fullRes.json());
+      }
+    } catch { toast.error('Failed to load dashboard'); setDashLoading(false); }
   }, []);
 
   const fetchTenants = useCallback(async () => {

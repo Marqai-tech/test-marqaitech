@@ -252,7 +252,7 @@ function QuickLinkGrid({ links }: { links: { icon: React.ReactNode; label: strin
 /* ============== SUPER ADMIN / TENANT ADMIN ============== */
 function SuperAdminHome({ firstName, greeting, today }: { firstName: string; greeting: string; today: string }) {
   const router = useRouter();
-  const { selectedTenantId, selectedCompanyId, availableTenants, availableCompanies, hydrated, hydrate } = useCompanyContextStore();
+  const { selectedTenantId, selectedCompanyId, availableTenants, availableCompanies, hydrate } = useCompanyContextStore();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({ totalEmployees: 0, totalUsers: 0, totalDepartments: 0, totalBranches: 0 });
   const [recentLogs, setRecentLogs] = useState<{ id: string; action: string; module: string; createdAt: string; user?: { name: string } }[]>([]);
@@ -304,9 +304,12 @@ function SuperAdminHome({ firstName, greeting, today }: { firstName: string; gre
   }, [scopeQuery]);
 
   useEffect(() => {
-    if (!hydrated) { hydrate(); return; }
+    hydrate();
+  }, [hydrate]);
+
+  useEffect(() => {
     fetchData();
-  }, [hydrated, hydrate, fetchData]);
+  }, [fetchData]);
 
   const quickLinks = [
     { icon: <FiUsers className="w-5 h-5" />, label: 'Employees', href: '/employees', bg: 'from-emerald-400 to-green-500', shadow: 'shadow-green-500/25' },

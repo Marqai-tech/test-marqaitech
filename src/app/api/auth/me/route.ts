@@ -17,6 +17,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
+  const t0 = Date.now();
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -265,7 +266,7 @@ export async function GET(request: Request) {
         lastLogin: user.lastLogin,
         createdAt: user.createdAt,
       },
-      { headers: corsHeaders() }
+      { headers: { ...corsHeaders(), 'Server-Timing': `total;dur=${Date.now() - t0}` } }
     );
   } catch (error) {
     console.error('Get current user error:', error);

@@ -189,6 +189,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       if (typeof window !== 'undefined') {
         localStorage.setItem('tb_token', token);
+        try { sessionStorage.setItem('tb_user', JSON.stringify(user)); } catch { /* ignore */ }
       }
 
       set({
@@ -198,14 +199,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         isLoading: false,
       });
 
-      // Fetch permissions after login
+      // Login already returned the user. Refreshing /api/auth/me here doubled
+      // TTFB (measured two overlapping GETs 999ms + 1924ms) and kept the
+      // dashboard shell waiting. Background refresh happens on next load.
       get().fetchPermissions();
-
-      // Also fetch the full user profile (incl. employee info) so that
-      // pages like /marketplace/wallet can read user.employee.employeeId
-      // immediately after login instead of waiting for a page reload.
-      // Login response itself doesn't include employee data; /api/auth/me does.
-      get().fetchUser();
+      if (user.role !== 'super_admin' && user.role !== 'tenant_admin') {
+        void get().fetchUser();
+      }
 
       return true;
     } catch (error: unknown) {
@@ -233,6 +233,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         localStorage.removeItem('tb_token');
         localStorage.removeItem('tb_company_ctx');
         localStorage.removeItem('tb_company_ctx_v2');
+        try { sessionStorage.removeItem('tb_user'); } catch { /* ignore */ }
       }
       set({
         user: null,
@@ -251,12 +252,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   fetchUser: async () => {
+    const { token, user: existing } = get();
+    if (!token) {
+      set({ isLoading: false });
+      return;
+    }
+    // Keep the shell visible when we already have a user from login/cache.
+    if (!existing) set({ isLoading: true });
     try {
-      const { token } = get();
-      if (!token) {
-        set({ isLoading: false });
-        return;
-      }
 
       const res = await fetch('/api/auth/me', {
         headers: {
@@ -267,6 +270,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (!res.ok) {
         if (typeof window !== 'undefined') {
           localStorage.removeItem('tb_token');
+          try { sessionStorage.removeItem('tb_user'); } catch { /* ignore */ }
         }
         set({
           user: null,
@@ -319,6 +323,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         isAuthenticated: true,
         isLoading: false,
       });
+      if (typeof window !== 'undefined') {
+        try { sessionStorage.setItem('tb_user', JSON.stringify(user)); } catch { /* ignore */ }
+      }
 
       // Fetch permissions after user is loaded
       get().fetchPermissions();
@@ -413,7 +420,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 if (typeof window !== 'undefined') {
   const token = localStorage.getItem('tb_token');
   if (token) {
-    useAuthStore.setState({ token, isLoading: true });
+    let cachedUser: AuthState['user'] = null;
+    try {
+      const raw = sessionStorage.getItem('tb_user');
+      if (raw) cachedUser = JSON.parse(raw);
+    } catch { /* ignore */ }
+    if (cachedUser) {
+      useAuthStore.setState({ token, user: cachedUser, isAuthenticated: true, isLoading: false });
+    } else {
+      useAuthStore.setState({ token, isLoading: true });
+    }
     useAuthStore.getState().fetchUser();
   } else {
     useAuthStore.setState({ isLoading: false });

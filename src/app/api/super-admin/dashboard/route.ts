@@ -35,7 +35,8 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Only super admins can view platform dashboard' }, { status: 403, headers: corsHeaders() });
     }
 
-    const cacheKey = request.headers.get('host') || 'default';
+    const wantFull = new URL(request.url).searchParams.get('full') === '1';
+    const cacheKey = `${request.headers.get('host') || 'default'}:${wantFull ? 'full' : 'lite'}`;
     if (dashboardCache && dashboardCache.key === cacheKey && Date.now() - dashboardCache.at < DASHBOARD_CACHE_MS) {
       return NextResponse.json(dashboardCache.body, { headers: corsHeaders() });
     }
@@ -60,44 +61,46 @@ export async function GET(request: Request) {
       platformDb.tenant.count({ where: { ...tenantFilter, status: 'inactive' } }),
     ]);
 
-    // ─── Aggregate counts across ALL tenant databases ───
-    const tenants = await platformDb.tenant.findMany({
-      where: tenantFilter,
-      select: { id: true, slug: true, status: true },
-    });
-
     let totalGroupCompanies = 0;
     let totalCompanies = 0;
     let totalEmployees = 0;
 
-    // One lookup of dedicated DBs, then count tenants in parallel.
-    // Sequential findFirst + counts per sample tenant was ~8s on tester.
-    const dedicatedDbs = await platformDb.tenantDatabase.findMany({
-      where: { isActive: true, tenant: { slug: { in: tenants.map((t) => t.slug).filter(Boolean) as string[] } } },
-      select: { tenant: { select: { slug: true } } },
-    });
-    const dedicatedSlugs = [...new Set(dedicatedDbs.map((r) => r.tenant?.slug).filter(Boolean) as string[])];
+    // Opening every dedicated tenant DB on first paint was ~7.6s on tester
+    // (measured 2026-09-30: GET /api/super-admin/dashboard TTFB 7653ms) while
+    // 20 sidebar RSC prefetches competed for the same connections. Lite mode
+    // returns platform stats immediately; ?full=1 fills per-tenant counts.
+    if (wantFull) {
+      const tenants = await platformDb.tenant.findMany({
+        where: tenantFilter,
+        select: { id: true, slug: true, status: true },
+      });
+      const dedicatedDbs = await platformDb.tenantDatabase.findMany({
+        where: { isActive: true, tenant: { slug: { in: tenants.map((t) => t.slug).filter(Boolean) as string[] } } },
+        select: { tenant: { select: { slug: true } } },
+      });
+      const dedicatedSlugs = [...new Set(dedicatedDbs.map((r) => r.tenant?.slug).filter(Boolean) as string[])];
 
-    const tenantTotals = await Promise.all(
-      dedicatedSlugs.map(async (slug) => {
-        try {
-          const tenantDb = await getDbForTenant(slug);
-          const [groupCount, companyCount, employeeCount] = await Promise.all([
-            tenantDb.companyGroup.count(),
-            tenantDb.company.count(),
-            tenantDb.employee.count({ where: { status: 'active' } }),
-          ]);
-          return { groupCount, companyCount, employeeCount };
-        } catch (e) {
-          console.error(`[SuperAdmin Dashboard] Failed to count data for tenant "${slug}":`, e);
-          return { groupCount: 0, companyCount: 0, employeeCount: 0 };
-        }
-      }),
-    );
-    for (const t of tenantTotals) {
-      totalGroupCompanies += t.groupCount;
-      totalCompanies += t.companyCount;
-      totalEmployees += t.employeeCount;
+      const tenantTotals = await Promise.all(
+        dedicatedSlugs.map(async (slug) => {
+          try {
+            const tenantDb = await getDbForTenant(slug);
+            const [groupCount, companyCount, employeeCount] = await Promise.all([
+              tenantDb.companyGroup.count(),
+              tenantDb.company.count(),
+              tenantDb.employee.count({ where: { status: 'active' } }),
+            ]);
+            return { groupCount, companyCount, employeeCount };
+          } catch (e) {
+            console.error(`[SuperAdmin Dashboard] Failed to count data for tenant "${slug}":`, e);
+            return { groupCount: 0, companyCount: 0, employeeCount: 0 };
+          }
+        }),
+      );
+      for (const t of tenantTotals) {
+        totalGroupCompanies += t.groupCount;
+        totalCompanies += t.companyCount;
+        totalEmployees += t.employeeCount;
+      }
     }
 
     // ─── Revenue from active subscriptions (exclude hidden tenants) ───

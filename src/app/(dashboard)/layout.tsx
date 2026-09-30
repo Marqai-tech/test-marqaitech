@@ -201,7 +201,9 @@ export default function DashboardLayout({
     else setSidebarCollapsed((prev) => !prev);
   }, [isMobile]);
 
-  if (isLoading) {
+  // Only block the shell when we have no user yet. A stored token+user can
+  // paint immediately while /api/auth/me refreshes in the background.
+  if (isLoading && !user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-thb-background">
         <div className="text-center">

@@ -66,7 +66,7 @@ async function safe<T>(
  * The endpoint only 500s if the JWT verification itself fails.
  */
 export async function GET(request: Request) {
-  const db = await getDb(request);
+  const t0 = Date.now();
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -85,6 +85,12 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const requestedTenantId = searchParams.get('tenantId');
+
+    // Super admin / tenant admin never use Employee rows. Opening getDb() first
+    // was an extra Neon hop on every header load (measured /api/me/context TTFB 4273ms).
+    const db = ['super_admin', 'tenant_admin'].includes(role)
+      ? getPlatformDb()
+      : await getDb(request);
 
     // Super admin / tenant admin are not employees. Skip the Employee lookup
     // on the header context call (this was ~1 extra Neon hop on every page).
@@ -608,7 +614,7 @@ export async function GET(request: Request) {
       availableCompanyGroups: finalAvailableCompanyGroups,
       availableCompanies: finalAvailableCompanies,
       mappedCompanies: finalMappedCompanies,
-    }, { headers: corsHeaders() });
+    }, { headers: { ...corsHeaders(), 'Server-Timing': `total;dur=${Date.now() - t0}` } });
   } catch (error) {
     // Log the FULL error so we can debug from Vercel logs.
     const msg = error instanceof Error ? error.message : String(error);
