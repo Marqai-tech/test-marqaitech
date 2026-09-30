@@ -19,6 +19,15 @@ function toISOStr(val: any): string {
   try { return new Date(val).toISOString().split('T')[0]; } catch { return ''; }
 }
 
+function rowVal(row: Record<string, unknown> | null | undefined, ...keys: string[]) {
+  if (!row) return null;
+  for (const key of keys) {
+    const value = row[key];
+    if (value !== undefined && value !== null && value !== '') return value;
+  }
+  return null;
+}
+
 // GET — Fetch current user profile using RAW SQL (bypasses all Prisma issues)
 export async function GET(request: Request) {
   const db = await getDb(request);
@@ -229,21 +238,24 @@ export async function GET(request: Request) {
       }
     }
 
-    console.log('[Profile] Employee:', employee ? `${employee.firstname} ${employee.lastname}` : 'NOT FOUND', '| Strategy:', foundByStrategy || 'none');
+    console.log('[Profile] Employee:', employee ? `${rowVal(employee, 'firstName', 'firstname') || ''} ${rowVal(employee, 'lastName', 'lastname') || ''}`.trim() : 'NOT FOUND', '| Strategy:', foundByStrategy || 'none');
 
-    // Build employee data from raw SQL row (PostgreSQL returns lowercase column names)
+    // Build employee data from raw SQL row (quoted columns stay camelCase)
     let employeeData = null;
     if (employee) {
       // Fetch relations via raw SQL
       let department = null, designation = null, branch = null;
-      if (employee.departmentid) {
-        try { const r = await empDb.$queryRawUnsafe(`SELECT "name" FROM "Department" WHERE "id" = $1`, employee.departmentid) as any[]; if (r?.[0]) department = r[0]; } catch {}
+      const departmentId = rowVal(employee, 'departmentId', 'departmentid');
+      const designationId = rowVal(employee, 'designationId', 'designationid');
+      const branchId = rowVal(employee, 'branchId', 'branchid');
+      if (departmentId) {
+        try { const r = await empDb.$queryRawUnsafe(`SELECT "name" FROM "Department" WHERE "id" = $1`, departmentId) as any[]; if (r?.[0]) department = r[0]; } catch {}
       }
-      if (employee.designationid) {
-        try { const r = await empDb.$queryRawUnsafe(`SELECT "title" FROM "Designation" WHERE "id" = $1`, employee.designationid) as any[]; if (r?.[0]) designation = r[0]; } catch {}
+      if (designationId) {
+        try { const r = await empDb.$queryRawUnsafe(`SELECT "title" FROM "Designation" WHERE "id" = $1`, designationId) as any[]; if (r?.[0]) designation = r[0]; } catch {}
       }
-      if (employee.branchid) {
-        try { const r = await empDb.$queryRawUnsafe(`SELECT "name" FROM "Branch" WHERE "id" = $1`, employee.branchid) as any[]; if (r?.[0]) branch = r[0]; } catch {}
+      if (branchId) {
+        try { const r = await empDb.$queryRawUnsafe(`SELECT "name" FROM "Branch" WHERE "id" = $1`, branchId) as any[]; if (r?.[0]) branch = r[0]; } catch {}
       }
 
       let dependents: any[] = [], qualifications: any[] = [], documents: any[] = [];
@@ -253,43 +265,44 @@ export async function GET(request: Request) {
 
       employeeData = {
         id: employee.id,
-        employeeId: employee.employeeid,
-        firstName: employee.firstname,
-        lastName: employee.lastname,
-        email: employee.email,
-        personalEmail: employee.personalemail || '',
-        employeeStatus: employee.employeestatus || 'confirmed',
-        employeeType: employee.employeetype || 'full_time',
-        phone: employee.phone || '',
-        emergencyContactName: employee.emergencycontactname || '',
-        emergencyContactPhone: employee.emergencycontactphone || '',
-        address: employee.address || '',
-        city: employee.city || '',
-        state: employee.state || '',
-        zipCode: employee.zipcode || '',
-        country: employee.country || '',
-        dateOfBirth: toISOStr(employee.dateofbirth),
-        gender: employee.gender || '',
-        maritalStatus: employee.maritalstatus || '',
-        nationality: employee.nationality || '',
-        bloodGroup: employee.bloodgroup || '',
+        employeeId: rowVal(employee, 'employeeId', 'employeeid'),
+        firstName: rowVal(employee, 'firstName', 'firstname') || '',
+        lastName: rowVal(employee, 'lastName', 'lastname') || '',
+        email: rowVal(employee, 'email') || '',
+        personalEmail: rowVal(employee, 'personalEmail', 'personalemail') || '',
+        employeeStatus: rowVal(employee, 'employeeStatus', 'employeestatus') || 'confirmed',
+        employeeType: rowVal(employee, 'employeeType', 'employeetype') || 'full_time',
+        phone: rowVal(employee, 'phone') || '',
+        avatar: rowVal(employee, 'avatar') || '',
+        emergencyContactName: rowVal(employee, 'emergencyContactName', 'emergencycontactname') || '',
+        emergencyContactPhone: rowVal(employee, 'emergencyContactPhone', 'emergencycontactphone') || '',
+        address: rowVal(employee, 'address') || '',
+        city: rowVal(employee, 'city') || '',
+        state: rowVal(employee, 'state') || '',
+        zipCode: rowVal(employee, 'zipCode', 'zipcode') || '',
+        country: rowVal(employee, 'country') || '',
+        dateOfBirth: toISOStr(rowVal(employee, 'dateOfBirth', 'dateofbirth')),
+        gender: rowVal(employee, 'gender') || '',
+        maritalStatus: rowVal(employee, 'maritalStatus', 'maritalstatus') || '',
+        nationality: rowVal(employee, 'nationality') || '',
+        bloodGroup: rowVal(employee, 'bloodGroup', 'bloodgroup') || '',
         department: department?.name || '',
         designation: designation?.title || '',
         branch: branch?.name || '',
-        dateOfJoining: toISOStr(employee.dateofjoining),
-        status: employee.status || 'active',
-        bankName: employee.bankname || '',
-        bankAccountNo: employee.bankaccountno || '',
-        bankIfscCode: employee.bankifsccode || '',
-        panNumber: employee.pannumber || '',
-        aadhaarNumber: employee.aadhaarnumber || '',
-        taxId: employee.taxid || '',
-        salary: employee.salary,
-        salaryCurrency: employee.salarycurrency || 'INR',
-        leavePolicyId: employee.leavepolicyid || '',
-        attendancePolicyId: employee.attendancepolicyid || '',
-        travelPolicyId: employee.travelpolicyid || '',
-        salaryStructureId: employee.salarystructureid || '',
+        dateOfJoining: toISOStr(rowVal(employee, 'dateOfJoining', 'dateofjoining')),
+        status: rowVal(employee, 'status') || 'active',
+        bankName: rowVal(employee, 'bankName', 'bankname') || '',
+        bankAccountNo: rowVal(employee, 'bankAccountNo', 'bankaccountno') || '',
+        bankIfscCode: rowVal(employee, 'bankIfscCode', 'bankifsccode') || '',
+        panNumber: rowVal(employee, 'panNumber', 'pannumber') || '',
+        aadhaarNumber: rowVal(employee, 'aadhaarNumber', 'aadhaarnumber') || '',
+        taxId: rowVal(employee, 'taxId', 'taxid') || '',
+        salary: rowVal(employee, 'salary'),
+        salaryCurrency: rowVal(employee, 'salaryCurrency', 'salarycurrency') || 'INR',
+        leavePolicyId: rowVal(employee, 'leavePolicyId', 'leavepolicyid') || '',
+        attendancePolicyId: rowVal(employee, 'attendancePolicyId', 'attendancepolicyid') || '',
+        travelPolicyId: rowVal(employee, 'travelPolicyId', 'travelpolicyid') || '',
+        salaryStructureId: rowVal(employee, 'salaryStructureId', 'salarystructureid') || '',
         dependents: dependents || [],
         qualifications: qualifications || [],
         experiences: [],
@@ -305,9 +318,11 @@ export async function GET(request: Request) {
       try { const t = await platformDb.tenant.findUnique({ where: { id: user.tenantId }, select: { id: true, name: true, slug: true, plan: true, currency: true, timezone: true } }); if (t) tenantInfo = t; } catch {}
     }
 
+    const profileAvatar = (employeeData?.avatar as string | undefined) || user.avatar || null;
+
     return NextResponse.json({
       id: user.id, name: user.name, email: user.email, role: user.role,
-      avatar: user.avatar, status: user.status,
+      avatar: profileAvatar, status: user.status,
       tenant: tenantInfo, employee: employeeData,
       lastLogin: toISOStr(user.lastLogin), createdAt: toISOStr(user.createdAt),
       _debug: {

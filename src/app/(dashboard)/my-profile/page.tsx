@@ -30,6 +30,7 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import { loggedInPhotoUrl } from '@/lib/profile-photo';
 
 /* ──────────────────────────────────────────────
    Auth Helper
@@ -295,6 +296,10 @@ export default function MyProfilePage() {
   const status = str(emp?.status);
   const department = str(emp?.department);
   const designation = str(emp?.designation);
+  const profilePhoto = loggedInPhotoUrl({
+    avatar: str(profileData?.avatar) || user?.avatar || null,
+    employee: { avatar: str(emp?.avatar) || user?.employee?.avatar || null },
+  });
 
   return (
     <div className="space-y-6">
@@ -341,9 +346,18 @@ export default function MyProfilePage() {
           {/* Avatar – overlapping the banner */}
           <div className="-mt-[60px] mb-4 flex items-end justify-between">
             <div className="flex items-end gap-4">
-              <div className="w-[120px] h-[120px] rounded-full bg-gradient-to-br from-green-500 to-teal-400 flex items-center justify-center text-white text-[40px] font-bold shadow-xl ring-4 ring-white shrink-0">
-                {displayName ? getInitials(displayName) : '??'}
-              </div>
+              {profilePhoto ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={profilePhoto}
+                  alt={displayName}
+                  className="w-[120px] h-[120px] rounded-full object-cover shadow-xl ring-4 ring-white shrink-0"
+                />
+              ) : (
+                <div className="w-[120px] h-[120px] rounded-full bg-gradient-to-br from-green-500 to-teal-400 flex items-center justify-center text-white text-[40px] font-bold shadow-xl ring-4 ring-white shrink-0">
+                  {displayName ? getInitials(displayName) : '??'}
+                </div>
+              )}
               <div className="pb-2">
                 <h1 className="text-2xl font-bold text-thb-text-primary leading-tight">{displayName}</h1>
                 <p className="text-sm text-thb-text-secondary mt-0.5 flex items-center gap-1.5">
