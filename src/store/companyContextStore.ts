@@ -1,5 +1,6 @@
 'use client';
 
+import { useSyncExternalStore } from 'react';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { getClientSiteMode } from '@/lib/site-mode';
@@ -657,3 +658,12 @@ export const useCompanyContextStore = create<CompanyContextState>()(
     }
   )
 );
+
+/** Wait for localStorage persist before tenant-scoped fetches (avoids a duplicate GET without tenantId). */
+export function useCompanyContextPersistHydrated() {
+  return useSyncExternalStore(
+    (onStoreChange) => useCompanyContextStore.persist.onFinishHydration(onStoreChange),
+    () => useCompanyContextStore.persist.hasHydrated(),
+    () => false,
+  );
+}

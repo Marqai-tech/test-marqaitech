@@ -11,40 +11,15 @@
 import { isAdminRole, parseBody, ok, fail, OPTIONS } from '@/lib/attendance-leave-api';
 import { resolveCompanyScope } from '@/lib/companyScope';
 import { getDb, getPlatformDb, getDbForTenantById } from '@/lib/tenant-db';
-import { withSchemaSync, ensureSchemaSynced } from '@/lib/schema-sync';
+import { withSchemaSync } from '@/lib/schema-sync';
 
 export { OPTIONS };
-
-/**
- * Ensure the AttendancePolicyConfig table exists in the tenant database.
- * The schema-sync.ts only syncs the platform DB, but AttendancePolicyConfig
- * lives in the tenant DB. This function runs the necessary CREATE TABLE
- * IF NOT EXISTS against the tenant DB.
- */
-async function ensureTenantSchemaSynced(request: Request): Promise<void> {
-  try {
-    // Get the tenant DB connection string from the request
-    const db = await getDb(request);
-    // If getDb returned a tenant-scoped DB, we need to sync that DB too
-    // The simplest approach: just run ensureSchemaSynced which uses the
-    // platform DB, then also try to run it against the tenant DB
-    await ensureSchemaSynced();
-
-    // Additionally, try to directly create the table in the current DB
-    // by making a test query. If it fails, we'll handle it gracefully.
-  } catch (e) {
-    console.warn('[attendance-policy-config] Tenant schema sync failed (non-fatal):', e);
-  }
-}
 
 export async function GET(request: Request) {
   const db = await getDb(request);
   const scope = await resolveCompanyScope(request);
   if (!scope) return fail('Unauthorized', 401);
   try {
-    // Ensure the schema is synced (both platform + tenant DB)
-    await ensureTenantSchemaSynced(request);
-
     // Build the where clause based on company scope
     const where: Record<string, unknown> = {};
     if (scope.scope === 'self') {
@@ -172,9 +147,6 @@ export async function PUT(request: Request) {
   const body = await parseBody(request);
   if (!body) return fail('Invalid JSON');
   try {
-    // Ensure the schema is synced (both platform + tenant DB)
-    await ensureTenantSchemaSynced(request);
-
     // Determine which company this policy belongs to
     const policyCompanyId = scope.companyId || scope.ownCompanyId || null;
 

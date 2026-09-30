@@ -31,7 +31,7 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
-import { useCompanyContextStore } from '@/store/companyContextStore';
+import { useCompanyContextStore, useCompanyContextPersistHydrated } from '@/store/companyContextStore';
 import { canAccessEmployeeSettings, canEditEmployeeRecords } from '@/lib/roleAccess';
 import { fileToProfilePhotoDataUrl, MAX_PROFILE_PHOTO_LABEL } from '@/lib/profile-photo';
 import { getToken } from '@/lib/token-storage';
@@ -339,6 +339,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
   const isAdmin = canEditEmployeeRecords(user?.role);
   const canOpenEmployeeSettings = canAccessEmployeeSettings(user?.role);
   const { effectiveCompanyId, selectedTenantId, availableCompanies, scopeQuery } = useCompanyContextStore();
+  const persistHydrated = useCompanyContextPersistHydrated();
   const scopeCompanyId = effectiveCompanyId();
   const scopeTenantId = user?.role === 'super_admin' ? selectedTenantId : undefined;
 
@@ -667,11 +668,15 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
         const d = await branchRes.value.json();
         setBranches(d.data || []);
       }
+    } catch (err) {
+      console.error('Failed to fetch dropdown data', err);
+    }
+  }, [scopeQuery]);
 
+  const fetchPolicyDropdowns = useCallback(async () => {
+    try {
+      const headers = getAuthHeaders();
       const [lpRes, apRes, tpRes, ssRes] = await Promise.allSettled([
-        // BUG FIX: usable=1 excludes inactive and future-dated policies from
-        // the employee policy dropdowns (only active, effective policies are
-        // assignable).
         fetch('/api/policies?category=leave&usable=1', { headers }),
         fetch('/api/policies?category=attendance&usable=1', { headers }),
         fetch('/api/policies?category=travel&usable=1', { headers }),
@@ -682,17 +687,23 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
       if (tpRes.status === 'fulfilled' && tpRes.value.ok) { const d = await tpRes.value.json(); setTravelPolicies(d.policies || d.data || []); }
       if (ssRes.status === 'fulfilled' && ssRes.value.ok) { const d = await ssRes.value.json(); setSalaryStructures(d.salaryStructures || d.data || []); }
     } catch (err) {
-      console.error('Failed to fetch dropdown data', err);
+      console.error('Failed to fetch policy dropdowns', err);
     }
-  }, [scopeQuery]);
+  }, []);
 
   useEffect(() => {
+    if (!persistHydrated) return;
     queueMicrotask(() => fetchEmployees(1));
-  }, [fetchEmployees]);
+  }, [fetchEmployees, persistHydrated]);
 
   useEffect(() => {
+    if (!persistHydrated) return;
     queueMicrotask(() => fetchDropdowns(scopeCompanyId || undefined));
-  }, [fetchDropdowns, scopeCompanyId]);
+  }, [fetchDropdowns, scopeCompanyId, persistHydrated]);
+
+  useEffect(() => {
+    if (showForm) queueMicrotask(() => fetchPolicyDropdowns());
+  }, [showForm, fetchPolicyDropdowns]);
 
   /* Re-fetch dropdowns when form.companyId changes */
   useEffect(() => {

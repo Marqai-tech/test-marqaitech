@@ -284,10 +284,9 @@ function SuperAdminHome({ firstName, greeting, today }: { firstName: string; gre
       }
     };
 
-    const [empData, deptData, logsData] = await Promise.all([
+    const [empData, deptData] = await Promise.all([
       safe(`/api/employees?limit=1&status=active&includeStats=1${scopeQuery ? '&' + scopeQuery.slice(1) : ''}`),
       safe(`/api/departments?limit=1${scopeQuery ? '&' + scopeQuery.slice(1) : ''}`),
-      safe(`/api/super-admin/audit-logs?limit=8`),
     ]);
 
     const employeeTotal = empData?.stats?.total ?? empData?.pagination?.total ?? empData?.total ?? 0;
@@ -297,12 +296,15 @@ function SuperAdminHome({ firstName, greeting, today }: { firstName: string; gre
       totalUsers: empData?.stats?.active ?? employeeTotal,
       totalDepartments: deptData?.pagination?.total || deptData?.total || 0,
     }));
+    setLoading(false);
+
+    const [logsData, branchData] = await Promise.all([
+      safe(`/api/super-admin/audit-logs?limit=8`),
+      safe(`/api/branches?limit=1${scopeQuery ? '&' + scopeQuery.slice(1) : ''}`),
+    ]);
 
     const logs = logsData?.auditLogs || logsData?.logs || logsData?.data || logsData?.recentActivity || [];
     if (Array.isArray(logs)) setRecentLogs(logs.slice(0, 8));
-    setLoading(false);
-
-    const branchData = await safe(`/api/branches?limit=1${scopeQuery ? '&' + scopeQuery.slice(1) : ''}`);
     setStats((prev) => ({
       ...prev,
       totalBranches: branchData?.pagination?.total || branchData?.total || prev.totalBranches,

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb, getDbForTenant } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders, hashPassword } from '@/lib/auth';
 import { profilePhotoPayloadError } from '@/lib/profile-photo';
+import { ensureEmployeeProfileColumns } from '@/lib/employee-profile-columns';
 
 function corsHeaders() {
   return {
@@ -244,27 +245,6 @@ export async function GET(request: Request) {
     // Build employee data from raw SQL row (quoted columns stay camelCase)
     let employeeData = null;
     if (employee) {
-      for (const col of [
-        'currentAddress', 'currentCity', 'currentState', 'currentZipCode', 'currentCountry',
-        'emergencyContactRelation',
-        'hasChronicIllness', 'chronicIllnessDetails', 'hasAllergies', 'allergyDetails',
-        'hasDisability', 'disabilityDetails', 'isOnMedication', 'medicationDetails',
-        'hasHadSurgery', 'surgeryDetails', 'emergencyMedicalCondition',
-        'primaryPhysicianName', 'primaryPhysicianPhone', 'healthInsuranceProvider', 'healthInsurancePolicyNo',
-        'previousEmployer1', 'previousDesignation1', 'previousDuration1', 'previousReason1',
-        'previousEmployer2', 'previousDesignation2', 'previousDuration2', 'previousReason2',
-        'previousEmployer3', 'previousDesignation3', 'previousDuration3', 'previousReason3',
-        'totalExperience',
-        'pfNumber', 'pfUAN', 'pfNomineeName', 'pfNomineeRelation', 'pfNomineePercentage',
-        'esiNumber', 'esiDispensary', 'esiNomineeName', 'esiNomineeRelation',
-        'professionalTaxNumber', 'lwfNumber',
-      ]) {
-        try { await empDb.$executeRawUnsafe(`ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "${col}" TEXT`); } catch {}
-      }
-      try {
-        const refreshed = await empDb.$queryRawUnsafe(`SELECT * FROM "Employee" WHERE "id" = $1 LIMIT 1`, employee.id) as any[];
-        if (refreshed?.[0]) employee = refreshed[0];
-      } catch {}
 
       // Fetch relations via raw SQL
       let department = null, designation = null, branch = null;
@@ -561,24 +541,7 @@ export async function PATCH(request: Request) {
       }
 
       if (empId && empDb) {
-        const extraCols = [
-          'currentAddress', 'currentCity', 'currentState', 'currentZipCode', 'currentCountry',
-          'emergencyContactRelation',
-          'hasChronicIllness', 'chronicIllnessDetails', 'hasAllergies', 'allergyDetails',
-          'hasDisability', 'disabilityDetails', 'isOnMedication', 'medicationDetails',
-          'hasHadSurgery', 'surgeryDetails', 'emergencyMedicalCondition',
-          'primaryPhysicianName', 'primaryPhysicianPhone', 'healthInsuranceProvider', 'healthInsurancePolicyNo',
-          'previousEmployer1', 'previousDesignation1', 'previousDuration1', 'previousReason1',
-          'previousEmployer2', 'previousDesignation2', 'previousDuration2', 'previousReason2',
-          'previousEmployer3', 'previousDesignation3', 'previousDuration3', 'previousReason3',
-          'totalExperience',
-          'pfNumber', 'pfUAN', 'pfNomineeName', 'pfNomineeRelation', 'pfNomineePercentage',
-          'esiNumber', 'esiDispensary', 'esiNomineeName', 'esiNomineeRelation',
-          'professionalTaxNumber', 'lwfNumber',
-        ];
-        for (const col of extraCols) {
-          try { await empDb.$executeRawUnsafe(`ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "${col}" TEXT`); } catch {}
-        }
+        await ensureEmployeeProfileColumns(empDb);
 
         const sets: string[] = [];
         const params: any[] = [];

@@ -6,6 +6,7 @@ import { sendEmail } from '@/lib/email-sender';
 import { invalidateMeCacheForUser } from '@/lib/me-response-cache';
 import { canEditEmployeeRecords } from '@/lib/roleAccess';
 import { profilePhotoPayloadError } from '@/lib/profile-photo';
+import { EXTRA_PROFILE_KEYS, ensureEmployeeProfileColumns } from '@/lib/employee-profile-columns';
 import type { PrismaClient } from '@prisma/client';
 
 function corsHeaders() {
@@ -181,28 +182,6 @@ async function notifyReportingManagerChange(
 
 export async function OPTIONS() {
   return NextResponse.json({}, { headers: corsHeaders() });
-}
-
-const EXTRA_PROFILE_KEYS = [
-  'currentAddress', 'currentCity', 'currentState', 'currentZipCode', 'currentCountry',
-  'emergencyContactRelation',
-  'hasChronicIllness', 'chronicIllnessDetails', 'hasAllergies', 'allergyDetails',
-  'hasDisability', 'disabilityDetails', 'isOnMedication', 'medicationDetails',
-  'hasHadSurgery', 'surgeryDetails', 'emergencyMedicalCondition',
-  'primaryPhysicianName', 'primaryPhysicianPhone', 'healthInsuranceProvider', 'healthInsurancePolicyNo',
-  'previousEmployer1', 'previousDesignation1', 'previousDuration1', 'previousReason1',
-  'previousEmployer2', 'previousDesignation2', 'previousDuration2', 'previousReason2',
-  'previousEmployer3', 'previousDesignation3', 'previousDuration3', 'previousReason3',
-  'totalExperience',
-  'pfNumber', 'pfUAN', 'pfNomineeName', 'pfNomineeRelation', 'pfNomineePercentage',
-  'esiNumber', 'esiDispensary', 'esiNomineeName', 'esiNomineeRelation',
-  'professionalTaxNumber', 'lwfNumber',
-];
-
-async function ensureEmployeeProfileColumns(db: PrismaClient) {
-  for (const col of EXTRA_PROFILE_KEYS) {
-    try { await db.$executeRawUnsafe(`ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "${col}" TEXT`); } catch { /* ignore */ }
-  }
 }
 
 async function loadEmployeeProfileExtras(db: PrismaClient, employeeId: string) {
@@ -392,10 +371,7 @@ export async function GET(
 
       // Step 2: Fetch optional relations independently (non-fatal if they fail)
       const optionalData = await fetchOptionalRelations(db, employee.id, employee.companyId);
-      const extras = await (async () => {
-        await ensureEmployeeProfileColumns(db);
-        return loadEmployeeProfileExtras(db, employee.id);
-      })();
+      const extras = await loadEmployeeProfileExtras(db, employee.id);
       const mergedAvatar = employee.avatar || employee.user?.avatar || null;
       employee = { ...employee, ...optionalData, ...extras, avatar: mergedAvatar };
 
@@ -465,9 +441,6 @@ export async function PUT(
       // Lock Employee Data toggle), changes to employeeId, email, and
       // employment details are rejected with a clear error message.
       // The lock is stored in CollaborationSettings.employeeDataLocked.
-      try {
-        await db.$executeRawUnsafe(`ALTER TABLE "CollaborationSettings" ADD COLUMN IF NOT EXISTS "employeeDataLocked" BOOLEAN NOT NULL DEFAULT false`);
-      } catch { /* column may already exist */ }
       const lockRows = await db.$queryRawUnsafe(`SELECT "employeeDataLocked" FROM "CollaborationSettings" LIMIT 1`).catch(() => []) as any[];
       const isLocked = lockRows?.[0]?.employeeDataLocked === true || lockRows?.[0]?.employeedatalocked === true;
       if (isLocked) {
@@ -997,11 +970,6 @@ export async function PATCH(
 
     const { id: rawId } = await params;
     const id = decodeURIComponent(rawId);
-
-    // Ensure the column exists (defensive, mirrors PUT/POST schema-sync)
-    try {
-      await db.$executeRawUnsafe(`ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "reportingManagerId" TEXT`);
-    } catch { /* column already exists */ }
 
     const body = await request.json().catch(() => ({}));
     const { reportingManagerId } = body;

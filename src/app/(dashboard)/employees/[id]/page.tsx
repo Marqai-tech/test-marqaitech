@@ -39,7 +39,7 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
-import { useCompanyContextStore } from '@/store/companyContextStore';
+import { useCompanyContextStore, useCompanyContextPersistHydrated } from '@/store/companyContextStore';
 import { canAccessEmployeeSettings, canEditEmployeeRecords } from '@/lib/roleAccess';
 import { employeePhotoUrl } from '@/lib/profile-photo';
 import { getToken } from '@/lib/token-storage';
@@ -297,6 +297,7 @@ export default function EmployeeDetailPage() {
   const { user } = useAuthStore();
   const canManageMappings = canAccessEmployeeSettings(user?.role);
   const canEditRecord = canEditEmployeeRecords(user?.role);
+  const persistHydrated = useCompanyContextPersistHydrated();
   const scopeQuery = useCompanyContextStore(s => s.scopeQuery);
   const selectedTenantId = useCompanyContextStore(s => s.selectedTenantId);
 
@@ -311,13 +312,14 @@ export default function EmployeeDetailPage() {
   const [leaveRequests, setLeaveRequests] = useState<Array<{ id: string; startDate: string; endDate: string; reason?: string | null; status: string; halfDay: boolean; leaveType: { name: string } }>>([]);
   const [now] = useState(() => Date.now());
 
-  const fetchEmployee = useCallback(async () => {
+  const fetchEmployee = useCallback(async (signal?: AbortSignal) => {
     try {
       setLoading(true);
       setLoadError(null);
       const sq = scopeQuery();
       const qs = sq ? `?${sq}` : '';
-      const res = await fetch(`/api/employees/${encodeURIComponent(id)}${qs}`, { headers: getAuthHeaders() });
+      const res = await fetch(`/api/employees/${encodeURIComponent(id)}${qs}`, { headers: getAuthHeaders(), signal });
+      if (signal?.aborted) return;
       if (res.status === 503) {
         setLoadError('Database temporarily unavailable. Please try again.');
         setEmployee(null);
@@ -334,13 +336,15 @@ export default function EmployeeDetailPage() {
         return;
       }
       const data = await res.json();
+      if (signal?.aborted) return;
       setEmployee(data.employee);
     } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return;
       console.error('Failed to load employee details:', err);
       setLoadError('Network error. Please check your connection and try again.');
       setEmployee(null);
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) setLoading(false);
     }
   }, [id, scopeQuery, selectedTenantId]);
 
@@ -386,8 +390,11 @@ export default function EmployeeDetailPage() {
   }, [employee, scopeQuery, selectedTenantId]);
 
   useEffect(() => {
-    queueMicrotask(() => fetchEmployee());
-  }, [fetchEmployee]);
+    if (!persistHydrated) return;
+    const ac = new AbortController();
+    queueMicrotask(() => fetchEmployee(ac.signal));
+    return () => ac.abort();
+  }, [fetchEmployee, persistHydrated]);
 
   useEffect(() => {
     if (employee) queueMicrotask(() => fetchRelatedData());

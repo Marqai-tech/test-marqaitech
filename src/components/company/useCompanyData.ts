@@ -47,7 +47,9 @@ export function getStatusBadge(status: string) {
 }
 
 /* ── Shared Hook ── */
-export function useCompanyData() {
+export function useCompanyData(opts?: { modules?: Array<'companies' | 'branches' | 'departments' | 'designations' | 'shifts' | 'holidays' | 'policies'> }) {
+  const modules = opts?.modules ?? ['companies', 'branches', 'departments', 'designations', 'shifts', 'holidays', 'policies']
+  const moduleKey = modules.join(',')
   const { user } = useAuthStore()
   const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '')
   const { selectedTenantId, selectedGroupId, selectedCompanyId, hydrated, hydrate, availableCompanyGroups } = useCompanyContextStore()
@@ -147,7 +149,7 @@ export function useCompanyData() {
       const params = new URLSearchParams([['limit', '100']])
       if (selectedCompanyId) params.set('companyId', selectedCompanyId)
       if (isSuperAdmin && selectedTenantId) params.set('tenantId', selectedTenantId)
-      const res = await apiFetch<{ data: PolicyRecord[] }>(`/api/policies?${params}`)
+      const res = await apiFetch<{ data: PolicyRecord[] }>(`/api/policies?${params}&includeFile=1`)
       setPolicies(res.data || [])
     } catch { toast.error('Failed to load policies') }
     finally { setLoading(l => ({ ...l, policies: false })) }
@@ -163,9 +165,15 @@ export function useCompanyData() {
   // double fetch on mount. The second useEffect already fires on mount,
   // so the first was redundant and has been removed.
   useEffect(() => {
-    fetchCompanies(); fetchBranches(); fetchDepartments(); fetchDesignations(); fetchShifts(); fetchHolidays(); fetchPolicies()
+    if (modules.includes('companies')) fetchCompanies()
+    if (modules.includes('branches')) fetchBranches()
+    if (modules.includes('departments')) fetchDepartments()
+    if (modules.includes('designations')) fetchDesignations()
+    if (modules.includes('shifts')) fetchShifts()
+    if (modules.includes('holidays')) fetchHolidays()
+    if (modules.includes('policies')) fetchPolicies()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedTenantId, selectedGroupId, selectedCompanyId])
+  }, [selectedTenantId, selectedGroupId, selectedCompanyId, moduleKey])
 
   return {
     user, isAdmin, isSuperAdmin, isTenantAdmin,

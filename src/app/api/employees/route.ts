@@ -8,6 +8,7 @@ import { isServerLiveSite } from '@/lib/tenant-filter';
 // Note: isServerLiveSite is used later for the manual guard on normal queries
 import { validateEmail, validatePhone, validateAadhaar, validatePAN, validateIFSC, validateBankAccount, validateOfficialEmail } from '@/lib/validators';
 import { profilePhotoPayloadError } from '@/lib/profile-photo';
+import { ensureEmployeeWriteColumns } from '@/lib/employee-profile-columns';
 
 function generateRandomPassword(length = 12): string {
   const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -38,7 +39,42 @@ export async function OPTIONS() {
   return NextResponse.json({}, { headers: corsHeaders() });
 }
 
-let employeePostColumnsReady = false;
+async function attachListPhotoUrls<T extends { id: string; user?: { id: string; email: string; role: string } | null }>(
+  queryDb: { $queryRawUnsafe: (sql: string, ...values: unknown[]) => Promise<unknown> },
+  employees: T[],
+  requestUrl: string,
+): Promise<Array<T & { avatar: string | null; user: T['user'] & { avatar: string | null } | null }>> {
+  if (employees.length === 0) return [];
+  const ids = employees.map((e) => e.id);
+  const placeholders = ids.map((_, i) => `$${i + 1}`).join(',');
+  let hasPhoto = new Set<string>();
+  try {
+    const rows = await queryDb.$queryRawUnsafe(
+      `SELECT e.id FROM "Employee" e LEFT JOIN "User" u ON u.id = e."userId"
+       WHERE e.id IN (${placeholders})
+         AND (COALESCE(e."avatar", '') <> '' OR COALESCE(u."avatar", '') <> '')`,
+      ...ids,
+    ) as Array<{ id: string }>;
+    hasPhoto = new Set(rows.map((r) => r.id));
+  } catch {
+    hasPhoto = new Set();
+  }
+  const url = new URL(requestUrl);
+  const tenantId = url.searchParams.get('tenantId');
+  const companyId = url.searchParams.get('companyId');
+  const qs = new URLSearchParams();
+  if (tenantId) qs.set('tenantId', tenantId);
+  if (companyId) qs.set('companyId', companyId);
+  const suffix = qs.toString() ? `?${qs.toString()}` : '';
+  return employees.map((e) => {
+    const photo = hasPhoto.has(e.id) ? `/api/employees/${e.id}/photo${suffix}` : null;
+    return {
+      ...e,
+      avatar: photo,
+      user: e.user ? { ...e.user, avatar: photo } : null,
+    };
+  });
+}
 
 export async function GET(request: Request) {
   const db = await getDb(request);
@@ -409,15 +445,16 @@ export async function GET(request: Request) {
         }
       }
 
-      const [employees, total] = await Promise.all([
+      const [employeesRaw, total] = await Promise.all([
         queryDb.employee.findMany({
           where,
+          omit: { avatar: true },
           include: {
             department: { select: { id: true, name: true } },
             designation: { select: { id: true, title: true } },
             branch: { select: { id: true, name: true } },
             user: {
-              select: { id: true, email: true, role: true, avatar: true },
+              select: { id: true, email: true, role: true },
             },
             reportingManager: { select: { id: true, firstName: true, lastName: true, employeeId: true } },
           },
@@ -427,6 +464,7 @@ export async function GET(request: Request) {
         }),
         queryDb.employee.count({ where }),
       ]);
+      const employees = await attachListPhotoUrls(queryDb, employeesRaw, request.url);
 
       let stats: { total: number; active: number; inactive: number; newJoiners: number } | undefined;
       if (includeStats) {
@@ -488,111 +526,10 @@ export async function POST(request: Request) {
     const tenantBlock = await checkTenantStatusOrBlock(request, corsHeaders);
     if (tenantBlock) return tenantBlock;
 
-    // ─── Inline schema-sync: ensure ALL Employee columns exist before any query ───
-    // This is a defensive measure to prevent P2022 "column does not exist" errors
-    // when the DB schema hasn't been synced yet. We add every column the Prisma
-    // client expects, with IF NOT EXISTS so re-runs are safe. This runs on EVERY
-    // POST request but is fast (~50ms) because PostgreSQL short-circuits IF NOT EXISTS.
-    if (!employeePostColumnsReady) {
     try {
-      const syncStatements = [
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "avatar" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "personalEmail" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "employeeStatus" TEXT NOT NULL DEFAULT 'confirmed'`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "employeeType" TEXT NOT NULL DEFAULT 'full_time'`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "maritalStatus" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "nationality" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "address" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "city" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "state" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "zipCode" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "country" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "status" TEXT NOT NULL DEFAULT 'active'`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT NOW()`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT NOW()`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "reportingManagerId" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "designationId" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "dateOfJoining" TIMESTAMP(3)`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "bloodGroup" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "emergencyContactName" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "emergencyContactPhone" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "emergencyContactRelation" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "currentAddress" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "currentCity" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "currentState" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "currentZipCode" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "currentCountry" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "hasChronicIllness" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "chronicIllnessDetails" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "hasAllergies" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "allergyDetails" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "hasDisability" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "disabilityDetails" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "isOnMedication" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "medicationDetails" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "hasHadSurgery" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "surgeryDetails" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "emergencyMedicalCondition" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "primaryPhysicianName" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "primaryPhysicianPhone" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "healthInsuranceProvider" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "healthInsurancePolicyNo" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "previousEmployer1" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "previousDesignation1" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "previousDuration1" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "previousReason1" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "previousEmployer2" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "previousDesignation2" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "previousDuration2" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "previousReason2" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "previousEmployer3" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "previousDesignation3" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "previousDuration3" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "previousReason3" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "totalExperience" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "pfNumber" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "pfUAN" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "pfNomineeName" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "pfNomineeRelation" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "pfNomineePercentage" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "esiNumber" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "esiDispensary" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "esiNomineeName" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "esiNomineeRelation" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "professionalTaxNumber" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "lwfNumber" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "bankName" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "bankAccountNo" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "bankIfscCode" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "panNumber" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "aadhaarNumber" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "taxId" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "salary" DOUBLE PRECISION`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "salaryCurrency" TEXT NOT NULL DEFAULT 'INR'`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "leavePolicyId" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "attendancePolicyId" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "travelPolicyId" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "salaryStructureId" TEXT`,
-        // Credential-invite columns (added to schema.prisma 2026-09-07). A
-        // tenant DB missing these made EVERY Prisma employee query fail with
-        // P2022 -> /api/employees returned 503 -> dashboard showed 0 employees
-        // even though the data was intact. Keep this list in sync with the
-        // schema whenever new Employee columns are added.
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "credentialsStatus" TEXT DEFAULT 'not_invited'`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "credentialsInvitedAt" TIMESTAMP(3)`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "credentialsInvitedBy" TEXT`,
-      ];
-      for (const sql of syncStatements) {
-        try {
-          await db.$executeRawUnsafe(sql);
-        } catch { /* column already exists — safe to ignore */ }
-      }
+      await ensureEmployeeWriteColumns(db);
     } catch (syncErr) {
-      // Schema sync failure is non-fatal — the create will fail with a
-      // detailed Prisma error if a column is missing, which is fine.
-      console.warn('[Employees POST] Inline schema-sync failed (non-fatal):', syncErr);
-    }
-    employeePostColumnsReady = true;
+      console.warn('[Employees POST] schema column ensure failed (non-fatal):', syncErr);
     }
 
     // Try auth but allow demo mode

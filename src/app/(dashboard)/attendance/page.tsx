@@ -406,6 +406,9 @@ export default function AttendancePage() {
         });
         return;
       }
+      if (isAdmin) {
+        return;
+      }
       // Fallback: fetch from API and match by email or userId
       const sq = scopeQuery();
       const res = await fetch(`/api/employees?limit=500${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
@@ -419,7 +422,7 @@ export default function AttendancePage() {
     } catch (err) {
       console.error('fetchEmployee error:', err);
     }
-  }, [user?.email, user?.id, user?.employee, scopeQuery, selectedTenantId]);
+  }, [user?.email, user?.id, user?.employee, isAdmin, scopeQuery, selectedTenantId]);
 
   /* ── Fetch self attendance ── */
   const fetchAttendance = useCallback(async () => {
