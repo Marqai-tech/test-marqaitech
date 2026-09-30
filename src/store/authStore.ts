@@ -3,6 +3,7 @@
 import { create } from 'zustand';
 import { isClientLiveMode, getClientSiteMode } from '@/lib/site-mode';
 import { isTenantHiddenClient, LIVE_HIDDEN_SLUGS, DEMO_HIDDEN_SLUGS, isTestPlatformHost } from '@/lib/tenant-filter';
+import { setToken as persistAuthToken, removeToken as clearAuthToken, getToken as readAuthToken } from '@/lib/token-storage';
 
 // ─── Hidden Tenant Slugs (GOLDEN RULE) ────────────────────────────
 // PRIMARY: tenant-filter.ts (FOOLPROOF hostname-based detection)
@@ -110,7 +111,7 @@ interface AuthState {
   isLoading: boolean;
   permissions: UserPermissions;
   permissionsLoaded: boolean;
-  login: (email: string, password: string) => Promise<boolean>;
+  login: (email: string, password: string, rememberMe?: boolean) => Promise<boolean>;
   logout: () => Promise<void>;
   fetchUser: () => Promise<void>;
   setToken: (token: string) => void;
@@ -127,7 +128,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   permissions: {},
   permissionsLoaded: false,
 
-  login: async (email: string, password: string): Promise<boolean> => {
+  login: async (email: string, password: string, rememberMe = false): Promise<boolean> => {
     try {
       set({ isLoading: true });
 
@@ -142,11 +143,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         return await fetch('/api/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password }),
-          // cache: 'no-store' prevents the browser from serving a stale
-          // cached response if the user previously attempted login from
-          // the same browser session.
+          body: JSON.stringify({ email, password, rememberMe }),
           cache: 'no-store',
+          credentials: 'include',
         });
       };
 
@@ -189,8 +188,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const user = scrubHiddenTenant(rawUser);
 
       if (typeof window !== 'undefined') {
-        localStorage.setItem('tb_token', token);
+        persistAuthToken(token, { remember: rememberMe });
         try { sessionStorage.setItem('tb_user', JSON.stringify(user)); } catch { /* ignore */ }
+        if (rememberMe) {
+          try { localStorage.setItem('tb_user', JSON.stringify(user)); } catch { /* ignore */ }
+        } else {
+          try { localStorage.removeItem('tb_user'); } catch { /* ignore */ }
+        }
       }
 
       set({
@@ -225,16 +229,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`,
           },
+          credentials: 'include',
         });
       }
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
       if (typeof window !== 'undefined') {
-        localStorage.removeItem('tb_token');
+        clearAuthToken();
         localStorage.removeItem('tb_company_ctx');
         localStorage.removeItem('tb_company_ctx_v2');
         try { sessionStorage.removeItem('tb_user'); } catch { /* ignore */ }
+        try { localStorage.removeItem('tb_user'); } catch { /* ignore */ }
       }
       set({
         user: null,
@@ -271,7 +277,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       if (!res.ok) {
         if (typeof window !== 'undefined') {
-          localStorage.removeItem('tb_token');
+          clearAuthToken();
           try { sessionStorage.removeItem('tb_user'); } catch { /* ignore */ }
         }
         set({
@@ -300,7 +306,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         if (blockedStatuses.includes(user.tenant.status)) {
           // Force logout — clear token and auth state
           if (typeof window !== 'undefined') {
-            localStorage.removeItem('tb_token');
+            clearAuthToken();
             localStorage.removeItem('tb_company_ctx');
         localStorage.removeItem('tb_company_ctx_v2');
           }
@@ -334,7 +340,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     } catch (error) {
       console.error('Fetch user error:', error);
       if (typeof window !== 'undefined') {
-        localStorage.removeItem('tb_token');
+        clearAuthToken();
       }
       set({
         user: null,
@@ -347,7 +353,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   setToken: (token: string) => {
     if (typeof window !== 'undefined') {
-      localStorage.setItem('tb_token', token);
+      persistAuthToken(token);
     }
     set({ token });
   },
@@ -420,11 +426,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
 // Initialize auth state from localStorage on client
 if (typeof window !== 'undefined') {
-  const token = localStorage.getItem('tb_token');
+  const token = readAuthToken();
   if (token) {
     let cachedUser: AuthState['user'] = null;
     try {
-      const raw = sessionStorage.getItem('tb_user');
+      const raw = sessionStorage.getItem('tb_user') || localStorage.getItem('tb_user');
       if (raw) cachedUser = JSON.parse(raw);
     } catch { /* ignore */ }
     if (cachedUser) {

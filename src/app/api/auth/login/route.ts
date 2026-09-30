@@ -1,6 +1,6 @@
 import { NextResponse, after } from 'next/server';
 import { getPlatformDb, getDbForTenant, getDbForTenantById } from '@/lib/tenant-db';
-import { verifyPassword, createToken, hashPassword } from '@/lib/auth';
+import { verifyPassword, createToken, hashPassword, REMEMBER_TOKEN_TTL, SESSION_TOKEN_TTL, REMEMBER_MAX_AGE_SEC, authTokenCookieHeader } from '@/lib/auth';
 import { getHiddenSlugsForRequest, isTestPlatformHost } from '@/lib/tenant-filter';
 import { isPersonalEmail } from '@/lib/validators';
 
@@ -25,7 +25,8 @@ export async function POST(request: Request) {
   const platformDb = getPlatformDb();
   try {
     const body = await request.json();
-    const { email: rawEmail, employeeId: rawEmployeeId, password } = body;
+    const { email: rawEmail, employeeId: rawEmployeeId, password, rememberMe } = body;
+    const persistSession = Boolean(rememberMe);
 
     // Task 62: Allow login with either email OR employee ID. The UI sends
     // whatever the user typed in the username field. We detect which it is:
@@ -516,12 +517,15 @@ export async function POST(request: Request) {
       }
     }
 
-    const token = await createToken({
-      userId: user.id,
-      email: user.email,
-      role: user.role,
-      tenantId: user.tenantId,
-    });
+    const token = await createToken(
+      {
+        userId: user.id,
+        email: user.email,
+        role: user.role,
+        tenantId: user.tenantId,
+      },
+      persistSession ? REMEMBER_TOKEN_TTL : SESSION_TOKEN_TTL,
+    );
 
     const loginIp = request.headers.get('x-forwarded-for') || null;
     const loginUa = request.headers.get('user-agent') || null;
@@ -721,7 +725,15 @@ export async function POST(request: Request) {
           company: companyData,
         },
       },
-      { headers: { ...corsHeaders(), 'Server-Timing': `total;dur=${Date.now() - t0}` } }
+      {
+        headers: {
+          ...corsHeaders(),
+          'Server-Timing': `total;dur=${Date.now() - t0}`,
+          'Set-Cookie': persistSession
+            ? authTokenCookieHeader(token, REMEMBER_MAX_AGE_SEC)
+            : authTokenCookieHeader(null, null),
+        },
+      }
     );
   } catch (error) {
     console.error('Login error:', error);

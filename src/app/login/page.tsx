@@ -16,6 +16,7 @@ import {
 import { HiShieldCheck } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import '@/lib/token-storage';
 import { isClientLiveMode } from '@/lib/site-mode';
 import { validateEmail, validatePasswordRequired } from '@/lib/validators';
 
@@ -35,6 +36,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
   const [showMobileApp, setShowMobileApp] = useState(false);
   const [tenantInfo, setTenantInfo] = useState<{ name: string; slug: string; logo?: string | null } | null>(null);
@@ -188,7 +190,7 @@ export default function LoginPage() {
     setIsSubmitting(true);
 
     try {
-      const success = await login(email, password);
+      const success = await login(email, password, rememberMe);
       if (success) {
         toast.success('Welcome back! Redirecting...');
         // Redirect based on role:
@@ -950,6 +952,8 @@ export default function LoginPage() {
               <input
                 id="remember"
                 type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
                 className="w-4 h-4 rounded border-slate-300 text-green-500 focus:ring-green-500/20"
               />
               <label htmlFor="remember" className="text-sm text-slate-500">
