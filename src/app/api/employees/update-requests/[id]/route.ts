@@ -11,8 +11,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/tenant-db';
 import { getAuthInfo } from '@/lib/companyScope';
 import { sanitizeMultiLineText } from '@/lib/sanitize';
-import { getPlatformDb } from '@/lib/tenant-db';
-import { invalidateMeCacheForUser } from '@/lib/me-response-cache';
 
 function corsHeaders() {
   return {
@@ -159,29 +157,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       // Apply the change
       try {
         const newValue = updateRequest.newValue;
-        // Handle JSON-encoded values (not data-URL photos)
+        // Handle JSON-encoded values
         let parsedValue: unknown = newValue;
-        if (updateRequest.fieldName !== 'avatar') {
-          try { parsedValue = JSON.parse(newValue); } catch { /* keep as string */ }
-        }
+        try { parsedValue = JSON.parse(newValue); } catch { /* keep as string */ }
 
         await db.employee.update({
           where: { id: updateRequest.employeeId },
           data: { [updateRequest.fieldName]: parsedValue } as Record<string, unknown>,
         });
-
-        if (updateRequest.fieldName === 'avatar') {
-          const empUser = await db.employee.findUnique({
-            where: { id: updateRequest.employeeId },
-            select: { userId: true },
-          });
-          if (empUser?.userId) {
-            const avatarValue = String(parsedValue || '') || null;
-            await db.user.update({ where: { id: empUser.userId }, data: { avatar: avatarValue } }).catch(() => null);
-            await getPlatformDb().user.update({ where: { id: empUser.userId }, data: { avatar: avatarValue } }).catch(() => null);
-            invalidateMeCacheForUser(empUser.userId);
-          }
-        }
         await db.employeeUpdateRequest.update({
           where: { id },
           data: { status: 'applied', appliedAt: new Date() },

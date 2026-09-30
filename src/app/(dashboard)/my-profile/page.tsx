@@ -27,11 +27,10 @@ import {
   FiGlobe,
   FiCheck,
   FiX,
-  FiCamera,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
-import { loggedInPhotoUrl, fileToProfilePhotoDataUrl, MAX_PROFILE_PHOTO_LABEL } from '@/lib/profile-photo';
+import { loggedInPhotoUrl } from '@/lib/profile-photo';
 
 /* ──────────────────────────────────────────────
    Auth Helper
@@ -144,8 +143,6 @@ export default function MyProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editForm, setEditForm] = useState<Record<string, string>>({});
-  const [photoPending, setPhotoPending] = useState(false);
-  const [photoSubmitting, setPhotoSubmitting] = useState(false);
 
   const fetchProfile = useCallback(async () => {
     try {
@@ -171,18 +168,6 @@ export default function MyProfilePage() {
           gender: (emp?.gender as string) || '',
           bloodGroup: (emp?.bloodGroup as string) || '',
         });
-        if (emp?.id) {
-          try {
-            const reqRes = await fetch('/api/employees/update-requests?scope=mine', { headers: getAuthHeaders() });
-            if (reqRes.ok) {
-              const reqData = await reqRes.json();
-              const pending = (reqData.requests || []).some(
-                (r: { fieldName?: string; status?: string }) => r.fieldName === 'avatar' && r.status === 'pending',
-              );
-              setPhotoPending(pending);
-            }
-          } catch { /* ignore */ }
-        }
       } else {
         const errData = await res.json().catch(() => ({}));
         setError(errData.error || 'Failed to load profile');
@@ -213,47 +198,6 @@ export default function MyProfilePage() {
       toast.error(e instanceof Error ? e.message : 'Failed to update profile');
     } finally {
       setSaving(false);
-    }
-  };
-
-  const handlePhotoSubmit = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file) return;
-    const empId = str((profileData?.employee as Record<string, unknown> | null | undefined)?.id);
-    if (!empId) {
-      toast.error('Your employee record was not found. Ask HR to link your profile.');
-      return;
-    }
-    if (photoPending) {
-      toast.error('A photo is already waiting for approval.');
-      return;
-    }
-    setPhotoSubmitting(true);
-    try {
-      const photo = await fileToProfilePhotoDataUrl(file);
-      if (!photo.ok) {
-        toast.error(photo.error);
-        return;
-      }
-      const res = await fetch('/api/employees/update-requests', {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({
-          employeeId: empId,
-          fieldName: 'avatar',
-          newValue: photo.dataUrl,
-          reason: 'Profile photo update',
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Could not submit photo');
-      setPhotoPending(true);
-      toast.success('Photo sent for verification. It will show after HR or your manager approves it.');
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Could not submit photo');
-    } finally {
-      setPhotoSubmitting(false);
     }
   };
 
@@ -402,36 +346,24 @@ export default function MyProfilePage() {
           {/* Avatar – overlapping the banner */}
           <div className="-mt-[60px] mb-4 flex items-end justify-between">
             <div className="flex items-end gap-4">
-              <div className="relative shrink-0">
               {profilePhoto ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={profilePhoto}
                   alt={displayName}
-                  className="w-[120px] h-[120px] rounded-full object-cover shadow-xl ring-4 ring-white"
+                  className="w-[120px] h-[120px] rounded-full object-cover shadow-xl ring-4 ring-white shrink-0"
                 />
               ) : (
-                <div className="w-[120px] h-[120px] rounded-full bg-gradient-to-br from-green-500 to-teal-400 flex items-center justify-center text-white text-[40px] font-bold shadow-xl ring-4 ring-white">
+                <div className="w-[120px] h-[120px] rounded-full bg-gradient-to-br from-green-500 to-teal-400 flex items-center justify-center text-white text-[40px] font-bold shadow-xl ring-4 ring-white shrink-0">
                   {displayName ? getInitials(displayName) : '??'}
                 </div>
               )}
-              <label
-                className={`absolute bottom-1 right-1 w-9 h-9 rounded-full bg-green-600 text-white flex items-center justify-center shadow-md cursor-pointer hover:bg-green-700 ${photoSubmitting || photoPending ? 'opacity-60 pointer-events-none' : ''}`}
-                title={photoPending ? 'Photo waiting for approval' : `Change photo (max ${MAX_PROFILE_PHOTO_LABEL}) — sent for verification`}
-              >
-                {photoSubmitting ? <FiRefreshCw className="w-4 h-4 animate-spin" /> : <FiCamera className="w-4 h-4" />}
-                <input type="file" accept="image/*" className="hidden" disabled={photoSubmitting || photoPending} onChange={handlePhotoSubmit} />
-              </label>
-              </div>
               <div className="pb-2">
                 <h1 className="text-2xl font-bold text-thb-text-primary leading-tight">{displayName}</h1>
                 <p className="text-sm text-thb-text-secondary mt-0.5 flex items-center gap-1.5">
                   <FiMail className="w-3.5 h-3.5" />
                   {displayEmail}
                 </p>
-                {photoPending && (
-                  <p className="text-xs text-amber-600 mt-1.5">Photo sent for verification. Current photo stays until it is approved.</p>
-                )}
               </div>
             </div>
             <div className="hidden md:flex items-center gap-2 pb-2">

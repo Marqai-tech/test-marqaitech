@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb, getDbForTenant } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders, hashPassword } from '@/lib/auth';
 import { profilePhotoPayloadError } from '@/lib/profile-photo';
+import { canEditEmployeeRecords } from '@/lib/roleAccess';
 
 function corsHeaders() {
   return {
@@ -354,14 +355,17 @@ export async function PATCH(request: Request) {
 
     const body = await request.json();
     const { name, avatar, phone, emergencyContactName, emergencyContactPhone, address, city, state, zipCode, country, dateOfBirth, gender, bloodGroup } = body;
-    const avatarError = profilePhotoPayloadError(avatar);
-    if (avatarError) {
-      return NextResponse.json({ error: avatarError }, { status: 400, headers: corsHeaders() });
+    const canSetPhoto = canEditEmployeeRecords(decoded.role as string);
+    if (canSetPhoto && avatar !== undefined) {
+      const avatarError = profilePhotoPayloadError(avatar);
+      if (avatarError) {
+        return NextResponse.json({ error: avatarError }, { status: 400, headers: corsHeaders() });
+      }
     }
 
     const userUpdateData: Record<string, unknown> = {};
     if (name !== undefined) userUpdateData.name = name;
-    if (avatar !== undefined) userUpdateData.avatar = avatar;
+    if (canSetPhoto && avatar !== undefined) userUpdateData.avatar = avatar;
 
     // Try updating user in resolved DB, then platform DB
     let updatedUser = null;

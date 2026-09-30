@@ -87,24 +87,8 @@ function RequestCard({ r, canAct, onAct }: { r: UpdateRequest; canAct: boolean; 
         </div>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2.5 text-xs">
-        <div className="rounded-lg bg-slate-50 px-3 py-2">
-          <span className="text-[10px] text-thb-text-muted block mb-0.5">Current</span>
-          {r.fieldName === 'avatar' && r.oldValue && r.oldValue.startsWith('data:image') ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={r.oldValue} alt="Current" className="w-16 h-16 rounded-full object-cover" />
-          ) : (
-            <span className="text-thb-text-secondary break-all">{r.oldValue || '—'}</span>
-          )}
-        </div>
-        <div className="rounded-lg bg-teal-50/60 px-3 py-2">
-          <span className="text-[10px] text-thb-text-muted block mb-0.5">Requested</span>
-          {r.fieldName === 'avatar' && r.newValue && r.newValue.startsWith('data:image') ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={r.newValue} alt="Requested" className="w-16 h-16 rounded-full object-cover ring-2 ring-teal-400" />
-          ) : (
-            <span className="text-teal-800 font-medium break-all">{r.newValue || '—'}</span>
-          )}
-        </div>
+        <div className="rounded-lg bg-slate-50 px-3 py-2"><span className="text-[10px] text-thb-text-muted block mb-0.5">Current</span><span className="text-thb-text-secondary break-all">{r.oldValue || '—'}</span></div>
+        <div className="rounded-lg bg-teal-50/60 px-3 py-2"><span className="text-[10px] text-thb-text-muted block mb-0.5">Requested</span><span className="text-teal-800 font-medium break-all">{r.newValue || '—'}</span></div>
       </div>
       {r.reason && <p className="text-[11px] text-thb-text-muted mt-2"><span className="font-medium">Reason:</span> {r.reason}</p>}
 

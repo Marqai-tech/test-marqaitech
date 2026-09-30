@@ -1,7 +1,7 @@
-export const MAX_PROFILE_PHOTO_BYTES = 5 * 1024 * 1024;
-export const MAX_PROFILE_PHOTO_LABEL = '5MB';
+export const MAX_PROFILE_PHOTO_BYTES = 3 * 1024 * 1024;
+export const MAX_PROFILE_PHOTO_LABEL = '3MB';
 /** Keep encoded JSON under Vercel’s ~4.5MB function body after base64. */
-const MAX_PROFILE_PHOTO_PAYLOAD_BYTES = 3 * 1024 * 1024;
+const MAX_PROFILE_PHOTO_PAYLOAD_BYTES = 2 * 1024 * 1024;
 
 export function loggedInPhotoUrl(
   user?: { avatar?: string | null; employee?: { avatar?: string | null } | null } | null,
@@ -60,7 +60,7 @@ export async function fileToProfilePhotoDataUrl(
     if (payloadError) return { ok: false, error: payloadError };
     return { ok: true, dataUrl };
   } catch {
-    return { ok: false, error: 'Could not read the photo. Try a JPG or PNG under 5MB.' };
+    return { ok: false, error: `Photo must be ${MAX_PROFILE_PHOTO_LABEL} or smaller.` };
   }
 }
 
