@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { Toaster } from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 // CRITICAL: Install per-tab session token storage shim BEFORE any auth code runs.
@@ -16,7 +16,7 @@ import WelcomeGreeting from '@/components/WelcomeGreeting';
 import OnboardingWalkthrough from '@/components/OnboardingWalkthrough';
 import SafeRender from '@/components/SafeRender';
 import { useSessionTimeout } from '@/hooks/useSessionTimeout';
-import { canRoleAccessModule, canSeeAllEmployees, LEGACY_ROLE_MAP, navRoleOrLeastPrivilege } from '@/lib/roleAccess';
+import { canRoleAccessModule, canSeeAllEmployees, isSelfServicePathAllowed, isSelfServiceRole, LEGACY_ROLE_MAP, navRoleOrLeastPrivilege } from '@/lib/roleAccess';
 import toast from 'react-hot-toast';
 import { loggedInPhotoUrl } from '@/lib/profile-photo';
 import {
@@ -34,6 +34,7 @@ export default function DashboardLayout({
 }) {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { isAuthenticated, isLoading, fetchUser, token, user, logout } = useAuthStore();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -138,6 +139,15 @@ export default function DashboardLayout({
     if (!token && !isLoading) { router.push('/login'); return; }
     if (token && !isAuthenticated && isLoading) fetchUser();
   }, [token, isAuthenticated, isLoading, router, fetchUser]);
+
+  useEffect(() => {
+    if (!user?.role || !pathname || isLoading) return;
+    if (!isSelfServiceRole(user.role)) return;
+    const search = searchParams?.toString() ? `?${searchParams.toString()}` : '';
+    if (!isSelfServicePathAllowed(pathname, search)) {
+      router.replace('/my-profile');
+    }
+  }, [user?.role, pathname, searchParams, router, isLoading]);
 
   // ─── Chunk-loading error auto-recovery ───
   // When Vercel deploys a new build, old browser tabs try to load JavaScript

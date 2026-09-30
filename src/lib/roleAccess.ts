@@ -15,9 +15,21 @@
 //   - manager: Sees their own + their direct reports' records via the 'team' data
 //     scope. Resolved via DottedLineManager(solid) + Employee.reportingManagerId.
 //
-// Legacy roles (hr_admin, finance_admin, it_admin, recruiter, candidate) are
-// still mapped to 'admin' via LEGACY_ROLE_MAP for backward compatibility.
+// HR Admin / HR Manager (hr_admin) maps to 'admin' for full HR modules.
+// Employee, Finance Admin, and IT Admin are self-service only:
+// My Profile, Leave Application, Attendance, Documents, Helpdesk.
 //
+
+/** Roles that only get employee self-service menus (not HR / finance / IT admin suites). */
+export const SELF_SERVICE_ROLE_KEYS = [
+  'employee',
+  'finance_admin',
+  'finance',
+  'it_admin',
+  'candidate',
+  'job_seeker',
+];
+
 
 /**
  * Role hierarchy level — lower number = higher privilege.
@@ -40,46 +52,46 @@ export const ROLE_LEVELS: Record<string, number> = {
  */
 export const MODULE_ACCESS: Record<string, string[]> = {
   dashboard: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'],
-  employees: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'],
+  employees: ['super_admin', 'tenant_admin', 'admin', 'manager'],
   company: ['super_admin', 'tenant_admin', 'admin'],
   recruitment: ['super_admin', 'tenant_admin', 'admin'],
   onboarding: ['super_admin', 'tenant_admin', 'admin', 'manager'],
   attendance: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'],
   leave: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'],
-  payroll: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'],
+  payroll: ['super_admin', 'tenant_admin', 'admin', 'manager'],
   salary_structures: ['super_admin', 'tenant_admin', 'admin'],
-  performance: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'],
-  training: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'],
-  learning: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'],
-  engagement: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'],
+  performance: ['super_admin', 'tenant_admin', 'admin', 'manager'],
+  training: ['super_admin', 'tenant_admin', 'admin', 'manager'],
+  learning: ['super_admin', 'tenant_admin', 'admin', 'manager'],
+  engagement: ['super_admin', 'tenant_admin', 'admin', 'manager'],
   reports: ['super_admin', 'tenant_admin', 'admin', 'manager'],
   settings: ['super_admin', 'tenant_admin', 'admin'],
   docs: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'],
   helpdesk: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'],
-  assets: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'],
-  projects: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'],
+  assets: ['super_admin', 'tenant_admin', 'admin', 'manager'],
+  projects: ['super_admin', 'tenant_admin', 'admin', 'manager'],
   invoices: ['super_admin', 'tenant_admin', 'admin'],
-  expenses: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'],
-  travel: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'],
+  expenses: ['super_admin', 'tenant_admin', 'admin', 'manager'],
+  travel: ['super_admin', 'tenant_admin', 'admin', 'manager'],
   accounts: ['super_admin', 'tenant_admin', 'admin'],
   crm: ['super_admin', 'tenant_admin', 'admin'],
   it_admin_module: ['super_admin', 'tenant_admin', 'admin'],
-  separation: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'],
-  grievances: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'],
+  separation: ['super_admin', 'tenant_admin', 'admin', 'manager'],
+  grievances: ['super_admin', 'tenant_admin', 'admin', 'manager'],
   super_admin: ['super_admin'],
   tenant_admin_module: ['super_admin', 'tenant_admin'],
   rbac: ['super_admin', 'tenant_admin'],
   workflows: ['super_admin', 'tenant_admin', 'admin'],
-  timesheets: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'],
+  timesheets: ['super_admin', 'tenant_admin', 'admin', 'manager'],
   documents: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'],
-  ai_assistant: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'],
+  ai_assistant: ['super_admin', 'tenant_admin', 'admin', 'manager'],
   notifications: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'],
   // Collaboration suite (Chat, Calls, Calendar, Email inbox, To Do, Notes,
   // Social Feed, File Manager, Kanban) is available to every role — employees
   // receive mirrored HR notification emails in the internal Email inbox.
   // Admin-only sub-areas (Collaboration Settings, SMTP Email Config,
   // Collaboration Reports) are restricted via per-item `roles` in navData.
-  collaboration: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'],
+  collaboration: ['super_admin', 'tenant_admin', 'admin', 'manager'],
   requisitions: ['super_admin', 'tenant_admin', 'admin'],
   offers: ['super_admin', 'tenant_admin', 'admin'],
   job_portal: ['super_admin', 'tenant_admin', 'admin'],
@@ -287,9 +299,7 @@ export function getDataScope(role: string): 'all' | 'team' | 'self' {
   // 'all' scope — full access (includes legacy admin-equivalent roles)
   if ([
     'super_admin', 'tenant_admin', 'admin',
-    // Legacy admin-equivalent roles (mapped to 'admin' via LEGACY_ROLE_MAP)
-    'company_hr_admin', 'hr_admin', 'finance_admin', 'finance',
-    'it_admin', 'hrhead', 'recruitmenthead',
+    'company_hr_admin', 'hr_admin', 'hrhead', 'recruitmenthead',
   ].includes(r)) return 'all';
 
   // 'team' scope — manager + direct reports
@@ -328,14 +338,7 @@ export function getEmployeeAccess(role: string): 'all' | 'team' | 'self' {
  * Returns the list of module keys the role can see.
  */
 export function getAccessibleModules(role: string): string[] {
-  if (role === 'super_admin') return Object.keys(MODULE_ACCESS);
-  const accessible: string[] = [];
-  for (const [moduleKey, allowedRoles] of Object.entries(MODULE_ACCESS)) {
-    if (allowedRoles.includes(role)) {
-      accessible.push(moduleKey);
-    }
-  }
-  return accessible;
+  return Object.keys(MODULE_ACCESS).filter((moduleKey) => canRoleAccessModule(role, moduleKey));
 }
 
 /**
@@ -363,7 +366,9 @@ export function canAccessAIReports(role: string): boolean {
  * Check if a role can see the full employee list (all departments).
  */
 export function canSeeAllEmployees(role: string): boolean {
-  return ['super_admin', 'tenant_admin', 'admin'].includes(role);
+  const r = (role || '').toLowerCase();
+  if (SELF_SERVICE_ROLE_KEYS.includes(r)) return false;
+  return ['super_admin', 'tenant_admin', 'admin', 'hr_admin', 'company_hr_admin', 'hrhead'].includes(r);
 }
 
 /** Employee Settings / company mapping management — not employees or HR-only roles. */
@@ -389,9 +394,9 @@ export const LEGACY_ROLE_MAP: Record<string, string> = {
   tenant_admin: 'tenant_admin',
   hr_admin: 'admin',
   company_hr_admin: 'admin',
-  finance_admin: 'admin',
-  finance: 'admin',
-  it_admin: 'admin',
+  finance_admin: 'employee',
+  finance: 'employee',
+  it_admin: 'employee',
   manager: 'manager',
   employee: 'employee',
   recruiter: 'admin',
@@ -409,4 +414,69 @@ export const LEGACY_ROLE_MAP: Record<string, string> = {
  */
 export function migrateRole(legacyRole: string): string {
   return LEGACY_ROLE_MAP[legacyRole] || 'employee';
+}
+
+export function isSelfServiceRole(role?: string | null): boolean {
+  const r = (role || '').toLowerCase();
+  if (!r) return true;
+  if (SELF_SERVICE_ROLE_KEYS.includes(r)) return true;
+  return migrateRole(r) === 'employee';
+}
+
+/** Paths employee / finance / IT self-service users may open. */
+export function isSelfServicePathAllowed(pathname: string, search = ''): boolean {
+  const path = (pathname.replace(/\/+$/, '') || '/').split('?')[0];
+  const query = search.startsWith('?') ? search.slice(1) : search;
+  const viewSelf = new URLSearchParams(query).get('view') === 'self';
+
+  if (path === '/employees' && viewSelf) return true;
+  if (path === '/my-profile' || path.startsWith('/my-profile/')) return true;
+
+  const deniedPrefixes = [
+    '/leave/leave-policy',
+    '/leave/types',
+    '/leave/apply-by-hr',
+    '/leave/settings',
+    '/leave/reports',
+    '/leave/encashment',
+    '/attendance/apply-by-hr',
+    '/attendance/shifts',
+    '/attendance/holidays',
+    '/attendance/geofence',
+    '/attendance/biometric',
+    '/attendance/muster-roll',
+    '/attendance/settings',
+    '/attendance/burnout',
+    '/attendance/audit-log',
+    '/attendance/reports',
+    '/helpdesk/settings',
+    '/helpdesk/reports',
+    '/docs/settings',
+    '/docs/reports',
+    '/employees',
+    '/recruitment',
+    '/onboarding',
+    '/ai-interview',
+    '/payroll',
+    '/company',
+    '/org-chart',
+    '/performance',
+    '/training',
+  ];
+  if (deniedPrefixes.some((prefix) => path === prefix || path.startsWith(`${prefix}/`))) {
+    return false;
+  }
+
+  const allowedPrefixes = [
+    '/home',
+    '/dashboard',
+    '/modules',
+    '/leave',
+    '/attendance',
+    '/docs',
+    '/documents',
+    '/helpdesk',
+    '/notifications',
+  ];
+  return allowedPrefixes.some((prefix) => path === prefix || path.startsWith(`${prefix}/`));
 }

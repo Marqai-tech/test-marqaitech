@@ -1924,6 +1924,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                         <option value="">Select Role</option>
                         <option value="hr_admin">HR Manager / HR Admin</option>
                         <option value="finance_admin">Finance Manager / Finance Admin</option>
+                        <option value="it_admin">IT Admin</option>
                         <option value="manager">Manager</option>
                         <option value="travel_admin">Travel Admin</option>
                         <option value="crm_admin">CRM Admin</option>
@@ -1933,7 +1934,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                       {/* Dynamic role info box */}
                       {form.role && (
                         <div className={`mt-2 p-2.5 rounded-lg border text-xs leading-relaxed ${
-                          ['hr_admin', 'finance_admin'].includes(form.role)
+                          form.role === 'hr_admin'
                             ? 'bg-green-50 border-green-200 text-green-800'
                             : ['manager', 'travel_admin', 'crm_admin'].includes(form.role)
                             ? 'bg-amber-50 border-amber-200 text-amber-800'
@@ -1941,7 +1942,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                         }`}>
                           <div className="flex items-start gap-1.5">
                             <FiShield className={`w-3.5 h-3.5 mt-0.5 shrink-0 ${
-                              ['hr_admin', 'finance_admin'].includes(form.role)
+                              ['hr_admin'].includes(form.role)
                                 ? 'text-green-500'
                                 : ['manager', 'travel_admin', 'crm_admin'].includes(form.role)
                                 ? 'text-amber-500'
@@ -1950,7 +1951,8 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                             <div>
                               <span className="font-semibold">
                                 {form.role === 'hr_admin' && 'HR Admin Access'}
-                                {form.role === 'finance_admin' && 'Finance Admin Access'}
+                                {form.role === 'finance_admin' && 'Finance Access'}
+                                {form.role === 'it_admin' && 'IT Admin Access'}
                                 {form.role === 'manager' && 'Manager Access'}
                                 {form.role === 'travel_admin' && 'Travel Admin Access'}
                                 {form.role === 'crm_admin' && 'CRM Admin Access'}
@@ -1958,7 +1960,8 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                               </span>
                               <p className="mt-0.5 opacity-90">
                                 {form.role === 'hr_admin' && 'Full access to HR modules: Employees, Recruitment, Onboarding, Leave, Attendance, Performance, Training, and HR policies.'}
-                                {form.role === 'finance_admin' && 'Full access to Finance modules: Payroll, Salary Structures, Expenses, Invoices, Accounts, Loans, and Claims.'}
+                                {form.role === 'finance_admin' && 'Self-service access: My Profile, Leave Application, Attendance, Documents, and Helpdesk.'}
+                                {form.role === 'it_admin' && 'Self-service access: My Profile, Leave Application, Attendance, Documents, and Helpdesk.'}
                                 {form.role === 'manager' && 'Access to team operations: View employees, approve leaves/expenses/travel, manage performance reviews, and assign tasks.'}
                                 {form.role === 'travel_admin' && 'Full access to Travel management: Travel requests, approvals, policies, and expense settlements.'}
                                 {form.role === 'crm_admin' && 'Full access to CRM: Clients, vendors, CRM operations, and external relationship management.'}
