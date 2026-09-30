@@ -283,42 +283,38 @@ export async function GET(request: Request) {
       console.log(`[me/context] host=${request.headers.get('host')}, filteredTenants=${availableTenants.length}, slugs=[${availableTenants.map((t: { slug: string }) => t.slug).join(',')}]`);
       console.log(`[me/context] GOLDEN RULE: requestedTenantId=${requestedTenantId || 'none'}, callerTenantId=${callerTenantId || 'none'}, requestedVisible=${requestedTenantIsVisible}, callerVisible=${callerTenantIsVisible}, effectiveTenantId=${effectiveTenantId || 'none'}`);
       if (effectiveTenantId) {
-        // Do not auto-create groups on GET /api/me/context — that opened a
-        // second tenant DB on every header load. Create groups from tenant APIs.
-
-        // CRITICAL FIX: For super_admin, we must query the TARGET tenant's
-        // database, not the request's default DB (which may be the platform
-        // DB or the admin's own tenant DB). Without this, groups/companies
-        // show as empty when the super_admin switches tenants.
         const targetDb = await getDbForTenantById(effectiveTenantId);
-        availableCompanyGroups = await safe(
-          'companyGroup.findMany(super_admin)',
-          () => targetDb.companyGroup.findMany({
-            where: { tenantId: effectiveTenantId },
-            select: {
-              id: true, name: true, tenantId: true,
-              employeeLimitMode: true, maxEmployees: true, maxCompanies: true, notes: true,
-            },
-            orderBy: { name: 'asc' },
-          }),
-          [],
-        );
-        const groupIds = availableCompanyGroups.map((g) => g.id);
-        if (groupIds.length > 0) {
-          availableCompanies = await safe(
-            'company.findMany(super_admin)',
-            () => targetDb.company.findMany({
-              where: { companyGroupId: { in: groupIds } },
-              select: {
-                id: true, name: true, code: true, companyGroupId: true,
-                companyGroup: { select: { id: true, name: true } },
-                _count: { select: { branches: true, departments: true } },
-              },
+        const groupSelect = {
+          id: true, name: true, tenantId: true,
+          employeeLimitMode: true, maxEmployees: true, maxCompanies: true, notes: true,
+        } as const;
+        const companySelect = {
+          id: true, name: true, code: true, companyGroupId: true,
+          companyGroup: { select: { id: true, name: true } },
+          _count: { select: { branches: true, departments: true } },
+        } as const;
+        const [groups, companies] = await Promise.all([
+          safe(
+            'companyGroup.findMany(super_admin)',
+            () => targetDb.companyGroup.findMany({
+              where: { tenantId: effectiveTenantId },
+              select: groupSelect,
               orderBy: { name: 'asc' },
             }),
             [],
-          );
-        }
+          ),
+          safe(
+            'company.findMany(super_admin)',
+            () => targetDb.company.findMany({
+              where: { companyGroup: { tenantId: effectiveTenantId } },
+              select: companySelect,
+              orderBy: { name: 'asc' },
+            }),
+            [],
+          ),
+        ]);
+        availableCompanyGroups = groups;
+        availableCompanies = companies;
       }
     } else if (role === 'tenant_admin') {
       // Tenant admin: scope to own tenant only
@@ -335,24 +331,23 @@ export async function GET(request: Request) {
         // FIX: Use tenant-specific DB for tenant_admin too, in case
         // getDb(request) routed to the wrong DB (e.g., platform DB fallback).
         const tenantAdminDb = await getDbForTenantById(callerTenantId);
-        availableCompanyGroups = await safe(
-          'companyGroup.findMany(tenant_admin)',
-          () => tenantAdminDb.companyGroup.findMany({
-            where: { tenantId: callerTenantId },
-            select: {
-              id: true, name: true, tenantId: true,
-              employeeLimitMode: true, maxEmployees: true, maxCompanies: true, notes: true,
-            },
-            orderBy: { name: 'asc' },
-          }),
-          [],
-        );
-        const groupIds = availableCompanyGroups.map((g) => g.id);
-        if (groupIds.length > 0) {
-          availableCompanies = await safe(
+        const [groups, companies] = await Promise.all([
+          safe(
+            'companyGroup.findMany(tenant_admin)',
+            () => tenantAdminDb.companyGroup.findMany({
+              where: { tenantId: callerTenantId },
+              select: {
+                id: true, name: true, tenantId: true,
+                employeeLimitMode: true, maxEmployees: true, maxCompanies: true, notes: true,
+              },
+              orderBy: { name: 'asc' },
+            }),
+            [],
+          ),
+          safe(
             'company.findMany(tenant_admin)',
             () => tenantAdminDb.company.findMany({
-              where: { companyGroupId: { in: groupIds } },
+              where: { companyGroup: { tenantId: callerTenantId } },
               select: {
                 id: true, name: true, code: true, companyGroupId: true,
                 companyGroup: { select: { id: true, name: true } },
@@ -361,8 +356,10 @@ export async function GET(request: Request) {
               orderBy: { name: 'asc' },
             }),
             [],
-          );
-        }
+          ),
+        ]);
+        availableCompanyGroups = groups;
+        availableCompanies = companies;
       }
     }
     // For all other roles, look up EmployeeCompanyMapping records so employees

@@ -77,6 +77,32 @@ export async function GET(request: Request) {
       // ignore
     }
 
+    // Home Super Admin uses limit=1&includeStats=1. Returning employee rows +
+    // nested includes for a count-only call was extra Neon work (~2.6s).
+    if (includeStats && !exportMode && limit <= 1 && !search && !departmentId) {
+      const where: Record<string, unknown> = {};
+      if (status) where.status = status;
+      if (queryCompanyId) where.companyId = queryCompanyId;
+      const monthAgo = new Date();
+      monthAgo.setMonth(monthAgo.getMonth() - 1);
+      const tQ = Date.now();
+      const [total, active, inactive, newJoiners] = await Promise.all([
+        db.employee.count({ where }),
+        db.employee.count({ where: { ...where, status: 'active' } }),
+        db.employee.count({ where: { ...where, status: { not: 'active' } } }),
+        db.employee.count({ where: { ...where, dateOfJoining: { gte: monthAgo } } }),
+      ]);
+      return NextResponse.json(
+        {
+          employees: [],
+          pagination: { page, limit, total, totalPages: Math.ceil(total / limit) || 0 },
+          stats: { total, active, inactive, newJoiners },
+          dataScope: jwtRole === 'super_admin' || jwtRole === 'tenant_admin' ? 'all' : 'self',
+        },
+        { headers: { ...corsHeaders(), 'Server-Timing': `counts;dur=${Date.now() - tQ}` } },
+      );
+    }
+
     // ─── GOLDEN RULE: Aggregation for super_admin without a company selected ───
     // When super_admin has NO company selected (companyId is null), aggregate
     // employee counts. If tenantId is provided, aggregate from that specific
@@ -304,7 +330,11 @@ export async function GET(request: Request) {
       // For super_admin with no companyId selected, allow narrowing to a
       // specific tenant's companies. Employee has no `company` relation —
       // only a bare companyId field, so we must resolve company IDs first.
+      // Dedicated tenant DB from getDb(?tenantId=) is already scoped. Extra
+      // group/company ID filters only add sequential hops on that same DB.
       if (!scopeResult?.companyId && tenantId && userRole === 'super_admin') {
+        const platformDb = getPlatformDb();
+        if (queryDb === platformDb) {
         const tenantGroups = await db.companyGroup.findMany({
           where: { tenantId },
           select: { id: true },
@@ -323,6 +353,7 @@ export async function GET(request: Request) {
           }
         } else {
           where.id = '__never__';
+        }
         }
       }
 

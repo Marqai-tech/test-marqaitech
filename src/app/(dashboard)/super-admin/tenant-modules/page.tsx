@@ -136,17 +136,19 @@ export default function TenantModulesPage() {
     }
   }, [availableTenants, selectedTenantId, activeTenantId]);
 
-  const fetchModules = useCallback(async (tenantId: string) => {
+  const fetchModules = useCallback(async (tenantId: string, signal?: AbortSignal) => {
     if (!tenantId) return;
     setLoading(true);
     try {
       const res = await fetch(`/api/super-admin/tenant-modules?tenantId=${encodeURIComponent(tenantId)}`, {
         headers: getAuthHeaders(),
+        signal,
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to load modules');
       setModules(data.modules || []);
     } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return;
       toast.error(err instanceof Error ? err.message : 'Failed to load tenant modules');
       setModules([]);
     } finally {
@@ -155,7 +157,10 @@ export default function TenantModulesPage() {
   }, []);
 
   useEffect(() => {
-    if (activeTenantId) void fetchModules(activeTenantId);
+    if (!activeTenantId) return;
+    const ac = new AbortController();
+    void fetchModules(activeTenantId, ac.signal);
+    return () => ac.abort();
   }, [activeTenantId, fetchModules]);
 
   useEffect(() => {

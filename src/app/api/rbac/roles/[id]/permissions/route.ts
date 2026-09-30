@@ -19,9 +19,8 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const db = await getDb(request);
   try {
-    const { user } = await resolveAuthenticatedUser(request);
+    const { user, db } = await resolveAuthenticatedUser(request);
     if (!user) {
       return NextResponse.json(
         { error: 'User not found' },

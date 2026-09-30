@@ -122,6 +122,7 @@ async function seedModuleFlags(tenantId: string, tenantSlug?: string): Promise<v
 
 export async function GET(request: Request) {
   try {
+    const t0 = Date.now();
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
     const decoded = await verifyToken(token);
@@ -138,16 +139,18 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'tenantId query parameter is required' }, { status: 400, headers: corsHeaders() });
     }
 
-    // Get tenant slug for defaults
-    const tenant = await getPlatformDb().tenant.findUnique({
-      where: { id: tenantId },
-      select: { slug: true },
-    });
+    const [tenant, existingFlags] = await Promise.all([
+      getPlatformDb().tenant.findUnique({
+        where: { id: tenantId },
+        select: { slug: true },
+      }),
+      getPlatformDb().featureFlag.findMany({
+        where: { tenantId, key: { startsWith: 'module_' } },
+        orderBy: [{ key: 'asc' }],
+      }),
+    ]);
 
-    let flags = await getPlatformDb().featureFlag.findMany({
-      where: { tenantId, key: { startsWith: 'module_' } },
-      orderBy: [{ key: 'asc' }],
-    });
+    let flags = existingFlags;
     if (flags.length === 0) {
       try {
         await seedModuleFlags(tenantId, tenant?.slug);
@@ -176,7 +179,10 @@ export async function GET(request: Request) {
       };
     });
 
-    return NextResponse.json({ modules, catalogue: MODULE_CATALOGUE }, { headers: corsHeaders() });
+    return NextResponse.json(
+      { modules, catalogue: MODULE_CATALOGUE },
+      { headers: { ...corsHeaders(), 'Server-Timing': `total;dur=${Date.now() - t0}` } },
+    );
   } catch (error) {
     console.error('[tenant-modules] GET error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() });

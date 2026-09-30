@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getDb, getPlatformDb } from '@/lib/tenant-db';
-import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
+import { getDb } from '@/lib/tenant-db';
 import { resolveAuthenticatedUser } from '@/lib/auth-resolve';
 
 // Ensure this route is always dynamically rendered (never cached)
@@ -20,7 +19,7 @@ export async function OPTIONS() {
 
 // GET /api/rbac/roles - List roles
 export async function GET(request: Request) {
-  const db = await getDb(request);
+  const t0 = Date.now();
   try {
     const { user, db: dataDb } = await resolveAuthenticatedUser(request);
     if (!user) {
@@ -29,11 +28,13 @@ export async function GET(request: Request) {
         { status: 404, headers: corsHeaders() }
       );
     }
+    const db = dataDb;
 
     const { searchParams } = new URL(request.url);
     const rawTenantId = searchParams.get('tenantId');
     const rawCompanyId = searchParams.get('companyId');
     const search = searchParams.get('search');
+    const includePermissions = searchParams.get('includePermissions') === '1';
 
     // Treat empty string same as null (no filter)
     const tenantId = rawTenantId && rawTenantId.trim() !== '' ? rawTenantId : null;
@@ -89,18 +90,23 @@ export async function GET(request: Request) {
       ? { AND: andConditions }
       : {};
 
+    const tQ = Date.now();
     const roles = await db.role.findMany({
       where,
       include: {
-        permissions: {
-          include: {
-            permission: {
-              include: {
-                module: true,
+        ...(includePermissions
+          ? {
+              permissions: {
+                include: {
+                  permission: {
+                    include: {
+                      module: true,
+                    },
+                  },
+                },
               },
-            },
-          },
-        },
+            }
+          : {}),
         tenant: {
           select: { id: true, name: true, slug: true },
         },
@@ -110,11 +116,13 @@ export async function GET(request: Request) {
         _count: {
           select: {
             userRoles: true,
+            permissions: true,
           },
         },
       },
       orderBy: [{ level: 'asc' }, { name: 'asc' }],
     });
+    const queryMs = Date.now() - tQ;
 
     const formattedRoles = roles.map((role) => ({
       id: role.id,
@@ -127,32 +135,44 @@ export async function GET(request: Request) {
       companyId: role.companyId,
       status: role.status,
       createdBy: role.createdBy,
-      permissions: role.permissions
-        .filter((rp) => rp.permission && rp.permission.module)
-        .map((rp) => ({
-          id: rp.id,
-          granted: rp.granted,
-          permission: {
-            id: rp.permission.id,
-            action: rp.permission.action,
-            module: {
-              id: rp.permission.module.id,
-              key: rp.permission.module.key,
-              name: rp.permission.module.name,
-              category: rp.permission.module.category,
-            },
-          },
-        })),
+      permissions: includePermissions && 'permissions' in role
+        ? (role.permissions as Array<{
+            id: string;
+            granted: boolean;
+            permission: { id: string; action: string; module: { id: string; key: string; name: string; category: string } | null } | null;
+          }>)
+            .filter((rp) => rp.permission && rp.permission.module)
+            .map((rp) => ({
+              id: rp.id,
+              granted: rp.granted,
+              permission: {
+                id: rp.permission!.id,
+                action: rp.permission!.action,
+                module: {
+                  id: rp.permission!.module!.id,
+                  key: rp.permission!.module!.key,
+                  name: rp.permission!.module!.name,
+                  category: rp.permission!.module!.category,
+                },
+              },
+            }))
+        : [],
       tenant: role.tenant || null,
       company: role.company || null,
-      _count: { userRoles: role._count.userRoles },
+      _count: { userRoles: role._count.userRoles, permissions: role._count.permissions },
       createdAt: role.createdAt,
       updatedAt: role.updatedAt,
     }));
 
     return NextResponse.json(
       { roles: formattedRoles, total: formattedRoles.length },
-      { headers: { ...corsHeaders(), 'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate' } }
+      {
+        headers: {
+          ...corsHeaders(),
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          'Server-Timing': `query;dur=${queryMs},total;dur=${Date.now() - t0}`,
+        },
+      }
     );
   } catch (error) {
     console.error('Get roles error:', error);

@@ -12,6 +12,9 @@ function corsHeaders() {
   };
 }
 
+const meResponseCache = new Map<string, { at: number; body: unknown }>();
+const ME_CACHE_MS = 15_000;
+
 export async function OPTIONS() {
   return NextResponse.json({}, { headers: corsHeaders() });
 }
@@ -38,11 +41,19 @@ export async function GET(request: Request) {
     const userId = decoded.userId as string;
     const tenantId = decoded.tenantId as string | undefined;
     const tenantSlug = request.headers.get('x-tenant-slug') || '';
+    const jwtRole = (decoded.role as string) || '';
+    const cacheKey = `${userId}:${request.headers.get('host') || ''}:${jwtRole}`;
+    const cached = meResponseCache.get(cacheKey);
+    if (cached && Date.now() - cached.at < ME_CACHE_MS) {
+      return NextResponse.json(cached.body, {
+        headers: { ...corsHeaders(), 'Server-Timing': 'cache;desc="hit"' },
+      });
+    }
 
-    // ─── Two-phase user lookup (same pattern as /api/auth/login) ───
-    // Phase 1: Search the platform DB (neondb) for the user.
-    // Phase 2: If not found, search the tenant-specific DB.
-    const userSelect = {
+    // Super admin lives only on the platform DB. Nested tenant include + employee
+    // lookup were extra Neon hops on every layout /api/auth/me.
+    const platformDb = getPlatformDb();
+    const userSelectCore = {
       id: true,
       name: true,
       email: true,
@@ -52,84 +63,81 @@ export async function GET(request: Request) {
       lastLogin: true,
       createdAt: true,
       tenantId: true,
-      tenant: {
-        select: {
-          id: true,
-          name: true,
-          slug: true,
-          plan: true,
-          currency: true,
-          timezone: true,
-          logo: true,
-          status: true,
-        },
-      },
     };
 
     let user: any = null;
     let db: any = null;
 
-    // Phase 1: Platform DB lookup
-    const platformDb = getPlatformDb();
-    const platformUser = await platformDb.user.findUnique({
-      where: { id: userId },
-      select: userSelect,
-    });
-
-    if (platformUser) {
-      user = platformUser;
+    if (jwtRole === 'super_admin') {
+      user = await platformDb.user.findUnique({
+        where: { id: userId },
+        select: userSelectCore,
+      });
       db = platformDb;
     } else {
-      // Phase 2: Tenant-specific DB lookup
-      // Try to find the user in their tenant's dedicated database
-      try {
-        let tenantDb: any = null;
-        if (tenantSlug) {
-          tenantDb = await getDbForTenant(tenantSlug);
-        } else if (tenantId) {
-          tenantDb = await getDbForTenantById(tenantId);
-        }
+      const userSelect = {
+        ...userSelectCore,
+        tenant: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            plan: true,
+            currency: true,
+            timezone: true,
+            logo: true,
+            status: true,
+          },
+        },
+      };
 
-        if (tenantDb) {
-          const tenantUser = await tenantDb.user.findUnique({
-            where: { id: userId },
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              role: true,
-              avatar: true,
-              status: true,
-              lastLogin: true,
-              createdAt: true,
-              tenantId: true,
-            },
-          });
+      const platformUser = await platformDb.user.findUnique({
+        where: { id: userId },
+        select: userSelect,
+      });
 
-          if (tenantUser) {
-            user = tenantUser;
-            db = tenantDb;
-            // Resolve tenant info from platform DB
-            if (tenantUser.tenantId) {
-              const tenant = await platformDb.tenant.findUnique({
-                where: { id: tenantUser.tenantId },
-                select: {
-                  id: true,
-                  name: true,
-                  slug: true,
-                  plan: true,
-                  currency: true,
-                  timezone: true,
-                  logo: true,
-                  status: true,
-                },
-              });
-              user.tenant = tenant;
+      if (platformUser) {
+        user = platformUser;
+        db = platformDb;
+      } else {
+        try {
+          let tenantDb: any = null;
+          if (tenantSlug) {
+            tenantDb = await getDbForTenant(tenantSlug);
+          } else if (tenantId) {
+            tenantDb = await getDbForTenantById(tenantId);
+          }
+
+          if (tenantDb) {
+            const tenantUser = await tenantDb.user.findUnique({
+              where: { id: userId },
+              select: userSelectCore,
+            });
+
+            if (tenantUser) {
+              user = tenantUser;
+              db = tenantDb;
+              if (tenantUser.tenantId) {
+                const tenant = await platformDb.tenant.findUnique({
+                  where: { id: tenantUser.tenantId },
+                  select: {
+                    id: true,
+                    name: true,
+                    slug: true,
+                    plan: true,
+                    currency: true,
+                    timezone: true,
+                    logo: true,
+                    status: true,
+                  },
+                });
+                user.tenant = tenant;
+              }
             }
           }
+        } catch (tenantLookupErr) {
+          console.error('[Auth/Me] Tenant DB lookup failed:', tenantLookupErr);
         }
-      } catch (tenantLookupErr) {
-        console.error('[Auth/Me] Tenant DB lookup failed:', tenantLookupErr);
       }
     }
 
@@ -140,7 +148,7 @@ export async function GET(request: Request) {
       );
     }
 
-    if (!user.tenant && user.tenantId) {
+    if (user.role !== 'super_admin' && !user.tenant && user.tenantId) {
       try {
         user.tenant = await platformDb.tenant.findUnique({
           where: { id: user.tenantId },
@@ -163,7 +171,7 @@ export async function GET(request: Request) {
     // Step 2: Try to fetch employee data separately (graceful fallback)
     // Use the tenant-specific DB for employee/company lookups
     let dataDb = db;
-    if (user.role !== 'super_admin' && user.tenantId) {
+    if (user.role !== 'super_admin' && user.role !== 'tenant_admin' && user.tenantId && db === platformDb) {
       try {
         dataDb = await getDbForTenantById(user.tenantId);
       } catch (e) {
@@ -252,8 +260,7 @@ export async function GET(request: Request) {
       status: user.tenant.status,
     } : null);
 
-    return NextResponse.json(
-      {
+    const body = {
         id: user.id,
         name: user.name,
         email: user.email,
@@ -265,7 +272,10 @@ export async function GET(request: Request) {
         employee: employeeData,
         lastLogin: user.lastLogin,
         createdAt: user.createdAt,
-      },
+    };
+    meResponseCache.set(cacheKey, { at: Date.now(), body });
+    return NextResponse.json(
+      body,
       { headers: { ...corsHeaders(), 'Server-Timing': `total;dur=${Date.now() - t0}` } }
     );
   } catch (error) {

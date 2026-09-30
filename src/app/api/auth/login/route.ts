@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, after } from 'next/server';
 import { getPlatformDb, getDbForTenant, getDbForTenantById } from '@/lib/tenant-db';
 import { verifyPassword, createToken, hashPassword } from '@/lib/auth';
 import { getHiddenSlugsForRequest, isTestPlatformHost } from '@/lib/tenant-filter';
@@ -456,16 +456,9 @@ export async function POST(request: Request) {
     }
 
     // ─── Determine the data DB for post-login operations ───
-    // Use the tenant-specific DB for employee/company lookups and other
-    // tenant-scoped data. This ensures demo users' data comes from tenant_demo,
-    // MarqAI users' data from tenant_marqaitechgroup, etc.
-    let dataDb: any;
-    if (user.role === 'super_admin') {
-      // Super admin may be on any domain — route to the domain's tenant DB
-      // or platform DB if no tenant context
-      dataDb = tenantSlug ? await getDbForTenant(tenantSlug) : platformDb;
-    } else {
-      // Non-super_admin: route to their own tenant's DB
+    // Super admin never needs a tenant DB on the login critical path.
+    let dataDb: any = platformDb;
+    if (user.role !== 'super_admin') {
       dataDb = await getDbForTenantById(user.tenantId);
     }
 
@@ -529,207 +522,108 @@ export async function POST(request: Request) {
       tenantId: user.tenantId,
     });
 
-    // Non-critical operations - don't block login if these fail
-    // These should go to the DB that contains the user (platform or tenant)
-    try {
-      await db.user.update({
-        where: { id: user.id },
-        data: { lastLogin: new Date() },
-      });
-    } catch (e) {
-      console.error('Failed to update lastLogin:', e);
-    }
+    const loginIp = request.headers.get('x-forwarded-for') || null;
+    const loginUa = request.headers.get('user-agent') || null;
+    const loginUser = {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      tenantId: user.tenantId as string | null,
+    };
+    const authDb = db;
+    const postLoginDataDb = dataDb;
 
-    try {
-      await db.loginActivity.create({
-        data: {
-          userId: user.id,
-          action: 'login',
-          ip: request.headers.get('x-forwarded-for') || null,
-          userAgent: request.headers.get('user-agent') || null,
-        },
-      });
-    } catch (e) {
-      console.error('Failed to create loginActivity:', e);
-    }
-
-    // ─── Auto-link employee to user on login ───
-    // If the user doesn't have a linked Employee record, try to find one
-    // and link it. The Employee record may exist but:
-    // - userId is NULL (not linked)
-    // - email field is empty (marqai seed didn't set email on Employee)
-    // - email doesn't match the user's login email
-    // We try multiple strategies to find and link the employee.
-    try {
-      // Check if the user already has a linked employee
-      let hasEmployee = false;
+    after(async () => {
       try {
-        const emp = await dataDb.employee.findUnique({ where: { userId: user.id } });
-        if (emp) hasEmployee = true;
-      } catch {}
-      // Also check platform DB
-      if (!hasEmployee) {
+        await authDb.user.update({
+          where: { id: loginUser.id },
+          data: { lastLogin: new Date() },
+        });
+      } catch (e) {
+        console.error('Failed to update lastLogin:', e);
+      }
+      try {
+        await authDb.loginActivity.create({
+          data: {
+            userId: loginUser.id,
+            action: 'login',
+            ip: loginIp,
+            userAgent: loginUa,
+          },
+        });
+      } catch (e) {
+        console.error('Failed to create loginActivity:', e);
+      }
+
+      if (loginUser.role !== 'super_admin') {
         try {
-          const emp = await platformDb.employee.findUnique({ where: { userId: user.id } });
-          if (emp) hasEmployee = true;
-        } catch {}
-      }
-
-      if (!hasEmployee) {
-        // Strategy 1: Find by email match
-        const searchDbs = [dataDb, platformDb];
-        for (const searchDb of searchDbs) {
+          let hasEmployee = false;
           try {
-            const emp = await searchDb.employee.findFirst({ where: { email: user.email } });
-            if (emp) {
-              await searchDb.employee.update({
-                where: { id: emp.id },
-                data: { userId: user.id },
-              });
-              console.log(`[Login] Auto-linked employee ${emp.id} to user ${user.id} by email`);
-              hasEmployee = true;
-              break;
-            }
+            const emp = await postLoginDataDb.employee.findUnique({ where: { userId: loginUser.id }, select: { id: true } });
+            if (emp) hasEmployee = true;
           } catch {}
-        }
-      }
-
-      // Strategy 2: Find by email using raw SQL (case-insensitive, TRIM)
-      if (!hasEmployee && user.email) {
-        for (const searchDb of [dataDb, platformDb]) {
-          try {
-            const rows = await searchDb.$queryRawUnsafe(
-              `SELECT * FROM "Employee" WHERE LOWER(TRIM("email")) = LOWER(TRIM($1)) LIMIT 1`,
-              user.email
-            ) as any[];
-            if (rows && rows.length > 0) {
-              await searchDb.$executeRawUnsafe(
-                `UPDATE "Employee" SET "userId" = $1 WHERE "id" = $2`,
-                user.id, rows[0].id
-              );
-              console.log(`[Login] Auto-linked employee ${rows[0].id} to user ${user.id} by raw SQL email`);
-              hasEmployee = true;
-              break;
-            }
-          } catch {}
-        }
-      }
-
-      // Strategy 3: Find by personalEmail
-      if (!hasEmployee && user.email) {
-        for (const searchDb of [dataDb, platformDb]) {
-          try {
-            const rows = await searchDb.$queryRawUnsafe(
-              `SELECT * FROM "Employee" WHERE "personalEmail" = $1 LIMIT 1`,
-              user.email
-            ) as any[];
-            if (rows && rows.length > 0) {
-              await searchDb.$executeRawUnsafe(
-                `UPDATE "Employee" SET "userId" = $1, "email" = $2 WHERE "id" = $3`,
-                user.id, user.email, rows[0].id
-              );
-              console.log(`[Login] Auto-linked employee ${rows[0].id} by personalEmail, also set email`);
-              hasEmployee = true;
-              break;
-            }
-          } catch {}
-        }
-      }
-
-      // Strategy 4: Find by employee name matching user name
-      if (!hasEmployee && user.name) {
-        const nameParts = user.name.split(' ');
-        if (nameParts.length >= 2) {
-          for (const searchDb of [dataDb, platformDb]) {
+          if (!hasEmployee) {
             try {
-              const rows = await searchDb.$queryRawUnsafe(
-                `SELECT * FROM "Employee" WHERE "firstName" = $1 AND "lastName" = $2 LIMIT 1`,
-                nameParts[0], nameParts.slice(1).join(' ')
-              ) as any[];
-              if (rows && rows.length > 0) {
-                await searchDb.$executeRawUnsafe(
-                  `UPDATE "Employee" SET "userId" = $1, "email" = $2 WHERE "id" = $3`,
-                  user.id, user.email, rows[0].id
-                );
-                console.log(`[Login] Auto-linked employee ${rows[0].id} by name match, also set email`);
-                hasEmployee = true;
-                break;
-              }
+              const emp = await platformDb.employee.findUnique({ where: { userId: loginUser.id }, select: { id: true } });
+              if (emp) hasEmployee = true;
             } catch {}
           }
-        }
-      }
-
-      // Strategy 5: Find ANY employee with NULL userId (last resort)
-      if (!hasEmployee) {
-        for (const searchDb of [dataDb, platformDb]) {
-          try {
-            const rows = await searchDb.$queryRawUnsafe(
-              `SELECT * FROM "Employee" WHERE "userId" IS NULL LIMIT 1`
-            ) as any[];
-            if (rows && rows.length > 0) {
-              await searchDb.$executeRawUnsafe(
-                `UPDATE "Employee" SET "userId" = $1, "email" = $2 WHERE "id" = $3`,
-                user.id, user.email, rows[0].id
-              );
-              console.log(`[Login] Auto-linked employee ${rows[0].id} by NULL userId, also set email`);
-              hasEmployee = true;
-              break;
+          if (!hasEmployee) {
+            for (const searchDb of [postLoginDataDb, platformDb]) {
+              try {
+                const emp = await searchDb.employee.findFirst({ where: { email: loginUser.email }, select: { id: true } });
+                if (emp) {
+                  await searchDb.employee.update({
+                    where: { id: emp.id },
+                    data: { userId: loginUser.id },
+                  });
+                  hasEmployee = true;
+                  break;
+                }
+              } catch {}
             }
-          } catch {}
+          }
+        } catch (linkErr) {
+          console.error('[Login] Auto-link employee failed (non-critical):', linkErr);
         }
       }
-    } catch (linkErr) {
-      console.error('[Login] Auto-link employee failed (non-critical):', linkErr);
-    }
 
-    try {
-      // ─── Clean up ALL previous unread notifications on login ───
-      // Mark every previous unread notification as read so the user only sees
-      // a single fresh "Welcome" notification — not a wall of stale alerts.
-      await dataDb.notification.updateMany({
-        where: {
-          userId: user.id,
-          isRead: false,
-        },
-        data: { isRead: true },
-      });
-
-      // Now create a single consolidated welcome notification
-      // Use the tenant-specific DB (dataDb) instead of the platform DB
-      // so notifications live in the same database as the user's data.
-      await dataDb.notification.create({
-        data: {
-          tenantId: user.tenantId,
-          userId: user.id,
-          title: 'Welcome to 3Boxes HRMS',
-          message: `Hello ${user.name}! You have successfully logged in. Check your dashboard for updates.`,
-          type: 'login',
-          category: 'auth',
-          isRead: false,
-          isEmailSent: false,
-        },
-      });
-    } catch (e) {
-      console.error('Failed to create notification:', e);
-    }
-
-    try {
-      await dataDb.auditLog.create({
-        data: {
-          userId: user.id,
-          action: 'LOGIN',
-          module: 'auth',
-          details: `User ${user.email} logged in`,
-          ip: request.headers.get('x-forwarded-for') || null,
-          userAgent: request.headers.get('user-agent') || null,
-        },
-      });
-    } catch (e) {
-      console.error('Failed to create auditLog:', e);
-    }
-
-    // Multi-tenant mode: return the actual tenant name from the database.
+      try {
+        await postLoginDataDb.notification.updateMany({
+          where: { userId: loginUser.id, isRead: false },
+          data: { isRead: true },
+        });
+        await postLoginDataDb.notification.create({
+          data: {
+            tenantId: loginUser.tenantId,
+            userId: loginUser.id,
+            title: 'Welcome to 3Boxes HRMS',
+            message: `Hello ${loginUser.name}! You have successfully logged in. Check your dashboard for updates.`,
+            type: 'login',
+            category: 'auth',
+            isRead: false,
+            isEmailSent: false,
+          },
+        });
+      } catch (e) {
+        console.error('Failed to create notification:', e);
+      }
+      try {
+        await postLoginDataDb.auditLog.create({
+          data: {
+            userId: loginUser.id,
+            action: 'LOGIN',
+            module: 'auth',
+            details: `User ${loginUser.email} logged in`,
+            ip: loginIp,
+            userAgent: loginUa,
+          },
+        });
+      } catch (e) {
+        console.error('Failed to create auditLog:', e);
+      }
+    });
     // The previous branding-lockdown (forcing every tenant to "Marq AI Tech Pvt Ltd")
     // has been removed so each tenant keeps its own name (e.g. "Acme Global",
     // "TechStart Solutions", "GlobalHR Services", "Marq AI Tech Pvt Ltd", etc.).

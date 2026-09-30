@@ -223,20 +223,26 @@ export default function SuperAdminPage() {
   const viewRef = useRef<HTMLDivElement>(null);
 
   // ─── Data Fetching ──────────────────────────────────────
-  const fetchDashboard = useCallback(async () => {
+  const fetchDashboard = useCallback(async (signal?: AbortSignal) => {
     try {
       setDashLoading(true);
-      const res = await fetch('/api/super-admin/dashboard', { headers: getAuthHeaders() });
+      const res = await fetch('/api/super-admin/dashboard', { headers: getAuthHeaders(), signal });
+      if (signal?.aborted) return;
       if (res.ok) {
         const data = await res.json();
         setDashboard(data);
       }
       setDashLoading(false);
-      const fullRes = await fetch('/api/super-admin/dashboard?full=1', { headers: getAuthHeaders() });
+      const fullRes = await fetch('/api/super-admin/dashboard?full=1', { headers: getAuthHeaders(), signal });
+      if (signal?.aborted) return;
       if (fullRes.ok) {
         setDashboard(await fullRes.json());
       }
-    } catch { toast.error('Failed to load dashboard'); setDashLoading(false); }
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return;
+      toast.error('Failed to load dashboard');
+      setDashLoading(false);
+    }
   }, []);
 
   const fetchTenants = useCallback(async () => {
@@ -319,7 +325,9 @@ export default function SuperAdminPage() {
   }, [fetchDashboard, fetchTenants]);
 
   useEffect(() => {
-    queueMicrotask(() => fetchDashboard());
+    const ac = new AbortController();
+    queueMicrotask(() => fetchDashboard(ac.signal));
+    return () => ac.abort();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {

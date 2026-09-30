@@ -15,8 +15,10 @@ export async function OPTIONS() {
   return NextResponse.json({}, { headers: corsHeaders() });
 }
 
-let dashboardCache: { at: number; key: string; body: unknown } | null = null;
+let liteDashboardCache: { at: number; host: string; body: Record<string, unknown> } | null = null;
+let fullDashboardCache: { at: number; host: string; body: Record<string, unknown> } | null = null;
 const DASHBOARD_CACHE_MS = 45_000;
+const DASHBOARD_FULL_CACHE_MS = 120_000;
 
 export async function GET(request: Request) {
   const t0 = Date.now();
@@ -37,12 +39,23 @@ export async function GET(request: Request) {
     }
 
     const wantFull = new URL(request.url).searchParams.get('full') === '1';
-    const cacheKey = `${request.headers.get('host') || 'default'}:${wantFull ? 'full' : 'lite'}`;
-    if (dashboardCache && dashboardCache.key === cacheKey && Date.now() - dashboardCache.at < DASHBOARD_CACHE_MS) {
-      return NextResponse.json(dashboardCache.body, {
-        headers: { ...corsHeaders(), 'Server-Timing': 'cache;desc="hit"' },
+    const host = request.headers.get('host') || 'default';
+    if (wantFull && fullDashboardCache && fullDashboardCache.host === host && Date.now() - fullDashboardCache.at < DASHBOARD_FULL_CACHE_MS) {
+      return NextResponse.json(fullDashboardCache.body, {
+        headers: { ...corsHeaders(), 'Server-Timing': 'cache;desc="full-hit"' },
       });
     }
+    if (!wantFull && liteDashboardCache && liteDashboardCache.host === host && Date.now() - liteDashboardCache.at < DASHBOARD_CACHE_MS) {
+      return NextResponse.json(liteDashboardCache.body, {
+        headers: { ...corsHeaders(), 'Server-Timing': 'cache;desc="lite-hit"' },
+      });
+    }
+    const liteHit =
+      liteDashboardCache &&
+      liteDashboardCache.host === host &&
+      Date.now() - liteDashboardCache.at < DASHBOARD_CACHE_MS
+        ? liteDashboardCache.body
+        : null;
 
     const platformDb = getPlatformDb();
     const hiddenSlugs = getServerHiddenSlugs(request);
@@ -57,6 +70,44 @@ export async function GET(request: Request) {
     };
 
     const tDb = Date.now();
+    let payload: Record<string, unknown>;
+
+    if (wantFull && liteHit) {
+      let totalGroupCompanies = 0;
+      let totalCompanies = 0;
+      let totalEmployees = 0;
+      const tenants = await platformDb.tenant.findMany({
+        where: tenantFilter,
+        select: { slug: true },
+      });
+      const dedicatedDbs = await platformDb.tenantDatabase.findMany({
+        where: { isActive: true, tenant: { slug: { in: tenants.map((t) => t.slug).filter(Boolean) as string[] } } },
+        select: { tenant: { select: { slug: true } } },
+      });
+      const dedicatedSlugs = [...new Set(dedicatedDbs.map((r) => r.tenant?.slug).filter(Boolean) as string[])];
+      const tenantTotals = await Promise.all(
+        dedicatedSlugs.map(async (slug) => {
+          try {
+            const tenantDb = await getDbForTenant(slug);
+            const [groupCount, companyCount, employeeCount] = await Promise.all([
+              tenantDb.companyGroup.count(),
+              tenantDb.company.count(),
+              tenantDb.employee.count({ where: { status: 'active' } }),
+            ]);
+            return { groupCount, companyCount, employeeCount };
+          } catch (e) {
+            console.error(`[SuperAdmin Dashboard] Failed to count data for tenant "${slug}":`, e);
+            return { groupCount: 0, companyCount: 0, employeeCount: 0 };
+          }
+        }),
+      );
+      for (const t of tenantTotals) {
+        totalGroupCompanies += t.groupCount;
+        totalCompanies += t.companyCount;
+        totalEmployees += t.employeeCount;
+      }
+      payload = { ...liteHit, totalGroupCompanies, totalCompanies, totalEmployees };
+    } else {
     const now = new Date();
     const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
     const monthWindows = Array.from({ length: 6 }, (_, idx) => {
@@ -242,13 +293,7 @@ export async function GET(request: Request) {
       }
     }
 
-    const dbMs = Date.now() - tDb;
-
-    // ─── Currency info (always INR for live site) ───
-    const currencySymbol = '₹';
-    const currencyCode = 'INR';
-
-    const payload = {
+    const payloadInner = {
       totalTenants,
       activeTenants,
       suspendedTenants,
@@ -265,10 +310,20 @@ export async function GET(request: Request) {
       recentTransactions,
       recentlyRegistered,
       expiringSubscriptions,
-      currencySymbol,
-      currencyCode,
+      currencySymbol: '₹',
+      currencyCode: 'INR',
     };
-    dashboardCache = { at: Date.now(), key: cacheKey, body: payload };
+    payload = payloadInner;
+    liteDashboardCache = { at: Date.now(), host, body: payloadInner };
+    }
+
+    const dbMs = Date.now() - tDb;
+
+    if (wantFull) {
+      fullDashboardCache = { at: Date.now(), host, body: payload };
+    } else {
+      liteDashboardCache = { at: Date.now(), host, body: payload };
+    }
     return NextResponse.json(payload, {
       headers: {
         ...corsHeaders(),

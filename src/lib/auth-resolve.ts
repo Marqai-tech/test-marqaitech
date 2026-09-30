@@ -52,35 +52,50 @@ interface ResolveResult {
 export async function resolveAuthenticatedUser(request: Request): Promise<ResolveResult> {
   const platformDb = getPlatformDb();
 
-  // Get the tenant-scoped DB for data operations
+  const token = getTokenFromHeaders(request);
+  if (!token) {
+    return { user: null, db: platformDb, authDb: platformDb };
+  }
+
+  const decoded = await verifyToken(token);
+  if (!decoded) {
+    return { user: null, db: platformDb, authDb: platformDb };
+  }
+
+  // Super admin RBAC/roles live on the platform DB. Opening the JWT tenant DB
+  // (measured: extra Neon hop before role.findMany) is unnecessary and slow.
+  if ((decoded.role as string) === 'super_admin') {
+    try {
+      const platformUser = await platformDb.user.findUnique({
+        where: { id: decoded.userId as string },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          status: true,
+          avatar: true,
+          tenantId: true,
+        },
+      });
+      if (platformUser) {
+        return { user: platformUser as ResolvedUser, db: platformDb, authDb: platformDb };
+      }
+    } catch (e) {
+      console.error('[AuthResolve] Super admin platform lookup failed:', e);
+    }
+  }
+
   let tenantDb: PrismaClient = platformDb;
   try {
     const tenantSlug = request.headers.get('x-tenant-slug') || '';
     if (tenantSlug) {
       tenantDb = await getDbForTenant(tenantSlug);
-    } else {
-      // Try from JWT
-      const token = getTokenFromHeaders(request);
-      if (token) {
-        const decoded = await verifyToken(token);
-        if (decoded?.tenantId && typeof decoded.tenantId === 'string') {
-          tenantDb = await getDbForTenantById(decoded.tenantId);
-        }
-      }
+    } else if (decoded.tenantId && typeof decoded.tenantId === 'string') {
+      tenantDb = await getDbForTenantById(decoded.tenantId);
     }
   } catch {
     // Fall back to platform DB
-  }
-
-  // Verify the token
-  const token = getTokenFromHeaders(request);
-  if (!token) {
-    return { user: null, db: tenantDb, authDb: platformDb };
-  }
-
-  const decoded = await verifyToken(token);
-  if (!decoded) {
-    return { user: null, db: tenantDb, authDb: platformDb };
   }
 
   const userId = decoded.userId as string;

@@ -23,6 +23,7 @@ export async function OPTIONS() {
  * can write (toggle modules). This endpoint is read-only.
  */
 export async function GET(request: Request) {
+  const t0 = Date.now();
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'No token provided' }, { status: 401, headers: corsHeaders() });
@@ -50,7 +51,10 @@ export async function GET(request: Request) {
       enabled: f.enabled,
     }));
 
-    return NextResponse.json({ modules }, { headers: corsHeaders() });
+    return NextResponse.json(
+      { modules },
+      { headers: { ...corsHeaders(), 'Server-Timing': `total;dur=${Date.now() - t0}` } },
+    );
   } catch (error) {
     console.error('[tenant-modules/public] GET error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() });

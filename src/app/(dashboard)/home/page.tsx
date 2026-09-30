@@ -271,15 +271,17 @@ function SuperAdminHome({ firstName, greeting, today }: { firstName: string; gre
     ? availableCompanies.find((c) => c.id === selectedCompanyId)?.name || 'Unknown'
     : 'All companies';
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
     const headers = getAuthHeaders();
     const safe = async (url: string) => {
       try {
-        const res = await fetch(url, { headers });
+        const res = await fetch(url, { headers, signal });
         if (!res.ok) return null;
         return await res.json();
-      } catch { return null; }
+      } catch {
+        return null;
+      }
     };
 
     const [empData, deptData, logsData] = await Promise.all([
@@ -312,7 +314,9 @@ function SuperAdminHome({ firstName, greeting, today }: { firstName: string; gre
   }, [hydrate]);
 
   useEffect(() => {
-    fetchData();
+    const ac = new AbortController();
+    void fetchData(ac.signal);
+    return () => ac.abort();
   }, [fetchData]);
 
   const quickLinks = [
