@@ -255,6 +255,9 @@ export async function GET(request: Request) {
         'previousEmployer2', 'previousDesignation2', 'previousDuration2', 'previousReason2',
         'previousEmployer3', 'previousDesignation3', 'previousDuration3', 'previousReason3',
         'totalExperience',
+        'pfNumber', 'pfUAN', 'pfNomineeName', 'pfNomineeRelation', 'pfNomineePercentage',
+        'esiNumber', 'esiDispensary', 'esiNomineeName', 'esiNomineeRelation',
+        'professionalTaxNumber', 'lwfNumber',
       ]) {
         try { await empDb.$executeRawUnsafe(`ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "${col}" TEXT`); } catch {}
       }
@@ -343,6 +346,17 @@ export async function GET(request: Request) {
         previousDuration3: rowVal(employee, 'previousDuration3', 'previousduration3') || '',
         previousReason3: rowVal(employee, 'previousReason3', 'previousreason3') || '',
         totalExperience: rowVal(employee, 'totalExperience', 'totalexperience') || '',
+        pfNumber: rowVal(employee, 'pfNumber', 'pfnumber') || '',
+        pfUAN: rowVal(employee, 'pfUAN', 'pfuan') || '',
+        pfNomineeName: rowVal(employee, 'pfNomineeName', 'pfnomineename') || '',
+        pfNomineeRelation: rowVal(employee, 'pfNomineeRelation', 'pfnomineerelation') || '',
+        pfNomineePercentage: rowVal(employee, 'pfNomineePercentage', 'pfnomineepercentage') || '',
+        esiNumber: rowVal(employee, 'esiNumber', 'esinumber') || '',
+        esiDispensary: rowVal(employee, 'esiDispensary', 'esidispensary') || '',
+        esiNomineeName: rowVal(employee, 'esiNomineeName', 'esinomineename') || '',
+        esiNomineeRelation: rowVal(employee, 'esiNomineeRelation', 'esinomineerelation') || '',
+        professionalTaxNumber: rowVal(employee, 'professionalTaxNumber', 'professionaltaxnumber') || '',
+        lwfNumber: rowVal(employee, 'lwfNumber', 'lwfnumber') || '',
         department: department?.name || '',
         designation: designation?.title || '',
         branch: branch?.name || '',
@@ -519,6 +533,17 @@ export async function PATCH(request: Request) {
       ['previousDuration3', body.previousDuration3],
       ['previousReason3', body.previousReason3],
       ['totalExperience', body.totalExperience],
+      ['pfNumber', body.pfNumber],
+      ['pfUAN', body.pfUAN],
+      ['pfNomineeName', body.pfNomineeName],
+      ['pfNomineeRelation', body.pfNomineeRelation],
+      ['pfNomineePercentage', body.pfNomineePercentage],
+      ['esiNumber', body.esiNumber],
+      ['esiDispensary', body.esiDispensary],
+      ['esiNomineeName', body.esiNomineeName],
+      ['esiNomineeRelation', body.esiNomineeRelation],
+      ['professionalTaxNumber', body.professionalTaxNumber],
+      ['lwfNumber', body.lwfNumber],
     ];
     const hasEmpUpdates = stringFields.some(([, v]) => v !== undefined)
       || dateOfBirth !== undefined
@@ -547,6 +572,9 @@ export async function PATCH(request: Request) {
           'previousEmployer2', 'previousDesignation2', 'previousDuration2', 'previousReason2',
           'previousEmployer3', 'previousDesignation3', 'previousDuration3', 'previousReason3',
           'totalExperience',
+          'pfNumber', 'pfUAN', 'pfNomineeName', 'pfNomineeRelation', 'pfNomineePercentage',
+          'esiNumber', 'esiDispensary', 'esiNomineeName', 'esiNomineeRelation',
+          'professionalTaxNumber', 'lwfNumber',
         ];
         for (const col of extraCols) {
           try { await empDb.$executeRawUnsafe(`ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "${col}" TEXT`); } catch {}

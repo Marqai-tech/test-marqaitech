@@ -60,12 +60,12 @@ const profileTabs: { key: ProfileTab; label: string; icon: React.ReactNode }[] =
 
 const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 const FORM_DOC_CATEGORIES = [
-  { value: 'identification', label: 'Identification & Legal' },
-  { value: 'onboarding', label: 'Onboarding & Employment' },
-  { value: 'qualifications', label: 'Qualifications' },
-  { value: 'financial', label: 'Financial & Statutory' },
-  { value: 'lifecycle', label: 'Lifecycle & Performance' },
-  { value: 'other', label: 'Other' },
+  { value: 'identification', label: 'Identification & Legal', icon: '🪪' },
+  { value: 'onboarding', label: 'Onboarding & Employment', icon: '📋' },
+  { value: 'qualifications', label: 'Qualifications', icon: '🎓' },
+  { value: 'financial', label: 'Financial & Statutory', icon: '💰' },
+  { value: 'lifecycle', label: 'Lifecycle & Performance', icon: '📈' },
+  { value: 'other', label: 'Other', icon: '📎' },
 ];
 const DOC_TYPES = ['offer_letter', 'id_proof', 'contract', 'certificate', 'policy', 'aadhaar', 'pan_card', 'bank_proof', 'passport', 'visa', 'education', 'experience', 'medical', 'other'];
 const fieldClass = 'w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 bg-white';
@@ -78,6 +78,26 @@ const emptyDocDraft = () => ({
   expiryDate: '',
   description: '',
 });
+const NOMINEE_RELATIONS = [
+  { value: 'spouse', label: 'Spouse' },
+  { value: 'father', label: 'Father' },
+  { value: 'mother', label: 'Mother' },
+  { value: 'son', label: 'Son' },
+  { value: 'daughter', label: 'Daughter' },
+  { value: 'brother', label: 'Brother' },
+  { value: 'sister', label: 'Sister' },
+  { value: 'other', label: 'Other' },
+];
+const MATCH_ADMIN_TABS: ProfileTab[] = ['address', 'bank', 'emergency', 'health', 'documents'];
+
+function NomineeSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <select value={value} onChange={e => onChange(e.target.value)} className={fieldClass}>
+      <option value="">Select</option>
+      {NOMINEE_RELATIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+    </select>
+  );
+}
 
 function EditField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -245,6 +265,17 @@ export default function MyProfilePage() {
           previousDuration3: (emp?.previousDuration3 as string) || '',
           previousReason3: (emp?.previousReason3 as string) || '',
           totalExperience: (emp?.totalExperience as string) || '',
+          pfNumber: (emp?.pfNumber as string) || '',
+          pfUAN: (emp?.pfUAN as string) || '',
+          pfNomineeName: (emp?.pfNomineeName as string) || '',
+          pfNomineeRelation: (emp?.pfNomineeRelation as string) || '',
+          pfNomineePercentage: (emp?.pfNomineePercentage as string) || '',
+          esiNumber: (emp?.esiNumber as string) || '',
+          esiDispensary: (emp?.esiDispensary as string) || '',
+          esiNomineeName: (emp?.esiNomineeName as string) || '',
+          esiNomineeRelation: (emp?.esiNomineeRelation as string) || '',
+          professionalTaxNumber: (emp?.professionalTaxNumber as string) || '',
+          lwfNumber: (emp?.lwfNumber as string) || '',
         });
       } else {
         const errData = await res.json().catch(() => ({}));
@@ -393,6 +424,8 @@ export default function MyProfilePage() {
   };
 
   const emp = profileData?.employee as Record<string, unknown> | null | undefined;
+  const alwaysForm = MATCH_ADMIN_TABS.includes(activeTab);
+  const showFields = isEditing || alwaysForm;
   const tenant = profileData?.tenant as Record<string, unknown> | null | undefined;
   const debugInfo = profileData?._debug as Record<string, unknown> | undefined;
 
@@ -564,7 +597,7 @@ export default function MyProfilePage() {
               </div>
             </div>
             <div className="flex items-center gap-2 pb-2 shrink-0">
-              {isEditing ? (
+              {showFields ? (
                 <>
                   <button
                     onClick={handleSave}
@@ -574,13 +607,15 @@ export default function MyProfilePage() {
                     {saving ? <FiRefreshCw className="w-4 h-4 animate-spin" /> : <FiCheck className="w-4 h-4" />}
                     {saving ? 'Saving...' : 'Save Changes'}
                   </button>
-                  <button
-                    onClick={() => setIsEditing(false)}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-100 text-slate-600 text-sm font-medium hover:bg-slate-200 transition-colors"
-                  >
-                    <FiX className="w-4 h-4" />
-                    Cancel
-                  </button>
+                  {!alwaysForm && (
+                    <button
+                      onClick={() => setIsEditing(false)}
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-100 text-slate-600 text-sm font-medium hover:bg-slate-200 transition-colors"
+                    >
+                      <FiX className="w-4 h-4" />
+                      Cancel
+                    </button>
+                  )}
                 </>
               ) : (
                 <button
@@ -787,12 +822,12 @@ export default function MyProfilePage() {
         {activeTab === 'address' && (
           <div className="space-y-5">
             <SectionCard title="Permanent Address" icon={<FiHome className="w-4 h-4" />} accent="violet">
-              {isEditing ? (
+              {showFields ? (
                 <div className="col-span-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   <EditField label="Street Address"><input type="text" value={editForm.address || ''} onChange={e => updateEditField('address', e.target.value)} className={fieldClass} /></EditField>
                   <EditField label="City"><input type="text" value={editForm.city || ''} onChange={e => updateEditField('city', e.target.value)} className={fieldClass} /></EditField>
                   <EditField label="State"><input type="text" value={editForm.state || ''} onChange={e => updateEditField('state', e.target.value)} className={fieldClass} /></EditField>
-                  <EditField label="ZIP / Postal Code"><input type="text" value={editForm.zipCode || ''} onChange={e => updateEditField('zipCode', e.target.value)} className={fieldClass} /></EditField>
+                  <EditField label="ZIP Code"><input type="text" value={editForm.zipCode || ''} onChange={e => updateEditField('zipCode', e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="6-digit PIN" className={fieldClass} /></EditField>
                   <EditField label="Country"><input type="text" value={editForm.country || ''} onChange={e => updateEditField('country', e.target.value)} className={fieldClass} /></EditField>
                 </div>
               ) : (
@@ -806,12 +841,12 @@ export default function MyProfilePage() {
               )}
             </SectionCard>
             <SectionCard title="Current Address" icon={<FiMapPin className="w-4 h-4" />} accent="teal">
-              {isEditing ? (
+              {showFields ? (
                 <div className="col-span-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   <EditField label="Street Address"><input type="text" value={editForm.currentAddress || ''} onChange={e => updateEditField('currentAddress', e.target.value)} className={fieldClass} /></EditField>
                   <EditField label="City"><input type="text" value={editForm.currentCity || ''} onChange={e => updateEditField('currentCity', e.target.value)} className={fieldClass} /></EditField>
                   <EditField label="State"><input type="text" value={editForm.currentState || ''} onChange={e => updateEditField('currentState', e.target.value)} className={fieldClass} /></EditField>
-                  <EditField label="ZIP / Postal Code"><input type="text" value={editForm.currentZipCode || ''} onChange={e => updateEditField('currentZipCode', e.target.value)} className={fieldClass} /></EditField>
+                  <EditField label="ZIP Code"><input type="text" value={editForm.currentZipCode || ''} onChange={e => updateEditField('currentZipCode', e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="6-digit PIN" className={fieldClass} /></EditField>
                   <EditField label="Country"><input type="text" value={editForm.currentCountry || ''} onChange={e => updateEditField('currentCountry', e.target.value)} className={fieldClass} /></EditField>
                 </div>
               ) : (
@@ -852,33 +887,70 @@ export default function MyProfilePage() {
         {activeTab === 'bank' && (
           <div className="space-y-5">
             <SectionCard title="Bank Account Details" icon={<FiCreditCard className="w-4 h-4" />} accent="emerald">
-              {isEditing ? (
+              {showFields ? (
                 <div className="col-span-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   <EditField label="Bank Name"><input type="text" value={editForm.bankName || ''} onChange={e => updateEditField('bankName', e.target.value)} className={fieldClass} /></EditField>
-                  <EditField label="Account Number"><input type="text" value={editForm.bankAccountNo || ''} onChange={e => updateEditField('bankAccountNo', e.target.value)} className={fieldClass} /></EditField>
-                  <EditField label="IFSC Code"><input type="text" value={editForm.bankIfscCode || ''} onChange={e => updateEditField('bankIfscCode', e.target.value)} className={fieldClass} /></EditField>
+                  <EditField label="Bank Account No"><input type="text" value={editForm.bankAccountNo || ''} onChange={e => updateEditField('bankAccountNo', e.target.value.replace(/\D/g, '').slice(0, 18))} placeholder="9-18 digits" className={fieldClass} /></EditField>
+                  <EditField label="IFSC Code"><input type="text" value={editForm.bankIfscCode || ''} onChange={e => updateEditField('bankIfscCode', e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 11))} placeholder="e.g., SBIN0001234" className={fieldClass} /></EditField>
+                  <EditField label="PAN Number"><input type="text" value={editForm.panNumber || ''} onChange={e => updateEditField('panNumber', e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10))} placeholder="e.g., ABCDE1234F" className={fieldClass} /></EditField>
+                  <EditField label="Aadhaar Number"><input type="text" value={editForm.aadhaarNumber || ''} onChange={e => updateEditField('aadhaarNumber', e.target.value.replace(/\D/g, '').slice(0, 12))} placeholder="12-digit UID" className={fieldClass} /></EditField>
                 </div>
               ) : (
                 <>
                   <InfoRow label="Bank Name" value={str(emp?.bankName)} icon={<FiCreditCard className="w-3.5 h-3.5" />} />
-                  <InfoRow label="Account Number" value={str(emp?.bankAccountNo)} icon={<FiHash className="w-3.5 h-3.5" />} />
+                  <InfoRow label="Bank Account No" value={str(emp?.bankAccountNo)} icon={<FiHash className="w-3.5 h-3.5" />} />
                   <InfoRow label="IFSC Code" value={str(emp?.bankIfscCode)} icon={<FiHash className="w-3.5 h-3.5" />} />
+                  <InfoRow label="PAN Number" value={str(emp?.panNumber)} icon={<FiFileText className="w-3.5 h-3.5" />} />
+                  <InfoRow label="Aadhaar Number" value={str(emp?.aadhaarNumber)} icon={<FiShield className="w-3.5 h-3.5" />} />
                 </>
               )}
             </SectionCard>
-
-            <SectionCard title="Identity & Tax" icon={<FiShield className="w-4 h-4" />} accent="violet">
-              {isEditing ? (
+            <SectionCard title="Provident Fund (PF)" icon={<FiShield className="w-4 h-4" />} accent="violet">
+              {showFields ? (
                 <div className="col-span-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <EditField label="PAN Number"><input type="text" value={editForm.panNumber || ''} onChange={e => updateEditField('panNumber', e.target.value)} className={fieldClass} /></EditField>
-                  <EditField label="Aadhaar Number"><input type="text" value={editForm.aadhaarNumber || ''} onChange={e => updateEditField('aadhaarNumber', e.target.value)} className={fieldClass} /></EditField>
-                  <EditField label="Tax ID"><input type="text" value={editForm.taxId || ''} onChange={e => updateEditField('taxId', e.target.value)} className={fieldClass} /></EditField>
+                  <EditField label="PF Number"><input type="text" value={editForm.pfNumber || ''} onChange={e => updateEditField('pfNumber', e.target.value)} placeholder="e.g., PF/MH/12345/678" className={fieldClass} /></EditField>
+                  <EditField label="UAN Number"><input type="text" value={editForm.pfUAN || ''} onChange={e => updateEditField('pfUAN', e.target.value.replace(/\D/g, '').slice(0, 12))} placeholder="12-digit UAN" className={fieldClass} /></EditField>
+                  <EditField label="Nominee Name"><input type="text" value={editForm.pfNomineeName || ''} onChange={e => updateEditField('pfNomineeName', e.target.value)} placeholder="Full name of nominee" className={fieldClass} /></EditField>
+                  <EditField label="Nominee Relationship"><NomineeSelect value={editForm.pfNomineeRelation || ''} onChange={(v) => updateEditField('pfNomineeRelation', v)} /></EditField>
+                  <EditField label="Nomination Percentage"><input type="number" min="0" max="100" value={editForm.pfNomineePercentage || ''} onChange={e => updateEditField('pfNomineePercentage', e.target.value)} placeholder="e.g., 100" className={fieldClass} /></EditField>
                 </div>
               ) : (
                 <>
-                  <InfoRow label="PAN Number" value={str(emp?.panNumber)} icon={<FiFileText className="w-3.5 h-3.5" />} />
-                  <InfoRow label="Aadhaar Number" value={str(emp?.aadhaarNumber)} icon={<FiShield className="w-3.5 h-3.5" />} />
-                  <InfoRow label="Tax ID" value={str(emp?.taxId)} icon={<FiFileText className="w-3.5 h-3.5" />} />
+                  <InfoRow label="PF Number" value={str(emp?.pfNumber)} />
+                  <InfoRow label="UAN Number" value={str(emp?.pfUAN)} />
+                  <InfoRow label="Nominee Name" value={str(emp?.pfNomineeName)} />
+                  <InfoRow label="Nominee Relationship" value={NOMINEE_RELATIONS.find(o => o.value === str(emp?.pfNomineeRelation))?.label || str(emp?.pfNomineeRelation)} />
+                  <InfoRow label="Nomination Percentage" value={str(emp?.pfNomineePercentage)} />
+                </>
+              )}
+            </SectionCard>
+            <SectionCard title="Employee State Insurance (ESI)" icon={<FiHeart className="w-4 h-4" />} accent="rose">
+              {showFields ? (
+                <div className="col-span-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <EditField label="ESI Number"><input type="text" value={editForm.esiNumber || ''} onChange={e => updateEditField('esiNumber', e.target.value)} placeholder="e.g., 31-00-123456-000-0001" className={fieldClass} /></EditField>
+                  <EditField label="ESI Dispensary"><input type="text" value={editForm.esiDispensary || ''} onChange={e => updateEditField('esiDispensary', e.target.value)} placeholder="Assigned dispensary name" className={fieldClass} /></EditField>
+                  <EditField label="Nominee Name"><input type="text" value={editForm.esiNomineeName || ''} onChange={e => updateEditField('esiNomineeName', e.target.value)} placeholder="Full name of nominee" className={fieldClass} /></EditField>
+                  <EditField label="Nominee Relationship"><NomineeSelect value={editForm.esiNomineeRelation || ''} onChange={(v) => updateEditField('esiNomineeRelation', v)} /></EditField>
+                </div>
+              ) : (
+                <>
+                  <InfoRow label="ESI Number" value={str(emp?.esiNumber)} />
+                  <InfoRow label="ESI Dispensary" value={str(emp?.esiDispensary)} />
+                  <InfoRow label="Nominee Name" value={str(emp?.esiNomineeName)} />
+                  <InfoRow label="Nominee Relationship" value={NOMINEE_RELATIONS.find(o => o.value === str(emp?.esiNomineeRelation))?.label || str(emp?.esiNomineeRelation)} />
+                </>
+              )}
+            </SectionCard>
+            <SectionCard title="Other Statutory" icon={<FiFileText className="w-4 h-4" />} accent="amber">
+              {showFields ? (
+                <div className="col-span-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <EditField label="Professional Tax Number"><input type="text" value={editForm.professionalTaxNumber || ''} onChange={e => updateEditField('professionalTaxNumber', e.target.value)} placeholder="PT registration number" className={fieldClass} /></EditField>
+                  <EditField label="LWF Number"><input type="text" value={editForm.lwfNumber || ''} onChange={e => updateEditField('lwfNumber', e.target.value)} placeholder="Labour Welfare Fund number" className={fieldClass} /></EditField>
+                </div>
+              ) : (
+                <>
+                  <InfoRow label="Professional Tax Number" value={str(emp?.professionalTaxNumber)} />
+                  <InfoRow label="LWF Number" value={str(emp?.lwfNumber)} />
                 </>
               )}
             </SectionCard>
@@ -888,16 +960,16 @@ export default function MyProfilePage() {
         {activeTab === 'emergency' && (
           <div className="space-y-5">
             <SectionCard title="Emergency Contact" icon={<FiHeart className="w-4 h-4" />} accent="rose">
-              {isEditing ? (
+              {showFields ? (
                 <div className="col-span-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <EditField label="Contact Name"><input type="text" value={editForm.emergencyContactName || ''} onChange={e => updateEditField('emergencyContactName', e.target.value)} className={fieldClass} /></EditField>
-                  <EditField label="Relationship"><input type="text" value={editForm.emergencyContactRelation || ''} onChange={e => updateEditField('emergencyContactRelation', e.target.value)} placeholder="e.g. Spouse, Parent" className={fieldClass} /></EditField>
-                  <EditField label="Contact Phone"><input type="tel" value={editForm.emergencyContactPhone || ''} onChange={e => updateEditField('emergencyContactPhone', e.target.value)} className={fieldClass} /></EditField>
+                  <EditField label="Emergency Contact Name"><input type="text" value={editForm.emergencyContactName || ''} onChange={e => updateEditField('emergencyContactName', e.target.value)} className={fieldClass} /></EditField>
+                  <EditField label="Emergency Contact Phone"><input type="tel" value={editForm.emergencyContactPhone || ''} onChange={e => updateEditField('emergencyContactPhone', e.target.value.replace(/\D/g, '').slice(0, 10))} placeholder="10-digit mobile" className={fieldClass} /></EditField>
+                  <EditField label="Relationship"><NomineeSelect value={editForm.emergencyContactRelation || ''} onChange={(v) => updateEditField('emergencyContactRelation', v)} /></EditField>
                 </div>
               ) : (
                 <>
                   <InfoRow label="Contact Name" value={str(emp?.emergencyContactName)} icon={<FiUser className="w-3.5 h-3.5" />} />
-                  <InfoRow label="Relationship" value={str(emp?.emergencyContactRelation)} />
+                  <InfoRow label="Relationship" value={NOMINEE_RELATIONS.find(o => o.value === str(emp?.emergencyContactRelation))?.label || str(emp?.emergencyContactRelation)} />
                   <InfoRow label="Contact Phone" value={str(emp?.emergencyContactPhone)} icon={<FiPhone className="w-3.5 h-3.5" />} />
                 </>
               )}
@@ -909,7 +981,7 @@ export default function MyProfilePage() {
         {activeTab === 'health' && (
           <div className="space-y-5">
             <SectionCard title="Health History" icon={<FiShield className="w-4 h-4" />} accent="rose">
-              {isEditing ? (
+              {showFields ? (
                 <div className="col-span-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   <EditField label="Blood Group">
                     <select value={editForm.bloodGroup || ''} onChange={e => updateEditField('bloodGroup', e.target.value)} className={fieldClass}>
@@ -952,7 +1024,7 @@ export default function MyProfilePage() {
               )}
             </SectionCard>
             <SectionCard title="Emergency Medical & Insurance" icon={<FiActivity className="w-4 h-4" />} accent="amber">
-              {isEditing ? (
+              {showFields ? (
                 <div className="col-span-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   <EditField label="Emergency Medical Condition"><input type="text" value={editForm.emergencyMedicalCondition || ''} onChange={e => updateEditField('emergencyMedicalCondition', e.target.value)} className={fieldClass} /></EditField>
                   <EditField label="Primary Physician Name"><input type="text" value={editForm.primaryPhysicianName || ''} onChange={e => updateEditField('primaryPhysicianName', e.target.value)} className={fieldClass} /></EditField>
@@ -1062,7 +1134,7 @@ export default function MyProfilePage() {
         {/* ─── Documents Tab ─── */}
         {activeTab === 'documents' && (
           <div className="space-y-5">
-            {isEditing && (
+            {showFields && (
               <SectionCard title="Add Document" icon={<FiPlus className="w-4 h-4" />} accent="emerald">
                 <div className="col-span-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   <EditField label="Document Name">
@@ -1070,7 +1142,7 @@ export default function MyProfilePage() {
                   </EditField>
                   <EditField label="Category">
                     <select value={docDraft.category} onChange={e => setDocDraft(prev => ({ ...prev, category: e.target.value }))} className={fieldClass}>
-                      {FORM_DOC_CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+                      {FORM_DOC_CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.icon} {c.label}</option>)}
                     </select>
                   </EditField>
                   <EditField label="Document Type">
@@ -1142,7 +1214,7 @@ export default function MyProfilePage() {
                             <FiDownload className="w-3 h-3" /> Download
                           </a>
                         )}
-                        {isEditing && str(doc.id) && (
+                        {showFields && str(doc.id) && (
                           <button type="button" onClick={() => handleDeleteDocument(str(doc.id))} className="p-1.5 text-red-500 hover:bg-red-50 rounded" title="Delete document">
                             <FiX className="w-3.5 h-3.5" />
                           </button>
@@ -1166,7 +1238,7 @@ export default function MyProfilePage() {
                     <FiFileText className="w-7 h-7 text-thb-text-muted" />
                   </div>
                   <h3 className="text-sm font-semibold text-thb-text-primary mb-1">No Documents</h3>
-                  <p className="text-xs text-thb-text-muted">{isEditing ? 'Use the form above to add a document with type.' : 'Click Edit Profile to add documents.'}</p>
+                  <p className="text-xs text-thb-text-muted">{showFields ? 'Use the form above to add a document with type.' : 'Click Edit Profile to add documents.'}</p>
                 </div>
               </div>
             )}

@@ -2251,7 +2251,17 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Relationship</label>
-                      <input type="text" value={form.emergencyContactRelation} onChange={e => updateForm('emergencyContactRelation', e.target.value)} placeholder="e.g. Spouse, Parent" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
+                      <select value={form.emergencyContactRelation} onChange={e => updateForm('emergencyContactRelation', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
+                        <option value="">Select</option>
+                        <option value="spouse">Spouse</option>
+                        <option value="father">Father</option>
+                        <option value="mother">Mother</option>
+                        <option value="son">Son</option>
+                        <option value="daughter">Daughter</option>
+                        <option value="brother">Brother</option>
+                        <option value="sister">Sister</option>
+                        <option value="other">Other</option>
+                      </select>
                     </div>
                   </div>
                   <div className="flex items-center justify-between pt-2">

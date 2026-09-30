@@ -194,6 +194,9 @@ const EXTRA_PROFILE_KEYS = [
   'previousEmployer2', 'previousDesignation2', 'previousDuration2', 'previousReason2',
   'previousEmployer3', 'previousDesignation3', 'previousDuration3', 'previousReason3',
   'totalExperience',
+  'pfNumber', 'pfUAN', 'pfNomineeName', 'pfNomineeRelation', 'pfNomineePercentage',
+  'esiNumber', 'esiDispensary', 'esiNomineeName', 'esiNomineeRelation',
+  'professionalTaxNumber', 'lwfNumber',
 ];
 
 async function ensureEmployeeProfileColumns(db: PrismaClient) {
