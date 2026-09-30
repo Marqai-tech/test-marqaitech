@@ -32,7 +32,8 @@ import {
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
-import { canAccessEmployeeSettings } from '@/lib/roleAccess';
+import { canAccessEmployeeSettings, canEditEmployeeRecords } from '@/lib/roleAccess';
+import { fileToProfilePhotoDataUrl, MAX_PROFILE_PHOTO_LABEL } from '@/lib/profile-photo';
 import {
   validateEmail as validateEmailFormat,
   validatePhone,
@@ -328,7 +329,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
   const searchParams = useSearchParams();
   const editIdFromUrl = searchParams.get('editId');
   const { user, fetchUser } = useAuthStore();
-  const isAdmin = ['super_admin', 'tenant_admin', 'admin', 'hr_admin', 'company_hr_admin', 'hrhead'].includes(user?.role || '');
+  const isAdmin = canEditEmployeeRecords(user?.role);
   const canOpenEmployeeSettings = canAccessEmployeeSettings(user?.role);
   const { effectiveCompanyId, selectedTenantId, availableCompanies, scopeQuery } = useCompanyContextStore();
   const scopeCompanyId = effectiveCompanyId();
@@ -696,6 +697,11 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
   /* Handle editId from URL (navigated from employee view page Edit button) */
   useEffect(() => {
     if (!editIdFromUrl) return;
+    if (!canEditEmployeeRecords(user?.role)) {
+      toast.error('You can view this profile but cannot edit it');
+      router.replace(`/employees/${editIdFromUrl}`);
+      return;
+    }
     const fetchAndOpenEdit = async () => {
       try {
         const res = await fetch(`/api/employees/${editIdFromUrl}`, { headers: getAuthHeaders() });
@@ -815,7 +821,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
       }
     };
     fetchAndOpenEdit();
-  }, [editIdFromUrl]);
+  }, [editIdFromUrl, user?.role, router]);
 
   /* Handle showAddForm from URL (navigated from /employees/add redirect) */
   useEffect(() => {
@@ -1218,23 +1224,17 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
   const updateForm = (field: string, value: string) => setForm(prev => ({ ...prev, [field]: value }));
 
   /* Photo upload handler */
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = '';
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('Photo must be under 5MB');
+    const result = await fileToProfilePhotoDataUrl(file);
+    if (!result.ok) {
+      toast.error(result.error);
       return;
     }
-    if (!file.type.startsWith('image/')) {
-      toast.error('Please upload an image file');
-      return;
-    }
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setPhotoPreview(reader.result as string);
-      updateForm('avatar', reader.result as string);
-    };
-    reader.readAsDataURL(file);
+    setPhotoPreview(result.dataUrl);
+    updateForm('avatar', result.dataUrl);
   };
 
   /* ── Documents tab handlers ── */
@@ -1717,7 +1717,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                     </div>
                     <div>
                       <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Employee Photo</p>
-                      <p className="text-xs text-gray-500">JPG, PNG or GIF. Max 5MB.</p>
+                      <p className="text-xs text-gray-500">JPG, PNG or GIF. Max {MAX_PROFILE_PHOTO_LABEL}.</p>
                     </div>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

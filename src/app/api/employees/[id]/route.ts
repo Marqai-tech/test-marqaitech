@@ -4,6 +4,8 @@ import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { createNotification } from '@/lib/notifications';
 import { sendEmail } from '@/lib/email-sender';
 import { invalidateMeCacheForUser } from '@/lib/me-response-cache';
+import { canEditEmployeeRecords } from '@/lib/roleAccess';
+import { profilePhotoPayloadError } from '@/lib/profile-photo';
 import type { PrismaClient } from '@prisma/client';
 
 function corsHeaders() {
@@ -371,6 +373,21 @@ export async function PUT(
     const body = await request.json();
 
     try {
+      const token = getTokenFromHeaders(request);
+      if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
+      const decoded = await verifyToken(token);
+      if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401, headers: corsHeaders() });
+      if (!canEditEmployeeRecords(decoded.role as string)) {
+        return NextResponse.json(
+          { error: 'You can view this profile but cannot edit it' },
+          { status: 403, headers: corsHeaders() }
+        );
+      }
+      const avatarError = profilePhotoPayloadError(body.avatar);
+      if (avatarError) {
+        return NextResponse.json({ error: avatarError }, { status: 400, headers: corsHeaders() });
+      }
+
       // Try to find employee by id first, then by employeeId
       let existingEmployee = await db.employee.findUnique({ where: { id } });
       if (!existingEmployee) {

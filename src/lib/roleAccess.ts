@@ -371,6 +371,11 @@ export function canAccessEmployeeSettings(role?: string | null): boolean {
   return ['super_admin', 'tenant_admin', 'admin'].includes(role || '');
 }
 
+/** Create or edit another person’s employee record (not view-only). */
+export function canEditEmployeeRecords(role?: string | null): boolean {
+  return ['super_admin', 'tenant_admin', 'admin', 'hr_admin', 'company_hr_admin', 'hrhead'].includes(role || '');
+}
+
 /**
  * Legacy role migration map — maps old role keys to the new 5-role system.
  * Used for migrating existing users and role assignments.

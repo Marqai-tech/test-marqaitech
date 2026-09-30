@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb, getDbForTenant } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
-import { getDataScope } from '@/lib/roleAccess';
+import { getDataScope, canEditEmployeeRecords } from '@/lib/roleAccess';
 import { getEmployeeCompanyFilter, getCompanyFilter, getAuthInfo, resolveCompanyScope } from '@/lib/companyScope';
 import { checkTenantStatusOrBlock } from '@/lib/tenant-guard';
 import { isServerLiveSite } from '@/lib/tenant-filter';
 // Note: isServerLiveSite is used later for the manual guard on normal queries
 import { validateEmail, validatePhone, validateAadhaar, validatePAN, validateIFSC, validateBankAccount, validateOfficialEmail } from '@/lib/validators';
+import { profilePhotoPayloadError } from '@/lib/profile-photo';
 
 function generateRandomPassword(length = 12): string {
   const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -643,6 +644,11 @@ export async function POST(request: Request) {
         { error: `Please fill in the required fields: ${missingFields.join(', ')}`, missingFields },
         { status: 400, headers: corsHeaders() }
       );
+    }
+
+    const avatarError = profilePhotoPayloadError(avatar);
+    if (avatarError) {
+      return NextResponse.json({ error: avatarError }, { status: 400, headers: corsHeaders() });
     }
 
     // ─── Server-side validation ───

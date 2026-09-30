@@ -39,7 +39,7 @@ import {
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
-import { canAccessEmployeeSettings } from '@/lib/roleAccess';
+import { canAccessEmployeeSettings, canEditEmployeeRecords } from '@/lib/roleAccess';
 import { employeePhotoUrl } from '@/lib/profile-photo';
 
 function getAuthHeaders() {
@@ -287,6 +287,7 @@ export default function EmployeeDetailPage() {
   const id = params.id as string;
   const { user } = useAuthStore();
   const canManageMappings = canAccessEmployeeSettings(user?.role);
+  const canEditRecord = canEditEmployeeRecords(user?.role);
   const scopeQuery = useCompanyContextStore(s => s.scopeQuery);
   const selectedTenantId = useCompanyContextStore(s => s.selectedTenantId);
 
@@ -455,6 +456,12 @@ export default function EmployeeDetailPage() {
   const badge = getStatusBadge(employee.status);
   const initials = `${employee.firstName[0]}${employee.lastName[0]}`;
   const profilePhoto = employeePhotoUrl(employee);
+  const isOwnProfile = Boolean(
+    (user?.employee?.id && user.employee.id === employee.id)
+    || (user?.id && employee.user?.id && user.id === employee.user.id)
+    || (user?.email && employee.email && user.email.toLowerCase() === employee.email.toLowerCase()),
+  );
+  const profileViewOnly = !canEditRecord && !isOwnProfile;
   const daysEmployed = Math.floor((now - new Date(employee.dateOfJoining).getTime()) / (1000 * 60 * 60 * 24));
   const totalLeaveBalance = employee.leaveBalances?.reduce((sum, lb) => sum + lb.remaining, 0) || 0;
   const attendanceRate = attendance.length > 0 ? Math.round((attendance.filter(a => ['present', 'late'].includes(a.status)).length / attendance.length) * 100) : 0;
@@ -524,6 +531,7 @@ export default function EmployeeDetailPage() {
 
             {/* Action Buttons */}
             <div className="flex items-center gap-2 flex-shrink-0 sm:pb-1">
+              {canEditRecord && (
               <button
                 onClick={() => router.push(`/employees?editId=${id}`)}
                 className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-teal-600 via-fuchsia-500 to-cyan-500 text-white rounded-lg text-sm font-medium hover:from-teal-700 hover:via-fuchsia-600 hover:to-cyan-600 transition-all shadow-md shadow-fuchsia-200/50"
@@ -531,6 +539,12 @@ export default function EmployeeDetailPage() {
                 <FiEdit2 className="w-3.5 h-3.5" />
                 Edit
               </button>
+              )}
+              {profileViewOnly && (
+                <span className="inline-flex items-center gap-2 px-3 py-2 text-xs font-medium text-slate-500 bg-slate-50 border border-slate-200 rounded-lg">
+                  View only
+                </span>
+              )}
               <button
                 onClick={() => router.push('/employees')}
                 className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-thb-border text-thb-text-secondary rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors shadow-sm"
@@ -845,7 +859,7 @@ export default function EmployeeDetailPage() {
 
           {/* ── Documents Tab ── */}
           {activeTab === 'Documents' && (
-            <EmployeeDocumentsTab employeeId={employee.id} initialDocuments={employee.documents || []} />
+            <EmployeeDocumentsTab employeeId={employee.id} initialDocuments={employee.documents || []} viewOnly={profileViewOnly} />
           )}
 
           {/* ── Leave Tab ── */}
@@ -1217,9 +1231,9 @@ const DOC_CATEGORIES = [
 ];
 const DOC_TYPES = ['offer_letter','id_proof','contract','certificate','policy','other','aadhaar','pan_card','bank_proof','passport','visa','education','experience','medical'];
 
-function EmployeeDocumentsTab({ employeeId, initialDocuments }: { employeeId: string; initialDocuments: EmployeeDocument[] }) {
+function EmployeeDocumentsTab({ employeeId, initialDocuments, viewOnly = false }: { employeeId: string; initialDocuments: EmployeeDocument[]; viewOnly?: boolean }) {
   const { user } = useAuthStore();
-  const isAdmin = ['super_admin','tenant_admin','admin','hr_admin'].includes(user?.role || '');
+  const isAdmin = canEditEmployeeRecords(user?.role);
   const [documents, setDocuments] = useState<EmployeeDocument[]>(initialDocuments);
   const [showUpload, setShowUpload] = useState(false);
   const [showBulkUpload, setShowBulkUpload] = useState(false);
@@ -1259,17 +1273,21 @@ function EmployeeDocumentsTab({ employeeId, initialDocuments }: { employeeId: st
           <p className="text-xs text-thb-text-muted mt-0.5">{documents.length} documents · centralized in File Manager</p>
         </div>
         <div className="flex items-center gap-2">
-          {isAdmin && (
+          {isAdmin && !viewOnly && (
             <button onClick={() => setShowRequest(true)} className="inline-flex items-center gap-2 px-3 py-2 border border-thb-border rounded-lg text-xs font-medium text-thb-text-secondary hover:bg-slate-50">
               <FiAlertCircle className="w-3.5 h-3.5" /> Request Document
             </button>
           )}
+          {!viewOnly && (
           <button onClick={() => setShowBulkUpload(true)} className="inline-flex items-center gap-2 px-3 py-2 border border-green-600 text-green-700 rounded-lg text-xs font-medium hover:bg-green-50">
             <FiLayers className="w-3.5 h-3.5" /> Bulk Upload
           </button>
+          )}
+          {!viewOnly && (
           <button onClick={() => setShowUpload(true)} className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg text-xs font-medium hover:bg-green-700">
             <FiUpload className="w-3.5 h-3.5" /> Upload Document
           </button>
+          )}
         </div>
       </div>
 
@@ -1324,7 +1342,7 @@ function EmployeeDocumentsTab({ employeeId, initialDocuments }: { employeeId: st
                 </div>
                 <div className="mt-3 flex items-center gap-2">
                   {doc.fileUrl && <a href={doc.fileUrl} {...((doc.fileUrl || '').startsWith('data:') ? { download: doc.name } : { target: '_blank', rel: 'noopener noreferrer' })} className="inline-flex items-center gap-1 px-2 py-1 text-[11px] text-teal-600 hover:bg-teal-50 rounded"><FiDownload className="w-3 h-3" /> Download</a>}
-                  {isAdmin && <button onClick={() => handleDelete(doc.id, doc.name)} className="inline-flex items-center gap-1 px-2 py-1 text-[11px] text-red-500 hover:bg-red-50 rounded ml-auto"><FiTrash2 className="w-3 h-3" /></button>}
+                  {isAdmin && !viewOnly && <button onClick={() => handleDelete(doc.id, doc.name)} className="inline-flex items-center gap-1 px-2 py-1 text-[11px] text-red-500 hover:bg-red-50 rounded ml-auto"><FiTrash2 className="w-3 h-3" /></button>}
                 </div>
               </div>
             );
