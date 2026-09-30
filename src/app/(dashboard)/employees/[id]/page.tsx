@@ -190,6 +190,11 @@ interface EmployeeData {
   state?: string | null;
   zipCode?: string | null;
   country?: string | null;
+  currentAddress?: string | null;
+  currentCity?: string | null;
+  currentState?: string | null;
+  currentZipCode?: string | null;
+  currentCountry?: string | null;
   bloodGroup?: string | null;
   bankName?: string | null;
   bankAccountNo?: string | null;
@@ -200,6 +205,7 @@ interface EmployeeData {
   salaryCurrency?: string;
   emergencyContactName?: string | null;
   emergencyContactPhone?: string | null;
+  emergencyContactRelation?: string | null;
   leaveBalances?: Array<{
     id: string;
     total: number;
@@ -645,11 +651,8 @@ export default function EmployeeDetailPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-0">
                   <InfoField label="Email" value={employee.email} icon={<FiMail className="w-3.5 h-3.5" />} />
                   <InfoField label="Phone" value={employee.phone} icon={<FiPhone className="w-3.5 h-3.5" />} />
-                  <InfoField label="Address" value={employee.address} icon={<FiHome className="w-3.5 h-3.5" />} />
-                  <InfoField label="City" value={employee.city} icon={<FiMapPin className="w-3.5 h-3.5" />} />
-                  <InfoField label="State" value={employee.state} />
-                  <InfoField label="ZIP Code" value={employee.zipCode} />
-                  <InfoField label="Country" value={employee.country} icon={<FiGlobe className="w-3.5 h-3.5" />} />
+                  <InfoField label="Permanent Address" value={[employee.address, employee.city, employee.state, employee.zipCode, employee.country].filter(Boolean).join(', ') || null} icon={<FiHome className="w-3.5 h-3.5" />} />
+                  <InfoField label="Current Address" value={[employee.currentAddress, employee.currentCity, employee.currentState, employee.currentZipCode, employee.currentCountry].filter(Boolean).join(', ') || null} icon={<FiMapPin className="w-3.5 h-3.5" />} />
                 </div>
               </SectionCard>
 
@@ -665,7 +668,7 @@ export default function EmployeeDetailPage() {
                     navigateHint="Open reporting manager profile"
                   />
                   <InfoField label="Direct Reports" value={employee._count?.directReports ? `${employee._count.directReports} team member${employee._count.directReports === 1 ? '' : 's'}` : '—'} icon={<FiUsers className="w-3.5 h-3.5" />} />
-                  <InfoField label="Designation" value={employee.designation?.title} icon={<FiUser className="w-3.5 h-3.5" />} />
+                  <InfoField label="Reporting Manager Designation" value={employee.reportingManager?.designation?.title} icon={<FiUser className="w-3.5 h-3.5" />} />
                 </div>
                 <p className="text-xs text-thb-text-muted mt-2 ml-3">Leave approvals, workflow notifications and the org chart position are driven by the reporting manager. Admins can change it via Edit → Employment.</p>
               </SectionCard>
@@ -674,6 +677,7 @@ export default function EmployeeDetailPage() {
               <SectionCard title="Emergency Contact" icon={<FiHeart className="w-4 h-4 text-rose-500" />} accentGradient="from-rose-500 via-pink-400 to-fuchsia-400">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-0">
                   <InfoField label="Contact Name" value={employee.emergencyContactName} icon={<FiUser className="w-3.5 h-3.5" />} />
+                  <InfoField label="Relationship" value={employee.emergencyContactRelation} />
                   <InfoField label="Contact Phone" value={employee.emergencyContactPhone} icon={<FiPhone className="w-3.5 h-3.5" />} />
                 </div>
               </SectionCard>
@@ -714,8 +718,7 @@ export default function EmployeeDetailPage() {
                 </div>
               </SectionCard>
 
-              {/* Address */}
-              <SectionCard title="Address" icon={<FiMapPin className="w-4 h-4 text-emerald-500" />} accentGradient="from-emerald-500 via-teal-400 to-cyan-400">
+              <SectionCard title="Permanent Address" icon={<FiHome className="w-4 h-4 text-emerald-500" />} accentGradient="from-emerald-500 via-teal-400 to-cyan-400">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-0">
                   <InfoField label="Street Address" value={employee.address} icon={<FiHome className="w-3.5 h-3.5" />} />
                   <InfoField label="City" value={employee.city} icon={<FiMapPin className="w-3.5 h-3.5" />} />
@@ -725,10 +728,21 @@ export default function EmployeeDetailPage() {
                 </div>
               </SectionCard>
 
+              <SectionCard title="Current Address" icon={<FiMapPin className="w-4 h-4 text-cyan-500" />} accentGradient="from-cyan-500 via-teal-400 to-emerald-400">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-0">
+                  <InfoField label="Street Address" value={employee.currentAddress} icon={<FiMapPin className="w-3.5 h-3.5" />} />
+                  <InfoField label="City" value={employee.currentCity} icon={<FiMapPin className="w-3.5 h-3.5" />} />
+                  <InfoField label="State" value={employee.currentState} />
+                  <InfoField label="ZIP Code" value={employee.currentZipCode} />
+                  <InfoField label="Country" value={employee.currentCountry} icon={<FiGlobe className="w-3.5 h-3.5" />} />
+                </div>
+              </SectionCard>
+
               {/* Emergency Contact */}
               <SectionCard title="Emergency Contact" icon={<FiHeart className="w-4 h-4 text-rose-500" />} accentGradient="from-rose-500 via-pink-400 to-fuchsia-400">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-0">
                   <InfoField label="Contact Name" value={employee.emergencyContactName} icon={<FiUser className="w-3.5 h-3.5" />} />
+                  <InfoField label="Relationship" value={employee.emergencyContactRelation} />
                   <InfoField label="Contact Phone" value={employee.emergencyContactPhone} icon={<FiPhone className="w-3.5 h-3.5" />} />
                 </div>
               </SectionCard>
@@ -786,14 +800,7 @@ export default function EmployeeDetailPage() {
                   <InfoField label="Employee Status" value={(employee as Record<string, unknown>).employeeStatus ? String((employee as Record<string, unknown>).employeeStatus).charAt(0).toUpperCase() + String((employee as Record<string, unknown>).employeeStatus).slice(1) : '—'} />
                   <InfoField label="Employee Type" value={(employee as Record<string, unknown>).employeeType ? String((employee as Record<string, unknown>).employeeType).replace(/_/g, ' ').charAt(0).toUpperCase() + String((employee as Record<string, unknown>).employeeType).slice(1).replace(/_/g, ' ') : '—'} />
                   <InfoField label="Personal Email" value={(employee as Record<string, unknown>).personalEmail as string || '—'} icon={<FiMail className="w-3.5 h-3.5" />} />
-                </div>
-              </SectionCard>
-
-              {/* Salary Information */}
-              <SectionCard title="Salary Information" icon={<FiDollarSign className="w-4 h-4 text-emerald-500" />} accentGradient="from-emerald-500 via-teal-400 to-cyan-400">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-0">
-                  <InfoField label="Salary" value={employee.salary ? `${employee.salaryCurrency || 'INR'} ${employee.salary.toLocaleString()}` : '—'} icon={<FiDollarSign className="w-3.5 h-3.5" />} />
-                  <InfoField label="Currency" value={employee.salaryCurrency || 'INR'} />
+                  <InfoField label="Reporting Manager Designation" value={employee.reportingManager?.designation?.title} icon={<FiUser className="w-3.5 h-3.5" />} />
                 </div>
               </SectionCard>
 

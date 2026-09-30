@@ -238,6 +238,11 @@ const initialForm = {
   state: '',
   zipCode: '',
   country: '',
+  currentAddress: '',
+  currentCity: '',
+  currentState: '',
+  currentZipCode: '',
+  currentCountry: '',
   companyId: '',
   departmentId: '',
   designationId: '',
@@ -257,6 +262,7 @@ const initialForm = {
   salaryCurrency: 'INR',
   emergencyContactName: '',
   emergencyContactPhone: '',
+  emergencyContactRelation: '',
   // Statutory Details
   pfNumber: '',
   pfUAN: '',
@@ -728,6 +734,11 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
           state: emp.state || '',
           zipCode: emp.zipCode || '',
           country: emp.country || '',
+          currentAddress: (emp as Record<string, unknown>).currentAddress as string || '',
+          currentCity: (emp as Record<string, unknown>).currentCity as string || '',
+          currentState: (emp as Record<string, unknown>).currentState as string || '',
+          currentZipCode: (emp as Record<string, unknown>).currentZipCode as string || '',
+          currentCountry: (emp as Record<string, unknown>).currentCountry as string || '',
           companyId: emp.companyId || emp.company?.id || '',
           departmentId: emp.department?.id || '',
           designationId: emp.designation?.id || '',
@@ -748,6 +759,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
           salaryCurrency: emp.salaryCurrency || 'INR',
           emergencyContactName: emp.emergencyContactName || '',
           emergencyContactPhone: emp.emergencyContactPhone || '',
+          emergencyContactRelation: (emp as Record<string, unknown>).emergencyContactRelation as string || '',
           bloodGroup: emp.bloodGroup || '',
           hasChronicIllness: (emp as Record<string, unknown>).hasChronicIllness as string || '',
           chronicIllnessDetails: (emp as Record<string, unknown>).chronicIllnessDetails as string || '',
@@ -960,6 +972,11 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
       state: freshEmp.state || '',
       zipCode: freshEmp.zipCode || '',
       country: freshEmp.country || '',
+      currentAddress: freshEmp.currentAddress || '',
+      currentCity: freshEmp.currentCity || '',
+      currentState: freshEmp.currentState || '',
+      currentZipCode: freshEmp.currentZipCode || '',
+      currentCountry: freshEmp.currentCountry || '',
       companyId: freshEmp.companyId || freshEmp.company?.id || '',
       departmentId: freshEmp.department?.id || '',
       designationId: freshEmp.designation?.id || '',
@@ -979,6 +996,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
       salaryCurrency: freshEmp.salaryCurrency || 'INR',
       emergencyContactName: freshEmp.emergencyContactName || '',
       emergencyContactPhone: freshEmp.emergencyContactPhone || '',
+      emergencyContactRelation: freshEmp.emergencyContactRelation || '',
       bloodGroup: freshEmp.bloodGroup || '',
       avatar: freshEmp.avatar || '',
       hasChronicIllness: freshEmp.hasChronicIllness || '',
@@ -1810,10 +1828,12 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
 
               {/* Address */}
               {formTab === 'address' && (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="space-y-6">
+                  <div>
+                    <p className="text-xs font-semibold text-thb-text-primary mb-3">Permanent Address</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div className="sm:col-span-2 lg:col-span-3">
-                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">Address</label>
+                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">Street Address</label>
                       <input type="text" value={form.address} onChange={e => updateForm('address', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                     </div>
                     <div>
@@ -1832,6 +1852,32 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Country</label>
                       <input type="text" value={form.country} onChange={e => updateForm('country', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
+                    </div>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-thb-text-primary mb-3">Current Address</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="sm:col-span-2 lg:col-span-3">
+                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">Street Address</label>
+                      <input type="text" value={form.currentAddress} onChange={e => updateForm('currentAddress', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">City</label>
+                      <input type="text" value={form.currentCity} onChange={e => updateForm('currentCity', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">State</label>
+                      <input type="text" value={form.currentState} onChange={e => updateForm('currentState', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">ZIP Code</label>
+                      <input type="text" value={form.currentZipCode} onChange={e => updateForm('currentZipCode', onlyDigits(e.target.value).slice(0, 6))} placeholder="6-digit PIN" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">Country</label>
+                      <input type="text" value={form.currentCountry} onChange={e => updateForm('currentCountry', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
+                    </div>
                     </div>
                   </div>
                   <div className="flex items-center justify-between pt-2">
@@ -2202,6 +2248,10 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Emergency Contact Phone</label>
                       <input type="tel" value={form.emergencyContactPhone} onChange={e => updateForm('emergencyContactPhone', phoneInputFilter(e.target.value))} placeholder="10-digit mobile" className={`w-full px-3 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 ${stepErrors.emergencyContactPhone ? 'border-red-400 bg-red-50' : 'border-thb-border'}`} />
                       {stepErrors.emergencyContactPhone && <p className="text-xs text-red-500 mt-1">{stepErrors.emergencyContactPhone}</p>}
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">Relationship</label>
+                      <input type="text" value={form.emergencyContactRelation} onChange={e => updateForm('emergencyContactRelation', e.target.value)} placeholder="e.g. Spouse, Parent" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                     </div>
                   </div>
                   <div className="flex items-center justify-between pt-2">

@@ -183,6 +183,60 @@ export async function OPTIONS() {
   return NextResponse.json({}, { headers: corsHeaders() });
 }
 
+const EXTRA_PROFILE_COLS = [
+  `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "currentAddress" TEXT`,
+  `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "currentCity" TEXT`,
+  `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "currentState" TEXT`,
+  `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "currentZipCode" TEXT`,
+  `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "currentCountry" TEXT`,
+  `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "emergencyContactRelation" TEXT`,
+];
+
+async function ensureEmployeeProfileColumns(db: PrismaClient) {
+  for (const sql of EXTRA_PROFILE_COLS) {
+    try { await db.$executeRawUnsafe(sql); } catch { /* ignore */ }
+  }
+}
+
+async function loadEmployeeProfileExtras(db: PrismaClient, employeeId: string) {
+  try {
+    const rows = await db.$queryRawUnsafe(
+      `SELECT "currentAddress","currentCity","currentState","currentZipCode","currentCountry","emergencyContactRelation" FROM "Employee" WHERE "id" = $1 LIMIT 1`,
+      employeeId,
+    ) as Record<string, unknown>[];
+    return rows?.[0] || {};
+  } catch {
+    return {};
+  }
+}
+
+async function saveEmployeeProfileExtras(db: PrismaClient, employeeId: string, body: Record<string, unknown>) {
+  const map: [string, string][] = [
+    ['currentAddress', 'currentAddress'],
+    ['currentCity', 'currentCity'],
+    ['currentState', 'currentState'],
+    ['currentZipCode', 'currentZipCode'],
+    ['currentCountry', 'currentCountry'],
+    ['emergencyContactRelation', 'emergencyContactRelation'],
+  ];
+  const sets: string[] = [];
+  const params: unknown[] = [];
+  let i = 1;
+  for (const [col, key] of map) {
+    if (body[key] !== undefined) {
+      sets.push(`"${col}" = $${i++}`);
+      params.push(body[key] || null);
+    }
+  }
+  if (sets.length === 0) return;
+  params.push(employeeId);
+  try {
+    await db.$executeRawUnsafe(`UPDATE "Employee" SET ${sets.join(', ')} WHERE "id" = $${i}`, ...params);
+  } catch (e) {
+    console.warn('[Employee] extra profile columns update failed:', e);
+  }
+}
+
 // Core includes that are guaranteed to exist in the Employee table
 // NOTE: Employee has companyId but NO @relation to Company — it's a bare String field.
 // We must NOT include `company` in the Prisma include clause.
@@ -337,8 +391,12 @@ export async function GET(
 
       // Step 2: Fetch optional relations independently (non-fatal if they fail)
       const optionalData = await fetchOptionalRelations(db, employee.id, employee.companyId);
+      const extras = await (async () => {
+        await ensureEmployeeProfileColumns(db);
+        return loadEmployeeProfileExtras(db, employee.id);
+      })();
       const mergedAvatar = employee.avatar || employee.user?.avatar || null;
-      employee = { ...employee, ...optionalData, avatar: mergedAvatar };
+      employee = { ...employee, ...optionalData, ...extras, avatar: mergedAvatar };
 
       console.log(`[Employee GET] Found employee: ${employee.employeeId} (${employee.firstName} ${employee.lastName})`);
       return NextResponse.json(
@@ -429,7 +487,8 @@ export async function PUT(
         firstName, lastName, email, personalEmail, phone, departmentId, designationId,
         branchId, companyId, dateOfJoining, dateOfBirth, gender, maritalStatus,
         nationality, address, city, state, zipCode, country, bloodGroup,
-        emergencyContactName, emergencyContactPhone, bankName, bankAccountNo,
+        emergencyContactName, emergencyContactPhone, emergencyContactRelation,
+        currentAddress, currentCity, currentState, currentZipCode, currentCountry, bankName, bankAccountNo,
         bankIfscCode, panNumber, aadhaarNumber, taxId, salary, salaryCurrency,
         status, role, avatar, reportingManagerId,
         employeeStatus, employeeType, employeeId,
@@ -497,6 +556,10 @@ export async function PUT(
         data: updateData,
         include: coreInclude,
       });
+      await ensureEmployeeProfileColumns(db);
+      await saveEmployeeProfileExtras(db, actualId, body as Record<string, unknown>);
+      const extrasAfterSave = await loadEmployeeProfileExtras(db, actualId);
+      Object.assign(employee, extrasAfterSave);
 
       // ─── Task 73: Audit log — record all employment detail changes ───
       // Every time an admin edits an employee via PUT, we log each changed
@@ -765,6 +828,7 @@ export async function PUT(
             include: coreInclude,
           });
           if (updatedEmployee) {
+            Object.assign(updatedEmployee, extrasAfterSave);
             // Try audit log (non-critical)
             try {
               const token = getTokenFromHeaders(request);

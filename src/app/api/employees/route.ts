@@ -516,6 +516,12 @@ export async function POST(request: Request) {
         `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "bloodGroup" TEXT`,
         `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "emergencyContactName" TEXT`,
         `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "emergencyContactPhone" TEXT`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "emergencyContactRelation" TEXT`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "currentAddress" TEXT`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "currentCity" TEXT`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "currentState" TEXT`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "currentZipCode" TEXT`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "currentCountry" TEXT`,
         `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "bankName" TEXT`,
         `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "bankAccountNo" TEXT`,
         `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "bankIfscCode" TEXT`,
@@ -606,6 +612,12 @@ export async function POST(request: Request) {
       bloodGroup,
       emergencyContactName,
       emergencyContactPhone,
+      emergencyContactRelation,
+      currentAddress,
+      currentCity,
+      currentState,
+      currentZipCode,
+      currentCountry,
       bankName,
       bankAccountNo,
       bankIfscCode,
@@ -886,6 +898,32 @@ export async function POST(request: Request) {
           // Re-throw other errors
           throw firstErr;
         }
+      }
+
+      try {
+        const extraSets: string[] = [];
+        const extraParams: unknown[] = [];
+        let ei = 1;
+        const extraMap: [string, unknown][] = [
+          ['currentAddress', currentAddress],
+          ['currentCity', currentCity],
+          ['currentState', currentState],
+          ['currentZipCode', currentZipCode],
+          ['currentCountry', currentCountry],
+          ['emergencyContactRelation', emergencyContactRelation],
+        ];
+        for (const [col, val] of extraMap) {
+          if (val !== undefined && val !== '') {
+            extraSets.push(`"${col}" = $${ei++}`);
+            extraParams.push(val);
+          }
+        }
+        if (extraSets.length > 0) {
+          extraParams.push(employee.id);
+          await db.$executeRawUnsafe(`UPDATE "Employee" SET ${extraSets.join(', ')} WHERE "id" = $${ei}`, ...extraParams);
+        }
+      } catch (extraErr) {
+        console.warn('[Employees POST] extra profile columns update failed:', extraErr);
       }
 
       if (isAuthed && decodedUserId) {
