@@ -29,6 +29,8 @@ import {
   FiX,
   FiCamera,
   FiPlus,
+  FiX,
+  FiDownload,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
@@ -58,8 +60,25 @@ const profileTabs: { key: ProfileTab; label: string; icon: React.ReactNode }[] =
 ];
 
 const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
-const DOC_TYPES = ['id_proof', 'aadhaar', 'pan_card', 'passport', 'visa', 'bank_proof', 'education', 'experience', 'certificate', 'offer_letter', 'contract', 'medical', 'policy', 'other'];
+const FORM_DOC_CATEGORIES = [
+  { value: 'identification', label: 'Identification & Legal' },
+  { value: 'onboarding', label: 'Onboarding & Employment' },
+  { value: 'qualifications', label: 'Qualifications' },
+  { value: 'financial', label: 'Financial & Statutory' },
+  { value: 'lifecycle', label: 'Lifecycle & Performance' },
+  { value: 'other', label: 'Other' },
+];
+const DOC_TYPES = ['offer_letter', 'id_proof', 'contract', 'certificate', 'policy', 'aadhaar', 'pan_card', 'bank_proof', 'passport', 'visa', 'education', 'experience', 'medical', 'other'];
 const fieldClass = 'w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 bg-white';
+const emptyDocDraft = () => ({
+  name: '',
+  category: 'onboarding',
+  type: 'offer_letter',
+  fileUrl: '',
+  fileName: '',
+  expiryDate: '',
+  description: '',
+});
 
 function EditField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -156,8 +175,7 @@ export default function MyProfilePage() {
   const [saving, setSaving] = useState(false);
   const [photoSaving, setPhotoSaving] = useState(false);
   const [editForm, setEditForm] = useState<Record<string, string>>({});
-  const [experienceRows, setExperienceRows] = useState<Array<Record<string, string>>>([]);
-  const [docDraft, setDocDraft] = useState({ name: '', type: 'id_proof', fileUrl: '' });
+  const [docDraft, setDocDraft] = useState(emptyDocDraft());
   const [addingDoc, setAddingDoc] = useState(false);
 
   const fetchProfile = useCallback(async () => {
@@ -189,7 +207,7 @@ export default function MyProfilePage() {
           currentState: (emp?.currentState as string) || '',
           currentZipCode: (emp?.currentZipCode as string) || '',
           currentCountry: (emp?.currentCountry as string) || '',
-          dateOfBirth: (emp?.dateOfBirth as string) || '',
+          dateOfBirth: String(emp?.dateOfBirth || '').slice(0, 10),
           gender: (emp?.gender as string) || '',
           bloodGroup: (emp?.bloodGroup as string) || '',
           maritalStatus: (emp?.maritalStatus as string) || '',
@@ -200,16 +218,35 @@ export default function MyProfilePage() {
           panNumber: (emp?.panNumber as string) || '',
           aadhaarNumber: (emp?.aadhaarNumber as string) || '',
           taxId: (emp?.taxId as string) || '',
+          hasChronicIllness: (emp?.hasChronicIllness as string) || '',
+          chronicIllnessDetails: (emp?.chronicIllnessDetails as string) || '',
+          hasAllergies: (emp?.hasAllergies as string) || '',
+          allergyDetails: (emp?.allergyDetails as string) || '',
+          hasDisability: (emp?.hasDisability as string) || '',
+          disabilityDetails: (emp?.disabilityDetails as string) || '',
+          isOnMedication: (emp?.isOnMedication as string) || '',
+          medicationDetails: (emp?.medicationDetails as string) || '',
+          hasHadSurgery: (emp?.hasHadSurgery as string) || '',
+          surgeryDetails: (emp?.surgeryDetails as string) || '',
+          emergencyMedicalCondition: (emp?.emergencyMedicalCondition as string) || '',
+          primaryPhysicianName: (emp?.primaryPhysicianName as string) || '',
+          primaryPhysicianPhone: (emp?.primaryPhysicianPhone as string) || '',
+          healthInsuranceProvider: (emp?.healthInsuranceProvider as string) || '',
+          healthInsurancePolicyNo: (emp?.healthInsurancePolicyNo as string) || '',
+          previousEmployer1: (emp?.previousEmployer1 as string) || '',
+          previousDesignation1: (emp?.previousDesignation1 as string) || '',
+          previousDuration1: (emp?.previousDuration1 as string) || '',
+          previousReason1: (emp?.previousReason1 as string) || '',
+          previousEmployer2: (emp?.previousEmployer2 as string) || '',
+          previousDesignation2: (emp?.previousDesignation2 as string) || '',
+          previousDuration2: (emp?.previousDuration2 as string) || '',
+          previousReason2: (emp?.previousReason2 as string) || '',
+          previousEmployer3: (emp?.previousEmployer3 as string) || '',
+          previousDesignation3: (emp?.previousDesignation3 as string) || '',
+          previousDuration3: (emp?.previousDuration3 as string) || '',
+          previousReason3: (emp?.previousReason3 as string) || '',
+          totalExperience: (emp?.totalExperience as string) || '',
         });
-        const exps = Array.isArray(emp?.experiences) ? emp.experiences as Record<string, unknown>[] : [];
-        setExperienceRows(exps.map((exp) => ({
-          id: String(exp.id || ''),
-          company: String(exp.company || ''),
-          designation: String(exp.designation || ''),
-          fromDate: String(exp.fromDate || ''),
-          toDate: String(exp.toDate || ''),
-          description: String(exp.description || ''),
-        })));
       } else {
         const errData = await res.json().catch(() => ({}));
         setError(errData.error || 'Failed to load profile');
@@ -232,7 +269,6 @@ export default function MyProfilePage() {
         body: JSON.stringify({
           ...editForm,
           name: `${editForm.firstName || ''} ${editForm.lastName || ''}`.trim() || editForm.name,
-          experiences: experienceRows,
         }),
       });
       const data = await res.json();
@@ -301,17 +337,59 @@ export default function MyProfilePage() {
       const res = await fetch(`/api/employees/${employeeRecordId}/documents`, {
         method: 'POST',
         headers: getAuthHeaders(),
-        body: JSON.stringify({ name: docDraft.name.trim(), type: docDraft.type, fileUrl: docDraft.fileUrl }),
+        body: JSON.stringify({
+          name: docDraft.name.trim(),
+          category: docDraft.category,
+          type: docDraft.type,
+          fileUrl: docDraft.fileUrl || undefined,
+          description: docDraft.description || undefined,
+          expiryDate: docDraft.expiryDate || undefined,
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || 'Failed to add document');
       toast.success('Document added');
-      setDocDraft({ name: '', type: 'id_proof', fileUrl: '' });
+      setDocDraft(emptyDocDraft());
       fetchProfile();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to add document');
     } finally {
       setAddingDoc(false);
+    }
+  };
+
+  const handleDocFilePick = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 3 * 1024 * 1024) {
+      toast.error('File must be under 3MB. For larger files, paste a shareable link instead.', { duration: 6000 });
+      e.target.value = '';
+      return;
+    }
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setDocDraft((prev) => ({ ...prev, fileUrl: reader.result as string, fileName: file.name }));
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  const handleDeleteDocument = async (docId: string) => {
+    const employeeRecordId = String((profileData?.employee as Record<string, unknown> | null | undefined)?.id || '');
+    if (!employeeRecordId || !docId) return;
+    try {
+      const res = await fetch(`/api/employees/${employeeRecordId}/documents?docId=${encodeURIComponent(docId)}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to delete document');
+      }
+      toast.success('Document deleted');
+      fetchProfile();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete document');
     }
   };
 
@@ -831,7 +909,7 @@ export default function MyProfilePage() {
         {/* ─── Health Tab ─── */}
         {activeTab === 'health' && (
           <div className="space-y-5">
-            <SectionCard title="Health Information" icon={<FiShield className="w-4 h-4" />} accent="rose">
+            <SectionCard title="Health History" icon={<FiShield className="w-4 h-4" />} accent="rose">
               {isEditing ? (
                 <div className="col-span-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   <EditField label="Blood Group">
@@ -840,33 +918,56 @@ export default function MyProfilePage() {
                       {BLOOD_GROUPS.map((g) => <option key={g} value={g}>{g}</option>)}
                     </select>
                   </EditField>
-                  <EditField label="Date of Birth">
-                    <input type="date" value={editForm.dateOfBirth || ''} onChange={e => updateEditField('dateOfBirth', e.target.value)} className={fieldClass} />
-                  </EditField>
-                  <EditField label="Gender">
-                    <select value={editForm.gender || ''} onChange={e => updateEditField('gender', e.target.value)} className={fieldClass}>
-                      <option value="">Select</option>
-                      <option value="male">Male</option>
-                      <option value="female">Female</option>
-                      <option value="other">Other</option>
-                    </select>
-                  </EditField>
-                  <EditField label="Marital Status">
-                    <select value={editForm.maritalStatus || ''} onChange={e => updateEditField('maritalStatus', e.target.value)} className={fieldClass}>
-                      <option value="">Select</option>
-                      <option value="single">Single</option>
-                      <option value="married">Married</option>
-                      <option value="divorced">Divorced</option>
-                      <option value="widowed">Widowed</option>
-                    </select>
-                  </EditField>
+                  {([
+                    ['hasChronicIllness', 'Has Chronic Illness?', 'chronicIllnessDetails', 'Chronic Illness Details'],
+                    ['hasAllergies', 'Has Allergies?', 'allergyDetails', 'Allergy Details'],
+                    ['hasDisability', 'Has Disability?', 'disabilityDetails', 'Disability Details'],
+                    ['isOnMedication', 'On Medication?', 'medicationDetails', 'Medication Details'],
+                    ['hasHadSurgery', 'Has Had Surgery?', 'surgeryDetails', 'Surgery Details'],
+                  ] as const).map(([flag, flagLabel, details, detailsLabel]) => (
+                    <div key={flag} className="contents">
+                      <EditField label={flagLabel}>
+                        <select value={editForm[flag] || ''} onChange={e => updateEditField(flag, e.target.value)} className={fieldClass}>
+                          <option value="">Select</option>
+                          <option value="no">No</option>
+                          <option value="yes">Yes</option>
+                        </select>
+                      </EditField>
+                      {editForm[flag] === 'yes' && (
+                        <EditField label={detailsLabel}>
+                          <input type="text" value={editForm[details] || ''} onChange={e => updateEditField(details, e.target.value)} className={fieldClass} />
+                        </EditField>
+                      )}
+                    </div>
+                  ))}
                 </div>
               ) : (
                 <>
                   <InfoRow label="Blood Group" value={str(emp?.bloodGroup)} icon={<FiHeart className="w-3.5 h-3.5" />} />
-                  <InfoRow label="Date of Birth" value={formatDate(emp?.dateOfBirth)} icon={<FiCalendar className="w-3.5 h-3.5" />} />
-                  <InfoRow label="Gender" value={str(emp?.gender) ? String(emp?.gender).charAt(0).toUpperCase() + String(emp?.gender).slice(1) : ''} />
-                  <InfoRow label="Marital Status" value={str(emp?.maritalStatus) ? String(emp?.maritalStatus).charAt(0).toUpperCase() + String(emp?.maritalStatus).slice(1) : ''} />
+                  <InfoRow label="Chronic Illness" value={str(emp?.hasChronicIllness) === 'yes' ? `Yes — ${str(emp?.chronicIllnessDetails) || 'No details'}` : str(emp?.hasChronicIllness) === 'no' ? 'No' : ''} />
+                  <InfoRow label="Allergies" value={str(emp?.hasAllergies) === 'yes' ? `Yes — ${str(emp?.allergyDetails) || 'No details'}` : str(emp?.hasAllergies) === 'no' ? 'No' : ''} />
+                  <InfoRow label="Disability" value={str(emp?.hasDisability) === 'yes' ? `Yes — ${str(emp?.disabilityDetails) || 'No details'}` : str(emp?.hasDisability) === 'no' ? 'No' : ''} />
+                  <InfoRow label="On Medication" value={str(emp?.isOnMedication) === 'yes' ? `Yes — ${str(emp?.medicationDetails) || 'No details'}` : str(emp?.isOnMedication) === 'no' ? 'No' : ''} />
+                  <InfoRow label="Previous Surgery" value={str(emp?.hasHadSurgery) === 'yes' ? `Yes — ${str(emp?.surgeryDetails) || 'No details'}` : str(emp?.hasHadSurgery) === 'no' ? 'No' : ''} />
+                </>
+              )}
+            </SectionCard>
+            <SectionCard title="Emergency Medical & Insurance" icon={<FiActivity className="w-4 h-4" />} accent="amber">
+              {isEditing ? (
+                <div className="col-span-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <EditField label="Emergency Medical Condition"><input type="text" value={editForm.emergencyMedicalCondition || ''} onChange={e => updateEditField('emergencyMedicalCondition', e.target.value)} className={fieldClass} /></EditField>
+                  <EditField label="Primary Physician Name"><input type="text" value={editForm.primaryPhysicianName || ''} onChange={e => updateEditField('primaryPhysicianName', e.target.value)} className={fieldClass} /></EditField>
+                  <EditField label="Primary Physician Phone"><input type="tel" value={editForm.primaryPhysicianPhone || ''} onChange={e => updateEditField('primaryPhysicianPhone', e.target.value)} className={fieldClass} /></EditField>
+                  <EditField label="Health Insurance Provider"><input type="text" value={editForm.healthInsuranceProvider || ''} onChange={e => updateEditField('healthInsuranceProvider', e.target.value)} className={fieldClass} /></EditField>
+                  <EditField label="Health Insurance Policy No"><input type="text" value={editForm.healthInsurancePolicyNo || ''} onChange={e => updateEditField('healthInsurancePolicyNo', e.target.value)} className={fieldClass} /></EditField>
+                </div>
+              ) : (
+                <>
+                  <InfoRow label="Emergency Medical Condition" value={str(emp?.emergencyMedicalCondition)} />
+                  <InfoRow label="Primary Physician" value={str(emp?.primaryPhysicianName)} icon={<FiUser className="w-3.5 h-3.5" />} />
+                  <InfoRow label="Physician Phone" value={str(emp?.primaryPhysicianPhone)} icon={<FiPhone className="w-3.5 h-3.5" />} />
+                  <InfoRow label="Insurance Provider" value={str(emp?.healthInsuranceProvider)} />
+                  <InfoRow label="Policy Number" value={str(emp?.healthInsurancePolicyNo)} />
                 </>
               )}
             </SectionCard>
@@ -888,54 +989,44 @@ export default function MyProfilePage() {
         {/* ─── Experience Tab ─── */}
         {activeTab === 'experience' && (
           <div className="space-y-5">
-            {isEditing ? (
-              <>
-                {experienceRows.map((row, idx) => (
-                  <SectionCard key={row.id || idx} title={`Experience ${idx + 1}`} icon={<FiBriefcase className="w-4 h-4" />} accent="blue"
-                    rightAction={
-                      <button type="button" onClick={() => setExperienceRows((prev) => prev.filter((_, i) => i !== idx))} className="text-xs text-red-500 hover:underline">Remove</button>
-                    }
-                  >
+            {([1, 2, 3] as const).map((n) => {
+              const employer = str(emp?.[`previousEmployer${n}`]);
+              const designation = str(emp?.[`previousDesignation${n}`]);
+              const duration = str(emp?.[`previousDuration${n}`]);
+              const reason = str(emp?.[`previousReason${n}`]);
+              if (!isEditing && !employer && !designation && !duration && !reason) return null;
+              return (
+                <SectionCard key={n} title={`Experience ${n}`} icon={<FiBriefcase className="w-4 h-4" />} accent="blue">
+                  {isEditing ? (
                     <div className="col-span-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      <EditField label="Company"><input type="text" value={row.company} onChange={e => setExperienceRows(prev => prev.map((r, i) => i === idx ? { ...r, company: e.target.value } : r))} className={fieldClass} /></EditField>
-                      <EditField label="Designation"><input type="text" value={row.designation} onChange={e => setExperienceRows(prev => prev.map((r, i) => i === idx ? { ...r, designation: e.target.value } : r))} className={fieldClass} /></EditField>
-                      <EditField label="From"><input type="date" value={row.fromDate} onChange={e => setExperienceRows(prev => prev.map((r, i) => i === idx ? { ...r, fromDate: e.target.value } : r))} className={fieldClass} /></EditField>
-                      <EditField label="To"><input type="date" value={row.toDate} onChange={e => setExperienceRows(prev => prev.map((r, i) => i === idx ? { ...r, toDate: e.target.value } : r))} className={fieldClass} /></EditField>
-                      <div className="md:col-span-2">
-                        <EditField label="Description"><input type="text" value={row.description} onChange={e => setExperienceRows(prev => prev.map((r, i) => i === idx ? { ...r, description: e.target.value } : r))} className={fieldClass} /></EditField>
+                      <EditField label="Previous Employer"><input type="text" value={editForm[`previousEmployer${n}`] || ''} onChange={e => updateEditField(`previousEmployer${n}`, e.target.value)} className={fieldClass} /></EditField>
+                      <EditField label="Designation"><input type="text" value={editForm[`previousDesignation${n}`] || ''} onChange={e => updateEditField(`previousDesignation${n}`, e.target.value)} className={fieldClass} /></EditField>
+                      <EditField label="Duration"><input type="text" value={editForm[`previousDuration${n}`] || ''} onChange={e => updateEditField(`previousDuration${n}`, e.target.value)} placeholder="e.g., 2 years" className={fieldClass} /></EditField>
+                      <div className="md:col-span-2 lg:col-span-3">
+                        <EditField label="Reason for Leaving"><input type="text" value={editForm[`previousReason${n}`] || ''} onChange={e => updateEditField(`previousReason${n}`, e.target.value)} className={fieldClass} /></EditField>
                       </div>
                     </div>
-                  </SectionCard>
-                ))}
-                <button
-                  type="button"
-                  onClick={() => setExperienceRows(prev => [...prev, { company: '', designation: '', fromDate: '', toDate: '', description: '' }])}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-dashed border-slate-300 text-sm text-slate-600 hover:bg-slate-50"
-                >
-                  <FiPlus className="w-4 h-4" /> Add experience
-                </button>
-                {experienceRows.length === 0 && (
-                  <p className="text-xs text-thb-text-muted">Add previous roles, then click Save Changes.</p>
-                )}
-              </>
-            ) : Array.isArray(emp?.experiences) && (emp?.experiences as unknown[]).length > 0 ? (
-              (emp?.experiences as Record<string, unknown>[]).map((exp, idx) => (
-                <SectionCard key={idx} title={`Experience ${idx + 1}`} icon={<FiBriefcase className="w-4 h-4" />} accent="blue">
-                  <InfoRow label="Company" value={str(exp.company)} icon={<FiBriefcase className="w-3.5 h-3.5" />} />
-                  <InfoRow label="Designation" value={str(exp.designation)} icon={<FiStar className="w-3.5 h-3.5" />} />
-                  <InfoRow label="From" value={formatDate(exp.fromDate)} icon={<FiCalendar className="w-3.5 h-3.5" />} />
-                  <InfoRow label="To" value={formatDate(exp.toDate)} icon={<FiCalendar className="w-3.5 h-3.5" />} />
-                  {str(exp.description) && (
-                    <div className="col-span-full">
-                      <div className="p-4 bg-slate-50/60 rounded-xl border border-thb-border/40">
-                        <label className="block text-[11px] font-semibold uppercase tracking-wider text-thb-text-muted mb-1.5">Description</label>
-                        <p className="text-sm text-thb-text-primary leading-relaxed">{str(exp.description)}</p>
-                      </div>
-                    </div>
+                  ) : (
+                    <>
+                      <InfoRow label="Previous Employer" value={employer} icon={<FiBriefcase className="w-3.5 h-3.5" />} />
+                      <InfoRow label="Designation" value={designation} icon={<FiStar className="w-3.5 h-3.5" />} />
+                      <InfoRow label="Duration" value={duration} icon={<FiClock className="w-3.5 h-3.5" />} />
+                      <InfoRow label="Reason for Leaving" value={reason} />
+                    </>
                   )}
                 </SectionCard>
-              ))
-            ) : (
+              );
+            })}
+            <SectionCard title="Total Experience" icon={<FiStar className="w-4 h-4" />} accent="teal">
+              {isEditing ? (
+                <EditField label="Total Experience">
+                  <input type="text" value={editForm.totalExperience || ''} onChange={e => updateEditField('totalExperience', e.target.value)} placeholder="e.g., 5 years" className={fieldClass} />
+                </EditField>
+              ) : (
+                <InfoRow label="Total Experience" value={str(emp?.totalExperience)} />
+              )}
+            </SectionCard>
+            {!isEditing && !str(emp?.previousEmployer1) && !str(emp?.previousEmployer2) && !str(emp?.previousEmployer3) && !str(emp?.totalExperience) && (
               <div className="thb-card overflow-hidden">
                 <div className="h-[3px] bg-gradient-to-r from-slate-400 to-slate-300" />
                 <div className="p-12 text-center">
@@ -976,7 +1067,12 @@ export default function MyProfilePage() {
               <SectionCard title="Add Document" icon={<FiPlus className="w-4 h-4" />} accent="emerald">
                 <div className="col-span-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   <EditField label="Document Name">
-                    <input type="text" value={docDraft.name} onChange={e => setDocDraft(prev => ({ ...prev, name: e.target.value }))} placeholder="e.g. Aadhaar Card" className={fieldClass} />
+                    <input type="text" value={docDraft.name} onChange={e => setDocDraft(prev => ({ ...prev, name: e.target.value }))} placeholder="e.g., Offer Letter — Signed" className={fieldClass} />
+                  </EditField>
+                  <EditField label="Category">
+                    <select value={docDraft.category} onChange={e => setDocDraft(prev => ({ ...prev, category: e.target.value }))} className={fieldClass}>
+                      {FORM_DOC_CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+                    </select>
                   </EditField>
                   <EditField label="Document Type">
                     <select value={docDraft.type} onChange={e => setDocDraft(prev => ({ ...prev, type: e.target.value }))} className={fieldClass}>
@@ -985,9 +1081,26 @@ export default function MyProfilePage() {
                       ))}
                     </select>
                   </EditField>
-                  <EditField label="File link (optional)">
-                    <input type="text" value={docDraft.fileUrl} onChange={e => setDocDraft(prev => ({ ...prev, fileUrl: e.target.value }))} placeholder="https://..." className={fieldClass} />
+                  <EditField label="Upload File">
+                    <label className="flex-1 px-3 py-2 rounded-lg border border-dashed border-slate-200 text-sm text-slate-500 cursor-pointer hover:bg-slate-50 truncate block">
+                      {docDraft.fileName || 'Choose file (PDF, JPG, PNG — max 3MB)'}
+                      <input type="file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" className="hidden" onChange={handleDocFilePick} />
+                    </label>
+                    {docDraft.fileName && (
+                      <button type="button" onClick={() => setDocDraft(prev => ({ ...prev, fileUrl: '', fileName: '' }))} className="mt-1 text-xs text-red-500">Remove file</button>
+                    )}
                   </EditField>
+                  <EditField label="or File Link">
+                    <input type="text" value={docDraft.fileName ? '' : docDraft.fileUrl} onChange={e => setDocDraft(prev => ({ ...prev, fileUrl: e.target.value, fileName: '' }))} placeholder="https://drive.google.com/..." className={fieldClass} />
+                  </EditField>
+                  <EditField label="Expiry Date">
+                    <input type="date" value={docDraft.expiryDate} onChange={e => setDocDraft(prev => ({ ...prev, expiryDate: e.target.value }))} className={fieldClass} />
+                  </EditField>
+                  <div className="md:col-span-2 lg:col-span-3">
+                    <EditField label="Description">
+                      <input type="text" value={docDraft.description} onChange={e => setDocDraft(prev => ({ ...prev, description: e.target.value }))} placeholder="Optional notes about this document" className={fieldClass} />
+                    </EditField>
+                  </div>
                 </div>
                 <div className="col-span-full">
                   <button
@@ -1005,24 +1118,45 @@ export default function MyProfilePage() {
             {Array.isArray(emp?.documents) && (emp?.documents as unknown[]).length > 0 ? (
               <SectionCard title="Uploaded Documents" icon={<FiBookOpen className="w-4 h-4" />} accent="blue">
                 <div className="col-span-full space-y-2">
-                  {(emp?.documents as Record<string, unknown>[]).map((doc, idx) => (
-                    <div key={idx} className="flex items-center justify-between p-3.5 bg-slate-50/60 rounded-xl border border-thb-border/40 hover:border-thb-border/80 transition-colors">
-                      <div className="flex items-center gap-3">
+                  {(emp?.documents as Record<string, unknown>[]).map((doc, idx) => {
+                    const fileUrl = str(doc.fileUrl);
+                    const isData = fileUrl.startsWith('data:');
+                    const cat = FORM_DOC_CATEGORIES.find((c) => c.value === str(doc.category));
+                    return (
+                    <div key={str(doc.id) || idx} className="flex items-center justify-between gap-3 p-3.5 bg-slate-50/60 rounded-xl border border-thb-border/40 hover:border-thb-border/80 transition-colors">
+                      <div className="flex items-center gap-3 min-w-0">
                         <div className="w-9 h-9 rounded-lg bg-green-50 flex items-center justify-center shrink-0">
                           <FiFileText className="w-4.5 h-4.5 text-green-500" />
                         </div>
-                        <div>
-                          <p className="text-sm font-medium text-thb-text-primary">{str(doc.name)}</p>
-                          <p className="text-xs text-thb-text-muted capitalize">{str(doc.type).replace(/_/g, ' ')}</p>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-thb-text-primary truncate">{str(doc.name)}</p>
+                          <p className="text-xs text-thb-text-muted">
+                            {cat?.label || 'Other'} · {str(doc.type).replace(/_/g, ' ')}
+                            {str(doc.expiryDate) ? ` · Expires ${formatDate(doc.expiryDate)}` : ''}
+                          </p>
+                          {str(doc.description) && <p className="text-xs text-thb-text-muted mt-0.5 line-clamp-2">{str(doc.description)}</p>}
                         </div>
                       </div>
-                      <span className={`text-[10px] px-2.5 py-1 rounded-md font-semibold uppercase tracking-wider ${
-                        str(doc.status) === 'verified' ? 'bg-emerald-50 text-emerald-600' :
-                        str(doc.status) === 'pending' || str(doc.status) === 'requested' ? 'bg-amber-50 text-amber-600' :
-                        'bg-slate-50 text-slate-500'
-                      }`}>{str(doc.status) || 'Uploaded'}</span>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {fileUrl && (
+                          <a href={fileUrl} {...(isData ? { download: str(doc.name) } : { target: '_blank', rel: 'noopener noreferrer' })} className="inline-flex items-center gap-1 px-2 py-1 text-[11px] text-teal-600 hover:bg-teal-50 rounded">
+                            <FiDownload className="w-3 h-3" /> Download
+                          </a>
+                        )}
+                        {isEditing && str(doc.id) && (
+                          <button type="button" onClick={() => handleDeleteDocument(str(doc.id))} className="p-1.5 text-red-500 hover:bg-red-50 rounded" title="Delete document">
+                            <FiX className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        <span className={`text-[10px] px-2.5 py-1 rounded-md font-semibold uppercase tracking-wider ${
+                          str(doc.status) === 'verified' ? 'bg-emerald-50 text-emerald-600' :
+                          str(doc.status) === 'pending' || str(doc.status) === 'requested' ? 'bg-amber-50 text-amber-600' :
+                          'bg-slate-50 text-slate-500'
+                        }`}>{str(doc.status) || 'Uploaded'}</span>
+                      </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </SectionCard>
             ) : (

@@ -816,7 +816,36 @@ export default function EmployeeDetailPage() {
               </SectionCard>
 
               {/* Work Experience */}
-              {employee.experiences && employee.experiences.length > 0 && (
+              {([1, 2, 3] as const).some((n) => (employee as Record<string, unknown>)[`previousEmployer${n}`] || (employee as Record<string, unknown>)[`previousDesignation${n}`]) || (employee as Record<string, unknown>).totalExperience ? (
+                <SectionCard title="Previous Experience" icon={<FiTrendingUp className="w-4 h-4 text-amber-500" />} accentGradient="from-amber-500 via-orange-400 to-yellow-400">
+                  <div className="space-y-4">
+                    {([1, 2, 3] as const).map((n) => {
+                      const rec = employee as Record<string, unknown>;
+                      const company = rec[`previousEmployer${n}`] as string | undefined;
+                      const designation = rec[`previousDesignation${n}`] as string | undefined;
+                      const duration = rec[`previousDuration${n}`] as string | undefined;
+                      const reason = rec[`previousReason${n}`] as string | undefined;
+                      if (!company && !designation && !duration && !reason) return null;
+                      return (
+                        <div key={n} className="flex items-start gap-4 p-4 rounded-xl border border-thb-border hover:bg-slate-50/50 transition-colors">
+                          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-100 to-amber-50 flex items-center justify-center flex-shrink-0">
+                            <FiBriefcase className="w-5 h-5 text-amber-600" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-thb-text-primary">{company || '—'}</p>
+                            <p className="text-xs text-thb-text-secondary mt-0.5">{designation || '—'}</p>
+                            <p className="text-xs text-thb-text-muted mt-1">Duration: {duration || '—'}</p>
+                            {reason && <p className="text-xs text-thb-text-muted mt-1">Reason for leaving: {reason}</p>}
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {(employee as Record<string, unknown>).totalExperience && (
+                      <p className="text-sm text-thb-text-primary">Total experience: {String((employee as Record<string, unknown>).totalExperience)}</p>
+                    )}
+                  </div>
+                </SectionCard>
+              ) : employee.experiences && employee.experiences.length > 0 ? (
                 <SectionCard title="Work Experience" icon={<FiTrendingUp className="w-4 h-4 text-amber-500" />} accentGradient="from-amber-500 via-orange-400 to-yellow-400">
                   <div className="space-y-4">
                     {employee.experiences.map(exp => (
@@ -833,12 +862,15 @@ export default function EmployeeDetailPage() {
                           <p className="text-xs text-thb-text-muted mt-1">
                             {formatDate(exp.startDate)} — {exp.endDate ? formatDate(exp.endDate) : 'Present'}
                           </p>
+                          {(exp as { description?: string }).description && (
+                            <p className="text-xs text-thb-text-muted mt-1">Reason for leaving: {(exp as { description?: string }).description}</p>
+                          )}
                         </div>
                       </div>
                     ))}
                   </div>
                 </SectionCard>
-              )}
+              ) : null}
 
               {/* Qualifications */}
               {employee.qualifications && employee.qualifications.length > 0 && (

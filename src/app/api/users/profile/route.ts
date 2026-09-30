@@ -244,6 +244,25 @@ export async function GET(request: Request) {
     // Build employee data from raw SQL row (quoted columns stay camelCase)
     let employeeData = null;
     if (employee) {
+      for (const col of [
+        'currentAddress', 'currentCity', 'currentState', 'currentZipCode', 'currentCountry',
+        'emergencyContactRelation',
+        'hasChronicIllness', 'chronicIllnessDetails', 'hasAllergies', 'allergyDetails',
+        'hasDisability', 'disabilityDetails', 'isOnMedication', 'medicationDetails',
+        'hasHadSurgery', 'surgeryDetails', 'emergencyMedicalCondition',
+        'primaryPhysicianName', 'primaryPhysicianPhone', 'healthInsuranceProvider', 'healthInsurancePolicyNo',
+        'previousEmployer1', 'previousDesignation1', 'previousDuration1', 'previousReason1',
+        'previousEmployer2', 'previousDesignation2', 'previousDuration2', 'previousReason2',
+        'previousEmployer3', 'previousDesignation3', 'previousDuration3', 'previousReason3',
+        'totalExperience',
+      ]) {
+        try { await empDb.$executeRawUnsafe(`ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "${col}" TEXT`); } catch {}
+      }
+      try {
+        const refreshed = await empDb.$queryRawUnsafe(`SELECT * FROM "Employee" WHERE "id" = $1 LIMIT 1`, employee.id) as any[];
+        if (refreshed?.[0]) employee = refreshed[0];
+      } catch {}
+
       // Fetch relations via raw SQL
       let department = null, designation = null, branch = null;
       const departmentId = rowVal(employee, 'departmentId', 'departmentid');
@@ -262,7 +281,7 @@ export async function GET(request: Request) {
       let dependents: any[] = [], qualifications: any[] = [], documents: any[] = [], experiences: any[] = [];
       try { dependents = await empDb.$queryRawUnsafe(`SELECT * FROM "Dependent" WHERE "employeeId" = $1`, employee.id) as any[]; } catch {}
       try { qualifications = await empDb.$queryRawUnsafe(`SELECT * FROM "Qualification" WHERE "employeeId" = $1`, employee.id) as any[]; } catch {}
-      try { documents = await empDb.$queryRawUnsafe(`SELECT "id","name","type","status","category" FROM "Document" WHERE "employeeId" = $1 ORDER BY "createdAt" DESC`, employee.id) as any[]; } catch {}
+      try { documents = await empDb.$queryRawUnsafe(`SELECT "id","name","type","status","category","fileUrl","expiryDate","description" FROM "Document" WHERE "employeeId" = $1 ORDER BY "createdAt" DESC`, employee.id) as any[]; } catch {}
       try {
         experiences = await empDb.$queryRawUnsafe(`SELECT * FROM "Experience" WHERE "employeeId" = $1 ORDER BY "startDate" DESC`, employee.id) as any[];
       } catch {}
@@ -296,6 +315,34 @@ export async function GET(request: Request) {
         maritalStatus: rowVal(employee, 'maritalStatus', 'maritalstatus') || '',
         nationality: rowVal(employee, 'nationality') || '',
         bloodGroup: rowVal(employee, 'bloodGroup', 'bloodgroup') || '',
+        hasChronicIllness: rowVal(employee, 'hasChronicIllness', 'haschronicillness') || '',
+        chronicIllnessDetails: rowVal(employee, 'chronicIllnessDetails', 'chronicillnessdetails') || '',
+        hasAllergies: rowVal(employee, 'hasAllergies', 'hasallergies') || '',
+        allergyDetails: rowVal(employee, 'allergyDetails', 'allergydetails') || '',
+        hasDisability: rowVal(employee, 'hasDisability', 'hasdisability') || '',
+        disabilityDetails: rowVal(employee, 'disabilityDetails', 'disabilitydetails') || '',
+        isOnMedication: rowVal(employee, 'isOnMedication', 'isonmedication') || '',
+        medicationDetails: rowVal(employee, 'medicationDetails', 'medicationdetails') || '',
+        hasHadSurgery: rowVal(employee, 'hasHadSurgery', 'hashadsurgery') || '',
+        surgeryDetails: rowVal(employee, 'surgeryDetails', 'surgerydetails') || '',
+        emergencyMedicalCondition: rowVal(employee, 'emergencyMedicalCondition', 'emergencymedicalcondition') || '',
+        primaryPhysicianName: rowVal(employee, 'primaryPhysicianName', 'primaryphysicianname') || '',
+        primaryPhysicianPhone: rowVal(employee, 'primaryPhysicianPhone', 'primaryphysicianphone') || '',
+        healthInsuranceProvider: rowVal(employee, 'healthInsuranceProvider', 'healthinsuranceprovider') || '',
+        healthInsurancePolicyNo: rowVal(employee, 'healthInsurancePolicyNo', 'healthinsurancepolicyno') || '',
+        previousEmployer1: rowVal(employee, 'previousEmployer1', 'previousemployer1') || '',
+        previousDesignation1: rowVal(employee, 'previousDesignation1', 'previousdesignation1') || '',
+        previousDuration1: rowVal(employee, 'previousDuration1', 'previousduration1') || '',
+        previousReason1: rowVal(employee, 'previousReason1', 'previousreason1') || '',
+        previousEmployer2: rowVal(employee, 'previousEmployer2', 'previousemployer2') || '',
+        previousDesignation2: rowVal(employee, 'previousDesignation2', 'previousdesignation2') || '',
+        previousDuration2: rowVal(employee, 'previousDuration2', 'previousduration2') || '',
+        previousReason2: rowVal(employee, 'previousReason2', 'previousreason2') || '',
+        previousEmployer3: rowVal(employee, 'previousEmployer3', 'previousemployer3') || '',
+        previousDesignation3: rowVal(employee, 'previousDesignation3', 'previousdesignation3') || '',
+        previousDuration3: rowVal(employee, 'previousDuration3', 'previousduration3') || '',
+        previousReason3: rowVal(employee, 'previousReason3', 'previousreason3') || '',
+        totalExperience: rowVal(employee, 'totalExperience', 'totalexperience') || '',
         department: department?.name || '',
         designation: designation?.title || '',
         branch: branch?.name || '',
@@ -324,7 +371,16 @@ export async function GET(request: Request) {
           isCurrent: Boolean(rowVal(exp, 'isCurrent', 'iscurrent')),
           description: rowVal(exp, 'description') || '',
         })),
-        documents: (documents || []).map((d: any) => ({ id: d.id, name: d.name, type: d.type, status: d.status, category: d.category })),
+        documents: (documents || []).map((d: any) => ({
+          id: d.id,
+          name: d.name,
+          type: d.type,
+          status: d.status,
+          category: d.category,
+          fileUrl: d.fileUrl || d.fileurl || '',
+          expiryDate: toISOStr(rowVal(d, 'expiryDate', 'expirydate')),
+          description: d.description || '',
+        })),
       };
     }
 
@@ -435,6 +491,34 @@ export async function PATCH(request: Request) {
       ['panNumber', panNumber],
       ['aadhaarNumber', aadhaarNumber],
       ['taxId', taxId],
+      ['hasChronicIllness', body.hasChronicIllness],
+      ['chronicIllnessDetails', body.chronicIllnessDetails],
+      ['hasAllergies', body.hasAllergies],
+      ['allergyDetails', body.allergyDetails],
+      ['hasDisability', body.hasDisability],
+      ['disabilityDetails', body.disabilityDetails],
+      ['isOnMedication', body.isOnMedication],
+      ['medicationDetails', body.medicationDetails],
+      ['hasHadSurgery', body.hasHadSurgery],
+      ['surgeryDetails', body.surgeryDetails],
+      ['emergencyMedicalCondition', body.emergencyMedicalCondition],
+      ['primaryPhysicianName', body.primaryPhysicianName],
+      ['primaryPhysicianPhone', body.primaryPhysicianPhone],
+      ['healthInsuranceProvider', body.healthInsuranceProvider],
+      ['healthInsurancePolicyNo', body.healthInsurancePolicyNo],
+      ['previousEmployer1', body.previousEmployer1],
+      ['previousDesignation1', body.previousDesignation1],
+      ['previousDuration1', body.previousDuration1],
+      ['previousReason1', body.previousReason1],
+      ['previousEmployer2', body.previousEmployer2],
+      ['previousDesignation2', body.previousDesignation2],
+      ['previousDuration2', body.previousDuration2],
+      ['previousReason2', body.previousReason2],
+      ['previousEmployer3', body.previousEmployer3],
+      ['previousDesignation3', body.previousDesignation3],
+      ['previousDuration3', body.previousDuration3],
+      ['previousReason3', body.previousReason3],
+      ['totalExperience', body.totalExperience],
     ];
     const hasEmpUpdates = stringFields.some(([, v]) => v !== undefined)
       || dateOfBirth !== undefined
@@ -453,15 +537,19 @@ export async function PATCH(request: Request) {
 
       if (empId && empDb) {
         const extraCols = [
-          `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "currentAddress" TEXT`,
-          `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "currentCity" TEXT`,
-          `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "currentState" TEXT`,
-          `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "currentZipCode" TEXT`,
-          `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "currentCountry" TEXT`,
-          `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "emergencyContactRelation" TEXT`,
+          'currentAddress', 'currentCity', 'currentState', 'currentZipCode', 'currentCountry',
+          'emergencyContactRelation',
+          'hasChronicIllness', 'chronicIllnessDetails', 'hasAllergies', 'allergyDetails',
+          'hasDisability', 'disabilityDetails', 'isOnMedication', 'medicationDetails',
+          'hasHadSurgery', 'surgeryDetails', 'emergencyMedicalCondition',
+          'primaryPhysicianName', 'primaryPhysicianPhone', 'healthInsuranceProvider', 'healthInsurancePolicyNo',
+          'previousEmployer1', 'previousDesignation1', 'previousDuration1', 'previousReason1',
+          'previousEmployer2', 'previousDesignation2', 'previousDuration2', 'previousReason2',
+          'previousEmployer3', 'previousDesignation3', 'previousDuration3', 'previousReason3',
+          'totalExperience',
         ];
-        for (const sql of extraCols) {
-          try { await empDb.$executeRawUnsafe(sql); } catch {}
+        for (const col of extraCols) {
+          try { await empDb.$executeRawUnsafe(`ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "${col}" TEXT`); } catch {}
         }
 
         const sets: string[] = [];

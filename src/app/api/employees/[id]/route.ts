@@ -183,25 +183,30 @@ export async function OPTIONS() {
   return NextResponse.json({}, { headers: corsHeaders() });
 }
 
-const EXTRA_PROFILE_COLS = [
-  `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "currentAddress" TEXT`,
-  `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "currentCity" TEXT`,
-  `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "currentState" TEXT`,
-  `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "currentZipCode" TEXT`,
-  `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "currentCountry" TEXT`,
-  `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "emergencyContactRelation" TEXT`,
+const EXTRA_PROFILE_KEYS = [
+  'currentAddress', 'currentCity', 'currentState', 'currentZipCode', 'currentCountry',
+  'emergencyContactRelation',
+  'hasChronicIllness', 'chronicIllnessDetails', 'hasAllergies', 'allergyDetails',
+  'hasDisability', 'disabilityDetails', 'isOnMedication', 'medicationDetails',
+  'hasHadSurgery', 'surgeryDetails', 'emergencyMedicalCondition',
+  'primaryPhysicianName', 'primaryPhysicianPhone', 'healthInsuranceProvider', 'healthInsurancePolicyNo',
+  'previousEmployer1', 'previousDesignation1', 'previousDuration1', 'previousReason1',
+  'previousEmployer2', 'previousDesignation2', 'previousDuration2', 'previousReason2',
+  'previousEmployer3', 'previousDesignation3', 'previousDuration3', 'previousReason3',
+  'totalExperience',
 ];
 
 async function ensureEmployeeProfileColumns(db: PrismaClient) {
-  for (const sql of EXTRA_PROFILE_COLS) {
-    try { await db.$executeRawUnsafe(sql); } catch { /* ignore */ }
+  for (const col of EXTRA_PROFILE_KEYS) {
+    try { await db.$executeRawUnsafe(`ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "${col}" TEXT`); } catch { /* ignore */ }
   }
 }
 
 async function loadEmployeeProfileExtras(db: PrismaClient, employeeId: string) {
   try {
+    const cols = EXTRA_PROFILE_KEYS.map((c) => `"${c}"`).join(',');
     const rows = await db.$queryRawUnsafe(
-      `SELECT "currentAddress","currentCity","currentState","currentZipCode","currentCountry","emergencyContactRelation" FROM "Employee" WHERE "id" = $1 LIMIT 1`,
+      `SELECT ${cols} FROM "Employee" WHERE "id" = $1 LIMIT 1`,
       employeeId,
     ) as Record<string, unknown>[];
     return rows?.[0] || {};
@@ -211,14 +216,7 @@ async function loadEmployeeProfileExtras(db: PrismaClient, employeeId: string) {
 }
 
 async function saveEmployeeProfileExtras(db: PrismaClient, employeeId: string, body: Record<string, unknown>) {
-  const map: [string, string][] = [
-    ['currentAddress', 'currentAddress'],
-    ['currentCity', 'currentCity'],
-    ['currentState', 'currentState'],
-    ['currentZipCode', 'currentZipCode'],
-    ['currentCountry', 'currentCountry'],
-    ['emergencyContactRelation', 'emergencyContactRelation'],
-  ];
+  const map: [string, string][] = EXTRA_PROFILE_KEYS.map((k) => [k, k]);
   const sets: string[] = [];
   const params: unknown[] = [];
   let i = 1;
