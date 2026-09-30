@@ -27,10 +27,11 @@ import {
   FiGlobe,
   FiCheck,
   FiX,
+  FiCamera,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
-import { loggedInPhotoUrl } from '@/lib/profile-photo';
+import { loggedInPhotoUrl, fileToProfilePhotoDataUrl, MAX_PROFILE_PHOTO_LABEL } from '@/lib/profile-photo';
 
 /* ──────────────────────────────────────────────
    Auth Helper
@@ -135,13 +136,14 @@ function StatCard({ icon, label, value, subtext, colorClass }: {
    Main Component
    ────────────────────────────────────────────── */
 export default function MyProfilePage() {
-  const { user } = useAuthStore();
+  const { user, fetchUser } = useAuthStore();
   const [activeTab, setActiveTab] = useState<ProfileTab>('personal');
   const [profileData, setProfileData] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [photoSaving, setPhotoSaving] = useState(false);
   const [editForm, setEditForm] = useState<Record<string, string>>({});
 
   const fetchProfile = useCallback(async () => {
@@ -198,6 +200,40 @@ export default function MyProfilePage() {
       toast.error(e instanceof Error ? e.message : 'Failed to update profile');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setPhotoSaving(true);
+    try {
+      const photo = await fileToProfilePhotoDataUrl(file);
+      if (!photo.ok) {
+        toast.error(photo.error);
+        return;
+      }
+      const res = await fetch('/api/users/profile', {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ avatar: photo.dataUrl }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Failed to update photo');
+      toast.success('Photo updated');
+      setProfileData((prev) => {
+        if (!prev) return prev;
+        const employee = prev.employee && typeof prev.employee === 'object'
+          ? { ...(prev.employee as Record<string, unknown>), avatar: photo.dataUrl }
+          : prev.employee;
+        return { ...prev, avatar: photo.dataUrl, employee };
+      });
+      await fetchUser();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update photo');
+    } finally {
+      setPhotoSaving(false);
     }
   };
 
@@ -346,24 +382,34 @@ export default function MyProfilePage() {
           {/* Avatar – overlapping the banner */}
           <div className="-mt-[60px] mb-4 flex items-end justify-between">
             <div className="flex items-end gap-4">
-              {profilePhoto ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={profilePhoto}
-                  alt={displayName}
-                  className="w-[120px] h-[120px] rounded-full object-cover shadow-xl ring-4 ring-white shrink-0"
-                />
-              ) : (
-                <div className="w-[120px] h-[120px] rounded-full bg-gradient-to-br from-green-500 to-teal-400 flex items-center justify-center text-white text-[40px] font-bold shadow-xl ring-4 ring-white shrink-0">
-                  {displayName ? getInitials(displayName) : '??'}
-                </div>
-              )}
-              <div className="pb-2">
+              <div className="relative shrink-0">
+                {profilePhoto ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={profilePhoto}
+                    alt={displayName}
+                    className="w-[120px] h-[120px] rounded-full object-cover shadow-xl ring-4 ring-white"
+                  />
+                ) : (
+                  <div className="w-[120px] h-[120px] rounded-full bg-gradient-to-br from-green-500 to-teal-400 flex items-center justify-center text-white text-[40px] font-bold shadow-xl ring-4 ring-white">
+                    {displayName ? getInitials(displayName) : '??'}
+                  </div>
+                )}
+                <label
+                  className={`absolute bottom-1 right-1 w-9 h-9 rounded-full bg-green-500 text-white flex items-center justify-center shadow-md ring-2 ring-white ${photoSaving ? 'opacity-60 pointer-events-none' : 'cursor-pointer hover:bg-green-600'}`}
+                  title={`Change photo (max ${MAX_PROFILE_PHOTO_LABEL})`}
+                >
+                  <FiCamera className="w-4 h-4" />
+                  <input type="file" accept="image/*" className="hidden" disabled={photoSaving} onChange={handlePhotoChange} />
+                </label>
+              </div>
+                  <div className="pb-2">
                 <h1 className="text-2xl font-bold text-thb-text-primary leading-tight">{displayName}</h1>
                 <p className="text-sm text-thb-text-secondary mt-0.5 flex items-center gap-1.5">
                   <FiMail className="w-3.5 h-3.5" />
                   {displayEmail}
                 </p>
+                <p className="text-xs text-thb-text-muted mt-1">Change photo anytime. JPG, PNG or GIF. Max {MAX_PROFILE_PHOTO_LABEL}.</p>
               </div>
             </div>
             <div className="hidden md:flex items-center gap-2 pb-2">

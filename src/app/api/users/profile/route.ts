@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb, getDbForTenant } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders, hashPassword } from '@/lib/auth';
 import { profilePhotoPayloadError } from '@/lib/profile-photo';
-import { canEditEmployeeRecords } from '@/lib/roleAccess';
 
 function corsHeaders() {
   return {
@@ -355,8 +354,7 @@ export async function PATCH(request: Request) {
 
     const body = await request.json();
     const { name, avatar, phone, emergencyContactName, emergencyContactPhone, address, city, state, zipCode, country, dateOfBirth, gender, bloodGroup } = body;
-    const canSetPhoto = canEditEmployeeRecords(decoded.role as string);
-    if (canSetPhoto && avatar !== undefined) {
+    if (avatar !== undefined) {
       const avatarError = profilePhotoPayloadError(avatar);
       if (avatarError) {
         return NextResponse.json({ error: avatarError }, { status: 400, headers: corsHeaders() });
@@ -365,7 +363,7 @@ export async function PATCH(request: Request) {
 
     const userUpdateData: Record<string, unknown> = {};
     if (name !== undefined) userUpdateData.name = name;
-    if (canSetPhoto && avatar !== undefined) userUpdateData.avatar = avatar;
+    if (avatar !== undefined) userUpdateData.avatar = avatar || null;
 
     // Try updating user in resolved DB, then platform DB
     let updatedUser = null;
@@ -375,7 +373,7 @@ export async function PATCH(request: Request) {
     if (!updatedUser) return NextResponse.json({ error: 'User not found' }, { status: 404, headers: corsHeaders() });
 
     // Update employee via raw SQL (avoids Prisma issues)
-    const hasEmpUpdates = phone !== undefined || emergencyContactName !== undefined || emergencyContactPhone !== undefined || address !== undefined || city !== undefined || state !== undefined || zipCode !== undefined || country !== undefined || dateOfBirth !== undefined || gender !== undefined || bloodGroup !== undefined;
+    const hasEmpUpdates = phone !== undefined || emergencyContactName !== undefined || emergencyContactPhone !== undefined || address !== undefined || city !== undefined || state !== undefined || zipCode !== undefined || country !== undefined || dateOfBirth !== undefined || gender !== undefined || bloodGroup !== undefined || avatar !== undefined;
 
     if (hasEmpUpdates) {
       // Find employee via raw SQL
@@ -403,6 +401,7 @@ export async function PATCH(request: Request) {
         if (dateOfBirth !== undefined) { sets.push(`"dateOfBirth" = $${pIdx++}`); params.push(dateOfBirth ? new Date(dateOfBirth) : null); }
         if (gender !== undefined) { sets.push(`"gender" = $${pIdx++}`); params.push(gender); }
         if (bloodGroup !== undefined) { sets.push(`"bloodGroup" = $${pIdx++}`); params.push(bloodGroup); }
+        if (avatar !== undefined) { sets.push(`"avatar" = $${pIdx++}`); params.push(avatar || null); }
         params.push(empId);
 
         if (sets.length > 0) {
