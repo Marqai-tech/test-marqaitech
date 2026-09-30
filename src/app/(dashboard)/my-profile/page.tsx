@@ -29,7 +29,6 @@ import {
   FiX,
   FiCamera,
   FiPlus,
-  FiX,
   FiDownload,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
