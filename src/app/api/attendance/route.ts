@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { resolveCompanyScope } from '@/lib/companyScope';
 import { withSchemaSync } from '@/lib/schema-sync';
+import { employeeIdsWithStoredPhoto, employeePhotoApiPath } from '@/lib/profile-photo';
 
 function corsHeaders() {
   return {
@@ -74,7 +75,7 @@ export async function GET(request: Request) {
     }
     if (status) where.status = status;
 
-    const [attendance, total] = await Promise.all([
+    const [attendanceRaw, total] = await Promise.all([
       withSchemaSync(() => db.attendance.findMany({
         where,
         include: {
@@ -84,7 +85,6 @@ export async function GET(request: Request) {
               firstName: true,
               lastName: true,
               employeeId: true,
-              avatar: true,
             },
           },
         },
@@ -94,6 +94,20 @@ export async function GET(request: Request) {
       })),
       withSchemaSync(() => db.attendance.count({ where })),
     ]);
+
+    const photoIds = [...new Set(attendanceRaw.map((row) => row.employee?.id).filter(Boolean))] as string[];
+    const hasPhoto = await employeeIdsWithStoredPhoto(db, photoIds);
+    const attendance = attendanceRaw.map((row) => {
+      const emp = row.employee;
+      if (!emp) return { ...row, employee: null };
+      return {
+        ...row,
+        employee: {
+          ...emp,
+          avatar: hasPhoto.has(emp.id) ? employeePhotoApiPath(emp.id, request.url) : null,
+        },
+      };
+    });
 
     return NextResponse.json(
       {
