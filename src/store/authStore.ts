@@ -259,26 +259,26 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   fetchUser: async () => {
-    const { token, user: existing } = get();
-    if (!token) {
-      set({ isLoading: false });
-      return;
-    }
-    // Keep the shell visible when we already have a user from login/cache.
+    const storedToken = (typeof window !== 'undefined' ? readAuthToken() : null) || get().token;
+    const { user: existing } = get();
     if (!existing) set({ isLoading: true });
     try {
 
       const res = await fetch('/api/auth/me', {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: storedToken ? { Authorization: `Bearer ${storedToken}` } : {},
+        credentials: 'include',
         cache: 'no-store',
       });
 
       if (!res.ok) {
-        if (typeof window !== 'undefined') {
+        if (res.status !== 401 && existing) {
+          set({ isLoading: false });
+          return;
+        }
+        if (res.status === 401 && typeof window !== 'undefined') {
           clearAuthToken();
           try { sessionStorage.removeItem('tb_user'); } catch { /* ignore */ }
+          try { localStorage.removeItem('tb_user'); } catch { /* ignore */ }
         }
         set({
           user: null,
@@ -328,10 +328,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       set({
         user,
+        token: storedToken || get().token,
         isAuthenticated: true,
         isLoading: false,
       });
       if (typeof window !== 'undefined') {
+        if (storedToken) persistAuthToken(storedToken);
         try { sessionStorage.setItem('tb_user', JSON.stringify(user)); } catch { /* ignore */ }
       }
 
@@ -339,15 +341,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       get().fetchPermissions();
     } catch (error) {
       console.error('Fetch user error:', error);
-      if (typeof window !== 'undefined') {
-        clearAuthToken();
+      if (get().user) {
+        set({ isLoading: false });
+        return;
       }
-      set({
-        user: null,
-        token: null,
-        isAuthenticated: false,
-        isLoading: false,
-      });
+      set({ isLoading: false });
     }
   },
 
@@ -361,7 +359,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   fetchPermissions: async () => {
     try {
       const { token, user } = get();
-      if (!token || !user) return;
+      if (!user) return;
 
       // Super admin always has all permissions
       if (user.role === 'super_admin') {
@@ -370,9 +368,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
 
       const res = await fetch('/api/rbac/my-permissions', {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        credentials: 'include',
       });
 
       if (res.ok) {
@@ -424,7 +421,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 }));
 
-// Initialize auth state from localStorage on client
+// Initialize auth state from storage / session cookie on client
 if (typeof window !== 'undefined') {
   const token = readAuthToken();
   if (token) {
@@ -438,8 +435,6 @@ if (typeof window !== 'undefined') {
     } else {
       useAuthStore.setState({ token, isLoading: true });
     }
-    useAuthStore.getState().fetchUser();
-  } else {
-    useAuthStore.setState({ isLoading: false });
   }
+  useAuthStore.getState().fetchUser();
 }

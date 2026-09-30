@@ -23,6 +23,7 @@ import {
   FiUsers,
   FiAward,
   FiTrendingUp,
+  FiStar,
   FiHash,
   FiCheckCircle,
   FiXCircle,
@@ -42,6 +43,7 @@ import { useCompanyContextStore } from '@/store/companyContextStore';
 import { canAccessEmployeeSettings, canEditEmployeeRecords } from '@/lib/roleAccess';
 import { employeePhotoUrl } from '@/lib/profile-photo';
 import { getToken } from '@/lib/token-storage';
+import { formatHoursHm } from '@/lib/format-hours';
 
 function getAuthHeaders() {
   const token = getToken() || (typeof window !== 'undefined' ? useAuthStore.getState().token : null);
@@ -224,7 +226,7 @@ interface EmployeeData {
   _count?: { directReports: number } | null;
 }
 
-const tabs = ['Overview', 'Personal', 'Employment', 'Documents', 'Leave', 'Attendance', 'Payroll', 'Health', 'Policies', 'Company Mapping'] as const;
+const tabs = ['Overview', 'Personal', 'Employment', 'Experience', 'Documents', 'Leave', 'Attendance', 'Payroll', 'Health', 'Policies', 'Company Mapping'] as const;
 type TabName = typeof tabs[number];
 
 // ─── Info Field Component ───
@@ -815,63 +817,6 @@ export default function EmployeeDetailPage() {
                 </div>
               </SectionCard>
 
-              {/* Work Experience */}
-              {([1, 2, 3] as const).some((n) => (employee as Record<string, unknown>)[`previousEmployer${n}`] || (employee as Record<string, unknown>)[`previousDesignation${n}`]) || (employee as Record<string, unknown>).totalExperience ? (
-                <SectionCard title="Previous Experience" icon={<FiTrendingUp className="w-4 h-4 text-amber-500" />} accentGradient="from-amber-500 via-orange-400 to-yellow-400">
-                  <div className="space-y-4">
-                    {([1, 2, 3] as const).map((n) => {
-                      const rec = employee as Record<string, unknown>;
-                      const company = rec[`previousEmployer${n}`] as string | undefined;
-                      const designation = rec[`previousDesignation${n}`] as string | undefined;
-                      const duration = rec[`previousDuration${n}`] as string | undefined;
-                      const reason = rec[`previousReason${n}`] as string | undefined;
-                      if (!company && !designation && !duration && !reason) return null;
-                      return (
-                        <div key={n} className="flex items-start gap-4 p-4 rounded-xl border border-thb-border hover:bg-slate-50/50 transition-colors">
-                          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-100 to-amber-50 flex items-center justify-center flex-shrink-0">
-                            <FiBriefcase className="w-5 h-5 text-amber-600" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-thb-text-primary">{company || '—'}</p>
-                            <p className="text-xs text-thb-text-secondary mt-0.5">{designation || '—'}</p>
-                            <p className="text-xs text-thb-text-muted mt-1">Duration: {duration || '—'}</p>
-                            {reason && <p className="text-xs text-thb-text-muted mt-1">Reason for leaving: {reason}</p>}
-                          </div>
-                        </div>
-                      );
-                    })}
-                    {(employee as Record<string, unknown>).totalExperience && (
-                      <p className="text-sm text-thb-text-primary">Total experience: {String((employee as Record<string, unknown>).totalExperience)}</p>
-                    )}
-                  </div>
-                </SectionCard>
-              ) : employee.experiences && employee.experiences.length > 0 ? (
-                <SectionCard title="Work Experience" icon={<FiTrendingUp className="w-4 h-4 text-amber-500" />} accentGradient="from-amber-500 via-orange-400 to-yellow-400">
-                  <div className="space-y-4">
-                    {employee.experiences.map(exp => (
-                      <div key={exp.id} className="flex items-start gap-4 p-4 rounded-xl border border-thb-border hover:bg-slate-50/50 transition-colors">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-100 to-amber-50 flex items-center justify-center flex-shrink-0">
-                          <FiBriefcase className="w-5 h-5 text-amber-600" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between gap-2">
-                            <p className="text-sm font-semibold text-thb-text-primary">{exp.company}</p>
-                            {exp.isCurrent && <span className="thb-badge thb-badge-success">Current</span>}
-                          </div>
-                          <p className="text-xs text-thb-text-secondary mt-0.5">{exp.designation}</p>
-                          <p className="text-xs text-thb-text-muted mt-1">
-                            {formatDate(exp.startDate)} — {exp.endDate ? formatDate(exp.endDate) : 'Present'}
-                          </p>
-                          {(exp as { description?: string }).description && (
-                            <p className="text-xs text-thb-text-muted mt-1">Reason for leaving: {(exp as { description?: string }).description}</p>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </SectionCard>
-              ) : null}
-
               {/* Qualifications */}
               {employee.qualifications && employee.qualifications.length > 0 && (
                 <SectionCard title="Qualifications" icon={<FiAward className="w-4 h-4 text-green-500" />} accentGradient="from-green-500 via-emerald-400 to-teal-400">
@@ -894,6 +839,29 @@ export default function EmployeeDetailPage() {
                   </div>
                 </SectionCard>
               )}
+            </div>
+          )}
+
+          {activeTab === 'Experience' && (
+            <div className="space-y-6">
+              {([1, 2, 3] as const).map((n) => {
+                const rec = employee as Record<string, unknown>;
+                return (
+                  <SectionCard key={n} title={`Experience ${n}`} icon={<FiTrendingUp className="w-4 h-4 text-amber-500" />} accentGradient="from-amber-500 via-orange-400 to-yellow-400">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-0">
+                      <InfoField label="Previous Employer" value={(rec[`previousEmployer${n}`] as string) || null} icon={<FiBriefcase className="w-3.5 h-3.5" />} />
+                      <InfoField label="Designation" value={(rec[`previousDesignation${n}`] as string) || null} icon={<FiUser className="w-3.5 h-3.5" />} />
+                      <InfoField label="Duration" value={(rec[`previousDuration${n}`] as string) || null} icon={<FiClock className="w-3.5 h-3.5" />} />
+                      <InfoField label="Reason for Leaving" value={(rec[`previousReason${n}`] as string) || null} />
+                    </div>
+                  </SectionCard>
+                );
+              })}
+              <SectionCard title="Total Experience" icon={<FiStar className="w-4 h-4 text-teal-500" />} accentGradient="from-teal-500 via-teal-400 to-emerald-400">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-0">
+                  <InfoField label="Total Experience" value={((employee as Record<string, unknown>).totalExperience as string) || null} />
+                </div>
+              </SectionCard>
             </div>
           )}
 
@@ -1007,8 +975,8 @@ export default function EmployeeDetailPage() {
                             <td className="py-3 text-sm font-medium text-thb-text-primary">{formatDate(a.date)}</td>
                             <td className="py-3 text-sm text-thb-text-secondary">{a.checkIn ? formatDateTime(a.checkIn) : '—'}</td>
                             <td className="py-3 text-sm text-thb-text-secondary">{a.checkOut ? formatDateTime(a.checkOut) : '—'}</td>
-                            <td className="py-3 text-sm text-thb-text-secondary">{a.workHours != null ? `${a.workHours}h` : '—'}</td>
-                            <td className="py-3 text-sm text-thb-text-secondary">{a.overtime != null && a.overtime > 0 ? `${a.overtime}h` : '—'}</td>
+                            <td className="py-3 text-sm text-thb-text-secondary">{a.workHours != null ? formatHoursHm(a.workHours) : '—'}</td>
+                            <td className="py-3 text-sm text-thb-text-secondary">{a.overtime != null && a.overtime > 0 ? formatHoursHm(a.overtime) : '—'}</td>
                             <td className="py-3"><span className={statusMap[a.status] || 'thb-badge thb-badge-info'}>{statusLabels[a.status] || a.status.replace('_', ' ')}</span></td>
                           </tr>
                         );

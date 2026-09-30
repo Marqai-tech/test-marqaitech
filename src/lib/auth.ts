@@ -27,12 +27,14 @@ export async function createToken(
     .sign(JWT_SECRET);
 }
 
-export function authTokenCookieHeader(token: string | null, maxAgeSec: number | null): string {
+/** maxAgeSec: 0 clears; 'session' lasts until the browser is closed; number is Max-Age seconds. */
+export function authTokenCookieHeader(token: string | null, maxAgeSec: number | 'session'): string {
   const secure = process.env.VERCEL || process.env.NODE_ENV === 'production' ? '; Secure' : '';
-  if (!token || maxAgeSec === null) {
+  if (!token || maxAgeSec === 0) {
     return `tb_token=; Path=/; Max-Age=0; SameSite=Lax${secure}`;
   }
-  return `tb_token=${encodeURIComponent(token)}; Path=/; Max-Age=${maxAgeSec}; SameSite=Lax${secure}; HttpOnly`;
+  const agePart = maxAgeSec === 'session' ? '' : `; Max-Age=${maxAgeSec}`;
+  return `tb_token=${encodeURIComponent(token)}; Path=/; SameSite=Lax${secure}; HttpOnly${agePart}`;
 }
 
 export async function verifyToken(token: string | null | undefined) {

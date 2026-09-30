@@ -231,26 +231,22 @@ export async function POST(request: Request) {
       try {
         const policyConfig = await db.attendancePolicyConfig.findFirst({
           where: { companyId: targetEmployee.companyId },
-          select: { shiftStartDefault: true, lateGraceMinutes: true },
+          select: { shiftStartDefault: true },
         });
         const localMinutes = localTimeStr
           ? (() => { const [h, m] = localTimeStr.split(':').map(Number); return h * 60 + m; })()
           : now.getHours() * 60 + now.getMinutes();
         if (policyConfig?.shiftStartDefault) {
           const [shiftH, shiftM] = policyConfig.shiftStartDefault.split(':').map(Number);
-          const graceMinutes = policyConfig.lateGraceMinutes || 15;
-          const deadlineMinutes = shiftH * 60 + shiftM + graceMinutes;
-          isLate = localMinutes > deadlineMinutes;
+          isLate = localMinutes > shiftH * 60 + shiftM;
         } else {
-          // Fallback: 9:00 shift + 15 min grace = 9:15
-          isLate = localMinutes > 9 * 60 + 15;
+          isLate = localMinutes > 9 * 60 + 30;
         }
       } catch {
-        // Fallback if policy config query fails
         const localMinutes = localTimeStr
           ? (() => { const [h, m] = localTimeStr.split(':').map(Number); return h * 60 + m; })()
           : now.getHours() * 60 + now.getMinutes();
-        isLate = localMinutes > 9 * 60 + 15;
+        isLate = localMinutes > 9 * 60 + 30;
       }
 
       const attendance = await db.attendance.upsert({
@@ -309,8 +305,26 @@ export async function POST(request: Request) {
       }
 
       const now = new Date();
+      // Working hours include break (check-out minus check-in only).
       const workHours = (now.getTime() - existingRecord.checkIn.getTime()) / (1000 * 60 * 60);
-      const overtime = Math.max(0, workHours - 9);
+      let standardHours = 9;
+      try {
+        const policyConfig = await db.attendancePolicyConfig.findFirst({
+          where: { companyId: targetEmployee.companyId },
+          select: { shiftStartDefault: true, shiftEndDefault: true },
+        });
+        const startMins = policyConfig?.shiftStartDefault && /^\d{1,2}:\d{2}$/.test(policyConfig.shiftStartDefault)
+          ? (() => { const [h, m] = policyConfig.shiftStartDefault.split(':').map(Number); return h * 60 + m; })()
+          : 9 * 60 + 30;
+        const endMins = policyConfig?.shiftEndDefault && /^\d{1,2}:\d{2}$/.test(policyConfig.shiftEndDefault)
+          ? (() => { const [h, m] = policyConfig.shiftEndDefault.split(':').map(Number); return h * 60 + m; })()
+          : 18 * 60 + 30;
+        const span = endMins > startMins ? endMins - startMins : endMins + 24 * 60 - startMins;
+        standardHours = span / 60;
+      } catch {
+        standardHours = 9;
+      }
+      const overtime = Math.max(0, workHours - standardHours);
 
       const attendance = await db.attendance.update({
         where: {

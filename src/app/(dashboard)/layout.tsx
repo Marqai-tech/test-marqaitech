@@ -35,7 +35,7 @@ export default function DashboardLayout({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { isAuthenticated, isLoading, fetchUser, token, user, logout } = useAuthStore();
+  const { isAuthenticated, isLoading, token, user, logout } = useAuthStore();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -134,11 +134,13 @@ export default function DashboardLayout({
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Auth check
+  // Auth check — wait for /api/auth/me (cookie or stored token) before login redirect
   useEffect(() => {
-    if (!token && !isLoading) { router.push('/login'); return; }
-    if (token && !isAuthenticated && isLoading) fetchUser();
-  }, [token, isAuthenticated, isLoading, router, fetchUser]);
+    if (isLoading) return;
+    if (!isAuthenticated && !token) {
+      router.push('/login');
+    }
+  }, [token, isAuthenticated, isLoading, router]);
 
   useEffect(() => {
     if (!user?.role || !pathname || isLoading) return;

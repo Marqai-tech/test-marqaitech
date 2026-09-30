@@ -95,7 +95,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json(
       { message: 'Logged out successfully' },
-      { headers: { ...corsHeaders(), 'Set-Cookie': authTokenCookieHeader(null, null) } }
+      { headers: { ...corsHeaders(), 'Set-Cookie': authTokenCookieHeader(null, 0) } }
     );
   } catch (error) {
     console.error('Logout error:', error);

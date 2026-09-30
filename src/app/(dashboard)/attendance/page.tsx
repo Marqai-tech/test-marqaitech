@@ -34,6 +34,7 @@ import { sanitizeSearch } from '@/lib/validators';
 import { useAuthStore } from '@/store/authStore';
 import { getDataScope } from '@/lib/roleAccess';
 import { getToken } from '@/lib/token-storage';
+import { formatHoursHm } from '@/lib/format-hours';
 import ModuleTips from '@/components/ModuleTips';
 import ModuleWorkflow from '@/components/ModuleWorkflow';
 import { useCompanyContextStore } from '@/store/companyContextStore';
@@ -270,7 +271,7 @@ export default function AttendancePage() {
   const [adminEmployees, setAdminEmployees] = useState<Array<{ id: string; firstName: string; lastName: string; employeeId: string }>>([]);
   const [holidayMap, setHolidayMap] = useState<Map<string, string>>(new Map());
   const [weekendDow, setWeekendDow] = useState<number[]>([0, 6]); // Sun + Sat default
-  const [shiftStartMinutes, setShiftStartMinutes] = useState(540); // 09:00 default
+  const [shiftStartMinutes, setShiftStartMinutes] = useState(570); // 09:30 default
   const [approvedLeaves, setApprovedLeaves] = useState<Array<{ employeeId: string; startDate: string; endDate: string }>>([]);
 
   /* ── Self view state ── */
@@ -1113,7 +1114,7 @@ export default function AttendancePage() {
                                   : 'text-amber-600'
                                 : 'text-thb-text-muted'
                             }`}>
-                              {a?.workHours != null ? `${a.workHours.toFixed(1)}h` : '—'}
+                              {a?.workHours != null ? formatHoursHm(a.workHours) : '—'}
                             </span>
                           </td>
                           {/* Actions */}
@@ -1193,7 +1194,7 @@ export default function AttendancePage() {
             <StatCard
               icon={<FiClock className="w-5 h-5" />}
               label="Work Hours"
-              value={todayRecord?.workHours != null ? `${todayRecord.workHours.toFixed(1)}h` : '—'}
+              value={todayRecord?.workHours != null ? formatHoursHm(todayRecord.workHours) : '—'}
               iconBg="bg-emerald-100"
               iconColor="text-emerald-600"
               accent="border-l-emerald-500"
@@ -1249,11 +1250,11 @@ export default function AttendancePage() {
               </span>
               <span className="flex items-center gap-1.5 text-green-600 font-medium">
                 <span className="w-2 h-2 rounded-full bg-green-500" />
-                {totalHours.toFixed(0)}h Total
+                {formatHoursHm(totalHours)} Total
               </span>
               <span className="flex items-center gap-1.5 text-teal-600 font-medium">
                 <span className="w-2 h-2 rounded-full bg-teal-500" />
-                {totalOvertime.toFixed(1)}h OT
+                {formatHoursHm(totalOvertime)} OT
               </span>
             </div>
           </div>
@@ -1376,8 +1377,8 @@ export default function AttendancePage() {
                               </td>
                               <td className="px-4 py-3 text-sm text-thb-text-secondary">{a ? formatTime(a.checkIn) : '—'}</td>
                               <td className="px-4 py-3 text-sm text-thb-text-secondary">{a ? formatTime(a.checkOut) : '—'}</td>
-                              <td className="px-4 py-3 text-sm text-thb-text-secondary">{a?.workHours != null ? `${a.workHours}h` : '—'}</td>
-                              <td className="px-4 py-3 text-sm text-thb-text-secondary">{a?.overtime != null && a.overtime > 0 ? `${a.overtime}h` : '—'}</td>
+                              <td className="px-4 py-3 text-sm text-thb-text-secondary">{a?.workHours != null ? formatHoursHm(a.workHours) : '—'}</td>
+                              <td className="px-4 py-3 text-sm text-thb-text-secondary">{a?.overtime != null && a.overtime > 0 ? formatHoursHm(a.overtime) : '—'}</td>
                             </tr>
                           );
                         })
@@ -1395,8 +1396,8 @@ export default function AttendancePage() {
                 <div className="space-y-4">
                   <SummaryRow label="Present Days" value={`${presentCount}`} color="text-emerald-600" barBg="bg-emerald-100" barFill="bg-emerald-500" pct={Math.min(100, (presentCount / 22) * 100)} />
                   <SummaryRow label="Late Arrivals" value={`${lateCount}`} color="text-amber-600" barBg="bg-amber-100" barFill="bg-amber-500" pct={Math.min(100, (lateCount / 22) * 100)} />
-                  <SummaryRow label="Total Hours" value={`${totalHours.toFixed(1)}h`} color="text-green-600" barBg="bg-green-100" barFill="bg-green-500" pct={Math.min(100, (totalHours / 176) * 100)} />
-                  <SummaryRow label="Overtime" value={`${totalOvertime.toFixed(1)}h`} color="text-teal-600" barBg="bg-teal-100" barFill="bg-teal-500" pct={Math.min(100, totalOvertime > 0 ? (totalOvertime / 20) * 100 : 0)} />
+                  <SummaryRow label="Total Hours" value={formatHoursHm(totalHours)} color="text-green-600" barBg="bg-green-100" barFill="bg-green-500" pct={Math.min(100, (totalHours / 176) * 100)} />
+                  <SummaryRow label="Overtime" value={formatHoursHm(totalOvertime)} color="text-teal-600" barBg="bg-teal-100" barFill="bg-teal-500" pct={Math.min(100, totalOvertime > 0 ? (totalOvertime / 20) * 100 : 0)} />
                 </div>
               </div>
 
@@ -1479,8 +1480,8 @@ export default function AttendancePage() {
               <DetailField label="Status" value={getStatusConfig(detailRecord.status).label} />
               <DetailField label="Check In" value={formatTime(detailRecord.checkIn)} />
               <DetailField label="Check Out" value={formatTime(detailRecord.checkOut)} />
-              <DetailField label="Work Hours" value={detailRecord.workHours != null ? `${detailRecord.workHours.toFixed(2)}h` : '—'} />
-              <DetailField label="Overtime" value={detailRecord.overtime != null && detailRecord.overtime > 0 ? `${detailRecord.overtime.toFixed(2)}h` : '—'} />
+              <DetailField label="Work Hours" value={formatHoursHm(detailRecord.workHours)} />
+              <DetailField label="Overtime" value={detailRecord.overtime != null && detailRecord.overtime > 0 ? formatHoursHm(detailRecord.overtime) : '—'} />
               <DetailField label="Late By" value={calculateLateBy(detailRecord.checkIn, shiftStartMinutes) !== '0m' ? `Late by ${calculateLateBy(detailRecord.checkIn, shiftStartMinutes)}` : 'On time'} />
               <DetailField label="Break" value={calculateBreakDuration(detailRecord.checkIn, detailRecord.checkOut, detailRecord.workHours)} />
             </div>

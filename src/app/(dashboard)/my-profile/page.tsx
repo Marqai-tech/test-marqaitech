@@ -88,8 +88,6 @@ const NOMINEE_RELATIONS = [
   { value: 'sister', label: 'Sister' },
   { value: 'other', label: 'Other' },
 ];
-const MATCH_ADMIN_TABS: ProfileTab[] = ['address', 'bank', 'emergency', 'health', 'documents'];
-
 function NomineeSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return (
     <select value={value} onChange={e => onChange(e.target.value)} className={fieldClass}>
@@ -424,8 +422,7 @@ export default function MyProfilePage() {
   };
 
   const emp = profileData?.employee as Record<string, unknown> | null | undefined;
-  const alwaysForm = MATCH_ADMIN_TABS.includes(activeTab);
-  const showFields = isEditing || alwaysForm;
+  const showFields = isEditing;
   const tenant = profileData?.tenant as Record<string, unknown> | null | undefined;
   const debugInfo = profileData?._debug as Record<string, unknown> | undefined;
 
@@ -607,15 +604,13 @@ export default function MyProfilePage() {
                     {saving ? <FiRefreshCw className="w-4 h-4 animate-spin" /> : <FiCheck className="w-4 h-4" />}
                     {saving ? 'Saving...' : 'Save Changes'}
                   </button>
-                  {!alwaysForm && (
-                    <button
-                      onClick={() => setIsEditing(false)}
-                      className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-100 text-slate-600 text-sm font-medium hover:bg-slate-200 transition-colors"
-                    >
-                      <FiX className="w-4 h-4" />
-                      Cancel
-                    </button>
-                  )}
+                  <button
+                    onClick={() => setIsEditing(false)}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-100 text-slate-600 text-sm font-medium hover:bg-slate-200 transition-colors"
+                  >
+                    <FiX className="w-4 h-4" />
+                    Cancel
+                  </button>
                 </>
               ) : (
                 <button
@@ -1060,36 +1055,29 @@ export default function MyProfilePage() {
         {/* ─── Experience Tab ─── */}
         {activeTab === 'experience' && (
           <div className="space-y-5">
-            {([1, 2, 3] as const).map((n) => {
-              const employer = str(emp?.[`previousEmployer${n}`]);
-              const designation = str(emp?.[`previousDesignation${n}`]);
-              const duration = str(emp?.[`previousDuration${n}`]);
-              const reason = str(emp?.[`previousReason${n}`]);
-              if (!isEditing && !employer && !designation && !duration && !reason) return null;
-              return (
-                <SectionCard key={n} title={`Experience ${n}`} icon={<FiBriefcase className="w-4 h-4" />} accent="blue">
-                  {isEditing ? (
-                    <div className="col-span-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      <EditField label="Previous Employer"><input type="text" value={editForm[`previousEmployer${n}`] || ''} onChange={e => updateEditField(`previousEmployer${n}`, e.target.value)} className={fieldClass} /></EditField>
-                      <EditField label="Designation"><input type="text" value={editForm[`previousDesignation${n}`] || ''} onChange={e => updateEditField(`previousDesignation${n}`, e.target.value)} className={fieldClass} /></EditField>
-                      <EditField label="Duration"><input type="text" value={editForm[`previousDuration${n}`] || ''} onChange={e => updateEditField(`previousDuration${n}`, e.target.value)} placeholder="e.g., 2 years" className={fieldClass} /></EditField>
-                      <div className="md:col-span-2 lg:col-span-3">
-                        <EditField label="Reason for Leaving"><input type="text" value={editForm[`previousReason${n}`] || ''} onChange={e => updateEditField(`previousReason${n}`, e.target.value)} className={fieldClass} /></EditField>
-                      </div>
+            {([1, 2, 3] as const).map((n) => (
+              <SectionCard key={n} title={`Experience ${n}`} icon={<FiBriefcase className="w-4 h-4" />} accent="blue">
+                {showFields ? (
+                  <div className="col-span-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <EditField label="Previous Employer"><input type="text" value={editForm[`previousEmployer${n}`] || ''} onChange={e => updateEditField(`previousEmployer${n}`, e.target.value)} className={fieldClass} /></EditField>
+                    <EditField label="Designation"><input type="text" value={editForm[`previousDesignation${n}`] || ''} onChange={e => updateEditField(`previousDesignation${n}`, e.target.value)} className={fieldClass} /></EditField>
+                    <EditField label="Duration"><input type="text" value={editForm[`previousDuration${n}`] || ''} onChange={e => updateEditField(`previousDuration${n}`, e.target.value)} placeholder="e.g., 2 years" className={fieldClass} /></EditField>
+                    <div className="md:col-span-2 lg:col-span-3">
+                      <EditField label="Reason for Leaving"><input type="text" value={editForm[`previousReason${n}`] || ''} onChange={e => updateEditField(`previousReason${n}`, e.target.value)} className={fieldClass} /></EditField>
                     </div>
-                  ) : (
-                    <>
-                      <InfoRow label="Previous Employer" value={employer} icon={<FiBriefcase className="w-3.5 h-3.5" />} />
-                      <InfoRow label="Designation" value={designation} icon={<FiStar className="w-3.5 h-3.5" />} />
-                      <InfoRow label="Duration" value={duration} icon={<FiClock className="w-3.5 h-3.5" />} />
-                      <InfoRow label="Reason for Leaving" value={reason} />
-                    </>
-                  )}
-                </SectionCard>
-              );
-            })}
+                  </div>
+                ) : (
+                  <>
+                    <InfoRow label="Previous Employer" value={str(emp?.[`previousEmployer${n}`])} icon={<FiBriefcase className="w-3.5 h-3.5" />} />
+                    <InfoRow label="Designation" value={str(emp?.[`previousDesignation${n}`])} icon={<FiStar className="w-3.5 h-3.5" />} />
+                    <InfoRow label="Duration" value={str(emp?.[`previousDuration${n}`])} icon={<FiClock className="w-3.5 h-3.5" />} />
+                    <InfoRow label="Reason for Leaving" value={str(emp?.[`previousReason${n}`])} />
+                  </>
+                )}
+              </SectionCard>
+            ))}
             <SectionCard title="Total Experience" icon={<FiStar className="w-4 h-4" />} accent="teal">
-              {isEditing ? (
+              {showFields ? (
                 <EditField label="Total Experience">
                   <input type="text" value={editForm.totalExperience || ''} onChange={e => updateEditField('totalExperience', e.target.value)} placeholder="e.g., 5 years" className={fieldClass} />
                 </EditField>
@@ -1097,37 +1085,6 @@ export default function MyProfilePage() {
                 <InfoRow label="Total Experience" value={str(emp?.totalExperience)} />
               )}
             </SectionCard>
-            {!isEditing && !str(emp?.previousEmployer1) && !str(emp?.previousEmployer2) && !str(emp?.previousEmployer3) && !str(emp?.totalExperience) && (
-              <div className="thb-card overflow-hidden">
-                <div className="h-[3px] bg-gradient-to-r from-slate-400 to-slate-300" />
-                <div className="p-12 text-center">
-                  <div className="w-14 h-14 rounded-full bg-slate-50 flex items-center justify-center mx-auto mb-4">
-                    <FiBriefcase className="w-7 h-7 text-thb-text-muted" />
-                  </div>
-                  <h3 className="text-sm font-semibold text-thb-text-primary mb-1">No Experience Records</h3>
-                  <p className="text-xs text-thb-text-muted">Click Edit Profile to add previous experience.</p>
-                </div>
-              </div>
-            )}
-
-            {Array.isArray(emp?.qualifications) && (emp?.qualifications as unknown[]).length > 0 && (
-              <div className="space-y-5 mt-5">
-                <h3 className="text-sm font-semibold text-thb-text-primary flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-teal-50 flex items-center justify-center shadow-sm">
-                    <FiBookOpen className="w-4 h-4 text-teal-500" />
-                  </div>
-                  Qualifications
-                </h3>
-                {(emp?.qualifications as Record<string, unknown>[]).map((qual, idx) => (
-                  <SectionCard key={idx} title={`Qualification ${idx + 1}`} icon={<FiBookOpen className="w-4 h-4" />} accent="violet">
-                    <InfoRow label="Degree / Course" value={str(qual.degree)} icon={<FiBookOpen className="w-3.5 h-3.5" />} />
-                    <InfoRow label="Institution" value={str(qual.institution)} icon={<FiHome className="w-3.5 h-3.5" />} />
-                    <InfoRow label="Year" value={str(qual.year)} icon={<FiCalendar className="w-3.5 h-3.5" />} />
-                    <InfoRow label="Grade / Percentage" value={str(qual.grade)} icon={<FiStar className="w-3.5 h-3.5" />} />
-                  </SectionCard>
-                ))}
-              </div>
-            )}
           </div>
         )}
 

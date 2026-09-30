@@ -731,7 +731,7 @@ export async function POST(request: Request) {
           'Server-Timing': `total;dur=${Date.now() - t0}`,
           'Set-Cookie': persistSession
             ? authTokenCookieHeader(token, REMEMBER_MAX_AGE_SEC)
-            : authTokenCookieHeader(null, null),
+            : authTokenCookieHeader(token, 'session'),
         },
       }
     );
