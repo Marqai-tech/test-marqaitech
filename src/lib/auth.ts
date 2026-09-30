@@ -12,12 +12,29 @@ export async function verifyPassword(password: string, hashedPassword: string): 
   return bcryptjs.compare(password, hashedPassword);
 }
 
-export async function createToken(payload: object): Promise<string> {
+export const SESSION_TOKEN_TTL = '24h';
+export const REMEMBER_TOKEN_TTL = '30d';
+export const REMEMBER_MAX_AGE_SEC = 30 * 24 * 60 * 60;
+
+export async function createToken(
+  payload: object,
+  expiresIn: string = SESSION_TOKEN_TTL,
+): Promise<string> {
   return new SignJWT(payload as Record<string, unknown>)
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
-    .setExpirationTime('24h')
+    .setExpirationTime(expiresIn)
     .sign(JWT_SECRET);
+}
+
+/** maxAgeSec: 0 clears; 'session' lasts until the browser is closed; number is Max-Age seconds. */
+export function authTokenCookieHeader(token: string | null, maxAgeSec: number | 'session'): string {
+  const secure = process.env.VERCEL || process.env.NODE_ENV === 'production' ? '; Secure' : '';
+  if (!token || maxAgeSec === 0) {
+    return `tb_token=; Path=/; Max-Age=0; SameSite=Lax${secure}`;
+  }
+  const agePart = maxAgeSec === 'session' ? '' : `; Max-Age=${maxAgeSec}`;
+  return `tb_token=${encodeURIComponent(token)}; Path=/; SameSite=Lax${secure}; HttpOnly${agePart}`;
 }
 
 export async function verifyToken(token: string | null | undefined) {
@@ -42,11 +59,11 @@ export function getTokenFromHeaders(request: Request): string | null {
     const cookies = cookieHeader.split(';').map(c => c.trim());
     const tbTokenCookie = cookies.find(c => c.startsWith('tb_token='));
     if (tbTokenCookie) {
-      return tbTokenCookie.substring('tb_token='.length);
+      return decodeURIComponent(tbTokenCookie.substring('tb_token='.length));
     }
     const tokenCookie = cookies.find(c => c.startsWith('token='));
     if (tokenCookie) {
-      return tokenCookie.substring('token='.length);
+      return decodeURIComponent(tokenCookie.substring('token='.length));
     }
   }
 

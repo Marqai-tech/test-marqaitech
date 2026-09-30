@@ -1,4 +1,5 @@
 {
+  "regions": ["sin1"],
   "framework": "nextjs",
   "installCommand": "npm install",
   "buildCommand": "npx prisma generate && (command -v python3 >/dev/null 2>&1 && python3 scripts/gen-missing-tables.py || echo '[build] Skipping gen-missing-tables.py (python3 not available or failed)') && node scripts/schema-sync.js && npx next build",

@@ -14,6 +14,7 @@ import { getDb } from '@/lib/tenant-db';
 import { getAuthInfo } from '@/lib/companyScope';
 import { sanitizeMultiLineText } from '@/lib/sanitize';
 import { loadWorkflowConfig, resolveTierApprovers } from '@/lib/approverResolve';
+import { canEditEmployeeRecords } from '@/lib/roleAccess';
 
 function corsHeaders() {
   return {
@@ -131,6 +132,11 @@ export async function POST(req: NextRequest) {
 
     if (!employeeId || !fieldName || newValue === undefined) {
       return NextResponse.json({ error: 'employeeId, fieldName, and newValue are required' }, { status: 400, headers: corsHeaders() });
+    }
+
+    const ownEmployee = await db.employee.findFirst({ where: { userId: auth.userId }, select: { id: true } });
+    if (!canEditEmployeeRecords(auth.role) && ownEmployee?.id !== employeeId) {
+      return NextResponse.json({ error: 'You can only submit changes for your own profile' }, { status: 403, headers: corsHeaders() });
     }
 
     // Check field sensitivity

@@ -14,6 +14,7 @@ import { canRoleAccessModule, isModuleEnabledForTenant, LEGACY_ROLE_MAP, navRole
 import { navSections, PINNED_ITEMS, PICKER_ROUTES } from '@/lib/navData';
 import type { NavItem, NavSection } from '@/lib/navData';
 import { useTenantModuleStore } from '@/store/tenantModuleStore';
+import { loggedInPhotoUrl } from '@/lib/profile-photo';
 
 interface SidebarProps {
   collapsed: boolean;
@@ -152,6 +153,8 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false, cur
       .slice(0, 2);
   };
 
+  const photoUrl = loggedInPhotoUrl(user);
+
   return (
     <aside
       className={`${isMobileMenu ? 'w-full' : 'fixed left-0 top-0 h-full'} bg-thb-sidebar-bg flex flex-col transition-all duration-300 ease-in-out z-40 ${
@@ -194,6 +197,7 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false, cur
               <li key={item.href}>
                 <Link
                   href={item.href}
+                  prefetch={false}
                   onClick={() => {
                     onModuleSelect(null);
                     if (isMobileMenu) onToggle();
@@ -265,6 +269,7 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false, cur
                   <li key={item.href}>
                     <Link
                       href={item.href}
+                      prefetch={false}
                       onClick={() => { if (isMobileMenu) onToggle(); }}
                       className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 group relative ${
                         isActive
@@ -328,11 +333,11 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false, cur
       <div className="border-t border-white/[0.06]">
         {/* User Info */}
         <div className={`flex items-center p-3 ${collapsed ? 'justify-center' : 'gap-3'}`}>
-          {user?.avatar ? (
+          {photoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={user.avatar}
-              alt={user.name}
+              src={photoUrl}
+              alt={user?.name || 'Profile'}
               className="w-8 h-8 rounded-full object-cover ring-2 ring-white/10 flex-shrink-0"
             />
           ) : (

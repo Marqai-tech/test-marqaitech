@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb, getDbForTenantById } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
-import { isLiveMode } from '@/lib/site-mode';
-import { isServerLiveSite, getServerHiddenSlugs, LIVE_HIDDEN_SLUGS as FOOLPROOF_LIVE_HIDDEN, DEMO_HIDDEN_SLUGS as FOOLPROOF_DEMO_HIDDEN, PLATFORM_PLACEHOLDER_NAME } from '@/lib/tenant-filter';
+import { getHiddenSlugsForRequest, PLATFORM_PLACEHOLDER_NAME } from '@/lib/tenant-filter';
 
 function corsHeaders() {
   return {
@@ -15,6 +14,9 @@ function corsHeaders() {
 export async function OPTIONS() {
   return NextResponse.json({}, { headers: corsHeaders() });
 }
+
+const contextResponseCache = new Map<string, { at: number; body: unknown }>();
+const CONTEXT_CACHE_MS = 30_000;
 
 /**
  * Safe wrapper — runs a query and returns a default value on failure instead
@@ -67,7 +69,7 @@ async function safe<T>(
  * The endpoint only 500s if the JWT verification itself fails.
  */
 export async function GET(request: Request) {
-  const db = await getDb(request);
+  const t0 = Date.now();
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -86,12 +88,28 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const requestedTenantId = searchParams.get('tenantId');
+    const host = request.headers.get('host') || '';
+    const ctxCacheKey = `${role}:${requestedTenantId || callerTenantId || ''}:${host}`;
+    if (role === 'super_admin' || role === 'tenant_admin') {
+      const hit = contextResponseCache.get(ctxCacheKey);
+      if (hit && Date.now() - hit.at < CONTEXT_CACHE_MS) {
+        return NextResponse.json(hit.body, {
+          headers: { ...corsHeaders(), 'Server-Timing': `cache;desc="hit",total;dur=${Date.now() - t0}` },
+        });
+      }
+    }
 
-    // Resolve the caller's own company from their Employee record (if any).
-    // Wrap in safe() — super_admin and tenant_admin typically have NO Employee
-    // record, and if the Employee table has a schema mismatch this would
-    // otherwise crash the whole endpoint.
-    const employee = await safe(
+    // Super admin / tenant admin never use Employee rows. Opening getDb() first
+    // was an extra Neon hop on every header load (measured /api/me/context TTFB 4273ms).
+    const db = ['super_admin', 'tenant_admin'].includes(role)
+      ? getPlatformDb()
+      : await getDb(request);
+
+    // Super admin / tenant admin are not employees. Skip the Employee lookup
+    // on the header context call (this was ~1 extra Neon hop on every page).
+    const employee = ['super_admin', 'tenant_admin'].includes(role)
+      ? null
+      : await safe(
       'employee.findFirst',
       () => db.employee.findFirst({
         where: { userId },
@@ -242,10 +260,7 @@ export async function GET(request: Request) {
       // FOOLPROOF: Use tenant-filter.ts as PRIMARY (direct hostname check),
       // then ALSO check isLiveMode() as SECONDARY. A slug is hidden if
       // EITHER method says so. This prevents Vercel internal routing bugs.
-      const siteMode = isLiveMode(request) ? 'live' : 'demo';
-      const foolproofSlugs = getServerHiddenSlugs(request);
-      const siteModeSlugs = siteMode === 'live' ? ['3boxes-hrms-demo', '3boxeshrms'] : ['marqaitechgroup'];
-      const allHiddenSlugs = [...new Set([...foolproofSlugs, ...siteModeSlugs])];
+      const allHiddenSlugs = getHiddenSlugsForRequest(request);
       const liveTenantFilter = {
         slug: { notIn: allHiddenSlugs },
         NOT: { name: { contains: PLATFORM_PLACEHOLDER_NAME } },
@@ -278,75 +293,41 @@ export async function GET(request: Request) {
         availableTenants[0]?.id;
 
       // Debug log: verify filtering is working (AFTER effectiveTenantId is declared)
-      console.log(`[me/context] siteMode=${siteMode}, host=${request.headers.get('host')}, filteredTenants=${availableTenants.length}, slugs=[${availableTenants.map((t: { slug: string }) => t.slug).join(',')}]`);
+      console.log(`[me/context] host=${request.headers.get('host')}, filteredTenants=${availableTenants.length}, slugs=[${availableTenants.map((t: { slug: string }) => t.slug).join(',')}]`);
       console.log(`[me/context] GOLDEN RULE: requestedTenantId=${requestedTenantId || 'none'}, callerTenantId=${callerTenantId || 'none'}, requestedVisible=${requestedTenantIsVisible}, callerVisible=${callerTenantIsVisible}, effectiveTenantId=${effectiveTenantId || 'none'}`);
       if (effectiveTenantId) {
-        // AUTO-HEAL: Ensure the target tenant has at least one default group
-        // company. Legacy tenants created before the auto-group feature would
-        // otherwise show no groups, making the switcher look broken.
-        // FIX: Use tenant-specific DB for the existence check, because
-        // CompanyGroup lives in the tenant DB, not the platform DB.
-        await safe(
-          'ensureDefaultGroup(super_admin)',
-          async () => {
-            const healCheckDb = await getDbForTenantById(effectiveTenantId);
-            const existingGroups = await healCheckDb.companyGroup.findFirst({
-              where: { tenantId: effectiveTenantId },
-              select: { id: true },
-            });
-            if (!existingGroups) {
-              const tenantInfo = await getPlatformDb().tenant.findUnique({
-                where: { id: effectiveTenantId },
-                select: { name: true },
-              });
-              await healCheckDb.companyGroup.create({
-                data: {
-                  name: tenantInfo?.name || 'Default Group',
-                  tenantId: effectiveTenantId,
-                  employeeLimitMode: 'group_total',
-                  maxEmployees: null,
-                  maxCompanies: null,
-                  notes: `Default group company auto-created for tenant "${tenantInfo?.name || 'Unknown'}".`,
-                },
-              });
-            }
-          },
-          undefined as unknown as void,
-        );
-
-        // CRITICAL FIX: For super_admin, we must query the TARGET tenant's
-        // database, not the request's default DB (which may be the platform
-        // DB or the admin's own tenant DB). Without this, groups/companies
-        // show as empty when the super_admin switches tenants.
         const targetDb = await getDbForTenantById(effectiveTenantId);
-        availableCompanyGroups = await safe(
-          'companyGroup.findMany(super_admin)',
-          () => targetDb.companyGroup.findMany({
-            where: { tenantId: effectiveTenantId },
-            select: {
-              id: true, name: true, tenantId: true,
-              employeeLimitMode: true, maxEmployees: true, maxCompanies: true, notes: true,
-            },
-            orderBy: { name: 'asc' },
-          }),
-          [],
-        );
-        const groupIds = availableCompanyGroups.map((g) => g.id);
-        if (groupIds.length > 0) {
-          availableCompanies = await safe(
-            'company.findMany(super_admin)',
-            () => targetDb.company.findMany({
-              where: { companyGroupId: { in: groupIds } },
-              select: {
-                id: true, name: true, code: true, companyGroupId: true,
-                companyGroup: { select: { id: true, name: true } },
-                _count: { select: { branches: true, departments: true } },
-              },
+        const groupSelect = {
+          id: true, name: true, tenantId: true,
+          employeeLimitMode: true, maxEmployees: true, maxCompanies: true, notes: true,
+        } as const;
+        const companySelect = {
+          id: true, name: true, code: true, companyGroupId: true,
+          companyGroup: { select: { id: true, name: true } },
+          _count: { select: { branches: true, departments: true } },
+        } as const;
+        const [groups, companies] = await Promise.all([
+          safe(
+            'companyGroup.findMany(super_admin)',
+            () => targetDb.companyGroup.findMany({
+              where: { tenantId: effectiveTenantId },
+              select: groupSelect,
               orderBy: { name: 'asc' },
             }),
             [],
-          );
-        }
+          ),
+          safe(
+            'company.findMany(super_admin)',
+            () => targetDb.company.findMany({
+              where: { companyGroup: { tenantId: effectiveTenantId } },
+              select: companySelect,
+              orderBy: { name: 'asc' },
+            }),
+            [],
+          ),
+        ]);
+        availableCompanyGroups = groups;
+        availableCompanies = companies;
       }
     } else if (role === 'tenant_admin') {
       // Tenant admin: scope to own tenant only
@@ -360,55 +341,26 @@ export async function GET(request: Request) {
         // CompanyGroup lives in the tenant DB, not the platform DB. Previously
         // this used getPlatformDb() which would never find groups in the tenant
         // DB, causing auto-heal to either fail silently or create duplicates.
-        const healCheckDb = await getDbForTenantById(callerTenantId);
-        await safe(
-          'ensureDefaultGroup(tenant_admin)',
-          async () => {
-            const existingGroups = await healCheckDb.companyGroup.findFirst({
-              where: { tenantId: callerTenantId },
-              select: { id: true },
-            });
-            if (!existingGroups) {
-              const tenantInfo = await getPlatformDb().tenant.findUnique({
-                where: { id: callerTenantId },
-                select: { name: true },
-              });
-              await healCheckDb.companyGroup.create({
-                data: {
-                  name: tenantInfo?.name || 'Default Group',
-                  tenantId: callerTenantId,
-                  employeeLimitMode: 'group_total',
-                  maxEmployees: null,
-                  maxCompanies: null,
-                  notes: `Default group company auto-created for tenant "${tenantInfo?.name || 'Unknown'}". Shares the tenant name per the parent/child identity rule.`,
-                },
-              });
-            }
-          },
-          undefined as unknown as void,
-        );
-
         // FIX: Use tenant-specific DB for tenant_admin too, in case
         // getDb(request) routed to the wrong DB (e.g., platform DB fallback).
         const tenantAdminDb = await getDbForTenantById(callerTenantId);
-        availableCompanyGroups = await safe(
-          'companyGroup.findMany(tenant_admin)',
-          () => tenantAdminDb.companyGroup.findMany({
-            where: { tenantId: callerTenantId },
-            select: {
-              id: true, name: true, tenantId: true,
-              employeeLimitMode: true, maxEmployees: true, maxCompanies: true, notes: true,
-            },
-            orderBy: { name: 'asc' },
-          }),
-          [],
-        );
-        const groupIds = availableCompanyGroups.map((g) => g.id);
-        if (groupIds.length > 0) {
-          availableCompanies = await safe(
+        const [groups, companies] = await Promise.all([
+          safe(
+            'companyGroup.findMany(tenant_admin)',
+            () => tenantAdminDb.companyGroup.findMany({
+              where: { tenantId: callerTenantId },
+              select: {
+                id: true, name: true, tenantId: true,
+                employeeLimitMode: true, maxEmployees: true, maxCompanies: true, notes: true,
+              },
+              orderBy: { name: 'asc' },
+            }),
+            [],
+          ),
+          safe(
             'company.findMany(tenant_admin)',
             () => tenantAdminDb.company.findMany({
-              where: { companyGroupId: { in: groupIds } },
+              where: { companyGroup: { tenantId: callerTenantId } },
               select: {
                 id: true, name: true, code: true, companyGroupId: true,
                 companyGroup: { select: { id: true, name: true } },
@@ -417,8 +369,10 @@ export async function GET(request: Request) {
               orderBy: { name: 'asc' },
             }),
             [],
-          );
-        }
+          ),
+        ]);
+        availableCompanyGroups = groups;
+        availableCompanies = companies;
       }
     }
     // For all other roles, look up EmployeeCompanyMapping records so employees
@@ -503,31 +457,14 @@ export async function GET(request: Request) {
         )
       : null;
 
-    // Compute tenant-level company quota usage for tenant_admin
+    // Quota from companies already loaded for the switcher — no extra DB hop.
     let tenantQuota: {
       maxCompanies: number;
       used: number;
       remaining: number | null;
     } | null = null;
     if (callerTenant && (role === 'tenant_admin' || role === 'super_admin')) {
-      // FIX: Use tenant-specific DB for quota queries too
-      const quotaDb = await getDbForTenantById(callerTenant.id);
-      const groupsForQuota = await safe(
-        'companyGroup.findMany(quota)',
-        () => quotaDb.companyGroup.findMany({
-          where: { tenantId: callerTenant.id },
-          select: { id: true },
-        }),
-        [],
-      );
-      const groupIdsForQuota = groupsForQuota.map((g) => g.id);
-      const usedCompanies = groupIdsForQuota.length
-        ? await safe(
-            'company.count(quota)',
-            () => quotaDb.company.count({ where: { companyGroupId: { in: groupIdsForQuota } } }),
-            0,
-          )
-        : 0;
+      const usedCompanies = availableCompanies.length;
       tenantQuota = {
         maxCompanies: callerTenant.maxCompaniesAllowed,
         used: usedCompanies,
@@ -562,28 +499,8 @@ export async function GET(request: Request) {
       }
     }
 
-    // ─── FIX: Recompute tenantQuota from effectiveTenant if overridden ───
-    // Previously, tenantQuota was computed from callerTenant (the hidden tenant).
-    // After override, we must recompute from effectiveTenant so the quota
-    // reflects the visible tenant, not the hidden one.
     if (tenantWasOverridden && effectiveTenant) {
-      const quotaDb = await getDbForTenantById(effectiveTenant.id);
-      const groupsForQuota = await safe(
-        'companyGroup.findMany(quota-override)',
-        () => quotaDb.companyGroup.findMany({
-          where: { tenantId: effectiveTenant!.id },
-          select: { id: true },
-        }),
-        [],
-      );
-      const groupIdsForQuota = groupsForQuota.map((g) => g.id);
-      const usedCompanies = groupIdsForQuota.length
-        ? await safe(
-            'company.count(quota-override)',
-            () => quotaDb.company.count({ where: { companyGroupId: { in: groupIdsForQuota } } }),
-            0,
-          )
-        : 0;
+      const usedCompanies = availableCompanies.length;
       tenantQuota = {
         maxCompanies: effectiveTenant.maxCompaniesAllowed,
         used: usedCompanies,
@@ -623,13 +540,7 @@ export async function GET(request: Request) {
     // hidden tenant data ever reaches the client.
     // FOOLPROOF: Use tenant-filter.ts (direct hostname check) as PRIMARY,
     // then ALSO check isLiveMode() as SECONDARY.
-    const siteModeFinal = isLiveMode(request) ? 'live' : 'demo';
-    const foolproofSlugsFinal = getServerHiddenSlugs(request);
-    const siteModeSlugsFinal = siteModeFinal === 'live'
-      ? ['3boxes-hrms-demo', '3boxeshrms']
-      : ['marqaitechgroup'];
-    // Union: a slug is hidden if EITHER method says so
-    const hiddenSlugsFinal = [...new Set([...foolproofSlugsFinal, ...siteModeSlugsFinal])];
+    const hiddenSlugsFinal = getHiddenSlugsForRequest(request);
 
     // 1. Scrub tenant/tenantId if they point to a hidden slug
     if (effectiveTenant && effectiveTenant.slug && hiddenSlugsFinal.includes(effectiveTenant.slug)) {
@@ -700,9 +611,9 @@ export async function GET(request: Request) {
       (mc) => visibleGroupIdSet.has(mc.companyGroupId)
     );
 
-    console.log(`[me/context] GOLDEN RULE FINAL: siteMode=${siteModeFinal}, hiddenSlugs=[${hiddenSlugsFinal.join(',')}], tenants=${finalAvailableTenants.length}, groups=${finalAvailableCompanyGroups.length}, companies=${finalAvailableCompanies.length}, tenantSlug=${effectiveTenant?.slug || 'null'}, envMode=${process.env.SITE_MODE || 'unset'}`);
+    console.log(`[me/context] GOLDEN RULE FINAL: hiddenSlugs=[${hiddenSlugsFinal.join(',')}], tenants=${finalAvailableTenants.length}, groups=${finalAvailableCompanyGroups.length}, companies=${finalAvailableCompanies.length}, tenantSlug=${effectiveTenant?.slug || 'null'}, envMode=${process.env.SITE_MODE || 'unset'}`);
 
-    return NextResponse.json({
+    const body = {
       role,
       tenantId: effectiveTenantId,
       tenant: effectiveTenant,
@@ -713,7 +624,11 @@ export async function GET(request: Request) {
       availableCompanyGroups: finalAvailableCompanyGroups,
       availableCompanies: finalAvailableCompanies,
       mappedCompanies: finalMappedCompanies,
-    }, { headers: corsHeaders() });
+    };
+    if (role === 'super_admin' || role === 'tenant_admin') {
+      contextResponseCache.set(ctxCacheKey, { at: Date.now(), body });
+    }
+    return NextResponse.json(body, { headers: { ...corsHeaders(), 'Server-Timing': `total;dur=${Date.now() - t0}` } });
   } catch (error) {
     // Log the FULL error so we can debug from Vercel logs.
     const msg = error instanceof Error ? error.message : String(error);

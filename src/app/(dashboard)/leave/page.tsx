@@ -217,12 +217,14 @@ function LeavePageContent() {
       // Task 66: when view=self, add &view=self to the API call so the server
       // returns only the current user's own leave applications (even for admins).
       const viewParamStr = viewParam === 'self' ? '&view=self' : '';
-      const leaveRes = await fetch(`/api/leave?limit=100${sq ? `&${sq}` : ''}${viewParamStr}`, { headers });
+      const [leaveRes, empRes] = await Promise.all([
+        fetch(`/api/leave?limit=100${sq ? `&${sq}` : ''}${viewParamStr}`, { headers }),
+        fetch(`/api/employees?limit=500${sq ? `&${sq}` : ''}`, { headers }),
+      ]);
       if (leaveRes.ok) {
         const data = await leaveRes.json();
         setLeaveRequests(data.leaveRequests || []);
       }
-      const empRes = await fetch(`/api/employees?limit=500${sq ? `&${sq}` : ''}`, { headers });
       if (empRes.ok) {
         const empData = await empRes.json();
         const myEmp = empData.employees?.find((e: { email: string }) => e.email === user?.email);

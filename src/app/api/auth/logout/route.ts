@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getPlatformDb, getDbForTenant, getDbForTenantById } from '@/lib/tenant-db';
-import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
+import { verifyToken, getTokenFromHeaders, authTokenCookieHeader } from '@/lib/auth';
 
 function corsHeaders() {
   return {
@@ -95,7 +95,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json(
       { message: 'Logged out successfully' },
-      { headers: corsHeaders() }
+      { headers: { ...corsHeaders(), 'Set-Cookie': authTokenCookieHeader(null, 0) } }
     );
   } catch (error) {
     console.error('Logout error:', error);

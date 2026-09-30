@@ -42,7 +42,7 @@ interface Role {
   tenant?: { id: string; name: string; slug: string } | null;
   company?: { id: string; name: string; code: string | null } | null;
   permissions: RolePermissionItem[];
-  _count?: { userRoles: number };
+  _count?: { userRoles: number; permissions?: number };
 }
 
 interface ModulePermission {
@@ -336,13 +336,18 @@ export default function SuperAdminRBACPage() {
   // ─── Permission Matrix Handlers ─────────────────────────
   const handleSelectRole = async (roleId: string) => {
     setSelectedRoleId(roleId);
-    const role = roles.find((r) => r.id === roleId);
-    if (role) {
+    try {
+      const res = await fetch(`/api/rbac/roles/${roleId}/permissions`, { headers: getAuthHeaders() });
+      if (!res.ok) return;
+      const data = await res.json();
+      const list = (data.role?.permissions || []) as RolePermissionItem[];
       const overrides: Record<string, boolean> = {};
-      role.permissions.forEach((rp) => {
+      list.forEach((rp) => {
         overrides[rp.permission.id] = rp.granted;
       });
       setPermissionOverrides(overrides);
+    } catch {
+      setPermissionOverrides({});
     }
   };
 
@@ -661,7 +666,7 @@ export default function SuperAdminRBACPage() {
                             </td>
                             <td className="px-4 py-3"><span className={role.isSystem ? 'thb-badge thb-badge-warning' : 'thb-badge thb-badge-info'}>{role.isSystem ? 'System' : 'Custom'}</span></td>
                             <td className="px-4 py-3 text-sm text-thb-text-secondary">{role._count?.userRoles || 0}</td>
-                            <td className="px-4 py-3 text-sm text-thb-text-secondary">{role.permissions.length}</td>
+                            <td className="px-4 py-3 text-sm text-thb-text-secondary">{role._count?.permissions ?? role.permissions?.length ?? 0}</td>
                             <td className="px-4 py-3">
                               <div className="flex items-center justify-end gap-1">
                                 <button onClick={() => handleViewRole(role.id)} className="p-2 rounded-lg text-thb-text-muted hover:text-emerald-500 hover:bg-emerald-50 transition-colors" title="View"><FiEye className="w-4 h-4" /></button>

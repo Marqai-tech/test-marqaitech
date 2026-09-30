@@ -170,6 +170,12 @@ export default function ESSDashboardPage() {
   const greeting = currentHour < 12 ? 'Good morning' : currentHour < 17 ? 'Good afternoon' : 'Good evening';
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
 
+  useEffect(() => {
+    if (userRole === 'super_admin') {
+      router.replace('/super-admin');
+    }
+  }, [userRole, router]);
+
   /* ----- state ----- */
   const [loading, setLoading] = useState(true);
   const [leaveBalances, setLeaveBalances] = useState<LeaveBalanceItem[]>([]);
@@ -188,6 +194,10 @@ export default function ESSDashboardPage() {
 
   /* ----- fetch all ESS data ----- */
   const fetchESS = useCallback(async () => {
+    if (userRole === 'super_admin') {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     const headers = getAuthHeaders();
     const cid = effectiveCompanyId();
@@ -321,7 +331,7 @@ export default function ESSDashboardPage() {
     }
 
     setLoading(false);
-  }, []);
+  }, [userRole, effectiveCompanyId]);
 
   useEffect(() => {
     fetchESS();

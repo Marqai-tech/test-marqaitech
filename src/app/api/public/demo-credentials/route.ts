@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { getDb, getPlatformDb } from '@/lib/tenant-db';
-import { isLiveMode } from '@/lib/site-mode';
+import { getPlatformDb } from '@/lib/tenant-db';
+import { getHiddenSlugsForRequest, isTestPlatformHost } from '@/lib/tenant-filter';
 
 /**
  * GET /api/public/demo-credentials
@@ -26,18 +26,18 @@ import { isLiveMode } from '@/lib/site-mode';
  * Only super_admin and tenant_admin users are returned — no sample/employee users.
  */
 export async function GET(request: Request) {
-  const db = await getDb(request);
+  const db = getPlatformDb();
   try {
-    const host = request.headers.get('x-tenant-domain') || '';
+    const host = request.headers.get('x-tenant-domain') || request.headers.get('host') || '';
     const tenantSlug = request.headers.get('x-tenant-slug') || '';
     const hostname = host.split(':')[0];
 
     // Detect which site we're on
-    const isDemoSite = hostname === 'nexus-hrms-mu.vercel.app';
+    const isDemoSite = hostname === 'nexus-hrms-mu.vercel.app' || isTestPlatformHost(hostname);
     const isPlatformSite = hostname === '3boxeshrms.com' || hostname === 'www.3boxeshrms.com';
     const isTenantSubdomain = !!tenantSlug;
 
-    if (isDemoSite) {
+    if (isDemoSite || isTestPlatformHost(hostname)) {
       // ─── DEMO site: full credentials with auto-fill ───
       // This is the demo/showcase site — users need quick access to
       // sample accounts with pre-filled credentials for easy exploration.
@@ -63,6 +63,9 @@ export async function GET(request: Request) {
         take: 6,
       });
 
+      const hiddenSlugs = getHiddenSlugsForRequest(request);
+      const visibleTenantAdmins = tenantAdmins.filter(u => !hiddenSlugs.includes(u.tenant.slug));
+
       return NextResponse.json({
         site: 'demo',
         hasAutoFill: true,
@@ -75,7 +78,7 @@ export async function GET(request: Request) {
           functionalRole: 'Super Admin',
           tenant: u.tenant.name,
         })),
-        tenantAdmins: tenantAdmins.map(u => ({
+        tenantAdmins: visibleTenantAdmins.map(u => ({
           email: u.email,
           name: u.name,
           role: u.role,

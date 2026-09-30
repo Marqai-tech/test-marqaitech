@@ -163,5 +163,5 @@ export const db =
   globalForDb.db ??
   createPrismaClient()
 
-// Cache in development; also cache in production on Vercel for warm starts
-if (process.env.NODE_ENV !== 'production') globalForDb.db = db
+// Reuse the client across warm serverless isolates (dev HMR and production).
+globalForDb.db = db

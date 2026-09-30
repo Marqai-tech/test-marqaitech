@@ -32,6 +32,9 @@ import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { sanitizeSearch } from '@/lib/validators';
 import { useAuthStore } from '@/store/authStore';
+import { getDataScope } from '@/lib/roleAccess';
+import { getToken } from '@/lib/token-storage';
+import { formatHoursHm } from '@/lib/format-hours';
 import ModuleTips from '@/components/ModuleTips';
 import ModuleWorkflow from '@/components/ModuleWorkflow';
 import { useCompanyContextStore } from '@/store/companyContextStore';
@@ -75,6 +78,7 @@ const attendanceWorkflowSteps = [
 /* ── Types ── */
 interface AttendanceRecord {
   id: string;
+  employeeId?: string;
   date: string;
   checkIn?: string | null;
   checkOut?: string | null;
@@ -115,7 +119,7 @@ interface Employee {
 
 /* ── Helpers ── */
 function getAuthHeaders() {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
+  const token = getToken() || (typeof window !== 'undefined' ? useAuthStore.getState().token : null);
   return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
 }
 
@@ -179,9 +183,13 @@ function getInitials(firstName?: string, lastName?: string) {
 export function pad2(n: number) { return String(n).padStart(2, '0'); }
 export function localDateKey(d: Date) { return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; }
 export function recordDateKey(v: string) {
-  const d = new Date(v);
-  if (isNaN(d.getTime())) return String(v).split('T')[0];
-  return d.toISOString().slice(0, 10);
+  const raw = String(v || '');
+  const d = new Date(raw);
+  if (isNaN(d.getTime())) return raw.split('T')[0];
+  if (d.getUTCHours() === 0 && d.getUTCMinutes() === 0 && d.getUTCSeconds() === 0) {
+    return d.toISOString().slice(0, 10);
+  }
+  return d.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
 }
 
 /* Derive the status of a day that has NO attendance record:
@@ -245,7 +253,7 @@ export default function AttendancePage() {
   // tenant_admin is an admin-level role everywhere else in the app (navData,
   // regularize page) — include it so Tenant Admins get the Admin View roster
   // with the Present/Absent/Late/On-Leaves counters.
-  const isAdmin = ['super_admin', 'tenant_admin', 'admin', 'hr'].includes(user?.role || '');
+  const isAdmin = getDataScope(user?.role || '') === 'all';
   const scopeQuery = useCompanyContextStore(s => s.scopeQuery);
   const selectedTenantId = useCompanyContextStore(s => s.selectedTenantId);
 
@@ -263,7 +271,7 @@ export default function AttendancePage() {
   const [adminEmployees, setAdminEmployees] = useState<Array<{ id: string; firstName: string; lastName: string; employeeId: string }>>([]);
   const [holidayMap, setHolidayMap] = useState<Map<string, string>>(new Map());
   const [weekendDow, setWeekendDow] = useState<number[]>([0, 6]); // Sun + Sat default
-  const [shiftStartMinutes, setShiftStartMinutes] = useState(540); // 09:00 default
+  const [shiftStartMinutes, setShiftStartMinutes] = useState(570); // 09:30 default
   const [approvedLeaves, setApprovedLeaves] = useState<Array<{ employeeId: string; startDate: string; endDate: string }>>([]);
 
   /* ── Self view state ── */
@@ -398,6 +406,9 @@ export default function AttendancePage() {
         });
         return;
       }
+      if (isAdmin) {
+        return;
+      }
       // Fallback: fetch from API and match by email or userId
       const sq = scopeQuery();
       const res = await fetch(`/api/employees?limit=500${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
@@ -411,7 +422,7 @@ export default function AttendancePage() {
     } catch (err) {
       console.error('fetchEmployee error:', err);
     }
-  }, [user?.email, user?.id, user?.employee, scopeQuery, selectedTenantId]);
+  }, [user?.email, user?.id, user?.employee, isAdmin, scopeQuery, selectedTenantId]);
 
   /* ── Fetch self attendance ── */
   const fetchAttendance = useCallback(async () => {
@@ -621,10 +632,7 @@ export default function AttendancePage() {
   // Use the browser's LOCAL calendar day (never toISOString of the current
   // instant — that rolls back a day in timezones ahead of UTC before 05:30)
   const todayStr = localDateKey(new Date());
-  const todayRecord = attendance.find(a => {
-    const dateStr = new Date(a.date).toISOString().slice(0, 10);
-    return dateStr === todayStr;
-  });
+  const todayRecord = attendance.find(a => recordDateKey(a.date) === todayStr);
   const isCheckedIn = !!todayRecord?.checkIn;
   const isCheckedOut = !!todayRecord?.checkOut;
   // Task 57: break state derived from today's record
@@ -645,11 +653,15 @@ export default function AttendancePage() {
   const adminRoster = useMemo(() => {
     const byEmp = new Map<string, AttendanceRecord>();
     adminAttendance.forEach(a => {
-      if (a.employee?.id && !byEmp.has(a.employee.id)) byEmp.set(a.employee.id, a);
+      const id = a.employee?.id || a.employeeId;
+      if (id && !byEmp.has(id)) byEmp.set(id, a);
     });
     const selectedDow = new Date(`${selectedDate}T00:00:00`).getDay();
     return adminEmployees.map(emp => {
       const record = byEmp.get(emp.id);
+      if (record?.checkIn && (!record.status || record.status === 'absent')) {
+        return { key: emp.id, emp, record, status: record.status === 'late' ? 'late' : 'present' };
+      }
       const derived = record ? null : deriveDayStatus({
         dateKey: selectedDate,
         dayOfWeek: selectedDow,
@@ -1105,7 +1117,7 @@ export default function AttendancePage() {
                                   : 'text-amber-600'
                                 : 'text-thb-text-muted'
                             }`}>
-                              {a?.workHours != null ? `${a.workHours.toFixed(1)}h` : '—'}
+                              {a?.workHours != null ? formatHoursHm(a.workHours) : '—'}
                             </span>
                           </td>
                           {/* Actions */}
@@ -1185,7 +1197,7 @@ export default function AttendancePage() {
             <StatCard
               icon={<FiClock className="w-5 h-5" />}
               label="Work Hours"
-              value={todayRecord?.workHours != null ? `${todayRecord.workHours.toFixed(1)}h` : '—'}
+              value={todayRecord?.workHours != null ? formatHoursHm(todayRecord.workHours) : '—'}
               iconBg="bg-emerald-100"
               iconColor="text-emerald-600"
               accent="border-l-emerald-500"
@@ -1241,11 +1253,11 @@ export default function AttendancePage() {
               </span>
               <span className="flex items-center gap-1.5 text-green-600 font-medium">
                 <span className="w-2 h-2 rounded-full bg-green-500" />
-                {totalHours.toFixed(0)}h Total
+                {formatHoursHm(totalHours)} Total
               </span>
               <span className="flex items-center gap-1.5 text-teal-600 font-medium">
                 <span className="w-2 h-2 rounded-full bg-teal-500" />
-                {totalOvertime.toFixed(1)}h OT
+                {formatHoursHm(totalOvertime)} OT
               </span>
             </div>
           </div>
@@ -1368,8 +1380,8 @@ export default function AttendancePage() {
                               </td>
                               <td className="px-4 py-3 text-sm text-thb-text-secondary">{a ? formatTime(a.checkIn) : '—'}</td>
                               <td className="px-4 py-3 text-sm text-thb-text-secondary">{a ? formatTime(a.checkOut) : '—'}</td>
-                              <td className="px-4 py-3 text-sm text-thb-text-secondary">{a?.workHours != null ? `${a.workHours}h` : '—'}</td>
-                              <td className="px-4 py-3 text-sm text-thb-text-secondary">{a?.overtime != null && a.overtime > 0 ? `${a.overtime}h` : '—'}</td>
+                              <td className="px-4 py-3 text-sm text-thb-text-secondary">{a?.workHours != null ? formatHoursHm(a.workHours) : '—'}</td>
+                              <td className="px-4 py-3 text-sm text-thb-text-secondary">{a?.overtime != null && a.overtime > 0 ? formatHoursHm(a.overtime) : '—'}</td>
                             </tr>
                           );
                         })
@@ -1387,8 +1399,8 @@ export default function AttendancePage() {
                 <div className="space-y-4">
                   <SummaryRow label="Present Days" value={`${presentCount}`} color="text-emerald-600" barBg="bg-emerald-100" barFill="bg-emerald-500" pct={Math.min(100, (presentCount / 22) * 100)} />
                   <SummaryRow label="Late Arrivals" value={`${lateCount}`} color="text-amber-600" barBg="bg-amber-100" barFill="bg-amber-500" pct={Math.min(100, (lateCount / 22) * 100)} />
-                  <SummaryRow label="Total Hours" value={`${totalHours.toFixed(1)}h`} color="text-green-600" barBg="bg-green-100" barFill="bg-green-500" pct={Math.min(100, (totalHours / 176) * 100)} />
-                  <SummaryRow label="Overtime" value={`${totalOvertime.toFixed(1)}h`} color="text-teal-600" barBg="bg-teal-100" barFill="bg-teal-500" pct={Math.min(100, totalOvertime > 0 ? (totalOvertime / 20) * 100 : 0)} />
+                  <SummaryRow label="Total Hours" value={formatHoursHm(totalHours)} color="text-green-600" barBg="bg-green-100" barFill="bg-green-500" pct={Math.min(100, (totalHours / 176) * 100)} />
+                  <SummaryRow label="Overtime" value={formatHoursHm(totalOvertime)} color="text-teal-600" barBg="bg-teal-100" barFill="bg-teal-500" pct={Math.min(100, totalOvertime > 0 ? (totalOvertime / 20) * 100 : 0)} />
                 </div>
               </div>
 
@@ -1471,8 +1483,8 @@ export default function AttendancePage() {
               <DetailField label="Status" value={getStatusConfig(detailRecord.status).label} />
               <DetailField label="Check In" value={formatTime(detailRecord.checkIn)} />
               <DetailField label="Check Out" value={formatTime(detailRecord.checkOut)} />
-              <DetailField label="Work Hours" value={detailRecord.workHours != null ? `${detailRecord.workHours.toFixed(2)}h` : '—'} />
-              <DetailField label="Overtime" value={detailRecord.overtime != null && detailRecord.overtime > 0 ? `${detailRecord.overtime.toFixed(2)}h` : '—'} />
+              <DetailField label="Work Hours" value={formatHoursHm(detailRecord.workHours)} />
+              <DetailField label="Overtime" value={detailRecord.overtime != null && detailRecord.overtime > 0 ? formatHoursHm(detailRecord.overtime) : '—'} />
               <DetailField label="Late By" value={calculateLateBy(detailRecord.checkIn, shiftStartMinutes) !== '0m' ? `Late by ${calculateLateBy(detailRecord.checkIn, shiftStartMinutes)}` : 'On time'} />
               <DetailField label="Break" value={calculateBreakDuration(detailRecord.checkIn, detailRecord.checkOut, detailRecord.workHours)} />
             </div>

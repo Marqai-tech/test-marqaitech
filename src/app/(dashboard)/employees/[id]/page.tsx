@@ -23,6 +23,7 @@ import {
   FiUsers,
   FiAward,
   FiTrendingUp,
+  FiStar,
   FiHash,
   FiCheckCircle,
   FiXCircle,
@@ -38,10 +39,14 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
-import { useCompanyContextStore } from '@/store/companyContextStore';
+import { useCompanyContextStore, useCompanyContextPersistHydrated } from '@/store/companyContextStore';
+import { canAccessEmployeeSettings, canEditEmployeeRecords } from '@/lib/roleAccess';
+import { employeePhotoUrl } from '@/lib/profile-photo';
+import { getToken } from '@/lib/token-storage';
+import { formatHoursHm } from '@/lib/format-hours';
 
 function getAuthHeaders() {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
+  const token = getToken() || (typeof window !== 'undefined' ? useAuthStore.getState().token : null);
   return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
 }
 
@@ -171,6 +176,7 @@ interface EmployeeData {
   email: string;
   phone?: string | null;
   avatar?: string | null;
+  user?: { id?: string; email?: string; role?: string; avatar?: string | null } | null;
   department?: { id: string; name: string; company?: { id: string; name: string; code: string | null } | null } | null;
   designation?: { id: string; title: string } | null;
   branch?: { id: string; name: string; company?: { id: string; name: string; code: string | null } | null } | null;
@@ -186,6 +192,11 @@ interface EmployeeData {
   state?: string | null;
   zipCode?: string | null;
   country?: string | null;
+  currentAddress?: string | null;
+  currentCity?: string | null;
+  currentState?: string | null;
+  currentZipCode?: string | null;
+  currentCountry?: string | null;
   bloodGroup?: string | null;
   bankName?: string | null;
   bankAccountNo?: string | null;
@@ -196,6 +207,7 @@ interface EmployeeData {
   salaryCurrency?: string;
   emergencyContactName?: string | null;
   emergencyContactPhone?: string | null;
+  emergencyContactRelation?: string | null;
   leaveBalances?: Array<{
     id: string;
     total: number;
@@ -214,7 +226,7 @@ interface EmployeeData {
   _count?: { directReports: number } | null;
 }
 
-const tabs = ['Overview', 'Personal', 'Employment', 'Documents', 'Leave', 'Attendance', 'Payroll', 'Health', 'Policies', 'Company Mapping'] as const;
+const tabs = ['Overview', 'Personal', 'Employment', 'Experience', 'Documents', 'Leave', 'Attendance', 'Payroll', 'Health', 'Policies', 'Company Mapping'] as const;
 type TabName = typeof tabs[number];
 
 // ─── Info Field Component ───
@@ -282,6 +294,10 @@ export default function EmployeeDetailPage() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
+  const { user } = useAuthStore();
+  const canManageMappings = canAccessEmployeeSettings(user?.role);
+  const canEditRecord = canEditEmployeeRecords(user?.role);
+  const persistHydrated = useCompanyContextPersistHydrated();
   const scopeQuery = useCompanyContextStore(s => s.scopeQuery);
   const selectedTenantId = useCompanyContextStore(s => s.selectedTenantId);
 
@@ -296,11 +312,14 @@ export default function EmployeeDetailPage() {
   const [leaveRequests, setLeaveRequests] = useState<Array<{ id: string; startDate: string; endDate: string; reason?: string | null; status: string; halfDay: boolean; leaveType: { name: string } }>>([]);
   const [now] = useState(() => Date.now());
 
-  const fetchEmployee = useCallback(async () => {
+  const fetchEmployee = useCallback(async (signal?: AbortSignal) => {
     try {
       setLoading(true);
       setLoadError(null);
-      const res = await fetch(`/api/employees/${encodeURIComponent(id)}`, { headers: getAuthHeaders() });
+      const sq = scopeQuery();
+      const qs = sq ? `?${sq}` : '';
+      const res = await fetch(`/api/employees/${encodeURIComponent(id)}${qs}`, { headers: getAuthHeaders(), signal });
+      if (signal?.aborted) return;
       if (res.status === 503) {
         setLoadError('Database temporarily unavailable. Please try again.');
         setEmployee(null);
@@ -317,26 +336,30 @@ export default function EmployeeDetailPage() {
         return;
       }
       const data = await res.json();
+      if (signal?.aborted) return;
       setEmployee(data.employee);
     } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return;
       console.error('Failed to load employee details:', err);
       setLoadError('Network error. Please check your connection and try again.');
       setEmployee(null);
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) setLoading(false);
     }
-  }, [id]);
+  }, [id, scopeQuery, selectedTenantId]);
 
   const fetchCompanyMappings = useCallback(async () => {
     if (!employee) return;
     try {
-      const res = await fetch(`/api/employees/company-mappings?employeeId=${employee.id}`, { headers: getAuthHeaders() });
+      const sq = scopeQuery();
+      const qs = sq ? `&${sq}` : '';
+      const res = await fetch(`/api/employees/company-mappings?employeeId=${employee.id}${qs}`, { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
         setCompanyMappings(data.mappings || []);
       }
     } catch { /* silently */ }
-  }, [employee]);
+  }, [employee, scopeQuery, selectedTenantId]);
 
   const fetchRelatedData = useCallback(async () => {
     if (!employee) return;
@@ -367,8 +390,11 @@ export default function EmployeeDetailPage() {
   }, [employee, scopeQuery, selectedTenantId]);
 
   useEffect(() => {
-    queueMicrotask(() => fetchEmployee());
-  }, [fetchEmployee]);
+    if (!persistHydrated) return;
+    const ac = new AbortController();
+    queueMicrotask(() => fetchEmployee(ac.signal));
+    return () => ac.abort();
+  }, [fetchEmployee, persistHydrated]);
 
   useEffect(() => {
     if (employee) queueMicrotask(() => fetchRelatedData());
@@ -445,6 +471,13 @@ export default function EmployeeDetailPage() {
 
   const badge = getStatusBadge(employee.status);
   const initials = `${employee.firstName[0]}${employee.lastName[0]}`;
+  const profilePhoto = employeePhotoUrl(employee);
+  const isOwnProfile = Boolean(
+    (user?.employee?.id && user.employee.id === employee.id)
+    || (user?.id && employee.user?.id && user.id === employee.user.id)
+    || (user?.email && employee.email && user.email.toLowerCase() === employee.email.toLowerCase()),
+  );
+  const profileViewOnly = !canEditRecord && !isOwnProfile;
   const daysEmployed = Math.floor((now - new Date(employee.dateOfJoining).getTime()) / (1000 * 60 * 60 * 24));
   const totalLeaveBalance = employee.leaveBalances?.reduce((sum, lb) => sum + lb.remaining, 0) || 0;
   const attendanceRate = attendance.length > 0 ? Math.round((attendance.filter(a => ['present', 'late'].includes(a.status)).length / attendance.length) * 100) : 0;
@@ -466,9 +499,9 @@ export default function EmployeeDetailPage() {
           <div className="flex flex-col sm:flex-row items-start sm:items-end gap-5">
             {/* Avatar */}
             <div className="flex-shrink-0">
-              {employee.avatar ? (
+              {profilePhoto ? (
                 <img
-                  src={employee.avatar}
+                  src={profilePhoto}
                   alt={`${employee.firstName} ${employee.lastName}`}
                   className="w-[120px] h-[120px] rounded-2xl object-cover border-4 border-white shadow-lg"
                 />
@@ -514,6 +547,7 @@ export default function EmployeeDetailPage() {
 
             {/* Action Buttons */}
             <div className="flex items-center gap-2 flex-shrink-0 sm:pb-1">
+              {canEditRecord && (
               <button
                 onClick={() => router.push(`/employees?editId=${id}`)}
                 className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-teal-600 via-fuchsia-500 to-cyan-500 text-white rounded-lg text-sm font-medium hover:from-teal-700 hover:via-fuchsia-600 hover:to-cyan-600 transition-all shadow-md shadow-fuchsia-200/50"
@@ -521,6 +555,12 @@ export default function EmployeeDetailPage() {
                 <FiEdit2 className="w-3.5 h-3.5" />
                 Edit
               </button>
+              )}
+              {profileViewOnly && (
+                <span className="inline-flex items-center gap-2 px-3 py-2 text-xs font-medium text-slate-500 bg-slate-50 border border-slate-200 rounded-lg">
+                  View only
+                </span>
+              )}
               <button
                 onClick={() => router.push('/employees')}
                 className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-thb-border text-thb-text-secondary rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors shadow-sm"
@@ -620,11 +660,8 @@ export default function EmployeeDetailPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-0">
                   <InfoField label="Email" value={employee.email} icon={<FiMail className="w-3.5 h-3.5" />} />
                   <InfoField label="Phone" value={employee.phone} icon={<FiPhone className="w-3.5 h-3.5" />} />
-                  <InfoField label="Address" value={employee.address} icon={<FiHome className="w-3.5 h-3.5" />} />
-                  <InfoField label="City" value={employee.city} icon={<FiMapPin className="w-3.5 h-3.5" />} />
-                  <InfoField label="State" value={employee.state} />
-                  <InfoField label="ZIP Code" value={employee.zipCode} />
-                  <InfoField label="Country" value={employee.country} icon={<FiGlobe className="w-3.5 h-3.5" />} />
+                  <InfoField label="Permanent Address" value={[employee.address, employee.city, employee.state, employee.zipCode, employee.country].filter(Boolean).join(', ') || null} icon={<FiHome className="w-3.5 h-3.5" />} />
+                  <InfoField label="Current Address" value={[employee.currentAddress, employee.currentCity, employee.currentState, employee.currentZipCode, employee.currentCountry].filter(Boolean).join(', ') || null} icon={<FiMapPin className="w-3.5 h-3.5" />} />
                 </div>
               </SectionCard>
 
@@ -640,7 +677,7 @@ export default function EmployeeDetailPage() {
                     navigateHint="Open reporting manager profile"
                   />
                   <InfoField label="Direct Reports" value={employee._count?.directReports ? `${employee._count.directReports} team member${employee._count.directReports === 1 ? '' : 's'}` : '—'} icon={<FiUsers className="w-3.5 h-3.5" />} />
-                  <InfoField label="Designation" value={employee.designation?.title} icon={<FiUser className="w-3.5 h-3.5" />} />
+                  <InfoField label="Reporting Manager Designation" value={employee.reportingManager?.designation?.title} icon={<FiUser className="w-3.5 h-3.5" />} />
                 </div>
                 <p className="text-xs text-thb-text-muted mt-2 ml-3">Leave approvals, workflow notifications and the org chart position are driven by the reporting manager. Admins can change it via Edit → Employment.</p>
               </SectionCard>
@@ -649,6 +686,7 @@ export default function EmployeeDetailPage() {
               <SectionCard title="Emergency Contact" icon={<FiHeart className="w-4 h-4 text-rose-500" />} accentGradient="from-rose-500 via-pink-400 to-fuchsia-400">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-0">
                   <InfoField label="Contact Name" value={employee.emergencyContactName} icon={<FiUser className="w-3.5 h-3.5" />} />
+                  <InfoField label="Relationship" value={employee.emergencyContactRelation} />
                   <InfoField label="Contact Phone" value={employee.emergencyContactPhone} icon={<FiPhone className="w-3.5 h-3.5" />} />
                 </div>
               </SectionCard>
@@ -689,8 +727,7 @@ export default function EmployeeDetailPage() {
                 </div>
               </SectionCard>
 
-              {/* Address */}
-              <SectionCard title="Address" icon={<FiMapPin className="w-4 h-4 text-emerald-500" />} accentGradient="from-emerald-500 via-teal-400 to-cyan-400">
+              <SectionCard title="Permanent Address" icon={<FiHome className="w-4 h-4 text-emerald-500" />} accentGradient="from-emerald-500 via-teal-400 to-cyan-400">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-0">
                   <InfoField label="Street Address" value={employee.address} icon={<FiHome className="w-3.5 h-3.5" />} />
                   <InfoField label="City" value={employee.city} icon={<FiMapPin className="w-3.5 h-3.5" />} />
@@ -700,10 +737,21 @@ export default function EmployeeDetailPage() {
                 </div>
               </SectionCard>
 
+              <SectionCard title="Current Address" icon={<FiMapPin className="w-4 h-4 text-cyan-500" />} accentGradient="from-cyan-500 via-teal-400 to-emerald-400">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-0">
+                  <InfoField label="Street Address" value={employee.currentAddress} icon={<FiMapPin className="w-3.5 h-3.5" />} />
+                  <InfoField label="City" value={employee.currentCity} icon={<FiMapPin className="w-3.5 h-3.5" />} />
+                  <InfoField label="State" value={employee.currentState} />
+                  <InfoField label="ZIP Code" value={employee.currentZipCode} />
+                  <InfoField label="Country" value={employee.currentCountry} icon={<FiGlobe className="w-3.5 h-3.5" />} />
+                </div>
+              </SectionCard>
+
               {/* Emergency Contact */}
               <SectionCard title="Emergency Contact" icon={<FiHeart className="w-4 h-4 text-rose-500" />} accentGradient="from-rose-500 via-pink-400 to-fuchsia-400">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-0">
                   <InfoField label="Contact Name" value={employee.emergencyContactName} icon={<FiUser className="w-3.5 h-3.5" />} />
+                  <InfoField label="Relationship" value={employee.emergencyContactRelation} />
                   <InfoField label="Contact Phone" value={employee.emergencyContactPhone} icon={<FiPhone className="w-3.5 h-3.5" />} />
                 </div>
               </SectionCard>
@@ -761,14 +809,7 @@ export default function EmployeeDetailPage() {
                   <InfoField label="Employee Status" value={(employee as Record<string, unknown>).employeeStatus ? String((employee as Record<string, unknown>).employeeStatus).charAt(0).toUpperCase() + String((employee as Record<string, unknown>).employeeStatus).slice(1) : '—'} />
                   <InfoField label="Employee Type" value={(employee as Record<string, unknown>).employeeType ? String((employee as Record<string, unknown>).employeeType).replace(/_/g, ' ').charAt(0).toUpperCase() + String((employee as Record<string, unknown>).employeeType).slice(1).replace(/_/g, ' ') : '—'} />
                   <InfoField label="Personal Email" value={(employee as Record<string, unknown>).personalEmail as string || '—'} icon={<FiMail className="w-3.5 h-3.5" />} />
-                </div>
-              </SectionCard>
-
-              {/* Salary Information */}
-              <SectionCard title="Salary Information" icon={<FiDollarSign className="w-4 h-4 text-emerald-500" />} accentGradient="from-emerald-500 via-teal-400 to-cyan-400">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-0">
-                  <InfoField label="Salary" value={employee.salary ? `${employee.salaryCurrency || 'INR'} ${employee.salary.toLocaleString()}` : '—'} icon={<FiDollarSign className="w-3.5 h-3.5" />} />
-                  <InfoField label="Currency" value={employee.salaryCurrency || 'INR'} />
+                  <InfoField label="Reporting Manager Designation" value={employee.reportingManager?.designation?.title} icon={<FiUser className="w-3.5 h-3.5" />} />
                 </div>
               </SectionCard>
 
@@ -782,31 +823,6 @@ export default function EmployeeDetailPage() {
                   <InfoField label="Aadhaar Number" value={employee.aadhaarNumber} icon={<FiShield className="w-3.5 h-3.5" />} />
                 </div>
               </SectionCard>
-
-              {/* Work Experience */}
-              {employee.experiences && employee.experiences.length > 0 && (
-                <SectionCard title="Work Experience" icon={<FiTrendingUp className="w-4 h-4 text-amber-500" />} accentGradient="from-amber-500 via-orange-400 to-yellow-400">
-                  <div className="space-y-4">
-                    {employee.experiences.map(exp => (
-                      <div key={exp.id} className="flex items-start gap-4 p-4 rounded-xl border border-thb-border hover:bg-slate-50/50 transition-colors">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-100 to-amber-50 flex items-center justify-center flex-shrink-0">
-                          <FiBriefcase className="w-5 h-5 text-amber-600" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between gap-2">
-                            <p className="text-sm font-semibold text-thb-text-primary">{exp.company}</p>
-                            {exp.isCurrent && <span className="thb-badge thb-badge-success">Current</span>}
-                          </div>
-                          <p className="text-xs text-thb-text-secondary mt-0.5">{exp.designation}</p>
-                          <p className="text-xs text-thb-text-muted mt-1">
-                            {formatDate(exp.startDate)} — {exp.endDate ? formatDate(exp.endDate) : 'Present'}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </SectionCard>
-              )}
 
               {/* Qualifications */}
               {employee.qualifications && employee.qualifications.length > 0 && (
@@ -833,9 +849,32 @@ export default function EmployeeDetailPage() {
             </div>
           )}
 
+          {activeTab === 'Experience' && (
+            <div className="space-y-6">
+              {([1, 2, 3] as const).map((n) => {
+                const rec = employee as Record<string, unknown>;
+                return (
+                  <SectionCard key={n} title={`Experience ${n}`} icon={<FiTrendingUp className="w-4 h-4 text-amber-500" />} accentGradient="from-amber-500 via-orange-400 to-yellow-400">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-0">
+                      <InfoField label="Previous Employer" value={(rec[`previousEmployer${n}`] as string) || null} icon={<FiBriefcase className="w-3.5 h-3.5" />} />
+                      <InfoField label="Designation" value={(rec[`previousDesignation${n}`] as string) || null} icon={<FiUser className="w-3.5 h-3.5" />} />
+                      <InfoField label="Duration" value={(rec[`previousDuration${n}`] as string) || null} icon={<FiClock className="w-3.5 h-3.5" />} />
+                      <InfoField label="Reason for Leaving" value={(rec[`previousReason${n}`] as string) || null} />
+                    </div>
+                  </SectionCard>
+                );
+              })}
+              <SectionCard title="Total Experience" icon={<FiStar className="w-4 h-4 text-teal-500" />} accentGradient="from-teal-500 via-teal-400 to-emerald-400">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-0">
+                  <InfoField label="Total Experience" value={((employee as Record<string, unknown>).totalExperience as string) || null} />
+                </div>
+              </SectionCard>
+            </div>
+          )}
+
           {/* ── Documents Tab ── */}
           {activeTab === 'Documents' && (
-            <EmployeeDocumentsTab employeeId={employee.id} initialDocuments={employee.documents || []} />
+            <EmployeeDocumentsTab employeeId={employee.id} initialDocuments={employee.documents || []} viewOnly={profileViewOnly} />
           )}
 
           {/* ── Leave Tab ── */}
@@ -943,8 +982,8 @@ export default function EmployeeDetailPage() {
                             <td className="py-3 text-sm font-medium text-thb-text-primary">{formatDate(a.date)}</td>
                             <td className="py-3 text-sm text-thb-text-secondary">{a.checkIn ? formatDateTime(a.checkIn) : '—'}</td>
                             <td className="py-3 text-sm text-thb-text-secondary">{a.checkOut ? formatDateTime(a.checkOut) : '—'}</td>
-                            <td className="py-3 text-sm text-thb-text-secondary">{a.workHours != null ? `${a.workHours}h` : '—'}</td>
-                            <td className="py-3 text-sm text-thb-text-secondary">{a.overtime != null && a.overtime > 0 ? `${a.overtime}h` : '—'}</td>
+                            <td className="py-3 text-sm text-thb-text-secondary">{a.workHours != null ? formatHoursHm(a.workHours) : '—'}</td>
+                            <td className="py-3 text-sm text-thb-text-secondary">{a.overtime != null && a.overtime > 0 ? formatHoursHm(a.overtime) : '—'}</td>
                             <td className="py-3"><span className={statusMap[a.status] || 'thb-badge thb-badge-info'}>{statusLabels[a.status] || a.status.replace('_', ' ')}</span></td>
                           </tr>
                         );
@@ -1088,12 +1127,14 @@ export default function EmployeeDetailPage() {
                       </span>
                     </div>
                   </div>
+                  {canManageMappings && (
                   <button
                     onClick={() => router.push('/employees/settings')}
                     className="inline-flex items-center gap-1.5 px-3 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-xs font-medium transition-colors"
                   >
                     <FiEdit2 className="w-3.5 h-3.5" /> Manage Mappings
                   </button>
+                  )}
                 </div>
 
                 {/* All Company Mappings - including primary */}
@@ -1122,9 +1163,11 @@ export default function EmployeeDetailPage() {
                     <div className="px-5 py-6 text-center">
                       <FiGlobe className="w-6 h-6 text-thb-text-muted mx-auto mb-2" />
                       <p className="text-sm text-thb-text-muted">No additional company mappings</p>
+                      {canManageMappings && (
                       <p className="text-xs text-thb-text-muted mt-1">
                         Go to <button onClick={() => router.push('/employees/settings')} className="text-green-600 hover:underline font-medium">Employee Settings &gt; Map Company</button> to add mappings
                       </p>
+                      )}
                     </div>
                   ) : (
                     companyMappings.filter(m => !m.isPrimary).map(mapping => (
@@ -1203,9 +1246,9 @@ const DOC_CATEGORIES = [
 ];
 const DOC_TYPES = ['offer_letter','id_proof','contract','certificate','policy','other','aadhaar','pan_card','bank_proof','passport','visa','education','experience','medical'];
 
-function EmployeeDocumentsTab({ employeeId, initialDocuments }: { employeeId: string; initialDocuments: EmployeeDocument[] }) {
+function EmployeeDocumentsTab({ employeeId, initialDocuments, viewOnly = false }: { employeeId: string; initialDocuments: EmployeeDocument[]; viewOnly?: boolean }) {
   const { user } = useAuthStore();
-  const isAdmin = ['super_admin','tenant_admin','admin','hr_admin'].includes(user?.role || '');
+  const isAdmin = canEditEmployeeRecords(user?.role);
   const [documents, setDocuments] = useState<EmployeeDocument[]>(initialDocuments);
   const [showUpload, setShowUpload] = useState(false);
   const [showBulkUpload, setShowBulkUpload] = useState(false);
@@ -1245,17 +1288,21 @@ function EmployeeDocumentsTab({ employeeId, initialDocuments }: { employeeId: st
           <p className="text-xs text-thb-text-muted mt-0.5">{documents.length} documents · centralized in File Manager</p>
         </div>
         <div className="flex items-center gap-2">
-          {isAdmin && (
+          {isAdmin && !viewOnly && (
             <button onClick={() => setShowRequest(true)} className="inline-flex items-center gap-2 px-3 py-2 border border-thb-border rounded-lg text-xs font-medium text-thb-text-secondary hover:bg-slate-50">
               <FiAlertCircle className="w-3.5 h-3.5" /> Request Document
             </button>
           )}
+          {!viewOnly && (
           <button onClick={() => setShowBulkUpload(true)} className="inline-flex items-center gap-2 px-3 py-2 border border-green-600 text-green-700 rounded-lg text-xs font-medium hover:bg-green-50">
             <FiLayers className="w-3.5 h-3.5" /> Bulk Upload
           </button>
+          )}
+          {!viewOnly && (
           <button onClick={() => setShowUpload(true)} className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg text-xs font-medium hover:bg-green-700">
             <FiUpload className="w-3.5 h-3.5" /> Upload Document
           </button>
+          )}
         </div>
       </div>
 
@@ -1310,7 +1357,7 @@ function EmployeeDocumentsTab({ employeeId, initialDocuments }: { employeeId: st
                 </div>
                 <div className="mt-3 flex items-center gap-2">
                   {doc.fileUrl && <a href={doc.fileUrl} {...((doc.fileUrl || '').startsWith('data:') ? { download: doc.name } : { target: '_blank', rel: 'noopener noreferrer' })} className="inline-flex items-center gap-1 px-2 py-1 text-[11px] text-teal-600 hover:bg-teal-50 rounded"><FiDownload className="w-3 h-3" /> Download</a>}
-                  {isAdmin && <button onClick={() => handleDelete(doc.id, doc.name)} className="inline-flex items-center gap-1 px-2 py-1 text-[11px] text-red-500 hover:bg-red-50 rounded ml-auto"><FiTrash2 className="w-3 h-3" /></button>}
+                  {isAdmin && !viewOnly && <button onClick={() => handleDelete(doc.id, doc.name)} className="inline-flex items-center gap-1 px-2 py-1 text-[11px] text-red-500 hover:bg-red-50 rounded ml-auto"><FiTrash2 className="w-3 h-3" /></button>}
                 </div>
               </div>
             );

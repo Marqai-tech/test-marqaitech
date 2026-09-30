@@ -17,6 +17,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/tenant-db';
 import { getAuthInfo } from '@/lib/companyScope';
 import { sanitizeMultiLineText } from '@/lib/sanitize';
+import { canEditEmployeeRecords } from '@/lib/roleAccess';
 
 function corsHeaders() {
   return {
@@ -59,6 +60,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const { id } = await params;
     const body = await req.json();
     const action = body.action as string | undefined;
+
+    const target = await db.employee.findUnique({ where: { id }, select: { userId: true } }).catch(() => null);
+    const isOwnRecord = Boolean(target?.userId && target.userId === auth.userId);
+    const canManage = canEditEmployeeRecords(auth.role) || isOwnRecord;
+    if (!canManage) {
+      return NextResponse.json({ error: 'You can view this profile but cannot change its documents' }, { status: 403, headers: corsHeaders() });
+    }
 
     // ─── Document Request mode (HR requests a document from employee) ───
     if (action === 'request') {
@@ -143,6 +151,12 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     const url = new URL(req.url);
     const docId = url.searchParams.get('docId');
     if (!docId) return NextResponse.json({ error: 'docId query param is required' }, { status: 400, headers: corsHeaders() });
+
+    const target = await db.employee.findUnique({ where: { id }, select: { userId: true } }).catch(() => null);
+    const isOwnRecord = Boolean(target?.userId && target.userId === auth.userId);
+    if (!canEditEmployeeRecords(auth.role) && !isOwnRecord) {
+      return NextResponse.json({ error: 'You can view this profile but cannot change its documents' }, { status: 403, headers: corsHeaders() });
+    }
 
     await db.document.delete({ where: { id: docId, employeeId: id } });
     return NextResponse.json({ message: 'Document deleted' }, { headers: corsHeaders() });

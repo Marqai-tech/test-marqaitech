@@ -119,6 +119,12 @@ export default function TenantModulesPage() {
     if (!hydrated) hydrate();
   }, [hydrated, hydrate]);
 
+  useEffect(() => {
+    if (selectedTenantId) {
+      setActiveTenantId((current) => current || selectedTenantId);
+    }
+  }, [selectedTenantId]);
+
   // Mirror availableTenants into local state
   useEffect(() => {
     if (availableTenants && availableTenants.length > 0) {
@@ -130,17 +136,19 @@ export default function TenantModulesPage() {
     }
   }, [availableTenants, selectedTenantId, activeTenantId]);
 
-  const fetchModules = useCallback(async (tenantId: string) => {
+  const fetchModules = useCallback(async (tenantId: string, signal?: AbortSignal) => {
     if (!tenantId) return;
     setLoading(true);
     try {
       const res = await fetch(`/api/super-admin/tenant-modules?tenantId=${encodeURIComponent(tenantId)}`, {
         headers: getAuthHeaders(),
+        signal,
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to load modules');
       setModules(data.modules || []);
     } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return;
       toast.error(err instanceof Error ? err.message : 'Failed to load tenant modules');
       setModules([]);
     } finally {
@@ -149,13 +157,16 @@ export default function TenantModulesPage() {
   }, []);
 
   useEffect(() => {
-    if (activeTenantId) {
-      fetchModules(activeTenantId);
-      // Find tenant slug for the active tenant
-      const t = tenants.find((t) => t.id === activeTenantId);
-      if (t) setActiveTenantSlug(t.slug);
-    }
-  }, [activeTenantId, fetchModules, tenants]);
+    if (!activeTenantId) return;
+    const ac = new AbortController();
+    void fetchModules(activeTenantId, ac.signal);
+    return () => ac.abort();
+  }, [activeTenantId, fetchModules]);
+
+  useEffect(() => {
+    const t = tenants.find((row) => row.id === activeTenantId);
+    if (t) setActiveTenantSlug(t.slug);
+  }, [activeTenantId, tenants]);
 
   const handleToggle = async (module: ModuleEntry, nextEnabled: boolean) => {
     setSavingKey(module.key);
@@ -281,6 +292,7 @@ export default function TenantModulesPage() {
         <div className="flex items-center gap-3">
           <Link
             href="/super-admin"
+            prefetch={false}
             className="p-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
             title="Back to Super Admin Console"
           >

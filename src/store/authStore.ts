@@ -2,13 +2,15 @@
 
 import { create } from 'zustand';
 import { isClientLiveMode, getClientSiteMode } from '@/lib/site-mode';
-import { isTenantHiddenClient, LIVE_HIDDEN_SLUGS, DEMO_HIDDEN_SLUGS } from '@/lib/tenant-filter';
+import { isTenantHiddenClient, LIVE_HIDDEN_SLUGS, DEMO_HIDDEN_SLUGS, isTestPlatformHost } from '@/lib/tenant-filter';
+import { setToken as persistAuthToken, removeToken as clearAuthToken, getToken as readAuthToken } from '@/lib/token-storage';
 
 // ─── Hidden Tenant Slugs (GOLDEN RULE) ────────────────────────────
 // PRIMARY: tenant-filter.ts (FOOLPROOF hostname-based detection)
 // SECONDARY: site-mode.ts (env var + host header, may fail on Vercel)
 function getAuthHiddenSlugs(): string[] {
   if (typeof window === 'undefined') return [];
+  if (isTestPlatformHost(window.location.hostname)) return [...DEMO_HIDDEN_SLUGS];
   // PRIMARY: FOOLPROOF hostname check
   const foolproofSlugs = isTenantHiddenClient('3boxeshrms') // dummy check to see if client is live
     ? LIVE_HIDDEN_SLUGS
@@ -20,6 +22,7 @@ function getAuthHiddenSlugs(): string[] {
 
 function isAuthHiddenTenant(slug: string): boolean {
   if (typeof window === 'undefined') return false;
+  if (isTestPlatformHost(window.location.hostname)) return DEMO_HIDDEN_SLUGS.includes(slug);
   // PRIMARY: FOOLPROOF check (direct hostname, no env vars)
   if (isTenantHiddenClient(slug)) return true;
   // SECONDARY: site-mode based check
@@ -80,6 +83,7 @@ interface EmployeeInfo {
   companyId?: string | null;
   companyLogo?: string | null;
   companyName?: string | null;
+  avatar?: string | null;
 }
 
 interface UserInfo {
@@ -107,7 +111,7 @@ interface AuthState {
   isLoading: boolean;
   permissions: UserPermissions;
   permissionsLoaded: boolean;
-  login: (email: string, password: string) => Promise<boolean>;
+  login: (email: string, password: string, rememberMe?: boolean) => Promise<boolean>;
   logout: () => Promise<void>;
   fetchUser: () => Promise<void>;
   setToken: (token: string) => void;
@@ -124,7 +128,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   permissions: {},
   permissionsLoaded: false,
 
-  login: async (email: string, password: string): Promise<boolean> => {
+  login: async (email: string, password: string, rememberMe = false): Promise<boolean> => {
     try {
       set({ isLoading: true });
 
@@ -139,11 +143,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         return await fetch('/api/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password }),
-          // cache: 'no-store' prevents the browser from serving a stale
-          // cached response if the user previously attempted login from
-          // the same browser session.
+          body: JSON.stringify({ email, password, rememberMe }),
           cache: 'no-store',
+          credentials: 'include',
         });
       };
 
@@ -186,7 +188,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const user = scrubHiddenTenant(rawUser);
 
       if (typeof window !== 'undefined') {
-        localStorage.setItem('tb_token', token);
+        persistAuthToken(token, { remember: rememberMe });
+        try { sessionStorage.setItem('tb_user', JSON.stringify(user)); } catch { /* ignore */ }
+        if (rememberMe) {
+          try { localStorage.setItem('tb_user', JSON.stringify(user)); } catch { /* ignore */ }
+        } else {
+          try { localStorage.removeItem('tb_user'); } catch { /* ignore */ }
+        }
       }
 
       set({
@@ -196,14 +204,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         isLoading: false,
       });
 
-      // Fetch permissions after login
+      // Login already returned the user. Refreshing /api/auth/me here doubled
+      // TTFB (measured two overlapping GETs 999ms + 1924ms) and kept the
+      // dashboard shell waiting. Background refresh happens on next load.
       get().fetchPermissions();
-
-      // Also fetch the full user profile (incl. employee info) so that
-      // pages like /marketplace/wallet can read user.employee.employeeId
-      // immediately after login instead of waiting for a page reload.
-      // Login response itself doesn't include employee data; /api/auth/me does.
-      get().fetchUser();
+      if (user.role !== 'super_admin' && user.role !== 'tenant_admin') {
+        void get().fetchUser();
+      }
 
       return true;
     } catch (error: unknown) {
@@ -222,15 +229,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`,
           },
+          credentials: 'include',
         });
       }
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
       if (typeof window !== 'undefined') {
-        localStorage.removeItem('tb_token');
+        clearAuthToken();
         localStorage.removeItem('tb_company_ctx');
         localStorage.removeItem('tb_company_ctx_v2');
+        try { sessionStorage.removeItem('tb_user'); } catch { /* ignore */ }
+        try { localStorage.removeItem('tb_user'); } catch { /* ignore */ }
       }
       set({
         user: null,
@@ -249,22 +259,26 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   fetchUser: async () => {
+    const storedToken = (typeof window !== 'undefined' ? readAuthToken() : null) || get().token;
+    const { user: existing } = get();
+    if (!existing) set({ isLoading: true });
     try {
-      const { token } = get();
-      if (!token) {
-        set({ isLoading: false });
-        return;
-      }
 
       const res = await fetch('/api/auth/me', {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: storedToken ? { Authorization: `Bearer ${storedToken}` } : {},
+        credentials: 'include',
+        cache: 'no-store',
       });
 
       if (!res.ok) {
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem('tb_token');
+        if (res.status !== 401 && existing) {
+          set({ isLoading: false });
+          return;
+        }
+        if (res.status === 401 && typeof window !== 'undefined') {
+          clearAuthToken();
+          try { sessionStorage.removeItem('tb_user'); } catch { /* ignore */ }
+          try { localStorage.removeItem('tb_user'); } catch { /* ignore */ }
         }
         set({
           user: null,
@@ -292,7 +306,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         if (blockedStatuses.includes(user.tenant.status)) {
           // Force logout — clear token and auth state
           if (typeof window !== 'undefined') {
-            localStorage.removeItem('tb_token');
+            clearAuthToken();
             localStorage.removeItem('tb_company_ctx');
         localStorage.removeItem('tb_company_ctx_v2');
           }
@@ -314,29 +328,30 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       set({
         user,
+        token: storedToken || get().token,
         isAuthenticated: true,
         isLoading: false,
       });
+      if (typeof window !== 'undefined') {
+        if (storedToken) persistAuthToken(storedToken);
+        try { sessionStorage.setItem('tb_user', JSON.stringify(user)); } catch { /* ignore */ }
+      }
 
       // Fetch permissions after user is loaded
       get().fetchPermissions();
     } catch (error) {
       console.error('Fetch user error:', error);
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('tb_token');
+      if (get().user) {
+        set({ isLoading: false });
+        return;
       }
-      set({
-        user: null,
-        token: null,
-        isAuthenticated: false,
-        isLoading: false,
-      });
+      set({ isLoading: false });
     }
   },
 
   setToken: (token: string) => {
     if (typeof window !== 'undefined') {
-      localStorage.setItem('tb_token', token);
+      persistAuthToken(token);
     }
     set({ token });
   },
@@ -344,7 +359,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   fetchPermissions: async () => {
     try {
       const { token, user } = get();
-      if (!token || !user) return;
+      if (!user) return;
 
       // Super admin always has all permissions
       if (user.role === 'super_admin') {
@@ -353,9 +368,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
 
       const res = await fetch('/api/rbac/my-permissions', {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        credentials: 'include',
       });
 
       if (res.ok) {
@@ -407,13 +421,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 }));
 
-// Initialize auth state from localStorage on client
+// Initialize auth state from storage / session cookie on client
 if (typeof window !== 'undefined') {
-  const token = localStorage.getItem('tb_token');
+  const token = readAuthToken();
   if (token) {
-    useAuthStore.setState({ token, isLoading: true });
-    useAuthStore.getState().fetchUser();
-  } else {
-    useAuthStore.setState({ isLoading: false });
+    let cachedUser: AuthState['user'] = null;
+    try {
+      const raw = sessionStorage.getItem('tb_user') || localStorage.getItem('tb_user');
+      if (raw) cachedUser = JSON.parse(raw);
+    } catch { /* ignore */ }
+    if (cachedUser) {
+      useAuthStore.setState({ token, user: cachedUser, isAuthenticated: true, isLoading: false });
+    } else {
+      useAuthStore.setState({ token, isLoading: true });
+    }
   }
+  useAuthStore.getState().fetchUser();
 }

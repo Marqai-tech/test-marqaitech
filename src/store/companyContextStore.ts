@@ -1,15 +1,19 @@
 'use client';
 
+import { useSyncExternalStore } from 'react';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { getClientSiteMode } from '@/lib/site-mode';
-import { isTenantHiddenClient, getClientHiddenSlugs, isClientLiveSite, LIVE_HIDDEN_SLUGS, DEMO_HIDDEN_SLUGS, PLATFORM_PLACEHOLDER_NAME } from '@/lib/tenant-filter';
+import { isTenantHiddenClient, getClientHiddenSlugs, isClientLiveSite, LIVE_HIDDEN_SLUGS, DEMO_HIDDEN_SLUGS, PLATFORM_PLACEHOLDER_NAME, isTestPlatformHost } from '@/lib/tenant-filter';
 
 // ─── Hidden Tenant Slugs (GOLDEN RULE) ────────────────────────────
 // PRIMARY: tenant-filter.ts (FOOLPROOF hostname-based detection)
 // SECONDARY: site-mode.ts (env var + host header, may fail on Vercel)
 // Both are checked so even if one fails, the other catches it.
 export function getHiddenSlugs(): string[] {
+  if (typeof window !== 'undefined' && isTestPlatformHost(window.location.hostname)) {
+    return [...DEMO_HIDDEN_SLUGS];
+  }
   // Use tenant-filter.ts as PRIMARY source (checks hostname directly)
   const foolproofSlugs = getClientHiddenSlugs();
   // Also get the site-mode based slugs as SECONDARY
@@ -19,6 +23,9 @@ export function getHiddenSlugs(): string[] {
 }
 
 export function isHiddenTenant(slug: string): boolean {
+  if (typeof window !== 'undefined' && isTestPlatformHost(window.location.hostname)) {
+    return DEMO_HIDDEN_SLUGS.includes(slug);
+  }
   // PRIMARY: FOOLPROOF check (direct hostname, no env vars)
   if (isTenantHiddenClient(slug)) return true;
   // SECONDARY: site-mode based check
@@ -180,7 +187,16 @@ export const useCompanyContextStore = create<CompanyContextState>()(
           // to scope the groups/companies to. Otherwise, on page reload or
           // navigation, the switcher shows the wrong tenant's groups/companies
           // or none at all if the default tenant has no groups.
-          const persistedTenantId = state.selectedTenantId;
+          const persistedTenantId = (() => {
+            const id = state.selectedTenantId;
+            if (!id) return null;
+            if (typeof window !== 'undefined' && isTestPlatformHost(window.location.hostname)) {
+              const hidden = getHiddenSlugs();
+              const t = state.availableTenants.find((x) => x.id === id);
+              if (t && hidden.includes(t.slug)) return null;
+            }
+            return id;
+          })();
           const contextUrl = persistedTenantId
             ? `/api/me/context?tenantId=${encodeURIComponent(persistedTenantId)}`
             : '/api/me/context';
@@ -642,3 +658,12 @@ export const useCompanyContextStore = create<CompanyContextState>()(
     }
   )
 );
+
+/** Wait for localStorage persist before tenant-scoped fetches (avoids a duplicate GET without tenantId). */
+export function useCompanyContextPersistHydrated() {
+  return useSyncExternalStore(
+    (onStoreChange) => useCompanyContextStore.persist.onFinishHydration(onStoreChange),
+    () => useCompanyContextStore.persist.hasHydrated(),
+    () => false,
+  );
+}

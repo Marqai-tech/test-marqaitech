@@ -38,6 +38,9 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
         headers: {
           Authorization: `Bearer ${token}`,
         },
+        signal: typeof AbortSignal !== 'undefined' && 'timeout' in AbortSignal
+          ? AbortSignal.timeout(8000)
+          : undefined,
       });
 
       if (!res.ok) {

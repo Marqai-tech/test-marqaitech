@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb, getDbForTenant } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders, hashPassword } from '@/lib/auth';
+import { profilePhotoPayloadError } from '@/lib/profile-photo';
+import { ensureEmployeeProfileColumns } from '@/lib/employee-profile-columns';
 
 function corsHeaders() {
   return {
@@ -17,6 +19,15 @@ export async function OPTIONS() {
 function toISOStr(val: any): string {
   if (!val) return '';
   try { return new Date(val).toISOString().split('T')[0]; } catch { return ''; }
+}
+
+function rowVal(row: Record<string, unknown> | null | undefined, ...keys: string[]) {
+  if (!row) return null;
+  for (const key of keys) {
+    const value = row[key];
+    if (value !== undefined && value !== null && value !== '') return value;
+  }
+  return null;
 }
 
 // GET — Fetch current user profile using RAW SQL (bypasses all Prisma issues)
@@ -229,71 +240,141 @@ export async function GET(request: Request) {
       }
     }
 
-    console.log('[Profile] Employee:', employee ? `${employee.firstname} ${employee.lastname}` : 'NOT FOUND', '| Strategy:', foundByStrategy || 'none');
+    console.log('[Profile] Employee:', employee ? `${rowVal(employee, 'firstName', 'firstname') || ''} ${rowVal(employee, 'lastName', 'lastname') || ''}`.trim() : 'NOT FOUND', '| Strategy:', foundByStrategy || 'none');
 
-    // Build employee data from raw SQL row (PostgreSQL returns lowercase column names)
+    // Build employee data from raw SQL row (quoted columns stay camelCase)
     let employeeData = null;
     if (employee) {
+
       // Fetch relations via raw SQL
       let department = null, designation = null, branch = null;
-      if (employee.departmentid) {
-        try { const r = await empDb.$queryRawUnsafe(`SELECT "name" FROM "Department" WHERE "id" = $1`, employee.departmentid) as any[]; if (r?.[0]) department = r[0]; } catch {}
+      const departmentId = rowVal(employee, 'departmentId', 'departmentid');
+      const designationId = rowVal(employee, 'designationId', 'designationid');
+      const branchId = rowVal(employee, 'branchId', 'branchid');
+      if (departmentId) {
+        try { const r = await empDb.$queryRawUnsafe(`SELECT "name" FROM "Department" WHERE "id" = $1`, departmentId) as any[]; if (r?.[0]) department = r[0]; } catch {}
       }
-      if (employee.designationid) {
-        try { const r = await empDb.$queryRawUnsafe(`SELECT "title" FROM "Designation" WHERE "id" = $1`, employee.designationid) as any[]; if (r?.[0]) designation = r[0]; } catch {}
+      if (designationId) {
+        try { const r = await empDb.$queryRawUnsafe(`SELECT "title" FROM "Designation" WHERE "id" = $1`, designationId) as any[]; if (r?.[0]) designation = r[0]; } catch {}
       }
-      if (employee.branchid) {
-        try { const r = await empDb.$queryRawUnsafe(`SELECT "name" FROM "Branch" WHERE "id" = $1`, employee.branchid) as any[]; if (r?.[0]) branch = r[0]; } catch {}
+      if (branchId) {
+        try { const r = await empDb.$queryRawUnsafe(`SELECT "name" FROM "Branch" WHERE "id" = $1`, branchId) as any[]; if (r?.[0]) branch = r[0]; } catch {}
       }
 
-      let dependents: any[] = [], qualifications: any[] = [], documents: any[] = [];
+      let dependents: any[] = [], qualifications: any[] = [], documents: any[] = [], experiences: any[] = [];
       try { dependents = await empDb.$queryRawUnsafe(`SELECT * FROM "Dependent" WHERE "employeeId" = $1`, employee.id) as any[]; } catch {}
       try { qualifications = await empDb.$queryRawUnsafe(`SELECT * FROM "Qualification" WHERE "employeeId" = $1`, employee.id) as any[]; } catch {}
-      try { documents = await empDb.$queryRawUnsafe(`SELECT "id","name","type","status" FROM "Document" WHERE "employeeId" = $1`, employee.id) as any[]; } catch {}
+      try { documents = await empDb.$queryRawUnsafe(`SELECT "id","name","type","status","category","fileUrl","expiryDate","description" FROM "Document" WHERE "employeeId" = $1 ORDER BY "createdAt" DESC`, employee.id) as any[]; } catch {}
+      try {
+        experiences = await empDb.$queryRawUnsafe(`SELECT * FROM "Experience" WHERE "employeeId" = $1 ORDER BY "startDate" DESC`, employee.id) as any[];
+      } catch {}
 
       employeeData = {
         id: employee.id,
-        employeeId: employee.employeeid,
-        firstName: employee.firstname,
-        lastName: employee.lastname,
-        email: employee.email,
-        personalEmail: employee.personalemail || '',
-        employeeStatus: employee.employeestatus || 'confirmed',
-        employeeType: employee.employeetype || 'full_time',
-        phone: employee.phone || '',
-        emergencyContactName: employee.emergencycontactname || '',
-        emergencyContactPhone: employee.emergencycontactphone || '',
-        address: employee.address || '',
-        city: employee.city || '',
-        state: employee.state || '',
-        zipCode: employee.zipcode || '',
-        country: employee.country || '',
-        dateOfBirth: toISOStr(employee.dateofbirth),
-        gender: employee.gender || '',
-        maritalStatus: employee.maritalstatus || '',
-        nationality: employee.nationality || '',
-        bloodGroup: employee.bloodgroup || '',
+        employeeId: rowVal(employee, 'employeeId', 'employeeid'),
+        firstName: rowVal(employee, 'firstName', 'firstname') || '',
+        lastName: rowVal(employee, 'lastName', 'lastname') || '',
+        email: rowVal(employee, 'email') || '',
+        personalEmail: rowVal(employee, 'personalEmail', 'personalemail') || '',
+        employeeStatus: rowVal(employee, 'employeeStatus', 'employeestatus') || 'confirmed',
+        employeeType: rowVal(employee, 'employeeType', 'employeetype') || 'full_time',
+        phone: rowVal(employee, 'phone') || '',
+        avatar: rowVal(employee, 'avatar') || '',
+        emergencyContactName: rowVal(employee, 'emergencyContactName', 'emergencycontactname') || '',
+        emergencyContactPhone: rowVal(employee, 'emergencyContactPhone', 'emergencycontactphone') || '',
+        emergencyContactRelation: rowVal(employee, 'emergencyContactRelation', 'emergencycontactrelation') || '',
+        address: rowVal(employee, 'address') || '',
+        city: rowVal(employee, 'city') || '',
+        state: rowVal(employee, 'state') || '',
+        zipCode: rowVal(employee, 'zipCode', 'zipcode') || '',
+        country: rowVal(employee, 'country') || '',
+        currentAddress: rowVal(employee, 'currentAddress', 'currentaddress') || '',
+        currentCity: rowVal(employee, 'currentCity', 'currentcity') || '',
+        currentState: rowVal(employee, 'currentState', 'currentstate') || '',
+        currentZipCode: rowVal(employee, 'currentZipCode', 'currentzipcode') || '',
+        currentCountry: rowVal(employee, 'currentCountry', 'currentcountry') || '',
+        dateOfBirth: toISOStr(rowVal(employee, 'dateOfBirth', 'dateofbirth')),
+        gender: rowVal(employee, 'gender') || '',
+        maritalStatus: rowVal(employee, 'maritalStatus', 'maritalstatus') || '',
+        nationality: rowVal(employee, 'nationality') || '',
+        bloodGroup: rowVal(employee, 'bloodGroup', 'bloodgroup') || '',
+        hasChronicIllness: rowVal(employee, 'hasChronicIllness', 'haschronicillness') || '',
+        chronicIllnessDetails: rowVal(employee, 'chronicIllnessDetails', 'chronicillnessdetails') || '',
+        hasAllergies: rowVal(employee, 'hasAllergies', 'hasallergies') || '',
+        allergyDetails: rowVal(employee, 'allergyDetails', 'allergydetails') || '',
+        hasDisability: rowVal(employee, 'hasDisability', 'hasdisability') || '',
+        disabilityDetails: rowVal(employee, 'disabilityDetails', 'disabilitydetails') || '',
+        isOnMedication: rowVal(employee, 'isOnMedication', 'isonmedication') || '',
+        medicationDetails: rowVal(employee, 'medicationDetails', 'medicationdetails') || '',
+        hasHadSurgery: rowVal(employee, 'hasHadSurgery', 'hashadsurgery') || '',
+        surgeryDetails: rowVal(employee, 'surgeryDetails', 'surgerydetails') || '',
+        emergencyMedicalCondition: rowVal(employee, 'emergencyMedicalCondition', 'emergencymedicalcondition') || '',
+        primaryPhysicianName: rowVal(employee, 'primaryPhysicianName', 'primaryphysicianname') || '',
+        primaryPhysicianPhone: rowVal(employee, 'primaryPhysicianPhone', 'primaryphysicianphone') || '',
+        healthInsuranceProvider: rowVal(employee, 'healthInsuranceProvider', 'healthinsuranceprovider') || '',
+        healthInsurancePolicyNo: rowVal(employee, 'healthInsurancePolicyNo', 'healthinsurancepolicyno') || '',
+        previousEmployer1: rowVal(employee, 'previousEmployer1', 'previousemployer1') || '',
+        previousDesignation1: rowVal(employee, 'previousDesignation1', 'previousdesignation1') || '',
+        previousDuration1: rowVal(employee, 'previousDuration1', 'previousduration1') || '',
+        previousReason1: rowVal(employee, 'previousReason1', 'previousreason1') || '',
+        previousEmployer2: rowVal(employee, 'previousEmployer2', 'previousemployer2') || '',
+        previousDesignation2: rowVal(employee, 'previousDesignation2', 'previousdesignation2') || '',
+        previousDuration2: rowVal(employee, 'previousDuration2', 'previousduration2') || '',
+        previousReason2: rowVal(employee, 'previousReason2', 'previousreason2') || '',
+        previousEmployer3: rowVal(employee, 'previousEmployer3', 'previousemployer3') || '',
+        previousDesignation3: rowVal(employee, 'previousDesignation3', 'previousdesignation3') || '',
+        previousDuration3: rowVal(employee, 'previousDuration3', 'previousduration3') || '',
+        previousReason3: rowVal(employee, 'previousReason3', 'previousreason3') || '',
+        totalExperience: rowVal(employee, 'totalExperience', 'totalexperience') || '',
+        pfNumber: rowVal(employee, 'pfNumber', 'pfnumber') || '',
+        pfUAN: rowVal(employee, 'pfUAN', 'pfuan') || '',
+        pfNomineeName: rowVal(employee, 'pfNomineeName', 'pfnomineename') || '',
+        pfNomineeRelation: rowVal(employee, 'pfNomineeRelation', 'pfnomineerelation') || '',
+        pfNomineePercentage: rowVal(employee, 'pfNomineePercentage', 'pfnomineepercentage') || '',
+        esiNumber: rowVal(employee, 'esiNumber', 'esinumber') || '',
+        esiDispensary: rowVal(employee, 'esiDispensary', 'esidispensary') || '',
+        esiNomineeName: rowVal(employee, 'esiNomineeName', 'esinomineename') || '',
+        esiNomineeRelation: rowVal(employee, 'esiNomineeRelation', 'esinomineerelation') || '',
+        professionalTaxNumber: rowVal(employee, 'professionalTaxNumber', 'professionaltaxnumber') || '',
+        lwfNumber: rowVal(employee, 'lwfNumber', 'lwfnumber') || '',
         department: department?.name || '',
         designation: designation?.title || '',
         branch: branch?.name || '',
-        dateOfJoining: toISOStr(employee.dateofjoining),
-        status: employee.status || 'active',
-        bankName: employee.bankname || '',
-        bankAccountNo: employee.bankaccountno || '',
-        bankIfscCode: employee.bankifsccode || '',
-        panNumber: employee.pannumber || '',
-        aadhaarNumber: employee.aadhaarnumber || '',
-        taxId: employee.taxid || '',
-        salary: employee.salary,
-        salaryCurrency: employee.salarycurrency || 'INR',
-        leavePolicyId: employee.leavepolicyid || '',
-        attendancePolicyId: employee.attendancepolicyid || '',
-        travelPolicyId: employee.travelpolicyid || '',
-        salaryStructureId: employee.salarystructureid || '',
+        dateOfJoining: toISOStr(rowVal(employee, 'dateOfJoining', 'dateofjoining')),
+        status: rowVal(employee, 'status') || 'active',
+        bankName: rowVal(employee, 'bankName', 'bankname') || '',
+        bankAccountNo: rowVal(employee, 'bankAccountNo', 'bankaccountno') || '',
+        bankIfscCode: rowVal(employee, 'bankIfscCode', 'bankifsccode') || '',
+        panNumber: rowVal(employee, 'panNumber', 'pannumber') || '',
+        aadhaarNumber: rowVal(employee, 'aadhaarNumber', 'aadhaarnumber') || '',
+        taxId: rowVal(employee, 'taxId', 'taxid') || '',
+        salary: rowVal(employee, 'salary'),
+        salaryCurrency: rowVal(employee, 'salaryCurrency', 'salarycurrency') || 'INR',
+        leavePolicyId: rowVal(employee, 'leavePolicyId', 'leavepolicyid') || '',
+        attendancePolicyId: rowVal(employee, 'attendancePolicyId', 'attendancepolicyid') || '',
+        travelPolicyId: rowVal(employee, 'travelPolicyId', 'travelpolicyid') || '',
+        salaryStructureId: rowVal(employee, 'salaryStructureId', 'salarystructureid') || '',
         dependents: dependents || [],
         qualifications: qualifications || [],
-        experiences: [],
-        documents: (documents || []).map((d: any) => ({ id: d.id, name: d.name, type: d.type, status: d.status })),
+        experiences: (experiences || []).map((exp: any) => ({
+          id: exp.id,
+          company: rowVal(exp, 'company') || '',
+          designation: rowVal(exp, 'designation') || '',
+          fromDate: toISOStr(rowVal(exp, 'startDate', 'startdate')),
+          toDate: toISOStr(rowVal(exp, 'endDate', 'enddate')),
+          isCurrent: Boolean(rowVal(exp, 'isCurrent', 'iscurrent')),
+          description: rowVal(exp, 'description') || '',
+        })),
+        documents: (documents || []).map((d: any) => ({
+          id: d.id,
+          name: d.name,
+          type: d.type,
+          status: d.status,
+          category: d.category,
+          fileUrl: d.fileUrl || d.fileurl || '',
+          expiryDate: toISOStr(rowVal(d, 'expiryDate', 'expirydate')),
+          description: d.description || '',
+        })),
       };
     }
 
@@ -305,9 +386,11 @@ export async function GET(request: Request) {
       try { const t = await platformDb.tenant.findUnique({ where: { id: user.tenantId }, select: { id: true, name: true, slug: true, plan: true, currency: true, timezone: true } }); if (t) tenantInfo = t; } catch {}
     }
 
+    const profileAvatar = (employeeData?.avatar as string | undefined) || user.avatar || null;
+
     return NextResponse.json({
       id: user.id, name: user.name, email: user.email, role: user.role,
-      avatar: user.avatar, status: user.status,
+      avatar: profileAvatar, status: user.status,
       tenant: tenantInfo, employee: employeeData,
       lastLogin: toISOStr(user.lastLogin), createdAt: toISOStr(user.createdAt),
       _debug: {
@@ -337,54 +420,166 @@ export async function PATCH(request: Request) {
     if (!decoded) return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
 
     const body = await request.json();
-    const { name, avatar, phone, emergencyContactName, emergencyContactPhone, address, city, state, zipCode, country, dateOfBirth, gender, bloodGroup } = body;
+    const {
+      name, avatar, firstName, lastName, phone, personalEmail,
+      emergencyContactName, emergencyContactPhone, emergencyContactRelation,
+      address, city, state, zipCode, country,
+      currentAddress, currentCity, currentState, currentZipCode, currentCountry,
+      dateOfBirth, gender, bloodGroup, maritalStatus, nationality,
+      bankName, bankAccountNo, bankIfscCode, panNumber, aadhaarNumber, taxId,
+      experiences,
+    } = body;
+    if (avatar !== undefined) {
+      const avatarError = profilePhotoPayloadError(avatar);
+      if (avatarError) {
+        return NextResponse.json({ error: avatarError }, { status: 400, headers: corsHeaders() });
+      }
+    }
 
+    const derivedName = [firstName, lastName].filter(Boolean).join(' ').trim();
     const userUpdateData: Record<string, unknown> = {};
     if (name !== undefined) userUpdateData.name = name;
-    if (avatar !== undefined) userUpdateData.avatar = avatar;
+    else if (derivedName) userUpdateData.name = derivedName;
+    if (avatar !== undefined) userUpdateData.avatar = avatar || null;
 
-    // Try updating user in resolved DB, then platform DB
+    const userId = decoded.userId as string;
     let updatedUser = null;
-    try { updatedUser = await db.user.update({ where: { id: decoded.userId as string }, data: userUpdateData, include: { tenant: true, employee: true } }); } catch {
-      try { updatedUser = await platformDb.user.update({ where: { id: decoded.userId as string }, data: userUpdateData, include: { tenant: true, employee: true } }); } catch {}
+    if (Object.keys(userUpdateData).length > 0) {
+      try { updatedUser = await db.user.update({ where: { id: userId }, data: userUpdateData, include: { tenant: true, employee: true } }); } catch {
+        try { updatedUser = await platformDb.user.update({ where: { id: userId }, data: userUpdateData, include: { tenant: true, employee: true } }); } catch {}
+      }
+    }
+    if (!updatedUser) {
+      try { updatedUser = await db.user.findUnique({ where: { id: userId }, include: { tenant: true, employee: true } }); } catch {}
+      if (!updatedUser) {
+        try { updatedUser = await platformDb.user.findUnique({ where: { id: userId }, include: { tenant: true, employee: true } }); } catch {}
+      }
     }
     if (!updatedUser) return NextResponse.json({ error: 'User not found' }, { status: 404, headers: corsHeaders() });
 
-    // Update employee via raw SQL (avoids Prisma issues)
-    const hasEmpUpdates = phone !== undefined || emergencyContactName !== undefined || emergencyContactPhone !== undefined || address !== undefined || city !== undefined || state !== undefined || zipCode !== undefined || country !== undefined || dateOfBirth !== undefined || gender !== undefined || bloodGroup !== undefined;
+    const stringFields: [string, unknown][] = [
+      ['phone', phone],
+      ['personalEmail', personalEmail],
+      ['firstName', firstName],
+      ['lastName', lastName],
+      ['emergencyContactName', emergencyContactName],
+      ['emergencyContactPhone', emergencyContactPhone],
+      ['emergencyContactRelation', emergencyContactRelation],
+      ['address', address],
+      ['city', city],
+      ['state', state],
+      ['zipCode', zipCode],
+      ['country', country],
+      ['currentAddress', currentAddress],
+      ['currentCity', currentCity],
+      ['currentState', currentState],
+      ['currentZipCode', currentZipCode],
+      ['currentCountry', currentCountry],
+      ['gender', gender],
+      ['bloodGroup', bloodGroup],
+      ['maritalStatus', maritalStatus],
+      ['nationality', nationality],
+      ['bankName', bankName],
+      ['bankAccountNo', bankAccountNo],
+      ['bankIfscCode', bankIfscCode],
+      ['panNumber', panNumber],
+      ['aadhaarNumber', aadhaarNumber],
+      ['taxId', taxId],
+      ['hasChronicIllness', body.hasChronicIllness],
+      ['chronicIllnessDetails', body.chronicIllnessDetails],
+      ['hasAllergies', body.hasAllergies],
+      ['allergyDetails', body.allergyDetails],
+      ['hasDisability', body.hasDisability],
+      ['disabilityDetails', body.disabilityDetails],
+      ['isOnMedication', body.isOnMedication],
+      ['medicationDetails', body.medicationDetails],
+      ['hasHadSurgery', body.hasHadSurgery],
+      ['surgeryDetails', body.surgeryDetails],
+      ['emergencyMedicalCondition', body.emergencyMedicalCondition],
+      ['primaryPhysicianName', body.primaryPhysicianName],
+      ['primaryPhysicianPhone', body.primaryPhysicianPhone],
+      ['healthInsuranceProvider', body.healthInsuranceProvider],
+      ['healthInsurancePolicyNo', body.healthInsurancePolicyNo],
+      ['previousEmployer1', body.previousEmployer1],
+      ['previousDesignation1', body.previousDesignation1],
+      ['previousDuration1', body.previousDuration1],
+      ['previousReason1', body.previousReason1],
+      ['previousEmployer2', body.previousEmployer2],
+      ['previousDesignation2', body.previousDesignation2],
+      ['previousDuration2', body.previousDuration2],
+      ['previousReason2', body.previousReason2],
+      ['previousEmployer3', body.previousEmployer3],
+      ['previousDesignation3', body.previousDesignation3],
+      ['previousDuration3', body.previousDuration3],
+      ['previousReason3', body.previousReason3],
+      ['totalExperience', body.totalExperience],
+      ['pfNumber', body.pfNumber],
+      ['pfUAN', body.pfUAN],
+      ['pfNomineeName', body.pfNomineeName],
+      ['pfNomineeRelation', body.pfNomineeRelation],
+      ['pfNomineePercentage', body.pfNomineePercentage],
+      ['esiNumber', body.esiNumber],
+      ['esiDispensary', body.esiDispensary],
+      ['esiNomineeName', body.esiNomineeName],
+      ['esiNomineeRelation', body.esiNomineeRelation],
+      ['professionalTaxNumber', body.professionalTaxNumber],
+      ['lwfNumber', body.lwfNumber],
+    ];
+    const hasEmpUpdates = stringFields.some(([, v]) => v !== undefined)
+      || dateOfBirth !== undefined
+      || avatar !== undefined
+      || Array.isArray(experiences);
 
     if (hasEmpUpdates) {
-      // Find employee via raw SQL
-      let empId = null;
+      let empId: string | null = null;
+      let empDb: typeof db | null = null;
       for (const tryDb of [db, platformDb]) {
         try {
           const rows = await tryDb.$queryRawUnsafe(`SELECT "id" FROM "Employee" WHERE "userId" = $1 OR "email" = $2 LIMIT 1`, updatedUser.id, updatedUser.email) as any[];
-          if (rows?.[0]?.id) { empId = rows[0].id; break; }
+          if (rows?.[0]?.id) { empId = rows[0].id; empDb = tryDb; break; }
         } catch {}
       }
 
-      if (empId) {
-        // Build UPDATE query
+      if (empId && empDb) {
+        await ensureEmployeeProfileColumns(empDb);
+
         const sets: string[] = [];
         const params: any[] = [];
         let pIdx = 1;
-        if (phone !== undefined) { sets.push(`"phone" = $${pIdx++}`); params.push(phone); }
-        if (emergencyContactName !== undefined) { sets.push(`"emergencyContactName" = $${pIdx++}`); params.push(emergencyContactName); }
-        if (emergencyContactPhone !== undefined) { sets.push(`"emergencyContactPhone" = $${pIdx++}`); params.push(emergencyContactPhone); }
-        if (address !== undefined) { sets.push(`"address" = $${pIdx++}`); params.push(address); }
-        if (city !== undefined) { sets.push(`"city" = $${pIdx++}`); params.push(city); }
-        if (state !== undefined) { sets.push(`"state" = $${pIdx++}`); params.push(state); }
-        if (zipCode !== undefined) { sets.push(`"zipCode" = $${pIdx++}`); params.push(zipCode); }
-        if (country !== undefined) { sets.push(`"country" = $${pIdx++}`); params.push(country); }
+        for (const [col, value] of stringFields) {
+          if (value !== undefined) { sets.push(`"${col}" = $${pIdx++}`); params.push(value || null); }
+        }
         if (dateOfBirth !== undefined) { sets.push(`"dateOfBirth" = $${pIdx++}`); params.push(dateOfBirth ? new Date(dateOfBirth) : null); }
-        if (gender !== undefined) { sets.push(`"gender" = $${pIdx++}`); params.push(gender); }
-        if (bloodGroup !== undefined) { sets.push(`"bloodGroup" = $${pIdx++}`); params.push(bloodGroup); }
+        if (avatar !== undefined) { sets.push(`"avatar" = $${pIdx++}`); params.push(avatar || null); }
         params.push(empId);
 
         if (sets.length > 0) {
           const sql = `UPDATE "Employee" SET ${sets.join(', ')} WHERE "id" = $${pIdx}`;
-          for (const tryDb of [db, platformDb]) {
-            try { await tryDb.$executeRawUnsafe(sql, ...params); break; } catch {}
+          try { await empDb.$executeRawUnsafe(sql, ...params); } catch (e) {
+            console.error('[Profile PATCH] Employee update failed:', e);
+          }
+        }
+
+        if (Array.isArray(experiences)) {
+          try {
+            await empDb.$executeRawUnsafe(`DELETE FROM "Experience" WHERE "employeeId" = $1`, empId);
+            for (const exp of experiences) {
+              const company = String(exp?.company || '').trim();
+              const designation = String(exp?.designation || '').trim();
+              if (!company || !designation) continue;
+              const start = exp.fromDate || exp.startDate;
+              if (!start) continue;
+              const end = exp.toDate || exp.endDate || null;
+              const isCurrent = Boolean(exp.isCurrent);
+              const description = String(exp.description || '') || null;
+              const id = String(exp.id || '').trim() || crypto.randomUUID();
+              await empDb.$executeRawUnsafe(
+                `INSERT INTO "Experience" ("id","employeeId","company","designation","startDate","endDate","isCurrent","description","createdAt","updatedAt") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,NOW(),NOW())`,
+                id, empId, company, designation, new Date(start), end ? new Date(end) : null, isCurrent, description,
+              );
+            }
+          } catch (e) {
+            console.error('[Profile PATCH] Experience update failed:', e);
           }
         }
       }

@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb, getDbForTenant } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
-import { getDataScope } from '@/lib/roleAccess';
+import { getDataScope, canEditEmployeeRecords } from '@/lib/roleAccess';
 import { getEmployeeCompanyFilter, getCompanyFilter, getAuthInfo, resolveCompanyScope } from '@/lib/companyScope';
 import { checkTenantStatusOrBlock } from '@/lib/tenant-guard';
 import { isServerLiveSite } from '@/lib/tenant-filter';
 // Note: isServerLiveSite is used later for the manual guard on normal queries
 import { validateEmail, validatePhone, validateAadhaar, validatePAN, validateIFSC, validateBankAccount, validateOfficialEmail } from '@/lib/validators';
+import { profilePhotoPayloadError } from '@/lib/profile-photo';
+import { ensureEmployeeWriteColumns } from '@/lib/employee-profile-columns';
 
 function generateRandomPassword(length = 12): string {
   const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -37,66 +39,55 @@ export async function OPTIONS() {
   return NextResponse.json({}, { headers: corsHeaders() });
 }
 
+async function attachListPhotoUrls<T extends { id: string; user?: { id: string; email: string; role: string } | null }>(
+  queryDb: { $queryRawUnsafe: (sql: string, ...values: unknown[]) => Promise<unknown> },
+  employees: T[],
+  requestUrl: string,
+): Promise<Array<T & { avatar: string | null; user: T['user'] & { avatar: string | null } | null }>> {
+  if (employees.length === 0) return [];
+  const ids = employees.map((e) => e.id);
+  const placeholders = ids.map((_, i) => `$${i + 1}`).join(',');
+  let hasPhoto = new Set<string>();
+  try {
+    const rows = await queryDb.$queryRawUnsafe(
+      `SELECT e.id FROM "Employee" e LEFT JOIN "User" u ON u.id = e."userId"
+       WHERE e.id IN (${placeholders})
+         AND (COALESCE(e."avatar", '') <> '' OR COALESCE(u."avatar", '') <> '')`,
+      ...ids,
+    ) as Array<{ id: string }>;
+    hasPhoto = new Set(rows.map((r) => r.id));
+  } catch {
+    hasPhoto = new Set();
+  }
+  const url = new URL(requestUrl);
+  const tenantId = url.searchParams.get('tenantId');
+  const companyId = url.searchParams.get('companyId');
+  const qs = new URLSearchParams();
+  if (tenantId) qs.set('tenantId', tenantId);
+  if (companyId) qs.set('companyId', companyId);
+  const suffix = qs.toString() ? `?${qs.toString()}` : '';
+  return employees.map((e) => {
+    const photo = hasPhoto.has(e.id) ? `/api/employees/${e.id}/photo${suffix}` : null;
+    return {
+      ...e,
+      avatar: photo,
+      user: e.user ? { ...e.user, avatar: photo } : null,
+    };
+  });
+}
+
 export async function GET(request: Request) {
   const db = await getDb(request);
 
   try {
-    // ─── Inline schema-sync: ensure ALL Employee columns exist (fixes P2022) ───
-    try {
-      const syncStatements = [
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "avatar" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "personalEmail" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "employeeStatus" TEXT NOT NULL DEFAULT 'confirmed'`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "employeeType" TEXT NOT NULL DEFAULT 'full_time'`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "maritalStatus" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "nationality" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "address" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "city" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "state" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "zipCode" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "country" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "status" TEXT NOT NULL DEFAULT 'active'`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT NOW()`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT NOW()`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "reportingManagerId" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "designationId" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "dateOfJoining" TIMESTAMP(3)`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "bloodGroup" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "emergencyContactName" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "emergencyContactPhone" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "bankName" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "bankAccountNo" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "bankIfscCode" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "panNumber" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "aadhaarNumber" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "taxId" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "salary" DOUBLE PRECISION`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "salaryCurrency" TEXT NOT NULL DEFAULT 'INR'`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "leavePolicyId" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "attendancePolicyId" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "travelPolicyId" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "salaryStructureId" TEXT`,
-        // Credential-invite columns (added to schema.prisma 2026-09-07). A
-        // tenant DB missing these made EVERY Prisma employee query fail with
-        // P2022 -> /api/employees returned 503 -> dashboard showed 0 employees
-        // even though the data was intact. Keep this list in sync with the
-        // schema whenever new Employee columns are added.
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "credentialsStatus" TEXT DEFAULT 'not_invited'`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "credentialsInvitedAt" TIMESTAMP(3)`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "credentialsInvitedBy" TEXT`,
-      ];
-      for (const sql of syncStatements) {
-        try {
-          await db.$executeRawUnsafe(sql);
-        } catch { /* column already exists — safe to ignore */ }
-      }
-    } catch (syncErr) {
-      console.warn('[Employees GET] Inline schema-sync failed (non-fatal):', syncErr);
-    }
-
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '20');
+    const rawLimit = parseInt(searchParams.get('limit') || '20');
+    const exportMode = searchParams.get('export') === '1';
+    const includeStats = searchParams.get('includeStats') === '1';
+    const limit = exportMode
+      ? Math.min(Math.max(rawLimit || 20, 1), 500)
+      : Math.min(Math.max(rawLimit || 20, 1), 100);
     const departmentId = searchParams.get('departmentId');
     const status = searchParams.get('status');
     const search = searchParams.get('search');
@@ -123,11 +114,39 @@ export async function GET(request: Request) {
       // ignore
     }
 
+    // Home Super Admin uses limit=1&includeStats=1. Returning employee rows +
+    // nested includes for a count-only call was extra Neon work (~2.6s).
+    if (includeStats && !exportMode && limit <= 1 && !search && !departmentId) {
+      const where: Record<string, unknown> = {};
+      if (status) where.status = status;
+      if (queryCompanyId) where.companyId = queryCompanyId;
+      const monthAgo = new Date();
+      monthAgo.setMonth(monthAgo.getMonth() - 1);
+      const tQ = Date.now();
+      const [total, active, inactive, newJoiners] = await Promise.all([
+        db.employee.count({ where }),
+        db.employee.count({ where: { ...where, status: 'active' } }),
+        db.employee.count({ where: { ...where, status: { not: 'active' } } }),
+        db.employee.count({ where: { ...where, dateOfJoining: { gte: monthAgo } } }),
+      ]);
+      return NextResponse.json(
+        {
+          employees: [],
+          pagination: { page, limit, total, totalPages: Math.ceil(total / limit) || 0 },
+          stats: { total, active, inactive, newJoiners },
+          dataScope: jwtRole === 'super_admin' || jwtRole === 'tenant_admin' ? 'all' : 'self',
+        },
+        { headers: { ...corsHeaders(), 'Server-Timing': `counts;dur=${Date.now() - tQ}` } },
+      );
+    }
+
     // ─── GOLDEN RULE: Aggregation for super_admin without a company selected ───
     // When super_admin has NO company selected (companyId is null), aggregate
     // employee counts. If tenantId is provided, aggregate from that specific
     // tenant DB. If tenantId is also null, aggregate across ALL visible tenants.
-    if (jwtRole === 'super_admin' && !queryCompanyId) {
+    // Production loads one tenant DB via getDb(?tenantId=). Do not fan out
+    // across every sample tenant on tester Super Admin — that is the 13s path.
+    if (jwtRole === 'super_admin' && !queryCompanyId && false) {
       try {
         const { getServerHiddenSlugs, PLATFORM_PLACEHOLDER_NAME } = await import('@/lib/tenant-filter');
         const hiddenSlugs = getServerHiddenSlugs(request);
@@ -348,7 +367,11 @@ export async function GET(request: Request) {
       // For super_admin with no companyId selected, allow narrowing to a
       // specific tenant's companies. Employee has no `company` relation —
       // only a bare companyId field, so we must resolve company IDs first.
+      // Dedicated tenant DB from getDb(?tenantId=) is already scoped. Extra
+      // group/company ID filters only add sequential hops on that same DB.
       if (!scopeResult?.companyId && tenantId && userRole === 'super_admin') {
+        const platformDb = getPlatformDb();
+        if (queryDb === platformDb) {
         const tenantGroups = await db.companyGroup.findMany({
           where: { tenantId },
           select: { id: true },
@@ -367,6 +390,7 @@ export async function GET(request: Request) {
           }
         } else {
           where.id = '__never__';
+        }
         }
       }
 
@@ -421,17 +445,17 @@ export async function GET(request: Request) {
         }
       }
 
-      const [employees, total] = await Promise.all([
+      const [employeesRaw, total] = await Promise.all([
         queryDb.employee.findMany({
           where,
+          omit: { avatar: true },
           include: {
-            department: true,
-            designation: true,
-            branch: true,
+            department: { select: { id: true, name: true } },
+            designation: { select: { id: true, title: true } },
+            branch: { select: { id: true, name: true } },
             user: {
-              select: { id: true, email: true, role: true, avatar: true },
+              select: { id: true, email: true, role: true },
             },
-            // Manager name for the Employees list "Reporting Manager" column
             reportingManager: { select: { id: true, firstName: true, lastName: true, employeeId: true } },
           },
           orderBy: { createdAt: 'desc' },
@@ -440,6 +464,19 @@ export async function GET(request: Request) {
         }),
         queryDb.employee.count({ where }),
       ]);
+      const employees = await attachListPhotoUrls(queryDb, employeesRaw, request.url);
+
+      let stats: { total: number; active: number; inactive: number; newJoiners: number } | undefined;
+      if (includeStats) {
+        const monthAgo = new Date();
+        monthAgo.setMonth(monthAgo.getMonth() - 1);
+        const [active, inactive, newJoiners] = await Promise.all([
+          queryDb.employee.count({ where: { ...where, status: 'active' } }),
+          queryDb.employee.count({ where: { ...where, status: { not: 'active' } } }),
+          queryDb.employee.count({ where: { ...where, dateOfJoining: { gte: monthAgo } } }),
+        ]);
+        stats = { total, active, inactive, newJoiners };
+      }
 
       if (employees.length > 0 || total > 0) {
         return NextResponse.json(
@@ -451,6 +488,7 @@ export async function GET(request: Request) {
               total,
               totalPages: Math.ceil(total / limit),
             },
+            ...(stats ? { stats } : {}),
             dataScope: isAuthed ? scope : 'all',
           },
           { headers: corsHeaders() }
@@ -488,63 +526,10 @@ export async function POST(request: Request) {
     const tenantBlock = await checkTenantStatusOrBlock(request, corsHeaders);
     if (tenantBlock) return tenantBlock;
 
-    // ─── Inline schema-sync: ensure ALL Employee columns exist before any query ───
-    // This is a defensive measure to prevent P2022 "column does not exist" errors
-    // when the DB schema hasn't been synced yet. We add every column the Prisma
-    // client expects, with IF NOT EXISTS so re-runs are safe. This runs on EVERY
-    // POST request but is fast (~50ms) because PostgreSQL short-circuits IF NOT EXISTS.
     try {
-      const syncStatements = [
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "avatar" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "personalEmail" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "employeeStatus" TEXT NOT NULL DEFAULT 'confirmed'`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "employeeType" TEXT NOT NULL DEFAULT 'full_time'`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "maritalStatus" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "nationality" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "address" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "city" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "state" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "zipCode" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "country" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "status" TEXT NOT NULL DEFAULT 'active'`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT NOW()`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT NOW()`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "reportingManagerId" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "designationId" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "dateOfJoining" TIMESTAMP(3)`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "bloodGroup" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "emergencyContactName" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "emergencyContactPhone" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "bankName" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "bankAccountNo" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "bankIfscCode" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "panNumber" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "aadhaarNumber" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "taxId" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "salary" DOUBLE PRECISION`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "salaryCurrency" TEXT NOT NULL DEFAULT 'INR'`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "leavePolicyId" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "attendancePolicyId" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "travelPolicyId" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "salaryStructureId" TEXT`,
-        // Credential-invite columns (added to schema.prisma 2026-09-07). A
-        // tenant DB missing these made EVERY Prisma employee query fail with
-        // P2022 -> /api/employees returned 503 -> dashboard showed 0 employees
-        // even though the data was intact. Keep this list in sync with the
-        // schema whenever new Employee columns are added.
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "credentialsStatus" TEXT DEFAULT 'not_invited'`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "credentialsInvitedAt" TIMESTAMP(3)`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "credentialsInvitedBy" TEXT`,
-      ];
-      for (const sql of syncStatements) {
-        try {
-          await db.$executeRawUnsafe(sql);
-        } catch { /* column already exists — safe to ignore */ }
-      }
+      await ensureEmployeeWriteColumns(db);
     } catch (syncErr) {
-      // Schema sync failure is non-fatal — the create will fail with a
-      // detailed Prisma error if a column is missing, which is fine.
-      console.warn('[Employees POST] Inline schema-sync failed (non-fatal):', syncErr);
+      console.warn('[Employees POST] schema column ensure failed (non-fatal):', syncErr);
     }
 
     // Try auth but allow demo mode
@@ -603,6 +588,12 @@ export async function POST(request: Request) {
       bloodGroup,
       emergencyContactName,
       emergencyContactPhone,
+      emergencyContactRelation,
+      currentAddress,
+      currentCity,
+      currentState,
+      currentZipCode,
+      currentCountry,
       bankName,
       bankAccountNo,
       bankIfscCode,
@@ -641,6 +632,11 @@ export async function POST(request: Request) {
         { error: `Please fill in the required fields: ${missingFields.join(', ')}`, missingFields },
         { status: 400, headers: corsHeaders() }
       );
+    }
+
+    const avatarError = profilePhotoPayloadError(avatar);
+    if (avatarError) {
+      return NextResponse.json({ error: avatarError }, { status: 400, headers: corsHeaders() });
     }
 
     // ─── Server-side validation ───
@@ -878,6 +874,71 @@ export async function POST(request: Request) {
           // Re-throw other errors
           throw firstErr;
         }
+      }
+
+      try {
+        const extraSets: string[] = [];
+        const extraParams: unknown[] = [];
+        let ei = 1;
+        const extraMap: [string, unknown][] = [
+          ['currentAddress', currentAddress],
+          ['currentCity', currentCity],
+          ['currentState', currentState],
+          ['currentZipCode', currentZipCode],
+          ['currentCountry', currentCountry],
+          ['emergencyContactRelation', emergencyContactRelation],
+          ['hasChronicIllness', body.hasChronicIllness],
+          ['chronicIllnessDetails', body.chronicIllnessDetails],
+          ['hasAllergies', body.hasAllergies],
+          ['allergyDetails', body.allergyDetails],
+          ['hasDisability', body.hasDisability],
+          ['disabilityDetails', body.disabilityDetails],
+          ['isOnMedication', body.isOnMedication],
+          ['medicationDetails', body.medicationDetails],
+          ['hasHadSurgery', body.hasHadSurgery],
+          ['surgeryDetails', body.surgeryDetails],
+          ['emergencyMedicalCondition', body.emergencyMedicalCondition],
+          ['primaryPhysicianName', body.primaryPhysicianName],
+          ['primaryPhysicianPhone', body.primaryPhysicianPhone],
+          ['healthInsuranceProvider', body.healthInsuranceProvider],
+          ['healthInsurancePolicyNo', body.healthInsurancePolicyNo],
+          ['previousEmployer1', body.previousEmployer1],
+          ['previousDesignation1', body.previousDesignation1],
+          ['previousDuration1', body.previousDuration1],
+          ['previousReason1', body.previousReason1],
+          ['previousEmployer2', body.previousEmployer2],
+          ['previousDesignation2', body.previousDesignation2],
+          ['previousDuration2', body.previousDuration2],
+          ['previousReason2', body.previousReason2],
+          ['previousEmployer3', body.previousEmployer3],
+          ['previousDesignation3', body.previousDesignation3],
+          ['previousDuration3', body.previousDuration3],
+          ['previousReason3', body.previousReason3],
+          ['totalExperience', body.totalExperience],
+          ['pfNumber', body.pfNumber],
+          ['pfUAN', body.pfUAN],
+          ['pfNomineeName', body.pfNomineeName],
+          ['pfNomineeRelation', body.pfNomineeRelation],
+          ['pfNomineePercentage', body.pfNomineePercentage],
+          ['esiNumber', body.esiNumber],
+          ['esiDispensary', body.esiDispensary],
+          ['esiNomineeName', body.esiNomineeName],
+          ['esiNomineeRelation', body.esiNomineeRelation],
+          ['professionalTaxNumber', body.professionalTaxNumber],
+          ['lwfNumber', body.lwfNumber],
+        ];
+        for (const [col, val] of extraMap) {
+          if (val !== undefined && val !== '') {
+            extraSets.push(`"${col}" = $${ei++}`);
+            extraParams.push(val);
+          }
+        }
+        if (extraSets.length > 0) {
+          extraParams.push(employee.id);
+          await db.$executeRawUnsafe(`UPDATE "Employee" SET ${extraSets.join(', ')} WHERE "id" = $${ei}`, ...extraParams);
+        }
+      } catch (extraErr) {
+        console.warn('[Employees POST] extra profile columns update failed:', extraErr);
       }
 
       if (isAuthed && decodedUserId) {

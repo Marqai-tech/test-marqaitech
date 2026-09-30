@@ -1,14 +1,13 @@
 'use client';
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { Toaster } from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 // CRITICAL: Install per-tab session token storage shim BEFORE any auth code runs.
 // This redirects localStorage['tb_token'] to sessionStorage so that two tabs
 // in the same browser don't share/overwrite each other's sessions.
 import '@/lib/token-storage';
-import { useNotificationStore } from '@/store/notificationStore';
 import Sidebar from '@/components/Sidebar';
 import { navSections, PICKER_ROUTES } from '@/lib/navData';
 import Header from '@/components/Header';
@@ -17,8 +16,9 @@ import WelcomeGreeting from '@/components/WelcomeGreeting';
 import OnboardingWalkthrough from '@/components/OnboardingWalkthrough';
 import SafeRender from '@/components/SafeRender';
 import { useSessionTimeout } from '@/hooks/useSessionTimeout';
-import { canRoleAccessModule, canSeeAllEmployees, LEGACY_ROLE_MAP, navRoleOrLeastPrivilege } from '@/lib/roleAccess';
+import { canRoleAccessModule, canSeeAllEmployees, isSelfServicePathAllowed, isSelfServiceRole, LEGACY_ROLE_MAP, navRoleOrLeastPrivilege } from '@/lib/roleAccess';
 import toast from 'react-hot-toast';
+import { loggedInPhotoUrl } from '@/lib/profile-photo';
 import {
   FiUsers, FiBriefcase, FiClock, FiMenu,
   FiCpu, FiGrid, FiBell, FiUser,
@@ -34,8 +34,8 @@ export default function DashboardLayout({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { isAuthenticated, isLoading, fetchUser, token, user, logout } = useAuthStore();
-  const { fetchNotifications } = useNotificationStore();
+  const searchParams = useSearchParams();
+  const { isAuthenticated, isLoading, token, user, logout } = useAuthStore();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -134,19 +134,22 @@ export default function DashboardLayout({
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Auth check
+  // Auth check — wait for /api/auth/me (cookie or stored token) before login redirect
   useEffect(() => {
-    if (!token && !isLoading) { router.push('/login'); return; }
-    if (token && !isAuthenticated && isLoading) fetchUser();
-  }, [token, isAuthenticated, isLoading, router, fetchUser]);
-
-  // Auto-fix tenant branding on first load
-  useEffect(() => {
-    if (isAuthenticated) {
-      fetch('/api/fix-tenant', { method: 'POST' }).catch(() => {});
-      fetch('/api/db-push', { method: 'POST' }).catch(() => {});
+    if (isLoading) return;
+    if (!isAuthenticated && !token) {
+      router.push('/login');
     }
-  }, [isAuthenticated]);
+  }, [token, isAuthenticated, isLoading, router]);
+
+  useEffect(() => {
+    if (!user?.role || !pathname || isLoading) return;
+    if (!isSelfServiceRole(user.role)) return;
+    const search = searchParams?.toString() ? `?${searchParams.toString()}` : '';
+    if (!isSelfServicePathAllowed(pathname, search)) {
+      router.replace('/my-profile');
+    }
+  }, [user?.role, pathname, searchParams, router, isLoading]);
 
   // ─── Chunk-loading error auto-recovery ───
   // When Vercel deploys a new build, old browser tabs try to load JavaScript
@@ -196,15 +199,6 @@ export default function DashboardLayout({
     };
   }, []);
 
-  // Fetch notifications
-  useEffect(() => {
-    if (isAuthenticated) {
-      const initialTimeout = setTimeout(() => fetchNotifications(), 3000);
-      const interval = setInterval(fetchNotifications, 30000);
-      return () => { clearTimeout(initialTimeout); clearInterval(interval); };
-    }
-  }, [isAuthenticated, fetchNotifications]);
-
   useSessionTimeout();
 
   useEffect(() => {
@@ -220,7 +214,9 @@ export default function DashboardLayout({
     else setSidebarCollapsed((prev) => !prev);
   }, [isMobile]);
 
-  if (isLoading) {
+  // Only block the shell when we have no user yet. A stored token+user can
+  // paint immediately while /api/auth/me refreshes in the background.
+  if (isLoading && !user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-thb-background">
         <div className="text-center">
@@ -239,6 +235,7 @@ export default function DashboardLayout({
   if (!isAuthenticated) return null;
 
   const getInitials = (name: string) => name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
+  const photoUrl = loggedInPhotoUrl(user);
 
   // ========= MOBILE LAYOUT =========
   if (isMobile) {
@@ -257,7 +254,14 @@ export default function DashboardLayout({
           </div>
           <button onClick={() => { setShowMobileNotif(false); setShowMobileProfile(false); setShowMobileMenu(!showMobileMenu); }} className="p-2 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"><FiMenu className="w-5 h-5" /></button>
           <button onClick={() => { setShowMobileMenu(false); setShowMobileProfile(false); setShowMobileNotif(!showMobileNotif); }} className="p-2 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors relative"><FiBell className="w-5 h-5" /></button>
-          <button onClick={() => { setShowMobileMenu(false); setShowMobileNotif(false); setShowMobileProfile(!showMobileProfile); }} className="w-8 h-8 rounded-full bg-gradient-to-br from-green-500 to-teal-600 flex items-center justify-center text-white text-[10px] font-bold shadow-sm">{user?.name ? getInitials(user.name) : '??'}</button>
+          <button onClick={() => { setShowMobileMenu(false); setShowMobileNotif(false); setShowMobileProfile(!showMobileProfile); }} className="w-8 h-8 rounded-full overflow-hidden bg-gradient-to-br from-green-500 to-teal-600 flex items-center justify-center text-white text-[10px] font-bold shadow-sm">
+            {photoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={photoUrl} alt={user?.name || 'Profile'} className="w-8 h-8 rounded-full object-cover" />
+            ) : (
+              user?.name ? getInitials(user.name) : '??'
+            )}
+          </button>
         </header>
         {showMobileMenu && (
           <div className="fixed inset-0 z-50" onClick={() => setShowMobileMenu(false)}>
@@ -284,7 +288,12 @@ export default function DashboardLayout({
             <div className="absolute inset-0 bg-black/30" />
             <div className="absolute top-14 right-0 w-64 bg-white border border-slate-200 shadow-xl rounded-b-xl animate-slide-in-down" onClick={(e) => e.stopPropagation()}>
               <div className="p-4 border-b border-slate-100 text-center">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-green-500 to-teal-600 flex items-center justify-center text-white text-lg font-bold mx-auto mb-2">{user?.name ? getInitials(user.name) : '??'}</div>
+                {photoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={photoUrl} alt={user?.name || 'Profile'} className="w-12 h-12 rounded-full object-cover mx-auto mb-2" />
+                ) : (
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-green-500 to-teal-600 flex items-center justify-center text-white text-lg font-bold mx-auto mb-2">{user?.name ? getInitials(user.name) : '??'}</div>
+                )}
                 <p className="text-sm font-semibold text-slate-800">{user?.name}</p>
                 <p className="text-[11px] text-slate-400 capitalize">{user?.role?.replace('_', ' ')}</p>
               </div>

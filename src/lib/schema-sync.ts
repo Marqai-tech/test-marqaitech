@@ -1231,6 +1231,11 @@ const FK_STATEMENTS: string[] = [
 ];
 
 export async function ensureSchemaSynced(): Promise<void> {
+  // Schema is applied at migrate/build time. Running hundreds of ALTER/CREATE
+  // statements on the first Preview request (tester) made pages wait 30s+.
+  // Production stays fast because instances stay warm; tester must skip this.
+  return;
+
   // Return cached promise if a sync is already in flight
   if (lastSyncPromise) return lastSyncPromise;
 

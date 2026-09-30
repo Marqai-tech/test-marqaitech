@@ -252,7 +252,7 @@ function QuickLinkGrid({ links }: { links: { icon: React.ReactNode; label: strin
 /* ============== SUPER ADMIN / TENANT ADMIN ============== */
 function SuperAdminHome({ firstName, greeting, today }: { firstName: string; greeting: string; today: string }) {
   const router = useRouter();
-  const { selectedTenantId, selectedCompanyId, availableTenants, availableCompanies, hydrated, hydrate } = useCompanyContextStore();
+  const { selectedTenantId, selectedCompanyId, availableTenants, availableCompanies, hydrate } = useCompanyContextStore();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({ totalEmployees: 0, totalUsers: 0, totalDepartments: 0, totalBranches: 0 });
   const [recentLogs, setRecentLogs] = useState<{ id: string; action: string; module: string; createdAt: string; user?: { name: string } }[]>([]);
@@ -271,42 +271,55 @@ function SuperAdminHome({ firstName, greeting, today }: { firstName: string; gre
     ? availableCompanies.find((c) => c.id === selectedCompanyId)?.name || 'Unknown'
     : 'All companies';
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
     const headers = getAuthHeaders();
     const safe = async (url: string) => {
       try {
-        const res = await fetch(url, { headers });
+        const res = await fetch(url, { headers, signal });
         if (!res.ok) return null;
         return await res.json();
-      } catch { return null; }
+      } catch {
+        return null;
+      }
     };
 
-    const [empData, deptData, branchData, usersData, logsData] = await Promise.all([
-      safe(`/api/employees?limit=1&status=active${scopeQuery ? '&' + scopeQuery.slice(1) : ''}`),
+    const [empData, deptData] = await Promise.all([
+      safe(`/api/employees?limit=1&status=active&includeStats=1${scopeQuery ? '&' + scopeQuery.slice(1) : ''}`),
       safe(`/api/departments?limit=1${scopeQuery ? '&' + scopeQuery.slice(1) : ''}`),
-      safe(`/api/branches?limit=1${scopeQuery ? '&' + scopeQuery.slice(1) : ''}`),
-      safe('/api/super-admin/dashboard'),
-      safe(`/api/super-admin/audit-logs?limit=8`),
     ]);
 
-    setStats({
-      totalEmployees: empData?.pagination?.total || empData?.total || 0,
-      totalUsers: usersData?.totalEmployees || 0,
+    const employeeTotal = empData?.stats?.total ?? empData?.pagination?.total ?? empData?.total ?? 0;
+    setStats((prev) => ({
+      ...prev,
+      totalEmployees: employeeTotal,
+      totalUsers: empData?.stats?.active ?? employeeTotal,
       totalDepartments: deptData?.pagination?.total || deptData?.total || 0,
-      totalBranches: branchData?.pagination?.total || branchData?.total || 0,
-    });
+    }));
+    setLoading(false);
+
+    const [logsData, branchData] = await Promise.all([
+      safe(`/api/super-admin/audit-logs?limit=8`),
+      safe(`/api/branches?limit=1${scopeQuery ? '&' + scopeQuery.slice(1) : ''}`),
+    ]);
 
     const logs = logsData?.auditLogs || logsData?.logs || logsData?.data || logsData?.recentActivity || [];
     if (Array.isArray(logs)) setRecentLogs(logs.slice(0, 8));
-
-    setLoading(false);
+    setStats((prev) => ({
+      ...prev,
+      totalBranches: branchData?.pagination?.total || branchData?.total || prev.totalBranches,
+    }));
   }, [scopeQuery]);
 
   useEffect(() => {
-    if (!hydrated) { hydrate(); return; }
-    fetchData();
-  }, [hydrated, hydrate, fetchData]);
+    hydrate();
+  }, [hydrate]);
+
+  useEffect(() => {
+    const ac = new AbortController();
+    void fetchData(ac.signal);
+    return () => ac.abort();
+  }, [fetchData]);
 
   const quickLinks = [
     { icon: <FiUsers className="w-5 h-5" />, label: 'Employees', href: '/employees', bg: 'from-emerald-400 to-green-500', shadow: 'shadow-green-500/25' },

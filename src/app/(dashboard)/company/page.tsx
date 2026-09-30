@@ -10,7 +10,9 @@ import {
 } from 'react-icons/fi';
 
 function CompanyDashboardContent() {
-  const { companies, branches, departments, designations, loading } = useCompanyData();
+  const { companies, branches, departments, designations, loading } = useCompanyData({
+    modules: ['companies', 'branches', 'departments', 'designations'],
+  });
 
   const stats = [
     { label: 'Companies', value: companies.length, icon: <FiHome className="w-4 h-4" />, color: 'text-emerald-500 bg-emerald-50', href: '/company/companies' },

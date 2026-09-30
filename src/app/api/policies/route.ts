@@ -70,12 +70,37 @@ export async function GET(req: NextRequest) {
       where.AND = [{ OR: [{ expiryDate: null }, { expiryDate: { gte: now } }] }];
     }
 
-    const policies = await db.policy.findMany({
-      where,
-      orderBy: { title: 'asc' },
-      skip: (page - 1) * limit,
-      take: limit,
-    });
+    const includeFile = url.searchParams.get('includeFile') === '1';
+
+    const policies = includeFile
+      ? await db.policy.findMany({
+          where,
+          orderBy: { title: 'asc' },
+          skip: (page - 1) * limit,
+          take: limit,
+        })
+      : await db.policy.findMany({
+          where,
+          orderBy: { title: 'asc' },
+          skip: (page - 1) * limit,
+          take: limit,
+          select: {
+            id: true,
+            title: true,
+            category: true,
+            description: true,
+            version: true,
+            status: true,
+            effectiveDate: true,
+            expiryDate: true,
+            companyId: true,
+            fileName: true,
+            fileSize: true,
+            fileMimeType: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        });
 
     const total = await db.policy.count({ where });
 

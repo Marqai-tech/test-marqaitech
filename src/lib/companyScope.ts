@@ -77,6 +77,24 @@ export async function resolveCompanyScope(request: Request): Promise<CompanyScop
     const scope = getDataScope(role);
     const tenantId = (decoded.tenantId as string) || null;
 
+    // Admins (scope 'all') do not need an Employee row. Looking one up on
+    // every list API made tester/production wait on an extra Neon round-trip
+    // per departments/designations/employees/policies request.
+    if (scope === 'all') {
+      const { searchParams } = new URL(request.url);
+      const queryCompanyId = searchParams.get('companyId');
+      return {
+        userId,
+        role,
+        scope,
+        companyId: queryCompanyId || null,
+        ownCompanyId: null,
+        tenantId,
+        ownEmployeeId: null,
+        visibleEmployeeIds: [],
+      };
+    }
+
     // Use tenant-scoped DB (not platform DB) so employee records are found correctly
     const db = await getDb(request);
 
@@ -118,21 +136,7 @@ export async function resolveCompanyScope(request: Request): Promise<CompanyScop
       visibleEmployeeIds = managerScope.visibleEmployeeIds;
     }
 
-    // For admins: check for companyId query param from CompanySwitcher
-    let companyId: string | null = null;
-
-    if (scope === 'all') {
-      // Admin users: use the companyId from the CompanySwitcher if provided
-      const { searchParams } = new URL(request.url);
-      const queryCompanyId = searchParams.get('companyId');
-      if (queryCompanyId) {
-        companyId = queryCompanyId;
-      }
-      // If no companyId provided, admin sees all (companyId stays null)
-    } else {
-      // Non-admin users (employee, manager): always filter by their own company
-      companyId = ownCompanyId;
-    }
+    const companyId = ownCompanyId;
 
     return { userId, role, scope, companyId, ownCompanyId, tenantId, ownEmployeeId, visibleEmployeeIds };
   } catch (error) {

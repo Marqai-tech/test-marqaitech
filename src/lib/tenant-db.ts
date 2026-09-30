@@ -56,6 +56,7 @@ import wsModule from 'ws'
 neonConfig.webSocketConstructor = wsModule as unknown as typeof WebSocket
 import { db as platformDb } from '@/lib/db'
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth'
+import { DEMO_HIDDEN_SLUGS, isTestPlatformHost } from '@/lib/tenant-filter'
 
 // Cache tenant DB clients to avoid recreating on every request
 const tenantDbCache = new Map<string, { client: PrismaClient; lastAccess: number }>()
@@ -130,9 +131,12 @@ export async function getDb(request?: Request | null): Promise<PrismaClient> {
     if (headerSlug) {
       tenantSlug = headerSlug
     }
-
-    // 2. Try demo domain detection from host header
-    if (!tenantSlug) {
+    const reqHost = request.headers.get('x-tenant-domain') || request.headers.get('host') || ''
+    const testPlatform = isTestPlatformHost(reqHost) || tenantSlug === 'test'
+    if (testPlatform) {
+      tenantSlug = ''
+    } else if (!tenantSlug) {
+      // 2. Try demo domain detection from host header
       const host = request.headers.get('host') || ''
       const demoSlug = resolveDemoSlug(host)
       if (demoSlug) {
@@ -141,7 +145,9 @@ export async function getDb(request?: Request | null): Promise<PrismaClient> {
     }
 
     // 3. Try JWT token's tenantId
-    if (!tenantSlug) {
+    // On test Super Admin, ignore JWT tenant — it often points at MarqAI or
+    // the platform placeholder and would load live employees instead of samples.
+    if (!tenantSlug && !testPlatform) {
       try {
         const token = getTokenFromHeaders(request)
         if (token) {
@@ -175,7 +181,7 @@ export async function getDb(request?: Request | null): Promise<PrismaClient> {
             where: { id: queryTenantId },
             select: { slug: true },
           })
-          if (tenant?.slug) {
+          if (tenant?.slug && !(testPlatform && DEMO_HIDDEN_SLUGS.includes(tenant.slug))) {
             tenantSlug = tenant.slug
           }
         }
@@ -381,9 +387,12 @@ export function disconnectTenantDb(tenantSlug: string) {
  * Returns the slug or empty string.
  */
 export async function getTenantSlugFromRequest(request: Request): Promise<string> {
+  const reqHost = request.headers.get('x-tenant-domain') || request.headers.get('host') || ''
+  if (isTestPlatformHost(reqHost)) return ''
+
   // 1. Header from middleware
   const headerSlug = request.headers.get('x-tenant-slug')
-  if (headerSlug) return headerSlug
+  if (headerSlug && headerSlug !== 'test') return headerSlug
 
   // 2. Demo domain
   const host = request.headers.get('host') || ''

@@ -3,6 +3,10 @@ import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { createNotification } from '@/lib/notifications';
 import { sendEmail } from '@/lib/email-sender';
+import { invalidateMeCacheForUser } from '@/lib/me-response-cache';
+import { canEditEmployeeRecords } from '@/lib/roleAccess';
+import { profilePhotoPayloadError } from '@/lib/profile-photo';
+import { EXTRA_PROFILE_KEYS, ensureEmployeeProfileColumns } from '@/lib/employee-profile-columns';
 import type { PrismaClient } from '@prisma/client';
 
 function corsHeaders() {
@@ -180,6 +184,39 @@ export async function OPTIONS() {
   return NextResponse.json({}, { headers: corsHeaders() });
 }
 
+async function loadEmployeeProfileExtras(db: PrismaClient, employeeId: string) {
+  try {
+    const cols = EXTRA_PROFILE_KEYS.map((c) => `"${c}"`).join(',');
+    const rows = await db.$queryRawUnsafe(
+      `SELECT ${cols} FROM "Employee" WHERE "id" = $1 LIMIT 1`,
+      employeeId,
+    ) as Record<string, unknown>[];
+    return rows?.[0] || {};
+  } catch {
+    return {};
+  }
+}
+
+async function saveEmployeeProfileExtras(db: PrismaClient, employeeId: string, body: Record<string, unknown>) {
+  const map: [string, string][] = EXTRA_PROFILE_KEYS.map((k) => [k, k]);
+  const sets: string[] = [];
+  const params: unknown[] = [];
+  let i = 1;
+  for (const [col, key] of map) {
+    if (body[key] !== undefined) {
+      sets.push(`"${col}" = $${i++}`);
+      params.push(body[key] || null);
+    }
+  }
+  if (sets.length === 0) return;
+  params.push(employeeId);
+  try {
+    await db.$executeRawUnsafe(`UPDATE "Employee" SET ${sets.join(', ')} WHERE "id" = $${i}`, ...params);
+  } catch (e) {
+    console.warn('[Employee] extra profile columns update failed:', e);
+  }
+}
+
 // Core includes that are guaranteed to exist in the Employee table
 // NOTE: Employee has companyId but NO @relation to Company — it's a bare String field.
 // We must NOT include `company` in the Prisma include clause.
@@ -320,47 +357,6 @@ export async function GET(
 
     console.log(`[Employee GET] Looking up employee: ${id}`);
 
-    // ─── Inline schema-sync: ensure ALL Employee columns exist ───
-    try {
-      const syncStatements = [
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "avatar" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "personalEmail" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "employeeStatus" TEXT NOT NULL DEFAULT 'confirmed'`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "employeeType" TEXT NOT NULL DEFAULT 'full_time'`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "maritalStatus" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "nationality" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "address" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "city" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "state" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "zipCode" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "country" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "status" TEXT NOT NULL DEFAULT 'active'`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "reportingManagerId" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "designationId" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "dateOfJoining" TIMESTAMP(3)`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "bloodGroup" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "emergencyContactName" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "emergencyContactPhone" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "bankName" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "bankAccountNo" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "bankIfscCode" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "panNumber" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "aadhaarNumber" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "taxId" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "salary" DOUBLE PRECISION`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "salaryCurrency" TEXT NOT NULL DEFAULT 'INR'`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "leavePolicyId" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "attendancePolicyId" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "travelPolicyId" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "salaryStructureId" TEXT`,
-      ];
-      for (const sql of syncStatements) {
-        try { await db.$executeRawUnsafe(sql); } catch { /* column already exists */ }
-      }
-    } catch (syncErr) {
-      console.warn('[Employee GET] Inline schema-sync failed (non-fatal):', syncErr);
-    }
-
     try {
       // Step 1: Find the core employee record
       let employee = await findEmployee(db, id);
@@ -375,7 +371,9 @@ export async function GET(
 
       // Step 2: Fetch optional relations independently (non-fatal if they fail)
       const optionalData = await fetchOptionalRelations(db, employee.id, employee.companyId);
-      employee = { ...employee, ...optionalData };
+      const extras = await loadEmployeeProfileExtras(db, employee.id);
+      const mergedAvatar = employee.avatar || employee.user?.avatar || null;
+      employee = { ...employee, ...optionalData, ...extras, avatar: mergedAvatar };
 
       console.log(`[Employee GET] Found employee: ${employee.employeeId} (${employee.firstName} ${employee.lastName})`);
       return NextResponse.json(
@@ -407,31 +405,24 @@ export async function PUT(
     const { id: rawId } = await params;
     const id = decodeURIComponent(rawId);
 
-    // ─── Inline schema-sync: ensure ALL Employee columns exist ───
-    try {
-      const syncStatements = [
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "avatar" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "personalEmail" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "employeeStatus" TEXT NOT NULL DEFAULT 'confirmed'`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "employeeType" TEXT NOT NULL DEFAULT 'full_time'`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "maritalStatus" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "reportingManagerId" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "status" TEXT NOT NULL DEFAULT 'active'`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "leavePolicyId" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "attendancePolicyId" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "travelPolicyId" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "salaryStructureId" TEXT`,
-      ];
-      for (const sql of syncStatements) {
-        try { await db.$executeRawUnsafe(sql); } catch { /* column already exists */ }
-      }
-    } catch (syncErr) {
-      console.warn('[Employee PUT] Inline schema-sync failed (non-fatal):', syncErr);
-    }
-
     const body = await request.json();
 
     try {
+      const token = getTokenFromHeaders(request);
+      if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
+      const decoded = await verifyToken(token);
+      if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401, headers: corsHeaders() });
+      if (!canEditEmployeeRecords(decoded.role as string)) {
+        return NextResponse.json(
+          { error: 'You can view this profile but cannot edit it' },
+          { status: 403, headers: corsHeaders() }
+        );
+      }
+      const avatarError = profilePhotoPayloadError(body.avatar);
+      if (avatarError) {
+        return NextResponse.json({ error: avatarError }, { status: 400, headers: corsHeaders() });
+      }
+
       // Try to find employee by id first, then by employeeId
       let existingEmployee = await db.employee.findUnique({ where: { id } });
       if (!existingEmployee) {
@@ -450,9 +441,6 @@ export async function PUT(
       // Lock Employee Data toggle), changes to employeeId, email, and
       // employment details are rejected with a clear error message.
       // The lock is stored in CollaborationSettings.employeeDataLocked.
-      try {
-        await db.$executeRawUnsafe(`ALTER TABLE "CollaborationSettings" ADD COLUMN IF NOT EXISTS "employeeDataLocked" BOOLEAN NOT NULL DEFAULT false`);
-      } catch { /* column may already exist */ }
       const lockRows = await db.$queryRawUnsafe(`SELECT "employeeDataLocked" FROM "CollaborationSettings" LIMIT 1`).catch(() => []) as any[];
       const isLocked = lockRows?.[0]?.employeeDataLocked === true || lockRows?.[0]?.employeedatalocked === true;
       if (isLocked) {
@@ -473,7 +461,8 @@ export async function PUT(
         firstName, lastName, email, personalEmail, phone, departmentId, designationId,
         branchId, companyId, dateOfJoining, dateOfBirth, gender, maritalStatus,
         nationality, address, city, state, zipCode, country, bloodGroup,
-        emergencyContactName, emergencyContactPhone, bankName, bankAccountNo,
+        emergencyContactName, emergencyContactPhone, emergencyContactRelation,
+        currentAddress, currentCity, currentState, currentZipCode, currentCountry, bankName, bankAccountNo,
         bankIfscCode, panNumber, aadhaarNumber, taxId, salary, salaryCurrency,
         status, role, avatar, reportingManagerId,
         employeeStatus, employeeType, employeeId,
@@ -541,6 +530,10 @@ export async function PUT(
         data: updateData,
         include: coreInclude,
       });
+      await ensureEmployeeProfileColumns(db);
+      await saveEmployeeProfileExtras(db, actualId, body as Record<string, unknown>);
+      const extrasAfterSave = await loadEmployeeProfileExtras(db, actualId);
+      Object.assign(employee, extrasAfterSave);
 
       // ─── Task 73: Audit log — record all employment detail changes ───
       // Every time an admin edits an employee via PUT, we log each changed
@@ -741,6 +734,24 @@ export async function PUT(
         }
       }
 
+      if (avatar !== undefined && employee.userId) {
+        try {
+          const avatarValue = avatar || null;
+          await db.user.update({
+            where: { id: employee.userId },
+            data: { avatar: avatarValue },
+          }).catch(() => null);
+          const platformDb = getPlatformDb();
+          await platformDb.user.update({
+            where: { id: employee.userId },
+            data: { avatar: avatarValue },
+          }).catch(() => null);
+          invalidateMeCacheForUser(employee.userId);
+        } catch (syncErr) {
+          console.error('[Employee PUT] Failed to sync avatar to User account (non-critical):', syncErr);
+        }
+      }
+
       // ─── Update User role if provided ───
       if (role !== undefined && employee.userId) {
         try {
@@ -791,6 +802,7 @@ export async function PUT(
             include: coreInclude,
           });
           if (updatedEmployee) {
+            Object.assign(updatedEmployee, extrasAfterSave);
             // Try audit log (non-critical)
             try {
               const token = getTokenFromHeaders(request);
@@ -958,11 +970,6 @@ export async function PATCH(
 
     const { id: rawId } = await params;
     const id = decodeURIComponent(rawId);
-
-    // Ensure the column exists (defensive, mirrors PUT/POST schema-sync)
-    try {
-      await db.$executeRawUnsafe(`ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "reportingManagerId" TEXT`);
-    } catch { /* column already exists */ }
 
     const body = await request.json().catch(() => ({}));
     const { reportingManagerId } = body;

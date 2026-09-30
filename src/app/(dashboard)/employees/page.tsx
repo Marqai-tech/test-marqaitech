@@ -31,7 +31,10 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
-import { useCompanyContextStore } from '@/store/companyContextStore';
+import { useCompanyContextStore, useCompanyContextPersistHydrated } from '@/store/companyContextStore';
+import { canAccessEmployeeSettings, canEditEmployeeRecords } from '@/lib/roleAccess';
+import { fileToProfilePhotoDataUrl, MAX_PROFILE_PHOTO_LABEL } from '@/lib/profile-photo';
+import { getToken } from '@/lib/token-storage';
 import {
   validateEmail as validateEmailFormat,
   validatePhone,
@@ -139,7 +142,7 @@ interface Branch { id: string; name: string }
 
 /* ── Helpers ── */
 function getAuthHeaders() {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
+  const token = getToken() || (typeof window !== 'undefined' ? useAuthStore.getState().token : null);
   return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
 }
 
@@ -235,6 +238,11 @@ const initialForm = {
   state: '',
   zipCode: '',
   country: '',
+  currentAddress: '',
+  currentCity: '',
+  currentState: '',
+  currentZipCode: '',
+  currentCountry: '',
   companyId: '',
   departmentId: '',
   designationId: '',
@@ -254,6 +262,7 @@ const initialForm = {
   salaryCurrency: 'INR',
   emergencyContactName: '',
   emergencyContactPhone: '',
+  emergencyContactRelation: '',
   // Statutory Details
   pfNumber: '',
   pfUAN: '',
@@ -326,14 +335,17 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
   const router = useRouter();
   const searchParams = useSearchParams();
   const editIdFromUrl = searchParams.get('editId');
-  const { user } = useAuthStore();
-  const isAdmin = ['super_admin', 'tenant_admin', 'admin', 'hr_admin', 'company_hr_admin', 'hrhead'].includes(user?.role || '');
+  const { user, fetchUser } = useAuthStore();
+  const isAdmin = canEditEmployeeRecords(user?.role);
+  const canOpenEmployeeSettings = canAccessEmployeeSettings(user?.role);
   const { effectiveCompanyId, selectedTenantId, availableCompanies, scopeQuery } = useCompanyContextStore();
+  const persistHydrated = useCompanyContextPersistHydrated();
   const scopeCompanyId = effectiveCompanyId();
   const scopeTenantId = user?.role === 'super_admin' ? selectedTenantId : undefined;
 
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [allEmployees, setAllEmployees] = useState<Employee[]>([]);
+  const [listStats, setListStats] = useState({ total: 0, active: 0, inactive: 0, newJoiners: 0 });
   const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0, totalPages: 0 });
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -509,16 +521,10 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
 
   // Stats calculations
   const stats = {
-    total: allEmployees.length,
-    active: allEmployees.filter(e => e.status === 'active').length,
-    inactive: allEmployees.filter(e => e.status !== 'active').length,
-    newJoiners: allEmployees.filter(e => {
-      if (!e.dateOfJoining) return false;
-      const joinDate = new Date(e.dateOfJoining);
-      const now = new Date();
-      const monthDiff = (now.getFullYear() - joinDate.getFullYear()) * 12 + now.getMonth() - joinDate.getMonth();
-      return monthDiff <= 1;
-    }).length,
+    total: listStats.total || pagination.total,
+    active: listStats.active,
+    inactive: listStats.inactive,
+    newJoiners: listStats.newJoiners,
   };
 
   /* Close action menu on outside click */
@@ -533,8 +539,14 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
   }, []);
 
   /* Export CSV */
-  const handleExportCSV = () => {
-    const rows = allEmployees.map(emp => ({
+  const handleExportCSV = async () => {
+    try {
+      const params = new URLSearchParams({ limit: '500', export: '1' });
+      const sq = scopeQuery();
+      const res = await fetch(`/api/employees?${params.toString()}${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
+      const data = res.ok ? await res.json() : { employees: allEmployees };
+      const exportRows = data.employees || allEmployees;
+      const rows = exportRows.map((emp: Employee) => ({
       'Employee ID': emp.employeeId || '',
       'First Name': emp.firstName || '',
       'Last Name': emp.lastName || '',
@@ -570,13 +582,16 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
     a.remove();
     URL.revokeObjectURL(url);
     toast.success('CSV exported successfully');
+    } catch {
+      toast.error('Export failed');
+    }
   };
 
   /* Fetch employees */
   const fetchEmployees = useCallback(async (page = 1) => {
     try {
       setLoading(true);
-      const params = new URLSearchParams({ page: String(page), limit: '10' });
+      const params = new URLSearchParams({ page: String(page), limit: '10', includeStats: '1' });
       if (search) params.set('search', search);
       if (filterDept) params.set('departmentId', filterDept);
       if (filterStatus) params.set('status', filterStatus);
@@ -586,6 +601,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
       if (!res.ok) throw new Error('Failed to fetch');
       const data = await res.json();
       const fetched = data.employees || [];
+      if (data.stats) setListStats(data.stats);
       if (fetched.length === 0) {
         setEmployees([]);
         setPagination(data.pagination || { page: 1, limit: 10, total: 0, totalPages: 0 });
@@ -605,7 +621,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
   /* Fetch all employees for stats */
   const fetchAllEmployees = useCallback(async () => {
     try {
-      const params = new URLSearchParams({ limit: '500' });
+      const params = new URLSearchParams({ limit: '100', status: 'active' });
       const sq = scopeQuery();
       const res = await fetch(`/api/employees?${params.toString()}${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
       if (res.ok) {
@@ -652,11 +668,15 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
         const d = await branchRes.value.json();
         setBranches(d.data || []);
       }
+    } catch (err) {
+      console.error('Failed to fetch dropdown data', err);
+    }
+  }, [scopeQuery]);
 
+  const fetchPolicyDropdowns = useCallback(async () => {
+    try {
+      const headers = getAuthHeaders();
       const [lpRes, apRes, tpRes, ssRes] = await Promise.allSettled([
-        // BUG FIX: usable=1 excludes inactive and future-dated policies from
-        // the employee policy dropdowns (only active, effective policies are
-        // assignable).
         fetch('/api/policies?category=leave&usable=1', { headers }),
         fetch('/api/policies?category=attendance&usable=1', { headers }),
         fetch('/api/policies?category=travel&usable=1', { headers }),
@@ -667,17 +687,23 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
       if (tpRes.status === 'fulfilled' && tpRes.value.ok) { const d = await tpRes.value.json(); setTravelPolicies(d.policies || d.data || []); }
       if (ssRes.status === 'fulfilled' && ssRes.value.ok) { const d = await ssRes.value.json(); setSalaryStructures(d.salaryStructures || d.data || []); }
     } catch (err) {
-      console.error('Failed to fetch dropdown data', err);
+      console.error('Failed to fetch policy dropdowns', err);
     }
-  }, [scopeQuery]);
+  }, []);
 
   useEffect(() => {
+    if (!persistHydrated) return;
     queueMicrotask(() => fetchEmployees(1));
-  }, [fetchEmployees]);
+  }, [fetchEmployees, persistHydrated]);
 
   useEffect(() => {
+    if (!persistHydrated) return;
     queueMicrotask(() => fetchDropdowns(scopeCompanyId || undefined));
-  }, [fetchDropdowns, scopeCompanyId]);
+  }, [fetchDropdowns, scopeCompanyId, persistHydrated]);
+
+  useEffect(() => {
+    if (showForm) queueMicrotask(() => fetchPolicyDropdowns());
+  }, [showForm, fetchPolicyDropdowns]);
 
   /* Re-fetch dropdowns when form.companyId changes */
   useEffect(() => {
@@ -686,13 +712,14 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
     }
   }, [form.companyId, fetchDropdowns]);
 
-  useEffect(() => {
-    queueMicrotask(() => fetchAllEmployees());
-  }, [fetchAllEmployees]);
-
   /* Handle editId from URL (navigated from employee view page Edit button) */
   useEffect(() => {
     if (!editIdFromUrl) return;
+    if (!canEditEmployeeRecords(user?.role)) {
+      toast.error('You can view this profile but cannot edit it');
+      router.replace(`/employees/${editIdFromUrl}`);
+      return;
+    }
     const fetchAndOpenEdit = async () => {
       try {
         const res = await fetch(`/api/employees/${editIdFromUrl}`, { headers: getAuthHeaders() });
@@ -718,6 +745,11 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
           state: emp.state || '',
           zipCode: emp.zipCode || '',
           country: emp.country || '',
+          currentAddress: (emp as Record<string, unknown>).currentAddress as string || '',
+          currentCity: (emp as Record<string, unknown>).currentCity as string || '',
+          currentState: (emp as Record<string, unknown>).currentState as string || '',
+          currentZipCode: (emp as Record<string, unknown>).currentZipCode as string || '',
+          currentCountry: (emp as Record<string, unknown>).currentCountry as string || '',
           companyId: emp.companyId || emp.company?.id || '',
           departmentId: emp.department?.id || '',
           designationId: emp.designation?.id || '',
@@ -738,6 +770,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
           salaryCurrency: emp.salaryCurrency || 'INR',
           emergencyContactName: emp.emergencyContactName || '',
           emergencyContactPhone: emp.emergencyContactPhone || '',
+          emergencyContactRelation: (emp as Record<string, unknown>).emergencyContactRelation as string || '',
           bloodGroup: emp.bloodGroup || '',
           hasChronicIllness: (emp as Record<string, unknown>).hasChronicIllness as string || '',
           chronicIllnessDetails: (emp as Record<string, unknown>).chronicIllnessDetails as string || '',
@@ -812,7 +845,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
       }
     };
     fetchAndOpenEdit();
-  }, [editIdFromUrl]);
+  }, [editIdFromUrl, user?.role, router]);
 
   /* Handle showAddForm from URL (navigated from /employees/add redirect) */
   useEffect(() => {
@@ -906,6 +939,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
     setStagedDocs([]); setDocDraft(emptyDocDraft());
     setDeleteConfirmId(null);
     setActionMenuOpen(null);
+    void fetchAllEmployees();
     setTimeout(() => document.getElementById('crud-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
   };
 
@@ -916,6 +950,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
     setStagedDocs([]); setDocDraft(emptyDocDraft()); setEditDocs([]);
     setDeleteConfirmId(null);
     setActionMenuOpen(null);
+    void fetchAllEmployees();
 
     // Fetch FRESH employee data from the API to ensure we get the latest
     // employeeStatus, employeeType, personalEmail, etc.
@@ -948,6 +983,11 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
       state: freshEmp.state || '',
       zipCode: freshEmp.zipCode || '',
       country: freshEmp.country || '',
+      currentAddress: freshEmp.currentAddress || '',
+      currentCity: freshEmp.currentCity || '',
+      currentState: freshEmp.currentState || '',
+      currentZipCode: freshEmp.currentZipCode || '',
+      currentCountry: freshEmp.currentCountry || '',
       companyId: freshEmp.companyId || freshEmp.company?.id || '',
       departmentId: freshEmp.department?.id || '',
       designationId: freshEmp.designation?.id || '',
@@ -967,6 +1007,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
       salaryCurrency: freshEmp.salaryCurrency || 'INR',
       emergencyContactName: freshEmp.emergencyContactName || '',
       emergencyContactPhone: freshEmp.emergencyContactPhone || '',
+      emergencyContactRelation: freshEmp.emergencyContactRelation || '',
       bloodGroup: freshEmp.bloodGroup || '',
       avatar: freshEmp.avatar || '',
       hasChronicIllness: freshEmp.hasChronicIllness || '',
@@ -1120,9 +1161,12 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
           if (verifyRes.ok) {
             const verifyData = await verifyRes.json();
             const savedEmp = verifyData.employee || verifyData;
-            // Quick spot-check: verify at least one key field was saved
             if (savedEmp) {
               console.log('[Employee Form] Verified save: firstName=' + savedEmp.firstName + ', email=' + savedEmp.email);
+              const linkedUserId = savedEmp.userId || savedEmp.user?.id;
+              if (linkedUserId === user?.id || savedEmp.email === user?.email) {
+                await fetchUser();
+              }
             }
           }
         } catch { /* verification is best-effort */ }
@@ -1210,23 +1254,17 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
   const updateForm = (field: string, value: string) => setForm(prev => ({ ...prev, [field]: value }));
 
   /* Photo upload handler */
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = '';
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('Photo must be under 5MB');
+    const result = await fileToProfilePhotoDataUrl(file);
+    if (!result.ok) {
+      toast.error(result.error);
       return;
     }
-    if (!file.type.startsWith('image/')) {
-      toast.error('Please upload an image file');
-      return;
-    }
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setPhotoPreview(reader.result as string);
-      updateForm('avatar', reader.result as string);
-    };
-    reader.readAsDataURL(file);
+    setPhotoPreview(result.dataUrl);
+    updateForm('avatar', result.dataUrl);
   };
 
   /* ── Documents tab handlers ── */
@@ -1384,10 +1422,12 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                 Back to List
               </button>
             )}
+            {canOpenEmployeeSettings && (
             <button onClick={() => router.push('/employees/settings')} className="inline-flex items-center gap-2 px-4 py-2.5 border border-thb-border text-thb-text-secondary rounded-lg hover:bg-slate-50 font-medium text-sm transition-colors">
               <FiSettings className="w-4 h-4" />
               Settings
             </button>
+            )}
           </div>
         </div>
       ) : (
@@ -1707,7 +1747,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                     </div>
                     <div>
                       <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Employee Photo</p>
-                      <p className="text-xs text-gray-500">JPG, PNG or GIF. Max 5MB.</p>
+                      <p className="text-xs text-gray-500">JPG, PNG or GIF. Max {MAX_PROFILE_PHOTO_LABEL}.</p>
                     </div>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -1799,10 +1839,12 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
 
               {/* Address */}
               {formTab === 'address' && (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="space-y-6">
+                  <div>
+                    <p className="text-xs font-semibold text-thb-text-primary mb-3">Permanent Address</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div className="sm:col-span-2 lg:col-span-3">
-                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">Address</label>
+                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">Street Address</label>
                       <input type="text" value={form.address} onChange={e => updateForm('address', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
                     </div>
                     <div>
@@ -1821,6 +1863,32 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                     <div>
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Country</label>
                       <input type="text" value={form.country} onChange={e => updateForm('country', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
+                    </div>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-thb-text-primary mb-3">Current Address</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="sm:col-span-2 lg:col-span-3">
+                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">Street Address</label>
+                      <input type="text" value={form.currentAddress} onChange={e => updateForm('currentAddress', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">City</label>
+                      <input type="text" value={form.currentCity} onChange={e => updateForm('currentCity', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">State</label>
+                      <input type="text" value={form.currentState} onChange={e => updateForm('currentState', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">ZIP Code</label>
+                      <input type="text" value={form.currentZipCode} onChange={e => updateForm('currentZipCode', onlyDigits(e.target.value).slice(0, 6))} placeholder="6-digit PIN" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">Country</label>
+                      <input type="text" value={form.currentCountry} onChange={e => updateForm('currentCountry', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
+                    </div>
                     </div>
                   </div>
                   <div className="flex items-center justify-between pt-2">
@@ -1914,6 +1982,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                         <option value="">Select Role</option>
                         <option value="hr_admin">HR Manager / HR Admin</option>
                         <option value="finance_admin">Finance Manager / Finance Admin</option>
+                        <option value="it_admin">IT Admin</option>
                         <option value="manager">Manager</option>
                         <option value="travel_admin">Travel Admin</option>
                         <option value="crm_admin">CRM Admin</option>
@@ -1923,7 +1992,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                       {/* Dynamic role info box */}
                       {form.role && (
                         <div className={`mt-2 p-2.5 rounded-lg border text-xs leading-relaxed ${
-                          ['hr_admin', 'finance_admin'].includes(form.role)
+                          form.role === 'hr_admin'
                             ? 'bg-green-50 border-green-200 text-green-800'
                             : ['manager', 'travel_admin', 'crm_admin'].includes(form.role)
                             ? 'bg-amber-50 border-amber-200 text-amber-800'
@@ -1931,7 +2000,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                         }`}>
                           <div className="flex items-start gap-1.5">
                             <FiShield className={`w-3.5 h-3.5 mt-0.5 shrink-0 ${
-                              ['hr_admin', 'finance_admin'].includes(form.role)
+                              ['hr_admin'].includes(form.role)
                                 ? 'text-green-500'
                                 : ['manager', 'travel_admin', 'crm_admin'].includes(form.role)
                                 ? 'text-amber-500'
@@ -1940,7 +2009,8 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                             <div>
                               <span className="font-semibold">
                                 {form.role === 'hr_admin' && 'HR Admin Access'}
-                                {form.role === 'finance_admin' && 'Finance Admin Access'}
+                                {form.role === 'finance_admin' && 'Finance Access'}
+                                {form.role === 'it_admin' && 'IT Admin Access'}
                                 {form.role === 'manager' && 'Manager Access'}
                                 {form.role === 'travel_admin' && 'Travel Admin Access'}
                                 {form.role === 'crm_admin' && 'CRM Admin Access'}
@@ -1948,7 +2018,8 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                               </span>
                               <p className="mt-0.5 opacity-90">
                                 {form.role === 'hr_admin' && 'Full access to HR modules: Employees, Recruitment, Onboarding, Leave, Attendance, Performance, Training, and HR policies.'}
-                                {form.role === 'finance_admin' && 'Full access to Finance modules: Payroll, Salary Structures, Expenses, Invoices, Accounts, Loans, and Claims.'}
+                                {form.role === 'finance_admin' && 'Self-service access: My Profile, Leave Application, Attendance, Documents, and Helpdesk.'}
+                                {form.role === 'it_admin' && 'Self-service access: My Profile, Leave Application, Attendance, Documents, and Helpdesk.'}
                                 {form.role === 'manager' && 'Access to team operations: View employees, approve leaves/expenses/travel, manage performance reviews, and assign tasks.'}
                                 {form.role === 'travel_admin' && 'Full access to Travel management: Travel requests, approvals, policies, and expense settlements.'}
                                 {form.role === 'crm_admin' && 'Full access to CRM: Clients, vendors, CRM operations, and external relationship management.'}
@@ -2188,6 +2259,20 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                       <label className="block text-xs font-medium text-thb-text-secondary mb-1">Emergency Contact Phone</label>
                       <input type="tel" value={form.emergencyContactPhone} onChange={e => updateForm('emergencyContactPhone', phoneInputFilter(e.target.value))} placeholder="10-digit mobile" className={`w-full px-3 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 ${stepErrors.emergencyContactPhone ? 'border-red-400 bg-red-50' : 'border-thb-border'}`} />
                       {stepErrors.emergencyContactPhone && <p className="text-xs text-red-500 mt-1">{stepErrors.emergencyContactPhone}</p>}
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-thb-text-secondary mb-1">Relationship</label>
+                      <select value={form.emergencyContactRelation} onChange={e => updateForm('emergencyContactRelation', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
+                        <option value="">Select</option>
+                        <option value="spouse">Spouse</option>
+                        <option value="father">Father</option>
+                        <option value="mother">Mother</option>
+                        <option value="son">Son</option>
+                        <option value="daughter">Daughter</option>
+                        <option value="brother">Brother</option>
+                        <option value="sister">Sister</option>
+                        <option value="other">Other</option>
+                      </select>
                     </div>
                   </div>
                   <div className="flex items-center justify-between pt-2">

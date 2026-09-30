@@ -1,15 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
-import { getServerHiddenSlugs, LIVE_HIDDEN_SLUGS, DEMO_HIDDEN_SLUGS } from '@/lib/tenant-filter';
-import { isLiveMode } from '@/lib/site-mode';
-
-// ─── Hidden Tenant Slugs (GOLDEN RULE — FOOLPROOF, same as /api/tenants) ──
-function getHiddenSlugsForRequest(request: Request): string[] {
-  const foolproof = getServerHiddenSlugs(request);
-  const siteMode = isLiveMode(request) ? LIVE_HIDDEN_SLUGS : DEMO_HIDDEN_SLUGS;
-  return [...new Set([...foolproof, ...siteMode])];
-}
+import { getHiddenSlugsForRequest } from '@/lib/tenant-filter';
 
 /**
  * GET /api/tenant-database/list

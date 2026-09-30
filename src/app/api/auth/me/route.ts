@@ -2,16 +2,8 @@ import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb, getDbForTenant, getDbForTenantById } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { isLiveMode, isDemoMode } from '@/lib/site-mode';
-import { getServerHiddenSlugs, LIVE_HIDDEN_SLUGS, DEMO_HIDDEN_SLUGS } from '@/lib/tenant-filter';
-
-// ─── Hidden Tenant Slugs (GOLDEN RULE — FOOLPROOF) ──────────────────
-// Uses tenant-filter.ts as PRIMARY (direct hostname check), then
-// isLiveMode() as SECONDARY. A slug is hidden if EITHER says so.
-function getHiddenSlugsForRequest(request: Request): string[] {
-  const foolproof = getServerHiddenSlugs(request);
-  const siteMode = isLiveMode(request) ? LIVE_HIDDEN_SLUGS : DEMO_HIDDEN_SLUGS;
-  return [...new Set([...foolproof, ...siteMode])];
-}
+import { getHiddenSlugsForRequest } from '@/lib/tenant-filter';
+import { getMeCached, setMeCached, ME_CACHE_MS } from '@/lib/me-response-cache';
 
 function corsHeaders() {
   return {
@@ -26,6 +18,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
+  const t0 = Date.now();
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -46,11 +39,19 @@ export async function GET(request: Request) {
     const userId = decoded.userId as string;
     const tenantId = decoded.tenantId as string | undefined;
     const tenantSlug = request.headers.get('x-tenant-slug') || '';
+    const jwtRole = (decoded.role as string) || '';
+    const cacheKey = `${userId}:${request.headers.get('host') || ''}:${jwtRole}`;
+    const cached = getMeCached(cacheKey);
+    if (cached && Date.now() - cached.at < ME_CACHE_MS) {
+      return NextResponse.json(cached.body, {
+        headers: { ...corsHeaders(), 'Server-Timing': 'cache;desc="hit"' },
+      });
+    }
 
-    // ─── Two-phase user lookup (same pattern as /api/auth/login) ───
-    // Phase 1: Search the platform DB (neondb) for the user.
-    // Phase 2: If not found, search the tenant-specific DB.
-    const userSelect = {
+    // Super admin lives only on the platform DB. Nested tenant include + employee
+    // lookup were extra Neon hops on every layout /api/auth/me.
+    const platformDb = getPlatformDb();
+    const userSelectCore = {
       id: true,
       name: true,
       email: true,
@@ -60,84 +61,81 @@ export async function GET(request: Request) {
       lastLogin: true,
       createdAt: true,
       tenantId: true,
-      tenant: {
-        select: {
-          id: true,
-          name: true,
-          slug: true,
-          plan: true,
-          currency: true,
-          timezone: true,
-          logo: true,
-          status: true,
-        },
-      },
     };
 
     let user: any = null;
     let db: any = null;
 
-    // Phase 1: Platform DB lookup
-    const platformDb = getPlatformDb();
-    const platformUser = await platformDb.user.findUnique({
-      where: { id: userId },
-      select: userSelect,
-    });
-
-    if (platformUser) {
-      user = platformUser;
+    if (jwtRole === 'super_admin') {
+      user = await platformDb.user.findUnique({
+        where: { id: userId },
+        select: userSelectCore,
+      });
       db = platformDb;
     } else {
-      // Phase 2: Tenant-specific DB lookup
-      // Try to find the user in their tenant's dedicated database
-      try {
-        let tenantDb: any = null;
-        if (tenantSlug) {
-          tenantDb = await getDbForTenant(tenantSlug);
-        } else if (tenantId) {
-          tenantDb = await getDbForTenantById(tenantId);
-        }
+      const userSelect = {
+        ...userSelectCore,
+        tenant: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            plan: true,
+            currency: true,
+            timezone: true,
+            logo: true,
+            status: true,
+          },
+        },
+      };
 
-        if (tenantDb) {
-          const tenantUser = await tenantDb.user.findUnique({
-            where: { id: userId },
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              role: true,
-              avatar: true,
-              status: true,
-              lastLogin: true,
-              createdAt: true,
-              tenantId: true,
-            },
-          });
+      const platformUser = await platformDb.user.findUnique({
+        where: { id: userId },
+        select: userSelect,
+      });
 
-          if (tenantUser) {
-            user = tenantUser;
-            db = tenantDb;
-            // Resolve tenant info from platform DB
-            if (tenantUser.tenantId) {
-              const tenant = await platformDb.tenant.findUnique({
-                where: { id: tenantUser.tenantId },
-                select: {
-                  id: true,
-                  name: true,
-                  slug: true,
-                  plan: true,
-                  currency: true,
-                  timezone: true,
-                  logo: true,
-                  status: true,
-                },
-              });
-              user.tenant = tenant;
+      if (platformUser) {
+        user = platformUser;
+        db = platformDb;
+      } else {
+        try {
+          let tenantDb: any = null;
+          if (tenantSlug) {
+            tenantDb = await getDbForTenant(tenantSlug);
+          } else if (tenantId) {
+            tenantDb = await getDbForTenantById(tenantId);
+          }
+
+          if (tenantDb) {
+            const tenantUser = await tenantDb.user.findUnique({
+              where: { id: userId },
+              select: userSelectCore,
+            });
+
+            if (tenantUser) {
+              user = tenantUser;
+              db = tenantDb;
+              if (tenantUser.tenantId) {
+                const tenant = await platformDb.tenant.findUnique({
+                  where: { id: tenantUser.tenantId },
+                  select: {
+                    id: true,
+                    name: true,
+                    slug: true,
+                    plan: true,
+                    currency: true,
+                    timezone: true,
+                    logo: true,
+                    status: true,
+                  },
+                });
+                user.tenant = tenant;
+              }
             }
           }
+        } catch (tenantLookupErr) {
+          console.error('[Auth/Me] Tenant DB lookup failed:', tenantLookupErr);
         }
-      } catch (tenantLookupErr) {
-        console.error('[Auth/Me] Tenant DB lookup failed:', tenantLookupErr);
       }
     }
 
@@ -148,7 +146,7 @@ export async function GET(request: Request) {
       );
     }
 
-    if (!user.tenant && user.tenantId) {
+    if (user.role !== 'super_admin' && !user.tenant && user.tenantId) {
       try {
         user.tenant = await platformDb.tenant.findUnique({
           where: { id: user.tenantId },
@@ -171,7 +169,7 @@ export async function GET(request: Request) {
     // Step 2: Try to fetch employee data separately (graceful fallback)
     // Use the tenant-specific DB for employee/company lookups
     let dataDb = db;
-    if (user.role !== 'super_admin' && user.tenantId) {
+    if (user.role !== 'super_admin' && user.tenantId && db === platformDb) {
       try {
         dataDb = await getDbForTenantById(user.tenantId);
       } catch (e) {
@@ -181,6 +179,21 @@ export async function GET(request: Request) {
     }
 
     let employeeData = null;
+    let profileAvatar = user.avatar as string | null;
+    if (user.role === 'super_admin') {
+      employeeData = null;
+    } else if (user.role === 'tenant_admin') {
+      employeeData = null;
+      try {
+        const emp = await dataDb.employee.findUnique({
+          where: { userId: user.id },
+          select: { avatar: true },
+        });
+        if (emp?.avatar) profileAvatar = emp.avatar;
+      } catch (empErr) {
+        console.error('[Auth/Me] Tenant admin avatar lookup error (non-fatal):', empErr);
+      }
+    } else {
     try {
       const employee = await dataDb.employee.findUnique({
         where: { userId: user.id },
@@ -216,11 +229,13 @@ export async function GET(request: Request) {
           console.error('[Auth/Me] Company fetch error (non-fatal):', compErr);
         }
 
+        if (employee.avatar) profileAvatar = employee.avatar;
         employeeData = {
           id: employee.id,
           employeeId: employee.employeeId,
           firstName: employee.firstName,
           lastName: employee.lastName,
+          avatar: employee.avatar || null,
           department: employee.department?.name || null,
           designation: employee.designation?.title || null,
           branch: employee.branch?.name || null,
@@ -235,6 +250,7 @@ export async function GET(request: Request) {
     } catch (empErr) {
       console.error('[Auth/Me] Employee fetch error (non-fatal):', empErr);
       // Continue without employee data — user can still be authenticated
+    }
     }
 
     // ─── GOLDEN RULE: Scrub hidden tenant from API response ───
@@ -256,21 +272,23 @@ export async function GET(request: Request) {
       status: user.tenant.status,
     } : null);
 
-    return NextResponse.json(
-      {
+    const body = {
         id: user.id,
         name: user.name,
         email: user.email,
         role: user.role,
-        avatar: user.avatar,
+        avatar: profileAvatar,
         status: user.status,
         tenantId: safeTenantId,
         tenant: safeTenant,
         employee: employeeData,
         lastLogin: user.lastLogin,
         createdAt: user.createdAt,
-      },
-      { headers: corsHeaders() }
+    };
+    setMeCached(cacheKey, body);
+    return NextResponse.json(
+      body,
+      { headers: { ...corsHeaders(), 'Server-Timing': `total;dur=${Date.now() - t0}` } }
     );
   } catch (error) {
     console.error('Get current user error:', error);

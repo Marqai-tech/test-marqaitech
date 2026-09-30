@@ -1,153 +1,165 @@
 /**
- * 3Boxes HRMS — Per-tab session token storage (CRITICAL SECURITY FIX)
+ * 3Boxes HRMS — Session token storage
  *
- * PROBLEM:
- *   Previously `tb_token` was stored in `localStorage`, which is SHARED across
- *   all tabs of the same browser. If tab 1 logged in as super_admin and tab 2
- *   logged in as employee, refreshing either tab would cause it to adopt the
- *   other tab's session — leaking super_admin privileges to the employee tab.
+ * Default: `tb_token` lives in sessionStorage (per-tab).
+ * Keep me signed in: also persist in localStorage with a 30-day JWT.
  *
- * FIX:
- *   Store `tb_token` in `sessionStorage` instead. sessionStorage is per-tab
- *   AND persists across refreshes of the same tab, so:
- *     • Two tabs are fully isolated (different sessions)
- *     • Refreshing a tab keeps that tab's session
- *     • Closing a tab clears its session
- *
- * MIGRATION:
- *   On first load of a NEW tab (where sessionStorage is empty), we MIGRATE
- *   any existing token from localStorage to sessionStorage, then CLEAR
- *   localStorage. This means:
- *     • Existing logged-in users don't get logged out unexpectedly
- *     • After migration, the token is only in sessionStorage (per-tab)
- *
- * USAGE:
- *   Import { getToken, setToken, removeToken } from '@/lib/token-storage'
- *   instead of accessing localStorage directly.
- *
- *   For backwards compatibility, this module also patches
- *   `window.localStorage.getItem('tb_token')` to redirect to sessionStorage.
- *   This means existing code that still reads `localStorage.getItem('tb_token')`
- *   will continue to work, but the actual storage backend is sessionStorage.
+ * Native localStorage methods are captured before the shim is installed so
+ * remember-me cleanup never wipes the in-tab session token.
  */
 
 const TOKEN_KEY = 'tb_token';
+const REMEMBER_KEY = 'tb_remember';
 
-/**
- * Whether we've already installed the localStorage shim.
- * Prevents re-patching on hot-reload in dev.
- */
 let shimInstalled = false;
+let originalGetItem: ((key: string) => string | null) | null = null;
+let originalSetItem: ((key: string, value: string) => void) | null = null;
+let originalRemoveItem: ((key: string) => void) | null = null;
 
-/**
- * Migrate any existing token from localStorage → sessionStorage (once per tab).
- * Called automatically on first import.
- */
-function migrateTokenFromLocalStorage(): void {
-  if (typeof window === 'undefined') return;
-
-  // Already have a token in sessionStorage — nothing to migrate.
-  const ssToken = sessionStorage.getItem(TOKEN_KEY);
-  if (ssToken) return;
-
-  // No sessionStorage token — try to migrate from localStorage.
-  const lsToken = localStorage.getItem(TOKEN_KEY);
-  if (lsToken) {
-    sessionStorage.setItem(TOKEN_KEY, lsToken);
-    // IMPORTANT: remove from localStorage so other tabs don't pick it up.
-    localStorage.removeItem(TOKEN_KEY);
+function rawGet(key: string): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    return originalGetItem ? originalGetItem(key) : window.localStorage.getItem(key);
+  } catch {
+    return null;
   }
 }
 
-/**
- * Install a shim that intercepts localStorage.getItem('tb_token') and
- * localStorage.setItem('tb_token', ...) and redirects them to sessionStorage.
- * This means all 200+ existing call sites continue to work without changes,
- * but the actual storage backend is per-tab sessionStorage.
- *
- * The shim also intercepts localStorage.removeItem('tb_token').
- */
+function rawSet(key: string, value: string): void {
+  if (typeof window === 'undefined') return;
+  try {
+    if (originalSetItem) originalSetItem(key, value);
+    else window.localStorage.setItem(key, value);
+  } catch { /* ignore */ }
+}
+
+function rawRemove(key: string): void {
+  if (typeof window === 'undefined') return;
+  try {
+    if (originalRemoveItem) originalRemoveItem(key);
+    else window.localStorage.removeItem(key);
+  } catch { /* ignore */ }
+}
+
+export function isRememberMe(): boolean {
+  return rawGet(REMEMBER_KEY) === '1';
+}
+
+export function setRememberMe(enabled: boolean): void {
+  if (enabled) {
+    rawSet(REMEMBER_KEY, '1');
+  } else {
+    rawRemove(REMEMBER_KEY);
+    rawRemove(TOKEN_KEY);
+  }
+}
+
+function migrateTokenFromLocalStorage(): void {
+  if (typeof window === 'undefined') return;
+
+  const ssToken = sessionStorage.getItem(TOKEN_KEY);
+  const lsToken = rawGet(TOKEN_KEY);
+
+  if (isRememberMe()) {
+    const token = ssToken || lsToken;
+    if (token) {
+      sessionStorage.setItem(TOKEN_KEY, token);
+      rawSet(TOKEN_KEY, token);
+    }
+    return;
+  }
+
+  if (ssToken) {
+    rawRemove(TOKEN_KEY);
+    return;
+  }
+
+  if (lsToken) {
+    sessionStorage.setItem(TOKEN_KEY, lsToken);
+    rawRemove(TOKEN_KEY);
+  }
+}
+
 export function installTokenStorageShim(): void {
   if (typeof window === 'undefined') return;
   if (shimInstalled) return;
   shimInstalled = true;
 
+  originalGetItem = window.localStorage.getItem.bind(window.localStorage);
+  originalSetItem = window.localStorage.setItem.bind(window.localStorage);
+  originalRemoveItem = window.localStorage.removeItem.bind(window.localStorage);
+
   migrateTokenFromLocalStorage();
 
-  const originalGetItem = localStorage.getItem.bind(localStorage);
-  const originalSetItem = localStorage.setItem.bind(localStorage);
-  const originalRemoveItem = localStorage.removeItem.bind(localStorage);
-
-  // Patch localStorage.getItem
-  localStorage.getItem = function (key: string): string | null {
+  window.localStorage.getItem = function (key: string): string | null {
     if (key === TOKEN_KEY) {
-      return sessionStorage.getItem(TOKEN_KEY);
+      return sessionStorage.getItem(TOKEN_KEY) || (isRememberMe() ? rawGet(TOKEN_KEY) : null);
     }
-    return originalGetItem(key);
+    return originalGetItem!(key);
   };
 
-  // Patch localStorage.setItem
-  localStorage.setItem = function (key: string, value: string): void {
+  window.localStorage.setItem = function (key: string, value: string): void {
     if (key === TOKEN_KEY) {
       sessionStorage.setItem(TOKEN_KEY, value);
-      // Do NOT also write to localStorage — that would leak across tabs.
+      if (isRememberMe()) rawSet(TOKEN_KEY, value);
       return;
     }
-    originalSetItem(key, value);
+    originalSetItem!(key, value);
   };
 
-  // Patch localStorage.removeItem
-  localStorage.removeItem = function (key: string): void {
+  window.localStorage.removeItem = function (key: string): void {
     if (key === TOKEN_KEY) {
       sessionStorage.removeItem(TOKEN_KEY);
+      rawRemove(TOKEN_KEY);
+      rawRemove(REMEMBER_KEY);
       return;
     }
-    originalRemoveItem(key);
+    originalRemoveItem!(key);
   };
-
-  // Listen for storage events from OTHER tabs.
-  // If another tab logs out (clears localStorage['tb_token']), we DON'T want
-  // to follow suit — each tab has its own session now. So we ignore these
-  // events for tb_token. (Other localStorage keys still sync normally.)
-  window.addEventListener('storage', (event: StorageEvent) => {
-    if (event.key === TOKEN_KEY) {
-      // Ignore — we use sessionStorage, not localStorage, for the token.
-      // Other tabs' logout/login events should NOT affect this tab.
-      return;
-    }
-  });
-
-  //console.log('[TokenStorage] Shim installed — tb_token now stored in sessionStorage (per-tab)');
 }
 
-/**
- * Read the current session token.
- */
 export function getToken(): string | null {
   if (typeof window === 'undefined') return null;
   installTokenStorageShim();
-  return sessionStorage.getItem(TOKEN_KEY);
+  return sessionStorage.getItem(TOKEN_KEY) || (isRememberMe() ? rawGet(TOKEN_KEY) : null);
 }
 
-/**
- * Store a new session token.
- */
-export function setToken(token: string): void {
+export function setToken(token: string, options?: { remember?: boolean }): void {
   if (typeof window === 'undefined') return;
   installTokenStorageShim();
+  if (typeof options?.remember === 'boolean') {
+    if (options.remember) {
+      rawSet(REMEMBER_KEY, '1');
+    } else {
+      rawRemove(REMEMBER_KEY);
+      rawRemove(TOKEN_KEY);
+    }
+  }
   sessionStorage.setItem(TOKEN_KEY, token);
+  if (isRememberMe()) {
+    rawSet(TOKEN_KEY, token);
+  } else {
+    rawRemove(TOKEN_KEY);
+  }
 }
 
-/**
- * Remove the current session token.
- */
 export function removeToken(): void {
   if (typeof window === 'undefined') return;
   installTokenStorageShim();
   sessionStorage.removeItem(TOKEN_KEY);
+  rawRemove(TOKEN_KEY);
+  rawRemove(REMEMBER_KEY);
 }
 
-// Auto-install on import in the browser
+export function getAuthHeaders(extra?: Record<string, string>): Record<string, string> {
+  const token = getToken();
+  return {
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...extra,
+  };
+}
+
 if (typeof window !== 'undefined') {
   installTokenStorageShim();
 }

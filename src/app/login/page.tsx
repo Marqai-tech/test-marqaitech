@@ -16,6 +16,7 @@ import {
 import { HiShieldCheck } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import '@/lib/token-storage';
 import { isClientLiveMode } from '@/lib/site-mode';
 import { validateEmail, validatePasswordRequired } from '@/lib/validators';
 
@@ -35,6 +36,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
   const [showMobileApp, setShowMobileApp] = useState(false);
   const [tenantInfo, setTenantInfo] = useState<{ name: string; slug: string; logo?: string | null } | null>(null);
@@ -93,11 +95,13 @@ export default function LoginPage() {
     const hostname = window.location.hostname;
     setIsDemoSite(
       hostname === 'nexus-hrms-mu.vercel.app' ||
-      hostname === '3boxes-hrms-mu.vercel.app'
+      hostname === '3boxes-hrms-mu.vercel.app' ||
+      hostname === 'test.3boxeshrms.com'
     );
     setIsPlatformSite(
       hostname === '3boxeshrms.com' ||
-      hostname === 'www.3boxeshrms.com'
+      hostname === 'www.3boxeshrms.com' ||
+      hostname === 'test.3boxeshrms.com'
     );
   }, []);
 
@@ -127,9 +131,6 @@ export default function LoginPage() {
     const standalone = window.matchMedia('(display-mode: standalone)').matches
       || (window.navigator as unknown as { standalone?: boolean }).standalone === true;
     setIsStandalone(standalone);
-
-    // Auto-fix EH2R branding in database on login page load
-    fetch('/api/fix-tenant', { method: 'POST' }).catch(() => {});
 
     const handler = (e: Event) => {
       e.preventDefault();
@@ -189,7 +190,7 @@ export default function LoginPage() {
     setIsSubmitting(true);
 
     try {
-      const success = await login(email, password);
+      const success = await login(email, password, rememberMe);
       if (success) {
         toast.success('Welcome back! Redirecting...');
         // Redirect based on role:
@@ -232,6 +233,14 @@ export default function LoginPage() {
       });
       const d = await r.json();
       if (!r.ok) {
+        if (d.code === 'USE_EMPLOYEE_LOGIN') {
+          setEmail(candidateEmail);
+          setPassword(candidatePassword);
+          setLoginMode('user');
+          setError(d.error || 'Use Employee / HR to sign in.');
+          toast.error(d.error || 'Use Employee / HR to sign in.');
+          return;
+        }
         if (d.needsPasswordSetup) {
           setCandidateError('Please set up a password first via OTP.');
           setCandidateTab('otp');
@@ -579,7 +588,7 @@ export default function LoginPage() {
               }`}
             >
               <span className="flex items-center justify-center gap-1.5">
-                <FiGrid className="w-4 h-4" /> HR / Admin
+                <FiGrid className="w-4 h-4" /> Employee / HR
               </span>
             </button>
             <button
@@ -589,7 +598,7 @@ export default function LoginPage() {
               }`}
             >
               <span className="flex items-center justify-center gap-1.5">
-                <FiBriefcase className="w-4 h-4" /> Candidate
+                <FiBriefcase className="w-4 h-4" /> Job candidate
               </span>
             </button>
           </div>
@@ -943,6 +952,8 @@ export default function LoginPage() {
               <input
                 id="remember"
                 type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
                 className="w-4 h-4 rounded border-slate-300 text-green-500 focus:ring-green-500/20"
               />
               <label htmlFor="remember" className="text-sm text-slate-500">

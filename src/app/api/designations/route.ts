@@ -85,6 +85,8 @@ export async function GET(req: NextRequest) {
       where.department = { ...designationFilter };
     }
 
+    const includeCounts = url.searchParams.get('includeCounts') === '1';
+
     const designations = await db.designation.findMany({
       where,
       orderBy: [{ level: 'asc' }, { title: 'asc' }],
@@ -92,7 +94,7 @@ export async function GET(req: NextRequest) {
       take: limit,
       include: {
         department: { select: { id: true, name: true, companyId: true } },
-        _count: { select: { employees: true } },
+        ...(includeCounts ? { _count: { select: { employees: true } } } : {}),
       },
     });
 

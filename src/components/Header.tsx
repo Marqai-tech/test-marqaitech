@@ -22,6 +22,7 @@ import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { useNotificationStore } from '@/store/notificationStore';
 import { sanitizeSearch } from '@/lib/validators';
+import { loggedInPhotoUrl } from '@/lib/profile-photo';
 import CompanySwitcher from '@/components/CompanySwitcher';
 import LocaleSwitcher from '@/components/LocaleSwitcher';
 
@@ -198,12 +199,14 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
   const token = useAuthStore.getState().token;
   useEffect(() => {
     if (!token) return;
-    fetchNotifications();
-    // Poll every 30 seconds for live unread-count updates
+    const start = window.setTimeout(() => fetchNotifications(), 2000);
     const interval = setInterval(() => {
       fetchNotifications();
     }, 30000);
-    return () => clearInterval(interval);
+    return () => {
+      clearTimeout(start);
+      clearInterval(interval);
+    };
   }, [token, fetchNotifications]);
 
   // Compute search suggestions based on query
@@ -261,6 +264,8 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
       .toUpperCase()
       .slice(0, 2);
   };
+
+  const photoUrl = loggedInPhotoUrl(user);
 
   return (
     <header className="h-16 bg-white border-b border-slate-200 shadow-sm flex items-center px-4 gap-4 sticky top-0 z-30">
@@ -467,11 +472,11 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
             onClick={() => setShowUserMenu(!showUserMenu)}
             className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
           >
-            {user?.avatar ? (
+            {photoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={user.avatar}
-                alt={user.name}
+                src={photoUrl}
+                alt={user?.name || 'Profile'}
                 className="w-8 h-8 rounded-full object-cover ring-2 ring-white shadow-sm"
               />
             ) : (

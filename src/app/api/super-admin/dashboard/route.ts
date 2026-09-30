@@ -1,7 +1,8 @@
-import { NextResponse } from 'next/server';
-import { getPlatformDb, getDbForTenant } from '@/lib/tenant-db';
+import { NextResponse, after } from 'next/server';
+import { getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { getServerHiddenSlugs, PLATFORM_PLACEHOLDER_NAME } from '@/lib/tenant-filter';
+import { getTenantDashboardCounts } from '@/lib/tenant-aggregates';
 
 function corsHeaders() {
   return {
@@ -15,7 +16,13 @@ export async function OPTIONS() {
   return NextResponse.json({}, { headers: corsHeaders() });
 }
 
+let liteDashboardCache: { at: number; host: string; body: Record<string, unknown> } | null = null;
+let fullDashboardCache: { at: number; host: string; body: Record<string, unknown> } | null = null;
+const DASHBOARD_CACHE_MS = 45_000;
+const DASHBOARD_FULL_CACHE_MS = 120_000;
+
 export async function GET(request: Request) {
+  const t0 = Date.now();
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -32,6 +39,25 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Only super admins can view platform dashboard' }, { status: 403, headers: corsHeaders() });
     }
 
+    const wantFull = new URL(request.url).searchParams.get('full') === '1';
+    const host = request.headers.get('host') || 'default';
+    if (wantFull && fullDashboardCache && fullDashboardCache.host === host && Date.now() - fullDashboardCache.at < DASHBOARD_FULL_CACHE_MS) {
+      return NextResponse.json(fullDashboardCache.body, {
+        headers: { ...corsHeaders(), 'Server-Timing': 'cache;desc="full-hit"' },
+      });
+    }
+    if (!wantFull && liteDashboardCache && liteDashboardCache.host === host && Date.now() - liteDashboardCache.at < DASHBOARD_CACHE_MS) {
+      return NextResponse.json(liteDashboardCache.body, {
+        headers: { ...corsHeaders(), 'Server-Timing': 'cache;desc="lite-hit"' },
+      });
+    }
+    const liteHit =
+      liteDashboardCache &&
+      liteDashboardCache.host === host &&
+      Date.now() - liteDashboardCache.at < DASHBOARD_CACHE_MS
+        ? liteDashboardCache.body
+        : null;
+
     const platformDb = getPlatformDb();
     const hiddenSlugs = getServerHiddenSlugs(request);
 
@@ -44,121 +70,63 @@ export async function GET(request: Request) {
       NOT: { name: { contains: PLATFORM_PLACEHOLDER_NAME } },
     };
 
-    // ─── Tenant counts by status ───
-    const [totalTenants, activeTenants, suspendedTenants, inactiveTenants] = await Promise.all([
+    const tDb = Date.now();
+    let payload: Record<string, unknown>;
+
+    if (wantFull && liteHit) {
+      const counts = await getTenantDashboardCounts(platformDb, tenantFilter, { allowRefresh: true });
+      payload = {
+        ...liteHit,
+        totalGroupCompanies: counts.groups,
+        totalCompanies: counts.companies,
+        totalEmployees: counts.employees,
+        _agg: { tenantDbs: counts.tenantDbs, source: counts.source },
+      };
+    } else {
+    const now = new Date();
+    const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+    const monthWindows = Array.from({ length: 6 }, (_, idx) => {
+      const i = 5 - idx;
+      const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const nextMonth = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
+      return {
+        monthLabel: monthDate.toLocaleString('en', { month: 'short' }),
+        monthDate,
+        nextMonth,
+      };
+    });
+    const thirtyDaysFromNow = new Date();
+    thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+    const visibleTenantWhere = tenantFilter;
+
+    // One Neon round-trip batch. Sequential counts + 6 monthly counts + 6
+    // monthly subscription reads was ~4.7s on tester (iad1 → Neon).
+    const [
+      totalTenants,
+      activeTenants,
+      suspendedTenants,
+      inactiveTenants,
+      tenantsCreated,
+      activeSubscriptions,
+      allPlans,
+      recentSubs,
+      recentTrials,
+      expiringSubs,
+      recentActivity,
+    ] = await Promise.all([
       platformDb.tenant.count({ where: tenantFilter }),
       platformDb.tenant.count({ where: { ...tenantFilter, status: 'active' } }),
       platformDb.tenant.count({ where: { ...tenantFilter, status: 'suspended' } }),
       platformDb.tenant.count({ where: { ...tenantFilter, status: 'inactive' } }),
-    ]);
-
-    // ─── Aggregate counts across ALL tenant databases ───
-    const tenants = await platformDb.tenant.findMany({
-      where: tenantFilter,
-      select: { id: true, slug: true, status: true },
-    });
-
-    let totalGroupCompanies = 0;
-    let totalCompanies = 0;
-    let totalEmployees = 0;
-
-    // FIX: Only aggregate from per-tenant databases that have a dedicated
-    // TenantDatabase record. Tenants WITHOUT a dedicated DB (including the
-    // hidden placeholder "3boxeshrms" / "3boxes-hrms-demo") fall back to
-    // platformDb when queried via getDbForTenant — which would re-count the
-    // shared seed rows for every such tenant, inflating totals. We skip those.
-    for (const tenant of tenants) {
-      if (!tenant.slug) continue;
-      try {
-        // Only count if this tenant has a dedicated TenantDatabase record
-        const tenantDbRecord = await platformDb.tenantDatabase.findFirst({
-          where: { tenant: { slug: tenant.slug }, isActive: true },
-          select: { id: true },
-        });
-        if (!tenantDbRecord) {
-          console.log(`[SuperAdmin Dashboard] Skipping tenant "${tenant.slug}" — no dedicated DB (would re-count shared platform rows)`);
-          continue;
-        }
-
-        const tenantDb = await getDbForTenant(tenant.slug);
-        const [groupCount, companyCount, employeeCount] = await Promise.all([
-          tenantDb.companyGroup.count(),
-          tenantDb.company.count(),
-          tenantDb.employee.count({ where: { status: 'active' } }),
-        ]);
-
-        totalGroupCompanies += groupCount;
-        totalCompanies += companyCount;
-        totalEmployees += employeeCount;
-      } catch (e) {
-        console.error(`[SuperAdmin Dashboard] Failed to count data for tenant "${tenant.slug}":`, e);
-      }
-    }
-
-    // ─── Revenue from active subscriptions (exclude hidden tenants) ───
-    // Get list of hidden tenant IDs to filter subscriptions
-    const hiddenTenants = await platformDb.tenant.findMany({
-      where: { slug: { in: hiddenSlugs } },
-      select: { id: true },
-    });
-    const hiddenTenantIds = hiddenTenants.map(t => t.id);
-
-    const subscriptionFilter: Record<string, unknown> = { status: 'active' };
-    if (hiddenTenantIds.length > 0) {
-      subscriptionFilter.tenantId = { notIn: hiddenTenantIds };
-    }
-    const activeSubscriptions = await platformDb.subscription.findMany({
-      where: subscriptionFilter,
-      select: { amount: true, currency: true },
-    });
-    const totalRevenue = activeSubscriptions.reduce((sum, sub) => sum + (sub.amount || 0), 0);
-
-    // ─── Companies by Month (last 6 months) ───
-    // Derived from tenant creation dates as a proxy for company onboarding
-    const now = new Date();
-    const companiesByMonth: { month: string; companies: number }[] = [];
-    for (let i = 5; i >= 0; i--) {
-      const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const nextMonth = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
-      const monthLabel = monthDate.toLocaleString('en', { month: 'short' });
-      try {
-        const count = await platformDb.tenant.count({
-          where: {
-            ...tenantFilter,
-            createdAt: { gte: monthDate, lt: nextMonth },
-          },
-        });
-        companiesByMonth.push({ month: monthLabel, companies: count });
-      } catch {
-        companiesByMonth.push({ month: monthLabel, companies: 0 });
-      }
-    }
-
-    // ─── Revenue by Month (last 6 months) ───
-    const revenueByMonth: { month: string; revenue: number }[] = [];
-    for (let i = 5; i >= 0; i--) {
-      const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const nextMonth = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
-      const monthLabel = monthDate.toLocaleString('en', { month: 'short' });
-      try {
-        const subs = await platformDb.subscription.findMany({
-          where: {
-            ...subscriptionFilter,
-            createdAt: { gte: monthDate, lt: nextMonth },
-          },
-          select: { amount: true },
-        });
-        const monthRevenue = subs.reduce((sum, s) => sum + (s.amount || 0), 0);
-        revenueByMonth.push({ month: monthLabel, revenue: monthRevenue });
-      } catch {
-        revenueByMonth.push({ month: monthLabel, revenue: 0 });
-      }
-    }
-
-    // ─── Top Plans (from SubscriptionPlan + subscription counts) ───
-    let topPlans: { name: string; planType: string; count: number; total: number }[] = [];
-    try {
-      const allPlans = await platformDb.subscriptionPlan.findMany({
+      platformDb.tenant.findMany({
+        where: { ...tenantFilter, createdAt: { gte: sixMonthsAgo } },
+        select: { createdAt: true },
+      }),
+      platformDb.subscription.findMany({
+        where: { status: 'active', tenant: visibleTenantWhere },
+        select: { amount: true, currency: true, createdAt: true },
+      }),
+      platformDb.subscriptionPlan.findMany({
         where: { status: 'active' },
         select: {
           id: true,
@@ -167,23 +135,12 @@ export async function GET(request: Request) {
           _count: { select: { subscriptions: { where: { status: 'active' } } } },
         },
         orderBy: { name: 'asc' },
-      });
-      const maxCount = Math.max(...allPlans.map(p => p._count.subscriptions), 1);
-      topPlans = allPlans.map(p => ({
-        name: p.name,
-        planType: p.planType,
-        count: p._count.subscriptions,
-        total: maxCount,
-      }));
-    } catch (e) {
-      console.error('[SuperAdmin Dashboard] Top plans query failed:', e);
-    }
-
-    // ─── Recent Transactions (from Subscription records) ───
-    let recentTransactions: { id: string; company: string; amount: string; status: string; date: string; currency: string }[] = [];
-    try {
-      const recentSubs = await platformDb.subscription.findMany({
-        where: hiddenTenantIds.length > 0 ? { tenantId: { notIn: hiddenTenantIds } } : {},
+      }).catch((e) => {
+        console.error('[SuperAdmin Dashboard] Top plans query failed:', e);
+        return [] as { id: string; name: string; planType: string; _count: { subscriptions: number } }[];
+      }),
+      platformDb.subscription.findMany({
+        where: { tenant: visibleTenantWhere },
         take: 6,
         orderBy: { createdAt: 'desc' },
         select: {
@@ -194,55 +151,24 @@ export async function GET(request: Request) {
           createdAt: true,
           tenant: { select: { name: true } },
         },
-      });
-      recentTransactions = recentSubs.map(s => ({
-        id: s.id,
-        company: s.tenant?.name || 'Unknown',
-        amount: String(s.amount || 0),
-        status: s.paymentStatus || 'pending',
-        date: s.createdAt ? new Date(s.createdAt).toLocaleDateString('en', { month: 'short', day: 'numeric' }) : '',
-        currency: s.currency || 'INR',
-      }));
-    } catch (e) {
-      console.error('[SuperAdmin Dashboard] Recent transactions query failed:', e);
-    }
-
-    // ─── Recently Registered (from TrialRegistration) ───
-    let recentlyRegistered: { id: string; name: string; plan: string; date: string }[] = [];
-    try {
-      const trialFilter = hiddenTenantIds.length > 0 ? { tenantId: { notIn: hiddenTenantIds } } : {};
-      const recentTrials = await platformDb.trialRegistration.findMany({
-        where: trialFilter,
+      }).catch((e) => {
+        console.error('[SuperAdmin Dashboard] Recent transactions query failed:', e);
+        return [] as { id: string; amount: number | null; currency: string | null; paymentStatus: string | null; createdAt: Date | null; tenant: { name: string } | null }[];
+      }),
+      platformDb.trialRegistration.findMany({
+        where: { tenant: visibleTenantWhere },
         take: 5,
         orderBy: { createdAt: 'desc' },
-        select: {
-          id: true,
-          companyName: true,
-          status: true,
-          createdAt: true,
-        },
-      });
-      recentlyRegistered = recentTrials.map(t => ({
-        id: t.id,
-        name: t.companyName,
-        plan: t.status === 'approved' ? 'Active' : t.status === 'pending' ? 'Pending' : t.status,
-        date: t.createdAt ? new Date(t.createdAt).toLocaleDateString('en', { month: 'short', day: 'numeric' }) : '',
-      }));
-    } catch (e) {
-      console.error('[SuperAdmin Dashboard] Recently registered query failed:', e);
-    }
-
-    // ─── Expiring Subscriptions (next 30 days or already expired) ───
-    let expiringSubscriptions: { id: string; company: string; plan: string; expiredDate: string; email: string; tenantId: string }[] = [];
-    try {
-      const thirtyDaysFromNow = new Date();
-      thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
-
-      const expiringSubs = await platformDb.subscription.findMany({
+        select: { id: true, companyName: true, status: true, createdAt: true },
+      }).catch((e) => {
+        console.error('[SuperAdmin Dashboard] Recently registered query failed:', e);
+        return [] as { id: string; companyName: string; status: string; createdAt: Date | null }[];
+      }),
+      platformDb.subscription.findMany({
         where: {
           status: { in: ['active', 'expired'] },
           endDate: { lte: thirtyDaysFromNow },
-          ...(hiddenTenantIds.length > 0 ? { tenantId: { notIn: hiddenTenantIds } } : {}),
+          tenant: visibleTenantWhere,
         },
         take: 5,
         orderBy: { endDate: 'asc' },
@@ -253,35 +179,76 @@ export async function GET(request: Request) {
           plan: { select: { name: true } },
           tenant: { select: { name: true, id: true, users: { take: 1, where: { role: 'tenant_admin' }, select: { email: true } } } },
         },
+      }).catch((e) => {
+        console.error('[SuperAdmin Dashboard] Expiring subscriptions query failed:', e);
+        return [] as { id: string; endDate: Date | null; tenantId: string; plan: { name: string } | null; tenant: { name: string; id: string; users: { email: string }[] } | null }[];
+      }),
+      platformDb.auditLog.findMany({
+        take: 5,
+        orderBy: { createdAt: 'desc' },
+        include: { user: { select: { id: true, name: true, email: true } } },
+      }),
+    ]);
+
+    const companiesByMonth = monthWindows.map(({ monthLabel, monthDate, nextMonth }) => ({
+      month: monthLabel,
+      companies: tenantsCreated.filter((t) => t.createdAt >= monthDate && t.createdAt < nextMonth).length,
+    }));
+    const revenueByMonth = monthWindows.map(({ monthLabel, monthDate, nextMonth }) => ({
+      month: monthLabel,
+      revenue: activeSubscriptions
+        .filter((s) => s.createdAt && s.createdAt >= monthDate && s.createdAt < nextMonth)
+        .reduce((sum, s) => sum + (s.amount || 0), 0),
+    }));
+    const totalRevenue = activeSubscriptions.reduce((sum, sub) => sum + (sub.amount || 0), 0);
+    const maxPlanCount = Math.max(...allPlans.map((p) => p._count.subscriptions), 1);
+    const topPlans = allPlans.map((p) => ({
+      name: p.name,
+      planType: p.planType,
+      count: p._count.subscriptions,
+      total: maxPlanCount,
+    }));
+    const recentTransactions = recentSubs.map((s) => ({
+      id: s.id,
+      company: s.tenant?.name || 'Unknown',
+      amount: String(s.amount || 0),
+      status: s.paymentStatus || 'pending',
+      date: s.createdAt ? new Date(s.createdAt).toLocaleDateString('en', { month: 'short', day: 'numeric' }) : '',
+      currency: s.currency || 'INR',
+    }));
+    const recentlyRegistered = recentTrials.map((t) => ({
+      id: t.id,
+      name: t.companyName,
+      plan: t.status === 'approved' ? 'Active' : t.status === 'pending' ? 'Pending' : t.status,
+      date: t.createdAt ? new Date(t.createdAt).toLocaleDateString('en', { month: 'short', day: 'numeric' }) : '',
+    }));
+    const expiringSubscriptions = expiringSubs.map((s) => ({
+      id: s.id,
+      company: s.tenant?.name || 'Unknown',
+      plan: s.plan?.name || 'Unknown',
+      expiredDate: s.endDate ? new Date(s.endDate).toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' }) : '',
+      email: s.tenant?.users?.[0]?.email || '',
+      tenantId: s.tenantId,
+    }));
+
+    let totalGroupCompanies = 0;
+    let totalCompanies = 0;
+    let totalEmployees = 0;
+
+    if (wantFull) {
+      const counts = await getTenantDashboardCounts(platformDb, tenantFilter, { allowRefresh: true });
+      totalGroupCompanies = counts.groups;
+      totalCompanies = counts.companies;
+      totalEmployees = counts.employees;
+    } else {
+      after(() => {
+        getTenantDashboardCounts(platformDb, tenantFilter, { allowRefresh: true }).catch((e) => {
+          console.error('[SuperAdmin Dashboard] Background tenant aggregate refresh failed:', e);
+        });
       });
-      expiringSubscriptions = expiringSubs.map(s => ({
-        id: s.id,
-        company: s.tenant?.name || 'Unknown',
-        plan: s.plan?.name || 'Unknown',
-        expiredDate: s.endDate ? new Date(s.endDate).toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' }) : '',
-        email: s.tenant?.users?.[0]?.email || '',
-        tenantId: s.tenantId,
-      }));
-    } catch (e) {
-      console.error('[SuperAdmin Dashboard] Expiring subscriptions query failed:', e);
     }
 
-    // ─── Recent Activity ───
-    const recentActivity = await platformDb.auditLog.findMany({
-      take: 5,
-      orderBy: { createdAt: 'desc' },
-      include: {
-        user: {
-          select: { id: true, name: true, email: true },
-        },
-      },
-    });
-
-    // ─── Currency info (always INR for live site) ───
-    const currencySymbol = '₹';
-    const currencyCode = 'INR';
-
-    return NextResponse.json({
+    const payloadInner = {
       totalTenants,
       activeTenants,
       suspendedTenants,
@@ -292,16 +259,32 @@ export async function GET(request: Request) {
       totalRevenue,
       platformHealth: totalTenants > 0 ? Math.round((activeTenants / totalTenants) * 100) : 0,
       recentActivity,
-      // New dynamic data
       companiesByMonth,
       revenueByMonth,
       topPlans,
       recentTransactions,
       recentlyRegistered,
       expiringSubscriptions,
-      currencySymbol,
-      currencyCode,
-    }, { headers: corsHeaders() });
+      currencySymbol: '₹',
+      currencyCode: 'INR',
+    };
+    payload = payloadInner;
+    liteDashboardCache = { at: Date.now(), host, body: payloadInner };
+    }
+
+    const dbMs = Date.now() - tDb;
+
+    if (wantFull) {
+      fullDashboardCache = { at: Date.now(), host, body: payload };
+    } else {
+      liteDashboardCache = { at: Date.now(), host, body: payload };
+    }
+    return NextResponse.json(payload, {
+      headers: {
+        ...corsHeaders(),
+        'Server-Timing': `db;dur=${dbMs},total;dur=${Date.now() - t0}`,
+      },
+    });
   } catch (error) {
     console.error('Super admin dashboard error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() });
