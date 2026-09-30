@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb, getDbForTenant } from '@/lib/tenant-db';
 import { hashPassword, getTokenFromHeaders, verifyToken } from '@/lib/auth';
-import { getDataScope } from '@/lib/roleAccess';
+import { getDataScope, canAccessEmployeeSettings } from '@/lib/roleAccess';
 import { isServerLiveSite } from '@/lib/tenant-filter';
 
 function corsHeaders() {
@@ -126,6 +126,9 @@ export async function GET(request: Request) {
 
     // Decode JWT role
     const jwtRole = (decoded.role as string) || 'employee';
+    if (!canAccessEmployeeSettings(jwtRole)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403, headers: corsHeaders() });
+    }
 
     // For super_admin, resolve tenant DB from tenantId or companyId query param
     if (jwtRole === 'super_admin') {
@@ -412,6 +415,9 @@ export async function POST(request: Request) {
     // ─── Resolve the correct tenant DB (same as GET) ───
     let db = await getDb(request);
     const jwtRole = (decoded.role as string) || 'employee';
+    if (!canAccessEmployeeSettings(jwtRole)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403, headers: corsHeaders() });
+    }
 
     if (jwtRole === 'super_admin') {
       if (tenantIdParam) {
@@ -724,6 +730,9 @@ export async function PUT(request: Request) {
     // (platform DB instead of the tenant DB where the user actually lives).
     let db = await getDb(request);
     const jwtRole = (decoded.role as string) || 'employee';
+    if (!canAccessEmployeeSettings(jwtRole)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403, headers: corsHeaders() });
+    }
     const platformDb = getPlatformDb();
 
     if (jwtRole === 'super_admin') {

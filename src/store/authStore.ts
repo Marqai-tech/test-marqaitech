@@ -82,6 +82,7 @@ interface EmployeeInfo {
   companyId?: string | null;
   companyLogo?: string | null;
   companyName?: string | null;
+  avatar?: string | null;
 }
 
 interface UserInfo {
@@ -265,6 +266,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         headers: {
           Authorization: `Bearer ${token}`,
         },
+        cache: 'no-store',
       });
 
       if (!res.ok) {

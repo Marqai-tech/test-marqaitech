@@ -18,6 +18,7 @@ import SafeRender from '@/components/SafeRender';
 import { useSessionTimeout } from '@/hooks/useSessionTimeout';
 import { canRoleAccessModule, canSeeAllEmployees, LEGACY_ROLE_MAP, navRoleOrLeastPrivilege } from '@/lib/roleAccess';
 import toast from 'react-hot-toast';
+import { loggedInPhotoUrl } from '@/lib/profile-photo';
 import {
   FiUsers, FiBriefcase, FiClock, FiMenu,
   FiCpu, FiGrid, FiBell, FiUser,
@@ -222,6 +223,7 @@ export default function DashboardLayout({
   if (!isAuthenticated) return null;
 
   const getInitials = (name: string) => name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
+  const photoUrl = loggedInPhotoUrl(user);
 
   // ========= MOBILE LAYOUT =========
   if (isMobile) {
@@ -240,7 +242,14 @@ export default function DashboardLayout({
           </div>
           <button onClick={() => { setShowMobileNotif(false); setShowMobileProfile(false); setShowMobileMenu(!showMobileMenu); }} className="p-2 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"><FiMenu className="w-5 h-5" /></button>
           <button onClick={() => { setShowMobileMenu(false); setShowMobileProfile(false); setShowMobileNotif(!showMobileNotif); }} className="p-2 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors relative"><FiBell className="w-5 h-5" /></button>
-          <button onClick={() => { setShowMobileMenu(false); setShowMobileNotif(false); setShowMobileProfile(!showMobileProfile); }} className="w-8 h-8 rounded-full bg-gradient-to-br from-green-500 to-teal-600 flex items-center justify-center text-white text-[10px] font-bold shadow-sm">{user?.name ? getInitials(user.name) : '??'}</button>
+          <button onClick={() => { setShowMobileMenu(false); setShowMobileNotif(false); setShowMobileProfile(!showMobileProfile); }} className="w-8 h-8 rounded-full overflow-hidden bg-gradient-to-br from-green-500 to-teal-600 flex items-center justify-center text-white text-[10px] font-bold shadow-sm">
+            {photoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={photoUrl} alt={user?.name || 'Profile'} className="w-8 h-8 rounded-full object-cover" />
+            ) : (
+              user?.name ? getInitials(user.name) : '??'
+            )}
+          </button>
         </header>
         {showMobileMenu && (
           <div className="fixed inset-0 z-50" onClick={() => setShowMobileMenu(false)}>
@@ -267,7 +276,12 @@ export default function DashboardLayout({
             <div className="absolute inset-0 bg-black/30" />
             <div className="absolute top-14 right-0 w-64 bg-white border border-slate-200 shadow-xl rounded-b-xl animate-slide-in-down" onClick={(e) => e.stopPropagation()}>
               <div className="p-4 border-b border-slate-100 text-center">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-green-500 to-teal-600 flex items-center justify-center text-white text-lg font-bold mx-auto mb-2">{user?.name ? getInitials(user.name) : '??'}</div>
+                {photoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={photoUrl} alt={user?.name || 'Profile'} className="w-12 h-12 rounded-full object-cover mx-auto mb-2" />
+                ) : (
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-green-500 to-teal-600 flex items-center justify-center text-white text-lg font-bold mx-auto mb-2">{user?.name ? getInitials(user.name) : '??'}</div>
+                )}
                 <p className="text-sm font-semibold text-slate-800">{user?.name}</p>
                 <p className="text-[11px] text-slate-400 capitalize">{user?.role?.replace('_', ' ')}</p>
               </div>

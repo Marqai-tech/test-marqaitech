@@ -633,12 +633,16 @@ export async function POST(request: Request) {
     // Use the tenant-specific data DB (dataDb) for employee/company lookups,
     // NOT the auth DB (db). Employee and Company records live in tenant DBs.
     let companyData = null;
+    let loginAvatar = user.avatar as string | null;
     if (user.role !== 'super_admin') {
       try {
         const employee = await dataDb.employee.findUnique({
           where: { userId: user.id },
-          select: { companyId: true },
+          select: { companyId: true, avatar: true },
         });
+        if (employee?.avatar) {
+          loginAvatar = employee.avatar;
+        }
         if (employee?.companyId) {
           const company = await dataDb.company.findUnique({
             where: { id: employee.companyId },
@@ -712,7 +716,7 @@ export async function POST(request: Request) {
           email: user.email,
           role: user.role,
           tenantId: safeTenantId,
-          avatar: user.avatar,
+          avatar: loginAvatar,
           tenant: safeTenant,
           company: companyData,
         },

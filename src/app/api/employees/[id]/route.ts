@@ -3,6 +3,7 @@ import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { createNotification } from '@/lib/notifications';
 import { sendEmail } from '@/lib/email-sender';
+import { invalidateMeCacheForUser } from '@/lib/me-response-cache';
 import type { PrismaClient } from '@prisma/client';
 
 function corsHeaders() {
@@ -675,6 +676,24 @@ export async function PUT(
           console.log(`[Employee PUT] Synced email update for user ${employee.userId}: ${existingEmployee.email} → ${email}`);
         } catch (syncErr) {
           console.error('[Employee PUT] Failed to sync email to User account (non-critical):', syncErr);
+        }
+      }
+
+      if (avatar !== undefined && employee.userId) {
+        try {
+          const avatarValue = avatar || null;
+          await db.user.update({
+            where: { id: employee.userId },
+            data: { avatar: avatarValue },
+          }).catch(() => null);
+          const platformDb = getPlatformDb();
+          await platformDb.user.update({
+            where: { id: employee.userId },
+            data: { avatar: avatarValue },
+          }).catch(() => null);
+          invalidateMeCacheForUser(employee.userId);
+        } catch (syncErr) {
+          console.error('[Employee PUT] Failed to sync avatar to User account (non-critical):', syncErr);
         }
       }
 

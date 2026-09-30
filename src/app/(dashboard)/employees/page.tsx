@@ -32,6 +32,7 @@ import {
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
+import { canAccessEmployeeSettings } from '@/lib/roleAccess';
 import {
   validateEmail as validateEmailFormat,
   validatePhone,
@@ -326,8 +327,9 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
   const router = useRouter();
   const searchParams = useSearchParams();
   const editIdFromUrl = searchParams.get('editId');
-  const { user } = useAuthStore();
+  const { user, fetchUser } = useAuthStore();
   const isAdmin = ['super_admin', 'tenant_admin', 'admin', 'hr_admin', 'company_hr_admin', 'hrhead'].includes(user?.role || '');
+  const canOpenEmployeeSettings = canAccessEmployeeSettings(user?.role);
   const { effectiveCompanyId, selectedTenantId, availableCompanies, scopeQuery } = useCompanyContextStore();
   const scopeCompanyId = effectiveCompanyId();
   const scopeTenantId = user?.role === 'super_admin' ? selectedTenantId : undefined;
@@ -1123,9 +1125,12 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
           if (verifyRes.ok) {
             const verifyData = await verifyRes.json();
             const savedEmp = verifyData.employee || verifyData;
-            // Quick spot-check: verify at least one key field was saved
             if (savedEmp) {
               console.log('[Employee Form] Verified save: firstName=' + savedEmp.firstName + ', email=' + savedEmp.email);
+              const linkedUserId = savedEmp.userId || savedEmp.user?.id;
+              if (linkedUserId === user?.id || savedEmp.email === user?.email) {
+                await fetchUser();
+              }
             }
           }
         } catch { /* verification is best-effort */ }
@@ -1387,10 +1392,12 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                 Back to List
               </button>
             )}
+            {canOpenEmployeeSettings && (
             <button onClick={() => router.push('/employees/settings')} className="inline-flex items-center gap-2 px-4 py-2.5 border border-thb-border text-thb-text-secondary rounded-lg hover:bg-slate-50 font-medium text-sm transition-colors">
               <FiSettings className="w-4 h-4" />
               Settings
             </button>
+            )}
           </div>
         </div>
       ) : (

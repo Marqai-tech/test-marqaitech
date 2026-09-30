@@ -3,6 +3,7 @@ import { getDb, getPlatformDb, getDbForTenant, getDbForTenantById } from '@/lib/
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { isLiveMode, isDemoMode } from '@/lib/site-mode';
 import { getHiddenSlugsForRequest } from '@/lib/tenant-filter';
+import { getMeCached, setMeCached, ME_CACHE_MS } from '@/lib/me-response-cache';
 
 function corsHeaders() {
   return {
@@ -11,9 +12,6 @@ function corsHeaders() {
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
   };
 }
-
-const meResponseCache = new Map<string, { at: number; body: unknown }>();
-const ME_CACHE_MS = 15_000;
 
 export async function OPTIONS() {
   return NextResponse.json({}, { headers: corsHeaders() });
@@ -43,7 +41,7 @@ export async function GET(request: Request) {
     const tenantSlug = request.headers.get('x-tenant-slug') || '';
     const jwtRole = (decoded.role as string) || '';
     const cacheKey = `${userId}:${request.headers.get('host') || ''}:${jwtRole}`;
-    const cached = meResponseCache.get(cacheKey);
+    const cached = getMeCached(cacheKey);
     if (cached && Date.now() - cached.at < ME_CACHE_MS) {
       return NextResponse.json(cached.body, {
         headers: { ...corsHeaders(), 'Server-Timing': 'cache;desc="hit"' },
@@ -171,7 +169,7 @@ export async function GET(request: Request) {
     // Step 2: Try to fetch employee data separately (graceful fallback)
     // Use the tenant-specific DB for employee/company lookups
     let dataDb = db;
-    if (user.role !== 'super_admin' && user.role !== 'tenant_admin' && user.tenantId && db === platformDb) {
+    if (user.role !== 'super_admin' && user.tenantId && db === platformDb) {
       try {
         dataDb = await getDbForTenantById(user.tenantId);
       } catch (e) {
@@ -181,8 +179,20 @@ export async function GET(request: Request) {
     }
 
     let employeeData = null;
-    if (user.role === 'super_admin' || user.role === 'tenant_admin') {
+    let profileAvatar = user.avatar as string | null;
+    if (user.role === 'super_admin') {
       employeeData = null;
+    } else if (user.role === 'tenant_admin') {
+      employeeData = null;
+      try {
+        const emp = await dataDb.employee.findUnique({
+          where: { userId: user.id },
+          select: { avatar: true },
+        });
+        if (emp?.avatar) profileAvatar = emp.avatar;
+      } catch (empErr) {
+        console.error('[Auth/Me] Tenant admin avatar lookup error (non-fatal):', empErr);
+      }
     } else {
     try {
       const employee = await dataDb.employee.findUnique({
@@ -219,11 +229,13 @@ export async function GET(request: Request) {
           console.error('[Auth/Me] Company fetch error (non-fatal):', compErr);
         }
 
+        if (employee.avatar) profileAvatar = employee.avatar;
         employeeData = {
           id: employee.id,
           employeeId: employee.employeeId,
           firstName: employee.firstName,
           lastName: employee.lastName,
+          avatar: employee.avatar || null,
           department: employee.department?.name || null,
           designation: employee.designation?.title || null,
           branch: employee.branch?.name || null,
@@ -265,7 +277,7 @@ export async function GET(request: Request) {
         name: user.name,
         email: user.email,
         role: user.role,
-        avatar: user.avatar,
+        avatar: profileAvatar,
         status: user.status,
         tenantId: safeTenantId,
         tenant: safeTenant,
@@ -273,7 +285,7 @@ export async function GET(request: Request) {
         lastLogin: user.lastLogin,
         createdAt: user.createdAt,
     };
-    meResponseCache.set(cacheKey, { at: Date.now(), body });
+    setMeCached(cacheKey, body);
     return NextResponse.json(
       body,
       { headers: { ...corsHeaders(), 'Server-Timing': `total;dur=${Date.now() - t0}` } }

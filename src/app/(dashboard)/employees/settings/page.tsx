@@ -12,7 +12,9 @@ import {
 import toast from 'react-hot-toast'
 import { useAuthStore } from '@/store/authStore'
 import { useCompanyContextStore } from '@/store/companyContextStore'
+import { canAccessEmployeeSettings } from '@/lib/roleAccess'
 import ModuleSettingsPanel, { employeeSections } from '@/components/ModuleSettingsPanel'
+import { useRouter } from 'next/navigation'
 
 /* ── Types ── */
 interface EmployeeCredential {
@@ -225,9 +227,16 @@ const defaultCustomFields: CustomField[] = [
 
 export default function EmployeeSettingsPage() {
   const { user } = useAuthStore()
+  const router = useRouter()
   const { effectiveCompanyId, availableCompanies, refreshContext, scopeQuery, selectedTenantId } = useCompanyContextStore()
   const scopeCompanyId = effectiveCompanyId()
-  const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'admin'
+  const isAdmin = canAccessEmployeeSettings(user?.role)
+
+  useEffect(() => {
+    if (user && !isAdmin) {
+      router.replace('/employees')
+    }
+  }, [user, isAdmin, router])
 
   /* State */
   const [activeTab, setActiveTab] = useState<TabKey>('credentials')
@@ -974,6 +983,14 @@ export default function EmployeeSettingsPage() {
   }
 
   /* ── Render ── */
+  if (!isAdmin) {
+    return (
+      <div className="py-16 text-center text-sm text-thb-text-muted">
+        You do not have access to Employee Settings.
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}

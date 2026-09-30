@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { getTokenFromHeaders, verifyToken } from '@/lib/auth';
+import { canAccessEmployeeSettings } from '@/lib/roleAccess';
 
 function corsHeaders() {
   return {
@@ -58,6 +59,9 @@ export async function POST(request: Request) {
 
     const decoded = await verifyToken(token);
     if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401, headers: corsHeaders() });
+    if (!canAccessEmployeeSettings(decoded.role as string)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403, headers: corsHeaders() });
+    }
 
     const body = await request.json();
     const { employeeId, companyId, employeeCode, departmentId, designationId, branchId, isPrimary } = body;
@@ -131,6 +135,9 @@ export async function PATCH(request: Request) {
 
     const decoded = await verifyToken(token);
     if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401, headers: corsHeaders() });
+    if (!canAccessEmployeeSettings(decoded.role as string)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403, headers: corsHeaders() });
+    }
 
     const body = await request.json();
     const { mappingId, isPrimary, departmentId, designationId, branchId } = body;
@@ -201,6 +208,9 @@ export async function DELETE(request: Request) {
 
     const decoded = await verifyToken(token);
     if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401, headers: corsHeaders() });
+    if (!canAccessEmployeeSettings(decoded.role as string)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403, headers: corsHeaders() });
+    }
 
     const { searchParams } = new URL(request.url);
     const mappingId = searchParams.get('id');

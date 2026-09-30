@@ -366,6 +366,11 @@ export function canSeeAllEmployees(role: string): boolean {
   return ['super_admin', 'tenant_admin', 'admin'].includes(role);
 }
 
+/** Employee Settings / company mapping management — not employees or HR-only roles. */
+export function canAccessEmployeeSettings(role?: string | null): boolean {
+  return ['super_admin', 'tenant_admin', 'admin'].includes(role || '');
+}
+
 /**
  * Legacy role migration map — maps old role keys to the new 5-role system.
  * Used for migrating existing users and role assignments.

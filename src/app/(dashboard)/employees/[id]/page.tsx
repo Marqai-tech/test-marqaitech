@@ -39,6 +39,7 @@ import {
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
+import { canAccessEmployeeSettings } from '@/lib/roleAccess';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -282,6 +283,8 @@ export default function EmployeeDetailPage() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
+  const { user } = useAuthStore();
+  const canManageMappings = canAccessEmployeeSettings(user?.role);
   const scopeQuery = useCompanyContextStore(s => s.scopeQuery);
   const selectedTenantId = useCompanyContextStore(s => s.selectedTenantId);
 
@@ -1088,12 +1091,14 @@ export default function EmployeeDetailPage() {
                       </span>
                     </div>
                   </div>
+                  {canManageMappings && (
                   <button
                     onClick={() => router.push('/employees/settings')}
                     className="inline-flex items-center gap-1.5 px-3 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-xs font-medium transition-colors"
                   >
                     <FiEdit2 className="w-3.5 h-3.5" /> Manage Mappings
                   </button>
+                  )}
                 </div>
 
                 {/* All Company Mappings - including primary */}
@@ -1122,9 +1127,11 @@ export default function EmployeeDetailPage() {
                     <div className="px-5 py-6 text-center">
                       <FiGlobe className="w-6 h-6 text-thb-text-muted mx-auto mb-2" />
                       <p className="text-sm text-thb-text-muted">No additional company mappings</p>
+                      {canManageMappings && (
                       <p className="text-xs text-thb-text-muted mt-1">
                         Go to <button onClick={() => router.push('/employees/settings')} className="text-green-600 hover:underline font-medium">Employee Settings &gt; Map Company</button> to add mappings
                       </p>
+                      )}
                     </div>
                   ) : (
                     companyMappings.filter(m => !m.isPrimary).map(mapping => (
