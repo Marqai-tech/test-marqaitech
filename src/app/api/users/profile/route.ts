@@ -259,10 +259,13 @@ export async function GET(request: Request) {
         try { const r = await empDb.$queryRawUnsafe(`SELECT "name" FROM "Branch" WHERE "id" = $1`, branchId) as any[]; if (r?.[0]) branch = r[0]; } catch {}
       }
 
-      let dependents: any[] = [], qualifications: any[] = [], documents: any[] = [];
+      let dependents: any[] = [], qualifications: any[] = [], documents: any[] = [], experiences: any[] = [];
       try { dependents = await empDb.$queryRawUnsafe(`SELECT * FROM "Dependent" WHERE "employeeId" = $1`, employee.id) as any[]; } catch {}
       try { qualifications = await empDb.$queryRawUnsafe(`SELECT * FROM "Qualification" WHERE "employeeId" = $1`, employee.id) as any[]; } catch {}
-      try { documents = await empDb.$queryRawUnsafe(`SELECT "id","name","type","status" FROM "Document" WHERE "employeeId" = $1`, employee.id) as any[]; } catch {}
+      try { documents = await empDb.$queryRawUnsafe(`SELECT "id","name","type","status","category" FROM "Document" WHERE "employeeId" = $1 ORDER BY "createdAt" DESC`, employee.id) as any[]; } catch {}
+      try {
+        experiences = await empDb.$queryRawUnsafe(`SELECT * FROM "Experience" WHERE "employeeId" = $1 ORDER BY "startDate" DESC`, employee.id) as any[];
+      } catch {}
 
       employeeData = {
         id: employee.id,
@@ -277,11 +280,17 @@ export async function GET(request: Request) {
         avatar: rowVal(employee, 'avatar') || '',
         emergencyContactName: rowVal(employee, 'emergencyContactName', 'emergencycontactname') || '',
         emergencyContactPhone: rowVal(employee, 'emergencyContactPhone', 'emergencycontactphone') || '',
+        emergencyContactRelation: rowVal(employee, 'emergencyContactRelation', 'emergencycontactrelation') || '',
         address: rowVal(employee, 'address') || '',
         city: rowVal(employee, 'city') || '',
         state: rowVal(employee, 'state') || '',
         zipCode: rowVal(employee, 'zipCode', 'zipcode') || '',
         country: rowVal(employee, 'country') || '',
+        currentAddress: rowVal(employee, 'currentAddress', 'currentaddress') || '',
+        currentCity: rowVal(employee, 'currentCity', 'currentcity') || '',
+        currentState: rowVal(employee, 'currentState', 'currentstate') || '',
+        currentZipCode: rowVal(employee, 'currentZipCode', 'currentzipcode') || '',
+        currentCountry: rowVal(employee, 'currentCountry', 'currentcountry') || '',
         dateOfBirth: toISOStr(rowVal(employee, 'dateOfBirth', 'dateofbirth')),
         gender: rowVal(employee, 'gender') || '',
         maritalStatus: rowVal(employee, 'maritalStatus', 'maritalstatus') || '',
@@ -306,8 +315,16 @@ export async function GET(request: Request) {
         salaryStructureId: rowVal(employee, 'salaryStructureId', 'salarystructureid') || '',
         dependents: dependents || [],
         qualifications: qualifications || [],
-        experiences: [],
-        documents: (documents || []).map((d: any) => ({ id: d.id, name: d.name, type: d.type, status: d.status })),
+        experiences: (experiences || []).map((exp: any) => ({
+          id: exp.id,
+          company: rowVal(exp, 'company') || '',
+          designation: rowVal(exp, 'designation') || '',
+          fromDate: toISOStr(rowVal(exp, 'startDate', 'startdate')),
+          toDate: toISOStr(rowVal(exp, 'endDate', 'enddate')),
+          isCurrent: Boolean(rowVal(exp, 'isCurrent', 'iscurrent')),
+          description: rowVal(exp, 'description') || '',
+        })),
+        documents: (documents || []).map((d: any) => ({ id: d.id, name: d.name, type: d.type, status: d.status, category: d.category })),
       };
     }
 
@@ -353,7 +370,15 @@ export async function PATCH(request: Request) {
     if (!decoded) return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
 
     const body = await request.json();
-    const { name, avatar, phone, emergencyContactName, emergencyContactPhone, address, city, state, zipCode, country, dateOfBirth, gender, bloodGroup } = body;
+    const {
+      name, avatar, firstName, lastName, phone, personalEmail,
+      emergencyContactName, emergencyContactPhone, emergencyContactRelation,
+      address, city, state, zipCode, country,
+      currentAddress, currentCity, currentState, currentZipCode, currentCountry,
+      dateOfBirth, gender, bloodGroup, maritalStatus, nationality,
+      bankName, bankAccountNo, bankIfscCode, panNumber, aadhaarNumber, taxId,
+      experiences,
+    } = body;
     if (avatar !== undefined) {
       const avatarError = profilePhotoPayloadError(avatar);
       if (avatarError) {
@@ -361,53 +386,121 @@ export async function PATCH(request: Request) {
       }
     }
 
+    const derivedName = [firstName, lastName].filter(Boolean).join(' ').trim();
     const userUpdateData: Record<string, unknown> = {};
     if (name !== undefined) userUpdateData.name = name;
+    else if (derivedName) userUpdateData.name = derivedName;
     if (avatar !== undefined) userUpdateData.avatar = avatar || null;
 
-    // Try updating user in resolved DB, then platform DB
+    const userId = decoded.userId as string;
     let updatedUser = null;
-    try { updatedUser = await db.user.update({ where: { id: decoded.userId as string }, data: userUpdateData, include: { tenant: true, employee: true } }); } catch {
-      try { updatedUser = await platformDb.user.update({ where: { id: decoded.userId as string }, data: userUpdateData, include: { tenant: true, employee: true } }); } catch {}
+    if (Object.keys(userUpdateData).length > 0) {
+      try { updatedUser = await db.user.update({ where: { id: userId }, data: userUpdateData, include: { tenant: true, employee: true } }); } catch {
+        try { updatedUser = await platformDb.user.update({ where: { id: userId }, data: userUpdateData, include: { tenant: true, employee: true } }); } catch {}
+      }
+    }
+    if (!updatedUser) {
+      try { updatedUser = await db.user.findUnique({ where: { id: userId }, include: { tenant: true, employee: true } }); } catch {}
+      if (!updatedUser) {
+        try { updatedUser = await platformDb.user.findUnique({ where: { id: userId }, include: { tenant: true, employee: true } }); } catch {}
+      }
     }
     if (!updatedUser) return NextResponse.json({ error: 'User not found' }, { status: 404, headers: corsHeaders() });
 
-    // Update employee via raw SQL (avoids Prisma issues)
-    const hasEmpUpdates = phone !== undefined || emergencyContactName !== undefined || emergencyContactPhone !== undefined || address !== undefined || city !== undefined || state !== undefined || zipCode !== undefined || country !== undefined || dateOfBirth !== undefined || gender !== undefined || bloodGroup !== undefined || avatar !== undefined;
+    const stringFields: [string, unknown][] = [
+      ['phone', phone],
+      ['personalEmail', personalEmail],
+      ['firstName', firstName],
+      ['lastName', lastName],
+      ['emergencyContactName', emergencyContactName],
+      ['emergencyContactPhone', emergencyContactPhone],
+      ['emergencyContactRelation', emergencyContactRelation],
+      ['address', address],
+      ['city', city],
+      ['state', state],
+      ['zipCode', zipCode],
+      ['country', country],
+      ['currentAddress', currentAddress],
+      ['currentCity', currentCity],
+      ['currentState', currentState],
+      ['currentZipCode', currentZipCode],
+      ['currentCountry', currentCountry],
+      ['gender', gender],
+      ['bloodGroup', bloodGroup],
+      ['maritalStatus', maritalStatus],
+      ['nationality', nationality],
+      ['bankName', bankName],
+      ['bankAccountNo', bankAccountNo],
+      ['bankIfscCode', bankIfscCode],
+      ['panNumber', panNumber],
+      ['aadhaarNumber', aadhaarNumber],
+      ['taxId', taxId],
+    ];
+    const hasEmpUpdates = stringFields.some(([, v]) => v !== undefined)
+      || dateOfBirth !== undefined
+      || avatar !== undefined
+      || Array.isArray(experiences);
 
     if (hasEmpUpdates) {
-      // Find employee via raw SQL
-      let empId = null;
+      let empId: string | null = null;
+      let empDb: typeof db | null = null;
       for (const tryDb of [db, platformDb]) {
         try {
           const rows = await tryDb.$queryRawUnsafe(`SELECT "id" FROM "Employee" WHERE "userId" = $1 OR "email" = $2 LIMIT 1`, updatedUser.id, updatedUser.email) as any[];
-          if (rows?.[0]?.id) { empId = rows[0].id; break; }
+          if (rows?.[0]?.id) { empId = rows[0].id; empDb = tryDb; break; }
         } catch {}
       }
 
-      if (empId) {
-        // Build UPDATE query
+      if (empId && empDb) {
+        const extraCols = [
+          `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "currentAddress" TEXT`,
+          `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "currentCity" TEXT`,
+          `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "currentState" TEXT`,
+          `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "currentZipCode" TEXT`,
+          `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "currentCountry" TEXT`,
+          `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "emergencyContactRelation" TEXT`,
+        ];
+        for (const sql of extraCols) {
+          try { await empDb.$executeRawUnsafe(sql); } catch {}
+        }
+
         const sets: string[] = [];
         const params: any[] = [];
         let pIdx = 1;
-        if (phone !== undefined) { sets.push(`"phone" = $${pIdx++}`); params.push(phone); }
-        if (emergencyContactName !== undefined) { sets.push(`"emergencyContactName" = $${pIdx++}`); params.push(emergencyContactName); }
-        if (emergencyContactPhone !== undefined) { sets.push(`"emergencyContactPhone" = $${pIdx++}`); params.push(emergencyContactPhone); }
-        if (address !== undefined) { sets.push(`"address" = $${pIdx++}`); params.push(address); }
-        if (city !== undefined) { sets.push(`"city" = $${pIdx++}`); params.push(city); }
-        if (state !== undefined) { sets.push(`"state" = $${pIdx++}`); params.push(state); }
-        if (zipCode !== undefined) { sets.push(`"zipCode" = $${pIdx++}`); params.push(zipCode); }
-        if (country !== undefined) { sets.push(`"country" = $${pIdx++}`); params.push(country); }
+        for (const [col, value] of stringFields) {
+          if (value !== undefined) { sets.push(`"${col}" = $${pIdx++}`); params.push(value || null); }
+        }
         if (dateOfBirth !== undefined) { sets.push(`"dateOfBirth" = $${pIdx++}`); params.push(dateOfBirth ? new Date(dateOfBirth) : null); }
-        if (gender !== undefined) { sets.push(`"gender" = $${pIdx++}`); params.push(gender); }
-        if (bloodGroup !== undefined) { sets.push(`"bloodGroup" = $${pIdx++}`); params.push(bloodGroup); }
         if (avatar !== undefined) { sets.push(`"avatar" = $${pIdx++}`); params.push(avatar || null); }
         params.push(empId);
 
         if (sets.length > 0) {
           const sql = `UPDATE "Employee" SET ${sets.join(', ')} WHERE "id" = $${pIdx}`;
-          for (const tryDb of [db, platformDb]) {
-            try { await tryDb.$executeRawUnsafe(sql, ...params); break; } catch {}
+          try { await empDb.$executeRawUnsafe(sql, ...params); } catch (e) {
+            console.error('[Profile PATCH] Employee update failed:', e);
+          }
+        }
+
+        if (Array.isArray(experiences)) {
+          try {
+            await empDb.$executeRawUnsafe(`DELETE FROM "Experience" WHERE "employeeId" = $1`, empId);
+            for (const exp of experiences) {
+              const company = String(exp?.company || '').trim();
+              const designation = String(exp?.designation || '').trim();
+              if (!company || !designation) continue;
+              const start = exp.fromDate || exp.startDate;
+              if (!start) continue;
+              const end = exp.toDate || exp.endDate || null;
+              const isCurrent = Boolean(exp.isCurrent);
+              const description = String(exp.description || '') || null;
+              const id = String(exp.id || '').trim() || crypto.randomUUID();
+              await empDb.$executeRawUnsafe(
+                `INSERT INTO "Experience" ("id","employeeId","company","designation","startDate","endDate","isCurrent","description","createdAt","updatedAt") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,NOW(),NOW())`,
+                id, empId, company, designation, new Date(start), end ? new Date(end) : null, isCurrent, description,
+              );
+            }
+          } catch (e) {
+            console.error('[Profile PATCH] Experience update failed:', e);
           }
         }
       }
