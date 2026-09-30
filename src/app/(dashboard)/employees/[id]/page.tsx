@@ -40,6 +40,7 @@ import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
 import { canAccessEmployeeSettings } from '@/lib/roleAccess';
+import { employeePhotoUrl } from '@/lib/profile-photo';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -172,6 +173,7 @@ interface EmployeeData {
   email: string;
   phone?: string | null;
   avatar?: string | null;
+  user?: { id?: string; email?: string; role?: string; avatar?: string | null } | null;
   department?: { id: string; name: string; company?: { id: string; name: string; code: string | null } | null } | null;
   designation?: { id: string; title: string } | null;
   branch?: { id: string; name: string; company?: { id: string; name: string; code: string | null } | null } | null;
@@ -303,7 +305,9 @@ export default function EmployeeDetailPage() {
     try {
       setLoading(true);
       setLoadError(null);
-      const res = await fetch(`/api/employees/${encodeURIComponent(id)}`, { headers: getAuthHeaders() });
+      const sq = scopeQuery();
+      const qs = sq ? `?${sq}` : '';
+      const res = await fetch(`/api/employees/${encodeURIComponent(id)}${qs}`, { headers: getAuthHeaders() });
       if (res.status === 503) {
         setLoadError('Database temporarily unavailable. Please try again.');
         setEmployee(null);
@@ -328,18 +332,20 @@ export default function EmployeeDetailPage() {
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [id, scopeQuery, selectedTenantId]);
 
   const fetchCompanyMappings = useCallback(async () => {
     if (!employee) return;
     try {
-      const res = await fetch(`/api/employees/company-mappings?employeeId=${employee.id}`, { headers: getAuthHeaders() });
+      const sq = scopeQuery();
+      const qs = sq ? `&${sq}` : '';
+      const res = await fetch(`/api/employees/company-mappings?employeeId=${employee.id}${qs}`, { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
         setCompanyMappings(data.mappings || []);
       }
     } catch { /* silently */ }
-  }, [employee]);
+  }, [employee, scopeQuery, selectedTenantId]);
 
   const fetchRelatedData = useCallback(async () => {
     if (!employee) return;
@@ -448,6 +454,7 @@ export default function EmployeeDetailPage() {
 
   const badge = getStatusBadge(employee.status);
   const initials = `${employee.firstName[0]}${employee.lastName[0]}`;
+  const profilePhoto = employeePhotoUrl(employee);
   const daysEmployed = Math.floor((now - new Date(employee.dateOfJoining).getTime()) / (1000 * 60 * 60 * 24));
   const totalLeaveBalance = employee.leaveBalances?.reduce((sum, lb) => sum + lb.remaining, 0) || 0;
   const attendanceRate = attendance.length > 0 ? Math.round((attendance.filter(a => ['present', 'late'].includes(a.status)).length / attendance.length) * 100) : 0;
@@ -469,9 +476,9 @@ export default function EmployeeDetailPage() {
           <div className="flex flex-col sm:flex-row items-start sm:items-end gap-5">
             {/* Avatar */}
             <div className="flex-shrink-0">
-              {employee.avatar ? (
+              {profilePhoto ? (
                 <img
-                  src={employee.avatar}
+                  src={profilePhoto}
                   alt={`${employee.firstName} ${employee.lastName}`}
                   className="w-[120px] h-[120px] rounded-2xl object-cover border-4 border-white shadow-lg"
                 />

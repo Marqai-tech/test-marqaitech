@@ -335,7 +335,8 @@ export async function GET(
 
       // Step 2: Fetch optional relations independently (non-fatal if they fail)
       const optionalData = await fetchOptionalRelations(db, employee.id, employee.companyId);
-      employee = { ...employee, ...optionalData };
+      const mergedAvatar = employee.avatar || employee.user?.avatar || null;
+      employee = { ...employee, ...optionalData, avatar: mergedAvatar };
 
       console.log(`[Employee GET] Found employee: ${employee.employeeId} (${employee.firstName} ${employee.lastName})`);
       return NextResponse.json(
