@@ -22,10 +22,12 @@ function loadEnv(file) {
 loadEnv(path.join(__dirname, '..', '.env.local'));
 loadEnv(path.join(__dirname, '..', '.env.production.local'));
 loadEnv(path.join(__dirname, '..', '.env'));
+if (process.argv[2]) loadEnv(process.argv[2]);
 try {
   require('dotenv').config({ path: path.join(__dirname, '..', '.env.production.local') });
   require('dotenv').config({ path: path.join(__dirname, '..', '.env.local') });
 } catch { /* optional */ }
+if (process.argv[2]) loadEnv(process.argv[2]);
 
 const platformUrl = process.env.POSTGRES_PRISMA_URL || process.env.POSTGRES_URL || process.env.DATABASE_URL || process.env.TENANT_DATABASE_URL;
 if (!platformUrl) {
@@ -61,31 +63,44 @@ async function explain(sql, title, query) {
 async function main() {
   const platform = neon(platformUrl);
   const td = await platform.query(
-    `SELECT "connectionString" FROM "TenantDatabase" WHERE "tenantSlug" = $1 OR slug = $1 LIMIT 1`,
+    `SELECT td."connectionString"
+     FROM "TenantDatabase" td
+     JOIN "Tenant" t ON t.id = td."tenantId"
+     WHERE t.slug = $1 AND td."isActive" = true
+     LIMIT 1`,
     ['marqaitechgroup'],
   ).catch(() => []);
 
-  let tenantUrl = process.env.TENANT_DATABASE_URL || null;
-  if (!tenantUrl && td.length) {
-    const row = td[0];
-    tenantUrl = row.connectionString || row.connectionstring;
+  let tenantUrl = td.length ? (td[0].connectionString || td[0].connectionstring) : null;
+  const fromRow = Boolean(tenantUrl);
+  if (!tenantUrl) tenantUrl = process.env.TENANT_DATABASE_URL || null;
+  if (!tenantUrl) {
+    console.error('Tenant DB for marqaitechgroup not found — refusing to EXPLAIN against the platform DB.');
+    process.exit(1);
   }
+  console.log('Tenant DB source: ' + (fromRow ? 'TenantDatabase row for marqaitechgroup' : 'TENANT_DATABASE_URL env'));
   if (!tenantUrl) {
     console.error('Could not resolve tenant DB URL (no TENANT_DATABASE_URL and TenantDatabase lookup empty).');
     process.exit(1);
   }
 
   const sql = neon(tenantUrl);
-  console.log('Connected to tenant DB (marqaitechgroup). Host prefix only: ' + new URL(tenantUrl.replace('postgresql://', 'http://')).host.split('.')[0]);
+  console.log('Tenant DB host prefix: ' + new URL(tenantUrl.replace('postgresql://', 'http://')).host.split('.')[0]);
+  const counts = await sql`SELECT
+    (SELECT COUNT(*)::int FROM "Employee") AS employees,
+    (SELECT COUNT(*)::int FROM "Attendance") AS attendance,
+    (SELECT COUNT(*)::int FROM "LeaveRequest") AS leaves`;
+  console.log('Row counts', counts[0]);
 
   const idx = await sql`SELECT tablename, indexname, indexdef FROM pg_indexes WHERE schemaname = 'public' AND tablename IN ('Employee','Attendance','LeaveRequest','User','Company','CompanyGroup','Department','Designation','Payroll','JobPosting','JobApplication') ORDER BY tablename, indexname`;
   console.log('\n======== INDEXES ========');
   for (const r of idx) console.log(r.tablename + ' | ' + r.indexname + ' | ' + r.indexdef);
 
-  const emp = await sql`SELECT id FROM "Employee" ORDER BY "createdAt" DESC LIMIT 1`;
+  const emp = await sql`SELECT id, "userId" FROM "Employee" WHERE "userId" IS NOT NULL ORDER BY "createdAt" DESC LIMIT 1`;
   const empId = emp[0]?.id;
-  const user = await sql`SELECT id FROM "User" LIMIT 1`.catch(() => []);
-  const userId = user[0]?.id;
+  const userId = emp[0]?.userId;
+  const attEmp = await sql`SELECT DISTINCT "employeeId" FROM (SELECT "employeeId" FROM "Attendance" ORDER BY date DESC LIMIT 20) x`;
+  const attIds = attEmp.map((r) => `'${r.employeeId}'`).join(',') || `''`;
   const tenantRow = await platform.query(`SELECT id FROM "Tenant" WHERE slug = $1 LIMIT 1`, ['marqaitechgroup']).catch(() => []);
   const tenantId = tenantRow[0]?.id;
 
@@ -172,17 +187,44 @@ async function main() {
   await explain(sql, 'Designations list',
     `SELECT id, title, "departmentId", level, status FROM "Designation" ORDER BY title ASC`);
 
+  await explain(sql, 'Attendance photo-existence check (20 rows, new helper)',
+    `SELECT e.id FROM "Employee" e LEFT JOIN "User" u ON u.id = e."userId"
+     WHERE e.id IN (${attIds}) AND (COALESCE(e."avatar", '') <> '' OR COALESCE(u."avatar", '') <> '')`);
+
+  await explain(sql, 'Attendance roster for one day (date range)',
+    `SELECT a.id, a.status, a."employeeId" FROM "Attendance" a
+     WHERE a.date >= (CURRENT_DATE - INTERVAL '5 hours 30 minutes') AND a.date < CURRENT_DATE + INTERVAL '1 day'
+     ORDER BY a.date DESC LIMIT 500`);
+
   if (userId) {
     await explain(sql, 'Auth /api/auth/me User by PK (tenant DB)',
       `SELECT id, name, email, role, avatar, status, "lastLogin", "createdAt", "tenantId" FROM "User" WHERE id = '${userId}'`);
     await explain(sql, 'me/context employee.findFirst by userId',
       `SELECT id, "companyId", email FROM "Employee" WHERE "userId" = '${userId}' LIMIT 1`);
+    await explain(sql, 'Profile GET: SELECT * Employee by userId',
+      `SELECT * FROM "Employee" WHERE "userId" = '${userId}' LIMIT 1`);
+  }
+  if (empId) {
+    await explain(sql, 'Profile GET: Dependent by employeeId',
+      `SELECT * FROM "Dependent" WHERE "employeeId" = '${empId}'`);
+    await explain(sql, 'Profile GET: Qualification by employeeId',
+      `SELECT * FROM "Qualification" WHERE "employeeId" = '${empId}'`);
+    await explain(sql, 'Profile GET: Experience by employeeId',
+      `SELECT * FROM "Experience" WHERE "employeeId" = '${empId}' ORDER BY "startDate" DESC`);
   }
 
   if (tenantId) {
-    await explain(platform, 'Platform Tenant by slug',
+    await explain(sql, 'me/context tenant_admin: CompanyGroup by tenantId',
+      `SELECT id, name FROM "CompanyGroup" WHERE "tenantId" = '${tenantId}' ORDER BY name ASC`);
+    await explain(sql, 'me/context tenant_admin: Company by group tenantId',
+      `SELECT c.id, c.name, c.code FROM "Company" c JOIN "CompanyGroup" g ON g.id = c."companyGroupId"
+       WHERE g."tenantId" = '${tenantId}' ORDER BY c.name ASC`);
+    await explain(platform, 'Tenant lookup: Tenant by slug (platform)',
       `SELECT id, name, slug, plan, status FROM "Tenant" WHERE slug = 'marqaitechgroup' LIMIT 1`);
-    await explain(platform, 'Platform User by tenantId sample',
+    await explain(platform, 'Tenant lookup: TenantDatabase by tenant slug (getDbForTenant cold path)',
+      `SELECT td."connectionString", td."databaseName" FROM "TenantDatabase" td
+       JOIN "Tenant" t ON t.id = td."tenantId" WHERE t.slug = 'marqaitechgroup' AND td."isActive" = true LIMIT 1`);
+    await explain(platform, 'Auth: platform User by tenantId',
       `SELECT id, email, role FROM "User" WHERE "tenantId" = '${tenantId}' LIMIT 5`);
   }
 }
