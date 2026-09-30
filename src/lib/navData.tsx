@@ -198,6 +198,9 @@ export const navSections: NavSection[] = [
       // Self-service: visible to all roles (employee, manager, admin, etc.)
       { label: 'My Dashboard', href: '/employees/dashboard', icon: <FiGrid className="w-4 h-4" />, moduleKey: 'employees', roles: ['super_admin', 'tenant_admin', 'admin', 'manager'], isNew: true },
       { label: 'My Profile', href: '/my-profile', icon: <FiUser className="w-4 h-4" />, moduleKey: 'dashboard', roles: ['employee', 'manager'] },
+      { label: 'Update Requests', href: '/employees/update-requests', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'dashboard', roles: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'], isNew: true },
+      { label: 'Edit Log', href: '/employees/edit-log', icon: <FiList className="w-4 h-4" />, moduleKey: 'dashboard', roles: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'], isNew: true },
+      { label: 'Apply Resignation', href: '/employees/resignation', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'dashboard', roles: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'], isNew: true },
       { label: 'Employee List', href: '/employees', icon: <FiUsers className="w-4 h-4" />, moduleKey: 'employees', roles: ['super_admin', 'tenant_admin', 'admin', 'manager'] },
 
       // ── Lifecycle ──
@@ -205,11 +208,7 @@ export const navSections: NavSection[] = [
       { label: 'Lifecycle', href: '#lifecycle-divider', icon: <FiRefreshCw className="w-3.5 h-3.5" />, moduleKey: 'employees', roles: ['super_admin', 'tenant_admin', 'admin', 'manager'], isDivider: true },
       { label: 'Add Employee', href: '/employees/add', icon: <FiUserPlus className="w-4 h-4" />, moduleKey: 'employees', roles: ['super_admin', 'tenant_admin', 'admin'], isNew: true },
       { label: 'Probation', href: '/employees/probation', icon: <FiClock className="w-4 h-4" />, moduleKey: 'employees', roles: ['super_admin', 'tenant_admin', 'admin', 'manager'], isNew: true },
-      { label: 'Update Requests', href: '/employees/update-requests', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'employees', roles: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'], isNew: true },
-      { label: 'Edit Log', href: '/employees/edit-log', icon: <FiList className="w-4 h-4" />, moduleKey: 'employees', roles: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'], isNew: true },
       { label: 'Transfer', href: '/employees/transfer', icon: <FiRefreshCw className="w-4 h-4" />, moduleKey: 'employees', roles: ['super_admin', 'tenant_admin', 'admin'], isNew: true },
-      // Employee can apply for resignation (self-service)
-      { label: 'Apply Resignation', href: '/employees/resignation', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'employees', roles: ['super_admin', 'tenant_admin', 'admin', 'manager'], isNew: true },
       { label: 'Termination', href: '/employees/termination', icon: <FiAlertCircle className="w-4 h-4" />, moduleKey: 'employees', roles: ['super_admin', 'tenant_admin', 'admin'], isNew: true },
       { label: 'Rejoin Employee', href: '/employees/rejoin', icon: <FiUserCheck className="w-4 h-4" />, moduleKey: 'employees', roles: ['super_admin', 'tenant_admin', 'admin'], isNew: true },
 
@@ -245,12 +244,12 @@ export const navSections: NavSection[] = [
     ],
     items: [
       // Self-service: employee can apply for leave and view their own balance/applications
-      { label: 'Leave Dashboard', href: '/leave', icon: <FiGrid className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin', 'manager'], isNew: true },
+      { label: 'Leave Dashboard', href: '/leave', icon: <FiGrid className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'], isNew: true },
       { label: 'Apply Leave', href: '/leave/apply', icon: <FiCalendar className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'], isNew: true },
       { label: 'My Leave Applications', href: '/leave?view=self', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'], isNew: true },
       // HR-only: Apply leave on behalf of employees
       { label: 'Apply Leave by HR', href: '/leave/apply-by-hr', icon: <FiUserPlus className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin'], isNew: true },
-      { label: 'Leave Encashment', href: '/leave/encashment', icon: <FiDollarSign className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin', 'manager'] },
+      { label: 'Leave Encashment', href: '/leave/encashment', icon: <FiDollarSign className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'] },
 
       // ── Leave Balance ──
       { label: 'Leave Balance', href: '#balance-divider', icon: <FiBarChart2 className="w-3.5 h-3.5" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'], isDivider: true },

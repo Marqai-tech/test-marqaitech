@@ -33,12 +33,10 @@ import {
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { loggedInPhotoUrl, fileToProfilePhotoDataUrl, MAX_PROFILE_PHOTO_LABEL } from '@/lib/profile-photo';
+import { getToken } from '@/lib/token-storage';
 
-/* ──────────────────────────────────────────────
-   Auth Helper
-   ────────────────────────────────────────────── */
 function getAuthHeaders() {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
+  const token = getToken() || (typeof window !== 'undefined' ? useAuthStore.getState().token : null);
   return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
 }
 

@@ -34,6 +34,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
 import { canAccessEmployeeSettings, canEditEmployeeRecords } from '@/lib/roleAccess';
 import { fileToProfilePhotoDataUrl, MAX_PROFILE_PHOTO_LABEL } from '@/lib/profile-photo';
+import { getToken } from '@/lib/token-storage';
 import {
   validateEmail as validateEmailFormat,
   validatePhone,
@@ -141,7 +142,7 @@ interface Branch { id: string; name: string }
 
 /* ── Helpers ── */
 function getAuthHeaders() {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
+  const token = getToken() || (typeof window !== 'undefined' ? useAuthStore.getState().token : null);
   return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
 }
 

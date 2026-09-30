@@ -32,6 +32,8 @@ import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { sanitizeSearch } from '@/lib/validators';
 import { useAuthStore } from '@/store/authStore';
+import { getDataScope } from '@/lib/roleAccess';
+import { getToken } from '@/lib/token-storage';
 import ModuleTips from '@/components/ModuleTips';
 import ModuleWorkflow from '@/components/ModuleWorkflow';
 import { useCompanyContextStore } from '@/store/companyContextStore';
@@ -75,6 +77,7 @@ const attendanceWorkflowSteps = [
 /* ── Types ── */
 interface AttendanceRecord {
   id: string;
+  employeeId?: string;
   date: string;
   checkIn?: string | null;
   checkOut?: string | null;
@@ -115,7 +118,7 @@ interface Employee {
 
 /* ── Helpers ── */
 function getAuthHeaders() {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
+  const token = getToken() || (typeof window !== 'undefined' ? useAuthStore.getState().token : null);
   return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
 }
 
@@ -179,9 +182,13 @@ function getInitials(firstName?: string, lastName?: string) {
 export function pad2(n: number) { return String(n).padStart(2, '0'); }
 export function localDateKey(d: Date) { return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; }
 export function recordDateKey(v: string) {
-  const d = new Date(v);
-  if (isNaN(d.getTime())) return String(v).split('T')[0];
-  return d.toISOString().slice(0, 10);
+  const raw = String(v || '');
+  const d = new Date(raw);
+  if (isNaN(d.getTime())) return raw.split('T')[0];
+  if (d.getUTCHours() === 0 && d.getUTCMinutes() === 0 && d.getUTCSeconds() === 0) {
+    return d.toISOString().slice(0, 10);
+  }
+  return d.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
 }
 
 /* Derive the status of a day that has NO attendance record:
@@ -245,7 +252,7 @@ export default function AttendancePage() {
   // tenant_admin is an admin-level role everywhere else in the app (navData,
   // regularize page) — include it so Tenant Admins get the Admin View roster
   // with the Present/Absent/Late/On-Leaves counters.
-  const isAdmin = ['super_admin', 'tenant_admin', 'admin', 'hr'].includes(user?.role || '');
+  const isAdmin = getDataScope(user?.role || '') === 'all';
   const scopeQuery = useCompanyContextStore(s => s.scopeQuery);
   const selectedTenantId = useCompanyContextStore(s => s.selectedTenantId);
 
@@ -621,10 +628,7 @@ export default function AttendancePage() {
   // Use the browser's LOCAL calendar day (never toISOString of the current
   // instant — that rolls back a day in timezones ahead of UTC before 05:30)
   const todayStr = localDateKey(new Date());
-  const todayRecord = attendance.find(a => {
-    const dateStr = new Date(a.date).toISOString().slice(0, 10);
-    return dateStr === todayStr;
-  });
+  const todayRecord = attendance.find(a => recordDateKey(a.date) === todayStr);
   const isCheckedIn = !!todayRecord?.checkIn;
   const isCheckedOut = !!todayRecord?.checkOut;
   // Task 57: break state derived from today's record
@@ -645,11 +649,15 @@ export default function AttendancePage() {
   const adminRoster = useMemo(() => {
     const byEmp = new Map<string, AttendanceRecord>();
     adminAttendance.forEach(a => {
-      if (a.employee?.id && !byEmp.has(a.employee.id)) byEmp.set(a.employee.id, a);
+      const id = a.employee?.id || a.employeeId;
+      if (id && !byEmp.has(id)) byEmp.set(id, a);
     });
     const selectedDow = new Date(`${selectedDate}T00:00:00`).getDay();
     return adminEmployees.map(emp => {
       const record = byEmp.get(emp.id);
+      if (record?.checkIn && (!record.status || record.status === 'absent')) {
+        return { key: emp.id, emp, record, status: record.status === 'late' ? 'late' : 'present' };
+      }
       const derived = record ? null : deriveDayStatus({
         dateKey: selectedDate,
         dayOfWeek: selectedDow,

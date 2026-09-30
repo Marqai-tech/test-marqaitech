@@ -52,7 +52,7 @@ export const ROLE_LEVELS: Record<string, number> = {
  */
 export const MODULE_ACCESS: Record<string, string[]> = {
   dashboard: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'],
-  employees: ['super_admin', 'tenant_admin', 'admin', 'manager'],
+  employees: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'],
   company: ['super_admin', 'tenant_admin', 'admin'],
   recruitment: ['super_admin', 'tenant_admin', 'admin'],
   onboarding: ['super_admin', 'tenant_admin', 'admin', 'manager'],
@@ -431,6 +431,16 @@ export function isSelfServicePathAllowed(pathname: string, search = ''): boolean
 
   if (path === '/employees' && viewSelf) return true;
   if (path === '/my-profile' || path.startsWith('/my-profile/')) return true;
+  if (
+    path === '/employees/update-requests' ||
+    path.startsWith('/employees/update-requests/') ||
+    path === '/employees/edit-log' ||
+    path.startsWith('/employees/edit-log/') ||
+    path === '/employees/resignation' ||
+    path.startsWith('/employees/resignation/')
+  ) {
+    return true;
+  }
 
   const deniedPrefixes = [
     '/leave/leave-policy',
@@ -438,7 +448,6 @@ export function isSelfServicePathAllowed(pathname: string, search = ''): boolean
     '/leave/apply-by-hr',
     '/leave/settings',
     '/leave/reports',
-    '/leave/encashment',
     '/attendance/apply-by-hr',
     '/attendance/shifts',
     '/attendance/holidays',

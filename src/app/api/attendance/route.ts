@@ -59,7 +59,19 @@ export async function GET(request: Request) {
 
     // Apply additional filters on top of company scope
     if (employeeId) where.employeeId = employeeId;
-    if (date) where.date = new Date(date);
+    if (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      // Punches are stored either as UTC midnight of the local calendar day
+      // (`YYYY-MM-DDT00:00:00.000Z`) or as IST midnight (`…+05:30` = previous
+      // 18:30 UTC). Exact `new Date(date)` equality missed one of those and
+      // the admin roster then derived Absent for every employee.
+      const utcStart = new Date(`${date}T00:00:00.000Z`);
+      const utcEnd = new Date(utcStart.getTime() + 24 * 60 * 60 * 1000);
+      const istStart = new Date(`${date}T00:00:00.000+05:30`);
+      const rangeStart = istStart < utcStart ? istStart : utcStart;
+      where.date = { gte: rangeStart, lt: utcEnd };
+    } else if (date) {
+      where.date = new Date(date);
+    }
     if (status) where.status = status;
 
     const [attendance, total] = await Promise.all([

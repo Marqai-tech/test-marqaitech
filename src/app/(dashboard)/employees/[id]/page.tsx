@@ -41,9 +41,10 @@ import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
 import { canAccessEmployeeSettings, canEditEmployeeRecords } from '@/lib/roleAccess';
 import { employeePhotoUrl } from '@/lib/profile-photo';
+import { getToken } from '@/lib/token-storage';
 
 function getAuthHeaders() {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
+  const token = getToken() || (typeof window !== 'undefined' ? useAuthStore.getState().token : null);
   return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
 }
 
