@@ -144,17 +144,21 @@ export async function GET(request: Request) {
       select: { slug: true },
     });
 
-    try {
-      await seedModuleFlags(tenantId, tenant?.slug);
-    } catch (seedErr) {
-      console.error('[tenant-modules] seedModuleFlags failed (non-fatal):', seedErr);
-    }
-
-    // Fetch all module flags for this tenant
-    const flags = await getPlatformDb().featureFlag.findMany({
+    let flags = await getPlatformDb().featureFlag.findMany({
       where: { tenantId, key: { startsWith: 'module_' } },
       orderBy: [{ key: 'asc' }],
     });
+    if (flags.length === 0) {
+      try {
+        await seedModuleFlags(tenantId, tenant?.slug);
+        flags = await getPlatformDb().featureFlag.findMany({
+          where: { tenantId, key: { startsWith: 'module_' } },
+          orderBy: [{ key: 'asc' }],
+        });
+      } catch (seedErr) {
+        console.error('[tenant-modules] seedModuleFlags failed (non-fatal):', seedErr);
+      }
+    }
 
     // Map flags back to module info
     const modules = flags.map((f) => {

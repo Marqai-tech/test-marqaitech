@@ -19,6 +19,7 @@ let dashboardCache: { at: number; key: string; body: unknown } | null = null;
 const DASHBOARD_CACHE_MS = 45_000;
 
 export async function GET(request: Request) {
+  const t0 = Date.now();
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -38,7 +39,9 @@ export async function GET(request: Request) {
     const wantFull = new URL(request.url).searchParams.get('full') === '1';
     const cacheKey = `${request.headers.get('host') || 'default'}:${wantFull ? 'full' : 'lite'}`;
     if (dashboardCache && dashboardCache.key === cacheKey && Date.now() - dashboardCache.at < DASHBOARD_CACHE_MS) {
-      return NextResponse.json(dashboardCache.body, { headers: corsHeaders() });
+      return NextResponse.json(dashboardCache.body, {
+        headers: { ...corsHeaders(), 'Server-Timing': 'cache;desc="hit"' },
+      });
     }
 
     const platformDb = getPlatformDb();
@@ -53,22 +56,159 @@ export async function GET(request: Request) {
       NOT: { name: { contains: PLATFORM_PLACEHOLDER_NAME } },
     };
 
-    // ─── Tenant counts by status ───
-    const [totalTenants, activeTenants, suspendedTenants, inactiveTenants] = await Promise.all([
+    const tDb = Date.now();
+    const now = new Date();
+    const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+    const monthWindows = Array.from({ length: 6 }, (_, idx) => {
+      const i = 5 - idx;
+      const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const nextMonth = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
+      return {
+        monthLabel: monthDate.toLocaleString('en', { month: 'short' }),
+        monthDate,
+        nextMonth,
+      };
+    });
+    const thirtyDaysFromNow = new Date();
+    thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+    const visibleTenantWhere = tenantFilter;
+
+    // One Neon round-trip batch. Sequential counts + 6 monthly counts + 6
+    // monthly subscription reads was ~4.7s on tester (iad1 → Neon).
+    const [
+      totalTenants,
+      activeTenants,
+      suspendedTenants,
+      inactiveTenants,
+      tenantsCreated,
+      activeSubscriptions,
+      allPlans,
+      recentSubs,
+      recentTrials,
+      expiringSubs,
+      recentActivity,
+    ] = await Promise.all([
       platformDb.tenant.count({ where: tenantFilter }),
       platformDb.tenant.count({ where: { ...tenantFilter, status: 'active' } }),
       platformDb.tenant.count({ where: { ...tenantFilter, status: 'suspended' } }),
       platformDb.tenant.count({ where: { ...tenantFilter, status: 'inactive' } }),
+      platformDb.tenant.findMany({
+        where: { ...tenantFilter, createdAt: { gte: sixMonthsAgo } },
+        select: { createdAt: true },
+      }),
+      platformDb.subscription.findMany({
+        where: { status: 'active', tenant: visibleTenantWhere },
+        select: { amount: true, currency: true, createdAt: true },
+      }),
+      platformDb.subscriptionPlan.findMany({
+        where: { status: 'active' },
+        select: {
+          id: true,
+          name: true,
+          planType: true,
+          _count: { select: { subscriptions: { where: { status: 'active' } } } },
+        },
+        orderBy: { name: 'asc' },
+      }).catch((e) => {
+        console.error('[SuperAdmin Dashboard] Top plans query failed:', e);
+        return [] as { id: string; name: string; planType: string; _count: { subscriptions: number } }[];
+      }),
+      platformDb.subscription.findMany({
+        where: { tenant: visibleTenantWhere },
+        take: 6,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          amount: true,
+          currency: true,
+          paymentStatus: true,
+          createdAt: true,
+          tenant: { select: { name: true } },
+        },
+      }).catch((e) => {
+        console.error('[SuperAdmin Dashboard] Recent transactions query failed:', e);
+        return [] as { id: string; amount: number | null; currency: string | null; paymentStatus: string | null; createdAt: Date | null; tenant: { name: string } | null }[];
+      }),
+      platformDb.trialRegistration.findMany({
+        where: { tenant: visibleTenantWhere },
+        take: 5,
+        orderBy: { createdAt: 'desc' },
+        select: { id: true, companyName: true, status: true, createdAt: true },
+      }).catch((e) => {
+        console.error('[SuperAdmin Dashboard] Recently registered query failed:', e);
+        return [] as { id: string; companyName: string; status: string; createdAt: Date | null }[];
+      }),
+      platformDb.subscription.findMany({
+        where: {
+          status: { in: ['active', 'expired'] },
+          endDate: { lte: thirtyDaysFromNow },
+          tenant: visibleTenantWhere,
+        },
+        take: 5,
+        orderBy: { endDate: 'asc' },
+        select: {
+          id: true,
+          endDate: true,
+          tenantId: true,
+          plan: { select: { name: true } },
+          tenant: { select: { name: true, id: true, users: { take: 1, where: { role: 'tenant_admin' }, select: { email: true } } } },
+        },
+      }).catch((e) => {
+        console.error('[SuperAdmin Dashboard] Expiring subscriptions query failed:', e);
+        return [] as { id: string; endDate: Date | null; tenantId: string; plan: { name: string } | null; tenant: { name: string; id: string; users: { email: string }[] } | null }[];
+      }),
+      platformDb.auditLog.findMany({
+        take: 5,
+        orderBy: { createdAt: 'desc' },
+        include: { user: { select: { id: true, name: true, email: true } } },
+      }),
     ]);
+
+    const companiesByMonth = monthWindows.map(({ monthLabel, monthDate, nextMonth }) => ({
+      month: monthLabel,
+      companies: tenantsCreated.filter((t) => t.createdAt >= monthDate && t.createdAt < nextMonth).length,
+    }));
+    const revenueByMonth = monthWindows.map(({ monthLabel, monthDate, nextMonth }) => ({
+      month: monthLabel,
+      revenue: activeSubscriptions
+        .filter((s) => s.createdAt && s.createdAt >= monthDate && s.createdAt < nextMonth)
+        .reduce((sum, s) => sum + (s.amount || 0), 0),
+    }));
+    const totalRevenue = activeSubscriptions.reduce((sum, sub) => sum + (sub.amount || 0), 0);
+    const maxPlanCount = Math.max(...allPlans.map((p) => p._count.subscriptions), 1);
+    const topPlans = allPlans.map((p) => ({
+      name: p.name,
+      planType: p.planType,
+      count: p._count.subscriptions,
+      total: maxPlanCount,
+    }));
+    const recentTransactions = recentSubs.map((s) => ({
+      id: s.id,
+      company: s.tenant?.name || 'Unknown',
+      amount: String(s.amount || 0),
+      status: s.paymentStatus || 'pending',
+      date: s.createdAt ? new Date(s.createdAt).toLocaleDateString('en', { month: 'short', day: 'numeric' }) : '',
+      currency: s.currency || 'INR',
+    }));
+    const recentlyRegistered = recentTrials.map((t) => ({
+      id: t.id,
+      name: t.companyName,
+      plan: t.status === 'approved' ? 'Active' : t.status === 'pending' ? 'Pending' : t.status,
+      date: t.createdAt ? new Date(t.createdAt).toLocaleDateString('en', { month: 'short', day: 'numeric' }) : '',
+    }));
+    const expiringSubscriptions = expiringSubs.map((s) => ({
+      id: s.id,
+      company: s.tenant?.name || 'Unknown',
+      plan: s.plan?.name || 'Unknown',
+      expiredDate: s.endDate ? new Date(s.endDate).toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' }) : '',
+      email: s.tenant?.users?.[0]?.email || '',
+      tenantId: s.tenantId,
+    }));
 
     let totalGroupCompanies = 0;
     let totalCompanies = 0;
     let totalEmployees = 0;
 
-    // Opening every dedicated tenant DB on first paint was ~7.6s on tester
-    // (measured 2026-09-30: GET /api/super-admin/dashboard TTFB 7653ms) while
-    // 20 sidebar RSC prefetches competed for the same connections. Lite mode
-    // returns platform stats immediately; ?full=1 fills per-tenant counts.
     if (wantFull) {
       const tenants = await platformDb.tenant.findMany({
         where: tenantFilter,
@@ -79,7 +219,6 @@ export async function GET(request: Request) {
         select: { tenant: { select: { slug: true } } },
       });
       const dedicatedSlugs = [...new Set(dedicatedDbs.map((r) => r.tenant?.slug).filter(Boolean) as string[])];
-
       const tenantTotals = await Promise.all(
         dedicatedSlugs.map(async (slug) => {
           try {
@@ -103,193 +242,7 @@ export async function GET(request: Request) {
       }
     }
 
-    // ─── Revenue from active subscriptions (exclude hidden tenants) ───
-    // Get list of hidden tenant IDs to filter subscriptions
-    const hiddenTenants = await platformDb.tenant.findMany({
-      where: { slug: { in: hiddenSlugs } },
-      select: { id: true },
-    });
-    const hiddenTenantIds = hiddenTenants.map(t => t.id);
-
-    const subscriptionFilter: Record<string, unknown> = { status: 'active' };
-    if (hiddenTenantIds.length > 0) {
-      subscriptionFilter.tenantId = { notIn: hiddenTenantIds };
-    }
-    const activeSubscriptions = await platformDb.subscription.findMany({
-      where: subscriptionFilter,
-      select: { amount: true, currency: true },
-    });
-    const totalRevenue = activeSubscriptions.reduce((sum, sub) => sum + (sub.amount || 0), 0);
-
-    // ─── Companies by Month (last 6 months) ───
-    // Derived from tenant creation dates as a proxy for company onboarding
-    const now = new Date();
-    const monthWindows = Array.from({ length: 6 }, (_, idx) => {
-      const i = 5 - idx;
-      const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const nextMonth = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
-      return {
-        monthLabel: monthDate.toLocaleString('en', { month: 'short' }),
-        monthDate,
-        nextMonth,
-      };
-    });
-    const companiesByMonth = await Promise.all(
-      monthWindows.map(async ({ monthLabel, monthDate, nextMonth }) => {
-        try {
-          const count = await platformDb.tenant.count({
-            where: {
-              ...tenantFilter,
-              createdAt: { gte: monthDate, lt: nextMonth },
-            },
-          });
-          return { month: monthLabel, companies: count };
-        } catch {
-          return { month: monthLabel, companies: 0 };
-        }
-      }),
-    );
-
-    // ─── Revenue by Month (last 6 months) ───
-    const revenueByMonth = await Promise.all(
-      monthWindows.map(async ({ monthLabel, monthDate, nextMonth }) => {
-        try {
-          const subs = await platformDb.subscription.findMany({
-            where: {
-              ...subscriptionFilter,
-              createdAt: { gte: monthDate, lt: nextMonth },
-            },
-            select: { amount: true },
-          });
-          const monthRevenue = subs.reduce((sum, s) => sum + (s.amount || 0), 0);
-          return { month: monthLabel, revenue: monthRevenue };
-        } catch {
-          return { month: monthLabel, revenue: 0 };
-        }
-      }),
-    );
-
-    // ─── Top Plans (from SubscriptionPlan + subscription counts) ───
-    let topPlans: { name: string; planType: string; count: number; total: number }[] = [];
-    try {
-      const allPlans = await platformDb.subscriptionPlan.findMany({
-        where: { status: 'active' },
-        select: {
-          id: true,
-          name: true,
-          planType: true,
-          _count: { select: { subscriptions: { where: { status: 'active' } } } },
-        },
-        orderBy: { name: 'asc' },
-      });
-      const maxCount = Math.max(...allPlans.map(p => p._count.subscriptions), 1);
-      topPlans = allPlans.map(p => ({
-        name: p.name,
-        planType: p.planType,
-        count: p._count.subscriptions,
-        total: maxCount,
-      }));
-    } catch (e) {
-      console.error('[SuperAdmin Dashboard] Top plans query failed:', e);
-    }
-
-    // ─── Recent Transactions (from Subscription records) ───
-    let recentTransactions: { id: string; company: string; amount: string; status: string; date: string; currency: string }[] = [];
-    try {
-      const recentSubs = await platformDb.subscription.findMany({
-        where: hiddenTenantIds.length > 0 ? { tenantId: { notIn: hiddenTenantIds } } : {},
-        take: 6,
-        orderBy: { createdAt: 'desc' },
-        select: {
-          id: true,
-          amount: true,
-          currency: true,
-          paymentStatus: true,
-          createdAt: true,
-          tenant: { select: { name: true } },
-        },
-      });
-      recentTransactions = recentSubs.map(s => ({
-        id: s.id,
-        company: s.tenant?.name || 'Unknown',
-        amount: String(s.amount || 0),
-        status: s.paymentStatus || 'pending',
-        date: s.createdAt ? new Date(s.createdAt).toLocaleDateString('en', { month: 'short', day: 'numeric' }) : '',
-        currency: s.currency || 'INR',
-      }));
-    } catch (e) {
-      console.error('[SuperAdmin Dashboard] Recent transactions query failed:', e);
-    }
-
-    // ─── Recently Registered (from TrialRegistration) ───
-    let recentlyRegistered: { id: string; name: string; plan: string; date: string }[] = [];
-    try {
-      const trialFilter = hiddenTenantIds.length > 0 ? { tenantId: { notIn: hiddenTenantIds } } : {};
-      const recentTrials = await platformDb.trialRegistration.findMany({
-        where: trialFilter,
-        take: 5,
-        orderBy: { createdAt: 'desc' },
-        select: {
-          id: true,
-          companyName: true,
-          status: true,
-          createdAt: true,
-        },
-      });
-      recentlyRegistered = recentTrials.map(t => ({
-        id: t.id,
-        name: t.companyName,
-        plan: t.status === 'approved' ? 'Active' : t.status === 'pending' ? 'Pending' : t.status,
-        date: t.createdAt ? new Date(t.createdAt).toLocaleDateString('en', { month: 'short', day: 'numeric' }) : '',
-      }));
-    } catch (e) {
-      console.error('[SuperAdmin Dashboard] Recently registered query failed:', e);
-    }
-
-    // ─── Expiring Subscriptions (next 30 days or already expired) ───
-    let expiringSubscriptions: { id: string; company: string; plan: string; expiredDate: string; email: string; tenantId: string }[] = [];
-    try {
-      const thirtyDaysFromNow = new Date();
-      thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
-
-      const expiringSubs = await platformDb.subscription.findMany({
-        where: {
-          status: { in: ['active', 'expired'] },
-          endDate: { lte: thirtyDaysFromNow },
-          ...(hiddenTenantIds.length > 0 ? { tenantId: { notIn: hiddenTenantIds } } : {}),
-        },
-        take: 5,
-        orderBy: { endDate: 'asc' },
-        select: {
-          id: true,
-          endDate: true,
-          tenantId: true,
-          plan: { select: { name: true } },
-          tenant: { select: { name: true, id: true, users: { take: 1, where: { role: 'tenant_admin' }, select: { email: true } } } },
-        },
-      });
-      expiringSubscriptions = expiringSubs.map(s => ({
-        id: s.id,
-        company: s.tenant?.name || 'Unknown',
-        plan: s.plan?.name || 'Unknown',
-        expiredDate: s.endDate ? new Date(s.endDate).toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' }) : '',
-        email: s.tenant?.users?.[0]?.email || '',
-        tenantId: s.tenantId,
-      }));
-    } catch (e) {
-      console.error('[SuperAdmin Dashboard] Expiring subscriptions query failed:', e);
-    }
-
-    // ─── Recent Activity ───
-    const recentActivity = await platformDb.auditLog.findMany({
-      take: 5,
-      orderBy: { createdAt: 'desc' },
-      include: {
-        user: {
-          select: { id: true, name: true, email: true },
-        },
-      },
-    });
+    const dbMs = Date.now() - tDb;
 
     // ─── Currency info (always INR for live site) ───
     const currencySymbol = '₹';
@@ -316,7 +269,12 @@ export async function GET(request: Request) {
       currencyCode,
     };
     dashboardCache = { at: Date.now(), key: cacheKey, body: payload };
-    return NextResponse.json(payload, { headers: corsHeaders() });
+    return NextResponse.json(payload, {
+      headers: {
+        ...corsHeaders(),
+        'Server-Timing': `db;dur=${dbMs},total;dur=${Date.now() - t0}`,
+      },
+    });
   } catch (error) {
     console.error('Super admin dashboard error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() });

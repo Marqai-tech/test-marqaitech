@@ -119,6 +119,12 @@ export default function TenantModulesPage() {
     if (!hydrated) hydrate();
   }, [hydrated, hydrate]);
 
+  useEffect(() => {
+    if (selectedTenantId) {
+      setActiveTenantId((current) => current || selectedTenantId);
+    }
+  }, [selectedTenantId]);
+
   // Mirror availableTenants into local state
   useEffect(() => {
     if (availableTenants && availableTenants.length > 0) {
@@ -281,6 +287,7 @@ export default function TenantModulesPage() {
         <div className="flex items-center gap-3">
           <Link
             href="/super-admin"
+            prefetch={false}
             className="p-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
             title="Back to Super Admin Console"
           >
