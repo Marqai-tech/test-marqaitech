@@ -349,7 +349,7 @@ function EmployeeContent() {
       if (attRes.ok) {
         const summary = await attRes.json();
         // summary.attendanceRate is null when workingDays === 0
-        const rate = typeof summary?.attendanceRate === 'number' ? summary.attendanceRate.toFixed(1) : null;
+        const rate = typeof summary?.attendanceRate === 'number' ? String(summary.attendanceRate) : null;
         const wd = typeof summary?.workingDays === 'number' ? summary.workingDays : 0;
         const absent = typeof summary?.absent === 'number' ? summary.absent : 0;
         if (rate !== null) {
