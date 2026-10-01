@@ -342,17 +342,24 @@ function EmployeeContent() {
     try {
       const headers = getAuthHeaders();
 
-      // Fetch attendance stats
-      const attRes = await fetch('/api/attendance?limit=30', { headers });
+      // Fetch attendance summary for the current month.
+      // Uses the same /api/attendance/my-summary endpoint as the Home
+      // page so both cards always agree.
+      const attRes = await fetch('/api/attendance/my-summary', { headers });
       if (attRes.ok) {
-        const attData = await attRes.json();
-        if (attData?.data?.length) {
-          const rows = attData.data;
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const present = rows.filter((r: any) => r.status === 'present').length;
-          const total = rows.length || 1;
-          const rate = ((present / total) * 100).toFixed(1);
-          setStats(prev => prev.map(s => s.label === 'Attendance Rate' ? { ...s, value: `${rate}%`, sub: `This month • ${total - present} days absent` } : s));
+        const summary = await attRes.json();
+        // summary.attendanceRate is null when workingDays === 0
+        const rate = typeof summary?.attendanceRate === 'number' ? summary.attendanceRate.toFixed(1) : null;
+        const wd = typeof summary?.workingDays === 'number' ? summary.workingDays : 0;
+        const absent = typeof summary?.absent === 'number' ? summary.absent : 0;
+        if (rate !== null) {
+          setStats(prev => prev.map(s => s.label === 'Attendance Rate'
+            ? { ...s, value: `${rate}%`, sub: `This month • ${wd} day${wd === 1 ? '' : 's'} · ${absent} absent` }
+            : s));
+        } else {
+          setStats(prev => prev.map(s => s.label === 'Attendance Rate'
+            ? { ...s, value: '—', sub: wd === 0 ? 'No working days yet' : 'This month' }
+            : s));
         }
       }
 

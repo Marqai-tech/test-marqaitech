@@ -1197,7 +1197,8 @@ function EmployeeHome({ firstName, greeting, today }: { firstName: string; greet
   const { selectedCompanyId, effectiveCompanyId, effectiveCompanyLabel, hydrated, hydrate } = useCompanyContextStore();
   const [loading, setLoading] = useState(true);
   const [leaveBalances, setLeaveBalances] = useState<{ leaveType: { name: string }; remaining: number; total: number; used: number }[]>([]);
-  const [attendanceRate, setAttendanceRate] = useState(0);
+  const [attendanceRate, setAttendanceRate] = useState<number | null>(null);
+  const [attendanceSub, setAttendanceSub] = useState('This month');
   const [openTickets, setOpenTickets] = useState(0);
   const [latestPayslips, setLatestPayslips] = useState<{ id: string; month: number; year: number; netSalary: number; status: string; employee?: { firstName: string; lastName: string } }[]>([]);
   const [latestTimesheets, setLatestTimesheets] = useState<{ id: string; date: string; hours: number; project?: { name: string }; projectTask?: { name: string }; status: string }[]>([]);
@@ -1223,9 +1224,11 @@ function EmployeeHome({ firstName, greeting, today }: { firstName: string; greet
       } catch { return null; }
     };
 
-    const [leaveData, attData, ticketData, payslipData, timesheetData] = await Promise.all([
+    const [leaveData, summaryData, ticketData, payslipData, timesheetData] = await Promise.all([
       safe(`/api/leave/balance?limit=5${scopeQuery}`),
-      safe(`/api/attendance?limit=30${scopeQuery}`),
+      // Live attendance summary for the current month — uses the shared
+      // server-side helper so the rate matches the ESS dashboard exactly.
+      safe(`/api/attendance/my-summary${scopeQuery ? '?' + scopeQuery.slice(1) : ''}`),
       safe(`/api/tickets?limit=10${scopeQuery}`),
       safe(`/api/payroll/payslips?limit=5${scopeQuery}`),
       safe(`/api/timesheets?limit=5${scopeQuery}`),
@@ -1239,12 +1242,21 @@ function EmployeeHome({ firstName, greeting, today }: { firstName: string; greet
       setLeaveBalances([]);
     }
 
-    if (attData?.attendance || attData?.records) {
-      const rows = attData.attendance || attData.records || [];
-      if (rows.length > 0) {
-        const present = rows.filter((a: { status: string }) => ['present', 'late'].includes(a.status)).length;
-        setAttendanceRate(Math.round((present / rows.length) * 100));
+    // Attendance Rate — from /api/attendance/my-summary (current month).
+    // summaryData.attendanceRate is null when there are no working days yet
+    // (e.g. the 1st is a holiday) — card shows "—" instead of a fake 0%/100%.
+    if (summaryData && typeof summaryData === 'object' && 'month' in summaryData) {
+      const rate = typeof summaryData.attendanceRate === 'number' ? summaryData.attendanceRate : null;
+      const wd = typeof summaryData.workingDays === 'number' ? summaryData.workingDays : 0;
+      setAttendanceRate(rate);
+      if (rate === null) {
+        setAttendanceSub(wd === 0 ? 'No working days yet' : 'This month');
+      } else {
+        setAttendanceSub(`This month · ${wd} day${wd === 1 ? '' : 's'}`);
       }
+    } else {
+      setAttendanceRate(null);
+      setAttendanceSub('This month');
     }
 
     if (ticketData?.tickets || ticketData?.data) {
@@ -1322,7 +1334,7 @@ function EmployeeHome({ firstName, greeting, today }: { firstName: string; greet
           Array.from({ length: 4 }).map((_, i) => <StatSkeleton key={i} />)
         ) : (
           [
-            { label: 'Attendance Rate', value: `${attendanceRate}%`, sub: 'This month', icon: <FiActivity className="w-5 h-5" />, bg: 'bg-emerald-50 text-emerald-600', ring: 'ring-emerald-100' },
+            { label: 'Attendance Rate', value: attendanceRate === null ? '—' : `${attendanceRate}%`, sub: attendanceSub, icon: <FiActivity className="w-5 h-5" />, bg: 'bg-emerald-50 text-emerald-600', ring: 'ring-emerald-100' },
             { label: 'Leave Balance', value: totalRemaining, sub: 'Days available', icon: <FiCalendar className="w-5 h-5" />, bg: 'bg-amber-50 text-amber-600', ring: 'ring-amber-100' },
             { label: 'Open Tickets', value: openTickets, sub: 'Helpdesk requests', icon: <FiHeadphones className="w-5 h-5" />, bg: 'bg-teal-50 text-teal-600', ring: 'ring-teal-100' },
             { label: 'Quick Actions', value: '12+', sub: 'Self-service flows', icon: <FiZap className="w-5 h-5" />, bg: 'bg-green-50 text-green-600', ring: 'ring-green-100' },
