@@ -259,12 +259,11 @@ export default function ESSDashboardPage() {
         const d = new Date(a.date);
         return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
       });
-      setAttendanceRows(rows.length > 0 ? rows : allRows.slice(0, 30));
-    }
-    setAttendanceRate(typeof summaryData?.attendanceRate === 'number' ? summaryData.attendanceRate : null);
-    }
+        setAttendanceRows(rows.length > 0 ? rows : allRows.slice(0, 30));
+}
+setAttendanceRate(typeof summaryData?.attendanceRate === 'number' ? summaryData.attendanceRate : null);
 
-    /* pending leaves — use pagination.total for accurate count */
+/* pending leaves — use pagination.total for accurate count */
     if (leaveReqData?.leaveRequests || leaveReqData?.leaves) {
       const total = leaveReqData.pagination?.total || leaveReqData.total || 0;
       setPendingLeaves(total || (leaveReqData.leaveRequests || leaveReqData.leaves || []).length);
