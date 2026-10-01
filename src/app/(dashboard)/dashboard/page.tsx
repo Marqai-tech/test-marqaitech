@@ -180,7 +180,7 @@ export default function ESSDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [leaveBalances, setLeaveBalances] = useState<LeaveBalanceItem[]>([]);
   const [leaveSummary, setLeaveSummary] = useState({ total: 0, used: 0, remaining: 0 });
-  const [attendanceRate, setAttendanceRate] = useState(0);
+  const [attendanceRate, setAttendanceRate] = useState<number | null>(null);
   const [attendanceRows, setAttendanceRows] = useState<AttendanceRow[]>([]);
   const [pendingLeaves, setPendingLeaves] = useState(0);
   const [payslips, setPayslips] = useState<PayslipRow[]>([]);
@@ -214,7 +214,7 @@ export default function ESSDashboardPage() {
       }
     };
 
-    const [leaveData, attData, leaveReqData, payslipData, perfData, goalsData, trainData, tsData, ticketData, docData, regData] =
+    const [leaveData, attData, leaveReqData, payslipData, perfData, goalsData, trainData, tsData, ticketData, docData, regData, summaryData] =
       await Promise.all([
         safe(`/api/leave/balance?${scopeQuery}limit=50`),
         safe(`/api/attendance?${scopeQuery}limit=100`),
@@ -227,6 +227,7 @@ export default function ESSDashboardPage() {
         safe(`/api/tickets?${scopeQuery}limit=5`),
         safe(`/api/documents?${scopeQuery}limit=5`),
         safe(`/api/attendance/regularize?${scopeQuery}limit=6`),
+        safe(`/api/attendance/my-summary?${scopeQuery}`),
       ]);
 
     /* leave balance */
@@ -259,11 +260,8 @@ export default function ESSDashboardPage() {
         return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
       });
       setAttendanceRows(rows.length > 0 ? rows : allRows.slice(0, 30));
-      const usedRows = rows.length > 0 ? rows : allRows.slice(0, 30);
-      if (usedRows.length > 0) {
-        const present = usedRows.filter((a) => ['present', 'late', 'half_day'].includes(a.status)).length;
-        setAttendanceRate(Math.round((present / usedRows.length) * 100));
-      }
+    }
+    setAttendanceRate(typeof summaryData?.attendanceRate === 'number' ? summaryData.attendanceRate : null);
     }
 
     /* pending leaves — use pagination.total for accurate count */
@@ -465,7 +463,7 @@ export default function ESSDashboardPage() {
         ) : (
           [
             { label: 'Leave Balance', value: `${leaveSummary.remaining}`, sub: `${leaveSummary.used} of ${leaveSummary.total} days used`, icon: <FiCalendar className="w-5 h-5" />, bg: 'bg-amber-50 text-amber-600', ring: 'ring-amber-100' },
-            { label: 'Attendance Rate', value: `${attendanceRate}%`, sub: `${monthName}`, icon: <FiActivity className="w-5 h-5" />, bg: 'bg-emerald-50 text-emerald-600', ring: 'ring-emerald-100' },
+            { label: 'Attendance Rate', value: attendanceRate === null ? '—' : `${attendanceRate}%`, sub: `${monthName}`, icon: <FiActivity className="w-5 h-5" />, bg: 'bg-emerald-50 text-emerald-600', ring: 'ring-emerald-100' },
             { label: 'Pending Approvals', value: pendingLeaves, sub: 'Awaiting manager response', icon: <FiClock className="w-5 h-5" />, bg: 'bg-green-50 text-green-600', ring: 'ring-green-100' },
             { label: 'Open Tickets', value: tickets.filter((t) => ['open', 'in_progress'].includes(t.status)).length, sub: 'Helpdesk requests', icon: <FiHeadphones className="w-5 h-5" />, bg: 'bg-teal-50 text-teal-600', ring: 'ring-teal-100' },
           ].map((s) => (
