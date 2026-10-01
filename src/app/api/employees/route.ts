@@ -7,7 +7,7 @@ import { checkTenantStatusOrBlock } from '@/lib/tenant-guard';
 import { isServerLiveSite } from '@/lib/tenant-filter';
 // Note: isServerLiveSite is used later for the manual guard on normal queries
 import { validateEmail, validatePhone, validateAadhaar, validatePAN, validateIFSC, validateBankAccount, validateOfficialEmail } from '@/lib/validators';
-import { profilePhotoPayloadError } from '@/lib/profile-photo';
+import { profilePhotoPayloadError, employeeIdsWithStoredPhoto, employeePhotoApiPath } from '@/lib/profile-photo';
 import { ensureEmployeeWriteColumns } from '@/lib/employee-profile-columns';
 
 function generateRandomPassword(length = 12): string {
@@ -45,29 +45,9 @@ async function attachListPhotoUrls<T extends { id: string; user?: { id: string; 
   requestUrl: string,
 ): Promise<Array<T & { avatar: string | null; user: T['user'] & { avatar: string | null } | null }>> {
   if (employees.length === 0) return [];
-  const ids = employees.map((e) => e.id);
-  const placeholders = ids.map((_, i) => `$${i + 1}`).join(',');
-  let hasPhoto = new Set<string>();
-  try {
-    const rows = await queryDb.$queryRawUnsafe(
-      `SELECT e.id FROM "Employee" e LEFT JOIN "User" u ON u.id = e."userId"
-       WHERE e.id IN (${placeholders})
-         AND (COALESCE(e."avatar", '') <> '' OR COALESCE(u."avatar", '') <> '')`,
-      ...ids,
-    ) as Array<{ id: string }>;
-    hasPhoto = new Set(rows.map((r) => r.id));
-  } catch {
-    hasPhoto = new Set();
-  }
-  const url = new URL(requestUrl);
-  const tenantId = url.searchParams.get('tenantId');
-  const companyId = url.searchParams.get('companyId');
-  const qs = new URLSearchParams();
-  if (tenantId) qs.set('tenantId', tenantId);
-  if (companyId) qs.set('companyId', companyId);
-  const suffix = qs.toString() ? `?${qs.toString()}` : '';
+  const hasPhoto = await employeeIdsWithStoredPhoto(queryDb, employees.map((e) => e.id));
   return employees.map((e) => {
-    const photo = hasPhoto.has(e.id) ? `/api/employees/${e.id}/photo${suffix}` : null;
+    const photo = hasPhoto.has(e.id) ? employeePhotoApiPath(e.id, requestUrl) : null;
     return {
       ...e,
       avatar: photo,

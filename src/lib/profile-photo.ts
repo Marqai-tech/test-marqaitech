@@ -15,6 +15,37 @@ export function employeePhotoUrl(
   return firstPhotoUrl(employee?.avatar, employee?.user?.avatar);
 }
 
+/** True if a stored photo exists, without selecting the Base64 blob. */
+export async function employeeIdsWithStoredPhoto(
+  queryDb: { $queryRawUnsafe: (sql: string, ...values: unknown[]) => Promise<unknown> },
+  employeeIds: string[],
+): Promise<Set<string>> {
+  if (employeeIds.length === 0) return new Set();
+  const placeholders = employeeIds.map((_, i) => `$${i + 1}`).join(',');
+  try {
+    const rows = await queryDb.$queryRawUnsafe(
+      `SELECT e.id FROM "Employee" e LEFT JOIN "User" u ON u.id = e."userId"
+       WHERE e.id IN (${placeholders})
+         AND (COALESCE(e."avatar", '') <> '' OR COALESCE(u."avatar", '') <> '')`,
+      ...employeeIds,
+    ) as Array<{ id: string }>;
+    return new Set(rows.map((r) => r.id));
+  } catch {
+    return new Set();
+  }
+}
+
+export function employeePhotoApiPath(employeeId: string, requestUrl: string): string {
+  const url = new URL(requestUrl);
+  const qs = new URLSearchParams();
+  const tenantId = url.searchParams.get('tenantId');
+  const companyId = url.searchParams.get('companyId');
+  if (tenantId) qs.set('tenantId', tenantId);
+  if (companyId) qs.set('companyId', companyId);
+  const suffix = qs.toString() ? `?${qs.toString()}` : '';
+  return `/api/employees/${employeeId}/photo${suffix}`;
+}
+
 function firstPhotoUrl(...candidates: Array<string | null | undefined>): string | null {
   for (const url of candidates) {
     if (url && String(url).trim()) return url;

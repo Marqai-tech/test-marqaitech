@@ -105,7 +105,7 @@ const writeReady = new WeakMap<object, Promise<void>>();
 
 async function existingEmployeeColumns(db: PrismaClient): Promise<Set<string>> {
   const rows = await db.$queryRawUnsafe(
-    `SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'Employee'`,
+    `SELECT column_name::text AS column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'Employee'`,
   ) as Array<{ column_name: string }>;
   return new Set(rows.map((r) => r.column_name));
 }
