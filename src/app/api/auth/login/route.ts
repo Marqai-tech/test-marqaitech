@@ -25,7 +25,10 @@ export async function POST(request: Request) {
   const platformDb = getPlatformDb();
   try {
     const body = await request.json();
-    const { email: rawEmail, employeeId: rawEmployeeId, password, rememberMe } = body;
+    const { email: rawEmail, employeeId: rawEmployeeId, rememberMe } = body;
+    // Trim the password: pasted credentials often carry a trailing tab/space,
+    // which silently fails the hash check ("Invalid email or password").
+    const password = typeof body.password === 'string' ? body.password.trim() : body.password;
     const persistSession = Boolean(rememberMe);
 
     // Task 62: Allow login with either email OR employee ID. The UI sends
