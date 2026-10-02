@@ -1,7 +1,7 @@
 import { NextResponse, after } from 'next/server';
 import { getPlatformDb, getDbForTenant, getDbForTenantById } from '@/lib/tenant-db';
 import { verifyPassword, createToken, hashPassword, REMEMBER_TOKEN_TTL, SESSION_TOKEN_TTL, REMEMBER_MAX_AGE_SEC, authTokenCookieHeader } from '@/lib/auth';
-import { getHiddenSlugsForRequest, isTestPlatformHost } from '@/lib/tenant-filter';
+import { getHiddenSlugsForRequest, isTestPlatformHost, isLocalDevHost } from '@/lib/tenant-filter';
 import { isPersonalEmail } from '@/lib/validators';
 
 function corsHeaders() {
@@ -422,9 +422,11 @@ export async function POST(request: Request) {
     //         with complete dummy/sample data for every module.
     // Rule 4: TEST platform site (test.3boxeshrms.com) is the QA environment —
     //         ALL roles (super_admin, tenant_admin, hr_admin, employee, …) may
-    //         log in there against the TEST database. Production rules are
-    //         untouched; this exemption applies only to the test host.
-    const isTestPlatformSite = isTestPlatformHost(hostHeader);
+    //         log in there against the TEST database. Local development hosts
+    //         (localhost / 127.0.0.1 / *.localhost) behave the same way so devs
+    //         can log in as any role from one URL. Production rules are
+    //         untouched; these exemptions never apply to 3boxeshrms.com.
+    const isTestPlatformSite = isTestPlatformHost(hostHeader) || isLocalDevHost(hostHeader);
     const isDemoDomain = tenantSlug === '3boxes-hrms-demo';
     const isMainDomain = !tenantSlug; // No tenant slug = main platform domain
 

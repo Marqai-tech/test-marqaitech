@@ -55,6 +55,16 @@ export function isTestPlatformHost(host: string): boolean {
   return h === 'test.3boxeshrms.com' || h === 'www.test.3boxeshrms.com';
 }
 
+/**
+ * Local development host (localhost / 127.0.0.1 / *.localhost). Treated like
+ * the test platform site: every role may log in — local dev mirrors the test
+ * environment, not production. NEVER true for production hosts.
+ */
+export function isLocalDevHost(host: string): boolean {
+  const h = (host || '').split(':')[0].toLowerCase().replace(/^\[|\]$/g, '');
+  return h === 'localhost' || h === '127.0.0.1' || h === '::1' || h.endsWith('.localhost');
+}
+
 // ─── The "Marq AI Tech Pvt Ltd" tenant — the specific leak we're fixing
 export const PLATFORM_PLACEHOLDER_SLUG = '3boxeshrms';
 export const PLATFORM_PLACEHOLDER_NAME = 'Marq AI Tech Pvt Ltd';
