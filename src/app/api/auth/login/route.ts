@@ -420,11 +420,16 @@ export async function POST(request: Request) {
     // Rule 3: Demo domain (nexus-hrms-mu.vercel.app) is fully independent —
     //         allows ALL roles including super_admin, tenant_admin, hr_admin, etc.
     //         with complete dummy/sample data for every module.
+    // Rule 4: TEST platform site (test.3boxeshrms.com) is the QA environment —
+    //         ALL roles (super_admin, tenant_admin, hr_admin, employee, …) may
+    //         log in there against the TEST database. Production rules are
+    //         untouched; this exemption applies only to the test host.
+    const isTestPlatformSite = isTestPlatformHost(hostHeader);
     const isDemoDomain = tenantSlug === '3boxes-hrms-demo';
     const isMainDomain = !tenantSlug; // No tenant slug = main platform domain
 
-    // Rule 0: Main domain is super_admin ONLY
-    if (isMainDomain && user.role !== 'super_admin') {
+    // Rule 0: Main domain is super_admin ONLY (test platform site exempt — Rule 4)
+    if (isMainDomain && !isTestPlatformSite && user.role !== 'super_admin') {
       // Non-super-admin tried to log in on the main platform domain — reject
       // They need to use their own tenant subdomain
       const tenantSlugForUser = user.tenant?.slug || '';
