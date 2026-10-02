@@ -184,25 +184,10 @@ async function main() {
   }
 
   // ── Module flags (ALWAYS, even when all users already existed): provision
-  // ALL modules enabled for the tenant, mirroring tenant provisioning. Runs
-  // for the first existing demo/test tenant we can find. ──
+  // ALL modules enabled for the demo/test tenant, mirroring provisioning. ──
   const tenantForFlags = await prisma.tenant.findFirst({ where: { slug: { in: TENANT_SLUGS } } });
   if (tenantForFlags) {
-    const MODULE_KEYS = ['dashboard', 'employees', 'company', 'recruitment', 'onboarding', 'attendance', 'leave', 'payroll', 'salary_structures', 'performance', 'training', 'learning', 'engagement', 'reports', 'settings', 'docs', 'helpdesk', 'assets', 'projects', 'invoices', 'expenses', 'travel', 'accounts', 'crm', 'it_admin_module', 'separation', 'grievances', 'workflows', 'timesheets', 'documents', 'ai_assistant', 'notifications', 'collaboration', 'requisitions'];
-    let created = 0, updated = 0;
-    for (const key of MODULE_KEYS) {
-      const existing = await prisma.featureFlag.findFirst({ where: { tenantId: tenantForFlags.id, key: `module_${key}` }, select: { id: true } });
-      if (existing) {
-        await prisma.featureFlag.update({ where: { id: existing.id }, data: { enabled: true } });
-        updated++;
-      } else {
-        await prisma.featureFlag.create({
-          data: { tenantId: tenantForFlags.id, key: `module_${key}`, label: `Module: ${key}`, enabled: true, source: 'platform_default' },
-        });
-        created++;
-      }
-    }
-    console.log(`✓ Module flags for "${tenantForFlags.slug}": ${created} created, ${updated} updated (all enabled)`);
+    await enableModuleFlags(prisma, tenantForFlags.id);
   } else {
     console.log('• No demo/test tenant found — skipping module flags');
   }
@@ -213,31 +198,125 @@ async function main() {
     include: { _count: { select: { policies: true } } },
   });
   if (companyForPolicies && companyForPolicies._count.policies === 0) {
-    const effective = new Date('2026-10-01');
-    const policies = [
-      { title: 'Leave Policy', category: 'leave', version: '2.0', description: 'Framework for managing employee leave.', content: null as string | null,
-        fileUrl: makeSimplePdf('Leave Policy — Version 2.0', ['Effective From: 01 October 2026', '', '1. Purpose', '   Clear framework for managing employee leave.', '', '2. Types of Leave', '   Annual / Sick / Casual leave rules.']),
-        fileName: 'Leave_Policy_v2.0.pdf', fileMimeType: 'application/pdf' },
-      { title: 'Attendance Policy', category: 'attendance', version: '1.5', description: 'Working hours and regularisation process.', content: 'Work week Mon-Fri, 9:30 AM to 6:30 PM. Regularise missed punches within 3 working days.', fileUrl: null, fileName: null, fileMimeType: null },
-      { title: 'Employee Code of Conduct', category: 'code_of_conduct', version: '1.0', description: 'Expected professional behaviour.', content: 'Maintain professional conduct, protect company property and confidential information.', fileUrl: null, fileName: null, fileMimeType: null },
-      { title: 'Work From Home Policy', category: 'work', version: '1.2', description: 'Remote work guidelines.', content: 'Up to 2 WFH days per week with manager approval; reachable during core hours.', fileUrl: null, fileName: null, fileMimeType: null },
-    ];
-    for (const p of policies) {
-      await prisma.policy.create({
-        data: {
-          title: p.title, category: p.category, description: p.description, content: p.content,
-          version: p.version, status: 'active', effectiveDate: effective, companyId: companyForPolicies.id,
-          fileUrl: p.fileUrl, fileName: p.fileName, fileMimeType: p.fileMimeType,
-        } as any,
-      });
-      console.log(`✓ Policy: ${p.title} v${p.version}`);
-    }
+    await seedPolicies(prisma, companyForPolicies.id);
   } else if (companyForPolicies) {
     console.log(`✓ Company already has ${companyForPolicies._count.policies} policy/policies — skipping policy seed`);
   }
 
+  // ── Pass 4: sample tenants — the same demo tenants the Super Admin sees on
+  // the demo link (acme-global-demo, zenith-retail-demo, nova-tech-demo), so
+  // the Tenants page on local/test shows a realistic list. Idempotent:
+  // existing sample tenants only get their users' passwords ensured, module
+  // flags enabled and policies added if missing. ──
+  const SAMPLE_TENANTS = [
+    { slug: 'acme-global-demo', name: 'Acme Global (Demo)', code: 'ACM', prefix: 'acme' },
+    { slug: 'zenith-retail-demo', name: 'Zenith Retail (Demo)', code: 'ZRT', prefix: 'zenith' },
+    { slug: 'nova-tech-demo', name: 'Nova Tech (Demo)', code: 'NVT', prefix: 'nova' },
+  ];
+  for (const s of SAMPLE_TENANTS) {
+    await ensureSampleTenant(prisma, s, pwHash);
+  }
+
   console.log('\n🎉 TEST logins ready (password for ALL: ' + PASSWORD + ')');
   console.log('   Login at https://test.3boxeshrms.com/login');
+}
+
+async function ensureSampleTenant(
+  prisma: PrismaClient,
+  s: { slug: string; name: string; code: string; prefix: string },
+  pwHash: string,
+) {
+  let tenant = await prisma.tenant.findUnique({ where: { slug: s.slug } });
+  const usersSpec = [
+    { email: `tenantadmin.${s.prefix}@3boxeshrms.com`, name: `${s.name} Tenant Admin`, role: 'tenant_admin', firstName: 'Tenant', lastName: 'Admin', employeeCode: `${s.code}001`, designationTitle: 'Director', designationLevel: 1 },
+    { email: `hr.${s.prefix}@3boxeshrms.com`, name: `${s.name} HR`, role: 'hr_admin', firstName: 'HR', lastName: 'Manager', employeeCode: `${s.code}002`, designationTitle: 'HR Manager', designationLevel: 3 },
+    { email: `employee.${s.prefix}@3boxeshrms.com`, name: `${s.name} Employee`, role: 'employee', firstName: 'Test', lastName: 'Employee', employeeCode: `${s.code}003`, designationTitle: 'Software Engineer', designationLevel: 4 },
+  ];
+
+  if (!tenant) {
+    tenant = await prisma.tenant.create({
+      data: { name: s.name, slug: s.slug, plan: 'professional', currency: 'INR', timezone: 'Asia/Kolkata' },
+    });
+    const group = await prisma.companyGroup.create({ data: { name: `${s.name} Group`, tenantId: tenant.id } });
+    const company = await prisma.company.create({
+      data: { name: s.name.replace(' (Demo)', ''), code: s.code, companyGroupId: group.id, country: 'IN', currency: 'INR', timezone: 'Asia/Kolkata', status: 'active' },
+    });
+    const department = await prisma.department.create({ data: { name: 'General', code: 'GEN', companyId: company.id } });
+    for (const u of usersSpec) {
+      const user = await prisma.user.create({
+        data: { email: u.email, password: pwHash, name: u.name, role: u.role, status: 'active', tenantId: tenant.id },
+      });
+      const designation = await prisma.designation.create({
+        data: { title: u.designationTitle, departmentId: department.id, level: u.designationLevel },
+      });
+      await prisma.employee.create({
+        data: {
+          employeeId: u.employeeCode,
+          firstName: u.firstName, lastName: u.lastName, email: u.email,
+          userId: user.id, companyId: company.id, departmentId: department.id,
+          designationId: designation.id, dateOfJoining: new Date('2026-01-05'),
+        },
+      });
+    }
+    await enableModuleFlags(prisma, tenant.id);
+    await seedPolicies(prisma, company.id);
+    console.log(`✓ Sample tenant created: ${s.slug} (3 users)`);
+    return;
+  }
+
+  // Exists — ensure passwords, flags and policies without duplicating anything
+  for (const u of usersSpec) {
+    const existing = await prisma.user.findUnique({ where: { email: u.email }, select: { id: true } });
+    if (existing) {
+      await prisma.user.update({ where: { id: existing.id }, data: { password: pwHash, status: 'active' } });
+    } else {
+      console.log(`  (sample tenant ${s.slug}: missing user ${u.email} — create it in the super admin UI if needed)`);
+    }
+  }
+  await enableModuleFlags(prisma, tenant.id);
+  const company = await prisma.company.findFirst({ where: { companyGroup: { tenantId: tenant.id } }, include: { _count: { select: { policies: true } } } });
+  if (company && company._count.policies === 0) await seedPolicies(prisma, company.id);
+  console.log(`✓ Sample tenant exists: ${s.slug} — passwords ensured, flags enabled`);
+}
+
+async function enableModuleFlags(prisma: PrismaClient, tenantId: string) {
+  const MODULE_KEYS = ['dashboard', 'employees', 'company', 'recruitment', 'onboarding', 'attendance', 'leave', 'payroll', 'salary_structures', 'performance', 'training', 'learning', 'engagement', 'reports', 'settings', 'docs', 'helpdesk', 'assets', 'projects', 'invoices', 'expenses', 'travel', 'accounts', 'crm', 'it_admin_module', 'separation', 'grievances', 'workflows', 'timesheets', 'documents', 'ai_assistant', 'notifications', 'collaboration', 'requisitions'];
+  let created = 0, updated = 0;
+  for (const key of MODULE_KEYS) {
+    const existing = await prisma.featureFlag.findFirst({ where: { tenantId, key: `module_${key}` }, select: { id: true } });
+    if (existing) {
+      await prisma.featureFlag.update({ where: { id: existing.id }, data: { enabled: true } });
+      updated++;
+    } else {
+      await prisma.featureFlag.create({
+        data: { tenantId, key: `module_${key}`, label: `Module: ${key}`, enabled: true, source: 'platform_default' },
+      });
+      created++;
+    }
+  }
+  console.log(`  module flags: ${created} created, ${updated} updated (all enabled)`);
+}
+
+async function seedPolicies(prisma: PrismaClient, companyId: string) {
+  const effective = new Date('2026-10-01');
+  const policies = [
+    { title: 'Leave Policy', category: 'leave', version: '2.0', description: 'Framework for managing employee leave.', content: null as string | null,
+      fileUrl: makeSimplePdf('Leave Policy — Version 2.0', ['Effective From: 01 October 2026', '', '1. Purpose', '   Clear framework for managing employee leave.', '', '2. Types of Leave', '   Annual / Sick / Casual leave rules.']),
+      fileName: 'Leave_Policy_v2.0.pdf', fileMimeType: 'application/pdf' },
+    { title: 'Attendance Policy', category: 'attendance', version: '1.5', description: 'Working hours and regularisation process.', content: 'Work week Mon-Fri, 9:30 AM to 6:30 PM. Regularise missed punches within 3 working days.', fileUrl: null, fileName: null, fileMimeType: null },
+    { title: 'Employee Code of Conduct', category: 'code_of_conduct', version: '1.0', description: 'Expected professional behaviour.', content: 'Maintain professional conduct, protect company property and confidential information.', fileUrl: null, fileName: null, fileMimeType: null },
+    { title: 'Work From Home Policy', category: 'work', version: '1.2', description: 'Remote work guidelines.', content: 'Up to 2 WFH days per week with manager approval; reachable during core hours.', fileUrl: null, fileName: null, fileMimeType: null },
+  ];
+  for (const p of policies) {
+    await prisma.policy.create({
+      data: {
+        title: p.title, category: p.category, description: p.description, content: p.content,
+        version: p.version, status: 'active', effectiveDate: effective, companyId,
+        fileUrl: p.fileUrl, fileName: p.fileName, fileMimeType: p.fileMimeType,
+      } as any,
+    });
+  }
+  console.log(`  ✓ 4 policies seeded`);
 }
 
 main()
