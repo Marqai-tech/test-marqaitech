@@ -480,6 +480,7 @@ export function isSelfServicePathAllowed(pathname: string, search = ''): boolean
     '/home',
     '/dashboard',
     '/modules',
+    '/policies-handbook',
     '/leave',
     '/attendance',
     '/docs',

@@ -12,7 +12,7 @@
  *   is still pending.
  */
 import { useCallback, useEffect, useState } from 'react';
-import { FiArchive, FiDownload, FiX, FiCheckCircle, FiClock, FiUsers, FiCheck } from 'react-icons/fi';
+import { FiArchive, FiDownload, FiX, FiCheckCircle, FiClock, FiUsers, FiCheck, FiXCircle } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { formatPolicyFileSize } from './PolicyFileField';
 
@@ -173,17 +173,20 @@ interface AckRow {
   name: string;
   email?: string;
   acknowledged: boolean;
+  rejected?: boolean;
+  action?: string | null;
   acknowledgedAt?: string | null;
   method?: string | null;
+  comments?: string | null;
 }
 
-/** Admin tracking modal: who acknowledged / who is pending. */
+/** Admin tracking modal: who acknowledged / who rejected / who is pending. */
 export function PolicyAcknowledgmentTracker({ policyId, className }: { policyId: string; className?: string }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState<AckRow[]>([]);
-  const [summary, setSummary] = useState<{ total: number; acknowledged: number; pending: number } | null>(null);
-  const [filter, setFilter] = useState<'all' | 'acked' | 'pending'>('all');
+  const [summary, setSummary] = useState<{ total: number; acknowledged: number; rejected: number; pending: number } | null>(null);
+  const [filter, setFilter] = useState<'all' | 'acked' | 'rejected' | 'pending'>('all');
 
   useEffect(() => {
     if (!open) return;
@@ -202,7 +205,12 @@ export function PolicyAcknowledgmentTracker({ policyId, className }: { policyId:
     })();
   }, [open, policyId]);
 
-  const shown = rows.filter((r) => filter === 'all' || (filter === 'acked' ? r.acknowledged : !r.acknowledged));
+  const shown = rows.filter((r) => {
+    if (filter === 'all') return true;
+    if (filter === 'acked') return r.acknowledged;
+    if (filter === 'rejected') return !!r.rejected;
+    return !r.acknowledged;
+  });
 
   return (
     <>
@@ -218,17 +226,17 @@ export function PolicyAcknowledgmentTracker({ policyId, className }: { policyId:
                 <h3 className="text-base font-semibold text-thb-text-primary">Policy Acknowledgments</h3>
                 {summary && (
                   <span className="text-xs text-thb-text-muted">
-                    {summary.acknowledged} acknowledged · {summary.pending} pending of {summary.total}
+                    {summary.acknowledged} acknowledged · {summary.rejected ? `${summary.rejected} rejected · ` : ''}{summary.pending} pending of {summary.total}
                   </span>
                 )}
               </div>
               <button type="button" onClick={() => setOpen(false)} className="p-1.5 rounded-lg hover:bg-slate-100"><FiX className="w-4 h-4" /></button>
             </div>
             <div className="px-5 pt-3 flex gap-2">
-              {(['all', 'acked', 'pending'] as const).map((f) => (
+              {(['all', 'acked', 'rejected', 'pending'] as const).map((f) => (
                 <button key={f} type="button" onClick={() => setFilter(f)}
                   className={`px-3 py-1 rounded-full text-xs font-medium ${filter === f ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
-                  {f === 'all' ? 'All' : f === 'acked' ? 'Acknowledged' : 'Pending'}
+                  {f === 'all' ? 'All' : f === 'acked' ? 'Acknowledged' : f === 'rejected' ? 'Rejected' : 'Pending'}
                 </button>
               ))}
             </div>
@@ -236,20 +244,31 @@ export function PolicyAcknowledgmentTracker({ policyId, className }: { policyId:
               {loading ? (
                 <p className="text-sm text-thb-text-muted py-6 text-center">Loading…</p>
               ) : shown.length === 0 ? (
-                <p className="text-sm text-thb-text-muted py-6 text-center">No employees {filter === 'pending' ? 'pending' : 'in this view'}.</p>
+                <p className="text-sm text-thb-text-muted py-6 text-center">No employees {filter === 'pending' ? 'pending' : filter === 'rejected' ? 'have rejected' : 'in this view'}.</p>
               ) : (
                 shown.map((r) => (
-                  <div key={r.employeeId} className="flex items-center justify-between gap-3 rounded-lg border border-thb-border px-4 py-2.5">
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-thb-text-primary truncate">{r.name}{r.employeeCode ? ` · ${r.employeeCode}` : ''}</p>
-                      {r.email && <p className="text-[11px] text-thb-text-muted truncate">{r.email}</p>}
+                  <div key={r.employeeId} className="rounded-lg border border-thb-border px-4 py-2.5">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-thb-text-primary truncate">{r.name}{r.employeeCode ? ` · ${r.employeeCode}` : ''}</p>
+                        {r.email && <p className="text-[11px] text-thb-text-muted truncate">{r.email}</p>}
+                      </div>
+                      {r.acknowledged ? (
+                        <span className="inline-flex items-center gap-1 text-xs text-emerald-700 shrink-0" title={r.acknowledgedAt ? new Date(r.acknowledgedAt).toLocaleString() : ''}>
+                          <FiCheckCircle className="w-4 h-4" /> {r.acknowledgedAt ? new Date(r.acknowledgedAt).toLocaleDateString() : 'Acknowledged'}
+                        </span>
+                      ) : r.rejected ? (
+                        <span className="inline-flex items-center gap-1 text-xs text-rose-600 shrink-0" title={r.acknowledgedAt ? new Date(r.acknowledgedAt).toLocaleString() : ''}>
+                          <FiXCircle className="w-4 h-4" /> Rejected
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-xs text-amber-600 shrink-0"><FiClock className="w-4 h-4" /> Pending</span>
+                      )}
                     </div>
-                    {r.acknowledged ? (
-                      <span className="inline-flex items-center gap-1 text-xs text-emerald-700 shrink-0" title={r.acknowledgedAt ? new Date(r.acknowledgedAt).toLocaleString() : ''}>
-                        <FiCheckCircle className="w-4 h-4" /> {r.acknowledgedAt ? new Date(r.acknowledgedAt).toLocaleDateString() : 'Acknowledged'}
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 text-xs text-amber-600 shrink-0"><FiClock className="w-4 h-4" /> Pending</span>
+                    {r.rejected && r.comments && (
+                      <p className="text-[11px] text-rose-600 bg-rose-50 rounded-md px-2.5 py-1.5 mt-1.5">
+                        <span className="font-semibold">Reason:</span> {r.comments}
+                      </p>
                     )}
                   </div>
                 ))

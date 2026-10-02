@@ -375,6 +375,7 @@ setAttendanceRate(typeof summaryData?.attendanceRate === 'number' ? summaryData.
     { icon: <FiTrendingUp className="w-5 h-5" />, label: 'Performance', href: '/performance', bg: 'from-rose-400 to-pink-500', shadow: 'shadow-pink-500/25' },
     { icon: <FiSend className="w-5 h-5" />, label: 'Timesheet', href: '/timesheets', bg: 'from-sky-400 to-emerald-500', shadow: 'shadow-emerald-500/25' },
     { icon: <FiFolder className="w-5 h-5" />, label: 'Documents', href: '/documents', bg: 'from-fuchsia-400 to-teal-500', shadow: 'shadow-teal-500/25' },
+    { icon: <FiFileText className="w-5 h-5" />, label: 'Policies', href: '/policies-handbook', bg: 'from-teal-400 to-emerald-500', shadow: 'shadow-emerald-500/25' },
     { icon: <FiBriefcase className="w-5 h-5" />, label: 'Assets', href: '/assets', bg: 'from-yellow-400 to-amber-500', shadow: 'shadow-amber-500/25' },
     { icon: <FiHeart className="w-5 h-5" />, label: 'Grievance', href: '/grievances', bg: 'from-red-400 to-rose-500', shadow: 'shadow-rose-500/25' },
   ];

@@ -1430,6 +1430,18 @@ async function main() {
     `ALTER TABLE "AttendanceAuditLog" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP`,
     `ALTER TABLE "AttendanceAuditLog" DROP CONSTRAINT IF EXISTS "AttendanceAuditLog_employeeId_fkey"`,
     `ALTER TABLE "AttendanceAuditLog" ADD CONSTRAINT "AttendanceAuditLog_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+
+    // ─── Policy acknowledgment: accept/reject + per-version records (Policies Acknowledgement, added 2026-10-02) ───
+    // 1. Add `action` column (accepted | rejected) — legacy rows are all acceptances
+    // 2. Replace @@unique([policyId, employeeId]) with @@unique([policyId, employeeId, policyVersion])
+    //    so a new policy version makes employees pending again while keeping history.
+    //    The old @@unique may exist as a unique CONSTRAINT or a plain INDEX depending
+    //    on how the table was created — drop both ways (idempotent).
+    `ALTER TABLE "PolicyAcknowledgment" ADD COLUMN IF NOT EXISTS "action" TEXT NOT NULL DEFAULT 'accepted'`,
+    `ALTER TABLE "PolicyAcknowledgment" DROP CONSTRAINT IF EXISTS "PolicyAcknowledgment_policyId_employeeId_key"`,
+    `DROP INDEX IF EXISTS "PolicyAcknowledgment_policyId_employeeId_key"`,
+    `DROP INDEX IF EXISTS "PolicyAcknowledgment_policyId_employeeId_key1"`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "PolicyAcknowledgment_policyId_employeeId_policyVersion_key" ON "PolicyAcknowledgment"("policyId", "employeeId", "policyVersion")`,
   ];
 
   // ─── Append auto-generated CREATE TABLE / INDEX statements ───

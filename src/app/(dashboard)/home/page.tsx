@@ -1203,6 +1203,7 @@ function EmployeeHome({ firstName, greeting, today }: { firstName: string; greet
   const [latestPayslips, setLatestPayslips] = useState<{ id: string; month: number; year: number; netSalary: number; status: string; employee?: { firstName: string; lastName: string } }[]>([]);
   const [latestTimesheets, setLatestTimesheets] = useState<{ id: string; date: string; hours: number; project?: { name: string }; projectTask?: { name: string }; status: string }[]>([]);
   const [announcements, setAnnouncements] = useState<{ title: string; date: string; type: string }[]>([]);
+  const [policySummary, setPolicySummary] = useState({ total: 0, pending: 0, acknowledged: 0 });
 
   // Build a company scope query string for API calls so the selected tenant/company is respected
   const scopeQuery = useMemo(() => {
@@ -1224,7 +1225,7 @@ function EmployeeHome({ firstName, greeting, today }: { firstName: string; greet
       } catch { return null; }
     };
 
-    const [leaveData, summaryData, ticketData, payslipData, timesheetData] = await Promise.all([
+    const [leaveData, summaryData, ticketData, payslipData, timesheetData, policyData] = await Promise.all([
       safe(`/api/leave/balance?limit=5${scopeQuery}`),
       // Live attendance summary for the current month — uses the shared
       // server-side helper so the rate matches the ESS dashboard exactly.
@@ -1232,6 +1233,8 @@ function EmployeeHome({ firstName, greeting, today }: { firstName: string; greet
       safe(`/api/tickets?limit=10${scopeQuery}`),
       safe(`/api/payroll/payslips?limit=5${scopeQuery}`),
       safe(`/api/timesheets?limit=5${scopeQuery}`),
+      // Policies & Handbook pending-acknowledgement badge (employee home card)
+      safe('/api/policies/handbook?summary=1'),
     ]);
 
     // Leave balances — API returns { balances: [...] } or { data: { balances: [...] } }
@@ -1271,6 +1274,14 @@ function EmployeeHome({ firstName, greeting, today }: { firstName: string; greet
     // Timesheets — API returns { timesheets: [...] }
     const timesheets = timesheetData?.timesheets || timesheetData?.data || [];
     setLatestTimesheets(timesheets.slice(0, 5));
+
+    // Policies & Handbook — drives the pending-acknowledgement badge on home.
+    // If the summary endpoint fails, default to 0/0/0 so the card simply hides.
+    if (policyData?.summary) {
+      setPolicySummary(policyData.summary);
+    } else {
+      setPolicySummary({ total: 0, pending: 0, acknowledged: 0 });
+    }
 
     // Announcements — fetch from API, NOT hardcoded
     // GOLDEN RULE: No dummy data on the super admin or any live page.
@@ -1359,6 +1370,38 @@ function EmployeeHome({ firstName, greeting, today }: { firstName: string; greet
           </button>
         </div>
       </div>
+
+      {/* Company Policies & Handbook — pending acknowledgements card */}
+      {policySummary.total > 0 && (
+        <div className="thb-card px-6 py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-4 min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-teal-600 flex items-center justify-center ring-1 ring-emerald-100 flex-shrink-0">
+              <FiFileText className="w-5 h-5" />
+            </div>
+            <div className="min-w-0">
+              <h3 className="text-sm font-bold text-slate-900">Company Policies &amp; Handbook</h3>
+              <p className="text-xs text-slate-500 mt-0.5">View company policies, employee handbook and acknowledge required policies.</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 flex-wrap shrink-0">
+            {policySummary.pending > 0 ? (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-50 text-amber-700 ring-1 ring-amber-200 text-xs font-semibold">
+                <FiClock className="w-3.5 h-3.5" /> {policySummary.pending} Pending Acknowledgement{policySummary.pending > 1 ? 's' : ''}
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200 text-xs font-semibold">
+                <FiCheckCircle className="w-3.5 h-3.5" /> All policies acknowledged
+              </span>
+            )}
+            <button
+              onClick={() => router.push('/policies-handbook')}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-sm font-semibold shadow-md shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all whitespace-nowrap"
+            >
+              View Policies <FiArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Leave balance */}
