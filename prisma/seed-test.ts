@@ -183,6 +183,30 @@ async function main() {
     }
   }
 
+  // ── Module flags (ALWAYS, even when all users already existed): provision
+  // ALL modules enabled for the tenant, mirroring tenant provisioning. Runs
+  // for the first existing demo/test tenant we can find. ──
+  const tenantForFlags = await prisma.tenant.findFirst({ where: { slug: { in: TENANT_SLUGS } } });
+  if (tenantForFlags) {
+    const MODULE_KEYS = ['dashboard', 'employees', 'company', 'recruitment', 'onboarding', 'attendance', 'leave', 'payroll', 'salary_structures', 'performance', 'training', 'learning', 'engagement', 'reports', 'settings', 'docs', 'helpdesk', 'assets', 'projects', 'invoices', 'expenses', 'travel', 'accounts', 'crm', 'it_admin_module', 'separation', 'grievances', 'workflows', 'timesheets', 'documents', 'ai_assistant', 'notifications', 'collaboration', 'requisitions'];
+    let created = 0, updated = 0;
+    for (const key of MODULE_KEYS) {
+      const existing = await prisma.featureFlag.findFirst({ where: { tenantId: tenantForFlags.id, key: `module_${key}` }, select: { id: true } });
+      if (existing) {
+        await prisma.featureFlag.update({ where: { id: existing.id }, data: { enabled: true } });
+        updated++;
+      } else {
+        await prisma.featureFlag.create({
+          data: { tenantId: tenantForFlags.id, key: `module_${key}`, label: `Module: ${key}`, enabled: true, source: 'platform_default' },
+        });
+        created++;
+      }
+    }
+    console.log(`✓ Module flags for "${tenantForFlags.slug}": ${created} created, ${updated} updated (all enabled)`);
+  } else {
+    console.log('• No demo/test tenant found — skipping module flags');
+  }
+
   // ── Pass 3: ensure the 4 demo policies exist for the company ──
   const companyForPolicies = await prisma.company.findFirst({
     where: { companyGroup: { tenant: { slug: { in: TENANT_SLUGS } } } },

@@ -52,6 +52,18 @@ export const useTenantModuleStore = create<TenantModuleState>((set, get) => ({
         return;
       }
       const data = await res.json();
+      // IMPORTANT: a tenant with NO module_* FeatureFlags has never been
+      // configured by a super admin — that means "use the defaults" (all
+      // modules enabled), NOT "disable everything". Applying an empty set
+      // as an override blanked out the Sidebar and Modules page for freshly
+      // created tenants. Only apply an override when flags actually exist.
+      if ((data.modules || []).length === 0) {
+        set((state) => ({
+          fetched: { ...state.fetched, [tenantSlug]: true },
+          loading: false,
+        }));
+        return;
+      }
       const enabledKeys = new Set<string>(
         (data.modules || [])
           .filter((m: { enabled: boolean; key: string }) => m.enabled)
