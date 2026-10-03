@@ -202,6 +202,10 @@ async function main() {
   } else if (companyForPolicies) {
     console.log(`✓ Company already has ${companyForPolicies._count.policies} policy/policies — skipping policy seed`);
   }
+  if (companyForPolicies) {
+    console.log('─ Sample data for the QA tenant (HR/employee views):');
+    await seedPeopleData(prisma, { id: companyForPolicies.id, code: companyForPolicies.code }, 'QAT');
+  }
 
   // ── Pass 4: sample tenants — the same demo tenants the Super Admin sees on
   // the demo link (acme-global-demo, zenith-retail-demo, nova-tech-demo), so
@@ -260,7 +264,8 @@ async function ensureSampleTenant(
     }
     await enableModuleFlags(prisma, tenant.id);
     await seedPolicies(prisma, company.id);
-    console.log(`✓ Sample tenant created: ${s.slug} (3 users)`);
+    await seedPeopleData(prisma, { id: company.id, code: company.code }, s.code);
+    console.log(`✓ Sample tenant created: ${s.slug} (3 users + sample data)`);
     return;
   }
 
@@ -276,7 +281,122 @@ async function ensureSampleTenant(
   await enableModuleFlags(prisma, tenant.id);
   const company = await prisma.company.findFirst({ where: { companyGroup: { tenantId: tenant.id } }, include: { _count: { select: { policies: true } } } });
   if (company && company._count.policies === 0) await seedPolicies(prisma, company.id);
+  if (company) await seedPeopleData(prisma, { id: company.id, code: company.code }, s.code);
   console.log(`✓ Sample tenant exists: ${s.slug} — passwords ensured, flags enabled`);
+}
+
+/**
+ * Rich sample data so HR/employee screens don't look empty:
+ * extra employees, leave types + balances, this month's attendance,
+ * and announcements (global — created only if none exist anywhere).
+ */
+async function seedPeopleData(prisma: PrismaClient, company: { id: string; code: string | null }, employeeCodePrefix: string) {
+  const department = await prisma.department.findFirst({ where: { companyId: company.id }, select: { id: true } });
+  if (!department) return;
+
+  // 1. Six extra employees (no user accounts — just directory records for HR)
+  const extras: { employeeId: string; firstName: string; lastName: string; designationTitle: string }[] = [
+    { employeeId: `${employeeCodePrefix}004`, firstName: 'Ravi', lastName: 'Kumar', designationTitle: 'Software Engineer' },
+    { employeeId: `${employeeCodePrefix}005`, firstName: 'Priya', lastName: 'Nair', designationTitle: 'QA Engineer' },
+    { employeeId: `${employeeCodePrefix}006`, firstName: 'Amit', lastName: 'Sharma', designationTitle: 'Business Analyst' },
+    { employeeId: `${employeeCodePrefix}007`, firstName: 'Sneha', lastName: 'Reddy', designationTitle: 'UI Designer' },
+    { employeeId: `${employeeCodePrefix}008`, firstName: 'Vikram', lastName: 'Singh', designationTitle: 'DevOps Engineer' },
+    { employeeId: `${employeeCodePrefix}009`, firstName: 'Anita', lastName: 'Joseph', designationTitle: 'HR Executive' },
+  ];
+  let empCreated = 0;
+  for (const e of extras) {
+    const exists = await prisma.employee.findUnique({ where: { employeeId: e.employeeId } }).catch(() => null);
+    if (exists) continue;
+    let designation = await prisma.designation.findFirst({ where: { departmentId: department.id, title: e.designationTitle }, select: { id: true } });
+    if (!designation) designation = await prisma.designation.create({ data: { title: e.designationTitle, departmentId: department.id, level: 4 }, select: { id: true } });
+    await prisma.employee.create({
+      data: {
+        employeeId: e.employeeId, firstName: e.firstName, lastName: e.lastName,
+        email: `${e.employeeId.toLowerCase()}@3boxeshrms.com`,
+        companyId: company.id, departmentId: department.id, designationId: designation.id,
+        dateOfJoining: new Date('2026-02-01'),
+      },
+    });
+    empCreated++;
+  }
+  if (empCreated) console.log(`  ✓ ${empCreated} extra employees created`);
+
+  // 2. Leave types (code is globally unique — prefix with company code)
+  const year = new Date().getFullYear();
+  const leaveTypes: { name: string; code: string; defaultDays: number; carryForward: boolean; maxCarryForward: number }[] = [
+    { name: 'Casual Leave', code: `${company.code || 'CMP'}-CAS`, defaultDays: 12, carryForward: true, maxCarryForward: 3 },
+    { name: 'Sick Leave', code: `${company.code || 'CMP'}-SCK`, defaultDays: 10, carryForward: false, maxCarryForward: 0 },
+    { name: 'Earned Leave', code: `${company.code || 'CMP'}-ERN`, defaultDays: 15, carryForward: true, maxCarryForward: 5 },
+  ];
+  const createdTypes: { id: string; name: string; defaultDays: number; carryForward: boolean; maxCarryForward: number }[] = [];
+  let ltCreated = 0;
+  for (const lt of leaveTypes) {
+    let type = await prisma.leaveType.findFirst({ where: { companyId: company.id, name: lt.name }, select: { id: true, name: true, defaultDays: true, carryForward: true, maxCarryForward: true } });
+    if (!type) {
+      type = await prisma.leaveType.create({
+        data: { name: lt.name, code: lt.code, description: `${lt.name} as per company policy`, defaultDays: lt.defaultDays, isPaid: true, carryForward: lt.carryForward, maxCarryForward: lt.maxCarryForward, status: 'active', companyId: company.id },
+        select: { id: true, name: true, defaultDays: true, carryForward: true, maxCarryForward: true },
+      });
+      ltCreated++;
+    }
+    createdTypes.push(type);
+  }
+  if (ltCreated) console.log(`  ✓ ${ltCreated} leave types created`);
+
+  // 3. Leave balances for all employees of the company (current year)
+  const employees = await prisma.employee.findMany({ where: { companyId: company.id }, select: { id: true } });
+  let balCreated = 0;
+  for (const emp of employees) {
+    for (const lt of createdTypes) {
+      const exists = await prisma.leaveBalance.findFirst({ where: { employeeId: emp.id, leaveTypeId: lt.id, year }, select: { id: true } });
+      if (exists) continue;
+      const used = Math.floor(Math.random() * 4);
+      await prisma.leaveBalance.create({
+        data: { employeeId: emp.id, leaveTypeId: lt.id, year, total: lt.defaultDays, used, remaining: lt.defaultDays - used, carryForward: lt.carryForward ? Math.min(2, lt.maxCarryForward) : 0 },
+      });
+      balCreated++;
+    }
+  }
+  if (balCreated) console.log(`  ✓ ${balCreated} leave balances created`);
+
+  // 4. This month's attendance for user-linked employees (drives the Home attendance rate)
+  const userEmployees = await prisma.employee.findMany({
+    where: { companyId: company.id, userId: { not: null } },
+    select: { id: true, firstName: true },
+  });
+  const monthStart = new Date(year, new Date().getMonth(), 1);
+  const today = new Date();
+  let attCreated = 0;
+  for (const emp of userEmployees) {
+    const already = await prisma.attendance.findFirst({ where: { employeeId: emp.id, date: { gte: monthStart } }, select: { id: true } });
+    if (already) continue;
+    for (let d = 1; d <= today.getDate(); d++) {
+      const date = new Date(year, today.getMonth(), d, 9, 30, 0);
+      const dow = date.getDay();
+      if (dow === 0 || dow === 6) continue; // weekend
+      if (d > 18) continue; // ~19 working days
+      const late = d % 7 === 3;
+      const checkIn = new Date(year, today.getMonth(), d, late ? 10 : 9, late ? 25 : 30, 0);
+      const checkOut = new Date(year, today.getMonth(), d, 18, 30, 0);
+      await prisma.attendance.create({
+        data: { employeeId: emp.id, date, checkIn, checkOut, status: late ? 'late' : 'present', workHours: 8 },
+      });
+      attCreated++;
+    }
+  }
+  if (attCreated) console.log(`  ✓ ${attCreated} attendance records created`);
+
+  // 5. Announcements (global table — seed only if there are none at all)
+  const annCount = await prisma.announcement.count();
+  if (annCount === 0) {
+    await prisma.announcement.createMany({
+      data: [
+        { title: 'Welcome to 3Boxes HRMS', content: 'Explore your self-service dashboard — leave, attendance, payslips and more.', priority: 'normal' },
+        { title: 'New Policies Published', content: 'Leave, Attendance, Code of Conduct and WFH policies are now available. Please review and acknowledge.', priority: 'important' },
+      ],
+    });
+    console.log('  ✓ 2 announcements created');
+  }
 }
 
 async function enableModuleFlags(prisma: PrismaClient, tenantId: string) {
