@@ -4,15 +4,19 @@ import { useSyncExternalStore } from 'react';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { getClientSiteMode } from '@/lib/site-mode';
-import { isTenantHiddenClient, getClientHiddenSlugs, isClientLiveSite, LIVE_HIDDEN_SLUGS, DEMO_HIDDEN_SLUGS, PLATFORM_PLACEHOLDER_NAME, isTestPlatformHost } from '@/lib/tenant-filter';
+import { isTenantHiddenClient, getClientHiddenSlugs, isClientLiveSite, LIVE_HIDDEN_SLUGS, DEMO_HIDDEN_SLUGS, PLATFORM_PLACEHOLDER_NAME, isTestPlatformHost, isLocalDevHost } from '@/lib/tenant-filter';
 
 // ─── Hidden Tenant Slugs (GOLDEN RULE) ────────────────────────────
 // PRIMARY: tenant-filter.ts (FOOLPROOF hostname-based detection)
 // SECONDARY: site-mode.ts (env var + host header, may fail on Vercel)
 // Both are checked so even if one fails, the other catches it.
+// EXCEPTION: local development hosts mirror the TEST platform site —
+// sample/demo tenants stay visible there. site-mode.ts treats localhost
+// as LIVE, which would wrongly hide them, so it is skipped for local hosts.
 export function getHiddenSlugs(): string[] {
-  if (typeof window !== 'undefined' && isTestPlatformHost(window.location.hostname)) {
-    return [...DEMO_HIDDEN_SLUGS];
+  if (typeof window !== 'undefined') {
+    const h = window.location.hostname.toLowerCase();
+    if (isTestPlatformHost(h) || isLocalDevHost(h)) return [...DEMO_HIDDEN_SLUGS];
   }
   // Use tenant-filter.ts as PRIMARY source (checks hostname directly)
   const foolproofSlugs = getClientHiddenSlugs();
@@ -23,8 +27,9 @@ export function getHiddenSlugs(): string[] {
 }
 
 export function isHiddenTenant(slug: string): boolean {
-  if (typeof window !== 'undefined' && isTestPlatformHost(window.location.hostname)) {
-    return DEMO_HIDDEN_SLUGS.includes(slug);
+  if (typeof window !== 'undefined') {
+    const h = window.location.hostname.toLowerCase();
+    if (isTestPlatformHost(h) || isLocalDevHost(h)) return DEMO_HIDDEN_SLUGS.includes(slug);
   }
   // PRIMARY: FOOLPROOF check (direct hostname, no env vars)
   if (isTenantHiddenClient(slug)) return true;
