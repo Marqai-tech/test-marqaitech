@@ -17,6 +17,7 @@ import {
 } from 'recharts';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
+import { dashboardHrefForRole } from '@/lib/roleAccess';
 
 /* ---------- helpers ---------- */
 
@@ -172,7 +173,7 @@ export default function ESSDashboardPage() {
 
   useEffect(() => {
     if (userRole === 'super_admin') {
-      router.replace('/super-admin');
+      router.replace(dashboardHrefForRole(userRole));
     }
   }, [userRole, router]);
 
@@ -416,6 +417,12 @@ setAttendanceRate(typeof summaryData?.attendanceRate === 'number' ? summaryData.
   };
 
   /* ----- render ----- */
+
+  // The platform dashboard owns the super admin experience. Do not paint
+  // employee self-service content while the role-specific redirect runs.
+  if (!user || userRole === 'super_admin') {
+    return <div className="py-12 text-center text-thb-text-secondary">Loading dashboard...</div>;
+  }
 
   return (
     <div className="space-y-6">

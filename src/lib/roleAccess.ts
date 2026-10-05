@@ -251,6 +251,17 @@ export function navRoleOrLeastPrivilege(role?: string | null): string {
   return role && role.trim() ? role : 'employee';
 }
 
+/** Platform navigation is independent of the company selected for data. */
+export function isNavSectionEnabled(role: string, tenantSlug: string, moduleKey: string, enabledModules?: Set<string>): boolean {
+  if (role === 'super_admin' && moduleKey === 'super-admin') return true;
+  return enabledModules ? enabledModules.has(moduleKey) : isModuleEnabledForTenant(tenantSlug, moduleKey);
+}
+
+/** Super admins use the role-specific home dashboard; the console is a module. */
+export function dashboardHrefForRole(role?: string | null): string {
+  return role === 'super_admin' ? '/home' : '/dashboard';
+}
+
 /**
  * Check if a role can access a module.
  * Super admin always returns true.

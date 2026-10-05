@@ -18,6 +18,7 @@ import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import '@/lib/token-storage';
 import { isClientLiveMode } from '@/lib/site-mode';
+import { isTestPlatformHost } from '@/lib/tenant-filter';
 import { validateEmail, validatePasswordRequired } from '@/lib/validators';
 
 interface BeforeInstallPromptEvent extends Event {
@@ -194,11 +195,11 @@ export default function LoginPage() {
       if (success) {
         toast.success('Welcome back! Redirecting...');
         // Redirect based on role:
-        // Super admin → /super-admin (platform control center)
+        // Test super admin → role dashboard; live super admin → platform console.
         // All other roles → /home (tenant dashboard)
         const { user } = useAuthStore.getState();
         if (user?.role === 'super_admin') {
-          router.push('/super-admin');
+          router.push(isTestPlatformHost(window.location.hostname) ? '/home' : '/super-admin');
         } else {
           router.push('/home');
         }

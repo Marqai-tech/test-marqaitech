@@ -10,7 +10,7 @@ import {
 } from 'react-icons/fi';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore, isHiddenTenant } from '@/store/companyContextStore';
-import { canRoleAccessModule, isModuleEnabledForTenant, LEGACY_ROLE_MAP, navRoleOrLeastPrivilege } from '@/lib/roleAccess';
+import { canRoleAccessModule, isNavSectionEnabled, dashboardHrefForRole, LEGACY_ROLE_MAP, navRoleOrLeastPrivilege } from '@/lib/roleAccess';
 import { navSections, PINNED_ITEMS, PICKER_ROUTES } from '@/lib/navData';
 import type { NavItem, NavSection } from '@/lib/navData';
 import { useTenantModuleStore } from '@/store/tenantModuleStore';
@@ -31,7 +31,7 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false, cur
   const tenantSlug = useCompanyContextStore(s => s.tenant?.slug) || '';
   const tenantId = useCompanyContextStore(s => s.tenant?.id) || '';
   const contextTenant = useCompanyContextStore(s => s.tenant);
-  const { fetchModules } = useTenantModuleStore();
+  const { fetchModules, enabledModules } = useTenantModuleStore();
 
   // ─── GOLDEN RULE: Use companyContextStore's tenant (filtered) for branding ───
   // NEVER use user.tenant from authStore directly — it may contain hidden tenant
@@ -75,7 +75,7 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false, cur
 
   const filteredSections = useMemo(() => {
     return navSections
-      .filter((section) => isModuleEnabledForTenant(tenantSlug, section.key))
+      .filter((section) => isNavSectionEnabled(userRole, tenantSlug, section.key, enabledModules[tenantSlug]))
       .map((section) => ({
         ...section,
         items: section.items.filter(
@@ -100,11 +100,13 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false, cur
         ),
       }))
       .filter((section) => section.items.length > 0);
-  }, [userRole, tenantSlug, effectiveRoles]);
+  }, [userRole, tenantSlug, effectiveRoles, enabledModules]);
 
   // Filter pinned items based on role (same logic as above)
   const visiblePinnedItems = useMemo(() => {
-    return PINNED_ITEMS.filter((item) => {
+    return PINNED_ITEMS.map(item => item.href === '/dashboard'
+      ? { ...item, href: dashboardHrefForRole(userRole) }
+      : item).filter((item) => {
       if (item.moduleKey && !canRoleAccessModule(userRole, item.moduleKey)) return false;
       if (item.roles) {
         const hasRole = effectiveRoles.some(r => item.roles!.includes(r));
@@ -194,7 +196,7 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false, cur
           {visiblePinnedItems.map((item) => {
             const isActive = isItemActive(item.href);
             return (
-              <li key={item.href}>
+              <li key={item.label}>
                 <Link
                   href={item.href}
                   prefetch={false}
