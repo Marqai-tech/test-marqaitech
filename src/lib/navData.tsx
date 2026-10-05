@@ -183,7 +183,7 @@ export const navSections: NavSection[] = [
   // Employee role: only My Profile + Resignation (self-service)
   // Manager role: + Team view + Org Chart + Probation review
   {
-    key: 'employee',
+    key: 'employees',
     label: 'Employee',
     sectionIcon: FiUsers,
     sectionColor: C.employee,
@@ -930,7 +930,7 @@ export const MODULE_GROUPS: ModuleGroup[] = [
     groupLabel: 'Organization',
     groupDescription: 'Company & workforce management',
     groupIcon: FiBriefcase,
-    sections: navSections.filter(s => ['company', 'employee'].includes(s.key)),
+    sections: navSections.filter(s => ['company', 'employees'].includes(s.key)),
   },
   {
     groupLabel: 'Time & Leave',

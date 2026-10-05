@@ -178,7 +178,7 @@ export const TENANT_MODULE_WHITELIST: Record<string, string[]> = {
     'tenant',
     // Core HR
     'company',
-    'employee',
+    'employees',
     // Time & Leave
     'leave',
     'attendance',

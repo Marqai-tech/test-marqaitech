@@ -1057,8 +1057,10 @@ export default function EmployeeSettingsPage() {
         </div>
       </div>
 
-      {/* General Employee Settings — migrated from /settings > Employee tab in Task 56 */}
-      <ModuleSettingsPanel sections={employeeSections} />
+      {/* General Employee Settings — show only under Configuration */}
+      {activeTab === 'employee-config' && (
+        <ModuleSettingsPanel sections={employeeSections} />
+      )}
 
       {/* ═══ CREDENTIALS TAB ═══ */}
       {activeTab === 'credentials' && (
