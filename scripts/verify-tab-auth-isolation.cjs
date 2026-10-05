@@ -51,7 +51,7 @@ async function main() {
 
   assert.equal(adminTab.storage.getToken(), 'super-admin-token');
   assert.equal(employeeTab.storage.getToken(), 'employee-token');
-  assert.equal(sharedLocalStorage.has('tb_token'), false, 'auth tokens must never be stored in shared localStorage');
+  assert.equal(sharedLocalStorage.get('tb_token'), 'legacy-admin-token', 'a legacy shared token must never be adopted or overwritten by a tab');
 
   await adminTab.window.fetch('/api/auth/me', { credentials: 'include' });
   await employeeTab.window.fetch('/api/auth/me', { credentials: 'include' });

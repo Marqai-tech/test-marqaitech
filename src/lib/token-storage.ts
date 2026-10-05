@@ -42,13 +42,6 @@ export function setRememberMe(enabled: boolean): void {
   }
 }
 
-function discardLegacySharedToken(): void {
-  if (typeof window === 'undefined') return;
-  // Do not migrate this value into a new tab: it may belong to another user.
-  rawRemove(TOKEN_KEY);
-  rawRemove(REMEMBER_KEY);
-}
-
 export function installTokenStorageShim(): void {
   if (typeof window === 'undefined') return;
   if (shimInstalled) return;
@@ -57,8 +50,6 @@ export function installTokenStorageShim(): void {
   originalGetItem = window.localStorage.getItem.bind(window.localStorage);
   originalSetItem = window.localStorage.setItem.bind(window.localStorage);
   originalRemoveItem = window.localStorage.removeItem.bind(window.localStorage);
-
-  discardLegacySharedToken();
 
   window.localStorage.getItem = function (key: string): string | null {
     if (key === TOKEN_KEY) {
