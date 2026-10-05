@@ -27,7 +27,7 @@ setDbModuleOverrides({ 'test-tenant': restricted });
 assert.equal(isNavSectionEnabled('super_admin', 'test-tenant', 'super-admin'), true);
 assert.equal(isNavSectionEnabled('employee', 'test-tenant', 'payroll'), false);
 setDbModuleOverrides({});
-assert.equal(dashboardHrefForRole('super_admin'), '/home');
+assert.equal(dashboardHrefForRole('super_admin'), '/super-admin');
 for (const role of ['employee', 'tenant_admin', 'admin', undefined]) {
   assert.equal(dashboardHrefForRole(role), '/dashboard');
 }

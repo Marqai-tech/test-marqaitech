@@ -1,6 +1,6 @@
 import { NextResponse, after } from 'next/server';
 import { getPlatformDb, getDbForTenant, getDbForTenantById } from '@/lib/tenant-db';
-import { verifyPassword, createToken, hashPassword, REMEMBER_TOKEN_TTL, SESSION_TOKEN_TTL, REMEMBER_MAX_AGE_SEC, authTokenCookieHeader } from '@/lib/auth';
+import { verifyPassword, createToken, hashPassword, REMEMBER_TOKEN_TTL, SESSION_TOKEN_TTL, authTokenCookieHeader } from '@/lib/auth';
 import { getHiddenSlugsForRequest, isTestPlatformHost, isLocalDevHost } from '@/lib/tenant-filter';
 import { isPersonalEmail } from '@/lib/validators';
 
@@ -739,9 +739,9 @@ export async function POST(request: Request) {
         headers: {
           ...corsHeaders(),
           'Server-Timing': `total;dur=${Date.now() - t0}`,
-          'Set-Cookie': persistSession
-            ? authTokenCookieHeader(token, REMEMBER_MAX_AGE_SEC)
-            : authTokenCookieHeader(token, 'session'),
+          // Expire legacy shared cookies. Current sessions stay in tab-scoped
+          // sessionStorage and travel to APIs via Authorization: Bearer.
+          'Set-Cookie': authTokenCookieHeader(null, 0),
         },
       }
     );

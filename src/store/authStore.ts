@@ -190,11 +190,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (typeof window !== 'undefined') {
         persistAuthToken(token, { remember: rememberMe });
         try { sessionStorage.setItem('tb_user', JSON.stringify(user)); } catch { /* ignore */ }
-        if (rememberMe) {
-          try { localStorage.setItem('tb_user', JSON.stringify(user)); } catch { /* ignore */ }
-        } else {
-          try { localStorage.removeItem('tb_user'); } catch { /* ignore */ }
-        }
+        // User identity must follow the tab-scoped token; localStorage is
+        // shared across tabs and can restore another user's role on refresh.
+        try { localStorage.removeItem('tb_user'); } catch { /* ignore */ }
       }
 
       set({
@@ -434,7 +432,7 @@ if (typeof window !== 'undefined') {
   if (token) {
     let cachedUser: AuthState['user'] = null;
     try {
-      const raw = sessionStorage.getItem('tb_user') || localStorage.getItem('tb_user');
+      const raw = sessionStorage.getItem('tb_user');
       if (raw) cachedUser = JSON.parse(raw);
     } catch { /* ignore */ }
     if (cachedUser) {

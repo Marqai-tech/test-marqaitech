@@ -257,9 +257,9 @@ export function isNavSectionEnabled(role: string, tenantSlug: string, moduleKey:
   return enabledModules ? enabledModules.has(moduleKey) : isModuleEnabledForTenant(tenantSlug, moduleKey);
 }
 
-/** Super admins use the role-specific home dashboard; the console is a module. */
+/** Super admins land on the platform management dashboard. */
 export function dashboardHrefForRole(role?: string | null): string {
-  return role === 'super_admin' ? '/home' : '/dashboard';
+  return role === 'super_admin' ? '/super-admin' : '/dashboard';
 }
 
 /**

@@ -236,7 +236,7 @@ The JWT payload contains:
 
 ## Token Storage
 
-- **Client-side**: Stored in localStorage as \`tb_token\`
+- **Client-side**: Stored per tab in sessionStorage as \`tb_token\`
 - **Alternative**: Can be sent via cookies for SSR support
 - **Headers**: Sent as \`Authorization: Bearer <token>\`
 

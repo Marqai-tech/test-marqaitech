@@ -18,7 +18,6 @@ import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import '@/lib/token-storage';
 import { isClientLiveMode } from '@/lib/site-mode';
-import { isTestPlatformHost } from '@/lib/tenant-filter';
 import { validateEmail, validatePasswordRequired } from '@/lib/validators';
 
 interface BeforeInstallPromptEvent extends Event {
@@ -195,11 +194,11 @@ export default function LoginPage() {
       if (success) {
         toast.success('Welcome back! Redirecting...');
         // Redirect based on role:
-        // Test super admin → role dashboard; live super admin → platform console.
+        // Super admins land on the platform management dashboard in every environment.
         // All other roles → /home (tenant dashboard)
         const { user } = useAuthStore.getState();
         if (user?.role === 'super_admin') {
-          router.push(isTestPlatformHost(window.location.hostname) ? '/home' : '/super-admin');
+          router.push('/super-admin');
         } else {
           router.push('/home');
         }
@@ -958,7 +957,7 @@ export default function LoginPage() {
                 className="w-4 h-4 rounded border-slate-300 text-green-500 focus:ring-green-500/20"
               />
               <label htmlFor="remember" className="text-sm text-slate-500">
-                Keep me signed in for 30 days
+                Keep me signed in for 30 days in this tab
               </label>
             </div>
             )}
