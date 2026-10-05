@@ -259,6 +259,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   fetchUser: async () => {
+    const tokenAtStart = get().token;
     const storedToken = (typeof window !== 'undefined' ? readAuthToken() : null) || get().token;
     const { user: existing } = get();
     if (!existing) set({ isLoading: true });
@@ -269,6 +270,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         credentials: 'include',
         cache: 'no-store',
       });
+
+      // Login/logout may complete while this older session refresh is in
+      // flight. Its response must not overwrite or clear the new session.
+      if (get().token !== tokenAtStart) return;
 
       if (!res.ok) {
         if (res.status !== 401 && existing) {
@@ -290,6 +295,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
 
       const rawUser = await res.json();
+      if (get().token !== tokenAtStart) return;
 
       // ─── GOLDEN RULE: Scrub hidden tenant from authStore ───
       // On the LIVE site, we NEVER store hidden tenant data (e.g., "Marq AI Tech Pvt Ltd")
@@ -340,6 +346,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       // Fetch permissions after user is loaded
       get().fetchPermissions();
     } catch (error) {
+      if (get().token !== tokenAtStart) return;
       console.error('Fetch user error:', error);
       if (get().user) {
         set({ isLoading: false });

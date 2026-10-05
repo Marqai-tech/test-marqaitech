@@ -37,7 +37,7 @@ console.log('PASS: platform module visibility, async flags, role restrictions, d
   const { ESLint } = require('eslint');
   const eslint = new ESLint();
   const files = [
-    'src/lib/roleAccess.ts', 'src/components/Sidebar.tsx',
+    'src/lib/roleAccess.ts', 'src/components/Sidebar.tsx', 'src/store/authStore.ts',
     'src/app/(dashboard)/modules/page.tsx', 'src/app/(dashboard)/dashboard/page.tsx',
     'src/app/(dashboard)/super-admin/page.tsx',
     'src/app/login/page.tsx',
