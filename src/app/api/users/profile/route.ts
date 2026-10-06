@@ -240,6 +240,19 @@ export async function GET(request: Request) {
       }
     }
 
+    // Include the assigned manager in the self-service profile. The employee
+    // can navigate to this profile for viewing, but edit permission remains
+    // controlled by the employee-record role gate.
+    if (employee.reportingManagerId && empDb) {
+      try {
+        const managerRows = await empDb.$queryRawUnsafe(
+          `SELECT "id", "employeeId", "firstName", "lastName", "email" FROM "Employee" WHERE "id" = $1 LIMIT 1`,
+          employee.reportingManagerId,
+        ) as any[];
+        employee.reportingManager = managerRows?.[0] || null;
+      } catch { employee.reportingManager = null; }
+    }
+
     console.log('[Profile] Employee:', employee ? `${rowVal(employee, 'firstName', 'firstname') || ''} ${rowVal(employee, 'lastName', 'lastname') || ''}`.trim() : 'NOT FOUND', '| Strategy:', foundByStrategy || 'none');
 
     // Build employee data from raw SQL row (quoted columns stay camelCase)
@@ -278,6 +291,8 @@ export async function GET(request: Request) {
         personalEmail: rowVal(employee, 'personalEmail', 'personalemail') || '',
         employeeStatus: rowVal(employee, 'employeeStatus', 'employeestatus') || 'confirmed',
         employeeType: rowVal(employee, 'employeeType', 'employeetype') || 'full_time',
+        reportingManagerId: rowVal(employee, 'reportingManagerId', 'reportingmanagerid') || null,
+        reportingManager: employee.reportingManager || null,
         phone: rowVal(employee, 'phone') || '',
         avatar: rowVal(employee, 'avatar') || '',
         emergencyContactName: rowVal(employee, 'emergencyContactName', 'emergencycontactname') || '',

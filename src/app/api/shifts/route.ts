@@ -24,6 +24,8 @@ let shiftColumnsReady = false;
 async function ensureShiftColumns(db: { $executeRawUnsafe: (sql: string) => Promise<unknown> }) {
   if (shiftColumnsReady) return;
   const statements = [
+    `ALTER TABLE "Shift" ADD COLUMN IF NOT EXISTS "breakDuration" INTEGER NOT NULL DEFAULT 60`,
+    `ALTER TABLE "Shift" ADD COLUMN IF NOT EXISTS "graceTime" INTEGER NOT NULL DEFAULT 15`,
     `ALTER TABLE "Shift" ADD COLUMN IF NOT EXISTS "code" TEXT`,
     `ALTER TABLE "Shift" ADD COLUMN IF NOT EXISTS "type" TEXT NOT NULL DEFAULT 'fixed'`,
     `ALTER TABLE "Shift" ADD COLUMN IF NOT EXISTS "crossMidnight" BOOLEAN NOT NULL DEFAULT false`,

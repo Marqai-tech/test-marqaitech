@@ -138,7 +138,7 @@ const DEFAULT_RULES: RequestRules = {
   requireQrVerification: true,
 
   // Shift & Grace (mirrors legacy AttendancePolicyRule defaults)
-  shiftStartDefault: '09:00',
+  shiftStartDefault: '09:30',
   shiftEndDefault: '17:30',
   breakDurationMinutes: 30,
   lateGraceMinutes: 15,

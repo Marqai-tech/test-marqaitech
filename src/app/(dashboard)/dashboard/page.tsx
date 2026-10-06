@@ -207,7 +207,7 @@ export default function ESSDashboardPage() {
     // Helper that swallows errors and returns null
     const safe = async (url: string) => {
       try {
-        const res = await fetch(url, { headers });
+        const res = await fetch(url, { headers, cache: 'no-store' });
         if (!res.ok) return null;
         return await res.json();
       } catch {

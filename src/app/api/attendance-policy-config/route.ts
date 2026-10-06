@@ -46,7 +46,7 @@ export async function GET(request: Request) {
           lateMarkHalfDayOnExceed: true,
           halfDayAfterMinutes: 21,
           lateMarkNotApplicableOnTour: true,
-          shiftStartDefault: '09:00',
+          shiftStartDefault: '09:30',
           shiftEndDefault: '17:30',
           breakDurationMinutes: 30,
           gatePassMaxPerMonth: 1,
@@ -107,7 +107,7 @@ export async function GET(request: Request) {
         lateMarkHalfDayOnExceed: true,
         halfDayAfterMinutes: 21,
         lateMarkNotApplicableOnTour: true,
-        shiftStartDefault: '09:00',
+          shiftStartDefault: '09:30',
         shiftEndDefault: '17:30',
         breakDurationMinutes: 30,
         gatePassMaxPerMonth: 1,
@@ -193,7 +193,7 @@ export async function PUT(request: Request) {
       halfDayAfterMinutes: body.halfDayAfterMinutes !== undefined ? Number(body.halfDayAfterMinutes) : existing?.halfDayAfterMinutes ?? 21,
       lateMarkNotApplicableOnTour: body.lateMarkNotApplicableOnTour !== undefined ? !!body.lateMarkNotApplicableOnTour : existing?.lateMarkNotApplicableOnTour ?? true,
       // Shift Defaults
-      shiftStartDefault: (body.shiftStartDefault as string) || existing?.shiftStartDefault || '09:00',
+      shiftStartDefault: (body.shiftStartDefault as string) || existing?.shiftStartDefault || '09:30',
       shiftEndDefault: (body.shiftEndDefault as string) || existing?.shiftEndDefault || '17:30',
       breakDurationMinutes: body.breakDurationMinutes !== undefined ? Number(body.breakDurationMinutes) : existing?.breakDurationMinutes ?? 30,
       // Gate Pass Policy

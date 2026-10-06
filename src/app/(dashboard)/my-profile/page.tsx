@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   FiUser,
   FiMail,
@@ -123,9 +124,9 @@ const accentMap: Record<AccentColor, { strip: string; iconBg: string; iconColor:
   slate:   { strip: 'from-slate-400 to-slate-300',     iconBg: 'bg-slate-50',   iconColor: 'text-slate-500' },
 };
 
-function InfoRow({ label, value, icon }: { label: string; value: string; icon?: React.ReactNode }) {
+function InfoRow({ label, value, icon, onClick }: { label: string; value: string; icon?: React.ReactNode; onClick?: () => void }) {
   return (
-    <div className="group">
+    <div className={`group ${onClick ? 'cursor-pointer' : ''}`} onClick={onClick} role={onClick ? 'link' : undefined} tabIndex={onClick ? 0 : undefined} onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') onClick(); } : undefined}>
       <label className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-thb-text-muted mb-1.5">
         {icon && <span className="opacity-60 group-hover:opacity-100 transition-opacity">{icon}</span>}
         {label}
@@ -183,6 +184,7 @@ function StatCard({ icon, label, value, subtext, colorClass }: {
    Main Component
    ────────────────────────────────────────────── */
 export default function MyProfilePage() {
+  const router = useRouter();
   const { user, fetchUser } = useAuthStore();
   const [activeTab, setActiveTab] = useState<ProfileTab>('personal');
   const [profileData, setProfileData] = useState<Record<string, unknown> | null>(null);
@@ -772,6 +774,7 @@ export default function MyProfilePage() {
                 <>
                   <InfoRow label="Full Name" value={`${str(emp?.firstName)} ${str(emp?.lastName)}`} icon={<FiUser className="w-3.5 h-3.5" />} />
                   <InfoRow label="Official Email" value={str(emp?.email)} icon={<FiMail className="w-3.5 h-3.5" />} />
+                  <InfoRow label="Personal Email" value={str(emp?.personalEmail)} icon={<FiMail className="w-3.5 h-3.5" />} />
                   <InfoRow label="Phone" value={str(emp?.phone)} icon={<FiPhone className="w-3.5 h-3.5" />} />
                   <InfoRow label="Gender" value={str(emp?.gender) ? String(emp?.gender).charAt(0).toUpperCase() + String(emp?.gender).slice(1) : ''} />
                   <InfoRow label="Blood Group" value={str(emp?.bloodGroup)} icon={<FiHeart className="w-3.5 h-3.5" />} />
@@ -784,6 +787,12 @@ export default function MyProfilePage() {
 
             <SectionCard title="Quick Info" icon={<FiInfo className="w-4 h-4" />} accent="emerald">
               <InfoRow label="Employee ID" value={str(emp?.employeeId)} icon={<FiHash className="w-3.5 h-3.5" />} />
+              <InfoRow
+                label="Reporting Manager"
+                value={emp?.reportingManager ? `${str((emp.reportingManager as Record<string, unknown>).firstName)} ${str((emp.reportingManager as Record<string, unknown>).lastName)}`.trim() : 'Not assigned'}
+                icon={<FiUser className="w-3.5 h-3.5" />}
+                onClick={emp?.reportingManager && (emp.reportingManager as Record<string, unknown>).id ? () => router.push(`/employees/${String((emp.reportingManager as Record<string, unknown>).id)}`) : undefined}
+              />
               <InfoRow label="Status" value={str(emp?.status) ? String(emp?.status).replace('_', ' ').charAt(0).toUpperCase() + String(emp?.status).replace('_', ' ').slice(1) : ''} icon={<FiCheckCircle className="w-3.5 h-3.5" />} />
               <InfoRow label="Department" value={str(emp?.department)} icon={<FiBriefcase className="w-3.5 h-3.5" />} />
               <InfoRow label="Designation" value={str(emp?.designation)} icon={<FiStar className="w-3.5 h-3.5" />} />

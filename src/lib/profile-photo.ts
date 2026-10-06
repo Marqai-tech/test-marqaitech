@@ -1,5 +1,7 @@
-export const MAX_PROFILE_PHOTO_BYTES = 3 * 1024 * 1024;
-export const MAX_PROFILE_PHOTO_LABEL = '3MB';
+// The product requirement is a 5 MB maximum for the original upload. The
+// stored data URL is still compressed separately to stay within API limits.
+export const MAX_PROFILE_PHOTO_BYTES = 5 * 1024 * 1024;
+export const MAX_PROFILE_PHOTO_LABEL = '5MB';
 /** Keep encoded JSON under Vercel’s ~4.5MB function body after base64. */
 const MAX_PROFILE_PHOTO_PAYLOAD_BYTES = 2 * 1024 * 1024;
 

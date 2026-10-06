@@ -467,7 +467,7 @@ function PolicyRulesTab({ companyId, scopeQuery }: { companyId: string; scopeQue
   // Form state
   const emptyRule = (): AttendancePolicyRule => ({
     id: '', name: '', companyId: companyId || '', employmentType: 'all',
-    shiftStartDefault: '09:00', shiftEndDefault: '17:30', breakDurationMinutes: 30,
+    shiftStartDefault: '09:30', shiftEndDefault: '18:30', breakDurationMinutes: 60,
     lateGraceMinutes: 15, earlyGraceMinutes: 10,
     lateMarkAllowancePerMonth: 4, lateMarkHalfDayOnExceed: true, halfDayAfterMinutes: 21, lateMarkNotApplicableOnTour: true,
     autoOvertimeEnabled: true, overtimeThresholdMinutes: 480,
