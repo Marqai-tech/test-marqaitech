@@ -72,6 +72,11 @@ export type AttendanceStatus =
   | 'on_leave'
   | string;
 
+// A completed day with four and a half hours or less is treated as a half day
+// for the dashboard rate, even when the attendance row is still marked
+// `present` by the punch flow.
+const HALF_DAY_WORK_HOURS = 4.5;
+
 export interface AttendanceSummaryInput {
   /** Prisma client routed to the correct tenant DB (from getDb(request)). */
   db: any;
@@ -399,14 +404,14 @@ export async function computeMyAttendanceSummary(
   const rangeStart = new Date(utcStart.getTime() - 24 * 60 * 60 * 1000);
   const rangeEndExclusive = new Date(utcEndExclusive.getTime() + 24 * 60 * 60 * 1000);
 
-  let attendanceRows: Array<{ date: Date; status: string }> = [];
+  let attendanceRows: Array<{ date: Date; status: string; workHours: number | null }> = [];
   try {
     attendanceRows = await withSchemaSync(() => db.attendance.findMany({
       where: {
         employeeId,
         date: { gte: rangeStart, lt: rangeEndExclusive },
       },
-      select: { date: true, status: true },
+      select: { date: true, status: true, workHours: true },
     })) || [];
   } catch {
     attendanceRows = [];
@@ -415,13 +420,13 @@ export async function computeMyAttendanceSummary(
   // 8. Build a map of LOCAL YYYY-MM-DD → status. Each stored Date is
   //    converted to its local calendar day using `toLocalDayStr(d, tz)`,
   //    which correctly handles BOTH storage conventions.
-  const statusByDay = new Map<string, string>();
+  const statusByDay = new Map<string, { status: string; workHours: number | null }>();
   for (const row of attendanceRows) {
     const d = row.date instanceof Date ? row.date : new Date(row.date);
     if (isNaN(d.getTime())) continue;
     const localDay = toLocalDayStr(d, tz);
     if (workingDateSet.has(localDay) || holidaySet.has(localDay)) {
-      statusByDay.set(localDay, row.status);
+      statusByDay.set(localDay, { status: row.status, workHours: row.workHours });
     }
   }
 
@@ -437,8 +442,14 @@ export async function computeMyAttendanceSummary(
   let recordedWorkingDays = 0;
 
   for (const dayStr of walk.workingDates) {
-    const status = statusByDay.get(dayStr) || null;
-    if (!status) continue;
+    const attendance = statusByDay.get(dayStr);
+    if (!attendance) continue;
+    const isShortCompletedDay =
+      (attendance.status === 'present' || attendance.status === 'late') &&
+      typeof attendance.workHours === 'number' &&
+      attendance.workHours > 0 &&
+      attendance.workHours <= HALF_DAY_WORK_HOURS;
+    const status = isShortCompletedDay ? 'half_day' : attendance.status;
     if (isOnLeave(status)) {
       onLeave += 1;
       continue;
