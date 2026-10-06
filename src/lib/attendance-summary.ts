@@ -23,9 +23,10 @@
  *   - Otherwise                                                → working day
  *       · Attendance `present` or `late`   → attended +1.0
  *       · Attendance `half_day`            → attended +0.5
- *       · Attendance `absent` or no row    → attended +0   (still in denominator)
+ *       · Attendance `absent`                → attended +0   (in denominator)
+ *       · No attendance row                  → not counted yet
  *
- *   Attendance Rate = attended / workingDays × 100, rounded to 1 decimal.
+ *   Attendance Rate = attended / recorded working days × 100, rounded to 1 decimal.
  *   If workingDays === 0, `attendanceRate` is `null` (caller shows "—").
  *
  * DATA SOURCES
@@ -101,7 +102,7 @@ export interface AttendanceSummaryResult {
   periodStart: string;
   /** Inclusive end (YYYY-MM-DD). */
   periodEnd: string;
-  /** Calendar working days in the period (weekends/holidays/on_leave excluded). */
+  /** Recorded working days in the period (unrecorded days are not counted yet). */
   workingDays: number;
   /** # of attendance rows with status `present`. */
   present: number;
@@ -109,7 +110,7 @@ export interface AttendanceSummaryResult {
   late: number;
   /** # of attendance rows with status `half_day`. */
   halfDay: number;
-  /** # of working days with status `absent` OR no attendance row. */
+  /** # of recorded working days with status `absent`. */
   absent: number;
   /** # of attendance rows with status `on_leave` (approved leave). */
   onLeave: number;
@@ -424,7 +425,8 @@ export async function computeMyAttendanceSummary(
     }
   }
 
-  // 9. Tally the result by walking the working-day list
+  // 9. Tally only recorded working days. A day with no attendance row is
+  // still pending and must not reduce the employee's current-month rate.
   let present = 0;
   let late = 0;
   let halfDay = 0;
@@ -432,9 +434,11 @@ export async function computeMyAttendanceSummary(
   let onLeave = 0;
   let holidays = 0;
   let weekend = 0;
+  let recordedWorkingDays = 0;
 
   for (const dayStr of walk.workingDates) {
     const status = statusByDay.get(dayStr) || null;
+    if (!status) continue;
     if (isOnLeave(status)) {
       onLeave += 1;
       continue;
@@ -448,6 +452,7 @@ export async function computeMyAttendanceSummary(
       continue;
     }
     // Now this is a real working day (in the denominator).
+    recordedWorkingDays += 1;
     if (status === 'present') {
       present += 1;
     } else if (status === 'late') {
@@ -461,11 +466,7 @@ export async function computeMyAttendanceSummary(
   }
 
   const attendedDays = present + late + 0.5 * halfDay;
-  // workingDays here is the calendar working-day count from the walk. But
-  // we need to ALSO exclude days the Attendance row itself marked as
-  // holiday/weekend/on_leave (those reduce the denominator).
-  const excludedByAttendanceRow = holidays + weekend + onLeave;
-  const workingDays = Math.max(0, walk.workingDates.length - excludedByAttendanceRow);
+  const workingDays = recordedWorkingDays;
 
   const attendanceRate = workingDays === 0
     ? null
