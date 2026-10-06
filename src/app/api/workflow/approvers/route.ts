@@ -140,6 +140,23 @@ export async function GET(request: NextRequest) {
           }).catch(() => null);
           if (u) userObj = u;
         }
+        // A reporting manager may have an Employee profile/email but no linked
+        // User row yet. Show the actual assigned manager in the preview instead
+        // of the misleading runtime placeholder; email delivery can still use
+        // the employee's official email.
+        if (!userObj && lvl.actorType === 'reporting_manager' && employee.reportingManagerId) {
+          const managerEmployee = await db.employee.findUnique({
+            where: { id: employee.reportingManagerId },
+            select: { id: true, firstName: true, lastName: true, email: true },
+          });
+          if (managerEmployee?.email) {
+            userObj = {
+              id: managerEmployee.id,
+              name: `${managerEmployee.firstName} ${managerEmployee.lastName}`.trim(),
+              email: managerEmployee.email,
+            };
+          }
+        }
         tiers.push({
           tier: lvl.level,
           label: lvl.label || lvl.actorType,

@@ -10,6 +10,7 @@ import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { loadWorkflowConfig, buildRequestContext, checkRules } from '@/lib/attendance-workflow';
 import { sanitizeMultiLineText } from '@/lib/sanitize';
 import { DEFAULT_SHIFT_END, DEFAULT_SHIFT_START, minutesInTimeZone, validatePunchTime } from '@/lib/punch-time-validation';
+import { resolveCompanyScope } from '@/lib/companyScope';
 
 export { OPTIONS };
 
@@ -230,6 +231,44 @@ export async function POST(request: Request) {
         status: 'pending',
       },
     });
+
+    // Notify the reporting manager through the central in-app + email dispatcher.
+    // HR proxy submissions still use the same approval event, while the employee
+    // remains the requested-for employee in the request record.
+    try {
+      const employee = await db.employee.findUnique({
+        where: { id: emp.id },
+        select: { userId: true, firstName: true, lastName: true, reportingManager: { select: { userId: true, email: true, firstName: true, lastName: true } } },
+      });
+      const manager = (employee as any)?.reportingManager;
+      const managerUserId = manager?.userId || (manager?.email
+        ? (await db.user.findFirst({ where: { email: { equals: manager.email, mode: 'insensitive' } }, select: { id: true } }))?.id
+        : null);
+      const managerRecipient = managerUserId
+        ? { userId: managerUserId }
+        : manager?.email
+          ? { name: `${(manager as any).firstName || ''} ${(manager as any).lastName || ''}`.trim(), email: manager.email }
+          : null;
+      const tenantId = (user as any).tenantId || (await resolveCompanyScope(request))?.tenantId;
+      if (tenantId && managerRecipient) {
+        const { dispatchNotification } = await import('@/lib/notification-center');
+        await dispatchNotification({
+          tenantId,
+          module: 'attendance',
+          eventKey: 'attendance.request.submitted',
+          recipients: [managerRecipient],
+          vars: {
+            Employee_Name: `${emp.firstName} ${emp.lastName}`,
+            Request_Type: 'Attendance Regularization',
+            Request_Date: date.toLocaleDateString('en-IN'),
+            Reason: reason,
+          },
+          entity: { type: 'attendance_regularization', id: record.id, link: '/attendance/regularize' },
+        });
+      }
+    } catch (notificationError) {
+      console.warn('[regularize] manager notification failed:', notificationError);
+    }
     return ok({ regularization: record }, 201);
   } catch (e: unknown) {
     return fail(e instanceof Error ? e.message : 'Failed to create', 500);

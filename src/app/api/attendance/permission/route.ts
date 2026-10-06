@@ -90,6 +90,28 @@ export async function POST(request: Request) {
     const hours = Math.max(0.25, Math.round(rawHours * 4) / 4); // round to nearest 15 min
     if (hours > 8) return fail('Permission cannot exceed 8 hours — use a half-day leave instead');
 
+    // A permission cannot be raised on an approved leave day, and requests for
+    // the same employee/date may not duplicate or overlap in time.
+    const dayStart = new Date(`${date.toISOString().slice(0, 10)}T00:00:00.000Z`);
+    const dayEnd = new Date(`${date.toISOString().slice(0, 10)}T23:59:59.999Z`);
+    const approvedLeave = await db.leaveRequest.findFirst({
+      where: { employeeId: emp.id, status: 'approved', startDate: { lte: dayEnd }, endDate: { gte: dayStart } },
+      select: { id: true },
+    });
+    if (approvedLeave) return fail('Permission cannot be requested on a date with approved leave.', 409);
+
+    const conflicting = await db.hourlyPermission.findFirst({
+      where: {
+        employeeId: emp.id,
+        date: { gte: dayStart, lte: dayEnd },
+        status: { in: ['pending', 'approved'] },
+        startTime: { lt: endTime },
+        endTime: { gt: startTime },
+      },
+      select: { id: true, startTime: true, endTime: true },
+    });
+    if (conflicting) return fail('A permission request already exists or overlaps this time range for the selected date.', 409);
+
     // ─── Unified Rule Engine enforcement ─────────────────────────────
     // Honor the unified AttendanceWorkflowConfig rules (monthly cap on
     // hourly permissions, geofencing/IP, auto-deduction threshold) even
@@ -155,6 +177,17 @@ export async function POST(request: Request) {
         autoApproved,
       },
     });
+    try {
+      const scope = await (await import('@/lib/companyScope')).resolveCompanyScope(request);
+      const employee = await db.employee.findUnique({ where: { id: emp.id }, select: { reportingManager: { select: { userId: true, email: true, firstName: true, lastName: true } } } });
+      const manager = (employee as any)?.reportingManager;
+      const managerUserId = manager?.userId || (manager?.email ? (await db.user.findFirst({ where: { email: { equals: manager.email, mode: 'insensitive' } }, select: { id: true } }))?.id : null);
+      const recipient = managerUserId ? { userId: managerUserId } : manager?.email ? { name: `${manager.firstName} ${manager.lastName}`.trim(), email: manager.email } : null;
+      if (scope?.tenantId && recipient) {
+        const { dispatchNotification } = await import('@/lib/notification-center');
+        await dispatchNotification({ tenantId: scope.tenantId, module: 'attendance', eventKey: 'attendance.request.submitted', recipients: [recipient], vars: { Employee_Name: `${emp.firstName} ${emp.lastName}`, Request_Type: 'Hourly Permission', Request_Date: date.toLocaleDateString('en-IN'), Reason: reason }, entity: { type: 'hourly_permission', id: record.id, link: '/attendance/permission' } });
+      }
+    } catch (notificationError) { console.warn('[permission] manager notification failed:', notificationError); }
     return ok({ permission: record }, 201);
   } catch (e: unknown) {
     return fail(e instanceof Error ? e.message : 'Failed to create', 500);

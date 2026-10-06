@@ -507,8 +507,19 @@ export async function resolveActorForLevel(
     switch (actorType) {
       case 'reporting_manager': {
         if (!emp.reportingManagerId) return null;
-        const mgr = await db.employee.findUnique({ where: { id: emp.reportingManagerId }, select: { userId: true } });
-        return mgr?.userId || null;
+        // Reporting Manager is stored as an Employee id. Older employee rows
+        // may not have userId populated, so fall back to the manager's email
+        // to resolve the actual login user and keep approval notifications working.
+        const mgr = await db.employee.findUnique({ where: { id: emp.reportingManagerId }, select: { userId: true, email: true } });
+        if (mgr?.userId) return mgr.userId;
+        // Some older records stored the selected approver's User id directly.
+        const directUser = await db.user.findUnique({ where: { id: emp.reportingManagerId }, select: { id: true } }).catch(() => null);
+        if (directUser?.id) return directUser.id;
+        if (mgr?.email) {
+          const managerUser = await db.user.findFirst({ where: { email: { equals: mgr.email, mode: 'insensitive' } }, select: { id: true } });
+          return managerUser?.id || null;
+        }
+        return null;
       }
       case 'department_head': {
         const headId = emp.department?.headId;
