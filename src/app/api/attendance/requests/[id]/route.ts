@@ -25,7 +25,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     const request_ = await db.attendanceRequest.findUnique({
       where: { id },
       include: {
-        employee: { select: { id: true, firstName: true, lastName: true, employeeId: true, email: true } },
+        employee: { select: { id: true, userId: true, firstName: true, lastName: true, employeeId: true, email: true } },
         approvals: { orderBy: { level: 'asc' } },
       },
     });
@@ -121,6 +121,29 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         orderBy: { level: 'asc' },
       }).catch(() => null);
       if (nextStep?.actorUserId) {
+        const nextApprover = await (db as any).user.findUnique({
+          where: { id: nextStep.actorUserId },
+          select: { id: true, name: true, email: true },
+        }).catch(() => null);
+        const { dispatchNotification } = await import('@/lib/notification-center');
+        await dispatchNotification({
+          tenantId: (user as any).tenantId || null,
+          module: 'attendance',
+          eventKey: 'attendance.request.submitted',
+          recipients: [{
+            userId: nextStep.actorUserId,
+            name: nextApprover?.name || nextStep.actorName || 'Approver',
+            email: nextApprover?.email || undefined,
+          }],
+          vars: {
+            Employee_Name: `${reqRow.employee.firstName} ${reqRow.employee.lastName}`,
+            Request_Type: REQUEST_TYPE_LABELS[reqRow.requestType as AttendanceRequestType] || reqRow.requestType,
+            Request_Date: reqRow.startDate ? new Date(reqRow.startDate).toLocaleDateString('en-IN') : '',
+            Reason: reqRow.reason || '—',
+          },
+          entity: { type: 'attendance_request', id, link: '/attendance/requests?scope=inbox' },
+          origin: request.headers.get('origin') || undefined,
+        });
         await notifyApprover(
           db, nextStep.actorUserId, (user as any).tenantId || null,
           `${REQUEST_TYPE_LABELS[reqRow.requestType as AttendanceRequestType]} request — level ${nextStep.level} approval`,

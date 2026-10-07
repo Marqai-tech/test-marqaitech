@@ -529,8 +529,28 @@ export async function resolveActorForLevel(
       }
       case 'hr_admin': {
         const roles = ['admin', 'hr_admin', 'tenant_admin'];
-        const admin = await db.user.findFirst({
-          where: { OR: tenantId ? [{ tenantId }, {}] : [{}], role: { in: roles }, status: 'active' },
+        let reportingManagerUserId: string | null = null;
+        if (emp.reportingManagerId) {
+          const manager = await db.employee.findUnique({
+            where: { id: emp.reportingManagerId },
+            select: { userId: true, email: true },
+          });
+          reportingManagerUserId = manager?.userId || (manager?.email
+            ? (await db.user.findFirst({
+              where: { email: { equals: manager.email, mode: 'insensitive' } },
+              select: { id: true },
+            }))?.id || null
+            : null);
+        }
+        const excludeManager = reportingManagerUserId ? { NOT: { id: reportingManagerUserId } } : {};
+        const tenantAdmin = tenantId ? await db.user.findFirst({
+          where: { tenantId, role: { in: roles }, status: 'active', ...excludeManager },
+          orderBy: { createdAt: 'asc' },
+          select: { id: true },
+        }) : null;
+        const admin = tenantAdmin || await db.user.findFirst({
+          where: { role: { in: roles }, status: 'active', ...excludeManager },
+          orderBy: { createdAt: 'asc' },
           select: { id: true },
         });
         return admin?.id || null;
@@ -696,8 +716,8 @@ export async function runSystemActions(db: PrismaClient, requestId: string): Pro
       const existing = await db.attendance.findFirst({ where: { employeeId: request.employeeId, date } });
       const patch: Record<string, unknown> = { status: 'present' };
       if (reqTime) {
-        if (punchType === 'check_in') { patch.checkIn = reqTime; if (existing?.checkOut) patch.workingHours = (existing.checkOut.getTime() - reqTime.getTime()) / 3600000; }
-        else { patch.checkOut = reqTime; if (existing?.checkIn) patch.workingHours = (reqTime.getTime() - existing.checkIn.getTime()) / 3600000; }
+        if (punchType === 'check_in') { patch.checkIn = reqTime; if (existing?.checkOut) patch.workHours = (existing.checkOut.getTime() - reqTime.getTime()) / 3600000; }
+        else { patch.checkOut = reqTime; if (existing?.checkIn) patch.workHours = (reqTime.getTime() - existing.checkIn.getTime()) / 3600000; }
       }
       if (existing) await db.attendance.update({ where: { id: existing.id }, data: patch });
       else await db.attendance.create({ data: { employeeId: request.employeeId, date, ...patch } as any });
