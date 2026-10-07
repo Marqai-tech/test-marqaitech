@@ -266,6 +266,14 @@ export default function ApplyAttendanceByHRPage() {
     }
   };
 
+  const overtimeDuration = (() => {
+    if (!overtimeForm.date || !overtimeForm.startTime || !overtimeForm.endTime) return 0;
+    const start = new Date(`${overtimeForm.date}T${overtimeForm.startTime}`);
+    const end = new Date(`${overtimeForm.date}T${overtimeForm.endTime}`);
+    const hours = (end.getTime() - start.getTime()) / 3600000;
+    return hours > 0 ? Math.round(hours * 100) / 100 : 0;
+  })();
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -493,6 +501,12 @@ export default function ApplyAttendanceByHRPage() {
                       <label className="block text-xs font-medium text-slate-600 mb-1.5">OT End Time <span className="text-red-500 font-bold">*</span></label>
                       <TimePickerAmPm value={overtimeForm.endTime} onChange={v => setOvertimeForm({ ...overtimeForm, endTime: v })} className="w-full" />
                     </div>
+                    {overtimeDuration > 0 && (
+                      <div className="sm:col-span-2 rounded-lg border border-teal-100 bg-teal-50 px-3 py-2">
+                        <p className="text-sm font-medium text-teal-700">OT Duration: {overtimeDuration} hour{overtimeDuration === 1 ? '' : 's'}</p>
+                        <p className="text-xs text-teal-600 mt-0.5">The server will verify attendance, leave, conflicts, and scheduled shift hours before submission.</p>
+                      </div>
+                    )}
                     <div className="sm:col-span-2">
                       <label className="block text-xs font-medium text-slate-600 mb-1.5">Reason <span className="text-red-500 font-bold">*</span></label>
                       <input type="text" value={overtimeForm.reason} onChange={e => setOvertimeForm({ ...overtimeForm, reason: e.target.value })} className="3boxes-input w-full" placeholder="e.g. Project deadline" />

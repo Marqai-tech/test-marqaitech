@@ -109,8 +109,8 @@ export async function PUT(request: Request) {
       allowedIps: Array.isArray(rules.allowedIps) ? rules.allowedIps.map(String).filter(Boolean) : [],
       requireQrVerification: rules.requireQrVerification !== false,
       // Shift & Grace policy (unified from legacy AttendancePolicyRule)
-      shiftStartDefault: typeof rules.shiftStartDefault === 'string' ? rules.shiftStartDefault : '09:00',
-      shiftEndDefault: typeof rules.shiftEndDefault === 'string' ? rules.shiftEndDefault : '17:30',
+      shiftStartDefault: typeof rules.shiftStartDefault === 'string' ? rules.shiftStartDefault : '09:30',
+      shiftEndDefault: typeof rules.shiftEndDefault === 'string' ? rules.shiftEndDefault : '18:30',
       breakDurationMinutes: Math.max(0, Math.min(180, Number(rules.breakDurationMinutes) || 30)),
       lateGraceMinutes: Math.max(0, Math.min(120, Number(rules.lateGraceMinutes) || 15)),
       earlyGraceMinutes: Math.max(0, Math.min(120, Number(rules.earlyGraceMinutes) || 10)),
