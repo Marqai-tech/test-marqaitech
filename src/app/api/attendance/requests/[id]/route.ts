@@ -106,25 +106,29 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
           }).catch(() => null);
         }
       }
-      await notifyApprover(
-        db, reqRow.employee.userId || null, (user as any).tenantId || null,
-        `${REQUEST_TYPE_LABELS[reqRow.requestType as AttendanceRequestType]} ${result.status}`,
-        `Your ${REQUEST_TYPE_LABELS[reqRow.requestType as AttendanceRequestType]?.toLowerCase()} request was ${result.status}.`,
-        '/attendance/requests',
-        {
+      const { dispatchNotification } = await import('@/lib/notification-center');
+      const employeeRecipient = reqRow.employee.userId
+        ? { userId: reqRow.employee.userId, email: reqRow.employee.email || undefined }
+        : reqRow.employee.email
+          ? { email: reqRow.employee.email, name: `${reqRow.employee.firstName} ${reqRow.employee.lastName}`.trim() }
+          : null;
+      if (employeeRecipient && (user as any).tenantId) {
+        await dispatchNotification({
+          tenantId: (user as any).tenantId,
+          module: 'attendance',
           eventKey: 'attendance.request.result',
-          entityType: 'attendance_request',
-          entityId: id,
+          recipients: [employeeRecipient],
           vars: {
             Request_Type: REQUEST_TYPE_LABELS[reqRow.requestType as AttendanceRequestType] || reqRow.requestType,
             Request_Date: reqRow.startDate ? new Date(reqRow.startDate).toLocaleDateString('en-IN') : '',
             Status: result.status === 'approved' ? 'APPROVED' : 'REJECTED',
-            Approver_Name: user.name || '',
+            Approver_Name: user.name || user.email || '',
             Comment: body.comments ? `Comments: ${body.comments}` : '',
           },
+          entity: { type: 'attendance_request', id, link: '/attendance/requests' },
           origin: request.headers.get('origin') || undefined,
-        },
-      );
+        });
+      }
     } else {
       // Mid-level approved — notify the next-level approver (multi-channel + actionable)
       const nextStep = await (db as any).attendanceRequestApproval.findFirst({
