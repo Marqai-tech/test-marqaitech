@@ -514,7 +514,7 @@ export default function AttendancePage() {
       setCheckingIn(true);
       const now = new Date();
       const gps = await captureGps();
-      if (!gps) toast('Location unavailable — punch recorded without GPS', { icon: '⚠️' });
+      if (!gps) throw new Error('Location access is required to check in/check out. Please enable location access and try again.');
       const res = await fetch('/api/attendance/punch', {
         method: 'POST',
         headers: getAuthHeaders(),
@@ -547,7 +547,7 @@ export default function AttendancePage() {
       setCheckingOut(true);
       const now = new Date();
       const gps = await captureGps();
-      if (!gps) toast('Location unavailable — punch recorded without GPS', { icon: '⚠️' });
+      if (!gps) throw new Error('Location access is required to check in/check out. Please enable location access and try again.');
       const res = await fetch('/api/attendance/punch', {
         method: 'POST',
         headers: getAuthHeaders(),
@@ -1175,6 +1175,16 @@ export default function AttendancePage() {
       {activeTab === 'self' && (
         <>
           {/* ── Today's Quick Stats ── */}
+          {todayRecord?.checkIn && !todayRecord.checkOut && (
+            <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-800" role="alert">
+              <FiAlertTriangle className="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-600" />
+              <div>
+                <p className="text-sm font-semibold">Missing check-out</p>
+                <p className="text-sm">You have not checked out for today. Please complete your check-out.</p>
+                <Link href="/attendance" className="mt-1 inline-block text-xs font-semibold text-amber-700 underline">Go to check-out</Link>
+              </div>
+            </div>
+          )}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCard
               icon={<FiLogIn className="w-5 h-5" />}

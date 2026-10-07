@@ -4,10 +4,9 @@
  * is rejected before the request is saved.
  */
 
-export const DEFAULT_SHIFT_START = '09:00';
-export const DEFAULT_SHIFT_END = '17:30';
+export const DEFAULT_SHIFT_START = '09:30';
+export const DEFAULT_SHIFT_END = '18:30';
 
-const EARLY_CHECK_IN_MINUTES = 4 * 60;
 
 export function hhmmToMinutes(value: string): number | null {
   const match = /^(\d{1,2}):(\d{2})$/.exec(value.trim());
@@ -54,7 +53,7 @@ export function validatePunchTime(input: {
 
   const start = hhmmToMinutes(input.shiftStart || DEFAULT_SHIFT_START) ?? hhmmToMinutes(DEFAULT_SHIFT_START)!;
   const end = hhmmToMinutes(input.shiftEnd || DEFAULT_SHIFT_END) ?? hhmmToMinutes(DEFAULT_SHIFT_END)!;
-  const earliestCheckIn = Math.max(0, start - EARLY_CHECK_IN_MINUTES);
+  const earliestCheckIn = start;
   const entered = minutesToLabel(punchMinutes);
   const punchLabel = input.punchType === 'check_in' ? 'Check-in' : 'Check-out';
 

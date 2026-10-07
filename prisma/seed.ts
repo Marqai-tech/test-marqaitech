@@ -1,6 +1,7 @@
 import bcryptjs from 'bcryptjs';
 import { PrismaClient } from '../src/generated/prisma/client';
 import { PrismaNeon } from '@prisma/adapter-neon';
+import { PrismaPg } from '@prisma/adapter-pg';
 
 // Setup Prisma client with Neon adapter (same pattern as src/lib/prisma.ts)
 const connectionString = process.env.POSTGRES_PRISMA_URL || process.env.POSTGRES_URL || process.env.DATABASE_URL;
@@ -8,7 +9,11 @@ if (!connectionString) {
   throw new Error('No database connection string found. Set POSTGRES_PRISMA_URL, POSTGRES_URL, or DATABASE_URL');
 }
 
-const adapter = new PrismaNeon({ connectionString });
+// Local plain PostgreSQL cannot use the Neon serverless driver — pick the
+// standard pg adapter when the URL points to localhost.
+const adapter = /localhost|127\.0\.0\.1|\[::1\]/i.test(connectionString)
+  ? new PrismaPg({ connectionString })
+  : new PrismaNeon({ connectionString });
 const prisma = new PrismaClient({ adapter });
 
 async function hashPassword(password: string): Promise<string> {

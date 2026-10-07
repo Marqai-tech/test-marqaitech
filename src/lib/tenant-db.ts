@@ -47,8 +47,19 @@
 
 import { PrismaClient } from '@/generated/prisma/client'
 import { PrismaNeon } from '@prisma/adapter-neon'
+import { PrismaPg } from '@prisma/adapter-pg'
 import { neonConfig } from '@neondatabase/serverless'
 import wsModule from 'ws'
+
+// Local development (plain PostgreSQL on localhost) needs the standard pg
+// adapter — the Neon serverless driver only speaks Neon's HTTP/WebSocket
+// protocol. Neon URLs (production) are unaffected.
+function createDbAdapter(connectionString: string) {
+  if (/localhost|127\.0\.0\.1|\[::1\]/i.test(connectionString)) {
+    return new PrismaPg({ connectionString })
+  }
+  return new PrismaNeon({ connectionString })
+}
 
 // Node-side Neon fix: the serverless driver needs an explicit WebSocket
 // constructor outside edge runtimes. Native WebSocket can be unavailable or
@@ -241,7 +252,7 @@ export async function getDbForTenant(tenantSlug: string): Promise<PrismaClient> 
 
     // Create a new PrismaClient for this tenant's database
     console.log(`[TenantDB] Routing to dedicated DB "${tenantDbRecord.databaseName}" for tenant "${tenantSlug}"`)
-    const adapter = new PrismaNeon({ connectionString: tenantDbRecord.connectionString })
+    const adapter = createDbAdapter(tenantDbRecord.connectionString)
     const tenantClient = new PrismaClient({ adapter })
 
     // Cache it

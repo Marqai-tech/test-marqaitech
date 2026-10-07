@@ -7,7 +7,22 @@ function corsHeaders() {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Cache-Control': 'no-store, max-age=0',
   };
+}
+
+const PROBATION_BLOCKED_LEAVE_NAMES = new Set(['casual leave', 'casual', 'cl', 'sick leave', 'sick', 'sl', 'earned leave', 'earned', 'el', 'annual leave', 'annual', 'personal leave', 'personal', 'pl']);
+function isProbationEmployee(status: unknown, joiningDate: Date | null | undefined): boolean {
+  if (!String(status || '').toLowerCase().includes('probation') || !joiningDate) return false;
+  const end = new Date(joiningDate);
+  end.setMonth(end.getMonth() + 6);
+  return end.getTime() > Date.now();
+}
+function isBlockedDuringProbation(leaveType: { name?: string | null; code?: string | null; probationRestricted?: boolean }): boolean {
+  const keys = [leaveType.code, leaveType.name]
+    .filter(Boolean)
+    .map(value => String(value).toLowerCase().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim());
+  return Boolean(leaveType.probationRestricted) || keys.some(key => PROBATION_BLOCKED_LEAVE_NAMES.has(key));
 }
 
 export async function OPTIONS() {
@@ -95,7 +110,7 @@ export async function GET(request: Request) {
 
         const employees = await db.employee.findMany({
           where: employeeWhere,
-          select: { id: true },
+          select: { id: true, employeeStatus: true, dateOfJoining: true },
         });
 
         if (employees.length === 0) {
@@ -115,6 +130,7 @@ export async function GET(request: Request) {
                 id: true,
                 name: true,
                 code: true,
+                probationRestricted: true,
               },
             },
             employee: {
@@ -124,11 +140,14 @@ export async function GET(request: Request) {
           orderBy: { leaveType: { name: 'asc' } },
         });
 
+        const probationEmployeeIds = new Set(employees.filter(e => isProbationEmployee(e.employeeStatus, e.dateOfJoining)).map(e => e.id));
         const summary = balances.reduce(
           (acc, b) => {
-            acc.totalAllocated += b.total || 0;
-            acc.totalUsed += b.used || 0;
-            acc.totalRemaining += b.remaining || 0;
+            const restricted = probationEmployeeIds.has(b.employeeId);
+            const restrictedLeave = isBlockedDuringProbation(b.leaveType);
+            acc.totalAllocated += restricted && restrictedLeave ? 0 : (b.total || 0);
+            acc.totalUsed += restricted && restrictedLeave ? 0 : (b.used || 0);
+            acc.totalRemaining += restricted && restrictedLeave ? 0 : (b.remaining || 0);
             return acc;
           },
           { totalAllocated: 0, totalUsed: 0, totalRemaining: 0 }
@@ -143,9 +162,9 @@ export async function GET(request: Request) {
               employeeId: b.employeeId,
               employee: b.employee,
               year: b.year,
-              total: b.total,
-              used: b.used,
-              remaining: b.remaining,
+              total: probationEmployeeIds.has(b.employeeId) && isBlockedDuringProbation(b.leaveType) ? 0 : b.total,
+              used: probationEmployeeIds.has(b.employeeId) && isBlockedDuringProbation(b.leaveType) ? 0 : b.used,
+              remaining: probationEmployeeIds.has(b.employeeId) && isBlockedDuringProbation(b.leaveType) ? 0 : b.remaining,
               carryForward: b.carryForward,
             })),
             summary,
@@ -174,6 +193,8 @@ export async function GET(request: Request) {
       }
     }
 
+    const targetEmployee = await db.employee.findUnique({ where: { id: employeeId }, select: { employeeStatus: true, dateOfJoining: true } });
+    const isProbation = isProbationEmployee(targetEmployee?.employeeStatus, targetEmployee?.dateOfJoining);
     const balances = await db.leaveBalance.findMany({
       where: { employeeId, year },
       include: {
@@ -182,6 +203,7 @@ export async function GET(request: Request) {
             id: true,
             name: true,
             code: true,
+            probationRestricted: true,
           },
         },
       },
@@ -210,27 +232,53 @@ export async function GET(request: Request) {
           name: true,
           code: true,
           defaultDays: true,
+          probationRestricted: true,
         },
         orderBy: { name: 'asc' },
       });
       result = leaveTypes.map((lt) => ({
         id: `synthetic-${lt.id}`,
         leaveTypeId: lt.id,
-        leaveType: { id: lt.id, name: lt.name, code: lt.code },
+        leaveType: { id: lt.id, name: lt.name, code: lt.code, probationRestricted: lt.probationRestricted },
         year,
-        total: lt.defaultDays || 0,
+        total: isProbation && isBlockedDuringProbation(lt) ? 0 : (lt.defaultDays || 0),
         used: 0,
-        remaining: lt.defaultDays || 0,
+        remaining: isProbation && isBlockedDuringProbation(lt) ? 0 : (lt.defaultDays || 0),
         carryForward: 0,
         synthetic: true,
       })) as typeof balances;
     }
 
+    // Always expose every active leave type, even when an employee has no
+    // balance row yet. This keeps ESS/Home cards complete (including Personal
+    // Leave and LOP) for new or probationary employees.
+    const activeLeaveTypes = await db.leaveType.findMany({
+      where: { status: 'active' },
+      select: { id: true, name: true, code: true, defaultDays: true, probationRestricted: true },
+      orderBy: { name: 'asc' },
+    }).catch(() => []);
+    const existingLeaveTypeIds = new Set(result.map((b) => b.leaveTypeId));
+    for (const leaveType of activeLeaveTypes) {
+      if (existingLeaveTypeIds.has(leaveType.id)) continue;
+      result.push({
+        id: `synthetic-${leaveType.id}`,
+        leaveTypeId: leaveType.id,
+        leaveType: leaveType,
+        year,
+        total: isProbation && isBlockedDuringProbation(leaveType) ? 0 : (leaveType.defaultDays || 0),
+        used: 0,
+        remaining: isProbation && isBlockedDuringProbation(leaveType) ? 0 : (leaveType.defaultDays || 0),
+        carryForward: 0,
+        synthetic: true,
+      } as typeof result[number]);
+    }
+
     const summary = result.reduce(
       (acc, b) => {
-        acc.totalAllocated += b.total || 0;
-        acc.totalUsed += b.used || 0;
-        acc.totalRemaining += b.remaining || 0;
+        const restricted = isProbation && isBlockedDuringProbation(b.leaveType);
+        acc.totalAllocated += restricted ? 0 : (b.total || 0);
+        acc.totalUsed += restricted ? 0 : (b.used || 0);
+        acc.totalRemaining += restricted ? 0 : (b.remaining || 0);
         return acc;
       },
       { totalAllocated: 0, totalUsed: 0, totalRemaining: 0 }
@@ -243,11 +291,12 @@ export async function GET(request: Request) {
           leaveTypeId: b.leaveTypeId,
           leaveType: b.leaveType,
           year: b.year,
-          total: b.total,
-          used: b.used,
-          remaining: b.remaining,
+          total: isProbation && isBlockedDuringProbation(b.leaveType) ? 0 : b.total,
+          used: isProbation && isBlockedDuringProbation(b.leaveType) ? 0 : b.used,
+          remaining: isProbation && isBlockedDuringProbation(b.leaveType) ? 0 : b.remaining,
           carryForward: b.carryForward,
         })),
+        probation: isProbation,
         summary,
       },
       { headers: corsHeaders() }

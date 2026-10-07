@@ -17,6 +17,7 @@ import {
 } from 'recharts';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
+import { dashboardHrefForRole } from '@/lib/roleAccess';
 
 /* ---------- helpers ---------- */
 
@@ -172,13 +173,14 @@ export default function ESSDashboardPage() {
 
   useEffect(() => {
     if (userRole === 'super_admin') {
-      router.replace('/super-admin');
+      router.replace(dashboardHrefForRole(userRole));
     }
   }, [userRole, router]);
 
   /* ----- state ----- */
   const [loading, setLoading] = useState(true);
   const [leaveBalances, setLeaveBalances] = useState<LeaveBalanceItem[]>([]);
+  const [isProbation, setIsProbation] = useState(false);
   const [leaveSummary, setLeaveSummary] = useState({ total: 0, used: 0, remaining: 0 });
   const [attendanceRate, setAttendanceRate] = useState<number | null>(null);
   const [attendanceRows, setAttendanceRows] = useState<AttendanceRow[]>([]);
@@ -206,7 +208,7 @@ export default function ESSDashboardPage() {
     // Helper that swallows errors and returns null
     const safe = async (url: string) => {
       try {
-        const res = await fetch(url, { headers });
+        const res = await fetch(url, { headers, cache: 'no-store' });
         if (!res.ok) return null;
         return await res.json();
       } catch {
@@ -234,6 +236,7 @@ export default function ESSDashboardPage() {
     if (leaveData?.balances) {
       const balances: LeaveBalanceItem[] = leaveData.balances;
       setLeaveBalances(balances);
+                  setIsProbation(Boolean(leaveData.probation));
       const sum = balances.reduce(
         (acc: { total: number; used: number; remaining: number }, b) => {
           acc.total += b.total || 0;
@@ -375,6 +378,7 @@ setAttendanceRate(typeof summaryData?.attendanceRate === 'number' ? summaryData.
     { icon: <FiTrendingUp className="w-5 h-5" />, label: 'Performance', href: '/performance', bg: 'from-rose-400 to-pink-500', shadow: 'shadow-pink-500/25' },
     { icon: <FiSend className="w-5 h-5" />, label: 'Timesheet', href: '/timesheets', bg: 'from-sky-400 to-emerald-500', shadow: 'shadow-emerald-500/25' },
     { icon: <FiFolder className="w-5 h-5" />, label: 'Documents', href: '/documents', bg: 'from-fuchsia-400 to-teal-500', shadow: 'shadow-teal-500/25' },
+    { icon: <FiFileText className="w-5 h-5" />, label: 'Policies', href: '/policies-handbook', bg: 'from-teal-400 to-emerald-500', shadow: 'shadow-emerald-500/25' },
     { icon: <FiBriefcase className="w-5 h-5" />, label: 'Assets', href: '/assets', bg: 'from-yellow-400 to-amber-500', shadow: 'shadow-amber-500/25' },
     { icon: <FiHeart className="w-5 h-5" />, label: 'Grievance', href: '/grievances', bg: 'from-red-400 to-rose-500', shadow: 'shadow-rose-500/25' },
   ];
@@ -415,6 +419,12 @@ setAttendanceRate(typeof summaryData?.attendanceRate === 'number' ? summaryData.
   };
 
   /* ----- render ----- */
+
+  // The platform dashboard owns the super admin experience. Do not paint
+  // employee self-service content while the role-specific redirect runs.
+  if (!user || userRole === 'super_admin') {
+    return <div className="py-12 text-center text-thb-text-secondary">Loading dashboard...</div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -484,6 +494,12 @@ setAttendanceRate(typeof summaryData?.attendanceRate === 'number' ? summaryData.
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Leave balance */}
         <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
+          {isProbation && (
+            <div className="mb-4 rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3">
+              <p className="font-bold text-emerald-800">Probationary Employee – 6 Months</p>
+              <p className="mt-1 text-xs text-emerald-700">During the probation period, Casual, Sick, Earned/Annual, and Personal Leave are not available.</p>
+            </div>
+          )}
           <div className="flex items-center justify-between mb-4">
             <div>
               <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
@@ -530,7 +546,13 @@ setAttendanceRate(typeof summaryData?.attendanceRate === 'number' ? summaryData.
                 </ResponsiveContainer>
               </div>
               <div className="flex-1 w-full space-y-2">
-                {leaveBalances.slice(0, 5).map((b, i) => (
+                {leaveBalances
+                  .filter((b) => !/loss of pay|lop/i.test(`${b.leaveType?.name || ''} ${b.leaveType?.code || ''}`))
+                  .sort((a, b) => {
+                    const order = ['casual leave', 'sick leave', 'earned leave', 'personal leave'];
+                    return (order.indexOf(a.leaveType?.name?.toLowerCase() || '') + 10) - (order.indexOf(b.leaveType?.name?.toLowerCase() || '') + 10);
+                  })
+                  .map((b, i) => (
                   <div key={b.id} className="flex items-center justify-between text-sm">
                     <div className="flex items-center gap-2 min-w-0">
                       <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: LEAVE_COLORS[i % LEAVE_COLORS.length] }} />
@@ -542,6 +564,12 @@ setAttendanceRate(typeof summaryData?.attendanceRate === 'number' ? summaryData.
                     </span>
                   </div>
                 ))}
+                {isProbation && (
+                  <div className="flex items-center justify-between rounded-lg bg-sky-50 px-2 py-1.5 text-sm">
+                    <span className="font-medium text-sky-800">Loss of Pay (LOP)</span>
+                    <span className="text-xs font-semibold text-sky-700">Available for request · Prior approval required</span>
+                  </div>
+                )}
               </div>
             </div>
           )}

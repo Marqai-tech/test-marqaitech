@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { FiClock, FiPlus, FiRefreshCw, FiZap, FiCheckCircle, FiXCircle, FiInfo, FiEye, FiX } from 'react-icons/fi';
+import { FiClock, FiPlus, FiRefreshCw, FiZap, FiCheckCircle, FiXCircle, FiInfo, FiEye, FiX, FiEdit2 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
@@ -37,6 +37,7 @@ export default function PermissionPage() {
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [viewTarget, setViewTarget] = useState<Permission | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const today = new Date().toISOString().split('T')[0];
   const [form, setForm] = useState({
@@ -82,15 +83,16 @@ export default function PermissionPage() {
     try {
       const startTime = new Date(`${form.date}T${form.startTime}`);
       const endTime = new Date(`${form.date}T${form.endTime}`);
-      const r = await fetch('/api/attendance/permission', {
-        method: 'POST',
+      const r = await fetch(editingId ? `/api/attendance/permission/${editingId}` : '/api/attendance/permission', {
+        method: editingId ? 'PUT' : 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({ date: form.date, startTime, endTime, reason: form.reason }),
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'Failed');
-      toast.success(d.permission?.autoApproved ? 'Permission auto-approved!' : 'Permission request submitted');
+      toast.success(editingId ? 'Permission request updated' : (d.permission?.autoApproved ? 'Permission auto-approved!' : 'Permission request submitted'));
       setShowForm(false);
+      setEditingId(null);
       setForm({ date: today, startTime: '', endTime: '', reason: '' });
       fetchItems();
     } catch (e: unknown) {
@@ -98,6 +100,24 @@ export default function PermissionPage() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const startEdit = (r: Permission) => {
+    if (r.status !== 'pending') return;
+    setEditingId(r.id);
+    setForm({ date: new Date(r.date).toISOString().slice(0, 10), startTime: new Date(r.startTime).toISOString().slice(11, 16), endTime: new Date(r.endTime).toISOString().slice(11, 16), reason: r.reason || '' });
+    setShowForm(true);
+  };
+
+  const cancelRequest = async (id: string) => {
+    if (!confirm('Cancel this pending permission request? This cannot be undone.')) return;
+    try {
+      const r = await fetch(`/api/attendance/permission/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed to cancel request');
+      toast.success('Permission request cancelled');
+      fetchItems();
+    } catch (e: unknown) { toast.error(e instanceof Error ? e.message : 'Failed to cancel request'); }
   };
 
   const handleAction = async (id: string, action: 'approved' | 'rejected') => {
@@ -225,6 +245,12 @@ export default function PermissionPage() {
                       <button onClick={() => setViewTarget(r)} className="p-1.5 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 transition-colors" title="View Permission">
                         <FiEye className="w-4 h-4" />
                       </button>
+                      {!isAdmin && r.status === 'pending' && (
+                        <>
+                          <button onClick={() => startEdit(r)} className="p-1.5 text-slate-500 hover:text-amber-600 hover:bg-amber-50 rounded" title="Edit pending permission"><FiEdit2 className="w-4 h-4" /></button>
+                          <button onClick={() => cancelRequest(r.id)} className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded" title="Cancel pending permission"><FiX className="w-4 h-4" /></button>
+                        </>
+                      )}
                       {isAdmin && r.status === 'pending' && (
                         <>
                           <button onClick={() => handleAction(r.id, 'approved')} className="p-1.5 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 rounded" title="Approve">

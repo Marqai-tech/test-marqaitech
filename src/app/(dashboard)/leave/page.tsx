@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, Suspense } from 'react';
+import React, { useEffect, useState, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   FiCalendar, FiPlus, FiCheck, FiX, FiClock,
@@ -56,7 +56,20 @@ interface Employee {
   employeeId: string;
   firstName: string;
   lastName: string;
+  employeeStatus?: string;
+  dateOfJoining?: string | null;
   leaveBalances?: LeaveBalance[];
+}
+
+const PROBATION_BLOCKED = new Set(['casual leave', 'casual', 'cl', 'sick leave', 'sick', 'sl', 'earned leave', 'earned', 'el', 'annual leave', 'annual', 'personal leave', 'personal', 'pl']);
+function isBlockedInProbation(type: { name?: string; code?: string }) {
+  return [type.name, type.code].filter(Boolean).some(v => PROBATION_BLOCKED.has(String(v).toLowerCase().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim()));
+}
+function isActiveProbation(employee: Employee | null) {
+  if (!employee?.employeeStatus?.toLowerCase().includes('probation') || !employee.dateOfJoining) return false;
+  const end = new Date(employee.dateOfJoining);
+  end.setMonth(end.getMonth() + 6);
+  return end.getTime() > Date.now();
 }
 
 /* ── Helpers ── */
@@ -233,7 +246,25 @@ function LeavePageContent() {
           const detailRes = await fetch(`/api/employees/${myEmp.id}`, { headers });
           if (detailRes.ok) {
             const detailData = await detailRes.json();
-            setLeaveBalances(detailData.employee?.leaveBalances || []);
+            const detailEmployee = detailData.employee;
+            const probation = isActiveProbation(detailEmployee);
+            setEmployee(detailEmployee);
+            const balanceRes = await fetch(`/api/leave/balance?limit=50${sq ? `&${sq}` : ''}`, { headers });
+            const balanceData = balanceRes.ok ? await balanceRes.json() : null;
+            const currentBalances = balanceData?.balances || detailEmployee?.leaveBalances || [];
+            const uniqueBalances = new Map<string, LeaveBalance>();
+            currentBalances.forEach((lb: LeaveBalance) => {
+              const key = String(lb.leaveType?.name || lb.leaveType?.code || '').toLowerCase().replace(/\s+/g, ' ').trim();
+              if (key && !uniqueBalances.has(key)) uniqueBalances.set(key, lb);
+            });
+            if (probation && !Array.from(uniqueBalances.values()).some((lb) => /personal leave|personal|\bpl\b/i.test(`${lb.leaveType?.name || ''} ${lb.leaveType?.code || ''}`))) {
+              uniqueBalances.set('personal leave', { id: 'synthetic-personal-leave', leaveType: { id: 'synthetic-personal-leave', name: 'Personal Leave', code: 'PL' }, total: 0, used: 0, remaining: 0, year: new Date().getFullYear() });
+            }
+            setLeaveBalances(Array.from(uniqueBalances.values()).map((lb: LeaveBalance) => (
+              probation && isBlockedInProbation(lb.leaveType)
+                ? { ...lb, total: 0, used: 0, remaining: 0 }
+                : lb
+            )));
           }
         }
         const ltMap = new Map<string, LeaveType>();
@@ -548,6 +579,12 @@ function LeavePageContent() {
   /* ── Render ── */
   return (
     <div className="space-y-6">
+      {isActiveProbation(employee) && (
+        <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-5 py-4">
+          <h2 className="font-bold text-emerald-800">Probationary Employee – 6 Months</h2>
+          <p className="mt-1 text-sm text-emerald-700">Casual, Sick, Earned/Annual, and Personal Leave are not available during probation. Loss of Pay (LOP) is available with prior approval.</p>
+        </div>
+      )}
       {/* Breadcrumb Header - SmartHR Style */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -654,27 +691,33 @@ function LeavePageContent() {
 
       {/* ── Leave Balance Cards ── */}
       {leaveBalances.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
-          {leaveBalances.map(lb => {
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 items-stretch">
+          {leaveBalances.slice().sort((a, b) => {
+            const order = ['casual leave', 'sick leave', 'earned leave', 'personal leave', 'loss of pay'];
+            return (order.indexOf(a.leaveType?.name?.toLowerCase() || '') + 10) - (order.indexOf(b.leaveType?.name?.toLowerCase() || '') + 10);
+          }).map(lb => {
             const usedPct = lb.total > 0 ? (lb.used / lb.total) * 100 : 0;
             const barColor = usedPct > 80 ? 'bg-red-500' : usedPct > 50 ? 'bg-amber-500' : 'bg-emerald-500';
-            return (
-              <div key={lb.id} className="bg-white rounded-xl border border-slate-200 p-3">
+              const blocked = isActiveProbation(employee) && isBlockedInProbation(lb.leaveType);
+              const isLop = /loss of pay|lop/i.test(`${lb.leaveType.name} ${lb.leaveType.code}`);
+              return (
+              <React.Fragment key={lb.id}>
+              <div className="bg-white rounded-xl border border-slate-200 p-3">
                 <div className="flex items-center justify-between mb-2">
                   <h4 className="text-xs font-semibold text-slate-800">{lb.leaveType.name}</h4>
                   <span className="text-[10px] font-mono text-slate-400">{lb.leaveType.code}</span>
                 </div>
                 <div className="flex items-center gap-3 mb-2">
                   <div className="text-center">
-                    <p className="text-lg font-bold text-emerald-600">{lb.remaining}</p>
+                    <p className="text-lg font-bold text-emerald-600">{blocked ? 0 : lb.remaining}</p>
                     <p className="text-[9px] text-slate-400">Left</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-sm font-semibold text-amber-600">{lb.used}</p>
+                    <p className="text-sm font-semibold text-amber-600">{blocked ? 0 : lb.used}</p>
                     <p className="text-[9px] text-slate-400">Used</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-sm text-slate-500">{lb.total}</p>
+                    <p className="text-sm text-slate-500">{blocked ? 0 : lb.total}</p>
                     <p className="text-[9px] text-slate-400">Total</p>
                   </div>
                 </div>
@@ -682,6 +725,8 @@ function LeavePageContent() {
                   <div className={`h-full ${barColor} rounded-full transition-all duration-500`} style={{ width: `${Math.min(usedPct, 100)}%` }} />
                 </div>
               </div>
+                {isLop && isActiveProbation(employee) && <p className="mt-2 text-[10px] font-semibold text-sky-600">Available for request · Prior approval required</p>}
+              </React.Fragment>
             );
           })}
         </div>

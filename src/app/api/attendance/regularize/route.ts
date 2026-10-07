@@ -7,9 +7,10 @@
  */
 import { requireUser, findEmployeeByEmail, isAdminRole, parseBody, getQuery, ok, fail, OPTIONS } from '@/lib/attendance-leave-api';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
-import { loadWorkflowConfig, buildRequestContext, checkRules } from '@/lib/attendance-workflow';
+import { loadWorkflowConfig, buildRequestContext, checkRules, initializeWorkflow } from '@/lib/attendance-workflow';
 import { sanitizeMultiLineText } from '@/lib/sanitize';
 import { DEFAULT_SHIFT_END, DEFAULT_SHIFT_START, minutesInTimeZone, validatePunchTime } from '@/lib/punch-time-validation';
+import { resolveCompanyScope } from '@/lib/companyScope';
 
 export { OPTIONS };
 
@@ -230,6 +231,79 @@ export async function POST(request: Request) {
         status: 'pending',
       },
     });
+
+    // Bridge the legacy regularization form into the unified Attendance Requests
+    // workflow so the assigned reporting manager sees it in Approvals Inbox.
+    // The legacy row remains for backward-compatible employee list/actions.
+    try {
+      const { config, configId } = await loadWorkflowConfig(db, emp.companyId || null, 'REGULARIZATION', {
+        employmentType: 'all', branchId: null, departmentId: null, employeeStatus: 'active',
+      });
+      const workflowRequest = await db.attendanceRequest.create({
+        data: {
+          companyId: emp.companyId || null,
+          employeeId: emp.id,
+          requestType: 'REGULARIZATION',
+          subtype: null,
+          startDate: date,
+          endDate: date,
+          payload: { punchType, requestedTime: requestedTime.toISOString(), legacyRegularizationId: record.id } as any,
+          reason,
+          status: 'pending',
+          currentLevel: 1,
+          monthlyKey: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`,
+          configSnapshot: JSON.stringify({ levels: config.levels, rules: config.rules, configId }),
+        },
+      });
+      await initializeWorkflow(db, workflowRequest.id, emp.id, (user as any).tenantId || null, config, {
+        employeeId: emp.id,
+        requestType: 'REGULARIZATION',
+        startDate: date,
+        endDate: date,
+        gatePassType: '',
+        hours: 0,
+      });
+    } catch (workflowError) {
+      console.warn('[regularize] unified workflow bridge failed:', workflowError);
+    }
+
+    // Notify the reporting manager through the central in-app + email dispatcher.
+    // HR proxy submissions still use the same approval event, while the employee
+    // remains the requested-for employee in the request record.
+    try {
+      const employee = await db.employee.findUnique({
+        where: { id: emp.id },
+        select: { userId: true, firstName: true, lastName: true, reportingManager: { select: { userId: true, email: true, firstName: true, lastName: true } } },
+      });
+      const manager = (employee as any)?.reportingManager;
+      const managerUserId = manager?.userId || (manager?.email
+        ? (await db.user.findFirst({ where: { email: { equals: manager.email, mode: 'insensitive' } }, select: { id: true } }))?.id
+        : null);
+      const managerRecipient = managerUserId
+        ? { userId: managerUserId }
+        : manager?.email
+          ? { name: `${(manager as any).firstName || ''} ${(manager as any).lastName || ''}`.trim(), email: manager.email }
+          : null;
+      const tenantId = (user as any).tenantId || (await resolveCompanyScope(request))?.tenantId;
+      if (tenantId && managerRecipient) {
+        const { dispatchNotification } = await import('@/lib/notification-center');
+        await dispatchNotification({
+          tenantId,
+          module: 'attendance',
+          eventKey: 'attendance.request.submitted',
+          recipients: [managerRecipient],
+          vars: {
+            Employee_Name: `${emp.firstName} ${emp.lastName}`,
+            Request_Type: 'Attendance Regularization',
+            Request_Date: date.toLocaleDateString('en-IN'),
+            Reason: reason,
+          },
+          entity: { type: 'attendance_regularization', id: record.id, link: '/attendance/regularize' },
+        });
+      }
+    } catch (notificationError) {
+      console.warn('[regularize] manager notification failed:', notificationError);
+    }
     return ok({ regularization: record }, 201);
   } catch (e: unknown) {
     return fail(e instanceof Error ? e.message : 'Failed to create', 500);

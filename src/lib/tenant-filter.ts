@@ -55,6 +55,16 @@ export function isTestPlatformHost(host: string): boolean {
   return h === 'test.3boxeshrms.com' || h === 'www.test.3boxeshrms.com';
 }
 
+/**
+ * Local development host (localhost / 127.0.0.1 / *.localhost). Treated like
+ * the test platform site: every role may log in — local dev mirrors the test
+ * environment, not production. NEVER true for production hosts.
+ */
+export function isLocalDevHost(host: string): boolean {
+  const h = (host || '').split(':')[0].toLowerCase().replace(/^\[|\]$/g, '');
+  return h === 'localhost' || h === '127.0.0.1' || h === '::1' || h.endsWith('.localhost');
+}
+
 // ─── The "Marq AI Tech Pvt Ltd" tenant — the specific leak we're fixing
 export const PLATFORM_PLACEHOLDER_SLUG = '3boxeshrms';
 export const PLATFORM_PLACEHOLDER_NAME = 'Marq AI Tech Pvt Ltd';
@@ -86,8 +96,11 @@ export function isServerLiveSite(request: Request): boolean {
 // Uses FOOLPROOF hostname detection as the PRIMARY method,
 // falls back to site-mode.ts for edge cases.
 export function getClientHiddenSlugs(): string[] {
-  if (typeof window !== 'undefined' && isTestPlatformHost(window.location.hostname)) {
-    return DEMO_HIDDEN_SLUGS;
+  if (typeof window !== 'undefined') {
+    const h = window.location.hostname.toLowerCase();
+    // Test platform site AND local dev mirror each other: sample tenants
+    // visible, only the production MarqAI tenant hidden.
+    if (isTestPlatformHost(h) || isLocalDevHost(h)) return DEMO_HIDDEN_SLUGS;
   }
   if (isClientLiveSite()) return LIVE_HIDDEN_SLUGS;
   // On non-live sites, check if we're on a demo Vercel URL
@@ -102,7 +115,8 @@ export function getClientHiddenSlugs(): string[] {
 // ─── Get hidden slugs (server-side) ─────────────────────────────────
 export function getServerHiddenSlugs(request: Request): string[] {
   const host = (request.headers.get('x-tenant-domain') || request.headers.get('host') || '').split(':')[0].toLowerCase();
-  if (isTestPlatformHost(host)) return DEMO_HIDDEN_SLUGS;
+  // Local dev mirrors the test platform site: sample tenants stay visible.
+  if (isTestPlatformHost(host) || isLocalDevHost(host)) return DEMO_HIDDEN_SLUGS;
   if (isServerLiveSite(request)) return LIVE_HIDDEN_SLUGS;
   if (host.endsWith('.vercel.app')) return DEMO_HIDDEN_SLUGS;
   return LIVE_HIDDEN_SLUGS;
@@ -133,7 +147,7 @@ export function filterHiddenTenantsServer<T extends { slug: string }>(tenants: T
 /** Union of hostname rules and SITE_MODE, except test.3boxeshrms.com which is sample-only. */
 export function getHiddenSlugsForRequest(request: Request): string[] {
   const host = (request.headers.get('x-tenant-domain') || request.headers.get('host') || '').split(':')[0];
-  if (isTestPlatformHost(host)) return [...DEMO_HIDDEN_SLUGS];
+  if (isTestPlatformHost(host) || isLocalDevHost(host)) return [...DEMO_HIDDEN_SLUGS];
   const foolproof = getServerHiddenSlugs(request);
   const siteMode = isLiveMode(request) ? LIVE_HIDDEN_SLUGS : DEMO_HIDDEN_SLUGS;
   return [...new Set([...foolproof, ...siteMode])];

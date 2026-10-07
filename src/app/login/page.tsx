@@ -194,7 +194,7 @@ export default function LoginPage() {
       if (success) {
         toast.success('Welcome back! Redirecting...');
         // Redirect based on role:
-        // Super admin → /super-admin (platform control center)
+        // Super admins land on the platform management dashboard in every environment.
         // All other roles → /home (tenant dashboard)
         const { user } = useAuthStore.getState();
         if (user?.role === 'super_admin') {
@@ -957,7 +957,7 @@ export default function LoginPage() {
                 className="w-4 h-4 rounded border-slate-300 text-green-500 focus:ring-green-500/20"
               />
               <label htmlFor="remember" className="text-sm text-slate-500">
-                Keep me signed in for 30 days
+                Keep me signed in for 30 days in this tab
               </label>
             </div>
             )}

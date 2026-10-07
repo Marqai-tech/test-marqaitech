@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/tenant-db';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { resolveCompanyScope } from '@/lib/companyScope';
 import { safeAuditLog } from '@/lib/audit-safe';
@@ -53,6 +53,36 @@ export async function OPTIONS() {
  */
 function buildLocalTimestamp(dateStr: string, timeStr: string): Date {
   return new Date(`${dateStr}T${timeStr}:00`);
+}
+
+function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const earthRadius = 6371000;
+  const toRadians = (value: number) => (value * Math.PI) / 180;
+  const dLat = toRadians(lat2 - lat1);
+  const dLng = toRadians(lng2 - lng1);
+  const a = Math.sin(dLat / 2) ** 2
+    + Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) * Math.sin(dLng / 2) ** 2;
+  return 2 * earthRadius * Math.asin(Math.sqrt(a));
+}
+
+async function resolvePunchGeofences(db: any, tenantId: string | null) {
+  const configured = await db.geofence.findMany({
+    where: { isActive: true },
+    select: { name: true, centerLat: true, centerLng: true, radiusMeters: true },
+  }).catch(() => []);
+  if (configured.length > 0) return configured;
+
+  // Fallback for the configured office location. It is scoped by tenant slug
+  // so local QA and production use the same office pin without changing DB data.
+  if (tenantId) {
+    const tenant = await getPlatformDb().tenant.findUnique({
+      where: { id: tenantId }, select: { slug: true },
+    }).catch(() => null);
+    if (tenant?.slug === 'test-tenant' || tenant?.slug === 'marqaitechgroup') {
+      return [{ name: tenant.slug === 'test-tenant' ? 'QA Test Tenant office' : 'MarqAI Tech office', centerLat: 13.098275, centerLng: 77.585622, radiusMeters: 200 }];
+    }
+  }
+  return [];
 }
 
 /** ALTER TABLE helper — adds the Task 57 columns to Attendance if missing */
@@ -169,6 +199,33 @@ export async function POST(request: NextRequest) {
     const gpsLng = gps && gps.lng != null ? Number(gps.lng) : null;
     const gpsAccuracy = gps && gps.accuracy != null ? Number(gps.accuracy) : null;
     const gpsLabel = gps && gps.label ? String(gps.label) : null;
+
+    // GPS is mandatory for employee check-in/out. Validate before creating or
+    // updating Attendance so denied/unavailable/outside punches never persist.
+    if (action === 'checkin' || action === 'checkout') {
+      if (!Number.isFinite(gpsLat) || !Number.isFinite(gpsLng)) {
+        return NextResponse.json(
+          { error: 'Location access is required to check in/check out. Please enable location access and try again.' },
+          { status: 400, headers: corsHeaders() },
+        );
+      }
+      const geofences = await resolvePunchGeofences(db, scope.tenantId || null);
+      if (geofences.length === 0) {
+        return NextResponse.json(
+          { error: 'Office location is not configured for this tenant. Please contact your administrator.' },
+          { status: 409, headers: corsHeaders() },
+        );
+      }
+      const inside = geofences.some((geofence: { centerLat: number; centerLng: number; radiusMeters: number }) =>
+        haversineMeters(gpsLat, gpsLng, Number(geofence.centerLat), Number(geofence.centerLng)) <= Number(geofence.radiusMeters),
+      );
+      if (!inside) {
+        return NextResponse.json(
+          { error: 'You are outside the permitted office location. Check-in/Check-out is allowed only within the office radius.' },
+          { status: 403, headers: corsHeaders() },
+        );
+      }
+    }
 
     // 1. Upsert the Attendance row with the relevant timestamp + GPS fields
     const attUpdate: Record<string, unknown> = {

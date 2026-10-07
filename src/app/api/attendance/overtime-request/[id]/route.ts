@@ -4,6 +4,7 @@
  */
 import { requireUser, isAdminRole, parseBody, ok, fail, OPTIONS } from '@/lib/attendance-leave-api';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
+import { dispatchOvertimeEvent } from '@/lib/overtime-notify';
 
 export { OPTIONS };
 
@@ -23,8 +24,12 @@ export async function PATCH(
   if (!['approved', 'rejected', 'cancelled'].includes(status)) return fail('Invalid status');
 
   try {
-    const existing = await db.overtimeRequest.findUnique({ where: { id } });
+    const existing = await db.overtimeRequest.findUnique({
+      where: { id },
+      include: { employee: { select: { id: true, userId: true, firstName: true, lastName: true, email: true } } },
+    });
     if (!existing) return fail('Not found', 404);
+    if (existing.status !== 'pending') return fail(`This overtime request is already ${existing.status}`, 409);
 
     let compOffCreditedId: string | null = null;
     let compOffCreditedAt: Date | null = null;
@@ -59,6 +64,33 @@ export async function PATCH(
         compOffCreditedAt,
       },
     });
+
+    // Keep the daily attendance summary in sync with the approved OT request.
+    // The request is already restricted to an attended day at submission time.
+    if (status === 'approved') {
+      const attendance = await db.attendance.findFirst({
+        where: { employeeId: existing.employeeId, date: { gte: new Date(new Date(existing.date).setUTCHours(0, 0, 0, 0)), lt: new Date(new Date(existing.date).setUTCHours(0, 0, 0, 0) + 24 * 3600 * 1000) } },
+        select: { id: true, overtime: true },
+      }).catch(() => null);
+      if (attendance) {
+        await db.attendance.update({
+          where: { id: attendance.id },
+          data: { overtime: Math.round(Math.max(Number(attendance.overtime || 0), existing.estimatedHours) * 100) / 100 },
+        }).catch(() => null);
+      }
+    }
+
+    let approverName = user.name || user.email || 'Approver';
+    await dispatchOvertimeEvent(
+      db,
+      user.tenantId || '',
+      'attendance.overtime.result',
+      { ...updated, employee: existing.employee },
+      existing.employee ? `${existing.employee.firstName} ${existing.employee.lastName}`.trim() : 'Employee',
+      approverName,
+      (body.comments as string) || '',
+      request.headers.get('origin') || undefined,
+    );
 
     // If approved as payout, also create an OvertimeRecord for payroll processing
     if (status === 'approved' && existing.payoutPreference === 'payout') {

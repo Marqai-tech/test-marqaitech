@@ -6,8 +6,8 @@
  *  PATCH /api/attendance/permission/[id]    — approve/reject (managers) OR auto-approve
  */
 import { requireUser, findEmployeeByEmail, isAdminRole, parseBody, getQuery, ok, fail, OPTIONS } from '@/lib/attendance-leave-api';
-import { getDb, getPlatformDb } from '@/lib/tenant-db';
-import { loadWorkflowConfig, buildRequestContext, checkRules } from '@/lib/attendance-workflow';
+import { getDb } from '@/lib/tenant-db';
+import { loadWorkflowConfig, buildRequestContext, checkRules, initializeWorkflow } from '@/lib/attendance-workflow';
 import { sanitizeMultiLineText } from '@/lib/sanitize';
 
 export { OPTIONS };
@@ -90,6 +90,28 @@ export async function POST(request: Request) {
     const hours = Math.max(0.25, Math.round(rawHours * 4) / 4); // round to nearest 15 min
     if (hours > 8) return fail('Permission cannot exceed 8 hours — use a half-day leave instead');
 
+    // A permission cannot be raised on an approved leave day, and requests for
+    // the same employee/date may not duplicate or overlap in time.
+    const dayStart = new Date(`${date.toISOString().slice(0, 10)}T00:00:00.000Z`);
+    const dayEnd = new Date(`${date.toISOString().slice(0, 10)}T23:59:59.999Z`);
+    const approvedLeave = await db.leaveRequest.findFirst({
+      where: { employeeId: emp.id, status: 'approved', startDate: { lte: dayEnd }, endDate: { gte: dayStart } },
+      select: { id: true },
+    });
+    if (approvedLeave) return fail('Permission cannot be requested on a date with approved leave.', 409);
+
+    const conflicting = await db.hourlyPermission.findFirst({
+      where: {
+        employeeId: emp.id,
+        date: { gte: dayStart, lte: dayEnd },
+        status: { in: ['pending', 'approved'] },
+        startTime: { lt: endTime },
+        endTime: { gt: startTime },
+      },
+      select: { id: true, startTime: true, endTime: true },
+    });
+    if (conflicting) return fail('A permission request already exists or overlaps this time range for the selected date.', 409);
+
     // ─── Unified Rule Engine enforcement ─────────────────────────────
     // Honor the unified AttendanceWorkflowConfig rules (monthly cap on
     // hourly permissions, geofencing/IP, auto-deduction threshold) even
@@ -155,6 +177,66 @@ export async function POST(request: Request) {
         autoApproved,
       },
     });
+
+    let workflowRequestId: string | null = null;
+
+    // Bridge the legacy permission row into the unified Attendance Requests
+    // workflow so the assigned manager/HR approver sees it in Approval Inbox.
+    try {
+      const { config, configId } = await loadWorkflowConfig(db, emp.companyId || null, 'HOURLY_PERMISSION', {
+        employmentType: 'all', branchId: null, departmentId: null, employeeStatus: 'active',
+      });
+      const workflowRequest = await db.attendanceRequest.create({
+        data: {
+          companyId: emp.companyId || null,
+          employeeId: emp.id,
+          requestType: 'HOURLY_PERMISSION',
+          subtype: null,
+          startDate: date,
+          endDate: date,
+          payload: { startTime: startTime.toISOString(), endTime: endTime.toISOString(), hours, legacyPermissionId: record.id },
+          reason,
+          status: status === 'approved' ? 'approved' : 'pending',
+          currentLevel: status === 'approved' ? 0 : 1,
+          monthlyKey: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`,
+          configSnapshot: JSON.stringify({ levels: config.levels, rules: config.rules, configId }),
+        },
+      });
+      workflowRequestId = workflowRequest.id;
+      if (status !== 'approved') {
+        await initializeWorkflow(db, workflowRequest.id, emp.id, user.tenantId || null, config, {
+          employeeId: emp.id,
+          requestType: 'HOURLY_PERMISSION',
+          startDate: date,
+          endDate: date,
+          gatePassType: '',
+          hours,
+        });
+      }
+    } catch (workflowError) {
+      console.warn('[permission] unified workflow bridge failed:', workflowError);
+    }
+
+    try {
+      const scope = await (await import('@/lib/companyScope')).resolveCompanyScope(request);
+      const employee = await db.employee.findUnique({ where: { id: emp.id }, select: { reportingManager: { select: { userId: true, email: true, firstName: true, lastName: true } } } });
+      const manager = (employee as unknown as { reportingManager?: { userId?: string | null; email?: string | null; firstName?: string | null; lastName?: string | null } | null })?.reportingManager;
+      const managerUserId = manager?.userId || (manager?.email ? (await db.user.findFirst({ where: { email: { equals: manager.email, mode: 'insensitive' } }, select: { id: true } }))?.id : null);
+      const recipient = managerUserId ? { userId: managerUserId } : manager?.email ? { name: `${manager.firstName} ${manager.lastName}`.trim(), email: manager.email } : null;
+      if (scope?.tenantId && recipient) {
+        const { dispatchNotification } = await import('@/lib/notification-center');
+        await dispatchNotification({
+          tenantId: scope.tenantId,
+          module: 'attendance',
+          eventKey: 'attendance.request.submitted',
+          recipients: [recipient],
+          vars: { Employee_Name: `${emp.firstName} ${emp.lastName}`, Request_Type: 'Hourly Permission', Request_Date: date.toLocaleDateString('en-IN'), Reason: reason },
+          entity: workflowRequestId
+            ? { type: 'attendance_request', id: workflowRequestId, link: '/attendance/requests?scope=inbox' }
+            : { type: 'hourly_permission', id: record.id, link: '/attendance/permission' },
+        });
+      }
+    } catch (notificationError) { console.warn('[permission] manager notification failed:', notificationError); }
     return ok({ permission: record }, 201);
   } catch (e: unknown) {
     return fail(e instanceof Error ? e.message : 'Failed to create', 500);

@@ -183,7 +183,7 @@ export const navSections: NavSection[] = [
   // Employee role: only My Profile + Resignation (self-service)
   // Manager role: + Team view + Org Chart + Probation review
   {
-    key: 'employee',
+    key: 'employees',
     label: 'Employee',
     sectionIcon: FiUsers,
     sectionColor: C.employee,
@@ -245,7 +245,7 @@ export const navSections: NavSection[] = [
     items: [
       // Self-service: employee can apply for leave and view their own balance/applications
       { label: 'Leave Dashboard', href: '/leave', icon: <FiGrid className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'], isNew: true },
-      { label: 'Apply Leave', href: '/leave/apply', icon: <FiCalendar className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'], isNew: true },
+      { label: 'Apply Leave', href: '/leave?action=apply', icon: <FiCalendar className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'], isNew: true },
       { label: 'My Leave Applications', href: '/leave?view=self', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'], isNew: true },
       // HR-only: Apply leave on behalf of employees
       { label: 'Apply Leave by HR', href: '/leave/apply-by-hr', icon: <FiUserPlus className="w-4 h-4" />, moduleKey: 'leave', roles: ['super_admin', 'tenant_admin', 'admin'], isNew: true },
@@ -930,7 +930,7 @@ export const MODULE_GROUPS: ModuleGroup[] = [
     groupLabel: 'Organization',
     groupDescription: 'Company & workforce management',
     groupIcon: FiBriefcase,
-    sections: navSections.filter(s => ['company', 'employee'].includes(s.key)),
+    sections: navSections.filter(s => ['company', 'employees'].includes(s.key)),
   },
   {
     groupLabel: 'Time & Leave',

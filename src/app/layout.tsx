@@ -104,16 +104,11 @@ export default async function RootLayout({
             __html: `(function(){
               try{
                 // ─── CRITICAL: Per-tab session token storage ───
-                // Migrate tb_token from localStorage (shared across tabs)
-                // to sessionStorage (per-tab). This prevents session/role
-                // bleed when two tabs are logged in as different users.
+                // Never import credentials from localStorage: it is shared
+                // across tabs and could restore another user's role.
                 var TOKEN_KEY='tb_token';
-                var ssTok=sessionStorage.getItem(TOKEN_KEY);
-                var lsTok=localStorage.getItem(TOKEN_KEY);
-                if(!ssTok && lsTok){
-                  sessionStorage.setItem(TOKEN_KEY, lsTok);
-                  localStorage.removeItem(TOKEN_KEY);
-                }
+                localStorage.removeItem(TOKEN_KEY);
+                localStorage.removeItem('tb_remember');
                 // Install localStorage shim: redirect tb_token reads/writes
                 // to sessionStorage so all 200+ existing call sites work.
                 var origGet=localStorage.getItem.bind(localStorage);

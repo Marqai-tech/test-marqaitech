@@ -1,7 +1,7 @@
 import { NextResponse, after } from 'next/server';
 import { getPlatformDb, getDbForTenant, getDbForTenantById } from '@/lib/tenant-db';
-import { verifyPassword, createToken, hashPassword, REMEMBER_TOKEN_TTL, SESSION_TOKEN_TTL, REMEMBER_MAX_AGE_SEC, authTokenCookieHeader } from '@/lib/auth';
-import { getHiddenSlugsForRequest, isTestPlatformHost } from '@/lib/tenant-filter';
+import { verifyPassword, createToken, hashPassword, REMEMBER_TOKEN_TTL, SESSION_TOKEN_TTL, authTokenCookieHeader } from '@/lib/auth';
+import { getHiddenSlugsForRequest, isTestPlatformHost, isLocalDevHost } from '@/lib/tenant-filter';
 import { isPersonalEmail } from '@/lib/validators';
 
 function corsHeaders() {
@@ -25,7 +25,10 @@ export async function POST(request: Request) {
   const platformDb = getPlatformDb();
   try {
     const body = await request.json();
-    const { email: rawEmail, employeeId: rawEmployeeId, password, rememberMe } = body;
+    const { email: rawEmail, employeeId: rawEmployeeId, rememberMe } = body;
+    // Trim the password: pasted credentials often carry a trailing tab/space,
+    // which silently fails the hash check ("Invalid email or password").
+    const password = typeof body.password === 'string' ? body.password.trim() : body.password;
     const persistSession = Boolean(rememberMe);
 
     // Task 62: Allow login with either email OR employee ID. The UI sends
@@ -420,11 +423,18 @@ export async function POST(request: Request) {
     // Rule 3: Demo domain (nexus-hrms-mu.vercel.app) is fully independent —
     //         allows ALL roles including super_admin, tenant_admin, hr_admin, etc.
     //         with complete dummy/sample data for every module.
+    // Rule 4: TEST platform site (test.3boxeshrms.com) is the QA environment —
+    //         ALL roles (super_admin, tenant_admin, hr_admin, employee, …) may
+    //         log in there against the TEST database. Local development hosts
+    //         (localhost / 127.0.0.1 / *.localhost) behave the same way so devs
+    //         can log in as any role from one URL. Production rules are
+    //         untouched; these exemptions never apply to 3boxeshrms.com.
+    const isTestPlatformSite = isTestPlatformHost(hostHeader) || isLocalDevHost(hostHeader);
     const isDemoDomain = tenantSlug === '3boxes-hrms-demo';
     const isMainDomain = !tenantSlug; // No tenant slug = main platform domain
 
-    // Rule 0: Main domain is super_admin ONLY
-    if (isMainDomain && user.role !== 'super_admin') {
+    // Rule 0: Main domain is super_admin ONLY (test platform site exempt — Rule 4)
+    if (isMainDomain && !isTestPlatformSite && user.role !== 'super_admin') {
       // Non-super-admin tried to log in on the main platform domain — reject
       // They need to use their own tenant subdomain
       const tenantSlugForUser = user.tenant?.slug || '';
@@ -729,9 +739,9 @@ export async function POST(request: Request) {
         headers: {
           ...corsHeaders(),
           'Server-Timing': `total;dur=${Date.now() - t0}`,
-          'Set-Cookie': persistSession
-            ? authTokenCookieHeader(token, REMEMBER_MAX_AGE_SEC)
-            : authTokenCookieHeader(token, 'session'),
+          // Expire legacy shared cookies. Current sessions stay in tab-scoped
+          // sessionStorage and travel to APIs via Authorization: Bearer.
+          'Set-Cookie': authTokenCookieHeader(null, 0),
         },
       }
     );

@@ -1115,7 +1115,7 @@ export default function SuperAdminPage() {
           ) : dashboard ? (
             <>
               {/* ─── Welcome Banner ─── */}
-              <div className="thb-card p-6 bg-gradient-to-r from-green-600 via-teal-600 to-teal-600 border-0 overflow-hidden relative">
+              <div className="rounded-xl shadow-sm p-6 bg-gradient-to-r from-green-600 via-teal-600 to-teal-600 border-0 overflow-hidden relative">
                 <div className="absolute inset-0 opacity-10">
                   <div className="absolute top-4 right-8 w-32 h-32 bg-white rounded-full blur-3xl" />
                   <div className="absolute bottom-2 left-12 w-24 h-24 bg-white rounded-full blur-2xl" />

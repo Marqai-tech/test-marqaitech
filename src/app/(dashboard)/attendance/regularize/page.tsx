@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { FiClock, FiPlus, FiRefreshCw, FiZap, FiCheckCircle, FiXCircle, FiEye, FiX } from 'react-icons/fi';
+import { FiClock, FiPlus, FiRefreshCw, FiZap, FiCheckCircle, FiXCircle, FiEye, FiX, FiEdit2 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
@@ -40,6 +40,7 @@ export default function RegularizePage() {
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [viewTarget, setViewTarget] = useState<Regularization | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const [form, setForm] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -76,21 +77,47 @@ export default function RegularizePage() {
     setSubmitting(true);
     try {
       const dt = new Date(`${form.date}T${form.requestedTime}`);
-      const r = await fetch('/api/attendance/regularize', {
-        method: 'POST',
+      const r = await fetch(editingId ? `/api/attendance/regularize/${editingId}` : '/api/attendance/regularize', {
+        method: editingId ? 'PUT' : 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({ date: form.date, punchType: form.punchType, requestedTime: dt, reason: form.reason, clientToday: new Date().toLocaleDateString('en-CA') }),
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'Failed');
-      toast.success('Regularization request submitted');
+      toast.success(editingId ? 'Regularization request updated' : 'Regularization request submitted');
       setShowForm(false);
+      setEditingId(null);
       setForm({ date: new Date().toISOString().split('T')[0], punchType: 'check_in', requestedTime: '', reason: '' });
       fetchItems();
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : 'Failed');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const startEdit = (r: Regularization) => {
+    if (r.status !== 'pending') return;
+    setEditingId(r.id);
+    setForm({
+      date: new Date(r.date).toISOString().slice(0, 10),
+      punchType: r.punchType,
+      requestedTime: new Date(r.requestedTime).toISOString().slice(11, 16),
+      reason: r.reason || '',
+    });
+    setShowForm(true);
+  };
+
+  const cancelRequest = async (id: string) => {
+    if (!confirm('Cancel this pending regularization request? This cannot be undone.')) return;
+    try {
+      const r = await fetch(`/api/attendance/regularize/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed to cancel request');
+      toast.success('Regularization request cancelled');
+      fetchItems();
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Failed to cancel request');
     }
   };
 
@@ -228,6 +255,16 @@ export default function RegularizePage() {
                       <button onClick={() => setViewTarget(r)} className="p-1.5 rounded-lg text-slate-400 hover:text-cyan-600 hover:bg-cyan-50 transition-colors" title="View Regularization">
                         <FiEye className="w-4 h-4" />
                       </button>
+                      {!isAdmin && r.status === 'pending' && (
+                        <>
+                          <button onClick={() => startEdit(r)} className="p-1.5 text-slate-500 hover:text-cyan-600 hover:bg-cyan-50 rounded" title="Edit pending request">
+                            <FiEdit2 className="w-4 h-4" />
+                          </button>
+                          <button onClick={() => cancelRequest(r.id)} className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded" title="Cancel pending request">
+                            <FiX className="w-4 h-4" />
+                          </button>
+                        </>
+                      )}
                       {isAdmin && r.status === 'pending' && (
                         <>
                           <button onClick={() => handleAction(r.id, 'approved')} className="p-1.5 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 rounded" title="Approve">

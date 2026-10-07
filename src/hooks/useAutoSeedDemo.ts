@@ -89,7 +89,7 @@ export function useAutoSeedDemo(module: Module, onSeeded?: () => void) {
       }
     } catch {}
 
-    // NOTE: authStore persists the JWT under the `tb_token` localStorage key
+    // NOTE: the localStorage shim resolves `tb_token` to this tab's sessionStorage.
     // (see src/store/authStore.ts). The bare `token` key is never set, so reading
     // it returns null and the API responds with "No token provided" — that's the
     // bug we're fixing here.

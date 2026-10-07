@@ -25,7 +25,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     const request_ = await db.attendanceRequest.findUnique({
       where: { id },
       include: {
-        employee: { select: { id: true, firstName: true, lastName: true, employeeId: true, email: true } },
+        employee: { select: { id: true, userId: true, firstName: true, lastName: true, employeeId: true, email: true } },
         approvals: { orderBy: { level: 'asc' } },
       },
     });
@@ -95,25 +95,46 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     // Notify the requester of the final outcome — multi-channel (Task 36)
     if (result.finalized) {
-      await notifyApprover(
-        db, reqRow.employee.userId || null, (user as any).tenantId || null,
-        `${REQUEST_TYPE_LABELS[reqRow.requestType as AttendanceRequestType]} ${result.status}`,
-        `Your ${REQUEST_TYPE_LABELS[reqRow.requestType as AttendanceRequestType]?.toLowerCase()} request was ${result.status}.`,
-        '/attendance/requests',
-        {
+      if (reqRow.requestType === 'HOURLY_PERMISSION' && result.status === 'rejected') {
+        const payload = (reqRow.payload as Record<string, unknown> | null) || {};
+        const legacyPermissionId = typeof payload.legacyPermissionId === 'string' ? String(payload.legacyPermissionId) : null;
+        const legacyOvertimeId = typeof payload.legacyOvertimeId === 'string' ? String(payload.legacyOvertimeId) : null;
+        if (legacyPermissionId) {
+          await (db as any).hourlyPermission.update({
+            where: { id: legacyPermissionId },
+            data: { status: 'rejected', approvedAt: new Date(), approvedBy: user.id || user.email || 'workflow' },
+          }).catch(() => null);
+        }
+        if (legacyOvertimeId) {
+          await (db as any).overtimeRequest.update({
+            where: { id: legacyOvertimeId },
+            data: { status: 'rejected', approvedAt: new Date(), approvedBy: user.id || user.email || 'workflow' },
+          }).catch(() => null);
+        }
+      }
+      const { dispatchNotification } = await import('@/lib/notification-center');
+      const employeeRecipient = reqRow.employee.userId
+        ? { userId: reqRow.employee.userId, email: reqRow.employee.email || undefined }
+        : reqRow.employee.email
+          ? { email: reqRow.employee.email, name: `${reqRow.employee.firstName} ${reqRow.employee.lastName}`.trim() }
+          : null;
+      if (employeeRecipient && (user as any).tenantId) {
+        await dispatchNotification({
+          tenantId: (user as any).tenantId,
+          module: 'attendance',
           eventKey: 'attendance.request.result',
-          entityType: 'attendance_request',
-          entityId: id,
+          recipients: [employeeRecipient],
           vars: {
             Request_Type: REQUEST_TYPE_LABELS[reqRow.requestType as AttendanceRequestType] || reqRow.requestType,
             Request_Date: reqRow.startDate ? new Date(reqRow.startDate).toLocaleDateString('en-IN') : '',
             Status: result.status === 'approved' ? 'APPROVED' : 'REJECTED',
-            Approver_Name: user.name || '',
+            Approver_Name: user.name || user.email || '',
             Comment: body.comments ? `Comments: ${body.comments}` : '',
           },
+          entity: { type: 'attendance_request', id, link: '/attendance/requests' },
           origin: request.headers.get('origin') || undefined,
-        },
-      );
+        });
+      }
     } else {
       // Mid-level approved — notify the next-level approver (multi-channel + actionable)
       const nextStep = await (db as any).attendanceRequestApproval.findFirst({
@@ -121,6 +142,29 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         orderBy: { level: 'asc' },
       }).catch(() => null);
       if (nextStep?.actorUserId) {
+        const nextApprover = await (db as any).user.findUnique({
+          where: { id: nextStep.actorUserId },
+          select: { id: true, name: true, email: true },
+        }).catch(() => null);
+        const { dispatchNotification } = await import('@/lib/notification-center');
+        await dispatchNotification({
+          tenantId: (user as any).tenantId || null,
+          module: 'attendance',
+          eventKey: 'attendance.request.submitted',
+          recipients: [{
+            userId: nextStep.actorUserId,
+            name: nextApprover?.name || nextStep.actorName || 'Approver',
+            email: nextApprover?.email || undefined,
+          }],
+          vars: {
+            Employee_Name: `${reqRow.employee.firstName} ${reqRow.employee.lastName}`,
+            Request_Type: REQUEST_TYPE_LABELS[reqRow.requestType as AttendanceRequestType] || reqRow.requestType,
+            Request_Date: reqRow.startDate ? new Date(reqRow.startDate).toLocaleDateString('en-IN') : '',
+            Reason: reqRow.reason || '—',
+          },
+          entity: { type: 'attendance_request', id, link: '/attendance/requests?scope=inbox' },
+          origin: request.headers.get('origin') || undefined,
+        });
         await notifyApprover(
           db, nextStep.actorUserId, (user as any).tenantId || null,
           `${REQUEST_TYPE_LABELS[reqRow.requestType as AttendanceRequestType]} request — level ${nextStep.level} approval`,

@@ -1,8 +1,9 @@
 /**
  * 3Boxes HRMS — Session token storage
  *
- * Default: `tb_token` lives in sessionStorage (per-tab).
- * Keep me signed in: also persist in localStorage with a 30-day JWT.
+ * `tb_token` lives only in sessionStorage, which is isolated per tab.
+ * Remember-me may lengthen the token expiry, but never stores credentials in
+ * localStorage because localStorage and cookies are shared across tabs.
  *
  * Native localStorage methods are captured before the shim is installed so
  * remember-me cleanup never wipes the in-tab session token.
@@ -15,23 +16,7 @@ let shimInstalled = false;
 let originalGetItem: ((key: string) => string | null) | null = null;
 let originalSetItem: ((key: string, value: string) => void) | null = null;
 let originalRemoveItem: ((key: string) => void) | null = null;
-
-function rawGet(key: string): string | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    return originalGetItem ? originalGetItem(key) : window.localStorage.getItem(key);
-  } catch {
-    return null;
-  }
-}
-
-function rawSet(key: string, value: string): void {
-  if (typeof window === 'undefined') return;
-  try {
-    if (originalSetItem) originalSetItem(key, value);
-    else window.localStorage.setItem(key, value);
-  } catch { /* ignore */ }
-}
+let fetchShimInstalled = false;
 
 function rawRemove(key: string): void {
   if (typeof window === 'undefined') return;
@@ -42,41 +27,18 @@ function rawRemove(key: string): void {
 }
 
 export function isRememberMe(): boolean {
-  return rawGet(REMEMBER_KEY) === '1';
+  if (typeof window === 'undefined') return false;
+  try { return window.sessionStorage.getItem(REMEMBER_KEY) === '1'; } catch { return false; }
 }
 
 export function setRememberMe(enabled: boolean): void {
   if (enabled) {
-    rawSet(REMEMBER_KEY, '1');
+    try { window.sessionStorage.setItem(REMEMBER_KEY, '1'); } catch { /* ignore */ }
   } else {
-    rawRemove(REMEMBER_KEY);
-    rawRemove(TOKEN_KEY);
-  }
-}
-
-function migrateTokenFromLocalStorage(): void {
-  if (typeof window === 'undefined') return;
-
-  const ssToken = sessionStorage.getItem(TOKEN_KEY);
-  const lsToken = rawGet(TOKEN_KEY);
-
-  if (isRememberMe()) {
-    const token = ssToken || lsToken;
-    if (token) {
-      sessionStorage.setItem(TOKEN_KEY, token);
-      rawSet(TOKEN_KEY, token);
-    }
-    return;
-  }
-
-  if (ssToken) {
-    rawRemove(TOKEN_KEY);
-    return;
-  }
-
-  if (lsToken) {
-    sessionStorage.setItem(TOKEN_KEY, lsToken);
-    rawRemove(TOKEN_KEY);
+    try {
+      window.sessionStorage.removeItem(REMEMBER_KEY);
+      window.sessionStorage.removeItem(TOKEN_KEY);
+    } catch { /* ignore */ }
   }
 }
 
@@ -89,11 +51,9 @@ export function installTokenStorageShim(): void {
   originalSetItem = window.localStorage.setItem.bind(window.localStorage);
   originalRemoveItem = window.localStorage.removeItem.bind(window.localStorage);
 
-  migrateTokenFromLocalStorage();
-
   window.localStorage.getItem = function (key: string): string | null {
     if (key === TOKEN_KEY) {
-      return sessionStorage.getItem(TOKEN_KEY) || (isRememberMe() ? rawGet(TOKEN_KEY) : null);
+      return sessionStorage.getItem(TOKEN_KEY);
     }
     return originalGetItem!(key);
   };
@@ -101,7 +61,6 @@ export function installTokenStorageShim(): void {
   window.localStorage.setItem = function (key: string, value: string): void {
     if (key === TOKEN_KEY) {
       sessionStorage.setItem(TOKEN_KEY, value);
-      if (isRememberMe()) rawSet(TOKEN_KEY, value);
       return;
     }
     originalSetItem!(key, value);
@@ -110,8 +69,7 @@ export function installTokenStorageShim(): void {
   window.localStorage.removeItem = function (key: string): void {
     if (key === TOKEN_KEY) {
       sessionStorage.removeItem(TOKEN_KEY);
-      rawRemove(TOKEN_KEY);
-      rawRemove(REMEMBER_KEY);
+      sessionStorage.removeItem(REMEMBER_KEY);
       return;
     }
     originalRemoveItem!(key);
@@ -121,7 +79,7 @@ export function installTokenStorageShim(): void {
 export function getToken(): string | null {
   if (typeof window === 'undefined') return null;
   installTokenStorageShim();
-  return sessionStorage.getItem(TOKEN_KEY) || (isRememberMe() ? rawGet(TOKEN_KEY) : null);
+  try { return window.sessionStorage.getItem(TOKEN_KEY); } catch { return null; }
 }
 
 export function setToken(token: string, options?: { remember?: boolean }): void {
@@ -129,18 +87,15 @@ export function setToken(token: string, options?: { remember?: boolean }): void 
   installTokenStorageShim();
   if (typeof options?.remember === 'boolean') {
     if (options.remember) {
-      rawSet(REMEMBER_KEY, '1');
+      try { window.sessionStorage.setItem(REMEMBER_KEY, '1'); } catch { /* ignore */ }
     } else {
-      rawRemove(REMEMBER_KEY);
-      rawRemove(TOKEN_KEY);
+      try {
+        window.sessionStorage.removeItem(REMEMBER_KEY);
+        rawRemove(TOKEN_KEY);
+      } catch { /* ignore */ }
     }
   }
   sessionStorage.setItem(TOKEN_KEY, token);
-  if (isRememberMe()) {
-    rawSet(TOKEN_KEY, token);
-  } else {
-    rawRemove(TOKEN_KEY);
-  }
 }
 
 export function removeToken(): void {
@@ -149,6 +104,47 @@ export function removeToken(): void {
   sessionStorage.removeItem(TOKEN_KEY);
   rawRemove(TOKEN_KEY);
   rawRemove(REMEMBER_KEY);
+}
+
+/** Attach this tab's token to protected API calls that omit an auth header. */
+function installPerTabAuthFetchShim(): void {
+  if (typeof window === 'undefined' || fetchShimInstalled) return;
+  fetchShimInstalled = true;
+
+  const nativeFetch = window.fetch.bind(window);
+  window.fetch = ((input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+    try {
+      const requestUrl = input instanceof Request
+        ? input.url
+        : input instanceof URL
+          ? input.toString()
+          : String(input);
+      const url = new URL(requestUrl, window.location.href);
+      const isSameOriginApi = url.origin === window.location.origin && url.pathname.startsWith('/api/');
+      const isPublicAuthRoute =
+        url.pathname === '/api/auth/login' ||
+        url.pathname === '/api/auth/register' ||
+        url.pathname.startsWith('/api/auth/forgot-password') ||
+        url.pathname.startsWith('/api/auth/reset-password') ||
+        url.pathname.startsWith('/api/auth/tenant-lookup') ||
+        url.pathname.startsWith('/api/candidate-portal/auth/') ||
+        url.pathname.startsWith('/api/client-portal/auth/') ||
+        url.pathname.startsWith('/api/public/');
+
+      if (isSameOriginApi && !isPublicAuthRoute) {
+        const headers = new Headers(input instanceof Request ? input.headers : undefined);
+        if (init?.headers) new Headers(init.headers).forEach((value, key) => headers.set(key, value));
+        const token = getToken();
+        if (token && !headers.has('Authorization')) {
+          headers.set('Authorization', `Bearer ${token}`);
+          return nativeFetch(input, { ...init, headers });
+        }
+      }
+    } catch {
+      // Preserve native fetch behavior if URL/header normalization fails.
+    }
+    return nativeFetch(input, init);
+  }) as typeof window.fetch;
 }
 
 export function getAuthHeaders(extra?: Record<string, string>): Record<string, string> {
@@ -162,4 +158,5 @@ export function getAuthHeaders(extra?: Record<string, string>): Record<string, s
 
 if (typeof window !== 'undefined') {
   installTokenStorageShim();
+  installPerTabAuthFetchShim();
 }

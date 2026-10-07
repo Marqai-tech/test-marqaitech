@@ -190,11 +190,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (typeof window !== 'undefined') {
         persistAuthToken(token, { remember: rememberMe });
         try { sessionStorage.setItem('tb_user', JSON.stringify(user)); } catch { /* ignore */ }
-        if (rememberMe) {
-          try { localStorage.setItem('tb_user', JSON.stringify(user)); } catch { /* ignore */ }
-        } else {
-          try { localStorage.removeItem('tb_user'); } catch { /* ignore */ }
-        }
+        // User identity must follow the tab-scoped token; localStorage is
+        // shared across tabs and can restore another user's role on refresh.
+        try { localStorage.removeItem('tb_user'); } catch { /* ignore */ }
       }
 
       set({
@@ -259,6 +257,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   fetchUser: async () => {
+    const tokenAtStart = get().token;
     const storedToken = (typeof window !== 'undefined' ? readAuthToken() : null) || get().token;
     const { user: existing } = get();
     if (!existing) set({ isLoading: true });
@@ -269,6 +268,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         credentials: 'include',
         cache: 'no-store',
       });
+
+      // Login/logout may complete while this older session refresh is in
+      // flight. Its response must not overwrite or clear the new session.
+      if (get().token !== tokenAtStart) return;
 
       if (!res.ok) {
         if (res.status !== 401 && existing) {
@@ -290,6 +293,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
 
       const rawUser = await res.json();
+      if (get().token !== tokenAtStart) return;
 
       // ─── GOLDEN RULE: Scrub hidden tenant from authStore ───
       // On the LIVE site, we NEVER store hidden tenant data (e.g., "Marq AI Tech Pvt Ltd")
@@ -340,6 +344,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       // Fetch permissions after user is loaded
       get().fetchPermissions();
     } catch (error) {
+      if (get().token !== tokenAtStart) return;
       console.error('Fetch user error:', error);
       if (get().user) {
         set({ isLoading: false });
@@ -427,7 +432,7 @@ if (typeof window !== 'undefined') {
   if (token) {
     let cachedUser: AuthState['user'] = null;
     try {
-      const raw = sessionStorage.getItem('tb_user') || localStorage.getItem('tb_user');
+      const raw = sessionStorage.getItem('tb_user');
       if (raw) cachedUser = JSON.parse(raw);
     } catch { /* ignore */ }
     if (cachedUser) {

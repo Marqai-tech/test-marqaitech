@@ -102,6 +102,15 @@ function extractTenantSlug(request: NextRequest): string {
     return '';
   }
 
+  // 2c. Local development: browsers resolve *.localhost to 127.0.0.1, so
+  // local-dev.localhost:3000 behaves like a tenant subdomain.
+  // local-dev.localhost → tenant "local-dev". Plain "localhost" (no sub)
+  // stays the platform login. Never applies in production.
+  if (hostname.endsWith('.localhost')) {
+    const sub = hostname.slice(0, -'.localhost'.length).toLowerCase();
+    if (sub && !sub.includes('.') && !RESERVED_SUBDOMAINS.includes(sub)) return sub;
+  }
+
   // 3. Subdomain of root domain.
   // marqaitechgroup.3boxeshrms.com → tenant "marqaitechgroup" (production)
   // test.3boxeshrms.com → platform test site (super admin)

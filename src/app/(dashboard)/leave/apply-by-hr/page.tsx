@@ -152,7 +152,35 @@ export default function ApplyLeaveByHRPage() {
       else setLeaveTypes([]);
 
       const balanceData = await balanceRes.json();
-      if (balanceRes.ok) setLeaveBalances(balanceData.balances || []);
+      if (balanceRes.ok) {
+        // A tenant can contain duplicate balance rows for the same leave type
+        // (for example after a policy/employee migration). The HR proxy page
+        // is a leave-type summary, so show one balance per leave type while
+        // retaining the first canonical row for submissions.
+        const uniqueBalances = new Map<string, LeaveBalance>();
+        for (const balance of (balanceData.balances || []) as LeaveBalance[]) {
+          const key = String(balance.leaveType?.name || balance.leaveType?.code || balance.leaveType?.id || '')
+            .toLowerCase().replace(/\s+/g, ' ').trim();
+          if (key && !uniqueBalances.has(key)) uniqueBalances.set(key, balance);
+        }
+        // These policy categories must be visible for every employee even
+        // when the tenant has not created a balance row for them yet.
+        if (!uniqueBalances.has('personal leave')) {
+          uniqueBalances.set('personal leave', {
+            id: 'synthetic-personal-leave', total: 0, used: 0, remaining: 0,
+            year: new Date().getFullYear(),
+            leaveType: { id: 'synthetic-personal-leave', name: 'Personal Leave', code: 'PL' },
+          });
+        }
+        if (!uniqueBalances.has('loss of pay') && !uniqueBalances.has('lop')) {
+          uniqueBalances.set('loss of pay', {
+            id: 'synthetic-loss-of-pay', total: 0, used: 0, remaining: 0,
+            year: new Date().getFullYear(),
+            leaveType: { id: 'synthetic-loss-of-pay', name: 'Loss of Pay (LOP)', code: 'LOP' },
+          });
+        }
+        setLeaveBalances(Array.from(uniqueBalances.values()));
+      }
 
       const requestData = await requestsRes.json();
       if (requestsRes.ok) setRecentRequests(requestData.leaveRequests || []);

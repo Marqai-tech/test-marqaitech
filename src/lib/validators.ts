@@ -9,7 +9,7 @@
  * so callers can show specific error messages.
  *
  * Indian Standard Formats:
- *   Aadhaar: 12 digits + Luhn checksum (UIDAI standard)
+ *   Aadhaar: 12 digits + Verhoeff checksum
  *   PAN: AAAAA9999A — 5 letters + 4 digits + 1 letter (IT standard)
  *   GST: 15 chars — 2 digit state code + PAN + 1 entity + Z + 1 checksum
  *   CIN: 21 chars — [LU] + 5 digits + 2 letters + 4 digits + 3 letters + 6 digits
@@ -76,16 +76,19 @@ export function validatePasswordRequired(password: string): { valid: boolean; er
 // ─── Aadhaar Card ───────────────────────────────────────────────────────
 
 /**
- * Validate Aadhaar number with Luhn checksum.
+ * Validate Aadhaar number with Verhoeff checksum.
  *
  * Aadhaar format (UIDAI):
  *   - Exactly 12 digits
  *   - No leading zeroes (first digit 1-9)
- *   - Last digit is Luhn check digit
+ *   - Last digit is Verhoeff check digit
  *   - Common formats: XXXX XXXX XXXX, XXXX-XXXX-XXXX, XXXXXXXXXXXX
  *
- * The Luhn algorithm is the same as credit card validation
- * but applied to 12 digits instead of 16.
+ * NOTE: Verhoeff, not Luhn. Luhn is the credit-card algorithm and rejects
+ * most genuine Aadhaar numbers. The p-table below is the cyclic permutation
+ * p1 = (1 5 8 9 4 2 7 0)(3 6) applied iteratively — beware of copy-pasted
+ * variants with a wrong p7 row (e.g. [7,0,4,9,1,5,2,6,3,8]), which silently
+ * miss transpositions and reject some valid numbers.
  */
 export function validateAadhaar(value: string): { valid: boolean; error?: string; formatted?: string } {
   if (!value || !value.trim()) return { valid: true }; // Optional field — empty is OK
@@ -96,8 +99,8 @@ export function validateAadhaar(value: string): { valid: boolean; error?: string
   if (digits.length !== 12) return { valid: false, error: 'Aadhaar number must be exactly 12 digits' };
   if (digits[0] === '0') return { valid: false, error: 'Aadhaar number cannot start with 0' };
 
-  // Luhn checksum validation
-  if (!luhnCheck(digits)) return { valid: false, error: 'Invalid Aadhaar number (checksum failed)' };
+  // Verhoeff checksum validation
+  if (!verhoeffCheck(digits)) return { valid: false, error: 'Invalid Aadhaar number (checksum failed)' };
 
   // Return formatted version: XXXX XXXX XXXX
   const formatted = `${digits.slice(0, 4)} ${digits.slice(4, 8)} ${digits.slice(8, 12)}`;
@@ -105,23 +108,45 @@ export function validateAadhaar(value: string): { valid: boolean; error?: string
 }
 
 /**
- * Luhn algorithm — validates check digit.
- * Used by Aadhaar (12 digits) and credit cards (16 digits).
+ * Verhoeff algorithm — validates the Aadhaar check digit.
+ *
+ * Tables: d = Cayley table of the dihedral group D5; p = permutation
+ * (1 5 8 9 4 2 7 0)(3 6) applied i times (p[i] = p1^(i+1), period 8).
+ * Processes digits right to left; valid iff the final checksum is 0.
  */
-function luhnCheck(numStr: string): boolean {
-  let sum = 0;
-  let alternate = false;
-  // Process from right to left
-  for (let i = numStr.length - 1; i >= 0; i--) {
-    let n = parseInt(numStr[i], 10);
-    if (alternate) {
-      n *= 2;
-      if (n > 9) n -= 9;
-    }
-    sum += n;
-    alternate = !alternate;
+function verhoeffCheck(numStr: string): boolean {
+  const multiplicationTable = [
+    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+    [1, 2, 3, 4, 0, 6, 7, 8, 9, 5],
+    [2, 3, 4, 0, 1, 7, 8, 9, 5, 6],
+    [3, 4, 0, 1, 2, 8, 9, 5, 6, 7],
+    [4, 0, 1, 2, 3, 9, 5, 6, 7, 8],
+    [5, 9, 8, 7, 6, 0, 4, 3, 2, 1],
+    [6, 5, 9, 8, 7, 1, 0, 4, 3, 2],
+    [7, 6, 5, 9, 8, 2, 1, 0, 4, 3],
+    [8, 7, 6, 5, 9, 3, 2, 1, 0, 4],
+    [9, 8, 7, 6, 5, 4, 3, 2, 1, 0],
+  ];
+
+  const permutationTable = [
+    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+    [1, 5, 7, 6, 2, 8, 3, 0, 9, 4],
+    [5, 8, 0, 3, 7, 9, 6, 1, 4, 2],
+    [8, 9, 1, 6, 0, 4, 3, 5, 2, 7],
+    [9, 4, 5, 3, 1, 2, 6, 8, 7, 0],
+    [4, 2, 8, 6, 5, 7, 3, 9, 0, 1],
+    [2, 7, 9, 3, 8, 0, 6, 4, 1, 5],
+    [7, 0, 4, 6, 9, 1, 3, 2, 5, 8],
+  ];
+
+  let checksum = 0;
+
+  for (let i = 0; i < numStr.length; i++) {
+    const digit = parseInt(numStr[numStr.length - i - 1], 10);
+    checksum = multiplicationTable[checksum][permutationTable[i % 8][digit]];
   }
-  return sum % 10 === 0;
+
+  return checksum === 0;
 }
 
 // ─── PAN Card ───────────────────────────────────────────────────────────

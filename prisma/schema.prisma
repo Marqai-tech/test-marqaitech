@@ -1832,6 +1832,11 @@ model PolicyDocumentVersion {
 }
 
 // ─── Policy acknowledgment (employee confirms they've read the policy) ───
+// ─── Policy acknowledgment (employee accepts or rejects a policy version) ───
+// One record per (policy, employee, version): a new policy version makes the
+// employee pending again, while the older version's acknowledgment stays as
+// history. `action` records what the employee decided — accepted policies are
+// done, rejected policies remain pending until the employee accepts.
 model PolicyAcknowledgment {
   id             String   @id @default(cuid())
   policyId       String
@@ -1839,12 +1844,13 @@ model PolicyAcknowledgment {
   employeeId     String
   employee       Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   policyVersion  String?  // version acknowledged
+  action         String   @default("accepted") // accepted | rejected
   method         String   @default("self_service") // self_service | admin_marked
   acknowledgedAt DateTime @default(now())
   acknowledgedById String? // userId who recorded the acknowledgment
-  comments       String?
+  comments       String?  // optional comment; MANDATORY rejection reason when action='rejected'
 
-  @@unique([policyId, employeeId])
+  @@unique([policyId, employeeId, policyVersion])
   @@index([policyId])
   @@index([employeeId])
 }

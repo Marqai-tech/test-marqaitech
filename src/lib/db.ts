@@ -18,6 +18,7 @@
  */
 import { PrismaClient } from '@/generated/prisma/client'
 import { PrismaNeon } from '@prisma/adapter-neon'
+import { PrismaPg } from '@prisma/adapter-pg'
 import { neonConfig } from '@neondatabase/serverless'
 import wsModule from 'ws'
 
@@ -45,6 +46,14 @@ function createPrismaClient() {
     if (!connectionString) {
       console.error('[3Boxes DB] No connection string - returning fallback proxy')
       return createFallbackProxy()
+    }
+
+    // Local development (plain PostgreSQL on localhost) uses the standard pg
+    // adapter — the Neon serverless driver only speaks Neon's HTTP/WebSocket
+    // protocol and cannot connect to a local database.
+    if (/localhost|127\.0\.0\.1|\[::1\]/i.test(connectionString)) {
+      const adapter = new PrismaPg({ connectionString })
+      return new PrismaClient({ adapter })
     }
 
     // Use Neon serverless adapter for Vercel compatibility

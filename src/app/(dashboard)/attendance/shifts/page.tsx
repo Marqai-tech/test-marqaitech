@@ -88,8 +88,11 @@ export default function ShiftsPage() {
       const body: Record<string, unknown> = { ...form, companyId, breakDuration: Number(form.breakDuration) || 60, graceTime: Number(form.graceTime) || 15 }
       if (isEdit) body.id = editingId
       if (!companyId) { toast.error('Company ID is required'); setSubmitting(false); return }
-      const sq = scopeQuery()
-      const cidParam = sq ? `?${sq}` : ''
+      const scopeParams = new URLSearchParams(scopeQuery())
+      // Keep the write and subsequent list query on the same company even
+      // while the global company-context store is still hydrating.
+      if (companyId) scopeParams.set('companyId', companyId)
+      const cidParam = scopeParams.toString() ? `?${scopeParams.toString()}` : ''
       await apiFetch(`/api/shifts${cidParam}`, { method: isEdit ? 'PUT' : 'POST', body: JSON.stringify(body) })
       toast.success(`Shift ${isEdit ? 'updated' : 'created'} successfully`)
       handleCancelForm()

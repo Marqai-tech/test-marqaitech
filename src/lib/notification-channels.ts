@@ -20,12 +20,20 @@ export interface ChannelEmailResult {
 
 async function loadTenantMailSettings(db: PrismaClient, tenantId: string): Promise<Record<string, unknown> | null> {
   try {
+    const usable = (value: unknown) => {
+      const s = value as Record<string, unknown> | null;
+      return !!s?.emailIntegrationEnabled && !!s.smtpHost && !!s.smtpUsername && !!s.smtpPassword;
+    };
     const settings = await (db as any).collaborationSettings?.findFirst?.({ where: { tenantId } });
-    if (!settings) return null;
-    const s = settings as Record<string, unknown>;
-    // Only return when there is a usable, enabled configuration
-    if (!s.emailIntegrationEnabled) return null;
-    return s;
+    if (usable(settings)) return settings as Record<string, unknown>;
+
+    // Some local/shared-DB setups persist tenant settings on the platform
+    // client while workflow requests resolve through a tenant client. Re-read
+    // the same tenant record from the platform client before falling back to
+    // development logging.
+    const platformSettings = await (getPlatformDb() as any).collaborationSettings?.findFirst?.({ where: { tenantId } });
+    if (usable(platformSettings)) return platformSettings as Record<string, unknown>;
+    return null;
   } catch {
     return null;
   }
@@ -44,6 +52,26 @@ export async function sendTenantEmail(
       console.warn(`[NotificationCenter] Tenant email failed (${(res as any).error}) — trying global sender`);
     } catch (e) {
       console.warn(`[NotificationCenter] Tenant email error — trying global sender: ${(e as Error).message}`);
+    }
+  }
+  const envSettings = {
+    emailIntegrationEnabled: true,
+    emailProvider: 'smtp',
+    smtpHost: process.env.SMTP_HOST,
+    smtpPort: Number(process.env.SMTP_PORT || 465),
+    smtpUsername: process.env.SMTP_USERNAME,
+    smtpPassword: process.env.SMTP_PASSWORD,
+    smtpEncryption: process.env.SMTP_ENCRYPTION || 'ssl',
+    smtpFromName: process.env.SMTP_FROM_NAME,
+    smtpFromAddress: process.env.SMTP_FROM_EMAIL,
+  };
+  if (envSettings.smtpHost && envSettings.smtpUsername && envSettings.smtpPassword) {
+    try {
+      const res = await sendPerTenantEmail(envSettings as any, params);
+      if (res.success) return { success: true };
+      console.warn(`[NotificationCenter] Local SMTP fallback failed (${(res as any).error})`);
+    } catch (e) {
+      console.warn(`[NotificationCenter] Local SMTP fallback error: ${(e as Error).message}`);
     }
   }
   return sendGlobalEmail(params);

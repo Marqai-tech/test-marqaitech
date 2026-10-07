@@ -96,7 +96,7 @@ const MODULE_SEARCH_MAP: Record<string, string> = {
 
   // ── Leave Module ──
   leave: '/leave',
-  'apply-leave': '/leave/apply',
+  'apply-leave': '/leave?action=apply',
   'apply-leave-by-hr': '/leave/apply-by-hr',
   'leave-by-hr': '/leave/apply-by-hr',
 

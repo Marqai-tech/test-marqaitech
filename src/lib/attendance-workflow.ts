@@ -88,8 +88,8 @@ export interface RequestRules {
   requireQrVerification: boolean;    // gate pass must be scanned at turnstile
 
   // ─── Shift & Grace policy (absorbed from legacy AttendancePolicyRule) ───
-  shiftStartDefault: string;         // '09:00'
-  shiftEndDefault: string;           // '17:30'
+  shiftStartDefault: string;         // '09:30'
+  shiftEndDefault: string;           // '18:30'
   breakDurationMinutes: number;      // lunch break minutes
   lateGraceMinutes: number;          // grace before marking late
   earlyGraceMinutes: number;         // grace before marking early-departure
@@ -138,8 +138,8 @@ const DEFAULT_RULES: RequestRules = {
   requireQrVerification: true,
 
   // Shift & Grace (mirrors legacy AttendancePolicyRule defaults)
-  shiftStartDefault: '09:00',
-  shiftEndDefault: '17:30',
+  shiftStartDefault: '09:30',
+  shiftEndDefault: '18:30',
   breakDurationMinutes: 30,
   lateGraceMinutes: 15,
   earlyGraceMinutes: 10,
@@ -507,8 +507,19 @@ export async function resolveActorForLevel(
     switch (actorType) {
       case 'reporting_manager': {
         if (!emp.reportingManagerId) return null;
-        const mgr = await db.employee.findUnique({ where: { id: emp.reportingManagerId }, select: { userId: true } });
-        return mgr?.userId || null;
+        // Reporting Manager is stored as an Employee id. Older employee rows
+        // may not have userId populated, so fall back to the manager's email
+        // to resolve the actual login user and keep approval notifications working.
+        const mgr = await db.employee.findUnique({ where: { id: emp.reportingManagerId }, select: { userId: true, email: true } });
+        if (mgr?.userId) return mgr.userId;
+        // Some older records stored the selected approver's User id directly.
+        const directUser = await db.user.findUnique({ where: { id: emp.reportingManagerId }, select: { id: true } }).catch(() => null);
+        if (directUser?.id) return directUser.id;
+        if (mgr?.email) {
+          const managerUser = await db.user.findFirst({ where: { email: { equals: mgr.email, mode: 'insensitive' } }, select: { id: true } });
+          return managerUser?.id || null;
+        }
+        return null;
       }
       case 'department_head': {
         const headId = emp.department?.headId;
@@ -518,8 +529,28 @@ export async function resolveActorForLevel(
       }
       case 'hr_admin': {
         const roles = ['admin', 'hr_admin', 'tenant_admin'];
-        const admin = await db.user.findFirst({
-          where: { OR: tenantId ? [{ tenantId }, {}] : [{}], role: { in: roles }, status: 'active' },
+        let reportingManagerUserId: string | null = null;
+        if (emp.reportingManagerId) {
+          const manager = await db.employee.findUnique({
+            where: { id: emp.reportingManagerId },
+            select: { userId: true, email: true },
+          });
+          reportingManagerUserId = manager?.userId || (manager?.email
+            ? (await db.user.findFirst({
+              where: { email: { equals: manager.email, mode: 'insensitive' } },
+              select: { id: true },
+            }))?.id || null
+            : null);
+        }
+        const excludeManager = reportingManagerUserId ? { NOT: { id: reportingManagerUserId } } : {};
+        const tenantAdmin = tenantId ? await db.user.findFirst({
+          where: { tenantId, role: { in: roles }, status: 'active', ...excludeManager },
+          orderBy: { createdAt: 'asc' },
+          select: { id: true },
+        }) : null;
+        const admin = tenantAdmin || await db.user.findFirst({
+          where: { role: { in: roles }, status: 'active', ...excludeManager },
+          orderBy: { createdAt: 'asc' },
           select: { id: true },
         });
         return admin?.id || null;
@@ -651,9 +682,12 @@ export async function initializeWorkflow(
 async function getShiftDefaults(db: PrismaClient, employeeId: string): Promise<{ start: string; end: string }> {
   try {
     const pol = await (db as any).attendancePolicyConfig?.findFirst({ orderBy: { updatedAt: 'desc' } });
-    if (pol) return { start: pol.shiftStartDefault || '09:00', end: pol.shiftEndDefault || '17:30' };
+    if (pol) return {
+      start: pol.shiftStartDefault === '09:00' ? '09:30' : (pol.shiftStartDefault || '09:30'),
+      end: pol.shiftEndDefault === '17:30' ? '18:30' : (pol.shiftEndDefault || '18:30'),
+    };
   } catch { /* ignore */ }
-  return { start: '09:00', end: '17:30' };
+  return { start: '09:30', end: '18:30' };
 }
 
 function atTime(date: Date, hhmm: string): Date {
@@ -685,8 +719,8 @@ export async function runSystemActions(db: PrismaClient, requestId: string): Pro
       const existing = await db.attendance.findFirst({ where: { employeeId: request.employeeId, date } });
       const patch: Record<string, unknown> = { status: 'present' };
       if (reqTime) {
-        if (punchType === 'check_in') { patch.checkIn = reqTime; if (existing?.checkOut) patch.workingHours = (existing.checkOut.getTime() - reqTime.getTime()) / 3600000; }
-        else { patch.checkOut = reqTime; if (existing?.checkIn) patch.workingHours = (reqTime.getTime() - existing.checkIn.getTime()) / 3600000; }
+        if (punchType === 'check_in') { patch.checkIn = reqTime; if (existing?.checkOut) patch.workHours = (existing.checkOut.getTime() - reqTime.getTime()) / 3600000; }
+        else { patch.checkOut = reqTime; if (existing?.checkIn) patch.workHours = (reqTime.getTime() - existing.checkIn.getTime()) / 3600000; }
       }
       if (existing) await db.attendance.update({ where: { id: existing.id }, data: patch });
       else await db.attendance.create({ data: { employeeId: request.employeeId, date, ...patch } as any });
@@ -711,6 +745,32 @@ export async function runSystemActions(db: PrismaClient, requestId: string): Pro
       }
       actions.push(`${days} day(s) marked "Present - WFH" and pushed to the team calendar`);
     } else if (request.requestType === 'HOURLY_PERMISSION') {
+      const legacyOvertimeId = typeof payload.legacyOvertimeId === 'string' ? payload.legacyOvertimeId : null;
+      if (legacyOvertimeId) {
+        const approvedAt = new Date();
+        const overtime = await (db as any).overtimeRequest.findUnique({ where: { id: legacyOvertimeId } }).catch(() => null);
+        if (overtime) {
+          await (db as any).overtimeRequest.update({
+            where: { id: legacyOvertimeId },
+            data: { status: 'approved', approvedBy: 'workflow', approvedAt },
+          }).catch(() => null);
+          await (db as any).overtimeRecord.upsert({
+            where: { employeeId_date: { employeeId: request.employeeId, date: overtime.date } },
+            update: { hours: overtime.estimatedHours, reason: overtime.reason, status: 'approved', approvedBy: 'workflow', approvedAt },
+            create: { employeeId: request.employeeId, date: overtime.date, hours: overtime.estimatedHours, rateType: 'HOURLY_RATE', rate: 0, amount: 0, reason: overtime.reason, status: 'approved', approvedBy: 'workflow', approvedAt },
+          }).catch(() => null);
+          const attendance = await db.attendance.findFirst({ where: { employeeId: request.employeeId, date: { gte: new Date(new Date(overtime.date).setHours(0, 0, 0, 0)), lt: new Date(new Date(overtime.date).setHours(24, 0, 0, 0)) } }, select: { id: true, overtime: true } }).catch(() => null);
+          if (attendance) await db.attendance.update({ where: { id: attendance.id }, data: { overtime: Math.max(Number(attendance.overtime || 0), Number(overtime.estimatedHours || 0)) } }).catch(() => null);
+          actions.push(`Overtime of ${overtime.estimatedHours}h approved and reflected in Attendance`);
+        }
+      } else {
+      const legacyPermissionId = typeof payload.legacyPermissionId === 'string' ? payload.legacyPermissionId : null;
+      if (legacyPermissionId) {
+        await (db as any).hourlyPermission.update({
+          where: { id: legacyPermissionId },
+          data: { status: 'approved', approvedAt: new Date(), approvedBy: 'workflow' },
+        }).catch(() => null);
+      }
       // Adjust required check-out time + cumulative auto-deduction
       const hours = Number(payload.hours || 0);
       const shift = await getShiftDefaults(db, request.employeeId);
@@ -748,6 +808,7 @@ export async function runSystemActions(db: PrismaClient, requestId: string): Pro
         } else {
           actions.push(`Cumulative ${totalHours.toFixed(2)}h exceeded ${threshold}h → no paid-leave balance found to deduct (flagged for HR)`);
         }
+      }
       }
     } else if (request.requestType === 'GATE_PASS') {
       // Issue QR token for the turnstile

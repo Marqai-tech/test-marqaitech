@@ -469,6 +469,21 @@ export async function PUT(
         leavePolicyId, attendancePolicyId, travelPolicyId, salaryStructureId,
       } = body;
 
+      // Employee ID is system-controlled. It may be assigned during employee
+      // creation by an authorized admin, but an employee self-service update
+      // must never be able to change it. Keep this check server-side so it
+      // cannot be bypassed by removing a disabled attribute in the browser.
+      if (employeeId !== undefined && employeeId !== existingEmployee.employeeId) {
+        const callerRole = String(decoded.role || '');
+        const adminRoles = ['super_admin', 'tenant_admin', 'admin', 'hr_admin', 'company_hr_admin', 'hrhead'];
+        if (!adminRoles.includes(callerRole)) {
+          return NextResponse.json(
+            { error: 'Employee ID cannot be changed from employee self-service' },
+            { status: 403, headers: corsHeaders() }
+          );
+        }
+      }
+
       const updateData: Record<string, unknown> = {};
       // Task 71: allow updating employeeId when auto-generation is disabled
       if (employeeId !== undefined) updateData.employeeId = employeeId;

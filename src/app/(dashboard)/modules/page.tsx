@@ -9,7 +9,7 @@ import {
 } from 'react-icons/fi';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
-import { canRoleAccessModule, isModuleEnabledForTenant, LEGACY_ROLE_MAP, navRoleOrLeastPrivilege } from '@/lib/roleAccess';
+import { canRoleAccessModule, isNavSectionEnabled, LEGACY_ROLE_MAP, navRoleOrLeastPrivilege } from '@/lib/roleAccess';
 import { sanitizeSearch } from '@/lib/validators';
 import { navSections, MODULE_GROUPS } from '@/lib/navData';
 import type { NavSection, ModuleGroup, DashboardTab } from '@/lib/navData';
@@ -22,7 +22,7 @@ export default function ModulesPage() {
   const userRole = navRoleOrLeastPrivilege(user?.role);
   const tenantSlug = useCompanyContextStore(s => s.tenant?.slug) || '';
   const tenantId = useCompanyContextStore(s => s.tenant?.id) || '';
-  const { fetchModules } = useTenantModuleStore();
+  const { fetchModules, enabledModules } = useTenantModuleStore();
   const [searchQuery, setSearchQuery] = useState('');
 
   // Fetch tenant module flags on mount
@@ -44,7 +44,7 @@ export default function ModulesPage() {
     return MODULE_GROUPS.map(group => ({
       ...group,
       sections: group.sections
-        .filter(section => isModuleEnabledForTenant(tenantSlug, section.key))
+        .filter(section => isNavSectionEnabled(userRole, tenantSlug, section.key, enabledModules[tenantSlug]))
         .map(section => ({
           ...section,
           items: section.items.filter(item => {
@@ -66,7 +66,7 @@ export default function ModulesPage() {
         }))
         .filter(section => section.items.length > 0),
     })).filter(group => group.sections.length > 0);
-  }, [userRole, tenantSlug, effectiveRoles]);
+  }, [userRole, tenantSlug, effectiveRoles, enabledModules]);
 
   // Filter by search
   const searchFilteredGroups = useMemo(() => {

@@ -178,7 +178,7 @@ export const TENANT_MODULE_WHITELIST: Record<string, string[]> = {
     'tenant',
     // Core HR
     'company',
-    'employee',
+    'employees',
     // Time & Leave
     'leave',
     'attendance',
@@ -249,6 +249,17 @@ export function isModuleEnabledForTenant(tenantSlug: string, moduleKey: string):
  */
 export function navRoleOrLeastPrivilege(role?: string | null): string {
   return role && role.trim() ? role : 'employee';
+}
+
+/** Platform navigation is independent of the company selected for data. */
+export function isNavSectionEnabled(role: string, tenantSlug: string, moduleKey: string, enabledModules?: Set<string>): boolean {
+  if (role === 'super_admin' && moduleKey === 'super-admin') return true;
+  return enabledModules ? enabledModules.has(moduleKey) : isModuleEnabledForTenant(tenantSlug, moduleKey);
+}
+
+/** Super admins land on the platform management dashboard. */
+export function dashboardHrefForRole(role?: string | null): string {
+  return role === 'super_admin' ? '/super-admin' : '/dashboard';
 }
 
 /**
@@ -480,6 +491,7 @@ export function isSelfServicePathAllowed(pathname: string, search = ''): boolean
     '/home',
     '/dashboard',
     '/modules',
+    '/policies-handbook',
     '/leave',
     '/attendance',
     '/docs',
