@@ -7,7 +7,7 @@
  */
 import { requireUser, findEmployeeByEmail, isAdminRole, parseBody, getQuery, ok, fail, OPTIONS } from '@/lib/attendance-leave-api';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
-import { loadWorkflowConfig, buildRequestContext, checkRules } from '@/lib/attendance-workflow';
+import { loadWorkflowConfig, buildRequestContext, checkRules, initializeWorkflow } from '@/lib/attendance-workflow';
 import { sanitizeMultiLineText } from '@/lib/sanitize';
 
 export { OPTIONS };
@@ -177,6 +177,43 @@ export async function POST(request: Request) {
         autoApproved,
       },
     });
+
+    // Bridge the legacy permission row into the unified Attendance Requests
+    // workflow so the assigned manager/HR approver sees it in Approval Inbox.
+    try {
+      const { config, configId } = await loadWorkflowConfig(db, emp.companyId || null, 'HOURLY_PERMISSION', {
+        employmentType: 'all', branchId: null, departmentId: null, employeeStatus: 'active',
+      });
+      const workflowRequest = await db.attendanceRequest.create({
+        data: {
+          companyId: emp.companyId || null,
+          employeeId: emp.id,
+          requestType: 'HOURLY_PERMISSION',
+          subtype: null,
+          startDate: date,
+          endDate: date,
+          payload: { startTime: startTime.toISOString(), endTime: endTime.toISOString(), hours, legacyPermissionId: record.id } as any,
+          reason,
+          status: status === 'approved' ? 'approved' : 'pending',
+          currentLevel: status === 'approved' ? 0 : 1,
+          monthlyKey: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`,
+          configSnapshot: JSON.stringify({ levels: config.levels, rules: config.rules, configId }),
+        },
+      });
+      if (status !== 'approved') {
+        await initializeWorkflow(db, workflowRequest.id, emp.id, (user as any).tenantId || null, config, {
+          employeeId: emp.id,
+          requestType: 'HOURLY_PERMISSION',
+          startDate: date,
+          endDate: date,
+          gatePassType: '',
+          hours,
+        });
+      }
+    } catch (workflowError) {
+      console.warn('[permission] unified workflow bridge failed:', workflowError);
+    }
+
     try {
       const scope = await (await import('@/lib/companyScope')).resolveCompanyScope(request);
       const employee = await db.employee.findUnique({ where: { id: emp.id }, select: { reportingManager: { select: { userId: true, email: true, firstName: true, lastName: true } } } });
