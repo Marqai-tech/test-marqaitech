@@ -13,7 +13,6 @@ import toast from 'react-hot-toast'
 import { useAuthStore } from '@/store/authStore'
 import { useCompanyContextStore } from '@/store/companyContextStore'
 import { canAccessEmployeeSettings } from '@/lib/roleAccess'
-import ModuleSettingsPanel, { employeeSections } from '@/components/ModuleSettingsPanel'
 import { useRouter } from 'next/navigation'
 
 /* ── Types ── */
@@ -1056,11 +1055,6 @@ export default function EmployeeSettingsPage() {
           ))}
         </div>
       </div>
-
-      {/* General Employee Settings — show only under Configuration */}
-      {activeTab === 'employee-config' && (
-        <ModuleSettingsPanel sections={employeeSections} />
-      )}
 
       {/* ═══ CREDENTIALS TAB ═══ */}
       {activeTab === 'credentials' && (

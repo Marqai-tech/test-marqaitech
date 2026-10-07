@@ -514,7 +514,7 @@ export default function AttendancePage() {
       setCheckingIn(true);
       const now = new Date();
       const gps = await captureGps();
-      if (!gps) toast('Location unavailable — punch recorded without GPS', { icon: '⚠️' });
+      if (!gps) throw new Error('Location access is required to check in/check out. Please enable location access and try again.');
       const res = await fetch('/api/attendance/punch', {
         method: 'POST',
         headers: getAuthHeaders(),
@@ -547,7 +547,7 @@ export default function AttendancePage() {
       setCheckingOut(true);
       const now = new Date();
       const gps = await captureGps();
-      if (!gps) toast('Location unavailable — punch recorded without GPS', { icon: '⚠️' });
+      if (!gps) throw new Error('Location access is required to check in/check out. Please enable location access and try again.');
       const res = await fetch('/api/attendance/punch', {
         method: 'POST',
         headers: getAuthHeaders(),
