@@ -180,6 +180,7 @@ export default function ESSDashboardPage() {
   /* ----- state ----- */
   const [loading, setLoading] = useState(true);
   const [leaveBalances, setLeaveBalances] = useState<LeaveBalanceItem[]>([]);
+  const [isProbation, setIsProbation] = useState(false);
   const [leaveSummary, setLeaveSummary] = useState({ total: 0, used: 0, remaining: 0 });
   const [attendanceRate, setAttendanceRate] = useState<number | null>(null);
   const [attendanceRows, setAttendanceRows] = useState<AttendanceRow[]>([]);
@@ -235,6 +236,7 @@ export default function ESSDashboardPage() {
     if (leaveData?.balances) {
       const balances: LeaveBalanceItem[] = leaveData.balances;
       setLeaveBalances(balances);
+                  setIsProbation(Boolean(leaveData.probation));
       const sum = balances.reduce(
         (acc: { total: number; used: number; remaining: number }, b) => {
           acc.total += b.total || 0;
@@ -492,6 +494,12 @@ setAttendanceRate(typeof summaryData?.attendanceRate === 'number' ? summaryData.
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Leave balance */}
         <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
+          {isProbation && (
+            <div className="mb-4 rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3">
+              <p className="font-bold text-emerald-800">Probationary Employee – 6 Months</p>
+              <p className="mt-1 text-xs text-emerald-700">During the probation period, Casual, Sick, Earned/Annual, and Personal Leave are not available.</p>
+            </div>
+          )}
           <div className="flex items-center justify-between mb-4">
             <div>
               <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
@@ -538,7 +546,13 @@ setAttendanceRate(typeof summaryData?.attendanceRate === 'number' ? summaryData.
                 </ResponsiveContainer>
               </div>
               <div className="flex-1 w-full space-y-2">
-                {leaveBalances.slice(0, 5).map((b, i) => (
+                {leaveBalances
+                  .filter((b) => !/loss of pay|lop/i.test(`${b.leaveType?.name || ''} ${b.leaveType?.code || ''}`))
+                  .sort((a, b) => {
+                    const order = ['casual leave', 'sick leave', 'earned leave', 'personal leave'];
+                    return (order.indexOf(a.leaveType?.name?.toLowerCase() || '') + 10) - (order.indexOf(b.leaveType?.name?.toLowerCase() || '') + 10);
+                  })
+                  .map((b, i) => (
                   <div key={b.id} className="flex items-center justify-between text-sm">
                     <div className="flex items-center gap-2 min-w-0">
                       <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: LEAVE_COLORS[i % LEAVE_COLORS.length] }} />
@@ -550,6 +564,12 @@ setAttendanceRate(typeof summaryData?.attendanceRate === 'number' ? summaryData.
                     </span>
                   </div>
                 ))}
+                {isProbation && (
+                  <div className="flex items-center justify-between rounded-lg bg-sky-50 px-2 py-1.5 text-sm">
+                    <span className="font-medium text-sky-800">Loss of Pay (LOP)</span>
+                    <span className="text-xs font-semibold text-sky-700">Available for request · Prior approval required</span>
+                  </div>
+                )}
               </div>
             </div>
           )}

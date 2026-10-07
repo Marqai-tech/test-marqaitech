@@ -249,6 +249,30 @@ export async function GET(request: Request) {
       })) as typeof balances;
     }
 
+    // Always expose every active leave type, even when an employee has no
+    // balance row yet. This keeps ESS/Home cards complete (including Personal
+    // Leave and LOP) for new or probationary employees.
+    const activeLeaveTypes = await db.leaveType.findMany({
+      where: { status: 'active' },
+      select: { id: true, name: true, code: true, defaultDays: true, probationRestricted: true },
+      orderBy: { name: 'asc' },
+    }).catch(() => []);
+    const existingLeaveTypeIds = new Set(result.map((b) => b.leaveTypeId));
+    for (const leaveType of activeLeaveTypes) {
+      if (existingLeaveTypeIds.has(leaveType.id)) continue;
+      result.push({
+        id: `synthetic-${leaveType.id}`,
+        leaveTypeId: leaveType.id,
+        leaveType: leaveType,
+        year,
+        total: isProbation && isBlockedDuringProbation(leaveType) ? 0 : (leaveType.defaultDays || 0),
+        used: 0,
+        remaining: isProbation && isBlockedDuringProbation(leaveType) ? 0 : (leaveType.defaultDays || 0),
+        carryForward: 0,
+        synthetic: true,
+      } as typeof result[number]);
+    }
+
     const summary = result.reduce(
       (acc, b) => {
         const restricted = isProbation && isBlockedDuringProbation(b.leaveType);

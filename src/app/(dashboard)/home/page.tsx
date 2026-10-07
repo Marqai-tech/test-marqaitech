@@ -1196,7 +1196,8 @@ function EmployeeHome({ firstName, greeting, today }: { firstName: string; greet
   const router = useRouter();
   const { selectedCompanyId, effectiveCompanyId, effectiveCompanyLabel, hydrated, hydrate } = useCompanyContextStore();
   const [loading, setLoading] = useState(true);
-  const [leaveBalances, setLeaveBalances] = useState<{ leaveType: { name: string }; remaining: number; total: number; used: number }[]>([]);
+  const [leaveBalances, setLeaveBalances] = useState<{ leaveType: { name: string; code?: string }; remaining: number; total: number; used: number }[]>([]);
+  const [isProbation, setIsProbation] = useState(false);
   const [attendanceRate, setAttendanceRate] = useState<number | null>(null);
   const [attendanceSub, setAttendanceSub] = useState('This month');
   const [openTickets, setOpenTickets] = useState(0);
@@ -1226,7 +1227,7 @@ function EmployeeHome({ firstName, greeting, today }: { firstName: string; greet
     };
 
     const [leaveData, summaryData, ticketData, payslipData, timesheetData, policyData] = await Promise.all([
-      safe(`/api/leave/balance?limit=5${scopeQuery}`),
+      safe(`/api/leave/balance?limit=50${scopeQuery}`),
       // Live attendance summary for the current month — uses the shared
       // server-side helper so the rate matches the ESS dashboard exactly.
       safe(`/api/attendance/my-summary${scopeQuery ? '?' + scopeQuery.slice(1) : ''}`),
@@ -1239,10 +1240,20 @@ function EmployeeHome({ firstName, greeting, today }: { firstName: string; greet
 
     // Leave balances — API returns { balances: [...] } or { data: { balances: [...] } }
     const balances = leaveData?.balances || leaveData?.data?.balances || [];
+    const probation = Boolean(leaveData?.probation || leaveData?.data?.probation);
+    setIsProbation(probation);
     if (balances.length > 0) {
-      setLeaveBalances(balances.slice(0, 5));
+      const unique = new Map<string, (typeof balances)[number]>();
+      balances.forEach((balance: (typeof balances)[number]) => {
+        const key = String(balance.leaveType?.name || balance.leaveType?.code || '').toLowerCase().replace(/\s+/g, ' ').trim();
+        if (key && !unique.has(key)) unique.set(key, balance);
+      });
+      if (probation && !Array.from(unique.values()).some((b) => /personal leave|personal|\bpl\b/i.test(`${b.leaveType?.name || ''} ${b.leaveType?.code || ''}`))) {
+        unique.set('personal leave', { id: 'synthetic-personal-leave', leaveType: { name: 'Personal Leave', code: 'PL' }, remaining: 0, total: 0, used: 0 });
+      }
+      setLeaveBalances(Array.from(unique.values()));
     } else {
-      setLeaveBalances([]);
+      setLeaveBalances(probation ? [{ id: 'synthetic-personal-leave', leaveType: { name: 'Personal Leave', code: 'PL' }, remaining: 0, total: 0, used: 0 }] : []);
     }
 
     // Attendance Rate — from /api/attendance/my-summary (current month).
@@ -1407,13 +1418,25 @@ function EmployeeHome({ firstName, greeting, today }: { firstName: string; greet
         {/* Leave balance */}
         <div className="lg:col-span-2">
           <Panel title="My Leave Balance" icon={<FiCalendar className="w-4 h-4" />} href="/leave" accent="text-amber-500">
+            {isProbation && (
+              <div className="mb-4 rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3">
+                <p className="font-bold text-emerald-800">Probationary Employee – 6 Months</p>
+                <p className="mt-1 text-xs text-emerald-700">Casual, Sick, Earned/Annual, and Personal Leave are not available during probation.</p>
+              </div>
+            )}
             {loading ? (
               <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <SkeletonBlock key={i} className="h-12 w-full" />)}</div>
             ) : leaveBalances.length === 0 ? (
               <EmptyState icon={<FiInfo className="w-8 h-8" />} message="No leave balances configured" />
             ) : (
               <div className="space-y-3">
-                {leaveBalances.map((b, i) => (
+                {leaveBalances
+                  .filter((b) => !/loss of pay|lop/i.test(`${b.leaveType?.name || ''} ${b.leaveType?.code || ''}`))
+                  .sort((a, b) => {
+                    const order = ['casual leave', 'sick leave', 'earned leave', 'personal leave'];
+                    return (order.indexOf(a.leaveType?.name?.toLowerCase() || '') + 10) - (order.indexOf(b.leaveType?.name?.toLowerCase() || '') + 10);
+                  })
+                  .map((b, i) => (
                   <div key={i}>
                     <div className="flex items-center justify-between text-sm mb-1">
                       <span className="font-medium text-slate-700">{b.leaveType?.name || 'Leave'}</span>
@@ -1432,6 +1455,12 @@ function EmployeeHome({ firstName, greeting, today }: { firstName: string; greet
                     </div>
                   </div>
                 ))}
+                {isProbation && (
+                  <div className="flex items-center justify-between rounded-lg bg-sky-50 px-2 py-1.5 text-sm">
+                    <span className="font-medium text-sky-800">Loss of Pay (LOP)</span>
+                    <span className="text-xs font-semibold text-sky-700">Available for request · Prior approval required</span>
+                  </div>
+                )}
               </div>
             )}
           </Panel>

@@ -72,14 +72,14 @@ async function resolvePunchGeofences(db: any, tenantId: string | null) {
   }).catch(() => []);
   if (configured.length > 0) return configured;
 
-  // Test-only fallback for QA Test Tenant. This keeps local verification
-  // independent from the production MarqAI Tech tenant.
+  // Fallback for the configured office location. It is scoped by tenant slug
+  // so local QA and production use the same office pin without changing DB data.
   if (tenantId) {
     const tenant = await getPlatformDb().tenant.findUnique({
       where: { id: tenantId }, select: { slug: true },
     }).catch(() => null);
-    if (tenant?.slug === 'test-tenant') {
-      return [{ name: 'QA Test Tenant office', centerLat: 13.0970, centerLng: 77.5815, radiusMeters: 200 }];
+    if (tenant?.slug === 'test-tenant' || tenant?.slug === 'marqaitechgroup') {
+      return [{ name: tenant.slug === 'test-tenant' ? 'QA Test Tenant office' : 'MarqAI Tech office', centerLat: 13.098275, centerLng: 77.585622, radiusMeters: 200 }];
     }
   }
   return [];
