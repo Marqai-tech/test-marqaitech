@@ -6,7 +6,7 @@
  *  PATCH /api/attendance/permission/[id]    — approve/reject (managers) OR auto-approve
  */
 import { requireUser, findEmployeeByEmail, isAdminRole, parseBody, getQuery, ok, fail, OPTIONS } from '@/lib/attendance-leave-api';
-import { getDb, getPlatformDb } from '@/lib/tenant-db';
+import { getDb } from '@/lib/tenant-db';
 import { loadWorkflowConfig, buildRequestContext, checkRules, initializeWorkflow } from '@/lib/attendance-workflow';
 import { sanitizeMultiLineText } from '@/lib/sanitize';
 
@@ -192,7 +192,7 @@ export async function POST(request: Request) {
           subtype: null,
           startDate: date,
           endDate: date,
-          payload: { startTime: startTime.toISOString(), endTime: endTime.toISOString(), hours, legacyPermissionId: record.id } as any,
+          payload: { startTime: startTime.toISOString(), endTime: endTime.toISOString(), hours, legacyPermissionId: record.id },
           reason,
           status: status === 'approved' ? 'approved' : 'pending',
           currentLevel: status === 'approved' ? 0 : 1,
@@ -201,7 +201,7 @@ export async function POST(request: Request) {
         },
       });
       if (status !== 'approved') {
-        await initializeWorkflow(db, workflowRequest.id, emp.id, (user as any).tenantId || null, config, {
+        await initializeWorkflow(db, workflowRequest.id, emp.id, user.tenantId || null, config, {
           employeeId: emp.id,
           requestType: 'HOURLY_PERMISSION',
           startDate: date,
@@ -217,7 +217,7 @@ export async function POST(request: Request) {
     try {
       const scope = await (await import('@/lib/companyScope')).resolveCompanyScope(request);
       const employee = await db.employee.findUnique({ where: { id: emp.id }, select: { reportingManager: { select: { userId: true, email: true, firstName: true, lastName: true } } } });
-      const manager = (employee as any)?.reportingManager;
+      const manager = (employee as unknown as { reportingManager?: { userId?: string | null; email?: string | null; firstName?: string | null; lastName?: string | null } | null })?.reportingManager;
       const managerUserId = manager?.userId || (manager?.email ? (await db.user.findFirst({ where: { email: { equals: manager.email, mode: 'insensitive' } }, select: { id: true } }))?.id : null);
       const recipient = managerUserId ? { userId: managerUserId } : manager?.email ? { name: `${manager.firstName} ${manager.lastName}`.trim(), email: manager.email } : null;
       if (scope?.tenantId && recipient) {
