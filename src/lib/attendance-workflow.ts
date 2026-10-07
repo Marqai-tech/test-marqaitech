@@ -742,6 +742,13 @@ export async function runSystemActions(db: PrismaClient, requestId: string): Pro
       }
       actions.push(`${days} day(s) marked "Present - WFH" and pushed to the team calendar`);
     } else if (request.requestType === 'HOURLY_PERMISSION') {
+      const legacyPermissionId = typeof payload.legacyPermissionId === 'string' ? payload.legacyPermissionId : null;
+      if (legacyPermissionId) {
+        await (db as any).hourlyPermission.update({
+          where: { id: legacyPermissionId },
+          data: { status: 'approved', approvedAt: new Date(), approvedBy: 'workflow' },
+        }).catch(() => null);
+      }
       // Adjust required check-out time + cumulative auto-deduction
       const hours = Number(payload.hours || 0);
       const shift = await getShiftDefaults(db, request.employeeId);

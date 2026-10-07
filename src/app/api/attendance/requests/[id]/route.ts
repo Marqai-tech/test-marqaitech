@@ -95,6 +95,17 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     // Notify the requester of the final outcome — multi-channel (Task 36)
     if (result.finalized) {
+      if (reqRow.requestType === 'HOURLY_PERMISSION' && result.status === 'rejected') {
+        const legacyPermissionId = typeof (reqRow.payload as Record<string, unknown> | null)?.legacyPermissionId === 'string'
+          ? String((reqRow.payload as Record<string, unknown>).legacyPermissionId)
+          : null;
+        if (legacyPermissionId) {
+          await (db as any).hourlyPermission.update({
+            where: { id: legacyPermissionId },
+            data: { status: 'rejected', approvedAt: new Date(), approvedBy: user.id || user.email || 'workflow' },
+          }).catch(() => null);
+        }
+      }
       await notifyApprover(
         db, reqRow.employee.userId || null, (user as any).tenantId || null,
         `${REQUEST_TYPE_LABELS[reqRow.requestType as AttendanceRequestType]} ${result.status}`,
