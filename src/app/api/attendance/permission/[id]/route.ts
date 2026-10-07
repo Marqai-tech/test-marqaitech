@@ -1,5 +1,5 @@
 import { requireUser, isAdminRole, parseBody, ok, fail, OPTIONS } from '@/lib/attendance-leave-api';
-import { getDb, getPlatformDb } from '@/lib/tenant-db';
+import { getDb } from '@/lib/tenant-db';
 
 export { OPTIONS };
 
@@ -67,6 +67,15 @@ export async function PATCH(
   if (!['approved', 'rejected'].includes(status)) return fail('Invalid status');
 
   try {
+    const existing = await db.hourlyPermission.findUnique({
+      where: { id },
+      include: {
+        employee: { select: { userId: true, email: true, firstName: true, lastName: true } },
+      },
+    });
+    if (!existing) return fail('Permission request not found', 404);
+    if (existing.status !== 'pending') return fail('Only pending requests can be approved or rejected', 409);
+
     const updated = await db.hourlyPermission.update({
       where: { id },
       data: {
@@ -75,6 +84,39 @@ export async function PATCH(
         approvedAt: new Date(),
       },
     });
+
+    // Notify the employee after the manager/HR decision through both enabled
+    // in-app and email channels configured for the tenant.
+    try {
+      const { dispatchNotification } = await import('@/lib/notification-center');
+      const tenantId = typeof user.tenantId === 'string' ? user.tenantId : null;
+      const recipient = existing.employee.userId
+        ? { userId: existing.employee.userId, email: existing.employee.email || undefined }
+        : existing.employee.email
+          ? { email: existing.employee.email, name: `${existing.employee.firstName} ${existing.employee.lastName}`.trim() }
+          : null;
+      if (tenantId && recipient) {
+        await dispatchNotification({
+          tenantId,
+          module: 'attendance',
+          eventKey: 'attendance.request.result',
+          recipients: [recipient],
+          vars: {
+            Employee_Name: `${existing.employee.firstName} ${existing.employee.lastName}`.trim(),
+            Request_Type: 'Hourly Permission',
+            Request_Date: new Date(existing.date).toLocaleDateString('en-IN'),
+            Status: status === 'approved' ? 'APPROVED' : 'REJECTED',
+            Approver_Name: user.name || user.email || '',
+            Comment: '',
+          },
+          entity: { type: 'hourly_permission', id, link: '/attendance/permission' },
+          origin: request.headers.get('origin') || undefined,
+        });
+      }
+    } catch (notificationError) {
+      console.warn('[permission] employee outcome notification failed:', notificationError);
+    }
+
     return ok({ permission: updated });
   } catch (e: unknown) {
     return fail(e instanceof Error ? e.message : 'Failed to update', 500);
