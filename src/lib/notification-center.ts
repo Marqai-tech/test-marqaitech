@@ -310,13 +310,14 @@ export async function dispatchNotification(params: DispatchNotificationParams): 
     // Actionable → mint ONE token shared by all channels for this recipient
     let actionToken: string | null = null;
     let actionUrl = '';
+    let actionExpiresAt: Date | null = null;
     if (tpl.actionable && params.entity) {
       actionToken = mintActionToken();
       const slugQ = tenantSlug ? `?tenant=${encodeURIComponent(tenantSlug)}` : '';
       actionUrl = `${baseUrl}/notifications/action/${actionToken}${slugQ}`;
       vars.Action_Url = actionUrl;
-      const expiry = new Date(Date.now() + tpl.expiresHours * 3600 * 1000);
-      vars.Action_Expiry = expiry.toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+      actionExpiresAt = await resolveActionExpiry(db, params.entity, tpl.expiresHours);
+      vars.Action_Expiry = actionExpiresAt.toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
     }
 
     for (const channel of channels) {
@@ -327,7 +328,7 @@ export async function dispatchNotification(params: DispatchNotificationParams): 
       try {
         const status = await sendToChannel({
           db, tenantId, channel, recipient, vars, tpl, module, eventKey,
-          entity: params.entity, actionToken, actionUrl, baseUrl, companyName,
+          entity: params.entity, actionToken, actionUrl, actionExpiresAt, baseUrl, companyName,
         });
         logDelivery(result, channel, recipientLabel, status.status, status.error, actionToken || undefined);
       } catch (e: any) {
@@ -359,8 +360,34 @@ interface SendContext {
   entity?: { type: string; id: string; link?: string };
   actionToken: string | null;
   actionUrl: string;
+  actionExpiresAt: Date | null;
   baseUrl: string;
   companyName: string;
+}
+
+/**
+ * Attendance approval links are tied to the request date. They must not stay
+ * actionable for the generic seven-day notification window after the day the
+ * permission/regularization request applies to.
+ */
+async function resolveActionExpiry(
+  db: PrismaClient,
+  entity: { type: string; id: string },
+  defaultHours: number,
+): Promise<Date> {
+  if (entity.type === 'attendance_request') {
+    const request = await (db as any).attendanceRequest.findUnique({
+      where: { id: entity.id },
+      select: { startDate: true, endDate: true },
+    }).catch(() => null);
+    const requestEnd = request?.endDate || request?.startDate;
+    if (requestEnd) {
+      const expiry = new Date(requestEnd);
+      expiry.setUTCHours(23, 59, 59, 999);
+      return expiry;
+    }
+  }
+  return new Date(Date.now() + defaultHours * 3600 * 1000);
 }
 
 async function sendToChannel(ctx: SendContext): Promise<{ status: string; error?: string }> {
@@ -389,7 +416,7 @@ async function sendToChannel(ctx: SendContext): Promise<{ status: string; error?
         entityLink: entity?.link,
         actionable: !!(tpl.actionable && ctx.actionToken),
         actionToken: ctx.actionToken || undefined,
-        actionExpiresAt: ctx.actionToken ? new Date(Date.now() + tpl.expiresHours * 3600 * 1000) : undefined,
+        actionExpiresAt: ctx.actionToken ? actionExpiresAt || new Date(Date.now() + tpl.expiresHours * 3600 * 1000) : undefined,
         metadata: JSON.stringify(vars),
       },
     });

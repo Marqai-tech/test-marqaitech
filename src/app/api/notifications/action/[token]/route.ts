@@ -173,6 +173,50 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
       return NextResponse.json({ error: result.message }, { status: 400, headers: cors() });
     }
 
+    // Email actions bypass the authenticated UI approval route. When a
+    // multi-level attendance request advances, explicitly notify the next
+    // approver here as well; otherwise only UI approvals trigger that email.
+    if (d.entityType === 'attendance_request' && !result.finalized) {
+      try {
+        const { dispatchNotification } = await import('@/lib/notification-center');
+        const requestRow = await (db as any).attendanceRequest.findUnique({
+          where: { id: d.entityId },
+          select: {
+            tenantId: true, requestType: true, startDate: true, reason: true,
+            employeeId: true,
+            employee: { select: { firstName: true, lastName: true } },
+          },
+        });
+        const nextStep = await (db as any).attendanceRequestApproval.findFirst({
+          where: { requestId: d.entityId, status: 'pending' },
+          orderBy: { level: 'asc' },
+        });
+        if (requestRow && nextStep) {
+          const nextApprover = nextStep.actorUserId
+            ? await (db as any).user.findUnique({ where: { id: nextStep.actorUserId }, select: { id: true, name: true, email: true } })
+            : null;
+          const nextUserId = nextApprover?.id || nextStep.actorUserId;
+          if (nextUserId) {
+            await dispatchNotification({
+              tenantId: requestRow.tenantId,
+              module: 'attendance',
+              eventKey: 'attendance.request.submitted',
+              recipients: [{ userId: nextUserId, email: nextApprover?.email || undefined, name: nextApprover?.name || nextStep.actorName || 'Approver' }],
+              vars: {
+                Employee_Name: `${requestRow.employee?.firstName || ''} ${requestRow.employee?.lastName || ''}`.trim(),
+                Request_Type: requestRow.requestType || 'Attendance Request',
+                Request_Date: requestRow.startDate ? new Date(requestRow.startDate).toLocaleDateString('en-IN') : '',
+                Reason: requestRow.reason || '—',
+              },
+              entity: { type: 'attendance_request', id: d.entityId, link: '/attendance/requests?scope=inbox' },
+            });
+          }
+        }
+      } catch (e) {
+        console.warn('[NotificationAction] next attendance approver notification failed:', (e as Error).message);
+      }
+    }
+
     // Record the action on ALL deliveries sharing this token (multi-channel)
     await db.notificationDelivery.updateMany({
       where: { actionToken: token },
@@ -190,12 +234,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
         : null;
       if (ackKey) {
         const entity = await loadAckTarget(db, d.entityType, d.entityId);
-        if (entity?.tenantId && entity?.requesterUserId) {
+        if (entity?.tenantId && (entity?.requesterUserId || entity?.requesterEmail)) {
           await dispatchNotification({
             tenantId: entity.tenantId,
             module: moduleOf,
             eventKey: ackKey,
-            recipients: [{ userId: entity.requesterUserId }],
+            recipients: [entity.requesterUserId
+              ? { userId: entity.requesterUserId, email: entity.requesterEmail || undefined }
+              : { email: entity.requesterEmail, name: entity.requesterName || 'Employee' }],
             vars: {
               Field_Name: entity.fieldName || '',
               Status: action === 'approve' ? 'approved' : 'rejected',
@@ -226,8 +272,15 @@ async function loadAckTarget(db: any, entityType: string, entityId: string) {
       return { tenantId: lr?.tenantId, requesterUserId: lr?.employee?.userId || null };
     }
     if (entityType === 'attendance_request') {
-      const ar = await (db as any).attendanceRequest.findUnique({ where: { id: entityId }, select: { tenantId: true, employee: { select: { userId: true } }, requestType: true, requestDate: true } });
-      return { tenantId: ar?.tenantId, requesterUserId: ar?.employee?.userId || null, requestType: ar?.requestType, requestDate: ar?.requestDate ? new Date(ar.requestDate).toLocaleDateString('en-IN') : '' };
+      const ar = await (db as any).attendanceRequest.findUnique({ where: { id: entityId }, select: { tenantId: true, employee: { select: { userId: true, email: true, firstName: true, lastName: true } }, requestType: true, requestDate: true, startDate: true } });
+      return {
+        tenantId: ar?.tenantId,
+        requesterUserId: ar?.employee?.userId || null,
+        requesterEmail: ar?.employee?.email || null,
+        requesterName: `${ar?.employee?.firstName || ''} ${ar?.employee?.lastName || ''}`.trim(),
+        requestType: ar?.requestType,
+        requestDate: ar?.requestDate || ar?.startDate ? new Date(ar.requestDate || ar.startDate).toLocaleDateString('en-IN') : '',
+      };
     }
     if (entityType === 'employee_update_request') {
       const ur = await (db as any).employeeUpdateRequest.findUnique({ where: { id: entityId }, select: { tenantId: true, employee: { select: { userId: true } }, fieldName: true } });
