@@ -178,6 +178,8 @@ export async function POST(request: Request) {
       },
     });
 
+    let workflowRequestId: string | null = null;
+
     // Bridge the legacy permission row into the unified Attendance Requests
     // workflow so the assigned manager/HR approver sees it in Approval Inbox.
     try {
@@ -200,6 +202,7 @@ export async function POST(request: Request) {
           configSnapshot: JSON.stringify({ levels: config.levels, rules: config.rules, configId }),
         },
       });
+      workflowRequestId = workflowRequest.id;
       if (status !== 'approved') {
         await initializeWorkflow(db, workflowRequest.id, emp.id, user.tenantId || null, config, {
           employeeId: emp.id,
@@ -222,7 +225,16 @@ export async function POST(request: Request) {
       const recipient = managerUserId ? { userId: managerUserId } : manager?.email ? { name: `${manager.firstName} ${manager.lastName}`.trim(), email: manager.email } : null;
       if (scope?.tenantId && recipient) {
         const { dispatchNotification } = await import('@/lib/notification-center');
-        await dispatchNotification({ tenantId: scope.tenantId, module: 'attendance', eventKey: 'attendance.request.submitted', recipients: [recipient], vars: { Employee_Name: `${emp.firstName} ${emp.lastName}`, Request_Type: 'Hourly Permission', Request_Date: date.toLocaleDateString('en-IN'), Reason: reason }, entity: { type: 'hourly_permission', id: record.id, link: '/attendance/permission' } });
+        await dispatchNotification({
+          tenantId: scope.tenantId,
+          module: 'attendance',
+          eventKey: 'attendance.request.submitted',
+          recipients: [recipient],
+          vars: { Employee_Name: `${emp.firstName} ${emp.lastName}`, Request_Type: 'Hourly Permission', Request_Date: date.toLocaleDateString('en-IN'), Reason: reason },
+          entity: workflowRequestId
+            ? { type: 'attendance_request', id: workflowRequestId, link: '/attendance/requests?scope=inbox' }
+            : { type: 'hourly_permission', id: record.id, link: '/attendance/permission' },
+        });
       }
     } catch (notificationError) { console.warn('[permission] manager notification failed:', notificationError); }
     return ok({ permission: record }, 201);
