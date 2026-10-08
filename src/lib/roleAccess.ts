@@ -254,6 +254,12 @@ export function navRoleOrLeastPrivilege(role?: string | null): string {
 /** Platform navigation is independent of the company selected for data. */
 export function isNavSectionEnabled(role: string, tenantSlug: string, moduleKey: string, enabledModules?: Set<string>): boolean {
   if (role === 'super_admin' && moduleKey === 'super-admin') return true;
+  // Employee management is a core HR capability for tenant and HR admins.
+  // A stale/incomplete tenant module override must not hide it from those roles.
+  if (
+    moduleKey === 'employees' &&
+    ['super_admin', 'tenant_admin', 'admin', 'hr_admin', 'company_hr_admin', 'hrhead'].includes(role)
+  ) return true;
   return enabledModules ? enabledModules.has(moduleKey) : isModuleEnabledForTenant(tenantSlug, moduleKey);
 }
 
