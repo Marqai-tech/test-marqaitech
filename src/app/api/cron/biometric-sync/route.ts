@@ -26,7 +26,8 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: `Active tenant not found: ${slug}` }, { status: 404 });
     }
 
-    const result = await syncETimeOfficePunches(getDbForTenantById(tenant.id), tenant.id);
+    const db = await getDbForTenantById(tenant.id);
+    const result = await syncETimeOfficePunches(db, tenant.id);
     return NextResponse.json(result);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Biometric sync failed.';
