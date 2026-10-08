@@ -63,6 +63,13 @@ export async function downloadLatestPunches(lastRecord: string) {
 
 export function hrmsEmployeeCode(empcode: string) {
   const normalized = String(empcode).trim();
+  const configuredMap = process.env.ETIMEOFFICE_EMPLOYEE_MAP?.split(',') || [];
+  for (const entry of configuredMap) {
+    const [deviceCode, employeeCode] = entry.split(':', 2).map((part) => part?.trim());
+    if (deviceCode && employeeCode && deviceCode.toUpperCase() === normalized.toUpperCase()) {
+      return employeeCode.toUpperCase();
+    }
+  }
   if (normalized.toUpperCase().startsWith('MARQ')) return normalized.toUpperCase();
   return `MARQ${normalized.padStart(3, '0')}`;
 }

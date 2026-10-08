@@ -38,6 +38,18 @@ test('mapping preserves device codes and maps 010 to MARQ010', () => {
   assert.equal(hrmsEmployeeCode('004'), 'MARQ004');
 });
 
+test('mapping supports MarqAI employee-code overrides', () => {
+  const previous = process.env.ETIMEOFFICE_EMPLOYEE_MAP;
+  process.env.ETIMEOFFICE_EMPLOYEE_MAP = '007:MARQ008,015:MARQ015';
+  try {
+    assert.equal(hrmsEmployeeCode('007'), 'MARQ008');
+    assert.equal(hrmsEmployeeCode('015'), 'MARQ015');
+  } finally {
+    if (previous === undefined) delete process.env.ETIMEOFFICE_EMPLOYEE_MAP;
+    else process.env.ETIMEOFFICE_EMPLOYEE_MAP = previous;
+  }
+});
+
 test('a cursor truncated by env expansion fails before contacting the vendor', async (t) => {
   const fetch = t.mock.method(globalThis, 'fetch', () => { throw new Error('must not call fetch'); });
   await assert.rejects(downloadLatestPunches('102026'), /Escape the dollar sign/);
