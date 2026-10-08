@@ -750,7 +750,12 @@ export default function BiometricPage() {
                         </td>
                         <td className="px-4 py-3">
                           <span className={`thb-badge ${p.punchType === 'check_in' ? 'bg-emerald-50 text-emerald-700' : p.punchType === 'check_out' ? 'bg-red-50 text-red-700' : 'bg-slate-50 text-slate-700'}`}>
-                            {p.punchType === 'check_in' ? 'In' : p.punchType === 'check_out' ? 'Out' : p.punchType === 'unmatched' ? 'Unmatched' : 'Punch'}
+                            {p.punchType === 'check_in' ? 'In'
+                              : p.punchType === 'check_out' ? 'Out'
+                                : p.punchType === 'break_in' ? 'Break In'
+                                  : p.punchType === 'break_out' ? 'Break Out'
+                                    : p.punchType === 'duplicate' ? 'Duplicate'
+                                      : p.punchType === 'unmatched' ? 'Unmatched' : 'Punch'}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-sm">

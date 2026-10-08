@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 import type { Prisma, PrismaClient } from '@/generated/prisma/client';
 import { downloadLatestPunches, hrmsEmployeeCode, type ETimeOfficePunch } from '@/lib/etimeoffice-client';
+import { classifyBiometricDay } from '@/lib/etimeoffice-attendance';
 import { localDayStartFor } from '@/lib/timezone-utils';
 
 const CHECKPOINT_KEY = 'etimeoffice_biometric_last_record';
@@ -253,20 +254,30 @@ export async function syncETimeOfficePunches(db: PrismaClient, tenantId: string)
       });
       if (!dayPunches.length) continue;
 
-      const first = dayPunches[0];
-      const last = dayPunches[dayPunches.length - 1];
+      const duplicateWindowMinutes = Number(process.env.ETIMEOFFICE_DUPLICATE_WINDOW_MINUTES || '2');
+      const classified = classifyBiometricDay(dayPunches, Number.isFinite(duplicateWindowMinutes) ? duplicateWindowMinutes : 2);
+      const acceptedPunches = classified.accepted;
+      if (!acceptedPunches.length) continue;
+      const first = acceptedPunches[0];
+      const last = acceptedPunches[acceptedPunches.length - 1];
       const lastIsAfterFirst = last.punchTime.getTime() > first.punchTime.getTime();
       const existingAttendance = await tx.attendance.findUnique({
         where: { employeeId_date: { employeeId: group.employeeId, date: group.dayStart } },
-        select: { checkIn: true, checkOut: true },
+        select: { checkIn: true, checkOut: true, breakIn: true, breakOut: true, breakMinutes: true },
       });
       const checkIn = existingAttendance?.checkIn && existingAttendance.checkIn < first.punchTime
         ? existingAttendance.checkIn : first.punchTime;
       const candidateOut = lastIsAfterFirst ? last.punchTime : null;
       const checkOut = candidateOut && existingAttendance?.checkOut && existingAttendance.checkOut > candidateOut
         ? existingAttendance.checkOut : candidateOut || existingAttendance?.checkOut || null;
+      const firstBreak = classified.completedBreaks[0] || null;
+      const breakIn = firstBreak?.start || existingAttendance?.breakIn || null;
+      const breakOut = firstBreak?.end || existingAttendance?.breakOut || null;
+      const breakMinutes = classified.completedBreaks.length
+        ? classified.breakMinutes
+        : existingAttendance?.breakMinutes || 0;
       const workHours = checkIn && checkOut && checkOut > checkIn
-        ? Number(((checkOut.getTime() - checkIn.getTime()) / 3_600_000).toFixed(2))
+        ? Number((Math.max(0, (checkOut.getTime() - checkIn.getTime()) / 60_000 - breakMinutes) / 60).toFixed(2))
         : null;
       const attendance = await tx.attendance.upsert({
         where: { employeeId_date: { employeeId: group.employeeId, date: group.dayStart } },
@@ -276,6 +287,9 @@ export async function syncETimeOfficePunches(db: PrismaClient, tenantId: string)
           checkIn,
           checkOut,
           workHours,
+          breakIn,
+          breakOut,
+          breakMinutes: breakMinutes || null,
           status: 'present',
           punchMethod: 'biometric',
           location: device.name,
@@ -284,6 +298,9 @@ export async function syncETimeOfficePunches(db: PrismaClient, tenantId: string)
           checkIn,
           ...(checkOut ? { checkOut } : {}),
           ...(workHours !== null ? { workHours } : {}),
+          breakIn,
+          breakOut,
+          breakMinutes: breakMinutes || null,
           status: 'present',
           punchMethod: 'biometric',
           location: device.name,
@@ -291,12 +308,25 @@ export async function syncETimeOfficePunches(db: PrismaClient, tenantId: string)
         select: { id: true },
       });
 
-      for (let index = 0; index < dayPunches.length; index += 1) {
-        const event = dayPunches[index];
-        const punchType = index === 0 ? 'check_in' : index === dayPunches.length - 1 ? 'check_out' : 'punch';
+      for (const event of dayPunches) {
+        const punchType = classified.classifications.get(event.id) || 'duplicate';
         await tx.biometricPunch.update({
           where: { id: event.id },
-          data: { punchType: dayPunches.length === 1 ? 'check_in' : punchType, attendanceId: attendance.id },
+          data: { punchType, attendanceId: attendance.id },
+        });
+        const eventType = punchType === 'check_in' ? 'checkin'
+          : punchType === 'check_out' ? 'checkout'
+            : punchType === 'break_in' ? 'breakin'
+              : punchType === 'break_out' ? 'breakout'
+                : 'duplicate';
+        await tx.punchEvent.updateMany({
+          where: {
+            employeeId: group.employeeId,
+            date: group.dayStart,
+            timestamp: event.punchTime,
+            method: 'biometric',
+          },
+          data: { type: eventType },
         });
       }
     }

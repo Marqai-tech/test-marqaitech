@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { downloadLatestPunches, hrmsEmployeeCode } from '../src/lib/etimeoffice-client.ts';
+import { classifyBiometricDay } from '../src/lib/etimeoffice-attendance.ts';
 
 const require = createRequire(import.meta.url);
 
@@ -48,6 +49,30 @@ test('mapping supports MarqAI employee-code overrides', () => {
     if (previous === undefined) delete process.env.ETIMEOFFICE_EMPLOYEE_MAP;
     else process.env.ETIMEOFFICE_EMPLOYEE_MAP = previous;
   }
+});
+
+test('biometric day ignores two-minute duplicates and pairs middle punches as a break', () => {
+  const at = (id, time) => ({ id, punchTime: new Date(`2026-10-08T${time}:00+05:30`) });
+  const result = classifyBiometricDay([
+    at('in', '09:30'),
+    at('duplicate', '09:31'),
+    at('break-in', '13:30'),
+    at('break-out', '14:30'),
+    at('out', '18:00'),
+  ]);
+  assert.equal(result.classifications.get('in'), 'check_in');
+  assert.equal(result.classifications.get('duplicate'), 'duplicate');
+  assert.equal(result.classifications.get('break-in'), 'break_in');
+  assert.equal(result.classifications.get('break-out'), 'break_out');
+  assert.equal(result.classifications.get('out'), 'check_out');
+  assert.equal(result.breakMinutes, 60);
+});
+
+test('a punch after the two-minute window remains valid', () => {
+  const at = (id, time) => ({ id, punchTime: new Date(`2026-10-08T${time}:00+05:30`) });
+  const result = classifyBiometricDay([at('in', '09:30'), at('out', '09:33')]);
+  assert.equal(result.classifications.get('in'), 'check_in');
+  assert.equal(result.classifications.get('out'), 'check_out');
 });
 
 test('a cursor truncated by env expansion fails before contacting the vendor', async (t) => {
