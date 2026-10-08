@@ -25,6 +25,10 @@
       "schedule": "45 2 * * *"
     },
     {
+      "path": "/api/cron/etimeoffice-biometric-sync",
+      "schedule": "*/15 * * * *"
+    },
+    {
       "path": "/api/cron/learning-compliance?secret=3boxes-hrms-cron-2026",
       "schedule": "0 3 * * *"
     }

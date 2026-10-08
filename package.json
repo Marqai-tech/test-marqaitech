@@ -11,6 +11,7 @@
     "lint": "eslint",
     "db:push": "prisma db push",
     "db:seed": "npx tsx prisma/seed.ts",
+    "db:seed:biometric-local": "npx tsx prisma/seed-biometric-local.ts",
     "db:seed:payroll": "npx tsx prisma/seed-payroll.ts",
     "db:seed:demo": "npx tsx prisma/seed-demo.ts",
     "db:seed:all": "npx tsx prisma/seed.ts && npx tsx prisma/seed-payroll.ts",
