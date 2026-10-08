@@ -58,21 +58,21 @@ export const MODULE_ACCESS: Record<string, string[]> = {
   onboarding: ['super_admin', 'tenant_admin', 'admin', 'manager'],
   attendance: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'],
   leave: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'],
-  payroll: ['super_admin', 'tenant_admin', 'admin', 'manager'],
+  payroll: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'],
   salary_structures: ['super_admin', 'tenant_admin', 'admin'],
-  performance: ['super_admin', 'tenant_admin', 'admin', 'manager'],
-  training: ['super_admin', 'tenant_admin', 'admin', 'manager'],
-  learning: ['super_admin', 'tenant_admin', 'admin', 'manager'],
+  performance: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'],
+  training: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'],
+  learning: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'],
   engagement: ['super_admin', 'tenant_admin', 'admin', 'manager'],
   reports: ['super_admin', 'tenant_admin', 'admin', 'manager'],
   settings: ['super_admin', 'tenant_admin', 'admin'],
   docs: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'],
   helpdesk: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'],
-  assets: ['super_admin', 'tenant_admin', 'admin', 'manager'],
-  projects: ['super_admin', 'tenant_admin', 'admin', 'manager'],
+  assets: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'],
+  projects: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'],
   invoices: ['super_admin', 'tenant_admin', 'admin'],
-  expenses: ['super_admin', 'tenant_admin', 'admin', 'manager'],
-  travel: ['super_admin', 'tenant_admin', 'admin', 'manager'],
+  expenses: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'],
+  travel: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'],
   accounts: ['super_admin', 'tenant_admin', 'admin'],
   crm: ['super_admin', 'tenant_admin', 'admin'],
   it_admin_module: ['super_admin', 'tenant_admin', 'admin'],
@@ -91,7 +91,7 @@ export const MODULE_ACCESS: Record<string, string[]> = {
   // receive mirrored HR notification emails in the internal Email inbox.
   // Admin-only sub-areas (Collaboration Settings, SMTP Email Config,
   // Collaboration Reports) are restricted via per-item `roles` in navData.
-  collaboration: ['super_admin', 'tenant_admin', 'admin', 'manager'],
+  collaboration: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'],
   requisitions: ['super_admin', 'tenant_admin', 'admin'],
   offers: ['super_admin', 'tenant_admin', 'admin'],
   job_portal: ['super_admin', 'tenant_admin', 'admin'],
@@ -188,9 +188,12 @@ export const TENANT_MODULE_WHITELIST: Record<string, string[]> = {
     'recruitment',
     'onboarding',
     'preboarding',
+    'appraisal',
     'learning',
     // Operations
     'project',
+    'travel-expense',
+    'assets',
     // Support & Intelligence
     'support',
     'collaboration',
@@ -447,6 +450,7 @@ export function isSelfServicePathAllowed(pathname: string, search = ''): boolean
   const viewSelf = new URLSearchParams(query).get('view') === 'self';
 
   if (path === '/employees' && viewSelf) return true;
+  if (path === '/employees/dashboard') return true;
   if (path === '/my-profile' || path.startsWith('/my-profile/')) return true;
   if (
     path === '/employees/update-requests' ||
@@ -483,11 +487,9 @@ export function isSelfServicePathAllowed(pathname: string, search = ''): boolean
     '/recruitment',
     '/onboarding',
     '/ai-interview',
-    '/payroll',
     '/company',
     '/org-chart',
-    '/performance',
-    '/training',
+    '/employees/settings',
   ];
   if (deniedPrefixes.some((prefix) => path === prefix || path.startsWith(`${prefix}/`))) {
     return false;
@@ -504,6 +506,16 @@ export function isSelfServicePathAllowed(pathname: string, search = ''): boolean
     '/documents',
     '/helpdesk',
     '/notifications',
+    '/payroll/payslips',
+    '/payroll/loans',
+    '/performance',
+    '/training',
+    '/learning',
+    '/projects',
+    '/timesheets',
+    '/travel',
+    '/expenses',
+    '/assets',
   ];
   return allowedPrefixes.some((prefix) => path === prefix || path.startsWith(`${prefix}/`));
 }

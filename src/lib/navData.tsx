@@ -196,7 +196,7 @@ export const navSections: NavSection[] = [
     ],
     items: [
       // Self-service: visible to all roles (employee, manager, admin, etc.)
-      { label: 'My Dashboard', href: '/employees/dashboard', icon: <FiGrid className="w-4 h-4" />, moduleKey: 'employees', roles: ['super_admin', 'tenant_admin', 'admin', 'manager'], isNew: true },
+      { label: 'My Dashboard', href: '/employees/dashboard', icon: <FiGrid className="w-4 h-4" />, moduleKey: 'employees', roles: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'], isNew: true },
       { label: 'My Profile', href: '/my-profile', icon: <FiUser className="w-4 h-4" />, moduleKey: 'dashboard', roles: ['employee', 'manager'] },
       { label: 'Update Requests', href: '/employees/update-requests', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'dashboard', roles: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'], isNew: true },
       { label: 'Edit Log', href: '/employees/edit-log', icon: <FiList className="w-4 h-4" />, moduleKey: 'dashboard', roles: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'], isNew: true },

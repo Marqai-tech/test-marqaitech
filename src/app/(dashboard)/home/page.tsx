@@ -1382,9 +1382,9 @@ function EmployeeHome({ firstName, greeting, today }: { firstName: string; greet
         </div>
       </div>
 
-      {/* Company Policies & Handbook — pending acknowledgements card */}
-      {policySummary.total > 0 && (
-        <div className="thb-card px-6 py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      {/* Company Policies & Handbook — visible for every tenant. The policy
+          list and acknowledgement count remain tenant-scoped in the API. */}
+      <div className="thb-card px-6 py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-4 min-w-0">
             <div className="w-10 h-10 rounded-xl bg-emerald-50 text-teal-600 flex items-center justify-center ring-1 ring-emerald-100 flex-shrink-0">
               <FiFileText className="w-5 h-5" />
@@ -1395,7 +1395,11 @@ function EmployeeHome({ firstName, greeting, today }: { firstName: string; greet
             </div>
           </div>
           <div className="flex items-center gap-3 flex-wrap shrink-0">
-            {policySummary.pending > 0 ? (
+            {policySummary.total === 0 ? (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-50 text-slate-600 ring-1 ring-slate-200 text-xs font-semibold">
+                No policies published yet
+              </span>
+            ) : policySummary.pending > 0 ? (
               <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-50 text-amber-700 ring-1 ring-amber-200 text-xs font-semibold">
                 <FiClock className="w-3.5 h-3.5" /> {policySummary.pending} Pending Acknowledgement{policySummary.pending > 1 ? 's' : ''}
               </span>
@@ -1411,8 +1415,7 @@ function EmployeeHome({ firstName, greeting, today }: { firstName: string; greet
               View Policies <FiArrowRight className="w-4 h-4" />
             </button>
           </div>
-        </div>
-      )}
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Leave balance */}

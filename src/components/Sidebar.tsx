@@ -10,7 +10,7 @@ import {
 } from 'react-icons/fi';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore, isHiddenTenant } from '@/store/companyContextStore';
-import { canRoleAccessModule, isNavSectionEnabled, dashboardHrefForRole, LEGACY_ROLE_MAP, navRoleOrLeastPrivilege } from '@/lib/roleAccess';
+import { canRoleAccessModule, isNavSectionEnabled, dashboardHrefForRole, LEGACY_ROLE_MAP, navRoleOrLeastPrivilege, isSelfServiceRole, isSelfServicePathAllowed } from '@/lib/roleAccess';
 import { navSections, PINNED_ITEMS, PICKER_ROUTES } from '@/lib/navData';
 import type { NavItem, NavSection } from '@/lib/navData';
 import { useTenantModuleStore } from '@/store/tenantModuleStore';
@@ -91,6 +91,12 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false, cur
               const hasRole = effectiveRoles.some(r => item.roles!.includes(r));
               if (!hasRole) return false;
             }
+            // Self-service users may access only explicitly employee-tagged items
+            // or routes that are on the approved self-service allowlist. This
+            // keeps newly added admin links hidden even when a module is enabled.
+            if (isSelfServiceRole(userRole) && !item.roles && !isSelfServicePathAllowed(item.href)) {
+              return false;
+            }
             // 3. No moduleKey and no roles → default to admin-only for safety
             if (!item.moduleKey && !item.roles) {
               return effectiveRoles.some(r => ['super_admin', 'tenant_admin', 'admin'].includes(r));
@@ -112,6 +118,7 @@ export default function Sidebar({ collapsed, onToggle, isMobileMenu = false, cur
         const hasRole = effectiveRoles.some(r => item.roles!.includes(r));
         if (!hasRole) return false;
       }
+      if (isSelfServiceRole(userRole) && !item.roles && !isSelfServicePathAllowed(item.href)) return false;
       if (!item.moduleKey && !item.roles) {
         return effectiveRoles.some(r => ['super_admin', 'tenant_admin', 'admin'].includes(r));
       }
