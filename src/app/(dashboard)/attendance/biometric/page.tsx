@@ -87,6 +87,18 @@ interface AiThresholds {
   offHoursEndMinutes: number;
 }
 
+interface ETimeOfficeSyncStatus {
+  configured: boolean;
+  lastRecord: string;
+  status: {
+    state?: string;
+    lastSyncAt?: string;
+    imported?: number;
+    unmatched?: number;
+    message?: string;
+  } | null;
+}
+
 interface Branch { id: string; name: string }
 interface Geofence { id: string; name: string }
 interface Employee { id: string; employeeId: string; firstName: string; lastName: string; email: string }
@@ -104,7 +116,7 @@ const biometricWorkflowSteps = [
   { step: 1, title: 'Register Device', description: 'Add a new biometric terminal with vendor + serial number. Save the returned API token to the device config.' },
   { step: 2, title: 'Enroll Employees', description: 'For each employee, capture their fingerprint/face on each device. The hashed template is stored for audit + dedup.' },
   { step: 3, title: 'Configure AI Thresholds', description: 'Set spoofing/buddy-punch risk thresholds and impossible-travel distance/time.' },
-  { step: 4, title: 'Devices Push Punches', description: 'Every check-in/out the device captures is POSTed to /api/attendance/biometric/punch with the device token.' },
+  { step: 4, title: 'Team Office Sync Pulls Punches', description: 'Use Sync from Team Office to import new punches. Automatic syncing runs when the deployment schedule and its credentials are configured.' },
   { step: 5, title: 'Review Flagged Punches', description: 'Flagged punches appear in the Punches tab. Manager reviews and either approves or rejects.' },
   { step: 6, title: 'Audit Trail', description: 'Every punch — flagged or clean — is written to the Attendance Audit Log for compliance (REQ-SEC-ATT-04).' },
 ];
@@ -129,6 +141,8 @@ export default function BiometricPage() {
   const [submitting, setSubmitting] = useState(false);
   const [newToken, setNewToken] = useState<{ device: string; token: string } | null>(null);
   const [punchesSummary, setPunchesSummary] = useState<{ todayTotal: number; todayFlagged: number; last7Flagged: number } | null>(null);
+  const [teamOfficeSync, setTeamOfficeSync] = useState<ETimeOfficeSyncStatus | null>(null);
+  const [syncingTeamOffice, setSyncingTeamOffice] = useState(false);
   const [nowTick, setNowTick] = useState(() => Date.now());
   const cid = effectiveCompanyId();
   const scopeQuery = cid ? `companyId=${cid}&` : '';
@@ -168,7 +182,7 @@ export default function BiometricPage() {
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : 'Failed to load devices');
     }
-  }, []);
+  }, [scopeQuery]);
 
   const fetchEnrollments = useCallback(async () => {
     try {
@@ -179,7 +193,7 @@ export default function BiometricPage() {
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : 'Failed to load enrollments');
     }
-  }, []);
+  }, [scopeQuery]);
 
   const fetchPunches = useCallback(async () => {
     try {
@@ -191,7 +205,7 @@ export default function BiometricPage() {
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : 'Failed to load punches');
     }
-  }, []);
+  }, [scopeQuery]);
 
   const fetchThresholds = useCallback(async () => {
     try {
@@ -202,7 +216,16 @@ export default function BiometricPage() {
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : 'Failed to load thresholds');
     }
-  }, []);
+  }, [scopeQuery]);
+
+  const fetchTeamOfficeSyncStatus = useCallback(async () => {
+    if (!isAdmin) return;
+    try {
+      const r = await fetch('/api/attendance/biometric/sync', { headers: getAuthHeaders(), cache: 'no-store' });
+      const d = await r.json();
+      if (r.ok) setTeamOfficeSync(d);
+    } catch { /* The integration status is optional until configured. */ }
+  }, [isAdmin]);
 
   const fetchAux = useCallback(async () => {
     try {
@@ -215,15 +238,38 @@ export default function BiometricPage() {
       setGeofences(gf.geofences || []);
       setEmployees(em.employees || []);
     } catch { /* ignore */ }
-  }, []);
+  }, [scopeQuery]);
 
   const refreshAll = useCallback(async () => {
     setLoading(true);
-    await Promise.all([fetchDevices(), fetchEnrollments(), fetchPunches(), fetchThresholds(), fetchAux()]);
+    await Promise.all([fetchDevices(), fetchEnrollments(), fetchPunches(), fetchThresholds(), fetchAux(), fetchTeamOfficeSyncStatus()]);
     setLoading(false);
-  }, [fetchDevices, fetchEnrollments, fetchPunches, fetchThresholds, fetchAux]);
+  }, [fetchDevices, fetchEnrollments, fetchPunches, fetchThresholds, fetchAux, fetchTeamOfficeSyncStatus]);
 
   useEffect(() => { queueMicrotask(() => { refreshAll(); }); }, [refreshAll]);
+
+  const handleTeamOfficeSync = async () => {
+    setSyncingTeamOffice(true);
+    try {
+      const r = await fetch('/api/attendance/biometric/sync', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Team Office sync failed');
+      if (d.skipped) {
+        toast.success(`Sync skipped: ${d.skipped}`);
+      } else {
+        toast.success(`Team Office sync complete: ${d.imported || 0} new punch(es), ${d.unmatched || 0} unmatched.`);
+      }
+      await Promise.all([fetchTeamOfficeSyncStatus(), fetchDevices(), fetchPunches()]);
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Team Office sync failed');
+      await fetchTeamOfficeSyncStatus();
+    } finally {
+      setSyncingTeamOffice(false);
+    }
+  };
 
   /* ── Device form submit ── */
   const handleDeviceSubmit = async () => {
@@ -461,6 +507,29 @@ export default function BiometricPage() {
       {/* Devices Tab */}
       {tab === 'devices' && (
         <div className="space-y-4">
+          {isAdmin && (
+            <div className="thb-card p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <h2 className="font-semibold text-thb-text-primary">Team Office face attendance</h2>
+                <p className="text-sm text-thb-text-secondary mt-1">
+                  {teamOfficeSync?.configured ? 'API credentials are configured.' : 'API credentials are missing in this deployment.'}
+                  {teamOfficeSync?.status?.lastSyncAt ? ` Last sync: ${new Date(teamOfficeSync.status.lastSyncAt).toLocaleString()}.` : ''}
+                  {teamOfficeSync?.status?.state === 'error' ? ` Last error: ${teamOfficeSync.status.message || 'Sync failed.'}` : ''}
+                </p>
+                {teamOfficeSync?.status?.unmatched ? (
+                  <p className="text-xs text-amber-700 mt-1">{teamOfficeSync.status.unmatched} punch(es) need an HRMS employee-code match.</p>
+                ) : null}
+              </div>
+              <button
+                onClick={handleTeamOfficeSync}
+                disabled={syncingTeamOffice || !teamOfficeSync?.configured}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-50 text-sm font-medium"
+              >
+                <FiRefreshCw className={`w-4 h-4 ${syncingTeamOffice ? 'animate-spin' : ''}`} />
+                {syncingTeamOffice ? 'Syncing…' : 'Sync from Team Office'}
+              </button>
+            </div>
+          )}
           {devices.length === 0 && !loading ? (
             <div className="thb-card p-12 text-center">
               <FiCpu className="w-10 h-10 text-thb-text-muted mx-auto mb-3" />
@@ -680,8 +749,8 @@ export default function BiometricPage() {
                           <div className="text-xs text-thb-text-muted">{p.device.vendor}{p.device.branch?.name ? ` · ${p.device.branch.name}` : ''}</div>
                         </td>
                         <td className="px-4 py-3">
-                          <span className={`thb-badge ${p.punchType === 'check_in' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>
-                            {p.punchType === 'check_in' ? 'In' : 'Out'}
+                          <span className={`thb-badge ${p.punchType === 'check_in' ? 'bg-emerald-50 text-emerald-700' : p.punchType === 'check_out' ? 'bg-red-50 text-red-700' : 'bg-slate-50 text-slate-700'}`}>
+                            {p.punchType === 'check_in' ? 'In' : p.punchType === 'check_out' ? 'Out' : p.punchType === 'unmatched' ? 'Unmatched' : 'Punch'}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-sm">
