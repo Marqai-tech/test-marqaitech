@@ -15,6 +15,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
 import { isClientDemoMode } from '@/lib/site-mode';
 import ApproverChainPreview from '@/components/ApproverChainPreview';
+import { getLeaveCategory, normalizeLeaveBalances } from '@/lib/leave-balance-rules';
 
 /* ── Types ── */
 interface LeaveRequest {
@@ -58,13 +59,10 @@ interface Employee {
   lastName: string;
   employeeStatus?: string;
   dateOfJoining?: string | null;
+  gender?: string | null;
   leaveBalances?: LeaveBalance[];
 }
 
-const PROBATION_BLOCKED = new Set(['casual leave', 'casual', 'cl', 'sick leave', 'sick', 'sl', 'earned leave', 'earned', 'el', 'annual leave', 'annual', 'personal leave', 'personal', 'pl']);
-function isBlockedInProbation(type: { name?: string; code?: string }) {
-  return [type.name, type.code].filter(Boolean).some(v => PROBATION_BLOCKED.has(String(v).toLowerCase().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim()));
-}
 function isActiveProbation(employee: Employee | null) {
   if (!employee?.employeeStatus?.toLowerCase().includes('probation') || !employee.dateOfJoining) return false;
   const end = new Date(employee.dateOfJoining);
@@ -252,19 +250,14 @@ function LeavePageContent() {
             const balanceRes = await fetch(`/api/leave/balance?limit=50${sq ? `&${sq}` : ''}`, { headers });
             const balanceData = balanceRes.ok ? await balanceRes.json() : null;
             const currentBalances = balanceData?.balances || detailEmployee?.leaveBalances || [];
-            const uniqueBalances = new Map<string, LeaveBalance>();
-            currentBalances.forEach((lb: LeaveBalance) => {
-              const key = String(lb.leaveType?.name || lb.leaveType?.code || '').toLowerCase().replace(/\s+/g, ' ').trim();
-              if (key && !uniqueBalances.has(key)) uniqueBalances.set(key, lb);
+            const normalizedBalances = normalizeLeaveBalances(currentBalances as LeaveBalance[], {
+              gender: detailEmployee?.gender || balanceData?.gender,
+              probation,
             });
-            if (probation && !Array.from(uniqueBalances.values()).some((lb) => /personal leave|personal|\bpl\b/i.test(`${lb.leaveType?.name || ''} ${lb.leaveType?.code || ''}`))) {
-              uniqueBalances.set('personal leave', { id: 'synthetic-personal-leave', leaveType: { id: 'synthetic-personal-leave', name: 'Personal Leave', code: 'PL' }, total: 0, used: 0, remaining: 0, year: new Date().getFullYear() });
+            if (probation && !normalizedBalances.some((lb) => getLeaveCategory(lb.leaveType) === 'personal')) {
+              normalizedBalances.push({ id: 'synthetic-personal-leave', leaveType: { id: 'synthetic-personal-leave', name: 'Personal Leave', code: 'PL' }, total: 0, used: 0, remaining: 0, year: new Date().getFullYear() });
             }
-            setLeaveBalances(Array.from(uniqueBalances.values()).map((lb: LeaveBalance) => (
-              probation && isBlockedInProbation(lb.leaveType)
-                ? { ...lb, total: 0, used: 0, remaining: 0 }
-                : lb
-            )));
+            setLeaveBalances(normalizedBalances);
           }
         }
         const ltMap = new Map<string, LeaveType>();
@@ -582,7 +575,7 @@ function LeavePageContent() {
       {isActiveProbation(employee) && (
         <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-5 py-4">
           <h2 className="font-bold text-emerald-800">Probationary Employee – 6 Months</h2>
-          <p className="mt-1 text-sm text-emerald-700">Casual, Sick, Earned/Annual, and Personal Leave are not available during probation. Loss of Pay (LOP) is available with prior approval.</p>
+          <p className="mt-1 text-sm text-emerald-700">All leave balances, including the applicable maternity or paternity leave, are zero during probation. Loss of Pay (LOP) requests require prior approval.</p>
         </div>
       )}
       {/* Breadcrumb Header - SmartHR Style */}
@@ -698,7 +691,7 @@ function LeavePageContent() {
           }).map(lb => {
             const usedPct = lb.total > 0 ? (lb.used / lb.total) * 100 : 0;
             const barColor = usedPct > 80 ? 'bg-red-500' : usedPct > 50 ? 'bg-amber-500' : 'bg-emerald-500';
-              const blocked = isActiveProbation(employee) && isBlockedInProbation(lb.leaveType);
+              const blocked = isActiveProbation(employee);
               const isLop = /loss of pay|lop/i.test(`${lb.leaveType.name} ${lb.leaveType.code}`);
               return (
               <React.Fragment key={lb.id}>

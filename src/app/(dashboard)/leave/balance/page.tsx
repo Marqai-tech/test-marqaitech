@@ -7,6 +7,7 @@ import {
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
+import { normalizeLeaveBalances, type LeaveBalanceLike } from '@/lib/leave-balance-rules';
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -73,15 +74,20 @@ export default function LeaveBalancePage() {
       const balRes = await fetch(`/api/leave/balance${sq ? `?${sq}` : ''}`, { headers: getAuthHeaders() });
       if (balRes.ok) {
         const balData = await balRes.json();
-        const rawBalances = balData.balances || balData.leaveBalances || [];
-        const mapped = rawBalances.map((b: Record<string, unknown>, idx: number) => {
+        const rawBalances = (balData.balances || balData.leaveBalances || []) as LeaveBalanceLike[];
+        const normalized = normalizeLeaveBalances(rawBalances, {
+          gender: balData.gender,
+          probation: Boolean(balData.probation),
+        });
+        const mapped = normalized.map((b, idx: number) => {
           const colors = BALANCE_COLORS[idx % BALANCE_COLORS.length];
+          const legacy = b as unknown as Record<string, unknown>;
           return {
-            type: String(b.leaveTypeName || b.type || b.name || ''),
-            code: String(b.leaveTypeCode || b.code || ''),
-            total: Number(b.total || b.annualQuota || 0),
-            used: Number(b.used || 0),
-            pending: Number(b.pending || 0),
+            type: String(b.leaveType?.name || legacy.leaveTypeName || legacy.type || legacy.name || ''),
+            code: String(b.leaveType?.code || legacy.leaveTypeCode || legacy.code || ''),
+            total: Number(b.total ?? legacy.annualQuota ?? 0),
+            used: Number(b.used ?? 0),
+            pending: Number(legacy.pending ?? 0),
             ...colors,
           };
         });

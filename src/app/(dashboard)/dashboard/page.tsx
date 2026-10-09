@@ -18,6 +18,7 @@ import {
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
 import { dashboardHrefForRole } from '@/lib/roleAccess';
+import { normalizeLeaveBalances } from '@/lib/leave-balance-rules';
 
 /* ---------- helpers ---------- */
 
@@ -234,9 +235,13 @@ export default function ESSDashboardPage() {
 
     /* leave balance */
     if (leaveData?.balances) {
-      const balances: LeaveBalanceItem[] = leaveData.balances;
+      const probation = Boolean(leaveData.probation);
+      const balances = normalizeLeaveBalances(leaveData.balances as LeaveBalanceItem[], {
+        gender: leaveData.gender,
+        probation,
+      });
       setLeaveBalances(balances);
-                  setIsProbation(Boolean(leaveData.probation));
+      setIsProbation(probation);
       const sum = balances.reduce(
         (acc: { total: number; used: number; remaining: number }, b) => {
           acc.total += b.total || 0;
@@ -248,7 +253,9 @@ export default function ESSDashboardPage() {
       );
       setLeaveSummary(sum);
     } else if (leaveData?.summary) {
-      setLeaveSummary(leaveData.summary);
+      const probation = Boolean(leaveData.probation);
+      setIsProbation(probation);
+      setLeaveSummary(probation ? { total: 0, used: 0, remaining: 0 } : leaveData.summary);
     }
 
     /* attendance — filter to current month for accurate rate */
@@ -497,7 +504,7 @@ setAttendanceRate(typeof summaryData?.attendanceRate === 'number' ? summaryData.
           {isProbation && (
             <div className="mb-4 rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3">
               <p className="font-bold text-emerald-800">Probationary Employee – 6 Months</p>
-              <p className="mt-1 text-xs text-emerald-700">During the probation period, Casual, Sick, Earned/Annual, and Personal Leave are not available.</p>
+              <p className="mt-1 text-xs text-emerald-700">All leave balances, including the applicable maternity or paternity leave, are zero during probation.</p>
             </div>
           )}
           <div className="flex items-center justify-between mb-4">

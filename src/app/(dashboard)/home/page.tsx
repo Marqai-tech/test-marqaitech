@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
+import { getLeaveCategory, normalizeLeaveBalances } from '@/lib/leave-balance-rules';
 import {
   FiUsers, FiUserCheck, FiUserPlus, FiCalendar, FiClock,
   FiDollarSign, FiFileText, FiTrendingUp, FiHeadphones,
@@ -1241,17 +1242,14 @@ function EmployeeHome({ firstName, greeting, today }: { firstName: string; greet
     // Leave balances — API returns { balances: [...] } or { data: { balances: [...] } }
     const balances = leaveData?.balances || leaveData?.data?.balances || [];
     const probation = Boolean(leaveData?.probation || leaveData?.data?.probation);
+    const gender = leaveData?.gender || leaveData?.data?.gender;
     setIsProbation(probation);
     if (balances.length > 0) {
-      const unique = new Map<string, (typeof balances)[number]>();
-      balances.forEach((balance: (typeof balances)[number]) => {
-        const key = String(balance.leaveType?.name || balance.leaveType?.code || '').toLowerCase().replace(/\s+/g, ' ').trim();
-        if (key && !unique.has(key)) unique.set(key, balance);
-      });
-      if (probation && !Array.from(unique.values()).some((b) => /personal leave|personal|\bpl\b/i.test(`${b.leaveType?.name || ''} ${b.leaveType?.code || ''}`))) {
-        unique.set('personal leave', { id: 'synthetic-personal-leave', leaveType: { name: 'Personal Leave', code: 'PL' }, remaining: 0, total: 0, used: 0 });
+      const normalized = normalizeLeaveBalances(balances, { gender, probation });
+      if (probation && !normalized.some((balance) => getLeaveCategory(balance.leaveType) === 'personal')) {
+        normalized.push({ id: 'synthetic-personal-leave', leaveType: { name: 'Personal Leave', code: 'PL' }, remaining: 0, total: 0, used: 0 });
       }
-      setLeaveBalances(Array.from(unique.values()));
+      setLeaveBalances(normalized);
     } else {
       setLeaveBalances(probation ? [{ id: 'synthetic-personal-leave', leaveType: { name: 'Personal Leave', code: 'PL' }, remaining: 0, total: 0, used: 0 }] : []);
     }
@@ -1424,7 +1422,7 @@ function EmployeeHome({ firstName, greeting, today }: { firstName: string; greet
             {isProbation && (
               <div className="mb-4 rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3">
                 <p className="font-bold text-emerald-800">Probationary Employee – 6 Months</p>
-                <p className="mt-1 text-xs text-emerald-700">Casual, Sick, Earned/Annual, and Personal Leave are not available during probation.</p>
+                <p className="mt-1 text-xs text-emerald-700">All leave balances, including the applicable maternity or paternity leave, are zero during probation.</p>
               </div>
             )}
             {loading ? (

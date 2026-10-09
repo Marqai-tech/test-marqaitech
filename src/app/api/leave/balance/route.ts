@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { resolveCompanyScope } from '@/lib/companyScope';
+import { normalizeLeaveBalances } from '@/lib/leave-balance-rules';
 
 function corsHeaders() {
   return {
@@ -11,18 +12,11 @@ function corsHeaders() {
   };
 }
 
-const PROBATION_BLOCKED_LEAVE_NAMES = new Set(['casual leave', 'casual', 'cl', 'sick leave', 'sick', 'sl', 'earned leave', 'earned', 'el', 'annual leave', 'annual', 'personal leave', 'personal', 'pl']);
 function isProbationEmployee(status: unknown, joiningDate: Date | null | undefined): boolean {
   if (!String(status || '').toLowerCase().includes('probation') || !joiningDate) return false;
   const end = new Date(joiningDate);
   end.setMonth(end.getMonth() + 6);
   return end.getTime() > Date.now();
-}
-function isBlockedDuringProbation(leaveType: { name?: string | null; code?: string | null; probationRestricted?: boolean }): boolean {
-  const keys = [leaveType.code, leaveType.name]
-    .filter(Boolean)
-    .map(value => String(value).toLowerCase().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim());
-  return Boolean(leaveType.probationRestricted) || keys.some(key => PROBATION_BLOCKED_LEAVE_NAMES.has(key));
 }
 
 export async function OPTIONS() {
@@ -110,7 +104,7 @@ export async function GET(request: Request) {
 
         const employees = await db.employee.findMany({
           where: employeeWhere,
-          select: { id: true, employeeStatus: true, dateOfJoining: true },
+          select: { id: true, employeeStatus: true, dateOfJoining: true, gender: true },
         });
 
         if (employees.length === 0) {
@@ -140,14 +134,24 @@ export async function GET(request: Request) {
           orderBy: { leaveType: { name: 'asc' } },
         });
 
-        const probationEmployeeIds = new Set(employees.filter(e => isProbationEmployee(e.employeeStatus, e.dateOfJoining)).map(e => e.id));
-        const summary = balances.reduce(
+        const balancesByEmployee = new Map<string, typeof balances>();
+        for (const balance of balances) {
+          const rows = balancesByEmployee.get(balance.employeeId) || [];
+          rows.push(balance);
+          balancesByEmployee.set(balance.employeeId, rows);
+        }
+        const normalizedBalances = employees.flatMap(employee => normalizeLeaveBalances(
+          balancesByEmployee.get(employee.id) || [],
+          {
+            gender: employee.gender,
+            probation: isProbationEmployee(employee.employeeStatus, employee.dateOfJoining),
+          },
+        ));
+        const summary = normalizedBalances.reduce(
           (acc, b) => {
-            const restricted = probationEmployeeIds.has(b.employeeId);
-            const restrictedLeave = isBlockedDuringProbation(b.leaveType);
-            acc.totalAllocated += restricted && restrictedLeave ? 0 : (b.total || 0);
-            acc.totalUsed += restricted && restrictedLeave ? 0 : (b.used || 0);
-            acc.totalRemaining += restricted && restrictedLeave ? 0 : (b.remaining || 0);
+            acc.totalAllocated += b.total || 0;
+            acc.totalUsed += b.used || 0;
+            acc.totalRemaining += b.remaining || 0;
             return acc;
           },
           { totalAllocated: 0, totalUsed: 0, totalRemaining: 0 }
@@ -155,16 +159,16 @@ export async function GET(request: Request) {
 
         return NextResponse.json(
           {
-            balances: balances.map((b) => ({
+            balances: normalizedBalances.map((b) => ({
               id: b.id,
               leaveTypeId: b.leaveTypeId,
               leaveType: b.leaveType,
               employeeId: b.employeeId,
               employee: b.employee,
               year: b.year,
-              total: probationEmployeeIds.has(b.employeeId) && isBlockedDuringProbation(b.leaveType) ? 0 : b.total,
-              used: probationEmployeeIds.has(b.employeeId) && isBlockedDuringProbation(b.leaveType) ? 0 : b.used,
-              remaining: probationEmployeeIds.has(b.employeeId) && isBlockedDuringProbation(b.leaveType) ? 0 : b.remaining,
+              total: b.total,
+              used: b.used,
+              remaining: b.remaining,
               carryForward: b.carryForward,
             })),
             summary,
@@ -193,7 +197,7 @@ export async function GET(request: Request) {
       }
     }
 
-    const targetEmployee = await db.employee.findUnique({ where: { id: employeeId }, select: { employeeStatus: true, dateOfJoining: true } });
+    const targetEmployee = await db.employee.findUnique({ where: { id: employeeId }, select: { employeeStatus: true, dateOfJoining: true, gender: true } });
     const isProbation = isProbationEmployee(targetEmployee?.employeeStatus, targetEmployee?.dateOfJoining);
     const balances = await db.leaveBalance.findMany({
       where: { employeeId, year },
@@ -241,9 +245,9 @@ export async function GET(request: Request) {
         leaveTypeId: lt.id,
         leaveType: { id: lt.id, name: lt.name, code: lt.code, probationRestricted: lt.probationRestricted },
         year,
-        total: isProbation && isBlockedDuringProbation(lt) ? 0 : (lt.defaultDays || 0),
+        total: isProbation ? 0 : (lt.defaultDays || 0),
         used: 0,
-        remaining: isProbation && isBlockedDuringProbation(lt) ? 0 : (lt.defaultDays || 0),
+        remaining: isProbation ? 0 : (lt.defaultDays || 0),
         carryForward: 0,
         synthetic: true,
       })) as typeof balances;
@@ -265,20 +269,20 @@ export async function GET(request: Request) {
         leaveTypeId: leaveType.id,
         leaveType: leaveType,
         year,
-        total: isProbation && isBlockedDuringProbation(leaveType) ? 0 : (leaveType.defaultDays || 0),
+        total: isProbation ? 0 : (leaveType.defaultDays || 0),
         used: 0,
-        remaining: isProbation && isBlockedDuringProbation(leaveType) ? 0 : (leaveType.defaultDays || 0),
+        remaining: isProbation ? 0 : (leaveType.defaultDays || 0),
         carryForward: 0,
         synthetic: true,
       } as typeof result[number]);
     }
 
-    const summary = result.reduce(
+    const normalizedBalances = normalizeLeaveBalances(result, { gender: targetEmployee?.gender, probation: isProbation });
+    const summary = normalizedBalances.reduce(
       (acc, b) => {
-        const restricted = isProbation && isBlockedDuringProbation(b.leaveType);
-        acc.totalAllocated += restricted ? 0 : (b.total || 0);
-        acc.totalUsed += restricted ? 0 : (b.used || 0);
-        acc.totalRemaining += restricted ? 0 : (b.remaining || 0);
+        acc.totalAllocated += b.total || 0;
+        acc.totalUsed += b.used || 0;
+        acc.totalRemaining += b.remaining || 0;
         return acc;
       },
       { totalAllocated: 0, totalUsed: 0, totalRemaining: 0 }
@@ -286,17 +290,18 @@ export async function GET(request: Request) {
 
     return NextResponse.json(
       {
-        balances: result.map((b) => ({
+        balances: normalizedBalances.map((b) => ({
           id: b.id,
           leaveTypeId: b.leaveTypeId,
           leaveType: b.leaveType,
           year: b.year,
-          total: isProbation && isBlockedDuringProbation(b.leaveType) ? 0 : b.total,
-          used: isProbation && isBlockedDuringProbation(b.leaveType) ? 0 : b.used,
-          remaining: isProbation && isBlockedDuringProbation(b.leaveType) ? 0 : b.remaining,
+          total: b.total,
+          used: b.used,
+          remaining: b.remaining,
           carryForward: b.carryForward,
         })),
         probation: isProbation,
+        gender: targetEmployee?.gender || null,
         summary,
       },
       { headers: corsHeaders() }
