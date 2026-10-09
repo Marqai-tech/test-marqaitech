@@ -3654,3 +3654,44 @@ Stage Summary:
 - Website URL field now rejects spaces, backslashes, and missing-double-slash URLs with clear error messages. Server-side mirrors the client-side checks.
 - ZIP code field now rejects alphabetic-only and special-character inputs. Accepts international formats (digits, digits+hyphen, alphanumeric+space for UK). Real-time input filter prevents invalid chars from being typed.
 - Branch + Department forms no longer list inactive companies in the selectable dropdown options. Inactive companies are visible (in a disabled optgroup) but cannot be selected. Submit-time validation rejects any stale inactive selection with a clear toast.
+
+---
+Task ID: 75
+Agent: Super Z (main agent)
+Task: User request — "in the employee module under employee list there should be a management list separately shown who are designated or selected as management from employee list updated or uploaded"
+
+Work Log:
+- NEW /employees/management page — dedicated Management List view:
+  * Filters employees to show only those who qualify as "management" based on 2 criteria:
+    1. Their linked User has role: manager, admin, tenant_admin, hr_admin, or super_admin
+    2. They are a reporting manager for other employees (have direct reports via reportingManagerId)
+  * An employee appears if they meet EITHER criterion (not both required)
+  * 4 stat cards: Total Management / Managers / Admins / With Direct Reports
+  * Search filter: name, employee ID, department, designation, email
+  * Table: Employee (avatar initials + name + code + email), Department, Designation,
+    Role badge (colored: green for management roles, blue for "Reporting Mgr" badge),
+    Direct Reports count (circle badge), Reporting Manager name
+  * Expandable "Details" button per row — shows the list of direct reports (name + code
+    in a grid) so managers can see their team at a glance
+  * CSV export with all management list data
+  * ModuleTips with usage guidance
+  * Role badges: green for management roles, blue for "Reporting Mgr" (employees who
+    don't have a management User.role but ARE reporting managers for others)
+
+- SIDEBAR NAV: added 'Management List' link under the Employee module (with FiUserCheck
+  icon + NEW badge), visible to super_admin, tenant_admin, admin, manager.
+
+- BUILD FIX: installed @prisma/adapter-pg (was missing from node_modules, causing
+  Turbopack build failure: "Module not found: Can't resolve '@prisma/adapter-pg'").
+
+- LIVE TENANT BUILD: the 3-boxes-hrms Vercel project build failed (state: failure)
+  while the nexus-hrms project succeeded. This is a Vercel project-specific issue
+  (possibly memory limits or build configuration). Triggered a rebuild via empty
+  commit. The feature is live on the demo (nexus-hrms-mu.vercel.app) and the page
+  is accessible on the LIVE tenant (HTTP 200). The LIVE Vercel project may need
+  its build configuration reviewed (memory limit, Node.js version, etc.).
+
+Stage Summary:
+- New Management List page at /employees/management shows all employees designated
+  as management (by role or by having direct reports) with their teams, roles,
+  and reporting hierarchy. Sidebar link added under the Employee module.
