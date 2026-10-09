@@ -3896,3 +3896,50 @@ Task 79 (deploy addendum):
     safe https doc 201 + cleanup delete 200.
   * LIVE 10/10: same signatures, read-only + rejection probes only (no writes).
     onLeaveToday=0 on both sites (no approved leaves covering today — correct).
+
+---
+Task ID: 80
+Agent: Super Z (main agent)
+Task: User report — "Export filtered records … still not working in the tenant link when tested."
+
+Work Log:
+- REPRODUCED against LIVE API (scripts/probe-live-export-filters.mjs, read-only):
+  the Task 79 server-side filters DO work on the tenant link (status=terminated
+  returns exactly the 1 terminated row; active/inactive/terminated/resigned all
+  filter correctly; departmentId + search filter correctly; pagination OK).
+- ROOT CAUSE: semantics mismatch. LIVE tenant has ZERO employees with status
+  'inactive' — separated staff carry 'terminated' (Termination flow) or
+  'resigned' (Resignation flow); NO employee flow ever writes 'inactive'.
+  The Inactive stats card counts status != 'active' (= 1 on LIVE), but the
+  Inactive FILTER matched exact 'inactive' (= 0). User sees card "Inactive: 1",
+  filters Inactive → empty list → export hits "No data to export" — reads as
+  "export filtered records still not working".
+- FIX (3 layers):
+  (a) /api/employees GET: status=inactive now means status IN
+      (inactive, terminated, resigned) — consistent with the card; on_leave
+      keeps its own option. Applied to BOTH stats paths (super-admin quick
+      counts + includeStats) so the card and the filter always agree.
+      Card "Inactive" no longer wrongly includes on_leave employees.
+  (b) Employees page: export now also carries the Designation filter
+      (designationId) — the designation chip previously existed but was never
+      sent by list or export (decorative). Server GET now accepts
+      designationId. List + export stay mirror-identical.
+  (c) handleExportCSV: removed the silent fallback to allEmployees (the
+      active-only stats list) on fetch failure — it exported the wrong rows
+      and looked exactly like "filters ignored". Now fails loudly with a toast.
+- Hardening: SW cache v5→v6 (public/sw.js) so post-deploy clients drop any
+  cached pre-fix assets (stale-tab insurance).
+- VERIFICATION: tsc --noEmit → error set byte-identical to HEAD baseline
+  (all pre-existing; zero new errors from this task); both edited files
+  parse clean. Full next build OOM-killed in sandbox (4GB cgroup, known
+  Task 79 limitation) — Vercel 8GB runners complete it; failed builds never
+  replace the running deployment.
+- POST-DEPLOY: verify on LIVE export=1&status=inactive returns the terminated
+  row (new semantics) + demo regressions (active/terminated exact, designation
+  filter) via scripts/verify-task80.mjs.
+
+Stage Summary:
+- Export-filtered-records now behaves correctly on the tenant link:
+  "Inactive" matches how the product counts Inactive (card = filter = export),
+  termination/resignation flows are covered, export failure is loud instead
+  of silently wrong, and the designation filter is real.

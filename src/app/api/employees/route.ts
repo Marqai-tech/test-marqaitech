@@ -69,8 +69,17 @@ export async function GET(request: Request) {
       ? Math.min(Math.max(rawLimit || 20, 1), 500)
       : Math.min(Math.max(rawLimit || 20, 1), 100);
     const departmentId = searchParams.get('departmentId');
+    const designationId = searchParams.get('designationId');
     const status = searchParams.get('status');
     const search = searchParams.get('search');
+    // Task 80: "Inactive" must mean "not currently employed" — the same
+    // definition the Inactive stats card uses. Employees separated via the
+    // Termination / Resignation flows get status 'terminated' / 'resigned'
+    // (NOT 'inactive'), so an exact match made the Inactive filter return 0
+    // rows on tenants whose separated staff are terminated/resigned, and the
+    // export then reported "No data to export". on_leave keeps its own filter
+    // option and is deliberately NOT part of this set.
+    const INACTIVE_STATUSES = ['inactive', 'terminated', 'resigned'];
     // Tenant scope — only meaningful for super_admin (tenant_admin is already
     // scoped to their own tenantId in the JWT).
     const tenantId = searchParams.get('tenantId');
@@ -98,7 +107,7 @@ export async function GET(request: Request) {
     // nested includes for a count-only call was extra Neon work (~2.6s).
     if (includeStats && !exportMode && limit <= 1 && !search && !departmentId) {
       const where: Record<string, unknown> = {};
-      if (status) where.status = status;
+      if (status) where.status = status === 'inactive' ? { in: INACTIVE_STATUSES } : status;
       if (queryCompanyId) where.companyId = queryCompanyId;
       const monthAgo = new Date();
       monthAgo.setMonth(monthAgo.getMonth() - 1);
@@ -106,7 +115,8 @@ export async function GET(request: Request) {
       const [total, active, inactive, newJoiners] = await Promise.all([
         db.employee.count({ where }),
         db.employee.count({ where: { ...where, status: 'active' } }),
-        db.employee.count({ where: { ...where, status: { not: 'active' } } }),
+        // Card must agree with the Inactive filter: separated staff only
+        db.employee.count({ where: { ...where, status: { in: INACTIVE_STATUSES } } }),
         db.employee.count({ where: { ...where, dateOfJoining: { gte: monthAgo } } }),
       ]);
       return NextResponse.json(
@@ -307,7 +317,8 @@ export async function GET(request: Request) {
     try {
       const where: Record<string, unknown> = {};
       if (departmentId) where.departmentId = departmentId;
-      if (status) where.status = status;
+      if (designationId) where.designationId = designationId;
+      if (status) where.status = status === 'inactive' ? { in: INACTIVE_STATUSES } : status;
       if (search) {
         where.OR = [
           { firstName: { contains: search, mode: 'insensitive' } },
@@ -452,7 +463,8 @@ export async function GET(request: Request) {
         monthAgo.setMonth(monthAgo.getMonth() - 1);
         const [active, inactive, newJoiners] = await Promise.all([
           queryDb.employee.count({ where: { ...where, status: 'active' } }),
-          queryDb.employee.count({ where: { ...where, status: { not: 'active' } } }),
+          // Same definition as the Inactive filter (inactive+terminated+resigned)
+          queryDb.employee.count({ where: { ...where, status: { in: INACTIVE_STATUSES } } }),
           queryDb.employee.count({ where: { ...where, dateOfJoining: { gte: monthAgo } } }),
         ]);
         stats = { total, active, inactive, newJoiners };

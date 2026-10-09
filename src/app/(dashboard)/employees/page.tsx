@@ -550,11 +550,19 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
       const params = new URLSearchParams({ limit: '500', export: '1' });
       if (search) params.set('search', search);
       if (filterDept) params.set('departmentId', filterDept);
+      if (filterDesignation) params.set('designationId', filterDesignation);
       if (filterStatus) params.set('status', filterStatus);
       const sq = scopeQuery();
       const res = await fetch(`/api/employees?${params.toString()}${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
-      const data = res.ok ? await res.json() : { employees: allEmployees };
-      const exportRows = data.employees || allEmployees;
+      if (!res.ok) {
+        // Fail LOUDLY instead of silently exporting the wrong rows (the old
+        // fallback exported the active-only stats list, which looked like the
+        // filter was ignored).
+        toast.error('Export failed — could not fetch the filtered employee list');
+        return;
+      }
+      const data = await res.json();
+      const exportRows = data.employees || [];
       const rows = exportRows.map((emp: Employee) => ({
       'Employee ID': emp.employeeId || '',
       'First Name': emp.firstName || '',
@@ -603,6 +611,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
       const params = new URLSearchParams({ page: String(page), limit: '10', includeStats: '1' });
       if (search) params.set('search', search);
       if (filterDept) params.set('departmentId', filterDept);
+      if (filterDesignation) params.set('designationId', filterDesignation);
       if (filterStatus) params.set('status', filterStatus);
       const sq = scopeQuery();
 
@@ -625,7 +634,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
     } finally {
       setLoading(false);
     }
-  }, [search, filterDept, filterStatus, scopeCompanyId, scopeTenantId, scopeQuery]);
+  }, [search, filterDept, filterDesignation, filterStatus, scopeCompanyId, scopeTenantId, scopeQuery]);
 
   /* Fetch all employees for stats */
   const fetchAllEmployees = useCallback(async () => {
