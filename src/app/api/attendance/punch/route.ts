@@ -4,6 +4,7 @@ import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { resolveCompanyScope } from '@/lib/companyScope';
 import { safeAuditLog } from '@/lib/audit-safe';
+import { isLateCheckIn, nextAttendanceAction } from '@/lib/attendance-rules';
 
 /**
  * POST /api/attendance/punch
@@ -199,7 +200,7 @@ export async function POST(request: NextRequest) {
     if (!scope) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
 
     const body = await request.json();
-    const { employeeId, action, date, localTime, utcTimestamp, gps, notes } = body;
+    const { employeeId, action, date, localTime, utcTimestamp, gps, notes, halfDay } = body;
 
     if (!employeeId || !action || !date || (!localTime && !utcTimestamp)) {
       return NextResponse.json(
@@ -248,9 +249,9 @@ export async function POST(request: NextRequest) {
     const gpsAccuracy = gps && gps.accuracy != null ? Number(gps.accuracy) : null;
     const gpsLabel = gps && gps.label ? String(gps.label) : null;
 
-    // GPS is mandatory for employee check-in/out. Validate before creating or
+    // GPS is mandatory for every employee attendance punch. Validate before creating or
     // updating Attendance so denied/unavailable/outside punches never persist.
-    if (action === 'checkin' || action === 'checkout') {
+    if (['checkin', 'checkout', 'breakin', 'breakout'].includes(action)) {
       if (!Number.isFinite(gpsLat) || !Number.isFinite(gpsLng)) {
         return NextResponse.json(
           { error: 'Location access is required to check in/check out. Please enable location access and try again.' },
@@ -287,7 +288,7 @@ export async function POST(request: NextRequest) {
       attUpdate.checkInGpsAccuracy = gpsAccuracy;
       attUpdate.checkInGpsLabel = gpsLabel;
       attUpdate.location = gpsLabel || (gpsLat != null ? `${gpsLat.toFixed(6)},${gpsLng!.toFixed(6)}` : null);
-      attUpdate.status = 'present'; // mark present on check-in
+      attUpdate.status = isLateCheckIn(timestamp) ? 'late' : 'present'; // late after 10:00 AM
     } else if (action === 'checkout') {
       attUpdate.checkOut = timestamp;
       attUpdate.checkOutGpsLat = gpsLat;
@@ -315,6 +316,14 @@ export async function POST(request: NextRequest) {
     const existing = await db.attendance.findFirst({
       where: { employeeId, date: dateObj },
     });
+
+    const expectedAction = nextAttendanceAction(existing || {});
+    if (!expectedAction) {
+      return NextResponse.json({ error: 'Today\'s attendance is already complete. No additional punch is allowed.' }, { status: 409, headers: corsHeaders() });
+    }
+    if (action !== expectedAction) {
+      return NextResponse.json({ error: `Invalid attendance step. The next action is ${expectedAction}.`, expectedAction, regularizationRequired: true }, { status: 409, headers: corsHeaders() });
+    }
 
     let attendance: any;
     if (existing) {
@@ -357,6 +366,7 @@ export async function POST(request: NextRequest) {
             workHours,
             breakMinutes,
             overtime,
+            status: halfDay || workMinutes < 480 ? 'half_day' : (refreshed.status === 'late' ? 'late' : 'present'),
           },
         });
         attendance = { ...attendance, workHours, breakMinutes, overtime };

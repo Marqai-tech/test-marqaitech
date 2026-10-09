@@ -48,6 +48,7 @@ import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { Prisma } from '@/generated/prisma/client';
 import { NextResponse } from 'next/server';
 import { createHash } from 'crypto';
+import { nextAttendanceAction } from '@/lib/attendance-rules';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -143,8 +144,8 @@ export async function POST(request: Request) {
 
   // 3. Punch type + time
   const punchType = String(body.punchType || '').trim();
-  if (!['check_in', 'check_out'].includes(punchType)) {
-    return fail('punchType must be "check_in" or "check_out"');
+  if (!['check_in', 'check_out', 'break_in', 'break_out'].includes(punchType)) {
+    return fail('punchType must be "check_in", "check_out", "break_in", or "break_out"');
   }
   const punchTime = body.punchTime ? new Date(body.punchTime as string) : new Date();
   if (isNaN(punchTime.getTime())) return fail('Invalid punchTime');
@@ -224,6 +225,22 @@ export async function POST(request: Request) {
     where: { employeeId_date: { employeeId: employee.id, date: dayStart } },
   });
 
+  // Biometric devices commonly send only check_in/check_out. Resolve those
+  // events against the same state machine used by manual punches so a face
+  // scan cannot duplicate an already completed step.
+  const requestedAction = punchType === 'check_in' ? 'checkin'
+    : punchType === 'check_out' ? 'checkout'
+      : punchType === 'break_in' ? 'breakin' : 'breakout';
+  const expectedAction = nextAttendanceAction(existing || {});
+  if (!expectedAction) return fail('Today\'s attendance is already complete. No additional punch is allowed.', 409);
+  if (requestedAction !== expectedAction && ['checkin', 'checkout'].includes(requestedAction)) {
+    if (expectedAction === 'breakin') punchType = 'break_in';
+    else if (expectedAction === 'breakout') punchType = 'break_out';
+    else if (expectedAction === 'checkout') punchType = 'check_out';
+  } else if (requestedAction !== expectedAction) {
+    return fail(`Invalid attendance step. The next action is ${expectedAction}.`, 409);
+  }
+
   let attendanceId: string | null = null;
   try {
     const attendance = await db.attendance.upsert({
@@ -233,6 +250,8 @@ export async function POST(request: Request) {
         date: dayStart,
         checkIn: punchType === 'check_in' ? punchTime : null,
         checkOut: punchType === 'check_out' ? punchTime : null,
+        ...(punchType === 'break_in' ? { breakIn: punchTime } : {}),
+        ...(punchType === 'break_out' ? { breakOut: punchTime } : {}),
         status: flagged ? 'flagged' : punchType === 'check_in' ? 'present' : (existing?.status || 'present'),
         location: device.branch?.name || device.name,
         notes: flagged ? `Flagged: ${flagReasons.join(', ')}` : null,
@@ -240,6 +259,8 @@ export async function POST(request: Request) {
       update: {
         ...(punchType === 'check_in' ? { checkIn: punchTime } : {}),
         ...(punchType === 'check_out' ? { checkOut: punchTime } : {}),
+        ...(punchType === 'break_in' ? { breakIn: punchTime } : {}),
+        ...(punchType === 'break_out' ? { breakOut: punchTime } : {}),
         status: flagged ? 'flagged' : (existing?.status === 'flagged' ? 'present' : (existing?.status || 'present')),
         notes: flagged ? `Flagged: ${flagReasons.join(', ')}` : existing?.notes,
         location: device.branch?.name || device.name,

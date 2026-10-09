@@ -219,12 +219,12 @@ function isOnLeave(leaves: Array<{ employeeId: string; startDate: string; endDat
 
 /* Late-by measured from the configured shift START (policy), e.g.
  * Shift 9:00 · Check-in 9:42 → "42m". Falls back to a 09:00 shift. */
-function calculateLateBy(checkIn: string | null | undefined, shiftStartMinutes = 540): string {
+function calculateLateBy(checkIn: string | null | undefined, _shiftStartMinutes = 570): string {
   if (!checkIn) return '0m';
   const checkInTime = new Date(checkIn);
   if (isNaN(checkInTime.getTime())) return '0m';
   const checkInMinutes = checkInTime.getHours() * 60 + checkInTime.getMinutes();
-  const diffMins = checkInMinutes - shiftStartMinutes;
+  const diffMins = checkInMinutes - 600;
   if (diffMins <= 0) return '0m';
   if (diffMins < 60) return `${diffMins}m`;
   const hours = Math.floor(diffMins / 60);
@@ -303,6 +303,7 @@ export default function AttendancePage() {
     }
   };
   const [checkingOut, setCheckingOut] = useState(false);
+  const [halfDayCheckout, setHalfDayCheckout] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const now = new Date();
     return { month: now.getMonth(), year: now.getFullYear() };
@@ -455,9 +456,9 @@ export default function AttendancePage() {
   /* ── Task 57: GPS capture helper ──
    * Uses navigator.geolocation.getCurrentPosition to grab lat/lng/accuracy
    * before every punch (check-in / check-out / break-in / break-out). If
-   * the user denies location or the browser doesn't support it, we proceed
-   * without GPS — the punch is still recorded (gps=null) and a toast warns
-   * the user. The /api/attendance/punch endpoint accepts gps as optional.
+   * GPS is required by the punch API for check-in and check-out. Break
+   * punches also capture GPS when available and are rejected by the API if
+   * the current attendance step is invalid.
    *
    * Task 59: after capturing coordinates, also reverse-geocode to a
    * human-readable area name (e.g. "Koramangala, Bengaluru, IN") using
@@ -524,6 +525,7 @@ export default function AttendancePage() {
           date: localDateKey(now),
           localTime: `${pad2(now.getHours())}:${pad2(now.getMinutes())}`, utcTimestamp: now.toISOString(),
           gps,
+          halfDay: halfDayCheckout,
         }),
       });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
@@ -577,7 +579,7 @@ export default function AttendancePage() {
       setBreakingIn(true);
       const now = new Date();
       const gps = await captureGps();
-      if (!gps) toast('Location unavailable — break recorded without GPS', { icon: '⚠️' });
+      if (!gps) throw new Error('Location access is required to record attendance. Please enable location access and try again.');
       const res = await fetch('/api/attendance/punch', {
         method: 'POST',
         headers: getAuthHeaders(),
@@ -606,7 +608,7 @@ export default function AttendancePage() {
       setBreakingOut(true);
       const now = new Date();
       const gps = await captureGps();
-      if (!gps) toast('Location unavailable — break recorded without GPS', { icon: '⚠️' });
+      if (!gps) throw new Error('Location access is required to record attendance. Please enable location access and try again.');
       const res = await fetch('/api/attendance/punch', {
         method: 'POST',
         headers: getAuthHeaders(),
@@ -639,6 +641,8 @@ export default function AttendancePage() {
   const isOnBreak = !!todayRecord?.breakIn && !todayRecord?.breakOut;
   const hasBreakEnded = !!todayRecord?.breakIn && !!todayRecord?.breakOut;
   const breakMinutesToday = todayRecord?.breakMinutes ?? 0;
+  const currentMinutes = new Date().getHours() * 60 + new Date().getMinutes();
+  const breakWindowOpen = currentMinutes >= 810;
 
   /* ── Leaves covering the selected admin date (per-employee) ── */
   const adminLeaveEmpIds = useMemo(() => {
@@ -831,24 +835,30 @@ export default function AttendancePage() {
             <FiLogIn className="w-4 h-4" />
             {checkingIn ? 'Checking...' : isCheckedIn ? '✓ Checked In' : 'Check In'}
           </button>
+          {isCheckedIn && !isCheckedOut && (
+            <label className="inline-flex items-center gap-2 px-3 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg bg-white">
+              <input type="checkbox" checked={halfDayCheckout} onChange={e => setHalfDayCheckout(e.target.checked)} />
+              Half-Day
+            </label>
+          )}
           <button
             onClick={handleCheckOut}
-            disabled={checkingOut || !isCheckedIn || isCheckedOut}
+            disabled={checkingOut || !isCheckedIn || !hasBreakEnded || isCheckedOut}
             className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all ${
-              !isCheckedIn || isCheckedOut
+              !isCheckedIn || !hasBreakEnded || isCheckedOut
                 ? 'bg-slate-50 text-slate-400 border border-slate-200 cursor-not-allowed'
                 : 'bg-rose-500 text-white hover:bg-rose-600 shadow-sm shadow-rose-500/25 hover:shadow-md'
             }`}
           >
             <FiLogOut className="w-4 h-4" />
-            {checkingOut ? 'Checking...' : isCheckedOut ? '✓ Checked Out' : 'Check Out'}
+            {checkingOut ? 'Checking...' : isCheckedOut ? '✓ Checked Out' : !hasBreakEnded ? 'Check Out (after break)' : 'Check Out'}
           </button>
           {/* Task 57: Break In / Break Out buttons (self-service lunch/tea break) */}
           {isCheckedIn && !isCheckedOut && (
             <>
               <button
                 onClick={handleBreakIn}
-                disabled={breakingIn || isOnBreak || hasBreakEnded}
+                disabled={breakingIn || isOnBreak || hasBreakEnded || !breakWindowOpen}
                 className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all ${
                   isOnBreak || hasBreakEnded
                     ? 'bg-slate-50 text-slate-400 border border-slate-200 cursor-not-allowed'
@@ -857,7 +867,7 @@ export default function AttendancePage() {
                 title="Start a lunch or tea break — break-in time + GPS will be recorded"
               >
                 <FiCoffee className="w-4 h-4" />
-                {breakingIn ? 'Starting...' : isOnBreak ? 'On Break' : hasBreakEnded ? '✓ Break Done' : 'Break In'}
+                {breakingIn ? 'Starting...' : isOnBreak ? 'On Break' : hasBreakEnded ? '✓ Break Done' : breakWindowOpen ? 'Break In' : 'Break In (from 1:30 PM)'}
               </button>
               <button
                 onClick={handleBreakOut}
@@ -890,6 +900,13 @@ export default function AttendancePage() {
           )}
         </div>
       </div>
+
+      {employee && todayRecord?.checkOut && todayRecord.workHours != null && todayRecord.workHours < 8 && (
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <span><strong>Half-Day Absent – Regularization Required.</strong> Net work hours are below 8 hours.</span>
+          <Link href="/attendance/regularize" className="shrink-0 rounded-md bg-amber-600 px-3 py-1.5 font-semibold text-white hover:bg-amber-700">Apply Regularization</Link>
+        </div>
+      )}
 
       {/* ── Tab Switcher (Admin / Self View) ── */}
       {isAdmin && (
