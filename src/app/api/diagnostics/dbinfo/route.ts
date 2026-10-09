@@ -39,7 +39,7 @@ export async function GET(request: Request) {
   try {
     const platformDb = getPlatformDb();
     const rows = (await platformDb.$queryRawUnsafe(
-      `SELECT current_database() AS db, inet_server_addr()::text AS host, version() AS ver`
+      `SELECT current_database()::text AS db, inet_server_addr()::text AS host, version() AS ver`
     )) as any;
     const row = rows[0];
     const tCount = (await platformDb.$queryRawUnsafe(`SELECT COUNT(*)::int AS n FROM "Tenant"`)) as any;
@@ -63,7 +63,7 @@ export async function GET(request: Request) {
   try {
     const db = await getDb(request);
     const rows = (await db.$queryRawUnsafe(
-      `SELECT current_database() AS db, inet_server_addr()::text AS host`
+      `SELECT current_database()::text AS db, inet_server_addr()::text AS host`
     )) as any;
     const empCols = (await db.$queryRawUnsafe(
       `SELECT column_name FROM information_schema.columns WHERE table_name='Employee' AND column_name IN ('isManagement','avatar','earlyLogout')`
