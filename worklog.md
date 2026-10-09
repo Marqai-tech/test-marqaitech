@@ -3997,3 +3997,12 @@ Stage Summary:
 - Management list reportees = current employees only (8 on LIVE, was 9).
 - Management members hidden from the Employee List by default with a toggle;
   export matches the screen.
+
+Task 81 (deploy addendum):
+- Pushed 412a978d (maheshkpreddy) → BOTH Vercel projects SUCCESS.
+- POST-DEPLOY VERIFY (scripts/verify-task81.mjs): 13/13 PASS.
+  * LIVE: 9/9 photo URLs embed token; img-tag simulation (no auth header)
+    → 200 image/jpeg 108KB; excludeManagement leaves 0 management members
+    (MARQ001 hidden, toggle restores 11/1); stats.total 10 == rows 10;
+    Inactive export (Task 80) intact (1 separated row).
+  * DEMO: no regressions; self-scoped admin unaffected.
