@@ -6,11 +6,27 @@
  *  POST /api/attendance/overtime-request
  *  PATCH /api/attendance/overtime-request/[id]   — approve/reject + optionally convert to comp-off
  */
-import { requireUser, findEmployeeByEmail, isAdminRole, parseBody, getQuery, ok, fail, OPTIONS } from '@/lib/attendance-leave-api';
-import { getDb, getPlatformDb } from '@/lib/tenant-db';
+import { requireUser, isAdminRole, parseBody, getQuery, ok, fail, OPTIONS } from '@/lib/attendance-leave-api';
+import { getDb } from '@/lib/tenant-db';
 import { buildContext, evaluateOvertimeAutoApproval } from '@/lib/auto-approval-engine';
 import { dispatchOvertimeEvent } from '@/lib/overtime-notify';
-import { loadWorkflowConfig, initializeWorkflow } from '@/lib/attendance-workflow';
+import { buildRequestContext, loadWorkflowConfig, initializeWorkflow } from '@/lib/attendance-workflow';
+import { validateOvertimeRequest } from '@/lib/overtime-request-validation';
+
+type OvertimeEmployee = {
+  id: string;
+  companyId: string | null;
+  timezone: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  userId: string | null;
+  reportingManager: {
+    userId: string | null;
+    email: string | null;
+    firstName: string | null;
+    lastName: string | null;
+  } | null;
+};
 
 export { OPTIONS };
 
@@ -22,7 +38,10 @@ export async function GET(request: Request) {
     const q = getQuery(request);
     const where: Record<string, unknown> = {};
     if (!isAdminRole(user.role)) {
-      const emp = await findEmployeeByEmail(user.email, db);
+      const emp = await db.employee.findFirst({
+        where: { email: { equals: user.email, mode: 'insensitive' } },
+        select: { id: true },
+      });
       if (!emp) return ok({ overtimeRequests: [] });
       where.employeeId = emp.id;
     } else if (q.employeeId) {
@@ -55,12 +74,12 @@ export async function POST(request: Request) {
     // NOTE: findEmployeeByEmail MUST receive the tenant `db` — the legacy
     // no-db fallback resolved the employee against the platform database,
     // producing an id that violated OvertimeRequest_employeeId_fkey on create.
-    let emp: any = null;
+    let emp: OvertimeEmployee | null = null;
     const onBehalfId = typeof body.employeeId === 'string' ? body.employeeId.trim() : '';
     if (onBehalfId && isAdminRole(user.role)) {
       emp = await db.employee.findUnique({
         where: { id: onBehalfId },
-        select: { id: true, companyId: true, firstName: true, lastName: true, userId: true, reportingManager: { select: { userId: true, email: true, firstName: true, lastName: true } } },
+        select: { id: true, companyId: true, timezone: true, firstName: true, lastName: true, userId: true, reportingManager: { select: { userId: true, email: true, firstName: true, lastName: true } } },
       });
       if (!emp) return fail('Selected employee not found', 404);
     } else {
@@ -69,99 +88,21 @@ export async function POST(request: Request) {
       }
       emp = await db.employee.findFirst({
         where: { email: { equals: user.email, mode: 'insensitive' } },
-        select: { id: true, companyId: true, firstName: true, lastName: true, userId: true, reportingManager: { select: { userId: true, email: true, firstName: true, lastName: true } } },
+        select: { id: true, companyId: true, timezone: true, firstName: true, lastName: true, userId: true, reportingManager: { select: { userId: true, email: true, firstName: true, lastName: true } } },
       });
     }
     if (!emp) return fail('Employee record not found', 404);
 
-    const date = new Date(body.date as string);
-    const startTime = new Date(body.startTime as string);
-    const endTime = new Date(body.endTime as string);
-    const reason = (body.reason as string) || '';
-    // Explicit guards — an Invalid Date is truthy, so the previous
-    // `!startTime || !endTime` check let invalid values through to Prisma
-    // (which surfaced as "Invalid Date" invocation errors and NaN hours).
-    if (isNaN(date.getTime())) return fail('Invalid date format');
-    if (isNaN(startTime.getTime())) return fail('Invalid start time format — select the start time again');
-    if (isNaN(endTime.getTime())) return fail('Invalid end time format — select the end time again');
-    if (endTime <= startTime) return fail('End time must be after start time');
-    if (!reason.trim()) return fail('Reason is required');
-
-    const ms = endTime.getTime() - startTime.getTime();
-    const estimatedHours = Math.max(0.25, Math.round((ms / (1000 * 60 * 60)) * 100) / 100);
-
-    const dayStart = new Date(date); dayStart.setUTCHours(0, 0, 0, 0);
-    const dayEnd = new Date(dayStart); dayEnd.setUTCDate(dayEnd.getUTCDate() + 1);
-    const activeStatuses = { in: ['pending', 'approved', 'auto_approved'] };
-
-    // Check approved leave first. Leave dates commonly have no attendance row;
-    // the user must receive the specific leave-conflict message, not the more
-    // generic absent/no-attendance message.
-    const approvedLeave = await db.leaveRequest.findFirst({
-      where: { employeeId: emp.id, status: 'approved', startDate: { lt: dayEnd }, endDate: { gte: dayStart } },
-      select: { id: true },
+    const validation = await validateOvertimeRequest(db, {
+      date: body.date,
+      startTime: body.startTime,
+      endTime: body.endTime,
+      reason: body.reason,
+      employee: emp,
     });
-    if (approvedLeave) return fail('Overtime cannot be requested on a date with approved leave', 422);
-
-    // An OT request is valid only for a day with an attendance record. This
-    // prevents HR from creating OT for an absent day or a date with no punch.
-    const attendance = await db.attendance.findFirst({
-      where: { employeeId: emp.id, date: { gte: dayStart, lt: dayEnd } },
-      select: { status: true, checkIn: true, checkOut: true },
-    });
-    if (!attendance || ['absent', 'on_leave', 'holiday', 'weekend'].includes(String(attendance?.status || '').toLowerCase())) {
-      return fail('Overtime cannot be requested because the employee is absent or has no attendance record for the selected date', 422);
-    }
-
-    // Respect the configured company shift. OT may only be outside the normal
-    // working window; this makes 6–8 PM valid for a 9–6 shift but rejects 2–4 PM.
-    const policy = await db.attendancePolicyConfig.findFirst({
-      where: { OR: [{ companyId: emp.companyId || null }, { companyId: null }] },
-      orderBy: { updatedAt: 'desc' },
-      select: { shiftStartDefault: true, shiftEndDefault: true },
-    }).catch(() => null);
-    const toMinutes = (value: string | null | undefined, fallback: number) => {
-      const match = /^([01]?\d|2[0-3]):([0-5]\d)$/.exec(value || '');
-      return match ? Number(match[1]) * 60 + Number(match[2]) : fallback;
-    };
-    const configuredShiftStart = policy?.shiftStartDefault === '09:00' ? '09:30' : (policy?.shiftStartDefault || '09:30');
-    const configuredShiftEnd = policy?.shiftEndDefault === '17:30' ? '18:30' : (policy?.shiftEndDefault || '18:30');
-    const shiftStartMinutes = toMinutes(configuredShiftStart, 9 * 60 + 30);
-    const shiftEndMinutes = toMinutes(configuredShiftEnd, 18 * 60 + 30);
-    const startMinutes = startTime.getHours() * 60 + startTime.getMinutes();
-    const endMinutes = endTime.getHours() * 60 + endTime.getMinutes();
-    if (startMinutes < shiftEndMinutes && endMinutes > shiftStartMinutes) {
-      return fail(`Overtime must be outside scheduled working hours (${configuredShiftStart}–${configuredShiftEnd})`, 422);
-    }
-
-    const duplicateOrOverlap = await db.overtimeRequest.findFirst({
-      where: { employeeId: emp.id, date: { gte: dayStart, lt: dayEnd }, status: activeStatuses, startTime: { lt: endTime }, endTime: { gt: startTime } },
-      select: { id: true },
-    });
-    if (duplicateOrOverlap) return fail('An overtime request already exists or overlaps this time range for the selected date', 409);
-
-    const permissionOverlap = await db.hourlyPermission.findFirst({
-      where: { employeeId: emp.id, date: { gte: dayStart, lt: dayEnd }, status: { in: ['pending', 'approved', 'auto_approved'] }, startTime: { lt: endTime }, endTime: { gt: startTime } },
-      select: { id: true },
-    }).catch(() => null);
-    if (permissionOverlap) return fail('Overtime cannot overlap an existing permission request for the selected date and time', 409);
-
-    const attendanceRequestOverlap = await db.attendanceRequest.findMany({
-      where: { employeeId: emp.id, requestType: 'HOURLY_PERMISSION', status: { notIn: ['rejected', 'cancelled'] }, startDate: { gte: dayStart, lt: dayEnd } },
-      select: { payload: true },
-    }).catch(() => []);
-    const overlapsPayload = attendanceRequestOverlap.some((row: any) => {
-      try {
-        const payload = typeof row.payload === 'string' ? JSON.parse(row.payload) : row.payload;
-        const pStart = new Date(payload?.startTime || 0); const pEnd = new Date(payload?.endTime || 0);
-        return !isNaN(pStart.getTime()) && !isNaN(pEnd.getTime()) && pStart < endTime && pEnd > startTime;
-      } catch { return false; }
-    });
-    if (overlapsPayload) return fail('Overtime cannot overlap an existing permission request for the selected date and time', 409);
-
-    if (attendance.checkIn && attendance.checkOut && startTime < attendance.checkOut && endTime > attendance.checkIn) {
-      return fail('Overtime cannot overlap the employee attendance time for the selected date', 409);
-    }
+    if ('error' in validation) return fail(validation.error, validation.status);
+    const { date, startTime, endTime, estimatedHours, dayStart, dayEnd } = validation.value;
+    const reason = validation.value.reason;
 
     const payoutPreference = body.payoutPreference === 'comp_off' ? 'comp_off' : 'payout';
 
@@ -204,7 +145,6 @@ export async function POST(request: Request) {
     // Bridge human-review OT requests into the shared Attendance approval
     // inbox. The OT table remains the source record; the unified row carries
     // the approval chain and points back to it for finalization.
-    let workflowRequestId: string | null = null;
     if (status !== 'approved') {
       try {
         const { config, configId } = await loadWorkflowConfig(db, emp.companyId || null, 'HOURLY_PERMISSION', {
@@ -226,8 +166,7 @@ export async function POST(request: Request) {
             configSnapshot: JSON.stringify({ levels: config.levels, rules: config.rules, configId }),
           },
         });
-        workflowRequestId = workflowRequest.id;
-        await initializeWorkflow(db, workflowRequest.id, emp.id, user.tenantId || null, config, {
+        const context = await buildRequestContext(db, {
           employeeId: emp.id,
           requestType: 'HOURLY_PERMISSION',
           startDate: date,
@@ -235,6 +174,7 @@ export async function POST(request: Request) {
           gatePassType: '',
           hours: estimatedHours,
         });
+        await initializeWorkflow(db, workflowRequest.id, emp.id, user.tenantId || null, config, context);
       } catch (workflowError) {
         console.warn('[overtime-request] unified workflow bridge failed:', workflowError);
       }
@@ -250,7 +190,7 @@ export async function POST(request: Request) {
       if (attendanceForOt) await db.attendance.update({ where: { id: attendanceForOt.id }, data: { overtime: Math.round(Math.max(Number(attendanceForOt.overtime || 0), estimatedHours) * 100) / 100 } }).catch(() => null);
     }
 
-    const manager = (emp as any).reportingManager;
+    const manager = emp.reportingManager;
     const managerName = manager ? `${manager.firstName || ''} ${manager.lastName || ''}`.trim() : '';
     const requestForNotification = {
       ...record,

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createHash } from 'node:crypto';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { resolveCompanyScope } from '@/lib/companyScope';
@@ -31,6 +32,53 @@ function corsHeaders() {
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
   };
+}
+
+/**
+ * Keep HRMS button punches visible in Attendance → Biometric → Punches.
+ * This is an internal audit record only; it never attempts to write a punch
+ * back to the physical BIO-PARK terminal or Team Office.
+ */
+async function recordManualBiometricAudit(
+  db: any,
+  params: { employeeId: string; action: string; timestamp: Date; attendanceId: string; method: string; notes?: string | null },
+) {
+  if (params.method === 'biometric') return;
+
+  const device = await db.biometricDevice.upsert({
+    where: { serialNumber: 'HRMS-MANUAL-PUNCHES' },
+    create: {
+      name: 'Manual HRMS',
+      serialNumber: 'HRMS-MANUAL-PUNCHES',
+      vendor: 'custom',
+      model: 'HRMS manual attendance audit',
+      apiTokenHash: createHash('sha256').update('hrms-manual-attendance-audit').digest('hex'),
+      isActive: true,
+    },
+    update: { isActive: true },
+    select: { id: true },
+  });
+
+  const punchType = params.action === 'checkin' ? 'check_in'
+    : params.action === 'checkout' ? 'check_out'
+      : params.action === 'breakin' ? 'break_in'
+        : 'break_out';
+
+  await db.biometricPunch.create({
+    data: {
+      deviceId: device.id,
+      employeeId: params.employeeId,
+      attendanceId: params.attendanceId,
+      punchType,
+      punchTime: params.timestamp,
+      rawPayload: {
+        source: 'manual_hrms',
+        method: params.method,
+        action: params.action,
+        notes: params.notes || null,
+      },
+    },
+  });
 }
 
 export async function OPTIONS() {
@@ -313,6 +361,22 @@ export async function POST(request: NextRequest) {
         });
         attendance = { ...attendance, workHours, breakMinutes, overtime };
       }
+    }
+
+    // Mirror HRMS button actions into the Biometric Punches audit. This gives
+    // staff one attendance timeline while keeping the physical device history
+    // clearly separate as BIO-PARK / Team Office records.
+    try {
+      await recordManualBiometricAudit(db, {
+        employeeId,
+        action,
+        timestamp,
+        attendanceId: attendance.id,
+        method,
+        notes,
+      });
+    } catch (e) {
+      console.warn('[punch] Manual biometric audit insert failed (non-fatal):', (e as Error).message);
     }
 
     // 2. Insert the PunchEvent row for the activity log
