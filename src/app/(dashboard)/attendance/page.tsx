@@ -92,6 +92,7 @@ interface AttendanceRecord {
   breakOut?: string | null;
   breakMinutes?: number | null;
   punchMethod?: string | null;
+  earlyLogout?: boolean;
   checkInGpsLat?: number | null;
   checkInGpsLng?: number | null;
   checkInGpsLabel?: string | null;
@@ -303,6 +304,7 @@ export default function AttendancePage() {
     }
   };
   const [checkingOut, setCheckingOut] = useState(false);
+  const [earlyLogout, setEarlyLogout] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const now = new Date();
     return { month: now.getMonth(), year: now.getFullYear() };
@@ -570,6 +572,24 @@ export default function AttendancePage() {
     }
   };
 
+  const handleEarlyLogout = async (checked: boolean) => {
+    if (!checked || !employee || !isCheckedIn || isCheckedOut) return;
+    try {
+      const res = await fetch('/api/attendance/punch', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ employeeId: employee.id, action: 'set_early_logout', date: localDateKey(new Date()), localTime: `${pad2(new Date().getHours())}:${pad2(new Date().getMinutes())}` }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Could not enable Early Logout');
+      setEarlyLogout(true);
+      toast.success('Early Logout enabled. Your next punch will be Check-Out.');
+      await fetchAttendance();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Could not enable Early Logout');
+    }
+  };
+
   /* ── Task 57: Break In (start lunch/tea break) ── */
   const handleBreakIn = async () => {
     if (!employee) return;
@@ -638,6 +658,7 @@ export default function AttendancePage() {
   // Task 57: break state derived from today's record
   const isOnBreak = !!todayRecord?.breakIn && !todayRecord?.breakOut;
   const hasBreakEnded = !!todayRecord?.breakIn && !!todayRecord?.breakOut;
+  const earlyLogoutEnabled = earlyLogout || !!todayRecord?.earlyLogout;
   const breakMinutesToday = todayRecord?.breakMinutes ?? 0;
 
   /* ── Leaves covering the selected admin date (per-employee) ── */
@@ -843,6 +864,10 @@ export default function AttendancePage() {
             <FiLogOut className="w-4 h-4" />
             {checkingOut ? 'Checking...' : isCheckedOut ? '✓ Checked Out' : 'Check Out'}
           </button>
+          <label className="inline-flex items-center gap-2 px-3 py-2 text-xs text-slate-700 border border-slate-200 rounded-lg bg-white">
+            <input type="checkbox" checked={earlyLogoutEnabled} disabled={!isCheckedIn || isCheckedOut || earlyLogoutEnabled} onChange={e => handleEarlyLogout(e.target.checked)} />
+            Early Logout
+          </label>
           {/* Task 57: Break In / Break Out buttons (self-service lunch/tea break) */}
           {isCheckedIn && !isCheckedOut && (
             <>

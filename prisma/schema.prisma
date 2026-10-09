@@ -1097,6 +1097,7 @@ model Attendance {
   breakOutGpsLabel     String?
   // Punch method: mobile / biometric / web / manual — drives the audit log
   punchMethod  String?
+  earlyLogout  Boolean @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

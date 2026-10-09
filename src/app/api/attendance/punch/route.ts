@@ -156,6 +156,7 @@ async function ensureAttendanceColumns(db: any) {
     ['"breakOutGpsAccuracy"', 'DOUBLE PRECISION'],
     ['"breakOutGpsLabel"', 'TEXT'],
     ['"punchMethod"', 'TEXT'],
+    ['"earlyLogout"', 'BOOLEAN NOT NULL DEFAULT FALSE'],
   ];
   for (const [col, type] of cols) {
     await db.$executeRawUnsafe(`ALTER TABLE "Attendance" ADD COLUMN IF NOT EXISTS ${col} ${type}`).catch(() => null);
@@ -207,7 +208,7 @@ export async function POST(request: NextRequest) {
         { status: 400, headers: corsHeaders() },
       );
     }
-    const validActions = ['checkin', 'checkout', 'breakin', 'breakout'];
+    const validActions = ['checkin', 'checkout', 'breakin', 'breakout', 'set_early_logout'];
     if (!validActions.includes(action)) {
       return NextResponse.json(
         { error: `Invalid action. Must be one of: ${validActions.join(', ')}` },
@@ -241,12 +242,33 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid date/time' }, { status: 400, headers: corsHeaders() });
     }
     const dateObj = new Date(`${date}T00:00:00`); // calendar date at local midnight
+    const [localHour, localMinute] = String(localTime || '').split(':').map(Number);
+    const localMinutes = Number.isFinite(localHour) && Number.isFinite(localMinute) ? localHour * 60 + localMinute : null;
 
     const method = body.method || (gps && gps.lat != null ? 'mobile' : 'web');
     const gpsLat = gps && gps.lat != null ? Number(gps.lat) : null;
     const gpsLng = gps && gps.lng != null ? Number(gps.lng) : null;
     const gpsAccuracy = gps && gps.accuracy != null ? Number(gps.accuracy) : null;
     const gpsLabel = gps && gps.label ? String(gps.label) : null;
+
+    const existingBeforeRules = await db.attendance.findFirst({ where: { employeeId, date: dateObj } });
+    if (action === 'breakin' && localMinutes !== null && localMinutes < 13 * 60 + 30) {
+      return NextResponse.json({ error: 'Break-In is available from 1:30 PM onward.' }, { status: 400, headers: corsHeaders() });
+    }
+    if (action === 'breakin' && !existingBeforeRules?.checkIn) {
+      return NextResponse.json({ error: 'You must Check-In before starting a break.' }, { status: 400, headers: corsHeaders() });
+    }
+    if (action === 'breakout' && !existingBeforeRules?.breakIn) {
+      return NextResponse.json({ error: 'You must record Break-In before Break-Out.' }, { status: 400, headers: corsHeaders() });
+    }
+    if (action === 'checkout' && (!existingBeforeRules?.checkIn || existingBeforeRules?.checkOut)) {
+      return NextResponse.json({ error: existingBeforeRules?.checkOut ? 'Already checked out today.' : 'You must Check-In before checking out.' }, { status: 400, headers: corsHeaders() });
+    }
+    if (action === 'set_early_logout') {
+      if (!existingBeforeRules?.checkIn || existingBeforeRules?.checkOut) return NextResponse.json({ error: 'Early Logout is available only after Check-In and before Check-Out.' }, { status: 400, headers: corsHeaders() });
+      const updated = await db.attendance.update({ where: { id: existingBeforeRules.id }, data: { earlyLogout: true, updatedAt: new Date() } as any });
+      return NextResponse.json({ ok: true, attendance: updated, message: 'Early Logout enabled. Your next punch will be Check-Out.' }, { headers: corsHeaders() });
+    }
 
     // GPS is mandatory for employee check-in/out. Validate before creating or
     // updating Attendance so denied/unavailable/outside punches never persist.
@@ -287,7 +309,17 @@ export async function POST(request: NextRequest) {
       attUpdate.checkInGpsAccuracy = gpsAccuracy;
       attUpdate.checkInGpsLabel = gpsLabel;
       attUpdate.location = gpsLabel || (gpsLat != null ? `${gpsLat.toFixed(6)},${gpsLng!.toFixed(6)}` : null);
-      attUpdate.status = 'present'; // mark present on check-in
+      const graceCutoff = 10 * 60;
+      const late = localMinutes !== null && localMinutes > graceCutoff;
+      let monthlyLateCount = 0;
+      if (late) {
+        const monthStart = new Date(`${date.slice(0, 7)}-01T00:00:00`);
+        const nextMonth = new Date(monthStart);
+        nextMonth.setMonth(nextMonth.getMonth() + 1);
+        monthlyLateCount = await db.attendance.count({ where: { employeeId, date: { gte: monthStart, lt: nextMonth }, status: 'late' } }).catch(() => 0);
+      }
+      attUpdate.status = late && monthlyLateCount >= 3 ? 'half_day' : late ? 'late' : 'present';
+      if (late && monthlyLateCount >= 3) attUpdate.notes = 'Fourth late arrival this month: attendance automatically marked Half-Day.';
     } else if (action === 'checkout') {
       attUpdate.checkOut = timestamp;
       attUpdate.checkOutGpsLat = gpsLat;
@@ -357,6 +389,10 @@ export async function POST(request: NextRequest) {
             workHours,
             breakMinutes,
             overtime,
+            status: workHours < 8 ? 'half_day' : (attendance.status === 'half_day' ? 'present' : attendance.status),
+            notes: workHours < 8
+              ? 'Net working time is below the required 8 hours. Apply Attendance Regularization for full-day correction.'
+              : attendance.notes,
           },
         });
         attendance = { ...attendance, workHours, breakMinutes, overtime };

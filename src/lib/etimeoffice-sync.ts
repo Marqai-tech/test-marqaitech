@@ -254,20 +254,23 @@ export async function syncETimeOfficePunches(db: PrismaClient, tenantId: string)
       });
       if (!dayPunches.length) continue;
 
+      const existingAttendance = await tx.attendance.findUnique({
+        where: { employeeId_date: { employeeId: group.employeeId, date: group.dayStart } },
+        select: { checkIn: true, checkOut: true, breakIn: true, breakOut: true, breakMinutes: true, punchMethod: true, earlyLogout: true },
+      });
       const duplicateWindowMinutes = Number(process.env.ETIMEOFFICE_DUPLICATE_WINDOW_MINUTES || '2');
-      const classified = classifyBiometricDay(dayPunches, Number.isFinite(duplicateWindowMinutes) ? duplicateWindowMinutes : 2);
+      const classified = classifyBiometricDay(dayPunches, Number.isFinite(duplicateWindowMinutes) ? duplicateWindowMinutes : 2, {
+        manualCheckIn: Boolean(existingAttendance?.checkIn && existingAttendance?.punchMethod !== 'biometric'),
+        existingBreakIn: existingAttendance?.breakIn,
+        existingBreakOut: existingAttendance?.breakOut,
+        earlyLogout: Boolean(existingAttendance?.earlyLogout),
+      });
       const acceptedPunches = classified.accepted;
       if (!acceptedPunches.length) continue;
       const first = acceptedPunches[0];
-      const last = acceptedPunches[acceptedPunches.length - 1];
-      const lastIsAfterFirst = last.punchTime.getTime() > first.punchTime.getTime();
-      const existingAttendance = await tx.attendance.findUnique({
-        where: { employeeId_date: { employeeId: group.employeeId, date: group.dayStart } },
-        select: { checkIn: true, checkOut: true, breakIn: true, breakOut: true, breakMinutes: true },
-      });
-      const checkIn = existingAttendance?.checkIn && existingAttendance.checkIn < first.punchTime
-        ? existingAttendance.checkIn : first.punchTime;
-      const candidateOut = lastIsAfterFirst ? last.punchTime : null;
+      const checkIn = existingAttendance?.checkIn || (classified.classifications.get(first.id) === 'check_in' ? first.punchTime : null);
+      const checkoutPunch = acceptedPunches.find(p => classified.classifications.get(p.id) === 'check_out');
+      const candidateOut = checkoutPunch?.punchTime || null;
       const checkOut = candidateOut && existingAttendance?.checkOut && existingAttendance.checkOut > candidateOut
         ? existingAttendance.checkOut : candidateOut || existingAttendance?.checkOut || null;
       const firstBreak = classified.completedBreaks[0] || null;
@@ -318,7 +321,8 @@ export async function syncETimeOfficePunches(db: PrismaClient, tenantId: string)
           : punchType === 'check_out' ? 'checkout'
             : punchType === 'break_in' ? 'breakin'
               : punchType === 'break_out' ? 'breakout'
-                : 'duplicate';
+            : punchType === 'entry_only' ? 'entry'
+              : 'duplicate';
         await tx.punchEvent.updateMany({
           where: {
             employeeId: group.employeeId,
