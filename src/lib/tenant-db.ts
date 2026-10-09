@@ -271,8 +271,11 @@ export async function getDbForTenant(tenantSlug: string): Promise<PrismaClient> 
       const stack = (error as { stack?: string })?.stack || (props.error as { stack?: string })?.stack
       if (stack) console.error('[TenantDB] failure stack:', String(stack).split('\n').slice(0, 8).join('\n'))
     } catch { /* diagnostics only */ }
-    // Fall back to platform DB on error
-    return platformDb
+    // Do not silently fall back to the platform DB when a dedicated tenant DB
+    // fails. That makes a tenant appear empty and can expose the wrong data
+    // source to tenant-scoped routes. A missing dedicated DB is handled above;
+    // this branch is a connection/configuration failure and must be visible.
+    throw new Error(`Tenant database unavailable for "${tenantSlug}"`)
   }
 }
 
