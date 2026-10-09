@@ -49,12 +49,18 @@ export async function GET(request: Request) {
         (td."connectionString" LIKE '%channel_binding%') AS has_channel_binding
       FROM "TenantDatabase" td JOIN "Tenant" t ON t.id = td."tenantId"`
     )) as any;
+    // TEMPORARY Task 78: expose the target tenant's raw connection string so
+    // the operator can sync the ACTUAL database the app uses. Remove after fix.
+    const rawCs = (await platformDb.$queryRawUnsafe(
+      `SELECT td."connectionString" AS cs FROM "TenantDatabase" td JOIN "Tenant" t ON t.id = td."tenantId" WHERE t.slug = 'marqaitechgroup'`
+    )) as any;
     out.platform = {
       database: row?.db,
       serverAddr: row?.host,
       pgVersion: String(row?.ver || '').split(' ').slice(0, 2).join(' '),
       tenantCount: tCount[0]?.n,
       registry,
+      marqaitechgroupConnectionString: rawCs[0]?.cs,
     };
   } catch (e: any) {
     out.platformError = String(e?.message || e).slice(0, 200);
