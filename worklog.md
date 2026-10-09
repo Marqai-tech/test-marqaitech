@@ -3943,3 +3943,15 @@ Stage Summary:
   "Inactive" matches how the product counts Inactive (card = filter = export),
   termination/resignation flows are covered, export failure is loud instead
   of silently wrong, and the designation filter is real.
+
+Task 80 (deploy addendum):
+- Pushed 9e848c5c (maheshkpreddy) → BOTH Vercel projects SUCCESS
+  (Vercel – 3-boxes-hrms + Vercel – nexus-hrms via GitHub commit status).
+- POST-DEPLOY VERIFY (scripts/verify-task80.mjs): 14/14 PASS.
+  * LIVE: status=inactive export → 1 row (the terminated employee, new
+    semantics); global Inactive card (1) == filter rows (1); active exact
+    (10); terminated exact (1); designationId filters (1); on_leave exact.
+  * DEMO: same signatures; self-scoped admin card 0 == rows 0.
+- Note: quick-stats path (limit<=1, super-admin home) is intentionally
+  unscoped and may differ from scoped page stats — page cards use the
+  scoped normal path, so card == filter for real users.
