@@ -3955,3 +3955,45 @@ Task 80 (deploy addendum):
 - Note: quick-stats path (limit<=1, super-admin home) is intentionally
   unscoped and may differ from scoped page stats — page cards use the
   scoped normal path, so card == filter for real users.
+
+---
+Task ID: 81
+Agent: Super Z (main agent)
+Task: User report — (1) employee photos not showing in employee list + view, (2) management list shows terminated employee as reportee (should be 8 not 9), (3) management employee should not appear in the employee list. "update the following in the vercel now".
+
+Work Log:
+- PHOTOS — REPRODUCED on LIVE: 9 of 11 employees have stored photos; the list
+  API returns avatar as /api/employees/{id}/photo paths (attachListPhotoUrls),
+  but getTokenFromHeaders ONLY accepts the Authorization Bearer header (cookies
+  deliberately rejected for per-tab identity) and <img> tags CANNOT send
+  headers → every photo <img> got 401 → broken images in table + grid views.
+  (WITH-AUTH probe returned 200 image/jpeg — data intact; [id] detail view
+  returns the inline data URL so it was unaffected.)
+  FIX: photo route accepts ?token= fallback (same pattern as reports export,
+  JWT expiry bounds exposure, Cache-Control private); employeePhotoApiPath()
+  embeds the caller's bearer token; employees GET + attendance GET pass their
+  request's token into the generated photo URLs.
+- MANAGEMENT LIST — root cause: getDirectReports() counted ALL employees with
+  reportingManagerId === manager, with NO status filter → the terminated
+  MARQ005 counted, giving MARQ001 9 reportees instead of 8.
+  FIX (management/page.tsx): currentEmployees = status active|on_leave only;
+  reportee lists/counts, criterion-2 (reporting-manager membership) and the
+  management list itself now exclude terminated/resigned/inactive.
+- EMPLOYEE LIST — management members (definition identical to the Management
+  List page: isManagement OR mgmt-level user role OR current direct reports)
+  are now EXCLUDED from the Employee List via new server param
+  excludeManagement=1 (where.NOT OR [...]; skipped for scope=self). The list
+  page sends it by default; a "Management hidden/shown" toggle (violet, next
+  to Export) brings them back when admins need to edit those records; the CSV
+  export mirrors the toggle so the file always matches the screen. Stats cards
+  are computed with the same where → cards agree with the visible list.
+  Other consumers (management page, pickers via fetchAllEmployees, attendance,
+  payroll) are unaffected.
+- VERIFICATION: all 6 changed files PARSE OK; tsc --noEmit error set identical
+  to the pre-change baseline (all pre-existing; zero new errors).
+
+Stage Summary:
+- Photos render again in the employee list/grid (token-embedded photo URLs).
+- Management list reportees = current employees only (8 on LIVE, was 9).
+- Management members hidden from the Employee List by default with a toggle;
+  export matches the screen.

@@ -354,6 +354,9 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
   const [filterDept, setFilterDept] = useState('');
   const [filterDesignation, setFilterDesignation] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+  // Task 81: management-list members are hidden from the Employee List by
+  // default (their directory is the Management List module). Toggle to show.
+  const [includeManagement, setIncludeManagement] = useState(false);
 
 
   const [showForm, setShowForm] = useState(formOnly);
@@ -552,6 +555,9 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
       if (filterDept) params.set('departmentId', filterDept);
       if (filterDesignation) params.set('designationId', filterDesignation);
       if (filterStatus) params.set('status', filterStatus);
+      // The export mirrors the on-screen list — management hidden there is
+      // hidden here too (unless the Show Management toggle is on).
+      if (!includeManagement) params.set('excludeManagement', '1');
       const sq = scopeQuery();
       const res = await fetch(`/api/employees?${params.toString()}${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
       if (!res.ok) {
@@ -613,6 +619,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
       if (filterDept) params.set('departmentId', filterDept);
       if (filterDesignation) params.set('designationId', filterDesignation);
       if (filterStatus) params.set('status', filterStatus);
+      if (!includeManagement) params.set('excludeManagement', '1');
       const sq = scopeQuery();
 
       const res = await fetch(`/api/employees?${params.toString()}${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
@@ -634,7 +641,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
     } finally {
       setLoading(false);
     }
-  }, [search, filterDept, filterDesignation, filterStatus, scopeCompanyId, scopeTenantId, scopeQuery]);
+  }, [search, filterDept, filterDesignation, filterStatus, includeManagement, scopeCompanyId, scopeTenantId, scopeQuery]);
 
   /* Fetch all employees for stats */
   const fetchAllEmployees = useCallback(async () => {
@@ -1644,6 +1651,19 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
             </div>
 
             <div className="flex items-center gap-2">
+              {/* Task 81: management members live in the Management List —
+                  hidden here by default, toggle to include them */}
+              <button
+                onClick={() => setIncludeManagement(v => !v)}
+                className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg border transition-colors ${
+                  includeManagement
+                    ? 'bg-violet-50 border-violet-300 text-violet-700'
+                    : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                }`}
+                title="Management List members are hidden from this list by default"
+              >
+                <FiUserCheck className="w-3.5 h-3.5" /> {includeManagement ? 'Management shown' : 'Management hidden'}
+              </button>
               {/* Export */}
               <button onClick={handleExportCSV} className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors">
                 <FiDownload className="w-3.5 h-3.5" /> Export

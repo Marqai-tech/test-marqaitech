@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { resolveCompanyScope } from '@/lib/companyScope';
 import { withSchemaSync } from '@/lib/schema-sync';
+import { getTokenFromHeaders } from '@/lib/auth';
 import { employeeIdsWithStoredPhoto, employeePhotoApiPath } from '@/lib/profile-photo';
 
 function corsHeaders() {
@@ -104,7 +105,7 @@ export async function GET(request: Request) {
         ...row,
         employee: {
           ...emp,
-          avatar: hasPhoto.has(emp.id) ? employeePhotoApiPath(emp.id, request.url) : null,
+          avatar: hasPhoto.has(emp.id) ? employeePhotoApiPath(emp.id, request.url, getTokenFromHeaders(request)) : null,
         },
       };
     });

@@ -43,11 +43,12 @@ async function attachListPhotoUrls<T extends { id: string; user?: { id: string; 
   queryDb: { $queryRawUnsafe: (sql: string, ...values: unknown[]) => Promise<unknown> },
   employees: T[],
   requestUrl: string,
+  token?: string | null,
 ): Promise<Array<T & { avatar: string | null; user: T['user'] & { avatar: string | null } | null }>> {
   if (employees.length === 0) return [];
   const hasPhoto = await employeeIdsWithStoredPhoto(queryDb, employees.map((e) => e.id));
   return employees.map((e) => {
-    const photo = hasPhoto.has(e.id) ? employeePhotoApiPath(e.id, requestUrl) : null;
+    const photo = hasPhoto.has(e.id) ? employeePhotoApiPath(e.id, requestUrl, token) : null;
     return {
       ...e,
       avatar: photo,
@@ -72,6 +73,12 @@ export async function GET(request: Request) {
     const designationId = searchParams.get('designationId');
     const status = searchParams.get('status');
     const search = searchParams.get('search');
+    // Task 81: Employee List page asks to hide management-list members (the
+    // Management List module is their directory). Same membership definition as
+    // the Management List page: designated (isManagement), management-level
+    // user role, or currently-employed direct reports. Only the list sends
+    // this — pickers, attendance, payroll etc. still see everyone.
+    const excludeManagement = searchParams.get('excludeManagement') === '1';
     // Task 80: "Inactive" must mean "not currently employed" — the same
     // definition the Inactive stats card uses. Employees separated via the
     // Termination / Resignation flows get status 'terminated' / 'resigned'
@@ -319,6 +326,15 @@ export async function GET(request: Request) {
       if (departmentId) where.departmentId = departmentId;
       if (designationId) where.designationId = designationId;
       if (status) where.status = status === 'inactive' ? { in: INACTIVE_STATUSES } : status;
+      if (excludeManagement && scope !== 'self') {
+        where.NOT = {
+          OR: [
+            { isManagement: true },
+            { user: { role: { in: ['manager', 'admin', 'tenant_admin', 'hr_admin', 'super_admin'] } } },
+            { directReports: { some: { status: { in: ['active', 'on_leave'] } } } },
+          ],
+        };
+      }
       if (search) {
         where.OR = [
           { firstName: { contains: search, mode: 'insensitive' } },
@@ -455,7 +471,7 @@ export async function GET(request: Request) {
         }),
         queryDb.employee.count({ where }),
       ]);
-      const employees = await attachListPhotoUrls(queryDb, employeesRaw, request.url);
+      const employees = await attachListPhotoUrls(queryDb, employeesRaw, request.url, getTokenFromHeaders(request));
 
       let stats: { total: number; active: number; inactive: number; newJoiners: number } | undefined;
       if (includeStats) {

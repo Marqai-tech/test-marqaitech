@@ -85,17 +85,29 @@ export default function ManagementListPage() {
         "Is Management = true" in the bulk import. This is the primary source.
      1. Their linked User has role: manager, admin, tenant_admin, hr_admin, super_admin
      2. They are a reporting manager for other employees (have direct reports)
+
+     Task 81: separated employees (terminated / resigned / inactive) are NEVER
+     management and NEVER count as reportees — only currently-employed people
+     (active / on_leave) are listed or counted.
   */
+  const CURRENT_STATUSES = ['active', 'on_leave'];
+  const currentEmployees = useMemo(
+    () => allEmployees.filter(e => CURRENT_STATUSES.includes(e.status)),
+    [allEmployees],
+  );
+
   const managementEmployees = useMemo(() => {
     const mgmtRoles = ['manager', 'admin', 'tenant_admin', 'hr_admin', 'super_admin'];
 
     // Build a set of reporting manager IDs (employees who have direct reports)
+    // from CURRENT employees only — terminated reportees no longer make someone
+    // a reporting manager.
     const reportingManagerIds = new Set<string>();
-    allEmployees.forEach(emp => {
+    currentEmployees.forEach(emp => {
       if (emp.reportingManagerId) reportingManagerIds.add(emp.reportingManagerId);
     });
 
-    return allEmployees.filter(emp => {
+    return currentEmployees.filter(emp => {
       // Criterion 0: explicitly designated as management from the employee form / bulk upload
       if (emp.isManagement === true) return true;
       // Criterion 1: User role is management-level
@@ -104,17 +116,17 @@ export default function ManagementListPage() {
       if (reportingManagerIds.has(emp.id)) return true;
       return false;
     });
-  }, [allEmployees]);
+  }, [currentEmployees]);
 
-  /* ─── Get direct reports for an employee ─── */
+  /* ─── Get direct reports for an employee (currently-employed only) ─── */
   const getDirectReports = useCallback((empId: string): DirectReport[] => {
-    return allEmployees.filter(e => e.reportingManagerId === empId).map(e => ({
+    return currentEmployees.filter(e => e.reportingManagerId === empId).map(e => ({
       id: e.id,
       firstName: e.firstName,
       lastName: e.lastName,
       employeeId: e.employeeId,
     }));
-  }, [allEmployees]);
+  }, [currentEmployees]);
 
   /* ─── Filtered results based on source filter + search. Designated employees sort first. ─── */
   const filtered = useMemo(() => {

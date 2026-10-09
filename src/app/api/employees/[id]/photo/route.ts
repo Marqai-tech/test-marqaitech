@@ -18,7 +18,15 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const token = getTokenFromHeaders(request);
+  // Task 81: <img> tags cannot send an Authorization header, so photo URLs
+  // rendered by the list/grid views were getting 401s (broken images). Accept
+  // the same short-lived bearer token as a query param — the same fallback the
+  // reports export API already uses. The URL is same-origin and responses are
+  // Cache-Control: private, so exposure is bounded by the JWT expiry.
+  const token =
+    getTokenFromHeaders(request) ||
+    new URL(request.url).searchParams.get('token') ||
+    '';
   if (!token) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
   }
