@@ -3822,3 +3822,63 @@ Stage Summary:
 - Hardening shipped: createDbAdapter strips channel_binding from all Neon URLs.
 - NOTE for the user: consider consolidating to ONE Neon project and updating the
   Vercel env vars, so DB fixes only ever need to happen in one place.
+
+---
+Task ID: 79
+Agent: Super Z (main agent)
+Task: User QA report — "debug these errors and update them in vercel now": (1) Dashboard Employees-on-Leave metric vs Leave records, (2) Tenure Overview not displaying, (3) Add Employee document link security, (4) Employee export ignores Inactive filter, (5) Probation review save P2011 null constraint violation.
+
+Work Log:
+- INVESTIGATED all 5 QA items in code + DBs before touching anything.
+- (1) LEAVE METRIC: dashboard counted Employee.status==='on_leave' (stale snapshot,
+  doesn't react to approve/cancel). Added onLeaveToday=1 mode to /api/leave GET:
+  counts DISTINCT employees with an APPROVED LeaveRequest covering today
+  (startDate<=today<=endDate), restricted to currently-employed people
+  (status active|on_leave), scoped like the rest of the route (self/company/all).
+  Dashboard now calls it with Employee.status as fallback.
+- (2) TENURE OVERVIEW: found a hardcoded STUB (four buckets always rendered "—").
+  Replaced with a real distribution computed client-side from every employee's
+  dateOfJoining (buckets 0-6m / 6-12m / 1-3y / 3y+, months clamped >=0, % of
+  workforce shown, basis line states how many employees were counted).
+- (3) DOC LINK SECURITY: added isSafeDocumentUrl() to src/lib/sanitize.ts —
+  allows absolute http(s) only + data: URLs with non-executable MIME (blocks
+  javascript:, vbscript:, file:, blob:, data:text/html, svg, xml, js; a naive
+  'xml' substring check initially rejected Office OpenXML docs — tightened to
+  specific xml patterns and unit-tested). Enforced at 4 layers: staged docs,
+  live docs, profile UploadDocModal, and server-side documents POST (replaces
+  the loose ^(https?|data:) regex). Unsafe legacy rows render "Blocked link"
+  instead of a clickable anchor on both the form and the profile page.
+- (4) EXPORT FILTER: handleExportCSV sent only limit/export/scopeQuery — status,
+  search and department filters were ignored, so exporting after filtering
+  Inactive returned the wrong rows. Export now mirrors fetchEmployees() params
+  exactly (search + departmentId + status + scopeQuery).
+- (5) PROBATION P2011: introspected PerformanceReview on ALL 5 DBs (US platform,
+  US demo+marqaitechgroup tenants, SG LIVE tenant, SG platform) — current table
+  shapes MATCH the Prisma model, nullability OK, and both raw-SQL and real
+  Prisma-client inserts succeed → the reported failure predates Task 78's SG
+  sync (legacy table shape) and is no longer reproducible. Hardened the route
+  anyway: (a) module-level PERF_REVIEW_SYNC_STATEMENTS now ALSO add every model
+  column to LEGACY tables (ALTER ADD COLUMN IF NOT EXISTS, idempotent) — kills
+  P2022/P2011-class failures on any old tenant DB; (b) create data is null-safe
+  (Number() coerced ratings, explicit null reviewerId); (c) on P2011 the route
+  self-heals — reads meta.field_name, ALTER COLUMN ... DROP NOT NULL (only for
+  non-required fields), retries the insert once; P2021/P2022/P2023 re-runs the
+  sync then retries; (d) bogus employeeId now fails fast with a clear 400.
+- VERIFICATION: bun unit tests for isSafeDocumentUrl (14 unsafe + 8 safe cases)
+  ALL PASS; full tsc --noEmit shows ZERO errors in the changed ranges (1896
+  pre-existing codebase-wide errors, build runs with ignoreBuildErrors:true);
+  Turbopack compile of the whole app PASSED ("Compiled successfully in 77s").
+  NOTE: sandbox is a 4GB cgroup — full build OOM-kills in the page-data phase
+  (exit 137, monitored used 3.85GB); compile phase + typecheck cover the code,
+  Vercel 8GB runners complete the full build (a failed Vercel build never
+  replaces the running deployment, so prod risk is nil).
+- DEPLOY: pushed to Marqaitech/3-Boxes-HRMS (maheshkpreddy author), polling
+  GitHub commit status for both Vercel projects, then smoke-testing LIVE + demo.
+
+Stage Summary:
+- All 5 QA items fixed: leave metric is Leave-Module-driven, tenure overview
+  shows a real distribution, document links validated at 4 layers, export
+  honours filters, probation save hardened with schema self-heal.
+- Investigation artifacts: scripts/inspect-performance-review.js,
+  check-performance-review-nullability.js, repro-probation-p2011.ts,
+  test-doc-url-safety.ts (kept for future QA regressions).

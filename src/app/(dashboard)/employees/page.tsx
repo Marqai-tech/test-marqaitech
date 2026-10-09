@@ -34,6 +34,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore, useCompanyContextPersistHydrated } from '@/store/companyContextStore';
 import { canAccessEmployeeSettings, canEditEmployeeRecords } from '@/lib/roleAccess';
 import { fileToProfilePhotoDataUrl, MAX_PROFILE_PHOTO_LABEL } from '@/lib/profile-photo';
+import { isSafeDocumentUrl } from '@/lib/sanitize';
 import { getToken } from '@/lib/token-storage';
 import {
   validateEmail as validateEmailFormat,
@@ -542,7 +543,14 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
   /* Export CSV */
   const handleExportCSV = async () => {
     try {
+      // QA fix: the export must honour the ACTIVE list filters (search /
+      // department / status incl. Inactive) — previously it always fetched
+      // unfiltered employees, so filtering Inactive then exporting produced
+      // the wrong rows. Mirrors the params sent by fetchEmployees().
       const params = new URLSearchParams({ limit: '500', export: '1' });
+      if (search) params.set('search', search);
+      if (filterDept) params.set('departmentId', filterDept);
+      if (filterStatus) params.set('status', filterStatus);
       const sq = scopeQuery();
       const res = await fetch(`/api/employees?${params.toString()}${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
       const data = res.ok ? await res.json() : { employees: allEmployees };
@@ -1289,6 +1297,11 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
 
   const addStagedDoc = () => {
     if (!docDraft.name.trim()) { toast.error('Document name is required'); return; }
+    // QA fix — Document Link Security: reject unsafe URLs (javascript:, data:text/html, etc.)
+    if (docDraft.fileUrl && !isSafeDocumentUrl(docDraft.fileUrl)) {
+      toast.error('Unsafe document link blocked. Use a full http(s):// URL (e.g. https://drive.google.com/…)');
+      return;
+    }
     setStagedDocs(prev => [...prev, { id: `doc_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, ...docDraft, name: docDraft.name.trim() }]);
     setDocDraft(emptyDocDraft());
     toast.success('Document added — it will be saved when you click "Add Employee"');
@@ -1319,6 +1332,11 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
   const uploadLiveDoc = async () => {
     if (!editingId) return;
     if (!docDraft.name.trim()) { toast.error('Document name is required'); return; }
+    // QA fix — Document Link Security: reject unsafe URLs before they are persisted
+    if (docDraft.fileUrl && !isSafeDocumentUrl(docDraft.fileUrl)) {
+      toast.error('Unsafe document link blocked. Use a full http(s):// URL (e.g. https://drive.google.com/…)');
+      return;
+    }
     try {
       setDocUploading(true);
       const r = await fetch(`/api/employees/${editingId}/documents`, {
@@ -2718,6 +2736,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                     {editingId ? editDocs.map(doc => {
                       const cat = FORM_DOC_CATEGORIES.find(c => c.value === (doc.category || 'other'));
                       const isData = (doc.fileUrl || '').startsWith('data:');
+                      const linkSafe = isSafeDocumentUrl(doc.fileUrl);
                       return (
                         <div key={doc.id} className="flex items-center gap-3 py-2.5 border-b border-thb-border/50 last:border-0">
                           <span className="text-lg shrink-0">{cat?.icon || '📎'}</span>
@@ -2725,7 +2744,8 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                             <p className="text-sm font-medium text-thb-text-primary truncate">{doc.name}</p>
                             <p className="text-[11px] text-thb-text-muted">{cat?.label || 'Other'}{doc.expiryDate ? ` · Expires ${formatDate(doc.expiryDate)}` : ''}</p>
                           </div>
-                          {doc.fileUrl && <a href={doc.fileUrl} {...(isData ? { download: doc.name } : { target: '_blank', rel: 'noopener noreferrer' })} className="inline-flex items-center gap-1 px-2 py-1 text-[11px] text-teal-600 hover:bg-teal-50 rounded shrink-0"><FiDownload className="w-3 h-3" /> Download</a>}
+                          {doc.fileUrl && linkSafe && <a href={doc.fileUrl} {...(isData ? { download: doc.name } : { target: '_blank', rel: 'noopener noreferrer' })} className="inline-flex items-center gap-1 px-2 py-1 text-[11px] text-teal-600 hover:bg-teal-50 rounded shrink-0"><FiDownload className="w-3 h-3" /> Download</a>}
+                          {doc.fileUrl && !linkSafe && <span className="inline-flex items-center gap-1 px-2 py-1 text-[11px] text-red-500 bg-red-50 rounded shrink-0" title="This link was blocked for security reasons">Blocked link</span>}
                           <button type="button" onClick={() => deleteLiveDoc(doc.id)} className="p-1.5 text-red-500 hover:bg-red-50 rounded shrink-0" title="Delete document"><FiTrash2 className="w-3.5 h-3.5" /></button>
                         </div>
                       );

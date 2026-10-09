@@ -16,7 +16,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/tenant-db';
 import { getAuthInfo } from '@/lib/companyScope';
-import { sanitizeMultiLineText } from '@/lib/sanitize';
+import { sanitizeMultiLineText, isSafeDocumentUrl } from '@/lib/sanitize';
 import { canEditEmployeeRecords } from '@/lib/roleAccess';
 
 function corsHeaders() {
@@ -113,8 +113,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (!name) {
       return NextResponse.json({ error: 'Name is required' }, { status: 400, headers: corsHeaders() });
     }
-    if (fileUrl && !/^(https?:\/\/|data:)/i.test(fileUrl)) {
-      return NextResponse.json({ error: 'fileUrl must be a valid http(s) or data URL' }, { status: 400, headers: corsHeaders() });
+    // QA — Document Link Security: only safe http(s) URLs and non-executable
+    // data: payloads (PDFs/images/office files) may be persisted. Blocks
+    // javascript:, vbscript:, data:text/html, data:image/svg+xml, etc. so an
+    // unsafe link can never be stored — even via a direct API call.
+    if (fileUrl && !isSafeDocumentUrl(fileUrl)) {
+      return NextResponse.json({ error: 'fileUrl must be a safe http(s) URL or a non-executable file (data URL). javascript:, data:text/html and similar schemes are not allowed.' }, { status: 400, headers: corsHeaders() });
     }
     if (expiryDate && isNaN(expiryDate.getTime())) {
       return NextResponse.json({ error: 'Invalid expiry date' }, { status: 400, headers: corsHeaders() });

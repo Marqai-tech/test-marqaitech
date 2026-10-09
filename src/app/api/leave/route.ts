@@ -101,6 +101,48 @@ export async function GET(request: Request) {
     const viewSelf = searchParams.get('view') === 'self';
     const effectiveScope = viewSelf ? 'self' : scope.scope;
 
+    // ─── QA Dashboard fix: "Employees on Leave" metric ───
+    // onLeaveToday=1 → count DISTINCT employees with an APPROVED leave record
+    // covering today (startDate ≤ today ≤ endDate). The dashboard must reflect
+    // Leave-module records (approved leaves count; cancelled/rejected don't),
+    // and only "applicable" (currently employed) people — we count employees
+    // whose status is active OR on_leave, excluding terminated/resigned/inactive.
+    if (searchParams.get('onLeaveToday') === '1') {
+      const startOfDay = new Date(); startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(); endOfDay.setHours(23, 59, 59, 999);
+      const todayWhere: Record<string, unknown> = {
+        status: 'approved',
+        startDate: { lte: endOfDay },
+        endDate: { gte: startOfDay },
+        employee: { status: { in: ['active', 'on_leave'] } },
+      };
+      if (effectiveScope === 'self') {
+        const selfEmp = await db.employee.findFirst({ where: { userId: scope.userId }, select: { id: true } });
+        todayWhere.employeeId = selfEmp?.id || 'none';
+        delete todayWhere.employee;
+      } else if (scope.companyId) {
+        (todayWhere.employee as Record<string, unknown>).companyId = scope.companyId;
+      }
+      const rows = await db.leaveRequest.findMany({
+        where: todayWhere,
+        select: {
+          employeeId: true,
+          employee: { select: { id: true, firstName: true, lastName: true, employeeId: true, avatar: true } },
+        },
+      });
+      // De-duplicate (an employee may hold two approved records overlapping today)
+      const seen = new Map<string, { id: string; firstName: string; lastName: string; employeeId: string; avatar: string | null }>();
+      for (const r of rows) if (!seen.has(r.employeeId) && r.employee) seen.set(r.employeeId, r.employee);
+      return NextResponse.json(
+        {
+          onLeaveToday: seen.size,
+          employees: Array.from(seen.values()),
+          pagination: { page: 1, limit: 0, total: seen.size, totalPages: 1 },
+        },
+        { headers: corsHeaders() }
+      );
+    }
+
     // ─── Company-scoped data visibility ───
     if (effectiveScope === 'self') {
       // Employees can only see their own leave requests
