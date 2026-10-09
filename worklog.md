@@ -3882,3 +3882,17 @@ Stage Summary:
 - Investigation artifacts: scripts/inspect-performance-review.js,
   check-performance-review-nullability.js, repro-probation-p2011.ts,
   test-doc-url-safety.ts (kept for future QA regressions).
+
+Task 79 (deploy addendum):
+- Push initially rejected (remote advanced with user's 71d0d9ee "Fail clearly
+  when tenant database is unavailable" + merge c0fb1f83) → rebased cleanly,
+  re-pushed as 419a7105. Both Vercel projects SUCCESS via GitHub commit status
+  (Vercel – 3-boxes-hrms + Vercel – nexus-hrms).
+- SMOKE 22/22 PASS (scripts/smoke-task79.mjs):
+  * DEMO 12/12: home 200, login, /api/leave?onLeaveToday=1 → 200 numeric,
+    export=1 status filter returns only matching statuses (inactive set empty
+    = correct, all active rows verified), probation GET 200 (new sync helper),
+    javascript: / data:text/html / data:image/svg+xml doc URLs ALL rejected 400,
+    safe https doc 201 + cleanup delete 200.
+  * LIVE 10/10: same signatures, read-only + rejection probes only (no writes).
+    onLeaveToday=0 on both sites (no approved leaves covering today — correct).
