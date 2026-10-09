@@ -3717,3 +3717,46 @@ Work Log:
 Stage Summary:
 - Employees can now be explicitly designated/selected as management from (a) the employee add/edit form "Designate as Management" checkbox (Employment tab) and (b) the bulk upload "Is Management" column. All designated employees appear in Employee → Management List with a Designated badge, sortable to the top, filterable (All / Designated / Role-based), exportable to CSV with the designation flag, and every designation change is audit-logged to the Edit Log.
 - DB column pre-applied to demo + LIVE tenant DBs so deployment is safe.
+
+---
+Task ID: 77
+Agent: Super Z (main agent)
+Task: User request — "now try to deploy the code from git to vercel as vercel is connected to git"
+
+Work Log:
+- DIAGNOSED deploy failure on the merged head 2602819a: both Vercel projects
+  ('3-boxes-hrms' LIVE + 'nexus-hrms' demo) rejected it with "Git author
+  3boxesluxury must have access to the project on Vercel" — the merge was made
+  on GitHub web UI by the 3boxesluxury account, which has no Vercel project access.
+- DISCOVERED repo topology: maheshkpreddy/3-Boxes-HRMS no longer exists (301) —
+  the repo was transferred to the Marqaitech org; maheshkpreddy/nexus-hrms
+  (origin) redirects to the SAME repo. One repo (Marqaitech/3-Boxes-HRMS),
+  both Vercel projects watch it.
+- FAST-FORWARDED local main 245c1008 -> 2602819a (picked up the user's
+  "Implement attendance punch flow rules" commit d5743ea7; isManagement feature
+  verified intact after merge).
+- DB PRE-APPLY (deploy-safety): the attendance commit adds Attendance.earlyLogout
+  to the Prisma schema. New scripts/apply-earlylogout-tenants.js pre-applied
+  Attendance.earlyLogout AND re-verified Employee.isManagement on all 3 DBs
+  (platform neondb, tenant_3boxes-hrms-demo, tenant_marqaitechgroup) — all OK,
+  prevents P2022 after deploy. Idempotent/additive, safe on LIVE.
+- ROOT-CAUSE FIX for Vercel installs: package.json declares @prisma/adapter-pg
+  ^7.10.0 (imported by src/lib/db.ts + tenant-db.ts) but bun.lock on the remote
+  did NOT — Vercel's 'bun install --frozen-lockfile' fails on lockfile mismatch.
+  Committed the bun.lock sync (commit 5c243f78, authored by maheshkpreddy →
+  passes Vercel git-author check) and pushed to marqai main.
+- DEPLOY VERIFIED via GitHub commit status API (scripts/poll-vercel-status.sh):
+  5c243f78 → 'Vercel – nexus-hrms' success (14:19:35) and 'Vercel – 3-boxes-hrms'
+  success (14:23:50). Both deployments completed.
+- SMOKE TESTS: demo nexus-hrms-mu.vercel.app home 200, /employees/management 200,
+  /api/auth/login 405 (route live); LIVE marqaitechgroup.3boxeshrms.com same —
+  all healthy.
+
+Stage Summary:
+- Code from git is now DEPLOYED to Vercel on both projects: demo
+  (nexus-hrms-mu.vercel.app) and LIVE (marqaitechgroup.3boxeshrms.com).
+- Deployment head 5c243f78 includes: explicit Management designation (Task 76),
+  attendance punch flow rules (user's commit), bun.lock install fix.
+- Root causes of previous deploy failures fixed: (1) Vercel git-author access
+  (future merges must be authored by maheshkpreddy or an account with Vercel
+  access), (2) bun.lock out of sync with package.json.
