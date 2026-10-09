@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import {
   FiUsers, FiRefreshCw, FiDownload, FiSearch, FiUser, FiFilter,
-  FiChevronRight, FiUserCheck, FiUsers as FiUsersIcon, FiArrowLeft,
+  FiChevronRight, FiUserCheck, FiUsers as FiUsersIcon, FiArrowLeft, FiStar,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
@@ -23,6 +23,7 @@ interface MgmtEmployee {
   lastName: string;
   email: string;
   phone: string | null;
+  isManagement?: boolean;
   department?: { id: string; name: string } | null;
   designation?: { id: string; title: string } | null;
   user?: { id: string; role: string } | null;
@@ -56,6 +57,7 @@ export default function ManagementListPage() {
   const [allEmployees, setAllEmployees] = useState<MgmtEmployee[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [sourceFilter, setSourceFilter] = useState<'all' | 'designated' | 'role'>('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const fetchEmployees = useCallback(async () => {
@@ -78,6 +80,9 @@ export default function ManagementListPage() {
 
   /* ─── Filter to management-level employees ───
      An employee qualifies as "management" if they meet ANY of these criteria:
+     0. EXPLICIT DESIGNATION — an HR/admin ticked "Designate as Management" on
+        their employee record (isManagement=true), or they were uploaded with
+        "Is Management = true" in the bulk import. This is the primary source.
      1. Their linked User has role: manager, admin, tenant_admin, hr_admin, super_admin
      2. They are a reporting manager for other employees (have direct reports)
   */
@@ -91,6 +96,8 @@ export default function ManagementListPage() {
     });
 
     return allEmployees.filter(emp => {
+      // Criterion 0: explicitly designated as management from the employee form / bulk upload
+      if (emp.isManagement === true) return true;
       // Criterion 1: User role is management-level
       if (emp.user && mgmtRoles.includes(emp.user.role)) return true;
       // Criterion 2: Employee is a reporting manager for others
@@ -109,11 +116,19 @@ export default function ManagementListPage() {
     }));
   }, [allEmployees]);
 
-  /* ─── Filtered results based on search ─── */
+  /* ─── Filtered results based on source filter + search. Designated employees sort first. ─── */
   const filtered = useMemo(() => {
-    if (!searchQuery.trim()) return managementEmployees;
+    let base = managementEmployees;
+    if (sourceFilter === 'designated') base = base.filter(e => e.isManagement === true);
+    if (sourceFilter === 'role') base = base.filter(e => e.isManagement !== true);
+    if (!searchQuery.trim()) {
+      return [...base].sort((a, b) => {
+        if (a.isManagement !== b.isManagement) return a.isManagement ? -1 : 1;
+        return `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`);
+      });
+    }
     const q = searchQuery.trim().toLowerCase();
-    return managementEmployees.filter(e => {
+    const matched = base.filter(e => {
       const fullName = `${e.firstName} ${e.lastName}`.toLowerCase();
       return fullName.includes(q) ||
              e.employeeId.toLowerCase().includes(q) ||
@@ -121,28 +136,33 @@ export default function ManagementListPage() {
              (e.designation?.title || '').toLowerCase().includes(q) ||
              (e.email || '').toLowerCase().includes(q);
     });
-  }, [managementEmployees, searchQuery]);
+    return matched.sort((a, b) => {
+      if (a.isManagement !== b.isManagement) return a.isManagement ? -1 : 1;
+      return `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`);
+    });
+  }, [managementEmployees, searchQuery, sourceFilter]);
 
   /* ─── Stats ─── */
   const stats = {
     total: filtered.length,
+    designated: filtered.filter(e => e.isManagement === true).length,
     managers: filtered.filter(e => e.user?.role === 'manager').length,
     admins: filtered.filter(e => ['admin', 'tenant_admin', 'hr_admin', 'super_admin'].includes(e.user?.role || '')).length,
-    withDirectReports: filtered.filter(e => getDirectReports(e.id).length > 0).length,
   };
 
   /* ─── CSV Export ─── */
   const exportCSV = () => {
     if (filtered.length === 0) { toast.error('Nothing to export'); return; }
-    let csv = 'Employee Code,Name,Email,Phone,Department,Designation,Role,Direct Reports Count,Reporting Manager,Status\n';
+    let csv = 'Employee Code,Name,Email,Phone,Department,Designation,Designated As Management,Role,Direct Reports Count,Reporting Manager,Status\n';
     for (const e of filtered) {
       const name = `${e.firstName} ${e.lastName}`.trim();
       const dept = e.department?.name || '';
       const desig = e.designation?.title || '';
+      const designated = e.isManagement === true ? 'Yes' : 'No';
       const role = ROLE_LABEL[e.user?.role || ''] || 'Employee';
       const reports = getDirectReports(e.id).length;
       const mgr = e.reportingManager ? `${e.reportingManager.firstName} ${e.reportingManager.lastName}` : '';
-      csv += `"${e.employeeId}","${name}","${e.email}","${e.phone || ''}","${dept}","${desig}","${role}","${reports}","${mgr}","${e.status}"\n`;
+      csv += `"${e.employeeId}","${name}","${e.email}","${e.phone || ''}","${dept}","${desig}","${designated}","${role}","${reports}","${mgr}","${e.status}"\n`;
     }
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
@@ -165,7 +185,7 @@ export default function ManagementListPage() {
           <div>
             <h1 className="text-xl font-bold text-thb-text-primary">Management List</h1>
             <p className="text-sm text-thb-text-secondary">
-              Employees designated as management — reporting managers, department heads, and admin-role users.
+              Employees designated or selected as management — explicitly flagged from the employee list or bulk upload, plus reporting managers and admin-role users.
             </p>
           </div>
         </div>
@@ -180,10 +200,14 @@ export default function ManagementListPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <div className="thb-card p-4">
           <p className="text-xs font-medium text-thb-text-muted uppercase tracking-wide">Total Management</p>
           <p className="text-2xl font-bold text-emerald-600 mt-1">{stats.total}</p>
+        </div>
+        <div className="thb-card p-4">
+          <p className="text-xs font-medium text-thb-text-muted uppercase tracking-wide">Designated</p>
+          <p className="text-2xl font-bold text-amber-600 mt-1">{stats.designated}</p>
         </div>
         <div className="thb-card p-4">
           <p className="text-xs font-medium text-thb-text-muted uppercase tracking-wide">Managers</p>
@@ -195,21 +219,38 @@ export default function ManagementListPage() {
         </div>
         <div className="thb-card p-4">
           <p className="text-xs font-medium text-thb-text-muted uppercase tracking-wide">With Direct Reports</p>
-          <p className="text-2xl font-bold text-amber-600 mt-1">{stats.withDirectReports}</p>
+          <p className="text-2xl font-bold text-violet-600 mt-1">{filtered.filter(e => getDirectReports(e.id).length > 0).length}</p>
         </div>
       </div>
 
-      {/* Search */}
+      {/* Search + Source Filter */}
       <div className="thb-card p-4">
-        <div className="relative">
-          <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            placeholder="Search by name, employee ID, department, designation, or email…"
-            className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-thb-border text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400"
-          />
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-thb-text-muted" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder="Search by name, employee ID, department, designation, or email…"
+              className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-thb-border text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400"
+            />
+          </div>
+          <div className="flex items-center gap-1 p-1 rounded-lg border border-thb-border bg-slate-50 self-stretch">
+            {([['all', 'All'], ['designated', 'Designated'], ['role', 'Role-based']] as const).map(([key, label]) => (
+              <button
+                key={key}
+                onClick={() => setSourceFilter(key)}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                  sourceFilter === key
+                    ? 'bg-emerald-500 text-white shadow-sm'
+                    : 'text-thb-text-secondary hover:bg-white'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -226,7 +267,7 @@ export default function ManagementListPage() {
         ) : filtered.length === 0 ? (
           <div className="p-10 text-center">
             <FiUserCheck className="w-10 h-10 text-slate-300 mx-auto mb-3" />
-            <p className="text-sm text-thb-text-muted">No management employees found. Employees with a management role (manager, admin, HR) or who are reporting managers for other employees will appear here.</p>
+            <p className="text-sm text-thb-text-muted">No management employees found. Tick "Designate as Management" on an employee record (Employee List → Edit → Employment tab), upload employees with "Is Management = true" in the bulk import, or assign management roles / reporting managers.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -236,6 +277,7 @@ export default function ManagementListPage() {
                   <th className="text-left py-3 px-4 font-semibold text-thb-text-secondary">Employee</th>
                   <th className="text-left py-3 px-4 font-semibold text-thb-text-secondary">Department</th>
                   <th className="text-left py-3 px-4 font-semibold text-thb-text-secondary">Designation</th>
+                  <th className="text-left py-3 px-4 font-semibold text-thb-text-secondary">Designated</th>
                   <th className="text-left py-3 px-4 font-semibold text-thb-text-secondary">Role</th>
                   <th className="text-right py-3 px-4 font-semibold text-thb-text-secondary">Direct Reports</th>
                   <th className="text-left py-3 px-4 font-semibold text-thb-text-secondary">Reporting Manager</th>
@@ -265,6 +307,13 @@ export default function ManagementListPage() {
                       </td>
                       <td className="py-2.5 px-4 text-thb-text-secondary">{e.department?.name || '—'}</td>
                       <td className="py-2.5 px-4 text-thb-text-secondary">{e.designation?.title || '—'}</td>
+                      <td className="py-2.5 px-4">
+                        {e.isManagement === true && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200" title="Explicitly designated as management from the employee list / bulk upload">
+                            <FiStar className="w-3 h-3" /> Designated
+                          </span>
+                        )}
+                      </td>
                       <td className="py-2.5 px-4">
                         <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${
                           isMgmtRole
@@ -344,9 +393,10 @@ export default function ManagementListPage() {
         moduleKey="employees-management"
         title="Management List Tips"
         tips={[
-          { title: 'Who appears here?', description: 'Employees with a management role (manager, admin, HR admin) OR employees who are reporting managers for other employees. Both criteria make someone a "management" employee.' },
-          { title: 'Direct Reports', description: 'Click "Details" on any employee to see the list of employees who report to them. Direct reports are determined by the reportingManagerId field on each employee record.' },
-          { title: 'CSV Export', description: 'Export the management list with role, department, designation, direct report count, and reporting manager for org reviews or compliance documentation.' },
+          { title: 'Designate from the employee list', description: 'Open Employee List → Edit an employee → Employment tab → tick "Designate as Management". Designated employees appear here immediately, sorted to the top with a Designated badge.' },
+          { title: 'Designate via bulk upload', description: 'In the Employees bulk import template, set the "Is Management" column to true/yes/1 for management employees. Their designation flows straight into this list.' },
+          { title: 'Who else appears here?', description: 'Besides explicit designations, employees with a management role (manager, admin, HR admin) and reporting managers with direct reports are included. Use the Designated / Role-based filter to separate the two sources.' },
+          { title: 'Direct Reports & CSV', description: 'Click "Details" to see who reports to each manager, and export the full list (including the Designated flag) to CSV for org reviews or compliance documentation.' },
         ]}
       />
     </div>

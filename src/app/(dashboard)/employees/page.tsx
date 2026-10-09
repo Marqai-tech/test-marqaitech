@@ -252,6 +252,7 @@ const initialForm = {
   dateOfJoining: '',
   employeeStatus: 'confirmed', // confirmed, probation, contract, internship, consultant
   employeeType: 'full_time',   // full_time, part_time, contract, temporary, consultant
+  isManagement: false,         // Task 76: "Designate as Management" — shows employee in Management List
   probationEndDate: '',        // editable probation end date (when status=probation)
   bankName: '',
   bankAccountNo: '',
@@ -761,6 +762,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
           dateOfJoining: emp.dateOfJoining ? emp.dateOfJoining.split('T')[0] : '',
           employeeStatus: (emp as Record<string, unknown>).employeeStatus as string || 'confirmed',
           employeeType: (emp as Record<string, unknown>).employeeType as string || 'full_time',
+          isManagement: (emp as Record<string, unknown>).isManagement === true,
           bankName: emp.bankName || '',
           bankAccountNo: emp.bankAccountNo || '',
           bankIfscCode: emp.bankIfscCode || '',
@@ -997,6 +999,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
       dateOfJoining: freshEmp.dateOfJoining ? freshEmp.dateOfJoining.split('T')[0] : '',
       employeeStatus: freshEmp.employeeStatus || 'confirmed',
       employeeType: freshEmp.employeeType || 'full_time',
+      isManagement: freshEmp.isManagement === true,
       probationEndDate: freshEmp.probationEndDate || '',
       bankName: freshEmp.bankName || '',
       bankAccountNo: freshEmp.bankAccountNo || '',
@@ -1251,7 +1254,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
     }
   };
 
-  const updateForm = (field: string, value: string) => setForm(prev => ({ ...prev, [field]: value }));
+  const updateForm = (field: string, value: string | boolean) => setForm(prev => ({ ...prev, [field]: value }));
 
   /* Photo upload handler */
   const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -2083,6 +2086,32 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                         <option value="temporary">Temporary</option>
                         <option value="consultant">Consultant</option>
                       </select>
+                    </div>
+                    {/* Task 76: Designate as Management — explicit selection from the employee list.
+                        Flagged employees appear in Employee → Management List. */}
+                    <div className="sm:col-span-2 lg:col-span-3">
+                      <label className={`flex items-start gap-3 p-3 rounded-lg border transition-colors ${
+                        getEmployeeCodeSettings().dataLocked
+                          ? 'border-thb-border bg-slate-50 opacity-60 cursor-not-allowed'
+                          : 'border-thb-border cursor-pointer hover:bg-emerald-50/40'
+                      }`}>
+                        <input
+                          type="checkbox"
+                          checked={form.isManagement}
+                          onChange={e => updateForm('isManagement', e.target.checked)}
+                          disabled={getEmployeeCodeSettings().dataLocked}
+                          className="mt-0.5 w-4 h-4 accent-emerald-600 flex-shrink-0"
+                        />
+                        <span>
+                          <span className="flex items-center gap-1.5 text-sm font-medium text-thb-text-primary">
+                            <FiUserCheck className="w-3.5 h-3.5 text-emerald-600" />
+                            Designate as Management
+                          </span>
+                          <span className="block text-xs text-thb-text-muted mt-0.5">
+                            Tick this box to designate this employee as management. Designated employees are listed separately under Employee → Management List. Use it for department heads, functional heads, and leadership staff.
+                          </span>
+                        </span>
+                      </label>
                     </div>
                   </div>
                   <div className="flex items-center justify-between pt-2">

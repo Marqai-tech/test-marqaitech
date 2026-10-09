@@ -95,6 +95,7 @@ const EMPLOYEE_WRITE_COLUMNS: { name: string; ddl: string }[] = [
   { name: 'attendancePolicyId', ddl: `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "attendancePolicyId" TEXT` },
   { name: 'travelPolicyId', ddl: `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "travelPolicyId" TEXT` },
   { name: 'salaryStructureId', ddl: `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "salaryStructureId" TEXT` },
+  { name: 'isManagement', ddl: `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "isManagement" BOOLEAN NOT NULL DEFAULT false` },
   { name: 'credentialsStatus', ddl: `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "credentialsStatus" TEXT DEFAULT 'not_invited'` },
   { name: 'credentialsInvitedAt', ddl: `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "credentialsInvitedAt" TIMESTAMP(3)` },
   { name: 'credentialsInvitedBy', ddl: `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "credentialsInvitedBy" TEXT` },
