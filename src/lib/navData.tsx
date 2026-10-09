@@ -202,6 +202,7 @@ export const navSections: NavSection[] = [
       { label: 'Edit Log', href: '/employees/edit-log', icon: <FiList className="w-4 h-4" />, moduleKey: 'dashboard', roles: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'], isNew: true },
       { label: 'Apply Resignation', href: '/employees/resignation', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'dashboard', roles: ['super_admin', 'tenant_admin', 'admin', 'manager', 'employee'], isNew: true },
       { label: 'Employee List', href: '/employees', icon: <FiUsers className="w-4 h-4" />, moduleKey: 'employees', roles: ['super_admin', 'tenant_admin', 'admin', 'manager'] },
+      { label: 'Management List', href: '/employees/management', icon: <FiUserCheck className="w-4 h-4" />, moduleKey: 'employees', roles: ['super_admin', 'tenant_admin', 'admin', 'manager'], isNew: true },
 
       // ── Lifecycle ──
       // Admin-only: full lifecycle actions
