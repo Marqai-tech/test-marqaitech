@@ -588,6 +588,8 @@ export async function POST(request: Request) {
       // Employee Status & Type
       employeeStatus,
       employeeType,
+      // Management designation (Task 76) — explicit "designated as management" flag
+      isManagement,
       // Probation end date — sent from the form when employeeStatus='probation'.
       // Used to auto-create the probation review with the correct end date.
       probationEndDate,
@@ -812,6 +814,7 @@ export async function POST(request: Request) {
         // Employee Status & Type
         employeeStatus: employeeStatus || 'confirmed',
         employeeType: employeeType || 'full_time',
+        isManagement: isManagement === true,
         status: 'active',
       };
 

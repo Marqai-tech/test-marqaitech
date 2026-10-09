@@ -466,6 +466,7 @@ export async function PUT(
         bankIfscCode, panNumber, aadhaarNumber, taxId, salary, salaryCurrency,
         status, role, avatar, reportingManagerId,
         employeeStatus, employeeType, employeeId,
+        isManagement,
         leavePolicyId, attendancePolicyId, travelPolicyId, salaryStructureId,
       } = body;
 
@@ -494,6 +495,8 @@ export async function PUT(
       if (phone !== undefined) updateData.phone = phone;
       if (employeeStatus !== undefined) updateData.employeeStatus = employeeStatus;
       if (employeeType !== undefined) updateData.employeeType = employeeType;
+      // Task 76: explicit management designation — boolean normalize (accepts true/false/'true')
+      if (isManagement !== undefined) updateData.isManagement = isManagement === true || isManagement === 'true';
       if (departmentId !== undefined) updateData.departmentId = departmentId || undefined;
       if (designationId !== undefined) updateData.designationId = designationId || undefined;
       if (branchId !== undefined) updateData.branchId = branchId || null;
@@ -580,6 +583,7 @@ export async function PUT(
           reportingManagerId:  { label: 'Reporting Manager',     category: 'employment' },
           employeeType:        { label: 'Employee Type',          category: 'employment' },
           employeeStatus:      { label: 'Employee Status',       category: 'employment' },
+          isManagement:        { label: 'Management Designation', category: 'employment' },
           companyId:           { label: 'Company',               category: 'employment' },
           dateOfJoining:       { label: 'Date of Joining',       category: 'employment' },
           status:              { label: 'Status',                category: 'employment' },

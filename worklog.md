@@ -3654,3 +3654,66 @@ Stage Summary:
 - Website URL field now rejects spaces, backslashes, and missing-double-slash URLs with clear error messages. Server-side mirrors the client-side checks.
 - ZIP code field now rejects alphabetic-only and special-character inputs. Accepts international formats (digits, digits+hyphen, alphanumeric+space for UK). Real-time input filter prevents invalid chars from being typed.
 - Branch + Department forms no longer list inactive companies in the selectable dropdown options. Inactive companies are visible (in a disabled optgroup) but cannot be selected. Submit-time validation rejects any stale inactive selection with a clear toast.
+
+---
+Task ID: 75
+Agent: Super Z (main agent)
+Task: User request — "in the employee module under employee list there should be a management list separately shown who are designated or selected as management from employee list updated or uploaded"
+
+Work Log:
+- NEW /employees/management page — dedicated Management List view:
+  * Filters employees to show only those who qualify as "management" based on 2 criteria:
+    1. Their linked User has role: manager, admin, tenant_admin, hr_admin, or super_admin
+    2. They are a reporting manager for other employees (have direct reports via reportingManagerId)
+  * An employee appears if they meet EITHER criterion (not both required)
+  * 4 stat cards: Total Management / Managers / Admins / With Direct Reports
+  * Search filter: name, employee ID, department, designation, email
+  * Table: Employee (avatar initials + name + code + email), Department, Designation,
+    Role badge (colored: green for management roles, blue for "Reporting Mgr" badge),
+    Direct Reports count (circle badge), Reporting Manager name
+  * Expandable "Details" button per row — shows the list of direct reports (name + code
+    in a grid) so managers can see their team at a glance
+  * CSV export with all management list data
+  * ModuleTips with usage guidance
+  * Role badges: green for management roles, blue for "Reporting Mgr" (employees who
+    don't have a management User.role but ARE reporting managers for others)
+
+- SIDEBAR NAV: added 'Management List' link under the Employee module (with FiUserCheck
+  icon + NEW badge), visible to super_admin, tenant_admin, admin, manager.
+
+- BUILD FIX: installed @prisma/adapter-pg (was missing from node_modules, causing
+  Turbopack build failure: "Module not found: Can't resolve '@prisma/adapter-pg'").
+
+- LIVE TENANT BUILD: the 3-boxes-hrms Vercel project build failed (state: failure)
+  while the nexus-hrms project succeeded. This is a Vercel project-specific issue
+  (possibly memory limits or build configuration). Triggered a rebuild via empty
+  commit. The feature is live on the demo (nexus-hrms-mu.vercel.app) and the page
+  is accessible on the LIVE tenant (HTTP 200). The LIVE Vercel project may need
+  its build configuration reviewed (memory limit, Node.js version, etc.).
+
+Stage Summary:
+- New Management List page at /employees/management shows all employees designated
+  as management (by role or by having direct reports) with their teams, roles,
+  and reporting hierarchy. Sidebar link added under the Employee module.
+
+---
+Task ID: 76
+Agent: Super Z (main agent)
+Task: User request — "in the employee module under employee list there should be a management list separately shown who are designated or selected as management from employee list updated or uploaded" + "update the changes done now in this git link now — https://github.com/Marqaitech/3-Boxes-HRMS"
+
+Work Log:
+- Task 75 shipped a role-DERIVED Management List (/employees/management: inferred from User role + direct reports). Task 76 adds the user's actual requirement: EXPLICIT designation of management from the employee list and bulk upload.
+- SCHEMA: Employee.isManagement BOOLEAN NOT NULL DEFAULT false added to prisma/schema.prisma (+ Prisma client regenerated).
+- SELF-HEAL: src/lib/employee-profile-columns.ts EMPLOYEE_WRITE_COLUMNS gained isManagement ALTER (idempotent).
+- DB PREREQ: new scripts/apply-management-flag-tenants.js applied the column to ALL 3 DBs (platform neondb, tenant_3boxes-hrms-demo, tenant_marqaitechgroup) BEFORE deploy — prevents P2022 on the select-all GET /api/employees. Additive/idempotent, safe on LIVE.
+- POST /api/employees: isManagement accepted in the whitelist destructure + createData.
+- PUT /api/employees/[id]: isManagement accepted, boolean-normalized, and audited (FIELD_LABELS entry "Management Designation", category employment) — changes visible in /employees/edit-log.
+- EMPLOYEE FORM (employees/page.tsx): "Designate as Management" checkbox added to the Employment tab (full-width card, FiUserCheck icon, respects Employee Data Lock). updateForm widened to string|boolean. isManagement added to initialForm + BOTH edit prefills (list-based and fresh-fetch-based).
+- MANAGEMENT LIST PAGE: explicit designation is now criterion #0 (primary). New amber "Designated" badge column, Designated/Role-based/All source filter segmented control, 5 stat cards (Total/Designated/Managers/Admins/With Direct Reports), designated employees sort first, CSV includes "Designated As Management" column, tips + empty state rewritten.
+- BULK IMPORT: "Is Management" column added to MODULE_COLUMNS (boolean) + processEmployeeRow (parseBoolean → isManagement) + Excel template generator (header/description/example row).
+- BUILD: local 'next build' — compile passed (76s, 81s); page-data phase OOM-killed by the 4 GB sandbox on first attempts but completed with BUILD_ID + prerender-manifest emitted after cache clear. Code-level gate (Turbopack compile) confirmed clean.
+- GIT: pushed to the NEW repo https://github.com/Marqaitech/3-Boxes-HRMS (PAT verified: push:true, main default, tip bc0a428a matched local HEAD → clean fast-forward).
+
+Stage Summary:
+- Employees can now be explicitly designated/selected as management from (a) the employee add/edit form "Designate as Management" checkbox (Employment tab) and (b) the bulk upload "Is Management" column. All designated employees appear in Employee → Management List with a Designated badge, sortable to the top, filterable (All / Designated / Role-based), exportable to CSV with the designation flag, and every designation change is audit-logged to the Edit Log.
+- DB column pre-applied to demo + LIVE tenant DBs so deployment is safe.

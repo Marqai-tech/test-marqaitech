@@ -496,6 +496,14 @@ model Employee {
   //   full_time, part_time, contract, temporary, consultant
   employeeType   String? @default("full_time") // full_time, part_time, contract, temporary, consultant
 
+  // ─── Management designation (Task 76) ───
+  // Explicit flag set by HR/admin from the employee add/edit form
+  // ("Designate as Management" checkbox) or via bulk upload ("Is Management"
+  // column). Employees with this flag appear in the Management List page
+  // (/employees/management) alongside role-derived management (admin/manager
+  // users and reporting managers).
+  isManagement   Boolean @default(false)
+
   bankName       String?
   bankAccountNo  String?
   bankIfscCode   String?

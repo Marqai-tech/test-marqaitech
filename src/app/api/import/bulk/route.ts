@@ -51,6 +51,7 @@ const MODULE_COLUMNS: Record<string, ColumnDef[]> = {
     { key: 'departmentName', required: false },
     { key: 'designationTitle', required: false },
     { key: 'role', required: false },
+    { key: 'isManagement', required: false, type: 'boolean' },
   ],
   departments: [
     { key: 'name', required: true },
@@ -230,6 +231,9 @@ async function processEmployeeRow(
   const dateOfJoining = parseDate(getCellValue(row, 'dateOfJoining')) ?? new Date();
   const dateOfBirth = parseDate(getCellValue(row, 'dateOfBirth'));
   const salary = parseNumber(getCellValue(row, 'salary'));
+  // Task 76: "Is Management" column (true/false/yes/no/1/0) — designates the
+  // employee as management so they appear in the Management List page.
+  const isManagement = parseBoolean(getCellValue(row, 'isManagement')) ?? false;
 
   const data: Record<string, unknown> = {
     employeeId,
@@ -260,6 +264,7 @@ async function processEmployeeRow(
     salary: salary ?? null,
     salaryCurrency: getStringVal(row, 'salaryCurrency') ?? 'INR',
     role: getStringVal(row, 'role') || 'employee',
+    isManagement,
     status: 'active',
   };
 
