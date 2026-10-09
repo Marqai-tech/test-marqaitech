@@ -485,8 +485,11 @@ export async function GET(request: Request) {
       );
     } catch (dbError) {
       console.error('DB employees query failed:', dbError);
+      // Task 78 diagnostics: surface the underlying DB error (same pattern as
+      // the [id] route) so tenant DB failures are observable from the client.
+      const details = dbError instanceof Error ? dbError.message : String(dbError);
       return NextResponse.json(
-        { error: 'Service temporarily unavailable. Please try again.', code: 'DB_UNAVAILABLE' },
+        { error: 'Service temporarily unavailable. Please try again.', code: 'DB_UNAVAILABLE', details: details?.slice(0, 400) },
         { status: 503, headers: corsHeaders() }
       );
     }
