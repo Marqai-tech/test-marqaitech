@@ -58,7 +58,17 @@ function createDbAdapter(connectionString: string) {
   if (/localhost|127\.0\.0\.1|\[::1\]/i.test(connectionString)) {
     return new PrismaPg({ connectionString })
   }
-  return new PrismaNeon({ connectionString })
+  // Task 78: some tenant registry rows carry `channel_binding=require` (Neon
+  // default in some console copies). The neon HTTP driver path used in the
+  // Vercel runtime cannot complete the SCRAM channel-binding handshake for
+  // those rows, so every tenant query 503s (DB_UNAVAILABLE) — while the same
+  // string works from local scripts. Strip the parameter defensively; the
+  // connection stays TLS-encrypted via sslmode=require.
+  const sanitized = connectionString
+    .replace(/([?&])channel_binding=[^&]*&?/, '$1')
+    .replace(/\?&/, '?')
+    .replace(/[?&]$/, '')
+  return new PrismaNeon({ connectionString: sanitized })
 }
 
 // Node-side Neon fix: the serverless driver needs an explicit WebSocket
