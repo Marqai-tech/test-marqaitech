@@ -200,7 +200,7 @@ export async function POST(request: NextRequest) {
     if (!scope) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
 
     const body = await request.json();
-    const { employeeId, action, date, localTime, utcTimestamp, gps, notes } = body;
+    let { employeeId, action, date, localTime, utcTimestamp, gps, notes } = body;
 
     if (!employeeId || !action || !date || (!localTime && !utcTimestamp)) {
       return NextResponse.json(
@@ -252,6 +252,20 @@ export async function POST(request: NextRequest) {
     const gpsLabel = gps && gps.label ? String(gps.label) : null;
 
     const existingBeforeRules = await db.attendance.findFirst({ where: { employeeId, date: dateObj } });
+    const beforeLunch = localMinutes !== null && localMinutes < 13 * 60 + 30;
+    const afterLunchBeforeClose = localMinutes !== null && localMinutes >= 13 * 60 + 30 && localMinutes < 18 * 60 + 30;
+    if (action !== 'checkin' && action !== 'set_early_logout') {
+      if (beforeLunch || (afterLunchBeforeClose && existingBeforeRules?.breakIn && action !== 'breakout')) action = 'entry';
+      else if (localMinutes !== null && localMinutes >= 18 * 60 + 30) action = 'checkout';
+    }
+    if (action === 'entry') {
+      const eventId = `pe-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+      await db.$executeRawUnsafe(
+        `INSERT INTO "PunchEvent" ("id", "employeeId", "type", "date", "timestamp", "gpsLat", "gpsLng", "gpsAccuracy", "gpsLabel", "method", "notes", "createdAt") VALUES ($1,$2,'entry',$3,$4,$5,$6,$7,$8,$9,$10,NOW())`,
+        eventId, employeeId, dateObj, timestamp, gpsLat, gpsLng, gpsAccuracy, gpsLabel, method, notes || null,
+      );
+      return NextResponse.json({ ok: true, event: { id: eventId, type: 'entry', timestamp }, message: 'Entry punch recorded.' }, { headers: corsHeaders() });
+    }
     if (action === 'breakin' && localMinutes !== null && localMinutes < 13 * 60 + 30) {
       return NextResponse.json({ error: 'Break-In is available from 1:30 PM onward.' }, { status: 400, headers: corsHeaders() });
     }
@@ -261,7 +275,7 @@ export async function POST(request: NextRequest) {
     if (action === 'breakout' && !existingBeforeRules?.breakIn) {
       return NextResponse.json({ error: 'You must record Break-In before Break-Out.' }, { status: 400, headers: corsHeaders() });
     }
-    if (action === 'checkout' && (!existingBeforeRules?.checkIn || existingBeforeRules?.checkOut)) {
+    if (action === 'checkout' && (!existingBeforeRules?.checkIn || (existingBeforeRules?.checkOut && !(localMinutes !== null && localMinutes >= 18 * 60 + 30)))) {
       return NextResponse.json({ error: existingBeforeRules?.checkOut ? 'Already checked out today.' : 'You must Check-In before checking out.' }, { status: 400, headers: corsHeaders() });
     }
     if (action === 'set_early_logout') {
