@@ -1,11 +1,10 @@
 'use client';
 
 import { useEffect, useState, Suspense } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
 import {
-  FiSettings, FiSave, FiRefreshCw, FiMonitor, FiMapPin, FiCamera, FiClock,
+  FiSettings,
   FiFileText, FiPlus, FiSearch, FiEye, FiEdit2, FiTrash2, FiX, FiAlertTriangle,
-  FiList, FiSliders, FiBookOpen, FiCheck, FiChevronDown, FiGitBranch, FiDownload,
+  FiList, FiSliders, FiGitBranch, FiDownload,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
@@ -13,9 +12,7 @@ import { useCompanyContextStore } from '@/store/companyContextStore';
 import { useCompanyData, apiFetch, fmtDate, getStatusBadge } from '@/components/company/useCompanyData';
 import type { PolicyRecord } from '@/components/company/useCompanyData';
 import { PolicyFileUploadField, PolicyFileDownloadLink } from '@/components/hrms/PolicyFileField';
-import ModuleSettingsPanel, { attendanceSections } from '@/components/ModuleSettingsPanel';
 import { PolicyVersionHistoryButton, PolicyAcknowledgeButton, PolicyAcknowledgmentTracker } from '@/components/hrms/PolicyVersionHistory';
-import WorkflowBuilderTab from './WorkflowBuilderTab';
 
 // ─── Helpers ────────────────────────────────────────────────────────
 function getAuthHeaders() {
@@ -84,19 +81,15 @@ interface AttendancePolicyRule {
   status: string;
 }
 
-// ─── Tab types ──────────────────────────────────────────────────────
-// NOTE: 'rules' tab was removed in the unification pass — all policy rule
-// fields (shift, grace, late-mark, OT, gate-pass) are now configured inside
-// the 'workflows' tab alongside the approval chain. The old AttendancePolicyRule
-// table is still read as a legacy fallback at runtime (see lib/attendance-workflow.ts
-// loadWorkflowConfig) so existing saved rules continue to apply until an admin
-// saves a unified workflow config.
-type TabKey = 'documents' | 'workflows';
+// ─── Page structure (Task 84) ───────────────────────────────────────
+// Attendance Settings now owns ONLY the attendance policy documents.
+// The general rule sections (Work Hours & Thresholds, Shift & Weekend
+// Rules, Geofencing & Grace Period) and the Auto-Present for Management
+// toggle were MOVED to /attendance/policy-rules, and the approval
+// workflow builder moved to /attendance/approval-workflows — the user
+// asked for policy rules and approval workflows as separate pages.
 
-const TABS: { key: TabKey; label: string; icon: React.ReactNode }[] = [
-  { key: 'documents', label: 'Policy Documents', icon: <FiBookOpen className="w-4 h-4" /> },
-  { key: 'workflows', label: 'Policy Rules & Approval Workflows', icon: <FiGitBranch className="w-4 h-4" /> },
-];
+const POLICY_CATEGORY = 'attendance';
 
 const EMPLOYMENT_TYPES = [
   { value: 'all', label: 'All Types' },
@@ -105,8 +98,6 @@ const EMPLOYMENT_TYPES = [
   { value: 'contract', label: 'Contract' },
   { value: 'internship', label: 'Internship' },
 ];
-
-const POLICY_CATEGORY = 'attendance';
 
 // ─── Shared UI bits ─────────────────────────────────────────────────
 function Toggle({ checked, onChange }: { checked: boolean; onChange: () => void }) {
@@ -123,143 +114,10 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: () => void 
 const inputCls = 'w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20';
 const selectCls = 'w-full px-3 py-2 border border-thb-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 bg-white';
 
-/* ─── Auto-Present for Management (Task 82) ────────────────────────────
- * Enable/disable + run controls. The flag lives on AttendancePolicyConfig
- * (server-side) so the attendance API and reports honour it everywhere. */
-function apPad2(n: number) { return String(n).padStart(2, '0'); }
-
-function AutoPresentCard() {
-  const [enabled, setEnabled] = useState(false);
-  const [loaded, setLoaded] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [running, setRunning] = useState<'today' | 'backfill' | null>(null);
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await fetch('/api/attendance/auto-present', { headers: getAuthHeaders() });
-        if (res.ok) {
-          const d = await res.json();
-          setEnabled(!!d?.enabled);
-        }
-      } catch { /* keep off */ } finally { setLoaded(true); }
-    })();
-  }, []);
-
-  const save = async (next: boolean) => {
-    setSaving(true);
-    try {
-      const res = await fetch('/api/attendance-policy-config', {
-        method: 'PUT',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ autoPresentManagementEnabled: next }),
-      });
-      if (!res.ok) throw new Error((await res.json().catch(() => ({})))?.error || 'Save failed');
-      setEnabled(next);
-      toast.success(next
-        ? 'Auto-present for management ENABLED — punches will be auto-filled per rules/roster'
-        : 'Auto-present for management disabled');
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Save failed');
-    } finally { setSaving(false); }
-  };
-
-  const run = async (backfillDays: number) => {
-    setRunning(backfillDays > 0 ? 'backfill' : 'today');
-    try {
-      const now = new Date();
-      const todayKey = `${now.getFullYear()}-${apPad2(now.getMonth() + 1)}-${apPad2(now.getDate())}`;
-      const res = await fetch('/api/attendance/auto-present', {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ backfillDays, tzOffset: now.getTimezoneOffset(), todayKey }),
-      });
-      const d = await res.json().catch(() => null);
-      if (!res.ok) throw new Error(d?.error || 'Run failed');
-      toast.success(d?.message || 'Auto-present run complete');
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Run failed');
-    } finally { setRunning(null); }
-  };
-
-  return (
-    <div className="thb-card p-5 border-l-4 border-l-teal-500">
-      <div className="flex flex-col sm:flex-row sm:items-start gap-4">
-        <div className="p-2.5 rounded-xl bg-teal-50 text-teal-600 flex-shrink-0">
-          <FiClock className="w-5 h-5" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="text-sm font-semibold text-thb-text-primary">Auto-Present for Management Employees</h3>
-            {loaded && (
-              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${enabled ? 'bg-teal-100 text-teal-700' : 'bg-slate-100 text-slate-500'}`}>
-                {enabled ? 'Enabled' : 'Disabled'}
-              </span>
-            )}
-          </div>
-          <p className="text-xs text-thb-text-secondary mt-1 leading-relaxed">
-            When enabled, management employees are automatically marked <b>Present</b> with in/out punches taken from the
-            attendance rules / roster set (or the default shift below) for every working day — even if they do not punch.
-            Real punches always win: existing records are never overwritten, only missing check-in/check-out halves are
-            filled. Approved leave, weekends and holidays are respected.
-          </p>
-          <div className="flex items-center gap-3 mt-3 flex-wrap">
-            <div className="flex items-center gap-2">
-              <Toggle checked={enabled} onChange={() => save(!enabled)} />
-              <span className="text-xs font-medium text-thb-text-secondary">{enabled ? 'On' : 'Off'}</span>
-            </div>
-            <button
-              onClick={() => save(!enabled)}
-              disabled={saving || !loaded}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-600 text-white text-xs font-medium hover:bg-teal-700 disabled:opacity-50 transition-colors"
-            >
-              <FiSave className="w-3.5 h-3.5" /> {saving ? 'Saving…' : `Save & ${enabled ? 'Disable' : 'Enable'}`}
-            </button>
-            <span className="hidden sm:inline text-thb-border">|</span>
-            <button
-              onClick={() => run(0)}
-              disabled={running !== null}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-teal-300 text-teal-700 text-xs font-medium hover:bg-teal-50 disabled:opacity-50 transition-colors"
-              title="Apply auto-present for today's working day now"
-            >
-              <FiRefreshCw className={`w-3.5 h-3.5 ${running === 'today' ? 'animate-spin' : ''}`} /> {running === 'today' ? 'Applying…' : 'Apply for today'}
-            </button>
-            <button
-              onClick={() => run(7)}
-              disabled={running !== null}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-300 text-slate-600 text-xs font-medium hover:bg-slate-50 disabled:opacity-50 transition-colors"
-              title="Fill the last 7 working days (today + 6 days back) for management employees"
-            >
-              <FiRefreshCw className={`w-3.5 h-3.5 ${running === 'backfill' ? 'animate-spin' : ''}`} /> {running === 'backfill' ? 'Backfilling…' : 'Backfill last 7 days'}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ─── Main Page ──────────────────────────────────────────────────────
 function AttendanceSettingsContent() {
   const { user } = useAuthStore();
-  const scopeQuery = useCompanyContextStore(s => s.scopeQuery);
-  const companyId = useCompanyContextStore(s => s.effectiveCompanyId());
-  const selectedTenantId = useCompanyContextStore(s => s.selectedTenantId);
   const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
-  const searchParams = useSearchParams()
-  const router = useRouter()
-
-  const tabFromUrl = searchParams.get('tab') as TabKey | null
-  const validTabs: TabKey[] = ['documents', 'workflows']
-  const defaultTab = (tabFromUrl && validTabs.includes(tabFromUrl)) ? tabFromUrl : 'documents'
-  const [activeTab, setActiveTab] = useState<TabKey>(defaultTab);
-
-  useEffect(() => {
-    const t = searchParams.get('tab') as TabKey | null
-    if (t && validTabs.includes(t) && t !== activeTab) {
-      setActiveTab(t)
-    }
-  }, [searchParams])
 
   if (!isAdmin) {
     return (
@@ -279,37 +137,37 @@ function AttendanceSettingsContent() {
         </div>
         <div>
           <h1 className="text-xl font-bold text-thb-text-primary">Attendance Settings</h1>
-          <p className="text-sm text-thb-text-secondary">Manage policy documents, scoped rules, and global configuration</p>
+          <p className="text-sm text-thb-text-secondary">Manage attendance policy documents. Policy rules and approval workflows live on their own pages below.</p>
         </div>
       </div>
 
-      {/* General Attendance Settings — migrated from /settings > Attendance tab in Task 56 */}
-      <ModuleSettingsPanel sections={attendanceSections} />
-
-      {/* Auto-Present for Management — enable/disable + run controls (Task 82) */}
-      <AutoPresentCard />
-
-      {/* Tab Bar */}
-      <div className="flex gap-1 p-1 bg-slate-100 rounded-xl">
-        {TABS.map(tab => (
-          <button
-            key={tab.key}
-            onClick={() => { setActiveTab(tab.key); router.replace(`/attendance/settings?tab=${tab.key}`) }}
-            className={`flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
-              activeTab === tab.key
-                ? 'bg-white text-teal-700 shadow-sm'
-                : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
-            }`}
-          >
-            {tab.icon}
-            {tab.label}
-          </button>
-        ))}
+      {/* Task 84: policy rules & approval workflows are separate pages now */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <a href="/attendance/policy-rules" className="thb-card p-4 flex items-start gap-3 hover:border-teal-300 hover:shadow-sm transition-all group">
+          <div className="p-2 rounded-lg bg-orange-50 text-orange-500 flex-shrink-0">
+            <FiSliders className="w-4 h-4" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-thb-text-primary group-hover:text-teal-700">Attendance Policy Rules</p>
+            <p className="text-xs text-thb-text-secondary mt-0.5 leading-relaxed">
+              Work Hours &amp; Thresholds, Shift &amp; Weekend Rules, Geofencing &amp; Grace Period and Auto-Present for Management Employees — moved here from Attendance Settings.
+            </p>
+          </div>
+        </a>
+        <a href="/attendance/approval-workflows" className="thb-card p-4 flex items-start gap-3 hover:border-teal-300 hover:shadow-sm transition-all group">
+          <div className="p-2 rounded-lg bg-violet-50 text-violet-500 flex-shrink-0">
+            <FiGitBranch className="w-4 h-4" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-thb-text-primary group-hover:text-teal-700">Approval Workflows</p>
+            <p className="text-xs text-thb-text-secondary mt-0.5 leading-relaxed">
+              Multi-level approver routing, SLA windows and rule constraints for Regularization, WFH, Hourly Permission and Gate Pass requests.
+            </p>
+          </div>
+        </a>
       </div>
 
-      {/* Tab Content */}
-      {activeTab === 'documents' && <PolicyDocumentsTab />}
-      {activeTab === 'workflows' && <WorkflowBuilderTab companyId={companyId} />}
+      <PolicyDocumentsTab />
     </div>
   );
 }

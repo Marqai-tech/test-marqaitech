@@ -10,6 +10,10 @@ import {
   FiFilter,
   FiEye,
   FiClock,
+  FiX,
+  FiLogIn,
+  FiLogOut,
+  FiTag,
 } from 'react-icons/fi';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
@@ -35,11 +39,23 @@ interface AttendanceRecord {
   status: string;
   checkIn?: string | null;
   checkOut?: string | null;
+  workHours?: number | null;
+  overtime?: number | null;
+  punchMethod?: string | null;
+  notes?: string | null;
+  updatedAt?: string | null;
 }
 
 interface DayStatus {
   date: number;
   status: string;
+  record?: AttendanceRecord;
+}
+
+/* Punch-detail popup target: the employee row + the clicked calendar day. */
+interface PunchDetail {
+  emp: Employee;
+  dateKey: string;
   record?: AttendanceRecord;
 }
 
@@ -61,6 +77,13 @@ function getDayColor(status: string) {
     '': 'bg-slate-100',
   };
   return colors[status] || 'bg-slate-100';
+}
+
+/* Task 84: light cell backgrounds (weekend / no-record) need dark text —
+ * the old white label was invisible on bg-slate-200 / bg-slate-100, which
+ * read as "no colour code". Saturated statuses keep white text. */
+function getDayText(status: string) {
+  return status === 'weekend' || status === '' ? 'text-slate-600' : 'text-white';
 }
 
 function getDayLabel(status: string) {
@@ -114,6 +137,29 @@ function fmtTitleTime(v: string | null | undefined): string {
   return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
 }
 
+/* Weekday + date for the popup header, e.g. "Friday, October 9, 2026". */
+function fmtFullDate(dateKey: string): string {
+  const d = new Date(`${dateKey}T00:00:00`);
+  if (isNaN(d.getTime())) return dateKey;
+  return d.toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+function fmtHoursHm(h: number | null | undefined): string {
+  if (h == null) return '—';
+  const total = Math.round(h * 60);
+  return `${Math.floor(total / 60)}h ${total % 60}m`;
+}
+
+/* Break derived from the span minus worked hours (same rule as the
+ * attendance dashboard) — the API does not store break minutes directly. */
+function fmtBreakDur(rec?: AttendanceRecord): string {
+  if (!rec?.checkIn || !rec?.checkOut || rec.workHours == null) return '—';
+  const totalMin = (new Date(rec.checkOut).getTime() - new Date(rec.checkIn).getTime()) / 60000;
+  const breakMin = Math.round(totalMin - rec.workHours * 60);
+  if (breakMin <= 0) return '0m';
+  return breakMin < 60 ? `${breakMin}m` : `${Math.floor(breakMin / 60)}h ${breakMin % 60}m`;
+}
+
 function pad2(n: number) { return String(n).padStart(2, '0'); }
 
 function getMonthName(month: number) {
@@ -140,6 +186,8 @@ export default function MusterRollPage() {
   });
   const [departmentFilter, setDepartmentFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  /* Task 84: click a day cell → full punch details popup */
+  const [punchDetail, setPunchDetail] = useState<PunchDetail | null>(null);
 
   /* Fetch employees based on role */
   const fetchEmployees = useCallback(async () => {
@@ -383,7 +431,7 @@ export default function MusterRollPage() {
             <span>Weekend/Holiday</span>
           </div>
           <div className="flex items-center gap-2 text-xs text-nexus-text-muted">
-            <span>Each cell shows the status colour code with the punch In – Out times (hover for details).</span>
+            <span>Each cell shows the status colour code with the punch In – Out times. Click any cell to view the full punch details (in/out timings, work hours, break, punch mode).</span>
           </div>
         </div>
       </div>
@@ -460,11 +508,12 @@ export default function MusterRollPage() {
                           <td key={day} className="px-1 py-2">
                             <div
                               title={tooltip}
-                              className={`w-11 rounded flex flex-col items-center justify-center py-1 cursor-pointer hover:opacity-90 transition-opacity ${color} ${hasTimes ? 'h-12' : 'h-8'}`}
+                              onClick={() => setPunchDetail({ emp, dateKey, record })}
+                              className={`w-11 rounded flex flex-col items-center justify-center py-1 cursor-pointer hover:opacity-90 hover:ring-2 hover:ring-green-400/60 transition-all ${color} ${hasTimes ? 'h-12' : 'h-8'}`}
                             >
-                              <span className="text-[11px] font-bold text-white leading-none">{label}</span>
+                              <span className={`text-[11px] font-bold leading-none ${getDayText(status)}`}>{label}</span>
                               {hasTimes && (
-                                <span className="mt-0.5 text-[8px] leading-none text-white/95 whitespace-nowrap">
+                                <span className={`mt-0.5 text-[8px] leading-none whitespace-nowrap ${status === 'weekend' || status === '' ? 'text-slate-500' : 'text-white/95'}`}>
                                   {inTime || '—'}{outTime ? ` – ${outTime}` : ''}
                                 </span>
                               )}
@@ -556,6 +605,128 @@ export default function MusterRollPage() {
                 </p>
               </div>
               <FiCalendar className="w-8 h-8 text-green-500" />
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Task 84: Punch detail popup — click a day cell to see the full punch */}
+      {punchDetail && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50"
+          onClick={() => setPunchDetail(null)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="px-5 py-4 bg-gradient-to-r from-green-500 to-teal-600 text-white">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-bold truncate">
+                    {punchDetail.emp.firstName} {punchDetail.emp.lastName}
+                    <span className="ml-2 font-normal text-white/85 text-xs">{punchDetail.emp.employeeId}</span>
+                  </p>
+                  <p className="text-xs text-white/85 mt-0.5">{fmtFullDate(punchDetail.dateKey)}</p>
+                </div>
+                <button
+                  onClick={() => setPunchDetail(null)}
+                  className="p-1.5 rounded-lg hover:bg-white/15 transition-colors flex-shrink-0"
+                  aria-label="Close"
+                >
+                  <FiX className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="p-5 space-y-3">
+              {punchDetail.record ? (
+                <>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-nexus-text-muted uppercase tracking-wider">Status</span>
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-semibold text-white ${getDayColor(punchDetail.record.status)}`}>
+                      {punchDetail.record.status === 'late'
+                        ? 'Present (Late)'
+                        : punchDetail.record.status === 'on_leave'
+                          ? 'On Leave'
+                          : punchDetail.record.status === 'half_day'
+                            ? 'Half Day'
+                            : punchDetail.record.status
+                              ? punchDetail.record.status.charAt(0).toUpperCase() + punchDetail.record.status.slice(1)
+                              : 'No Record'}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-100">
+                      <p className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-700 uppercase tracking-wide">
+                        <FiLogIn className="w-3.5 h-3.5" /> Punch In
+                      </p>
+                      <p className="text-lg font-bold text-emerald-800 mt-1">{fmtTitleTime(punchDetail.record.checkIn)}</p>
+                    </div>
+                    <div className="p-3 rounded-xl bg-rose-50 border border-rose-100">
+                      <p className="flex items-center gap-1.5 text-[11px] font-semibold text-rose-700 uppercase tracking-wide">
+                        <FiLogOut className="w-3.5 h-3.5" /> Punch Out
+                      </p>
+                      <p className="text-lg font-bold text-rose-800 mt-1">{fmtTitleTime(punchDetail.record.checkOut)}</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-3 rounded-lg bg-slate-50 border border-nexus-border">
+                      <p className="text-[10px] font-semibold text-nexus-text-muted uppercase tracking-wide">Work Hours</p>
+                      <p className="text-sm font-bold text-nexus-text-primary mt-0.5">{fmtHoursHm(punchDetail.record.workHours)}</p>
+                    </div>
+                    <div className="p-3 rounded-lg bg-slate-50 border border-nexus-border">
+                      <p className="text-[10px] font-semibold text-nexus-text-muted uppercase tracking-wide">Break</p>
+                      <p className="text-sm font-bold text-nexus-text-primary mt-0.5">{fmtBreakDur(punchDetail.record)}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between px-1">
+                    <span className="flex items-center gap-1.5 text-xs text-nexus-text-secondary">
+                      <FiTag className="w-3.5 h-3.5 text-nexus-text-muted" /> Punch mode
+                    </span>
+                    <span className="text-xs font-semibold text-nexus-text-primary">
+                      {punchDetail.record.punchMethod
+                        ? punchDetail.record.punchMethod.charAt(0).toUpperCase() + punchDetail.record.punchMethod.slice(1)
+                        : '—'}
+                    </span>
+                  </div>
+
+                  {punchDetail.record.overtime != null && punchDetail.record.overtime > 0 && (
+                    <div className="flex items-center justify-between px-1">
+                      <span className="text-xs text-nexus-text-secondary">Overtime</span>
+                      <span className="text-xs font-semibold text-violet-600">{fmtHoursHm(punchDetail.record.overtime)}</span>
+                    </div>
+                  )}
+
+                  {punchDetail.record.notes && (
+                    <div className="p-2.5 rounded-lg bg-amber-50 border border-amber-100 text-xs text-amber-800">
+                      <b>Remark:</b> {punchDetail.record.notes}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="text-center py-6">
+                  <FiCalendar className="w-10 h-10 text-nexus-text-muted mx-auto mb-3" />
+                  <p className="text-sm font-medium text-nexus-text-primary">No attendance record</p>
+                  <p className="text-xs text-nexus-text-muted mt-1">
+                    No punch was recorded for {punchDetail.emp.firstName} on {fmtFullDate(punchDetail.dateKey)}.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="px-5 py-3.5 bg-slate-50 border-t border-nexus-border flex justify-end">
+              <button
+                onClick={() => setPunchDetail(null)}
+                className="px-4 py-2 rounded-lg bg-green-500 text-white text-xs font-semibold hover:bg-green-600 transition-colors"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>
