@@ -470,15 +470,22 @@ export default function AttendancePage() {
           e.email === user?.email || e.userId === user?.id
         );
         if (myEmp) setEmployee(myEmp);
+        else setLoading(false);
+      } else {
+        setLoading(false);
       }
     } catch (err) {
       console.error('fetchEmployee error:', err);
+      setLoading(false);
     }
   }, [user?.email, user?.id, user?.role, user?.employee, isAdmin, scopeQuery, selectedTenantId]);
 
   /* ── Fetch self attendance ── */
   const fetchAttendance = useCallback(async () => {
-    if (!employee) return;
+    if (!employee) {
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
       const res = await fetch(`/api/attendance?employeeId=${employee.id}&limit=100&includePhotos=0`, { headers: getAuthHeaders() });
