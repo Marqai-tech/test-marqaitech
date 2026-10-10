@@ -383,19 +383,51 @@ export async function POST(request: NextRequest) {
         // otThresholdMinutes would override when the shift is linked.
         const otMinutes = Math.max(0, workMinutes - 480);
         const overtime = Math.round((otMinutes / 60) * 100) / 100;
+        const preservedHalfDay = attendance.status === 'half_day';
         await db.attendance.update({
           where: { id: attendance.id },
           data: {
             workHours,
             breakMinutes,
             overtime,
-            status: workHours < 8 ? 'half_day' : (attendance.status === 'half_day' ? 'present' : attendance.status),
+            status: workHours < 8 ? 'half_day' : (preservedHalfDay ? 'half_day' : attendance.status),
             notes: workHours < 8
               ? 'Net working time is below the required 8 hours. Apply Attendance Regularization for full-day correction.'
               : attendance.notes,
           },
         });
         attendance = { ...attendance, workHours, breakMinutes, overtime };
+      }
+    }
+
+    // Surface automatic attendance penalties to the employee and HR. These
+    // are in-app notifications; the existing notification center can fan out
+    // email when the tenant has email delivery enabled.
+    if (action === 'checkin' || action === 'checkout' || action === 'breakout') {
+      const automaticHalfDay = attendance?.status === 'half_day';
+      if (automaticHalfDay && scope.tenantId) {
+        try {
+          const hrUsers = await db.user.findMany({
+            where: { tenantId: scope.tenantId, role: { in: ['admin', 'tenant_admin', 'hr_admin', 'hr'] } },
+            select: { id: true },
+          });
+          const recipientIds = Array.from(new Set([employee.userId, ...hrUsers.map((u: { id: string }) => u.id)].filter(Boolean)));
+          if (recipientIds.length) {
+            await db.notification.createMany({
+              data: recipientIds.map((userId: string) => ({
+                tenantId: scope.tenantId,
+                userId,
+                title: 'Attendance marked half-day',
+                message: `Attendance for ${date} is marked half-day. Submit regularization for HR approval if a full-day correction is required.`,
+                type: 'warning',
+                category: 'attendance',
+                link: '/attendance/regularize',
+              })),
+            });
+          }
+        } catch (notificationError) {
+          console.warn('[punch] automatic half-day notification failed (non-fatal):', notificationError);
+        }
       }
     }
 
