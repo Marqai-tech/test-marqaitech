@@ -1394,7 +1394,7 @@ export default function AttendancePage() {
             <StatCard
               icon={<FiClock className="w-5 h-5" />}
               label="Work Hours"
-              value={todayRecord && calculateProductionHours(todayRecord.checkIn, todayRecord.checkOut) != null ? formatHoursHm(calculateProductionHours(todayRecord.checkIn, todayRecord.checkOut) as number) : '—'}
+              value={todayRecord && calculateProductionHours(todayRecord.checkIn, todayRecord.checkOut) != null ? formatHoursHm(calculateProductionHours(todayRecord.checkIn, todayRecord.checkOut) as number) : 'â€”'}
               iconBg="bg-emerald-100"
               iconColor="text-emerald-600"
               accent="border-l-emerald-500"
@@ -1577,8 +1577,8 @@ export default function AttendancePage() {
                               </td>
                               <td className="px-4 py-3 text-sm text-thb-text-secondary">{a ? formatTime(a.checkIn) : 'â€”'}</td>
                               <td className="px-4 py-3 text-sm text-thb-text-secondary">{a ? formatTime(a.checkOut) : 'â€”'}</td>
-                              <td className="px-4 py-3 text-sm text-thb-text-secondary">{a && calculateProductionHours(a.checkIn, a.checkOut) != null ? formatHoursHm(calculateProductionHours(a.checkIn, a.checkOut) as number) : '—'}</td>
-                              <td className="px-4 py-3 text-sm text-thb-text-secondary">{a && calculateCompanyOvertime(a.checkOut) > 0 ? formatHoursHm(calculateCompanyOvertime(a.checkOut)) : '—'}</td>
+                              <td className="px-4 py-3 text-sm text-thb-text-secondary">{a && calculateProductionHours(a.checkIn, a.checkOut) != null ? formatHoursHm(calculateProductionHours(a.checkIn, a.checkOut) as number) : 'â€”'}</td>
+                              <td className="px-4 py-3 text-sm text-thb-text-secondary">{a && calculateCompanyOvertime(a.checkOut) > 0 ? formatHoursHm(calculateCompanyOvertime(a.checkOut)) : 'â€”'}</td>
                             </tr>
                           );
                         })
