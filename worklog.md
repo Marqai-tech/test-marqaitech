@@ -4065,3 +4065,33 @@ Stage Summary:
   admin run/backfill controls; real punches, leave, weekends and holidays are
   always respected. Toggle default OFF; LIVE/demo will be enabled + verified
   post-deploy in the deploy addendum.
+
+Task 82 (deploy addendum):
+- Push 941213cf → BOTH Vercel projects SUCCESS; first verify exposed a
+  REAL-INFRA ROOT CAUSE: /api/attendance-policy-config GET/PUT were failing on
+  LIVE with the column-missing 503 EVEN FOR LEGACY FIELDS (pre-existing!).
+  Cause: Vercel's runtime DATABASE_URL points at the ep-icy-star (ap-southeast-1)
+  Neon stack, while scripts/apply-*-tenants.js hardcode the ep-blue-fire
+  (us-east-1) stack — two parallel DB stacks. The LIVE tenant DB copy the app
+  actually uses did not have the new column (and GET had been silently falling
+  back to default config for who knows how long).
+- FIX (b9c78bac): self-healing ensureAutoPresentColumn(db) — idempotent
+  CREATE TABLE IF NOT EXISTS + ADD COLUMN IF NOT EXISTS executed once per
+  process against whichever DB handle the request resolved to. Wired into
+  /api/attendance-policy-config GET+PUT and /api/attendance/auto-present
+  GET+POST. This heals the LIVE stack, demo, and any future tenant DBs with
+  zero registry knowledge. (Side benefit: policy-config PUT un-breaks on LIVE
+  for ALL fields, not just the new flag.)
+- POST-DEPLOY VERIFY (scripts/verify-task82.mjs): 11/11 PASS.
+  * LIVE: toggle saved (PUT 200, flag=true); status reads the REAL config row
+    (shift 09:00-17:30 — proving the fallback-defaults bug is gone); engine
+    backfill created 5 rows for 1 management employee over 8 days (3 weekend
+    days correctly skipped); second run idempotent (created=0); 2026-10-09
+    shows MARQ001 present 09:00→17:30 wh=8 punchMethod=auto notes='Auto-present
+    (management rule · policy-default)' while every biometric-punched row was
+    left untouched.
+  * DEMO: login is finance_admin → toggle/engine correctly role-gated 403
+    (attendance settings are admin-only by design); GETs work.
+  * auto-present left ENABLED on LIVE (the user-requested behaviour); toggle
+    lives in Attendance → Settings → "Auto-Present for Management Employees"
+    with Apply-for-today + Backfill-7-days controls.
