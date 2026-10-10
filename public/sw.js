@@ -6,7 +6,7 @@
 // v1.2 — Task 80: bump cache version again to guarantee post-deploy
 // clients drop any cached assets from before the export-filter fixes.
 
-const CACHE_NAME = '3boxes-hrms-v6';
+const CACHE_NAME = '3boxes-hrms-v7';
 const STATIC_ASSETS = [
   '/login',
   '/icon.png',

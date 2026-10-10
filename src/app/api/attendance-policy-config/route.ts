@@ -57,6 +57,7 @@ export async function GET(request: Request) {
           canteenFreeForGeneralShift: true,
           canteenFreeForNightShift: true,
           canteenOtfreeThresholdHours: 5,
+          autoPresentManagementEnabled: false,
           companyId: null,
           createdAt: new Date(0),
           updatedAt: new Date(0),
@@ -118,6 +119,7 @@ export async function GET(request: Request) {
         canteenFreeForGeneralShift: true,
         canteenFreeForNightShift: true,
         canteenOtfreeThresholdHours: 5,
+        autoPresentManagementEnabled: false,
         companyId: scope.companyId || scope.ownCompanyId || null,
         createdAt: new Date(0),
         updatedAt: new Date(0),
@@ -206,6 +208,8 @@ export async function PUT(request: Request) {
       canteenFreeForGeneralShift: body.canteenFreeForGeneralShift !== undefined ? !!body.canteenFreeForGeneralShift : existing?.canteenFreeForGeneralShift ?? true,
       canteenFreeForNightShift: body.canteenFreeForNightShift !== undefined ? !!body.canteenFreeForNightShift : existing?.canteenFreeForNightShift ?? true,
       canteenOtfreeThresholdHours: body.canteenOtfreeThresholdHours !== undefined ? Number(body.canteenOtfreeThresholdHours) : existing?.canteenOtfreeThresholdHours ?? 5,
+      // Auto-Present for Management (Task 82) — off by default
+      autoPresentManagementEnabled: body.autoPresentManagementEnabled !== undefined ? !!body.autoPresentManagementEnabled : existing?.autoPresentManagementEnabled ?? false,
     };
 
     let config;

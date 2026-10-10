@@ -318,6 +318,25 @@ export default function AttendancePage() {
   const fetchAdminAttendance = useCallback(async () => {
     try {
       setAdminLoading(true);
+      // Task 82: Auto-present for management — before reading the roster, ask
+      // the server to create/fill auto-present rows for the selected day.
+      // No-op when the toggle is off in Attendance Settings; real punches,
+      // approved leave, weekends and holidays are never overwritten.
+      if (selectedDate <= localDateKey(new Date())) {
+        try {
+          const syncRes = await fetch('/api/attendance/auto-present', {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ date: selectedDate, tzOffset: new Date().getTimezoneOffset(), todayKey: localDateKey(new Date()) }),
+          });
+          if (syncRes.ok) {
+            const syncData = await syncRes.json().catch(() => null);
+            if ((syncData?.created || 0) + (syncData?.updated || 0) > 0) {
+              toast.success(syncData?.message || 'Management auto-present applied');
+            }
+          }
+        } catch { /* non-fatal — the roster still loads */ }
+      }
       const params = new URLSearchParams({
         date: selectedDate,
         limit: '200',

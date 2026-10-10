@@ -4006,3 +4006,62 @@ Task 81 (deploy addendum):
     (MARQ001 hidden, toggle restores 11/1); stats.total 10 == rows 10;
     Inactive export (Task 80) intact (1 separated row).
   * DEMO: no regressions; self-scoped admin unaffected.
+
+---
+Task ID: 82
+Agent: Super Z (main agent)
+Task: User request — "In the attendance module for the management the in and out punches should be automatically be present as per the attendance rules set or roaster set even though they punch in or not it should mark it as present for the management employees. give this as option to enable or disable in the attendance rules. pls update these in vercel now."
+
+Work Log:
+- SCOPE: the long QA list in the message is a status tracker (Pending / Management
+  Discussion / Phase-II / Retesting items); the actionable dev request is the
+  management auto-present attendance feature + enable/disable toggle.
+- SYNC: local sandbox git was stale (245c1008 / Task 76); reset --hard to remote
+  tip d368e976 (Task 81 addendum). Task 81 (photos/reportees/exclusion) was
+  already deployed 13/13 — confirmed from worklog + remote log before starting.
+- SCHEMA: AttendancePolicyConfig.autoPresentManagementEnabled BOOLEAN NOT NULL
+  DEFAULT false added to prisma/schema.prisma (+ Prisma client regenerated).
+- DDL PRE-APPLY: scripts/apply-auto-present-tenants.js ran BEFORE deploy —
+  column added to all 3 DBs (platform neondb, tenant_3boxes-hrms-demo,
+  tenant_marqaitechgroup), idempotent ADD COLUMN IF NOT EXISTS.
+- ENGINE: new src/lib/attendance-auto-present.ts — runManagementAutoPresent():
+  * Management definition IDENTICAL to the Management List page: isManagement
+    flag OR management-level user role (manager/admin/tenant_admin/hr_admin/
+    super_admin) OR reporting manager of ≥1 ACTIVE employee.
+  * Shift resolution per date: roster assignment (RotationalRoster pattern,
+    day/week rotation anchored to roster.startDate, cross-midnight aware) →
+    fallback AttendancePolicyConfig shiftStartDefault/shiftEndDefault +
+    breakDurationMinutes.
+  * Safety: real punches ALWAYS win (rows with both punches untouched);
+    missing check-in only (forgot punch-out) → checkOut filled from shift end;
+    approved LeaveRequest covers the day → skipped; weekends (Setting-table
+    config) + non-elective holidays skipped; future dates never processed;
+    days before dateOfJoining skipped. Created rows stamped punchMethod='auto'
+    + notes 'Auto-present (management rule · <source>' so reports/audits can
+    distinguish them. Per-row try/catch so a unique-constraint race can't
+    abort a whole backfill.
+  * Timezone: local wall-clock instants built from the caller's
+    getTimezoneOffset() (IST default −330) — matches manual-punch storage.
+- API: new /api/attendance/auto-present — GET {enabled, shift defaults};
+  POST (admin only) { date? | backfillDays 0..31, tzOffset, todayKey,
+  employeeId? } → created/updated/skipped counts + per-employee details.
+- POLICY API: autoPresentManagementEnabled added to /api/attendance-policy-config
+  GET defaults (×2) + PUT mapping (partial-save safe).
+- UI: /attendance/settings — new "Auto-Present for Management Employees" card
+  (teal, under General Settings): toggle + Save & Enable/Disable, "Apply for
+  today" and "Backfill last 7 days" run buttons with live result toasts.
+- UI: /attendance admin view — fetchAdminAttendance now POSTs the sync for the
+  selected day (only today/past) before loading the roster, so management
+  members show Present with auto in/out immediately; success toast when rows
+  created/updated; sync failure is non-fatal.
+- SW: cache bumped 3boxes-hrms-v6 → v7 (stale-bundle insurance).
+- TYPECHECK: tsc --noEmit (max-old-space 3072) — 0 errors in engine/route/
+  policy-config/attendance page; only the 3 pre-existing settings-page
+  PolicyRecord casts remain (baseline; verified present at HEAD).
+
+Stage Summary:
+- Management employees can now be auto-marked Present (in/out per attendance
+  rules or roster shift) via a server-side toggle in Attendance Settings, with
+  admin run/backfill controls; real punches, leave, weekends and holidays are
+  always respected. Toggle default OFF; LIVE/demo will be enabled + verified
+  post-deploy in the deploy addendum.
