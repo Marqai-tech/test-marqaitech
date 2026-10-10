@@ -32,6 +32,72 @@
 const DEFAULT_TZ_OFFSET_MINUTES = -330; // IST — matches the app's India-centric default
 const MGMT_ROLES = ['manager', 'admin', 'tenant_admin', 'hr_admin', 'super_admin'];
 
+// ─── Self-healing DDL (Task 82) ────────────────────────────────────────────
+// Vercel's runtime DATABASE_URL can point at a different Neon stack than the
+// one this repo's patch scripts hardcode, so a fresh column can be missing on
+// the DB the app ACTUALLY uses. Instead of guessing stacks, every route that
+// touches the flag runs this idempotent ALTER (once per process) against ITS
+// OWN db handle — guaranteeing the column exists wherever the app runs.
+let autoPresentColumnEnsured = false;
+
+const ATTENDANCE_POLICY_CONFIG_DDL = [
+  // Full table (fresh copies) — matches prisma/schema.prisma exactly.
+  `CREATE TABLE IF NOT EXISTS "AttendancePolicyConfig" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "companyId" TEXT,
+    "roundEnabled" BOOLEAN NOT NULL DEFAULT false,
+    "roundMinutes" INTEGER NOT NULL DEFAULT 15,
+    "roundDirection" TEXT NOT NULL DEFAULT 'nearest',
+    "lateGraceMinutes" INTEGER NOT NULL DEFAULT 15,
+    "earlyGraceMinutes" INTEGER NOT NULL DEFAULT 10,
+    "autoOvertimeEnabled" BOOLEAN NOT NULL DEFAULT true,
+    "overtimeThresholdMinutes" INTEGER NOT NULL DEFAULT 480,
+    "autoApprovePermissionMinutes" INTEGER NOT NULL DEFAULT 0,
+    "autoApproveMinAttendancePct" DOUBLE PRECISION NOT NULL DEFAULT 90,
+    "autoApproveLeaveSingleDay" BOOLEAN NOT NULL DEFAULT false,
+    "autoApproveLeaveTypes" TEXT NOT NULL DEFAULT '[]',
+    "autoApproveOvertimeHours" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "autoApproveGatepassMinutes" INTEGER NOT NULL DEFAULT 0,
+    "wfhActivityMonitoringEnabled" BOOLEAN NOT NULL DEFAULT false,
+    "wfhInactivityThresholdHours" INTEGER NOT NULL DEFAULT 4,
+    "lateMarkAllowancePerMonth" INTEGER NOT NULL DEFAULT 4,
+    "lateMarkHalfDayOnExceed" BOOLEAN NOT NULL DEFAULT true,
+    "halfDayAfterMinutes" INTEGER NOT NULL DEFAULT 21,
+    "lateMarkNotApplicableOnTour" BOOLEAN NOT NULL DEFAULT true,
+    "shiftStartDefault" TEXT NOT NULL DEFAULT '09:00',
+    "shiftEndDefault" TEXT NOT NULL DEFAULT '17:30',
+    "breakDurationMinutes" INTEGER NOT NULL DEFAULT 30,
+    "autoPresentManagementEnabled" BOOLEAN NOT NULL DEFAULT false,
+    "gatePassMaxPerMonth" INTEGER NOT NULL DEFAULT 1,
+    "gatePassHalfDayOnExceed" BOOLEAN NOT NULL DEFAULT true,
+    "gatePassHalfDayNextDay" BOOLEAN NOT NULL DEFAULT true,
+    "gatePassEarlyHours" INTEGER NOT NULL DEFAULT 1,
+    "canteenEnabled" BOOLEAN NOT NULL DEFAULT true,
+    "canteenFreeForGeneralShift" BOOLEAN NOT NULL DEFAULT true,
+    "canteenFreeForNightShift" BOOLEAN NOT NULL DEFAULT true,
+    "canteenOtfreeThresholdHours" INTEGER NOT NULL DEFAULT 5,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "AttendancePolicyConfig_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE INDEX IF NOT EXISTS "AttendancePolicyConfig_companyId_idx" ON "AttendancePolicyConfig"("companyId")`,
+  // Older copies of the table may pre-date the new flag.
+  `ALTER TABLE "AttendancePolicyConfig" ADD COLUMN IF NOT EXISTS "autoPresentManagementEnabled" BOOLEAN NOT NULL DEFAULT false`,
+];
+
+export async function ensureAutoPresentColumn(db: any): Promise<void> {
+  if (autoPresentColumnEnsured) return;
+  autoPresentColumnEnsured = true; // set up-front: a broken DB should not turn every request into a DDL storm
+  for (const stmt of ATTENDANCE_POLICY_CONFIG_DDL) {
+    try {
+      await db.$executeRawUnsafe(stmt);
+    } catch (e: unknown) {
+      console.warn('[attendance-auto-present] ensure column failed (non-fatal):', e instanceof Error ? e.message.slice(0, 140) : e);
+    }
+  }
+}
+
 export interface AutoPresentOptions {
   companyId: string | null;
   /** YYYY-MM-DD local calendar days to process. Future days are skipped. */

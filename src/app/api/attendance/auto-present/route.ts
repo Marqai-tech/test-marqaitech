@@ -19,7 +19,7 @@
 import { isAdminRole, ok, fail, OPTIONS } from '@/lib/attendance-leave-api';
 import { resolveCompanyScope } from '@/lib/companyScope';
 import { getDb } from '@/lib/tenant-db';
-import { runManagementAutoPresent } from '@/lib/attendance-auto-present';
+import { runManagementAutoPresent, ensureAutoPresentColumn } from '@/lib/attendance-auto-present';
 
 export { OPTIONS };
 
@@ -30,6 +30,7 @@ export async function GET(request: Request) {
   const scope = await resolveCompanyScope(request);
   if (!scope) return fail('Unauthorized', 401);
   try {
+    await ensureAutoPresentColumn(db);
     const cfg = await db.attendancePolicyConfig.findFirst({
       where: (scope.companyId || scope.ownCompanyId) ? { companyId: scope.companyId || scope.ownCompanyId } : {},
       orderBy: { createdAt: 'desc' },
@@ -74,6 +75,7 @@ export async function POST(request: Request) {
   }
 
   try {
+    await ensureAutoPresentColumn(db);
     const result = await runManagementAutoPresent(db, {
       companyId: scope.companyId || scope.ownCompanyId || null,
       dateKeys,
