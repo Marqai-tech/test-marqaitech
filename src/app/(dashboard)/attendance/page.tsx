@@ -501,8 +501,17 @@ export default function AttendancePage() {
   useEffect(() => { queueMicrotask(() => fetchEmployee()); }, [fetchEmployee]);
   useEffect(() => { if (employee) queueMicrotask(() => fetchAttendance()); }, [employee, fetchAttendance]);
   useEffect(() => { if (isAdmin && activeTab === 'admin') queueMicrotask(() => fetchAdminAttendance()); }, [fetchAdminAttendance, activeTab, isAdmin]);
-  useEffect(() => { queueMicrotask(() => fetchOrgContext()); }, [fetchOrgContext]);
-  useEffect(() => { queueMicrotask(() => fetchApprovedLeaves()); }, [fetchApprovedLeaves]);
+  // Load the attendance record first. Policy/holiday and approved-leave data
+  // enrich the calendar but are not needed to render the main table or punch
+  // controls, so defer them until the browser has painted the primary view.
+  useEffect(() => {
+    const timer = window.setTimeout(() => fetchOrgContext(), 250);
+    return () => window.clearTimeout(timer);
+  }, [fetchOrgContext]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => fetchApprovedLeaves(), 350);
+    return () => window.clearTimeout(timer);
+  }, [fetchApprovedLeaves]);
 
   /* Task 84: month-window punch counts for the Recent-days strip. Counted
    * for TODAY's month (the strip always shows the last 7 calendar days);
