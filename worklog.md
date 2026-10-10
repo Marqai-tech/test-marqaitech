@@ -4095,3 +4095,78 @@ Task 82 (deploy addendum):
   * auto-present left ENABLED on LIVE (the user-requested behaviour); toggle
     lives in Attendance → Settings → "Auto-Present for Management Employees"
     with Apply-for-today + Backfill-7-days controls.
+
+---
+Task ID: 83
+Agent: Super Z (main agent)
+Task: User request — (1) "the attendance logs which were already there earlier are not shown now in the attendance dashboard"; (2) muster roll should show in and out time along with the colour code; (3) /attendance/biometric punches should show time in/out + add filters (employee, department, type, etc.). "pls check and update in vercel now."
+
+Work Log:
+- DIAGNOSIS (read-only probes + headless browser on LIVE):
+  * #1 ROOT CAUSE: login API never returns user.employee, and attendance
+    page fetchEmployee had `if (isAdmin) return;` — so for admin users
+    (Vardhani Reddy / MARQ001, tenant_admin) the self-view employee stayed
+    null and "My Attendance" was permanently empty (0 logs, Not Checked In)
+    even though MARQ001 has 10 rows. Reproduced in browser: tab showed
+    zeros; APIs returned data fine.
+  * #2 ROOT CAUSE: /api/attendance GET silently IGNORED employeeIds /
+    startDate / endDate params, and the muster-roll page mapped records by
+    DAY-OF-MONTH ONLY — September records landed in the October grid
+    (probe: mapped day-count {1:9,4:1,5:9,...,28:10,29:9,30:9} while
+    October only had rows for 1,5-9). No in/out times were rendered.
+  * #3 ROOT CAUSE: biometric punch-log API had no punchType/departmentId
+    filters; bare-date `to` filter was `lte` UTC-midnight (hid almost the
+    whole end day); UI was a raw event list only — no day-wise In/Out.
+- FIX 1 (src/app/(dashboard)/attendance/page.tsx): removed the admin
+  early-return so admins fall through to the email/userId employee lookup;
+  My Attendance + Check In/Out now work for admins who are employees.
+- FIX 2 (src/app/api/attendance/route.ts GET): employeeIds (comma list,
+  intersects with self-scope) + startDate/endDate month window with the
+  dual UTC/IST-midnight storage handling; single-date path unchanged.
+- FIX 3 (muster-roll/page.tsx): records keyed by FULL calendar date
+  (recordDateKey: UTC-midnight → ISO date, else IST calendar date) and
+  gated to the selected month; API called with real month range; day cells
+  now show status colour + P/A/L label + compact punch In–Out times
+  (e.g. "4:43a – 2:00p") with hover tooltips; legend updated; status
+  filter narrows rows (employee has ≥1 day of that status); summary cards
+  use the filtered set.
+- FIX 4 (api/attendance/biometric/punch-log/route.ts): punchType whitelist
+  filter, departmentId filter (via employee.departmentId), full-day
+  from/to windows (from = min(UTC,IST) midnight; to = +24h), department
+  in employee select, IST business-day summary counts ("today" no longer
+  starts at 05:30 IST).
+- FIX 5 (biometric/page.tsx punches tab): filter bar (Employee,
+  Department, Type, From/To dates, Flagged-only, Clear) wired server-side;
+  new "In / Out Summary" default view = per employee per IST day: first
+  check_in, last check_out, first break_in, last break_out, punch count,
+  devices, flag badge; "All Punch Events" keeps the raw list (now with
+  department under the name); useMemo day-grouping; icons/imports added.
+- TYPECHECK: tsc --noEmit (NODE_OPTIONS 3072) — 1795 errors at HEAD
+  baseline == 1795 with changes → 0 new errors (all pre-existing in
+  seed-demo + files excluded from the Vercel build).
+- DEPLOY: pushed e6d23a4b (maheshkpreddy) → BOTH Vercel projects SUCCESS
+  (poll-vercel-status.sh).
+- POST-DEPLOY VERIFY (scripts/verify-task83.mjs): 26/26 PASS.
+  * LIVE: muster-roll month call returns 54 October rows (all in-month,
+    all with punches, total matches); single-date filter regression OK;
+    punch-log: punchType=check_in → 18/18; from/to 7-day window → 84/84
+    in-window; employeeId(MARQ010) → 14; departmentId(Engineering) → 26;
+    department field present; auto-present toggle intact (enabled=true);
+    admin self-view has 10 rows for MARQ001.
+  * DEMO: no regressions (0 October rows → vacuous checks pass;
+    self-view 23 rows for EMP-TNS-003; auto-present disabled as left).
+- BROWSER VERIFY on LIVE (as Vardhani Reddy):
+  * /attendance → My Attendance: "10 Present · 2 Present (Late) · 40h 1m
+    Total", Present Days 10 — logs RESTORED.
+  * /attendance/muster-roll: October grid, colour-coded cells with punch
+    In–Out times (MARQ011 "4:43a – 2:00p" etc.), no September bleed.
+  * /attendance/biometric → Punches: filter bar renders; In/Out Summary
+    16 employee-days; selecting Engineering narrows to 6; All Punch
+    Events view intact with departments.
+
+Stage Summary:
+- Attendance dashboard "My Attendance" works for admin users again (root
+  cause was the admin early-return, not data loss); muster roll is
+  month-accurate and shows in/out times with the colour code; biometric
+  punches have a day-wise In/Out summary plus employee/department/type/
+  date/flag filters. All verified 26/26 via API + visually on LIVE.
