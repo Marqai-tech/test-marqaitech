@@ -247,6 +247,21 @@ function calculateBreakDuration(checkIn: string | null | undefined, checkOut: st
   return `${h}h ${m}m`;
 }
 
+// Dashboard production hours use the fixed one-hour lunch rule.
+function calculateProductionHours(checkIn: string | null | undefined, checkOut: string | null | undefined): number | null {
+  if (!checkIn || !checkOut) return null;
+  const spanMinutes = Math.max(0, Math.round((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / 60000));
+  return Math.round((Math.max(0, spanMinutes - 60) / 60) * 100) / 100;
+}
+
+function calculateCompanyOvertime(checkOut: string | null | undefined): number {
+  if (!checkOut) return 0;
+  const end = new Date(checkOut);
+  const cutoff = new Date(end);
+  cutoff.setHours(18, 30, 0, 0);
+  return Math.max(0, Math.round((end.getTime() - cutoff.getTime()) / 60000) / 60);
+}
+
 /* ── Sample Attendance Data removed — data comes from API only ── */
 
 /* ── Component ── */
@@ -647,7 +662,7 @@ export default function AttendancePage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Could not enable Early Logout');
       setEarlyLogout(true);
-      toast.success('Early Logout enabled. Your next punch will be Check-Out.');
+      toast.success('Half-Day Leave / Early Checkout enabled. Your next punch will be Check-Out.');
       await fetchAttendance();
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Could not enable Early Logout');
@@ -870,8 +885,8 @@ export default function AttendancePage() {
   /* ── Self view stats ── */
   const presentCount = attendance.filter(a => ['present', 'late'].includes(a.status)).length;
   const lateCount = attendance.filter(a => a.status === 'late').length;
-  const totalHours = attendance.reduce((sum, a) => sum + (a.workHours || 0), 0);
-  const totalOvertime = attendance.reduce((sum, a) => sum + (a.overtime || 0), 0);
+  const totalHours = attendance.reduce((sum, a) => sum + (calculateProductionHours(a.checkIn, a.checkOut) || 0), 0);
+  const totalOvertime = attendance.reduce((sum, a) => sum + calculateCompanyOvertime(a.checkOut), 0);
 
   /* ── Self table rows: real records + derived month days (weekend/holiday/leave/absent) ── */
   const selfTableRows = useMemo(() => {
@@ -958,7 +973,7 @@ export default function AttendancePage() {
           </button>
           <label className="inline-flex items-center gap-2 px-3 py-2 text-xs text-slate-700 border border-slate-200 rounded-lg bg-white">
             <input type="checkbox" checked={earlyLogoutEnabled} disabled={!isCheckedIn || isCheckedOut || earlyLogoutEnabled} onChange={e => handleEarlyLogout(e.target.checked)} />
-            Early Logout
+            Half-Day Leave / Early Checkout
           </label>
           {/* Task 57: Break In / Break Out buttons (self-service lunch/tea break) */}
           {isCheckedIn && !isCheckedOut && (
@@ -1241,7 +1256,8 @@ export default function AttendancePage() {
                       const statusValue = r.status || 'not_marked';
                       const statusConfig = getStatusConfig(statusValue);
                       const lateBy = a ? calculateLateBy(a.checkIn, shiftStartMinutes) : '0m';
-                      const breakDur = a ? calculateBreakDuration(a.checkIn, a.checkOut, a.workHours) : '—';
+                      const productionHours = a ? calculateProductionHours(a.checkIn, a.checkOut) : null;
+                      const breakDur = a?.checkIn && a?.checkOut ? '1h' : '—';
                       return (
                         <tr key={r.key} className="border-b border-thb-border/50 hover:bg-slate-50/80 transition-colors group">
                           {/* Employee */}
@@ -1282,13 +1298,13 @@ export default function AttendancePage() {
                           {/* Production Hours */}
                           <td className="px-4 py-3">
                             <span className={`text-sm font-medium ${
-                              a?.workHours != null
-                                ? a.workHours >= 8
+                              productionHours != null
+                                ? productionHours >= 8
                                   ? 'text-emerald-600'
                                   : 'text-amber-600'
                                 : 'text-thb-text-muted'
                             }`}>
-                              {a?.workHours != null ? formatHoursHm(a.workHours) : '—'}
+                              {productionHours != null ? formatHoursHm(productionHours) : '—'}
                             </span>
                           </td>
                           {/* Actions */}
@@ -1378,7 +1394,7 @@ export default function AttendancePage() {
             <StatCard
               icon={<FiClock className="w-5 h-5" />}
               label="Work Hours"
-              value={todayRecord?.workHours != null ? formatHoursHm(todayRecord.workHours) : '—'}
+              value={todayRecord && calculateProductionHours(todayRecord.checkIn, todayRecord.checkOut) != null ? formatHoursHm(calculateProductionHours(todayRecord.checkIn, todayRecord.checkOut) as number) : '�'}
               iconBg="bg-emerald-100"
               iconColor="text-emerald-600"
               accent="border-l-emerald-500"
@@ -1561,8 +1577,8 @@ export default function AttendancePage() {
                               </td>
                               <td className="px-4 py-3 text-sm text-thb-text-secondary">{a ? formatTime(a.checkIn) : '—'}</td>
                               <td className="px-4 py-3 text-sm text-thb-text-secondary">{a ? formatTime(a.checkOut) : '—'}</td>
-                              <td className="px-4 py-3 text-sm text-thb-text-secondary">{a?.workHours != null ? formatHoursHm(a.workHours) : '—'}</td>
-                              <td className="px-4 py-3 text-sm text-thb-text-secondary">{a?.overtime != null && a.overtime > 0 ? formatHoursHm(a.overtime) : '—'}</td>
+                              <td className="px-4 py-3 text-sm text-thb-text-secondary">{a && calculateProductionHours(a.checkIn, a.checkOut) != null ? formatHoursHm(calculateProductionHours(a.checkIn, a.checkOut) as number) : '�'}</td>
+                              <td className="px-4 py-3 text-sm text-thb-text-secondary">{a && calculateCompanyOvertime(a.checkOut) > 0 ? formatHoursHm(calculateCompanyOvertime(a.checkOut)) : '�'}</td>
                             </tr>
                           );
                         })
@@ -1798,3 +1814,4 @@ function QuickLinkSmall({ href, icon, label, color }: {
     </Link>
   );
 }
+
