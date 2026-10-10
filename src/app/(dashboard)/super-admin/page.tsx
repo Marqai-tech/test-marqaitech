@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
+import dynamic from 'next/dynamic';
 import {
   FiServer, FiUsers, FiPlus, FiEdit2, FiEye, FiTrash2,
   FiX, FiSearch, FiRefreshCw, FiCreditCard, FiShield,
@@ -12,12 +13,21 @@ import {
   FiFilter, FiKey, FiUserCheck,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
-import { BarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
 import { isClientLiveMode } from '@/lib/site-mode';
 import { isTenantHiddenClient, PLATFORM_PLACEHOLDER_NAME } from '@/lib/tenant-filter';
 import SrsBanner from '@/components/SrsBanner';
+
+const DashboardCharts = dynamic(() => import('./dashboard-charts'), {
+  ssr: false,
+  loading: () => (
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="thb-card h-80 animate-pulse bg-slate-50" />
+      <div className="thb-card h-80 animate-pulse bg-slate-50" />
+    </div>
+  ),
+});
 
 function getAuthHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
@@ -1179,46 +1189,13 @@ export default function SuperAdminPage() {
                 </div>
               </div>
 
-              {/* ─── Charts Row (Dynamic) ─── */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Companies Chart */}
-                <div className="thb-card p-5">
-                  <h3 className="font-semibold text-thb-text-primary mb-4 flex items-center gap-2"><FiBriefcase className="w-4 h-4" /> Tenants by Month</h3>
-                  <div className="h-64">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={dashboard.companiesByMonth && dashboard.companiesByMonth.length > 0 ? dashboard.companiesByMonth : [{ month: '-', companies: 0 }]}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
-                        <XAxis dataKey="month" tick={{ fontSize: 12 }} stroke="#94A3B8" />
-                        <YAxis tick={{ fontSize: 12 }} stroke="#94A3B8" allowDecimals={false} />
-                        <Tooltip />
-                        <Bar dataKey="companies" fill="#3B82F6" radius={[4, 4, 0, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-
-                {/* Revenue Chart */}
-                <div className="thb-card p-5">
-                  <h3 className="font-semibold text-thb-text-primary mb-4 flex items-center gap-2"><FiTrendingUp className="w-4 h-4" /> Revenue Trend</h3>
-                  <div className="h-64">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={dashboard.revenueByMonth && dashboard.revenueByMonth.length > 0 ? dashboard.revenueByMonth : [{ month: '-', revenue: 0 }]}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
-                        <XAxis dataKey="month" tick={{ fontSize: 12 }} stroke="#94A3B8" />
-                        <YAxis tick={{ fontSize: 12 }} stroke="#94A3B8" tickFormatter={(v) => `${dashboard.currencySymbol || (isClientLiveMode() ? '₹' : '$')}${(v / 1000).toFixed(0)}k`} />
-                        <Tooltip formatter={(value: number) => [`${dashboard.currencySymbol || (isClientLiveMode() ? '₹' : '$')}${value.toLocaleString()}`, 'Revenue']} />
-                        <defs>
-                          <linearGradient id="revenueGrad" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#8B5CF6" stopOpacity={0.3} />
-                            <stop offset="95%" stopColor="#8B5CF6" stopOpacity={0} />
-                          </linearGradient>
-                        </defs>
-                        <Area type="monotone" dataKey="revenue" stroke="#8B5CF6" strokeWidth={2} fill="url(#revenueGrad)" />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-              </div>
+              {/* Charts are split into a deferred client chunk so the initial
+                  Super Admin dashboard can render its summary cards first. */}
+              <DashboardCharts
+                companiesByMonth={dashboard.companiesByMonth}
+                revenueByMonth={dashboard.revenueByMonth}
+                currencySymbol={dashboard.currencySymbol || (isClientLiveMode() ? '₹' : '$')}
+              />
 
               {/* ─── Bottom Row: Top Plans + Recent Transactions + Recently Registered (Dynamic) ─── */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

@@ -328,8 +328,8 @@ export default function AttendancePage() {
       // employees who have NO attendance row (previously they were invisible
       // and the admin counts stayed at 0).
       const [attRes, empRes] = await Promise.all([
-        fetch(`/api/attendance?${params.toString()}${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() }),
-        fetch(`/api/employees?limit=500&status=active${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() }),
+        fetch(`/api/attendance?${params.toString()}${sq ? `&${sq}` : ''}&includePhotos=0`, { headers: getAuthHeaders() }),
+        fetch(`/api/employees?limit=500&status=active&includePhotos=0${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() }),
       ]);
       if (attRes.ok) {
         const data = await attRes.json();
@@ -354,11 +354,14 @@ export default function AttendancePage() {
 
   /* ── Fetch org context: shift policy (late threshold + weekend days) + holidays ── */
   const fetchOrgContext = useCallback(async () => {
-    try {
-      const sq = scopeQuery();
-      const res = await fetch(`/api/attendance-policy-config${sq ? `?${sq}` : ''}`, { headers: getAuthHeaders() });
-      if (res.ok) {
-        const d = await res.json();
+    const sq = scopeQuery();
+    const [policyRes, holidayRes] = await Promise.all([
+      fetch(`/api/attendance-policy-config${sq ? `?${sq}` : ''}`, { headers: getAuthHeaders() }).catch(() => null),
+      fetch(`/api/holidays?year=${selectedMonth.year}&limit=200${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() }).catch(() => null),
+    ]);
+    if (policyRes?.ok) {
+      try {
+        const d = await policyRes.json();
         const cfg = d.config || {};
         if (typeof cfg.shiftStartDefault === 'string' && /^\d{1,2}:\d{2}$/.test(cfg.shiftStartDefault)) {
           const [h, m] = cfg.shiftStartDefault.split(':').map(Number);
@@ -367,32 +370,33 @@ export default function AttendancePage() {
         if (Array.isArray(d.weekendDays) && d.weekendDays.length > 0) {
           setWeekendDow(d.weekendDays.map((n: number) => Number(n)));
         }
-      }
-    } catch { /* defaults stay */ }
-    try {
-      const sq = scopeQuery();
-      const res = await fetch(`/api/holidays?year=${selectedMonth.year}&limit=200${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
-      if (res.ok) {
-        const d = await res.json();
+      } catch { /* defaults stay */ }
+    }
+    if (holidayRes?.ok) {
+      try {
+        const d = await holidayRes.json();
         const rows = d.data || d.holidays || [];
         const map = new Map<string, string>();
         rows.forEach((h: { date: string; name?: string }) => { map.set(recordDateKey(h.date), h.name || 'Holiday'); });
         setHolidayMap(map);
-      }
-    } catch { /* keep previous */ }
+      } catch { /* keep previous */ }
+    }
   }, [scopeQuery, selectedTenantId, selectedMonth.year]);
 
   /* ── Fetch approved leaves (company-wide for admins, own for employees) ── */
   const fetchApprovedLeaves = useCallback(async () => {
     try {
       const sq = scopeQuery();
-      const res = await fetch(`/api/leave?status=approved&limit=500${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
+      const fromDate = `${selectedMonth.year}-${String(selectedMonth.month + 1).padStart(2, '0')}-01`;
+      const lastDay = new Date(selectedMonth.year, selectedMonth.month + 1, 0).getDate();
+      const toDate = `${selectedMonth.year}-${String(selectedMonth.month + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+      const res = await fetch(`/api/leave?status=approved&fromDate=${fromDate}&toDate=${toDate}&limit=500${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
       if (!res.ok) return;
       const d = await res.json();
       const rows = d.leaveRequests || d.leaves || [];
       setApprovedLeaves(rows.map((r: { employeeId: string; startDate: string; endDate: string }) => ({ employeeId: r.employeeId, startDate: r.startDate, endDate: r.endDate })));
     } catch { /* keep previous */ }
-  }, [scopeQuery, selectedTenantId]);
+  }, [scopeQuery, selectedTenantId, selectedMonth.month, selectedMonth.year]);
 
   /* ── Find current user's employee record ── */
   const fetchEmployee = useCallback(async () => {
@@ -413,7 +417,8 @@ export default function AttendancePage() {
       }
       // Fallback: fetch from API and match by email or userId
       const sq = scopeQuery();
-      const res = await fetch(`/api/employees?limit=500${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
+      const employeeLimit = getDataScope(user?.role || '') === 'self' ? 1 : 500;
+      const res = await fetch(`/api/employees?limit=${employeeLimit}${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
         const myEmp = data.employees?.find((e: { email: string; userId?: string }) =>
@@ -424,14 +429,14 @@ export default function AttendancePage() {
     } catch (err) {
       console.error('fetchEmployee error:', err);
     }
-  }, [user?.email, user?.id, user?.employee, isAdmin, scopeQuery, selectedTenantId]);
+  }, [user?.email, user?.id, user?.role, user?.employee, isAdmin, scopeQuery, selectedTenantId]);
 
   /* ── Fetch self attendance ── */
   const fetchAttendance = useCallback(async () => {
     if (!employee) return;
     try {
       setLoading(true);
-      const res = await fetch(`/api/attendance?employeeId=${employee.id}&limit=100`, { headers: getAuthHeaders() });
+      const res = await fetch(`/api/attendance?employeeId=${employee.id}&limit=100&includePhotos=0`, { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
         const fetched = data.attendance || [];

@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb, getDbForTenant } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders, hashPassword } from '@/lib/auth';
 import { profilePhotoPayloadError } from '@/lib/profile-photo';
-import { ensureEmployeeProfileColumns } from '@/lib/employee-profile-columns';
 
 function corsHeaders() {
   return {
@@ -30,6 +29,21 @@ function rowVal(row: Record<string, unknown> | null | undefined, ...keys: string
   return null;
 }
 
+const PROFILE_USER_SELECT = {
+  id: true,
+  tenantId: true,
+  email: true,
+  name: true,
+  role: true,
+  avatar: true,
+  status: true,
+  lastLogin: true,
+  createdAt: true,
+  tenant: {
+    select: { id: true, name: true, slug: true, plan: true, currency: true, timezone: true },
+  },
+} as const;
+
 // GET — Fetch current user profile using RAW SQL (bypasses all Prisma issues)
 export async function GET(request: Request) {
   const db = await getDb(request);
@@ -46,18 +60,18 @@ export async function GET(request: Request) {
 
     // Try by ID in resolved DB (tenant DB — this is where the employee lives)
     try {
-      user = await db.user.findUnique({ where: { id: decoded.userId as string }, include: { tenant: true } });
+      user = await db.user.findUnique({ where: { id: decoded.userId as string }, select: PROFILE_USER_SELECT });
     } catch {}
     // Try by ID in platform DB
     if (!user) {
-      try { user = await platformDb.user.findUnique({ where: { id: decoded.userId as string }, include: { tenant: true } }); if (user) foundInPlatform = true; } catch {}
+      try { user = await platformDb.user.findUnique({ where: { id: decoded.userId as string }, select: PROFILE_USER_SELECT }); if (user) foundInPlatform = true; } catch {}
     }
     // Try by email
     if (!user) {
       const email = (decoded as any).email;
       if (email) {
-        try { user = await db.user.findUnique({ where: { email }, include: { tenant: true } }); } catch {}
-        if (!user) { try { user = await platformDb.user.findUnique({ where: { email }, include: { tenant: true } }); if (user) foundInPlatform = true; } catch {} }
+        try { user = await db.user.findUnique({ where: { email }, select: PROFILE_USER_SELECT }); } catch {}
+        if (!user) { try { user = await platformDb.user.findUnique({ where: { email }, select: PROFILE_USER_SELECT }); if (user) foundInPlatform = true; } catch {} }
       }
     }
 
@@ -75,14 +89,20 @@ export async function GET(request: Request) {
     let tenantSlug: string | null = null;
     if (user.tenantId) {
       try {
-        const tenant = await platformDb.tenant.findUnique({
-          where: { id: user.tenantId },
-          select: { slug: true },
-        });
-        if (tenant?.slug) {
-          tenantSlug = tenant.slug;
-          explicitTenantDb = await getDbForTenant(tenant.slug);
-          console.log(`[Profile] Explicitly resolved tenant DB for slug "${tenant.slug}"`);
+        // user.tenant is already included above. Reuse its slug to avoid an
+        // extra platform database round-trip for every profile page load.
+        let resolvedSlug = user.tenant?.slug as string | undefined;
+        if (!resolvedSlug) {
+          const tenant = await platformDb.tenant.findUnique({
+            where: { id: user.tenantId },
+            select: { slug: true },
+          });
+          resolvedSlug = tenant?.slug;
+        }
+        if (resolvedSlug) {
+          tenantSlug = resolvedSlug;
+          explicitTenantDb = await getDbForTenant(resolvedSlug);
+          console.log(`[Profile] Explicitly resolved tenant DB for slug "${resolvedSlug}"`);
         }
       } catch (e) {
         console.error('[Profile] Failed to resolve tenant DB from tenantId:', e);
@@ -112,11 +132,6 @@ export async function GET(request: Request) {
 
     for (const tryDb of allDbs) {
       const dbName = tryDb === platformDb ? 'platformDb' : (tryDb === explicitTenantDb ? 'explicitTenantDb' : 'tenantDb');
-
-      // Ensure Employee table exists
-      try {
-        await tryDb.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "Employee" ("id" TEXT NOT NULL, "employeeId" TEXT NOT NULL, "firstName" TEXT NOT NULL, "lastName" TEXT NOT NULL, "email" TEXT NOT NULL, "userId" TEXT, "departmentId" TEXT, "designationId" TEXT, "branchId" TEXT, "companyId" TEXT, "phone" TEXT, "avatar" TEXT, "personalEmail" TEXT, "reportingManagerId" TEXT, "dateOfJoining" TIMESTAMP(3), "dateOfBirth" TIMESTAMP(3), "gender" TEXT, "maritalStatus" TEXT, "nationality" TEXT, "address" TEXT, "city" TEXT, "state" TEXT, "zipCode" TEXT, "country" TEXT, "bloodGroup" TEXT, "emergencyContactName" TEXT, "emergencyContactPhone" TEXT, "status" TEXT NOT NULL DEFAULT 'active', "employeeStatus" TEXT, "employeeType" TEXT, "bankName" TEXT, "bankAccountNo" TEXT, "bankIfscCode" TEXT, "panNumber" TEXT, "aadhaarNumber" TEXT, "taxId" TEXT, "salary" DOUBLE PRECISION, "salaryCurrency" TEXT, "leavePolicyId" TEXT, "attendancePolicyId" TEXT, "travelPolicyId" TEXT, "salaryStructureId" TEXT, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT NOW(), "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT NOW(), CONSTRAINT "Employee_pkey" PRIMARY KEY ("id"))`);
-      } catch {}
 
       // Try by userId
       try {
@@ -240,47 +255,43 @@ export async function GET(request: Request) {
       }
     }
 
-    // Include the assigned manager in the self-service profile. The employee
-    // can navigate to this profile for viewing, but edit permission remains
-    // controlled by the employee-record role gate.
-    if (employee.reportingManagerId && empDb) {
-      try {
-        const managerRows = await empDb.$queryRawUnsafe(
-          `SELECT "id", "employeeId", "firstName", "lastName", "email" FROM "Employee" WHERE "id" = $1 LIMIT 1`,
-          employee.reportingManagerId,
-        ) as any[];
-        employee.reportingManager = managerRows?.[0] || null;
-      } catch { employee.reportingManager = null; }
-    }
-
     console.log('[Profile] Employee:', employee ? `${rowVal(employee, 'firstName', 'firstname') || ''} ${rowVal(employee, 'lastName', 'lastname') || ''}`.trim() : 'NOT FOUND', '| Strategy:', foundByStrategy || 'none');
 
     // Build employee data from raw SQL row (quoted columns stay camelCase)
     let employeeData = null;
     if (employee) {
 
-      // Fetch relations via raw SQL
+      // These independent, employee-scoped lookups should not block one
+      // another; sequential round-trips were adding noticeable profile delay.
       let department = null, designation = null, branch = null;
       const departmentId = rowVal(employee, 'departmentId', 'departmentid');
       const designationId = rowVal(employee, 'designationId', 'designationid');
       const branchId = rowVal(employee, 'branchId', 'branchid');
-      if (departmentId) {
-        try { const r = await empDb.$queryRawUnsafe(`SELECT "name" FROM "Department" WHERE "id" = $1`, departmentId) as any[]; if (r?.[0]) department = r[0]; } catch {}
-      }
-      if (designationId) {
-        try { const r = await empDb.$queryRawUnsafe(`SELECT "title" FROM "Designation" WHERE "id" = $1`, designationId) as any[]; if (r?.[0]) designation = r[0]; } catch {}
-      }
-      if (branchId) {
-        try { const r = await empDb.$queryRawUnsafe(`SELECT "name" FROM "Branch" WHERE "id" = $1`, branchId) as any[]; if (r?.[0]) branch = r[0]; } catch {}
-      }
-
-      let dependents: any[] = [], qualifications: any[] = [], documents: any[] = [], experiences: any[] = [];
-      try { dependents = await empDb.$queryRawUnsafe(`SELECT * FROM "Dependent" WHERE "employeeId" = $1`, employee.id) as any[]; } catch {}
-      try { qualifications = await empDb.$queryRawUnsafe(`SELECT * FROM "Qualification" WHERE "employeeId" = $1`, employee.id) as any[]; } catch {}
-      try { documents = await empDb.$queryRawUnsafe(`SELECT "id","name","type","status","category","fileUrl","expiryDate","description" FROM "Document" WHERE "employeeId" = $1 ORDER BY "createdAt" DESC`, employee.id) as any[]; } catch {}
-      try {
-        experiences = await empDb.$queryRawUnsafe(`SELECT * FROM "Experience" WHERE "employeeId" = $1 ORDER BY "startDate" DESC`, employee.id) as any[];
-      } catch {}
+      const [departmentRows, designationRows, branchRows, dependents, managerRows] = await Promise.all([
+        departmentId
+          ? empDb.$queryRawUnsafe(`SELECT "name" FROM "Department" WHERE "id" = $1 LIMIT 1`, departmentId).catch(() => [])
+          : Promise.resolve([]),
+        designationId
+          ? empDb.$queryRawUnsafe(`SELECT "title" FROM "Designation" WHERE "id" = $1 LIMIT 1`, designationId).catch(() => [])
+          : Promise.resolve([]),
+        branchId
+          ? empDb.$queryRawUnsafe(`SELECT "name" FROM "Branch" WHERE "id" = $1 LIMIT 1`, branchId).catch(() => [])
+          : Promise.resolve([]),
+        empDb.$queryRawUnsafe(`SELECT "id", "name", "relation" AS "relationship", "dateOfBirth", "gender" FROM "Dependent" WHERE "employeeId" = $1`, employee.id).catch(() => []),
+        employee.reportingManagerId
+          ? empDb.$queryRawUnsafe(`SELECT "id", "employeeId", "firstName", "lastName", "email" FROM "Employee" WHERE "id" = $1 LIMIT 1`, employee.reportingManagerId).catch(() => [])
+          : Promise.resolve([]),
+      ]) as [
+        Array<Record<string, unknown>>,
+        Array<Record<string, unknown>>,
+        Array<Record<string, unknown>>,
+        Array<Record<string, unknown>>,
+        Array<Record<string, unknown>>,
+      ];
+      department = departmentRows[0] || null;
+      designation = designationRows[0] || null;
+      branch = branchRows[0] || null;
+      employee.reportingManager = managerRows[0] || null;
 
       employeeData = {
         id: employee.id,
@@ -294,7 +305,9 @@ export async function GET(request: Request) {
         reportingManagerId: rowVal(employee, 'reportingManagerId', 'reportingmanagerid') || null,
         reportingManager: employee.reportingManager || null,
         phone: rowVal(employee, 'phone') || '',
-        avatar: rowVal(employee, 'avatar') || '',
+        // The same image is already returned once at the top-level `avatar`;
+        // duplicating a base64 photo here needlessly inflated the response.
+        avatar: '',
         emergencyContactName: rowVal(employee, 'emergencyContactName', 'emergencycontactname') || '',
         emergencyContactPhone: rowVal(employee, 'emergencyContactPhone', 'emergencycontactphone') || '',
         emergencyContactRelation: rowVal(employee, 'emergencyContactRelation', 'emergencycontactrelation') || '',
@@ -370,26 +383,7 @@ export async function GET(request: Request) {
         travelPolicyId: rowVal(employee, 'travelPolicyId', 'travelpolicyid') || '',
         salaryStructureId: rowVal(employee, 'salaryStructureId', 'salarystructureid') || '',
         dependents: dependents || [],
-        qualifications: qualifications || [],
-        experiences: (experiences || []).map((exp: any) => ({
-          id: exp.id,
-          company: rowVal(exp, 'company') || '',
-          designation: rowVal(exp, 'designation') || '',
-          fromDate: toISOStr(rowVal(exp, 'startDate', 'startdate')),
-          toDate: toISOStr(rowVal(exp, 'endDate', 'enddate')),
-          isCurrent: Boolean(rowVal(exp, 'isCurrent', 'iscurrent')),
-          description: rowVal(exp, 'description') || '',
-        })),
-        documents: (documents || []).map((d: any) => ({
-          id: d.id,
-          name: d.name,
-          type: d.type,
-          status: d.status,
-          category: d.category,
-          fileUrl: d.fileUrl || d.fileurl || '',
-          expiryDate: toISOStr(rowVal(d, 'expiryDate', 'expirydate')),
-          description: d.description || '',
-        })),
+        documents: [],
       };
     }
 

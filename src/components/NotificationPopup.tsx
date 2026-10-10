@@ -132,8 +132,8 @@ function NotificationPopupItem({
 export default function NotificationPopup() {
   const [popups, setPopups] = useState<PopupNotification[]>([]);
   const lastCheckedIds = useRef<Set<string>>(new Set());
-  const { notifications } = useNotificationStore();
-  const { isAuthenticated: isAuthed } = useAuthStore();
+  const notifications = useNotificationStore((state) => state.notifications);
+  const isAuthed = useAuthStore((state) => state.isAuthenticated);
   const prevAuthState = useRef(isAuthed);
   // Track whether we've already shown a login notification for this session
   const hasShownLoginNotif = useRef(false);
@@ -151,7 +151,8 @@ export default function NotificationPopup() {
       hasShownLoginNotif.current = false;
       prevAuthState.current = isAuthed;
 
-      // On fresh login, mark ALL previous notifications as read to avoid a flood
+      // Preserve the existing behavior of clearing older notifications on a
+      // fresh login so the popup does not replay an accumulated backlog.
       if (isAuthed) {
         fetch('/api/notifications', {
           method: 'PATCH',
@@ -190,7 +191,7 @@ export default function NotificationPopup() {
           setPopups([popup]);
         });
 
-        // Mark all other notifications as read in the background
+        // Keep the existing one-popup-per-session behavior.
         fetch('/api/notifications', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },

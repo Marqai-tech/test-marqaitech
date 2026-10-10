@@ -26,12 +26,14 @@ interface SidebarProps {
 
 export default function Sidebar({ collapsed, onToggle, isMobileMenu = false, currentModuleKey, onModuleSelect }: SidebarProps) {
   const pathname = usePathname();
-  const { user, logout } = useAuthStore();
+  const user = useAuthStore((state) => state.user);
+  const logout = useAuthStore((state) => state.logout);
   const userRole = navRoleOrLeastPrivilege(user?.role);
   const tenantSlug = useCompanyContextStore(s => s.tenant?.slug) || '';
   const tenantId = useCompanyContextStore(s => s.tenant?.id) || '';
   const contextTenant = useCompanyContextStore(s => s.tenant);
-  const { fetchModules, enabledModules } = useTenantModuleStore();
+  const fetchModules = useTenantModuleStore((state) => state.fetchModules);
+  const enabledModules = useTenantModuleStore((state) => state.enabledModules);
 
   // ─── GOLDEN RULE: Use companyContextStore's tenant (filtered) for branding ───
   // NEVER use user.tenant from authStore directly — it may contain hidden tenant

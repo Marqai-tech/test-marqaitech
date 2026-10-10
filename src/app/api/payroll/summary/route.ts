@@ -83,7 +83,7 @@ export async function GET(request: Request) {
       inputsCount,
       validationsCount,
       payslipsCount,
-      payrollRuns,
+      payrollRunStatuses,
       complianceFilingsCount,
     ] = await Promise.all([
       safeQuery(() => db.employee.count({
@@ -116,8 +116,8 @@ export async function GET(request: Request) {
       safeQuery(() => db.payroll.count({
         where: { status: 'paid' },
       }), 0),
-      safeQuery(() => db.payrollRun.findMany({
-        select: { runStatus: true },
+      safeQuery(() => db.payrollRun.groupBy({
+        by: ['runStatus'],
         ...(effectiveCompanyId ? { where: { companyId: effectiveCompanyId } } : {}),
       }), [] as { runStatus: string }[]),
       safeQuery(() => db.complianceFiling.count({
@@ -128,11 +128,11 @@ export async function GET(request: Request) {
     ]);
 
     // Determine workflow booleans from payroll runs
-    const hasPayrollRuns = payrollRuns.length > 0;
-    const hasApprovedRuns = payrollRuns.some(
+    const hasPayrollRuns = payrollRunStatuses.length > 0;
+    const hasApprovedRuns = payrollRunStatuses.some(
       (r) => r.runStatus === 'APPROVED' || r.runStatus === 'ACCOUNTING' || r.runStatus === 'DISBURSED'
     );
-    const hasClosedRuns = payrollRuns.some(
+    const hasClosedRuns = payrollRunStatuses.some(
       (r) => r.runStatus === 'CLOSED' || r.runStatus === 'DISBURSED'
     );
 

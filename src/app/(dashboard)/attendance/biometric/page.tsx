@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import {
   FiCpu,
   FiPlus,
@@ -102,6 +102,7 @@ interface ETimeOfficeSyncStatus {
 interface Branch { id: string; name: string }
 interface Geofence { id: string; name: string }
 interface Employee { id: string; employeeId: string; firstName: string; lastName: string; email: string }
+type BiometricTab = 'devices' | 'enrollments' | 'punches' | 'thresholds';
 
 /* ── Tips & Workflow ── */
 const biometricTips = [
@@ -127,7 +128,7 @@ export default function BiometricPage() {
   const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
   const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
 
-  const [tab, setTab] = useState<'devices' | 'enrollments' | 'punches' | 'thresholds'>('devices');
+  const [tab, setTab] = useState<BiometricTab>('devices');
   const [devices, setDevices] = useState<BiometricDevice[]>([]);
   const [enrollments, setEnrollments] = useState<BiometricEnrollment[]>([]);
   const [punches, setPunches] = useState<BiometricPunch[]>([]);
@@ -144,6 +145,11 @@ export default function BiometricPage() {
   const [teamOfficeSync, setTeamOfficeSync] = useState<ETimeOfficeSyncStatus | null>(null);
   const [syncingTeamOffice, setSyncingTeamOffice] = useState(false);
   const [nowTick, setNowTick] = useState(() => Date.now());
+  const loadedTabs = useRef(new Set<BiometricTab>());
+  const inFlightTabs = useRef(new Map<BiometricTab, Promise<boolean>>());
+  const latestTabLoad = useRef(0);
+  const deviceAuxLoaded = useRef(false);
+  const employeeAuxLoaded = useRef(false);
   const cid = effectiveCompanyId();
   const scopeQuery = cid ? `companyId=${cid}&` : '';
 
@@ -179,8 +185,10 @@ export default function BiometricPage() {
       const d = await r.json();
       if (!r.ok) throw new Error(d.error);
       setDevices(d.devices || []);
+      return true;
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : 'Failed to load devices');
+      return false;
     }
   }, [scopeQuery]);
 
@@ -190,8 +198,10 @@ export default function BiometricPage() {
       const d = await r.json();
       if (!r.ok) throw new Error(d.error);
       setEnrollments(d.enrollments || []);
+      return true;
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : 'Failed to load enrollments');
+      return false;
     }
   }, [scopeQuery]);
 
@@ -202,8 +212,10 @@ export default function BiometricPage() {
       if (!r.ok) throw new Error(d.error);
       setPunches(d.punches || []);
       if (d.summary) setPunchesSummary(d.summary);
+      return true;
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : 'Failed to load punches');
+      return false;
     }
   }, [scopeQuery]);
 
@@ -213,8 +225,10 @@ export default function BiometricPage() {
       const d = await r.json();
       if (!r.ok) throw new Error(d.error);
       setThresholds(d.thresholds);
+      return true;
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : 'Failed to load thresholds');
+      return false;
     }
   }, [scopeQuery]);
 
@@ -227,26 +241,68 @@ export default function BiometricPage() {
     } catch { /* The integration status is optional until configured. */ }
   }, [isAdmin]);
 
-  const fetchAux = useCallback(async () => {
+  const fetchDeviceAux = useCallback(async () => {
     try {
-      const [br, gf, em] = await Promise.all([
-        fetch(`/api/branches?${scopeQuery}limit=200`, { headers: getAuthHeaders() }).then((r) => r.json()).catch(() => ({ branches: [] })),
-        fetch(`/api/attendance/geofence?${scopeQuery}limit=200`, { headers: getAuthHeaders() }).then((r) => r.json()).catch(() => ({ geofences: [] })),
-        fetch(`/api/employees?${scopeQuery}limit=500`, { headers: getAuthHeaders() }).then((r) => r.json()).catch(() => ({ employees: [] })),
+      const [branchesResponse, geofencesResponse] = await Promise.all([
+        fetch(`/api/branches?${scopeQuery}limit=200`, { headers: getAuthHeaders() }),
+        fetch(`/api/attendance/geofence?${scopeQuery}limit=200`, { headers: getAuthHeaders() }),
       ]);
-      setBranches(br.branches || []);
-      setGeofences(gf.geofences || []);
-      setEmployees(em.employees || []);
-    } catch { /* ignore */ }
+      if (!branchesResponse.ok || !geofencesResponse.ok) return false;
+      const [branchData, geofenceData] = await Promise.all([branchesResponse.json(), geofencesResponse.json()]);
+      setBranches(branchData.branches || []);
+      setGeofences(geofenceData.geofences || []);
+      deviceAuxLoaded.current = true;
+      return true;
+    } catch { return false; }
   }, [scopeQuery]);
 
-  const refreshAll = useCallback(async () => {
-    setLoading(true);
-    await Promise.all([fetchDevices(), fetchEnrollments(), fetchPunches(), fetchThresholds(), fetchAux(), fetchTeamOfficeSyncStatus()]);
-    setLoading(false);
-  }, [fetchDevices, fetchEnrollments, fetchPunches, fetchThresholds, fetchAux, fetchTeamOfficeSyncStatus]);
+  const fetchEmployeeAux = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/employees?${scopeQuery}limit=500`, { headers: getAuthHeaders() });
+      if (!response.ok) return false;
+      const data = await response.json();
+      setEmployees(data.employees || []);
+      employeeAuxLoaded.current = true;
+      return true;
+    } catch { return false; }
+  }, [scopeQuery]);
 
-  useEffect(() => { queueMicrotask(() => { refreshAll(); }); }, [refreshAll]);
+  const loadTabData = useCallback(async (target: BiometricTab, force = false) => {
+    if (!force && loadedTabs.current.has(target)) return true;
+    const pending = inFlightTabs.current.get(target);
+    if (pending) return pending;
+
+    const requestId = ++latestTabLoad.current;
+    setLoading(true);
+    const request = (async () => {
+      try {
+        let succeeded = false;
+        if (target === 'devices') succeeded = await fetchDevices();
+        else if (target === 'enrollments') succeeded = await fetchEnrollments();
+        else if (target === 'punches') succeeded = await fetchPunches();
+        else if (isAdmin) succeeded = await fetchThresholds();
+        if (succeeded) loadedTabs.current.add(target);
+        return succeeded;
+      } finally {
+        inFlightTabs.current.delete(target);
+        if (latestTabLoad.current === requestId) setLoading(false);
+      }
+    })();
+    inFlightTabs.current.set(target, request);
+    return request;
+  }, [fetchDevices, fetchEnrollments, fetchPunches, fetchThresholds, isAdmin]);
+
+  const refreshCurrentTab = useCallback(async () => {
+    await loadTabData(tab, true);
+    if (tab === 'devices') await fetchTeamOfficeSyncStatus();
+  }, [loadTabData, tab, fetchTeamOfficeSyncStatus]);
+
+  useEffect(() => {
+    queueMicrotask(() => {
+      void loadTabData('devices');
+      void fetchTeamOfficeSyncStatus();
+    });
+  }, [loadTabData, fetchTeamOfficeSyncStatus]);
 
   const handleTeamOfficeSync = async () => {
     setSyncingTeamOffice(true);
@@ -433,7 +489,7 @@ export default function BiometricPage() {
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={refreshAll}
+            onClick={refreshCurrentTab}
             className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-thb-border text-thb-text-secondary hover:bg-slate-50 text-sm"
           >
             <FiRefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
@@ -441,7 +497,10 @@ export default function BiometricPage() {
           </button>
           {isAdmin && tab === 'devices' && (
             <button
-              onClick={() => setShowDeviceForm(true)}
+              onClick={() => {
+                setShowDeviceForm(true);
+                if (!deviceAuxLoaded.current) void fetchDeviceAux();
+              }}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-teal-600 text-white hover:bg-teal-700 text-sm font-medium shadow-sm shadow-teal-500/25"
             >
               <FiPlus className="w-4 h-4" />
@@ -450,7 +509,10 @@ export default function BiometricPage() {
           )}
           {isAdmin && tab === 'enrollments' && (
             <button
-              onClick={() => setShowEnrollForm(true)}
+              onClick={() => {
+                setShowEnrollForm(true);
+                if (!employeeAuxLoaded.current) void fetchEmployeeAux();
+              }}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-teal-600 text-white hover:bg-teal-700 text-sm font-medium shadow-sm shadow-teal-500/25"
             >
               <FiPlus className="w-4 h-4" />
@@ -486,7 +548,10 @@ export default function BiometricPage() {
         ] as const).map((t) => (
           <button
             key={t.key}
-            onClick={() => setTab(t.key)}
+            onClick={() => {
+              setTab(t.key);
+              void loadTabData(t.key);
+            }}
             className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
               tab === t.key
                 ? 'border-teal-500 text-teal-600'

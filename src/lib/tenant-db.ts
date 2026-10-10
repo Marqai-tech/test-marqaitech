@@ -81,6 +81,9 @@ import { DEMO_HIDDEN_SLUGS, isTestPlatformHost } from '@/lib/tenant-filter'
 
 // Cache tenant DB clients to avoid recreating on every request
 const tenantDbCache = new Map<string, { client: PrismaClient; lastAccess: number }>()
+// Dashboard pages often start several API calls together. Coalesce cold
+// tenant lookups so one page load creates only one Prisma client per tenant.
+const tenantDbPending = new Map<string, Promise<PrismaClient>>()
 
 // Clean up cache entries older than 5 minutes (300000ms)
 const CACHE_TTL = 300000
@@ -240,52 +243,60 @@ export async function getDbForTenant(tenantSlug: string): Promise<PrismaClient> 
     return cached.client
   }
 
+  const pending = tenantDbPending.get(tenantSlug)
+  if (pending) return pending
+
   // Look up the tenant's dedicated database
-  try {
-    const tenantDbRecord = await platformDb.tenantDatabase.findFirst({
-      where: {
-        tenant: { slug: tenantSlug },
-        isActive: true,
-      },
-      select: {
-        connectionString: true,
-        databaseName: true,
-      },
-    })
-
-    if (!tenantDbRecord) {
-      // No dedicated DB — use platform DB (shared mode)
-      // The calling code should filter by tenantId
-      console.log(`[TenantDB] No dedicated DB for "${tenantSlug}" — using platform DB with tenantId filtering`)
-      return platformDb
-    }
-
-    // Create a new PrismaClient for this tenant's database
-    console.log(`[TenantDB] Routing to dedicated DB "${tenantDbRecord.databaseName}" for tenant "${tenantSlug}"`)
-    const adapter = createDbAdapter(tenantDbRecord.connectionString)
-    const tenantClient = new PrismaClient({ adapter })
-
-    // Cache it
-    tenantDbCache.set(tenantSlug, {
-      client: tenantClient,
-      lastAccess: Date.now(),
-    })
-
-    return tenantClient
-  } catch (error) {
-    console.error(`[TenantDB] Failed to get DB for tenant "${tenantSlug}":`, error)
+  const initialization = (async (): Promise<PrismaClient> => {
     try {
-      const props: Record<string, unknown> = {}
-      for (const k of Object.getOwnPropertyNames(error as object)) props[k] = (error as Record<string, unknown>)[k]
-      console.error('[TenantDB] failure detail:', JSON.stringify(props, (k, v) => (typeof v === 'bigint' ? String(v) : v), 2).slice(0, 1500))
-      const stack = (error as { stack?: string })?.stack || (props.error as { stack?: string })?.stack
-      if (stack) console.error('[TenantDB] failure stack:', String(stack).split('\n').slice(0, 8).join('\n'))
-    } catch { /* diagnostics only */ }
-    // Do not silently fall back to the platform DB when a dedicated tenant DB
-    // fails. That makes a tenant appear empty and can expose the wrong data
-    // source to tenant-scoped routes. A missing dedicated DB is handled above;
-    // this branch is a connection/configuration failure and must be visible.
-    throw new Error(`Tenant database unavailable for "${tenantSlug}"`)
+      const tenantDbRecord = await platformDb.tenantDatabase.findFirst({
+        where: {
+          tenant: { slug: tenantSlug },
+          isActive: true,
+        },
+        select: {
+          connectionString: true,
+          databaseName: true,
+        },
+      })
+
+      if (!tenantDbRecord) {
+        // No dedicated DB — use platform DB (shared mode); callers still apply
+        // tenantId filtering to their data queries.
+        console.log(`[TenantDB] No dedicated DB for "${tenantSlug}" — using platform DB with tenantId filtering`)
+        return platformDb
+      }
+
+      console.log(`[TenantDB] Routing to dedicated DB "${tenantDbRecord.databaseName}" for tenant "${tenantSlug}"`)
+      const adapter = createDbAdapter(tenantDbRecord.connectionString)
+      const tenantClient = new PrismaClient({ adapter })
+      tenantDbCache.set(tenantSlug, {
+        client: tenantClient,
+        lastAccess: Date.now(),
+      })
+      return tenantClient
+    } catch (error) {
+      console.error(`[TenantDB] Failed to get DB for tenant "${tenantSlug}":`, error)
+      try {
+        const props: Record<string, unknown> = {}
+        for (const k of Object.getOwnPropertyNames(error as object)) props[k] = (error as Record<string, unknown>)[k]
+        console.error('[TenantDB] failure detail:', JSON.stringify(props, (k, v) => (typeof v === 'bigint' ? String(v) : v), 2).slice(0, 1500))
+        const stack = (error as { stack?: string })?.stack || (props.error as { stack?: string })?.stack
+        if (stack) console.error('[TenantDB] failure stack:', String(stack).split('\n').slice(0, 8).join('\n'))
+      } catch { /* diagnostics only */ }
+      // Do not silently fall back to the platform DB when a dedicated tenant DB
+      // fails. A missing dedicated DB is handled above; this is a connection error.
+      throw new Error(`Tenant database unavailable for "${tenantSlug}"`)
+    }
+  })()
+
+  tenantDbPending.set(tenantSlug, initialization)
+  try {
+    return await initialization
+  } finally {
+    if (tenantDbPending.get(tenantSlug) === initialization) {
+      tenantDbPending.delete(tenantSlug)
+    }
   }
 }
 

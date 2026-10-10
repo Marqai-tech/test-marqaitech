@@ -228,9 +228,12 @@ function LeavePageContent() {
       // Task 66: when view=self, add &view=self to the API call so the server
       // returns only the current user's own leave applications (even for admins).
       const viewParamStr = viewParam === 'self' ? '&view=self' : '';
+      // This page uses only the signed-in user's employee profile. Ask the API
+      // for that single authenticated record instead of loading the tenant's
+      // full employee directory for HR users.
       const [leaveRes, empRes] = await Promise.all([
         fetch(`/api/leave?limit=100${sq ? `&${sq}` : ''}${viewParamStr}`, { headers }),
-        fetch(`/api/employees?limit=500${sq ? `&${sq}` : ''}`, { headers }),
+        fetch(`/api/employees?limit=1&own=1&includePhotos=0${sq ? `&${sq}` : ''}`, { headers }),
       ]);
       if (leaveRes.ok) {
         const data = await leaveRes.json();
@@ -239,33 +242,41 @@ function LeavePageContent() {
       if (empRes.ok) {
         const empData = await empRes.json();
         const myEmp = empData.employees?.find((e: { email: string }) => e.email === user?.email);
-        if (myEmp) {
-          setEmployee(myEmp);
-          const detailRes = await fetch(`/api/employees/${myEmp.id}`, { headers });
-          if (detailRes.ok) {
-            const detailData = await detailRes.json();
-            const detailEmployee = detailData.employee;
-            const probation = isActiveProbation(detailEmployee);
-            setEmployee(detailEmployee);
-            const balanceRes = await fetch(`/api/leave/balance?limit=50${sq ? `&${sq}` : ''}`, { headers });
-            const balanceData = balanceRes.ok ? await balanceRes.json() : null;
-            const currentBalances = balanceData?.balances || detailEmployee?.leaveBalances || [];
-            const normalizedBalances = normalizeLeaveBalances(currentBalances as LeaveBalance[], {
-              gender: detailEmployee?.gender || balanceData?.gender,
-              probation,
-            });
-            if (probation && !normalizedBalances.some((lb) => getLeaveCategory(lb.leaveType) === 'personal')) {
-              normalizedBalances.push({ id: 'synthetic-personal-leave', leaveType: { id: 'synthetic-personal-leave', name: 'Personal Leave', code: 'PL' }, total: 0, used: 0, remaining: 0, year: new Date().getFullYear() });
-            }
-            setLeaveBalances(normalizedBalances);
-          }
-        }
         const ltMap = new Map<string, LeaveType>();
         (empData.employees || []).forEach((e: Employee) => {
           e.leaveBalances?.forEach((lb: LeaveBalance) => {
             ltMap.set(lb.leaveType.id, { ...lb.leaveType, defaultDays: 0, isPaid: true });
           });
         });
+
+        // Balances and the leave-type fallback do not depend on one another;
+        // fetch them together instead of making the employee wait through two
+        // database round trips in sequence.
+        const balanceRequest = myEmp
+          ? fetch(`/api/leave/balance?limit=50${sq ? `&${sq}` : ''}`, { headers })
+          : Promise.resolve(null);
+        const leaveTypesRequest = ltMap.size === 0
+          ? fetch(`/api/leave-types?limit=50${sq ? `&${sq}` : ''}`, { headers }).catch(() => null)
+          : Promise.resolve(null);
+        const [balanceRes, ltRes] = await Promise.all([balanceRequest, leaveTypesRequest]);
+
+        if (myEmp) {
+          // The list endpoint already includes the scalar profile fields used
+          // here, including gender, probation status, and date of joining.
+          // Avoid a second, heavier employee-detail request for the same row.
+          setEmployee(myEmp);
+          const probation = isActiveProbation(myEmp);
+          const balanceData = balanceRes?.ok ? await balanceRes.json() : null;
+          const currentBalances = balanceData?.balances || myEmp.leaveBalances || [];
+          const normalizedBalances = normalizeLeaveBalances(currentBalances as LeaveBalance[], {
+            gender: myEmp.gender || balanceData?.gender,
+            probation,
+          });
+          if (probation && !normalizedBalances.some((lb) => getLeaveCategory(lb.leaveType) === 'personal')) {
+            normalizedBalances.push({ id: 'synthetic-personal-leave', leaveType: { id: 'synthetic-personal-leave', name: 'Personal Leave', code: 'PL' }, total: 0, used: 0, remaining: 0, year: new Date().getFullYear() });
+          }
+          setLeaveBalances(normalizedBalances);
+        }
         if (ltMap.size === 0) {
           // Fetch REAL leave types from /api/leave-types on BOTH demo and live.
           // (2026-09-09 FIX: this block used to inject hardcoded FAKE ids
@@ -274,8 +285,7 @@ function LeavePageContent() {
           // every employee self-service apply. Never send ids that are not real
           // LeaveType rows.)
           try {
-            const ltRes = await fetch(`/api/leave-types?limit=50${sq ? `&${sq}` : ''}`, { headers });
-            if (ltRes.ok) {
+            if (ltRes?.ok) {
               const ltData = await ltRes.json();
               const realTypes = (ltData.leaveTypes || ltData.data || []).map((lt: any) => ({
                 id: lt.id,

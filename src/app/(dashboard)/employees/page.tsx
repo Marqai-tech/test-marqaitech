@@ -350,6 +350,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
   const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0, totalPages: 0 });
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [filterDept, setFilterDept] = useState('');
   const [filterDesignation, setFilterDesignation] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
@@ -589,16 +590,16 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
   };
 
   /* Fetch employees */
-  const fetchEmployees = useCallback(async (page = 1) => {
+  const fetchEmployees = useCallback(async (page = 1, signal?: AbortSignal) => {
     try {
       setLoading(true);
       const params = new URLSearchParams({ page: String(page), limit: '10', includeStats: '1' });
-      if (search) params.set('search', search);
+      if (debouncedSearch) params.set('search', debouncedSearch);
       if (filterDept) params.set('departmentId', filterDept);
       if (filterStatus) params.set('status', filterStatus);
       const sq = scopeQuery();
 
-      const res = await fetch(`/api/employees?${params.toString()}${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
+      const res = await fetch(`/api/employees?${params.toString()}${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders(), signal });
       if (!res.ok) throw new Error('Failed to fetch');
       const data = await res.json();
       const fetched = data.employees || [];
@@ -611,13 +612,14 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
         setPagination(data.pagination || { page: 1, limit: 10, total: 0, totalPages: 0 });
       }
     } catch (err) {
+      if (signal?.aborted) return;
       console.error('Failed to load employees from API:', err);
       setEmployees([]);
       setPagination({ page: 1, limit: 10, total: 0, totalPages: 0 });
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) setLoading(false);
     }
-  }, [search, filterDept, filterStatus, scopeCompanyId, scopeTenantId, scopeQuery]);
+  }, [debouncedSearch, filterDept, filterStatus, scopeCompanyId, scopeTenantId, scopeQuery]);
 
   /* Fetch all employees for stats */
   const fetchAllEmployees = useCallback(async () => {
@@ -692,10 +694,20 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
     }
   }, []);
 
+  // Avoid sending a database search for every keystroke in the HR directory.
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => setDebouncedSearch(search.trim()), 250);
+    return () => window.clearTimeout(timeoutId);
+  }, [search]);
+
   useEffect(() => {
     if (!persistHydrated) return;
-    queueMicrotask(() => fetchEmployees(1));
-  }, [fetchEmployees, persistHydrated]);
+    const controller = new AbortController();
+    void fetchEmployees(1, controller.signal);
+    return () => {
+      controller.abort();
+    };
+  }, [debouncedSearch, fetchEmployees, persistHydrated]);
 
   useEffect(() => {
     if (!persistHydrated) return;

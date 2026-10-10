@@ -93,7 +93,7 @@ function getMonthName(month: number) {
 export default function MusterRollPage() {
   const router = useRouter();
   const { user } = useAuthStore();
-  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
+  const scopeQuery = useCompanyContextStore(s => s.scopeQuery);
   const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'admin';
 
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -108,8 +108,11 @@ export default function MusterRollPage() {
 
   /* Fetch employees based on role */
   const fetchEmployees = useCallback(async () => {
+    setLoading(true);
     try {
-      const res = await fetch(`/api/employees?${scopeQuery}limit=500`, { headers: getAuthHeaders() });
+      const params = new URLSearchParams(scopeQuery());
+      params.set('limit', '100');
+      const res = await fetch(`/api/employees?${params.toString()}`, { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
         let filteredEmployees = data.employees || [];
@@ -128,24 +131,45 @@ export default function MusterRollPage() {
         }
 
         setEmployees(filteredEmployees);
+        if (filteredEmployees.length === 0) {
+          setAttendanceMap(new Map());
+          setLoading(false);
+        }
+      } else {
+        setEmployees([]);
+        setAttendanceMap(new Map());
+        setLoading(false);
       }
     } catch (err) {
       console.error(err);
       toast.error('Failed to load employees');
+      setLoading(false);
     }
-  }, [user?.email, isAdmin, departmentFilter]);
+  }, [user?.email, isAdmin, departmentFilter, scopeQuery]);
 
   /* Fetch attendance for all employees */
   const fetchAttendance = useCallback(async () => {
-    if (employees.length === 0) return;
+    if (employees.length === 0) {
+      setLoading(false);
+      return;
+    }
 
+    setLoading(true);
     try {
       const employeeIds = employees.map(e => e.id);
-      const startDate = new Date(selectedMonth.year, selectedMonth.month, 1).toISOString();
-      const endDate = new Date(selectedMonth.year, selectedMonth.month + 1, 0).toISOString();
+      const monthKey = String(selectedMonth.month + 1).padStart(2, '0');
+      const startDate = `${selectedMonth.year}-${monthKey}-01`;
+      const lastDay = new Date(selectedMonth.year, selectedMonth.month + 1, 0).getDate();
+      const endDate = `${selectedMonth.year}-${monthKey}-${String(lastDay).padStart(2, '0')}`;
+      const params = new URLSearchParams(scopeQuery());
+      params.set('employeeIds', employeeIds.join(','));
+      params.set('startDate', startDate);
+      params.set('endDate', endDate);
+      params.set('limit', '5000');
+      params.set('includePhotos', '0');
 
       const res = await fetch(
-        `/api/attendance?employeeIds=${employeeIds.join(',')}&startDate=${startDate}&endDate=${endDate}&limit=10000`,
+        `/api/attendance?${params.toString()}`,
         { headers: getAuthHeaders() }
       );
 
@@ -164,14 +188,16 @@ export default function MusterRollPage() {
         });
 
         setAttendanceMap(map);
+      } else {
+        toast.error('Failed to load attendance data');
       }
     } catch (err) {
       console.error(err);
       toast.error('Failed to load attendance data');
+    } finally {
+      setLoading(false);
     }
-  }, [employees, selectedMonth]);
-  const cid = effectiveCompanyId();
-  const scopeQuery = cid ? `companyId=${cid}&` : '';
+  }, [employees, selectedMonth, scopeQuery]);
 
 
   useEffect(() => {
@@ -183,11 +209,6 @@ export default function MusterRollPage() {
       queueMicrotask(() => fetchAttendance());
     }
   }, [employees, fetchAttendance]);
-
-  useEffect(() => {
-    setLoading(true);
-    setTimeout(() => setLoading(false), 500);
-  }, [selectedMonth, departmentFilter, statusFilter]);
 
   /* Navigation */
   const prevMonth = () => {

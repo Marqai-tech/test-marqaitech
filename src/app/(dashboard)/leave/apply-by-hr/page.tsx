@@ -101,22 +101,34 @@ export default function ApplyLeaveByHRPage() {
   const [loadingLeaveData, setLoadingLeaveData] = useState(false);
 
   // ─── Fetch Employees ───────────────────────────
-  const fetchEmployees = useCallback(async (search = '') => {
+  const fetchEmployees = useCallback(async (search: string, signal?: AbortSignal) => {
     setLoadingEmployees(true);
     try {
       const sq = scopeQuery();
-      const r = await fetch(`/api/employees?limit=50&search=${encodeURIComponent(search)}${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
+      const r = await fetch(`/api/employees?limit=50&includePhotos=0&search=${encodeURIComponent(search)}${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders(), signal });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'Failed');
       setEmployees(d.employees || []);
     } catch (e: unknown) {
+      if (signal?.aborted) return;
       toast.error(e instanceof Error ? e.message : 'Failed to load employees');
     } finally {
-      setLoadingEmployees(false);
+      if (!signal?.aborted) setLoadingEmployees(false);
     }
   }, [scopeQuery, selectedTenantId]);
 
-  useEffect(() => { fetchEmployees(); }, [fetchEmployees]);
+  // Search only after the user pauses typing; avoid an initial 50-row fetch
+  // and a database request for every character entered.
+  useEffect(() => {
+    const search = employeeSearch.trim();
+    if (search.length < 2) return;
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => { void fetchEmployees(search, controller.signal); }, 250);
+    return () => {
+      window.clearTimeout(timeoutId);
+      controller.abort();
+    };
+  }, [employeeSearch, fetchEmployees]);
 
   // ─── Fetch holidays once (for weekend/holiday-aware day count) ──
   useEffect(() => {
@@ -322,9 +334,13 @@ export default function ApplyLeaveByHRPage() {
             type="text"
             value={employeeSearch}
             onChange={(e) => {
-              setEmployeeSearch(e.target.value);
+              const value = e.target.value;
+              setEmployeeSearch(value);
               setShowEmployeeDropdown(true);
-              if (e.target.value.length >= 2) fetchEmployees(e.target.value);
+              if (value.trim().length < 2) {
+                setEmployees([]);
+                setLoadingEmployees(false);
+              }
             }}
             onFocus={() => setShowEmployeeDropdown(true)}
             placeholder="Search by name, employee ID, or email..."
@@ -337,7 +353,9 @@ export default function ApplyLeaveByHRPage() {
               {loadingEmployees ? (
                 <div className="p-4 text-center text-sm text-slate-500">Loading...</div>
               ) : employees.length === 0 ? (
-                <div className="p-4 text-center text-sm text-slate-500">No employees found</div>
+                <div className="p-4 text-center text-sm text-slate-500">
+                  {employeeSearch.trim().length < 2 ? 'Type at least 2 characters to search employees' : 'No employees found'}
+                </div>
               ) : employees.map(emp => (
                 <button
                   key={emp.id}

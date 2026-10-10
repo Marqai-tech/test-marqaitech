@@ -64,33 +64,69 @@ export default function TenantConfigurationPage() {
     setLoading(true);
     try {
       const headers = getAuthHeaders();
-      // Fetch tenants first (for names and live/demo filtering)
-      const tenantsRes = await fetch('/api/tenants?limit=100', { headers });
+      // These requests are independent. The aggregate endpoint replaces the
+      // previous N-per-tenant request burst with a single read.
+      const [tenantsRes, aggregateRes] = await Promise.all([
+        fetch('/api/tenants?limit=100', { headers }),
+        fetch('/api/tenant-configuration?all=1', { headers }).catch(() => null),
+      ]);
+
       let tenantList: Tenant[] = [];
       if (tenantsRes.ok) {
         const data = await tenantsRes.json();
-        tenantList = data.tenants || [];
-        // ALWAYS filter out hidden tenants — never show Marq AI Tech or demo
-        tenantList = tenantList.filter((t: Tenant) =>
+        tenantList = (data.tenants || []).filter((t: Tenant) =>
           !isTenantHiddenClient(t.slug) && !(t.name || '').includes(PLATFORM_PLACEHOLDER_NAME)
         );
         setTenants(tenantList);
       }
 
-      // Fetch tenant configurations for each tenant
-      const configPromises = tenantList.map(async (tenant) => {
-        try {
-          const res = await fetch(`/api/tenant-configuration?tenantId=${tenant.id}`, { headers });
-          if (res.ok) {
+      const aggregateData = aggregateRes?.ok ? await aggregateRes.json() : null;
+      const configsByTenant = new Map<string, TenantConfig>();
+      for (const config of (aggregateData?.configurations || []) as TenantConfig[]) {
+        configsByTenant.set(config.tenantId, config);
+      }
+      const needsLegacyLoad = tenantList.filter((tenant) => {
+        const config = configsByTenant.get(tenant.id) as (TenantConfig & {
+          countries?: { id: string }[];
+          currencies?: { id: string }[];
+          languages?: { id: string }[];
+        }) | undefined;
+        return !config || (!config.countries?.length && !config.currencies?.length && !config.languages?.length);
+      });
+
+      // Keep the existing create/seed behavior for tenants with no config (or
+      // an empty one), but bound concurrency to avoid a connection/request storm.
+      const fallbackConfigs: TenantConfig[] = [];
+      for (let start = 0; start < needsLegacyLoad.length; start += 6) {
+        const batch = needsLegacyLoad.slice(start, start + 6);
+        const results = await Promise.all(batch.map(async (tenant) => {
+          try {
+            const res = await fetch(`/api/tenant-configuration?tenantId=${tenant.id}`, { headers });
+            if (!res.ok) return null;
             const data = await res.json();
             const config = data.configuration || data;
             return { ...config, tenantName: tenant.name, tenantSlug: tenant.slug } as TenantConfig;
-          }
-          return null;
-        } catch { return null; }
-      });
-      const configResults = await Promise.all(configPromises);
-      setConfigs(configResults.filter(Boolean) as TenantConfig[]);
+          } catch { return null; }
+        }));
+        fallbackConfigs.push(...results.filter(Boolean) as TenantConfig[]);
+      }
+
+      const tenantById = new Map(tenantList.map((tenant) => [tenant.id, tenant]));
+      const loadedConfigsByTenant = new Map<string, TenantConfig>();
+      for (const config of configsByTenant.values()) {
+        const tenant = tenantById.get(config.tenantId);
+        if (tenant) {
+          loadedConfigsByTenant.set(config.tenantId, {
+            ...config,
+            tenantName: tenant.name,
+            tenantSlug: tenant.slug,
+          });
+        }
+      }
+      for (const config of fallbackConfigs) {
+        loadedConfigsByTenant.set(config.tenantId, config);
+      }
+      setConfigs([...loadedConfigsByTenant.values()]);
     } catch (err) {
       console.error('Failed to fetch tenant configurations:', err);
       toast.error('Failed to load tenant configurations');

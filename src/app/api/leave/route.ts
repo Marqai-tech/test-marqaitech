@@ -80,6 +80,8 @@ export async function GET(request: Request) {
     const status = searchParams.get('status');
     const employeeId = searchParams.get('employeeId');
     const tenantId = searchParams.get('tenantId');
+    const fromDate = searchParams.get('fromDate');
+    const toDate = searchParams.get('toDate');
 
     // ─── GOLDEN RULE: No dummy/seed data on LIVE for super_admin ───
     // When super_admin has NO company or tenant selected, getDb() returns
@@ -136,6 +138,23 @@ export async function GET(request: Request) {
     // Apply additional filters on top of company scope
     if (status) where.status = status;
     if (employeeId) where.employeeId = employeeId;
+
+    // Optional overlap filter for dashboards that only need leave covering a
+    // selected day/month. This avoids downloading hundreds of old approvals.
+    if (fromDate || toDate) {
+      const isDateKey = (value: string | null): value is string => {
+        if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+        const parsed = new Date(`${value}T00:00:00.000Z`);
+        return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+      };
+      if (!isDateKey(fromDate) || !isDateKey(toDate) || fromDate > toDate) {
+        return NextResponse.json({ error: 'Invalid leave date range' }, { status: 400, headers: corsHeaders() });
+      }
+      const rangeStart = new Date(`${fromDate}T00:00:00.000+05:30`);
+      const rangeEndExclusive = new Date(new Date(`${toDate}T00:00:00.000Z`).getTime() + 24 * 60 * 60 * 1000);
+      where.startDate = { lt: rangeEndExclusive };
+      where.endDate = { gte: rangeStart };
+    }
 
     const [leaveRequests, total] = await Promise.all([
       db.leaveRequest.findMany({

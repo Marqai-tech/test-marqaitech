@@ -207,13 +207,9 @@ export default function ProjectWorkspacePage() {
   }, [id]);
 
   useEffect(() => { loadProject(); }, [loadProject]);
-  useEffect(() => {
-    if (!project) return;
-    loadTab(tab);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, project?.id]);
+  useEffect(() => { loadTab(tab); }, [tab, loadTab]);
 
-  const refreshAll = async () => { await loadProject(); await loadTab(tab); };
+  const refreshAll = async () => { await Promise.all([loadProject(), loadTab(tab)]); };
 
   if (loading && !project) return <div className="p-10 text-sm text-slate-400 animate-pulse">Loading project workspace…</div>;
   if (!project) return <div className="p-10 text-sm text-red-500">Project not found or access denied.</div>;

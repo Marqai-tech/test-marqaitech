@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { ensureSchemaSynced } from '@/lib/schema-sync';
+import { getServerHiddenSlugs, PLATFORM_PLACEHOLDER_NAME } from '@/lib/tenant-filter';
 
 function corsHeaders() {
   return {
@@ -283,6 +284,30 @@ export async function GET(request: Request) {
     }
 
     const { searchParams } = new URL(request.url);
+
+    // Super Admin's tenant-configuration screen needs the same configuration
+    // for many tenants. Return existing records in one platform-DB read rather
+    // than opening one HTTP/API request per tenant. Missing or unseeded records
+    // are still handled by the existing single-tenant flow below.
+    if (userRole === 'super_admin' && searchParams.get('all') === '1') {
+      const platformDb = getPlatformDb();
+      const hiddenSlugs = getServerHiddenSlugs(request);
+      const configurations = await platformDb.tenantConfiguration.findMany({
+        where: { tenant: { slug: { notIn: hiddenSlugs } } },
+        include: {
+          tenant: { select: { id: true, name: true, slug: true } },
+          countries: { where: { isActive: true }, select: { id: true } },
+          currencies: { where: { isActive: true }, select: { id: true } },
+          languages: { where: { isActive: true }, select: { id: true } },
+        },
+      });
+      return NextResponse.json({
+        configurations: configurations.filter((config) =>
+          !config.tenant.name.includes(PLATFORM_PLACEHOLDER_NAME)
+        ),
+      }, { headers: corsHeaders() });
+    }
+
     let targetTenantId = searchParams.get('tenantId') || tenantId;
 
     // For super_admin without a tenantId, resolve from the request context (getDb)

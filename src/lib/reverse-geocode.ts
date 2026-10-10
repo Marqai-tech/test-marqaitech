@@ -27,6 +27,7 @@
  */
 
 const cache = new Map<string, string>();
+const inFlight = new Map<string, Promise<string | null>>();
 
 interface BdcResponse {
   city?: string;
@@ -128,16 +129,24 @@ export async function reverseGeocode(lat: number, lng: number): Promise<string |
   const key = `${lat.toFixed(3)},${lng.toFixed(3)}`;
   const cached = cache.get(key);
   if (cached !== undefined) return cached;
+  const pending = inFlight.get(key);
+  if (pending) return pending;
 
-  // Try BigDataCloud first (designed for browser, no rate limit). In a
-  // browser context this will succeed. In a server-side context (curl,
-  // server-side fetch), it returns 402 — fall back to Nominatim.
-  let label = await fetchFromBdc(lat, lng);
-  if (!label) {
-    label = await fetchFromNominatim(lat, lng);
-  }
-  cache.set(key, label || '');
-  return label;
+  const request = (async () => {
+    // Try BigDataCloud first (designed for browser, no rate limit). In a
+    // browser context this will succeed. In a server-side context (curl,
+    // server-side fetch), it returns 402 — fall back to Nominatim.
+    let label = await fetchFromBdc(lat, lng);
+    if (!label) {
+      label = await fetchFromNominatim(lat, lng);
+    }
+    cache.set(key, label || '');
+    return label;
+  })().finally(() => {
+    inFlight.delete(key);
+  });
+  inFlight.set(key, request);
+  return request;
 }
 
 /** Synchronous accessor — returns the cached label if already fetched, else null. */

@@ -78,10 +78,18 @@ export default function SubscriptionsPage() {
     setLoading(true);
     try {
       const headers = getAuthHeaders();
-      // Fetch subscriptions (super_admin gets all with live/demo filtering)
-      const subsRes = await fetch('/api/subscriptions?limit=100', { headers });
-      if (subsRes.ok) {
-        const subsData = await subsRes.json();
+      // Subscription rows and plan options are independent; avoid a request
+      // waterfall while retaining partial results if either endpoint fails.
+      const [subsData, plansData] = await Promise.all([
+        fetch('/api/subscriptions?limit=100', { headers })
+          .then((res) => res.ok ? res.json() : null)
+          .catch(() => null),
+        fetch('/api/subscriptions/plans', { headers })
+          .then((res) => res.ok ? res.json() : null)
+          .catch(() => null),
+      ]);
+
+      if (subsData) {
         let subs = subsData.subscriptions || [];
         // In live mode, client-side safety net: only INR
         if (isLive) {
@@ -89,12 +97,7 @@ export default function SubscriptionsPage() {
         }
         setSubscriptions(subs);
       }
-      // Fetch plans for the form dropdown
-      const plansRes = await fetch('/api/subscriptions/plans', { headers });
-      if (plansRes.ok) {
-        const plansData = await plansRes.json();
-        setPlans(plansData.plans || []);
-      }
+      if (plansData) setPlans(plansData.plans || []);
     } catch (err) {
       console.error('Failed to fetch subscriptions:', err);
       toast.error('Failed to load subscriptions');

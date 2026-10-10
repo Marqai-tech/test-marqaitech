@@ -140,17 +140,18 @@ export default function EmployeeDashboardPage() {
       const scopeQs = scopeParams.toString();
       const scopeQuery = scopeQs ? `&${scopeQs}` : '';
 
-      const statsRes = await fetch(`/api/employees?limit=1&page=1${scopeQuery}`, { headers });
-      if (statsRes.ok) {
-        const statsData = await statsRes.json();
-        const total = statsData.pagination?.total || 0;
+      // Employees are scoped to their own record by the API. A one-row page
+      // is sufficient for the personal dashboard; managers/admins retain the
+      // larger page needed for team and organization analytics.
+      const employeeLimit = isManager ? 100 : 1;
+      const allRes = await fetch(`/api/employees?limit=${employeeLimit}&page=1${scopeQuery}`, { headers });
+      if (allRes.ok) {
+        const allData = await allRes.json();
+        const total = allData.pagination?.total || 0;
 
         // Detect the "empty selected company" case so we can warn the user
         setCompanyScopeEmpty(total === 0 && Boolean(cid));
 
-        // Fetch all employees for detailed stats (use pagination total for count)
-        const allRes = await fetch(`/api/employees?limit=500&page=1${scopeQuery}`, { headers });
-        const allData = await allRes.ok ? await allRes.json() : { employees: [] };
         const allEmps = allData.employees || [];
 
         // Department distribution
@@ -230,21 +231,23 @@ export default function EmployeeDashboardPage() {
         // persist real records, so the counts will reflect actual submissions)
         let transfersCount = 0;
         let rejoinsCount = 0;
-        try {
-          const [transferRes, rejoinRes] = await Promise.all([
-            fetch(`/api/employees/transfer?limit=1${scopeQuery}`, { headers }),
-            fetch(`/api/employees/rejoin?limit=1${scopeQuery}`, { headers }),
-          ]);
-          if (transferRes.ok) {
-            const transferData = await transferRes.json();
-            transfersCount = transferData.pagination?.total || transferData.transfers?.length || 0;
+        if (isManager) {
+          try {
+            const [transferRes, rejoinRes] = await Promise.all([
+              fetch(`/api/employees/transfer?limit=1${scopeQuery}`, { headers }),
+              fetch(`/api/employees/rejoin?limit=1${scopeQuery}`, { headers }),
+            ]);
+            if (transferRes.ok) {
+              const transferData = await transferRes.json();
+              transfersCount = transferData.pagination?.total || transferData.transfers?.length || 0;
+            }
+            if (rejoinRes.ok) {
+              const rejoinData = await rejoinRes.json();
+              rejoinsCount = rejoinData.pagination?.total || rejoinData.rejoins?.length || 0;
+            }
+          } catch {
+            // Lifecycle APIs may be unavailable — keep 0
           }
-          if (rejoinRes.ok) {
-            const rejoinData = await rejoinRes.json();
-            rejoinsCount = rejoinData.pagination?.total || rejoinData.rejoins?.length || 0;
-          }
-        } catch {
-          // Lifecycle APIs may be unavailable — keep 0
         }
 
         setLifecycleCounts({
@@ -325,7 +328,7 @@ export default function EmployeeDashboardPage() {
     } finally {
       setLoading(false);
     }
-  }, [cidValue, tidValue]);
+  }, [cidValue, tidValue, isManager]);
 
   useEffect(() => { fetchDashboardData(); }, [fetchDashboardData]);
 

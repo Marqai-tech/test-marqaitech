@@ -104,6 +104,8 @@ interface UserInfo {
 type ModulePermissions = Record<string, boolean>;
 type UserPermissions = Record<string, ModulePermissions>;
 
+let inFlightPermissionsRequest: { token: string | null; promise: Promise<void> } | null = null;
+
 interface AuthState {
   user: UserInfo | null;
   token: string | null;
@@ -200,6 +202,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         user,
         isAuthenticated: true,
         isLoading: false,
+        permissions: {},
+        permissionsLoaded: false,
       });
 
       // Login already returned the user. Refreshing /api/auth/me here doubled
@@ -362,34 +366,54 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   fetchPermissions: async () => {
-    try {
-      const { token, user } = get();
-      if (!user) return;
+    const { token, user, permissionsLoaded } = get();
+    if (!user) return;
 
-      // Super admin always has all permissions
-      if (user.role === 'super_admin') {
-        set({ permissionsLoaded: true });
-        return;
-      }
+    // Permissions are fetched once for the active session. Login and the
+    // background /api/auth/me refresh can request them at nearly the same
+    // time; reuse the in-flight request instead of querying RBAC twice.
+    if (permissionsLoaded) return;
+    if (inFlightPermissionsRequest?.token === token) {
+      return inFlightPermissionsRequest.promise;
+    }
 
-      const res = await fetch('/api/rbac/my-permissions', {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-        credentials: 'include',
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        set({
-          permissions: data.permissions || {},
-          permissionsLoaded: true,
-        });
-      } else {
-        // If RBAC not seeded yet, fall back to role-based defaults
-        set({ permissionsLoaded: true });
-      }
-    } catch (error) {
-      console.error('Fetch permissions error:', error);
+    // Super admin always has all permissions.
+    if (user.role === 'super_admin') {
       set({ permissionsLoaded: true });
+      return;
+    }
+
+    const request = (async () => {
+      try {
+        const res = await fetch('/api/rbac/my-permissions', {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          credentials: 'include',
+        });
+
+        // A response from a previous login must not overwrite the current user.
+        if (get().token !== token) return;
+        if (res.ok) {
+          const data = await res.json();
+          if (get().token !== token) return;
+          set({ permissions: data.permissions || {}, permissionsLoaded: true });
+        } else {
+          // If RBAC is not seeded yet, role-based defaults remain in effect.
+          set({ permissionsLoaded: true });
+        }
+      } catch (error) {
+        if (get().token !== token) return;
+        console.error('Fetch permissions error:', error);
+        set({ permissionsLoaded: true });
+      }
+    })();
+
+    inFlightPermissionsRequest = { token, promise: request };
+    try {
+      await request;
+    } finally {
+      if (inFlightPermissionsRequest?.promise === request) {
+        inFlightPermissionsRequest = null;
+      }
     }
   },
 

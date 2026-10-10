@@ -1151,6 +1151,7 @@ model PunchEvent {
   @@index([employeeId])
   @@index([date])
   @@index([type])
+  @@index([employeeId, timestamp])
 }
 
 // ============ PAYROLL ============

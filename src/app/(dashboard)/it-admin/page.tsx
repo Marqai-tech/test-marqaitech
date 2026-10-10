@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   FiMonitor, FiShield, FiHeadphones, FiActivity,
@@ -341,27 +341,6 @@ function PieTooltip({ active, payload }: { active?: boolean; payload?: Array<{ n
   );
 }
 
-/* ---------- skeleton components ---------- */
-
-function SkeletonBlock({ className = '' }: { className?: string }) {
-  return <div className={`bg-slate-200/70 animate-pulse rounded-lg ${className}`} />;
-}
-
-function StatSkeleton() {
-  return (
-    <div className="thb-card p-5 rounded-2xl border border-slate-100">
-      <div className="flex items-start justify-between">
-        <div className="space-y-2 flex-1">
-          <SkeletonBlock className="h-3 w-24" />
-          <SkeletonBlock className="h-7 w-16" />
-        </div>
-        <SkeletonBlock className="h-10 w-10 rounded-xl" />
-      </div>
-      <SkeletonBlock className="h-3 w-32 mt-3" />
-    </div>
-  );
-}
-
 /* ---------- tab types ---------- */
 
 type TabKey = 'dashboard' | 'devices' | 'security' | 'tickets' | 'software' | 'network';
@@ -387,7 +366,6 @@ const TABS: TabDef[] = [
 export default function ITAdminHubPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabKey>('dashboard');
-  const [loading, setLoading] = useState(true);
 
   const [stats] = useState<ITStat[]>(getDemoStats());
   const [systemHealth] = useState<SystemHealthPoint[]>(getDemoSystemHealth());
@@ -399,11 +377,6 @@ export default function ITAdminHubPage() {
   const [softwareList] = useState<SoftwareItem[]>(getDemoSoftwareList());
   const [networkStats] = useState<NetworkStat[]>(getDemoNetworkStats());
   const [recentActivities] = useState<RecentActivity[]>(getDemoRecentActivities());
-
-  useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 600);
-    return () => clearTimeout(timer);
-  }, []);
 
   const handleTabClick = (tab: TabDef) => {
     if (tab.key === 'dashboard') {
@@ -975,17 +948,6 @@ export default function ITAdminHubPage() {
   }
 
   /* ================ MAIN RENDER ================ */
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-thb-background p-4 md:p-6">
-        <div className="h-32 rounded-2xl bg-gradient-to-r from-red-600 via-orange-600 to-amber-600 mb-6 animate-pulse" />
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-6">
-          {Array.from({ length: 6 }).map((_, i) => <StatSkeleton key={i} />)}
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-thb-background">
