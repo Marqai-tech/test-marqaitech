@@ -10,6 +10,10 @@ import {
   FiFilter,
   FiEye,
   FiClock,
+  FiX,
+  FiLogIn,
+  FiLogOut,
+  FiTag,
 } from 'react-icons/fi';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
@@ -35,11 +39,23 @@ interface AttendanceRecord {
   status: string;
   checkIn?: string | null;
   checkOut?: string | null;
+  workHours?: number | null;
+  overtime?: number | null;
+  punchMethod?: string | null;
+  notes?: string | null;
+  updatedAt?: string | null;
 }
 
 interface DayStatus {
   date: number;
   status: string;
+  record?: AttendanceRecord;
+}
+
+/* Punch-detail popup target: the employee row + the clicked calendar day. */
+interface PunchDetail {
+  emp: Employee;
+  dateKey: string;
   record?: AttendanceRecord;
 }
 
@@ -63,6 +79,13 @@ function getDayColor(status: string) {
   return colors[status] || 'bg-slate-100';
 }
 
+/* Task 84: light cell backgrounds (weekend / no-record) need dark text —
+ * the old white label was invisible on bg-slate-200 / bg-slate-100, which
+ * read as "no colour code". Saturated statuses keep white text. */
+function getDayText(status: string) {
+  return status === 'weekend' || status === '' ? 'text-slate-600' : 'text-white';
+}
+
 function getDayLabel(status: string) {
   const labels: Record<string, string> = {
     present: 'P',
@@ -81,6 +104,64 @@ function getDaysInMonth(month: number, year: number) {
   return new Date(year, month + 1, 0).getDate();
 }
 
+/* Task 83: month-safe date key for an attendance row.
+ * Rows are stored either at UTC midnight of the local calendar day
+ * (`YYYY-MM-DDT00:00:00.000Z`) or at IST midnight (`…+05:30` = previous day
+ * 18:30 UTC). UTC-midnight rows map directly from their ISO date; anything
+ * else is converted to the IST calendar date. Mapping by DAY-OF-MONTH ONLY
+ * (the old code) pulled September records into the October grid. */
+function recordDateKey(v: string): string {
+  const raw = String(v || '');
+  const d = new Date(raw);
+  if (isNaN(d.getTime())) return raw.split('T')[0];
+  if (d.getUTCHours() === 0 && d.getUTCMinutes() === 0 && d.getUTCSeconds() === 0) {
+    return d.toISOString().slice(0, 10);
+  }
+  return d.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+}
+
+/* Compact 12-hour time for the day cells, e.g. "9:02a" / "6:15p". */
+function fmtCellTime(v: string | null | undefined): string {
+  if (!v) return '';
+  const d = new Date(v);
+  if (isNaN(d.getTime())) return '';
+  return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+    .replace(' AM', 'a').replace(' PM', 'p').replace(':00', '');
+}
+
+/* Full time for tooltips, e.g. "09:02 AM". */
+function fmtTitleTime(v: string | null | undefined): string {
+  if (!v) return '—';
+  const d = new Date(v);
+  if (isNaN(d.getTime())) return '—';
+  return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+}
+
+/* Weekday + date for the popup header, e.g. "Friday, October 9, 2026". */
+function fmtFullDate(dateKey: string): string {
+  const d = new Date(`${dateKey}T00:00:00`);
+  if (isNaN(d.getTime())) return dateKey;
+  return d.toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+function fmtHoursHm(h: number | null | undefined): string {
+  if (h == null) return '—';
+  const total = Math.round(h * 60);
+  return `${Math.floor(total / 60)}h ${total % 60}m`;
+}
+
+/* Break derived from the span minus worked hours (same rule as the
+ * attendance dashboard) — the API does not store break minutes directly. */
+function fmtBreakDur(rec?: AttendanceRecord): string {
+  if (!rec?.checkIn || !rec?.checkOut || rec.workHours == null) return '—';
+  const totalMin = (new Date(rec.checkOut).getTime() - new Date(rec.checkIn).getTime()) / 60000;
+  const breakMin = Math.round(totalMin - rec.workHours * 60);
+  if (breakMin <= 0) return '0m';
+  return breakMin < 60 ? `${breakMin}m` : `${Math.floor(breakMin / 60)}h ${breakMin % 60}m`;
+}
+
+function pad2(n: number) { return String(n).padStart(2, '0'); }
+
 function getMonthName(month: number) {
   const months = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -93,7 +174,7 @@ function getMonthName(month: number) {
 export default function MusterRollPage() {
   const router = useRouter();
   const { user } = useAuthStore();
-  const scopeQuery = useCompanyContextStore(s => s.scopeQuery);
+  const effectiveCompanyId = useCompanyContextStore(s => s.effectiveCompanyId);
   const isAdmin = user?.role === 'super_admin' || user?.role === 'tenant_admin' || user?.role === 'admin';
 
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -105,14 +186,13 @@ export default function MusterRollPage() {
   });
   const [departmentFilter, setDepartmentFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  /* Task 84: click a day cell → full punch details popup */
+  const [punchDetail, setPunchDetail] = useState<PunchDetail | null>(null);
 
   /* Fetch employees based on role */
   const fetchEmployees = useCallback(async () => {
-    setLoading(true);
     try {
-      const params = new URLSearchParams(scopeQuery());
-      params.set('limit', '100');
-      const res = await fetch(`/api/employees?${params.toString()}`, { headers: getAuthHeaders() });
+      const res = await fetch(`/api/employees?${scopeQuery}limit=500`, { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
         let filteredEmployees = data.employees || [];
@@ -131,73 +211,57 @@ export default function MusterRollPage() {
         }
 
         setEmployees(filteredEmployees);
-        if (filteredEmployees.length === 0) {
-          setAttendanceMap(new Map());
-          setLoading(false);
-        }
-      } else {
-        setEmployees([]);
-        setAttendanceMap(new Map());
-        setLoading(false);
       }
     } catch (err) {
       console.error(err);
       toast.error('Failed to load employees');
-      setLoading(false);
     }
-  }, [user?.email, isAdmin, departmentFilter, scopeQuery]);
+  }, [user?.email, isAdmin, departmentFilter]);
 
-  /* Fetch attendance for all employees */
+  /* Fetch attendance for all employees — Task 83: the API now honours
+   * employeeIds + startDate/endDate, and rows are keyed by their FULL
+   * calendar date (not day-of-month) so only the selected month's records
+   * land in the grid. */
   const fetchAttendance = useCallback(async () => {
-    if (employees.length === 0) {
-      setLoading(false);
-      return;
-    }
+    if (employees.length === 0) return;
 
-    setLoading(true);
     try {
       const employeeIds = employees.map(e => e.id);
-      const monthKey = String(selectedMonth.month + 1).padStart(2, '0');
-      const startDate = `${selectedMonth.year}-${monthKey}-01`;
-      const lastDay = new Date(selectedMonth.year, selectedMonth.month + 1, 0).getDate();
-      const endDate = `${selectedMonth.year}-${monthKey}-${String(lastDay).padStart(2, '0')}`;
-      const params = new URLSearchParams(scopeQuery());
-      params.set('employeeIds', employeeIds.join(','));
-      params.set('startDate', startDate);
-      params.set('endDate', endDate);
-      params.set('limit', '5000');
-      params.set('includePhotos', '0');
+      const monthNum = selectedMonth.month + 1;
+      const lastDay = getDaysInMonth(selectedMonth.month, selectedMonth.year);
+      const startDate = `${selectedMonth.year}-${pad2(monthNum)}-01`;
+      const endDate = `${selectedMonth.year}-${pad2(monthNum)}-${pad2(lastDay)}`;
 
       const res = await fetch(
-        `/api/attendance?${params.toString()}`,
+        `/api/attendance?employeeIds=${encodeURIComponent(employeeIds.join(','))}&startDate=${startDate}&endDate=${endDate}&limit=10000`,
         { headers: getAuthHeaders() }
       );
 
       if (res.ok) {
         const data = await res.json();
         const records: AttendanceRecord[] = data.attendance || [];
+        const monthPrefix = `${selectedMonth.year}-${pad2(monthNum)}-`;
 
-        // Build map: employeeId -> date -> record
+        // Build map: employeeId -> dateKey -> record
         const map = new Map<string, Map<string, AttendanceRecord>>();
         records.forEach(record => {
+          const key = recordDateKey(record.date);
+          if (!key.startsWith(monthPrefix)) return; // never mix months
           if (!map.has(record.employeeId)) {
             map.set(record.employeeId, new Map());
           }
-          const date = new Date(record.date).getDate().toString();
-          map.get(record.employeeId)!.set(date, record);
+          map.get(record.employeeId)!.set(key, record);
         });
 
         setAttendanceMap(map);
-      } else {
-        toast.error('Failed to load attendance data');
       }
     } catch (err) {
       console.error(err);
       toast.error('Failed to load attendance data');
-    } finally {
-      setLoading(false);
     }
-  }, [employees, selectedMonth, scopeQuery]);
+  }, [employees, selectedMonth]);
+  const cid = effectiveCompanyId();
+  const scopeQuery = cid ? `companyId=${cid}&` : '';
 
 
   useEffect(() => {
@@ -209,6 +273,11 @@ export default function MusterRollPage() {
       queueMicrotask(() => fetchAttendance());
     }
   }, [employees, fetchAttendance]);
+
+  useEffect(() => {
+    setLoading(true);
+    setTimeout(() => setLoading(false), 500);
+  }, [selectedMonth, departmentFilter, statusFilter]);
 
   /* Navigation */
   const prevMonth = () => {
@@ -232,6 +301,18 @@ export default function MusterRollPage() {
 
   /* Get unique departments for filter */
   const departments = Array.from(new Set(employees.map(e => e.department?.name).filter(Boolean)));
+
+  /* Task 83: employees shown in the grid — statusFilter narrows the rows to
+   * employees who have at least one day of that status in the month. */
+  const visibleEmployees = statusFilter
+    ? employees.filter(emp => {
+        const days = attendanceMap.get(emp.id);
+        if (!days) return statusFilter === 'absent'; // no rows at all → only absent matches
+        let matched = false;
+        days.forEach(rec => { if (rec.status === statusFilter) matched = true; });
+        return matched;
+      })
+    : employees;
 
   /* Calculate statistics */
   const calculateStats = (empId: string) => {
@@ -349,6 +430,9 @@ export default function MusterRollPage() {
             <div className="w-6 h-6 bg-slate-200 rounded"></div>
             <span>Weekend/Holiday</span>
           </div>
+          <div className="flex items-center gap-2 text-xs text-nexus-text-muted">
+            <span>Each cell shows the status colour code with the punch In – Out times. Click any cell to view the full punch details (in/out timings, work hours, break, punch mode).</span>
+          </div>
         </div>
       </div>
 
@@ -373,7 +457,7 @@ export default function MusterRollPage() {
                     Employee
                   </th>
                   {days.map(day => (
-                    <th key={day} className="px-2 py-3 text-center text-xs font-semibold text-nexus-text-secondary min-w-[40px]">
+                    <th key={day} className="px-2 py-3 text-center text-xs font-semibold text-nexus-text-secondary min-w-[52px]">
                       {day}
                     </th>
                   ))}
@@ -383,7 +467,7 @@ export default function MusterRollPage() {
                 </tr>
               </thead>
               <tbody>
-                {employees.map(emp => {
+                {visibleEmployees.map(emp => {
                   const stats = calculateStats(emp.id);
                   const empAttendance = attendanceMap.get(emp.id);
                   const initials = `${emp.firstName?.[0] || ''}${emp.lastName?.[0] || ''}`.toUpperCase();
@@ -406,16 +490,33 @@ export default function MusterRollPage() {
                         </div>
                       </td>
                       {days.map(day => {
-                        const dateStr = day.toString();
-                        const record = empAttendance?.get(dateStr);
+                        // Task 83: look up by FULL calendar date key — the old
+                        // day-of-month lookup mixed other months' records in.
+                        const dateKey = `${selectedMonth.year}-${pad2(selectedMonth.month + 1)}-${pad2(day)}`;
+                        const record = empAttendance?.get(dateKey);
                         const status = record?.status || '';
                         const color = getDayColor(status);
                         const label = getDayLabel(status);
+                        const inTime = fmtCellTime(record?.checkIn);
+                        const outTime = fmtCellTime(record?.checkOut);
+                        const hasTimes = !!(inTime || outTime);
+                        const tooltip = record
+                          ? `${getMonthName(selectedMonth.month)} ${day}: ${status || '—'}${record.checkIn ? ` · In ${fmtTitleTime(record.checkIn)}` : ''}${record.checkOut ? ` · Out ${fmtTitleTime(record.checkOut)}` : ''}`
+                          : `${getMonthName(selectedMonth.month)} ${day}: no record`;
 
                         return (
                           <td key={day} className="px-1 py-2">
-                            <div className={`w-8 h-8 ${color} rounded flex items-center justify-center text-xs font-semibold text-white cursor-pointer hover:opacity-80 transition-opacity`}>
-                              {label}
+                            <div
+                              title={tooltip}
+                              onClick={() => setPunchDetail({ emp, dateKey, record })}
+                              className={`w-11 rounded flex flex-col items-center justify-center py-1 cursor-pointer hover:opacity-90 hover:ring-2 hover:ring-green-400/60 transition-all ${color} ${hasTimes ? 'h-12' : 'h-8'}`}
+                            >
+                              <span className={`text-[11px] font-bold leading-none ${getDayText(status)}`}>{label}</span>
+                              {hasTimes && (
+                                <span className={`mt-0.5 text-[8px] leading-none whitespace-nowrap ${status === 'weekend' || status === '' ? 'text-slate-500' : 'text-white/95'}`}>
+                                  {inTime || '—'}{outTime ? ` – ${outTime}` : ''}
+                                </span>
+                              )}
                             </div>
                           </td>
                         );
@@ -456,7 +557,7 @@ export default function MusterRollPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-nexus-text-muted">Total Employees</p>
-                <p className="text-2xl font-bold text-nexus-text-primary">{employees.length}</p>
+                <p className="text-2xl font-bold text-nexus-text-primary">{visibleEmployees.length}</p>
               </div>
               <FiUsers className="w-8 h-8 text-green-500" />
             </div>
@@ -466,8 +567,8 @@ export default function MusterRollPage() {
               <div>
                 <p className="text-sm text-nexus-text-muted">Average Present</p>
                 <p className="text-2xl font-bold text-emerald-600">
-                  {employees.length > 0
-                    ? Math.round(employees.reduce((sum, emp) => sum + calculateStats(emp.id).present, 0) / employees.length)
+                  {visibleEmployees.length > 0
+                    ? Math.round(visibleEmployees.reduce((sum, emp) => sum + calculateStats(emp.id).present, 0) / visibleEmployees.length)
                     : 0}
                   days
                 </p>
@@ -480,8 +581,8 @@ export default function MusterRollPage() {
               <div>
                 <p className="text-sm text-nexus-text-muted">Average Absent</p>
                 <p className="text-2xl font-bold text-red-600">
-                  {employees.length > 0
-                    ? Math.round(employees.reduce((sum, emp) => sum + calculateStats(emp.id).absent, 0) / employees.length)
+                  {visibleEmployees.length > 0
+                    ? Math.round(visibleEmployees.reduce((sum, emp) => sum + calculateStats(emp.id).absent, 0) / visibleEmployees.length)
                     : 0}
                   days
                 </p>
@@ -494,16 +595,138 @@ export default function MusterRollPage() {
               <div>
                 <p className="text-sm text-nexus-text-muted">Attendance Rate</p>
                 <p className="text-2xl font-bold text-green-600">
-                  {employees.length > 0
+                  {visibleEmployees.length > 0
                     ? Math.round(
-                        (employees.reduce((sum, emp) => sum + calculateStats(emp.id).present, 0) /
-                          (employees.length * daysInMonth)) * 100
+                        (visibleEmployees.reduce((sum, emp) => sum + calculateStats(emp.id).present, 0) /
+                          (visibleEmployees.length * daysInMonth)) * 100
                       )
                     : 0}
                   %
                 </p>
               </div>
               <FiCalendar className="w-8 h-8 text-green-500" />
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Task 84: Punch detail popup — click a day cell to see the full punch */}
+      {punchDetail && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50"
+          onClick={() => setPunchDetail(null)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="px-5 py-4 bg-gradient-to-r from-green-500 to-teal-600 text-white">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-bold truncate">
+                    {punchDetail.emp.firstName} {punchDetail.emp.lastName}
+                    <span className="ml-2 font-normal text-white/85 text-xs">{punchDetail.emp.employeeId}</span>
+                  </p>
+                  <p className="text-xs text-white/85 mt-0.5">{fmtFullDate(punchDetail.dateKey)}</p>
+                </div>
+                <button
+                  onClick={() => setPunchDetail(null)}
+                  className="p-1.5 rounded-lg hover:bg-white/15 transition-colors flex-shrink-0"
+                  aria-label="Close"
+                >
+                  <FiX className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="p-5 space-y-3">
+              {punchDetail.record ? (
+                <>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-nexus-text-muted uppercase tracking-wider">Status</span>
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-semibold text-white ${getDayColor(punchDetail.record.status)}`}>
+                      {punchDetail.record.status === 'late'
+                        ? 'Present (Late)'
+                        : punchDetail.record.status === 'on_leave'
+                          ? 'On Leave'
+                          : punchDetail.record.status === 'half_day'
+                            ? 'Half Day'
+                            : punchDetail.record.status
+                              ? punchDetail.record.status.charAt(0).toUpperCase() + punchDetail.record.status.slice(1)
+                              : 'No Record'}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-100">
+                      <p className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-700 uppercase tracking-wide">
+                        <FiLogIn className="w-3.5 h-3.5" /> Punch In
+                      </p>
+                      <p className="text-lg font-bold text-emerald-800 mt-1">{fmtTitleTime(punchDetail.record.checkIn)}</p>
+                    </div>
+                    <div className="p-3 rounded-xl bg-rose-50 border border-rose-100">
+                      <p className="flex items-center gap-1.5 text-[11px] font-semibold text-rose-700 uppercase tracking-wide">
+                        <FiLogOut className="w-3.5 h-3.5" /> Punch Out
+                      </p>
+                      <p className="text-lg font-bold text-rose-800 mt-1">{fmtTitleTime(punchDetail.record.checkOut)}</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-3 rounded-lg bg-slate-50 border border-nexus-border">
+                      <p className="text-[10px] font-semibold text-nexus-text-muted uppercase tracking-wide">Work Hours</p>
+                      <p className="text-sm font-bold text-nexus-text-primary mt-0.5">{fmtHoursHm(punchDetail.record.workHours)}</p>
+                    </div>
+                    <div className="p-3 rounded-lg bg-slate-50 border border-nexus-border">
+                      <p className="text-[10px] font-semibold text-nexus-text-muted uppercase tracking-wide">Break</p>
+                      <p className="text-sm font-bold text-nexus-text-primary mt-0.5">{fmtBreakDur(punchDetail.record)}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between px-1">
+                    <span className="flex items-center gap-1.5 text-xs text-nexus-text-secondary">
+                      <FiTag className="w-3.5 h-3.5 text-nexus-text-muted" /> Punch mode
+                    </span>
+                    <span className="text-xs font-semibold text-nexus-text-primary">
+                      {punchDetail.record.punchMethod
+                        ? punchDetail.record.punchMethod.charAt(0).toUpperCase() + punchDetail.record.punchMethod.slice(1)
+                        : '—'}
+                    </span>
+                  </div>
+
+                  {punchDetail.record.overtime != null && punchDetail.record.overtime > 0 && (
+                    <div className="flex items-center justify-between px-1">
+                      <span className="text-xs text-nexus-text-secondary">Overtime</span>
+                      <span className="text-xs font-semibold text-violet-600">{fmtHoursHm(punchDetail.record.overtime)}</span>
+                    </div>
+                  )}
+
+                  {punchDetail.record.notes && (
+                    <div className="p-2.5 rounded-lg bg-amber-50 border border-amber-100 text-xs text-amber-800">
+                      <b>Remark:</b> {punchDetail.record.notes}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="text-center py-6">
+                  <FiCalendar className="w-10 h-10 text-nexus-text-muted mx-auto mb-3" />
+                  <p className="text-sm font-medium text-nexus-text-primary">No attendance record</p>
+                  <p className="text-xs text-nexus-text-muted mt-1">
+                    No punch was recorded for {punchDetail.emp.firstName} on {fmtFullDate(punchDetail.dateKey)}.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="px-5 py-3.5 bg-slate-50 border-t border-nexus-border flex justify-end">
+              <button
+                onClick={() => setPunchDetail(null)}
+                className="px-4 py-2 rounded-lg bg-green-500 text-white text-xs font-semibold hover:bg-green-600 transition-colors"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>

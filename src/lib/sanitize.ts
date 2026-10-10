@@ -80,6 +80,58 @@ export function sanitizeMultiLineText(value: unknown, maxLength = 5000): string 
 }
 
 /**
+ * Document/attachment URL safety (QA — "Add Employee › Documents › Document
+ * Link Security").
+ *
+ * Employee document links are rendered as <a href={fileUrl}> across the app.
+ * An untrusted URL like `javascript:alert(1)` or a `data:text/html` payload
+ * would execute when the link is opened. We therefore only allow:
+ *   1. Absolute http(s) URLs  — parsed with the URL constructor so schemes
+ *      like `java\nscript:` cannot slip through a naive regex.
+ *   2. data: URLs carrying a SAFE, non-executable MIME type (files the
+ *      upload picker produces: PDFs, images, office documents). HTML/SVG/
+ *      XML/JS payloads stay blocked because they can execute script.
+ *
+ * Returns true when the URL is safe to persist AND safe to render as a
+ * navigation target. Empty/absent values are considered safe (the field is
+ * optional).
+ */
+const UNSAFE_DATA_MIME_RE = /(text\/html|application\/xhtml|image\/svg|javascript|ecmascript|\+xml|\/xml|(^|\/)xml($|\/))/i;
+
+export function isSafeDocumentUrl(value: unknown): boolean {
+  if (value === null || value === undefined) return true;
+  if (typeof value !== 'string') return false;
+  const raw = value.trim();
+  if (raw === '') return true;
+
+  // Block known dangerous schemes up-front (cheap check, incl. obfuscation)
+  if (/^\s*(javascript|vbscript|file|blob|about|chrome|chrome-extension|moz-extension|res|ms-msdt|ms-officecmd)\s*:/i.test(raw)) return false;
+
+  if (/^https?:\/\//i.test(raw)) {
+    try {
+      const u = new URL(raw);
+      return u.protocol === 'http:' || u.protocol === 'https:';
+    } catch {
+      return false;
+    }
+  }
+
+  if (/^data:/i.test(raw)) {
+    // data:[<mime>][;base64],<payload> — extract the MIME type
+    const m = /^data:([^;,]*)/i.exec(raw);
+    const mime = (m?.[1] || '').trim().toLowerCase();
+    if (!mime) return false;               // data:,... defaults to text/plain → still refuse
+    if (mime.startsWith('text/')) return false; // text/html, text/xml, text/javascript…
+    if (UNSAFE_DATA_MIME_RE.test(mime)) return false;
+    return true;                            // image/*, application/pdf, office docs…
+  }
+
+  // Protocol-relative (//host), scheme-relative or bare strings are refused —
+  // the document form expects a full http(s) link or an uploaded data: file.
+  return false;
+}
+
+/**
  * Detect whether a string contains potentially dangerous HTML/script content.
  * Returns true if the input looks like an injection attempt. Useful for
  * logging / alerting without modifying the value.

@@ -6060,6 +6060,16 @@ model AttendancePolicyConfig {
   shiftEndDefault String @default("17:30") // default shift end time
   breakDurationMinutes Int @default(30) // lunch break duration in minutes
 
+  // ── Auto-Present for Management (Task 82) ──
+  // When enabled, management employees (same definition as the Management
+  // List: isManagement flag, management-level user role, or current direct
+  // reports) are automatically marked PRESENT for each working day with
+  // in/out punches taken from their roster/shift assignment (or the policy
+  // default shift) — even if they never punch. Real punches always win:
+  // existing rows are never overwritten, only missing check-in/check-out
+  // halves are filled.
+  autoPresentManagementEnabled Boolean @default(false)
+
   // ── Gate Pass / Permission Policy ──
   gatePassMaxPerMonth Int @default(1) // max gate passes per month (0 = unlimited)
   gatePassHalfDayOnExceed Boolean @default(true) // 2nd gate pass in month = half day leave

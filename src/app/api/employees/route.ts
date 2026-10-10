@@ -43,11 +43,12 @@ async function attachListPhotoUrls<T extends { id: string; user?: { id: string; 
   queryDb: { $queryRawUnsafe: (sql: string, ...values: unknown[]) => Promise<unknown> },
   employees: T[],
   requestUrl: string,
+  token?: string | null,
 ): Promise<Array<T & { avatar: string | null; user: T['user'] & { avatar: string | null } | null }>> {
   if (employees.length === 0) return [];
   const hasPhoto = await employeeIdsWithStoredPhoto(queryDb, employees.map((e) => e.id));
   return employees.map((e) => {
-    const photo = hasPhoto.has(e.id) ? employeePhotoApiPath(e.id, requestUrl) : null;
+    const photo = hasPhoto.has(e.id) ? employeePhotoApiPath(e.id, requestUrl, token) : null;
     return {
       ...e,
       avatar: photo,
@@ -69,10 +70,23 @@ export async function GET(request: Request) {
       ? Math.min(Math.max(rawLimit || 20, 1), 500)
       : Math.min(Math.max(rawLimit || 20, 1), 100);
     const departmentId = searchParams.get('departmentId');
+    const designationId = searchParams.get('designationId');
     const status = searchParams.get('status');
     const search = searchParams.get('search');
-    const includePhotos = searchParams.get('includePhotos') !== '0';
-    const ownOnly = searchParams.get('own') === '1';
+    // Task 81: Employee List page asks to hide management-list members (the
+    // Management List module is their directory). Same membership definition as
+    // the Management List page: designated (isManagement), management-level
+    // user role, or currently-employed direct reports. Only the list sends
+    // this — pickers, attendance, payroll etc. still see everyone.
+    const excludeManagement = searchParams.get('excludeManagement') === '1';
+    // Task 80: "Inactive" must mean "not currently employed" — the same
+    // definition the Inactive stats card uses. Employees separated via the
+    // Termination / Resignation flows get status 'terminated' / 'resigned'
+    // (NOT 'inactive'), so an exact match made the Inactive filter return 0
+    // rows on tenants whose separated staff are terminated/resigned, and the
+    // export then reported "No data to export". on_leave keeps its own filter
+    // option and is deliberately NOT part of this set.
+    const INACTIVE_STATUSES = ['inactive', 'terminated', 'resigned'];
     // Tenant scope — only meaningful for super_admin (tenant_admin is already
     // scoped to their own tenantId in the JWT).
     const tenantId = searchParams.get('tenantId');
@@ -83,7 +97,6 @@ export async function GET(request: Request) {
     // can fail if the employee lookup query throws.
     let jwtRole = 'employee';
     let jwtUserId: string | undefined;
-    let jwtEmail: string | undefined;
     try {
       const token = getTokenFromHeaders(request);
       if (token) {
@@ -91,7 +104,6 @@ export async function GET(request: Request) {
         if (decoded) {
           jwtRole = (decoded.role as string) || 'employee';
           jwtUserId = decoded.userId as string;
-          jwtEmail = typeof decoded.email === 'string' ? decoded.email : undefined;
         }
       }
     } catch {
@@ -100,9 +112,9 @@ export async function GET(request: Request) {
 
     // Home Super Admin uses limit=1&includeStats=1. Returning employee rows +
     // nested includes for a count-only call was extra Neon work (~2.6s).
-    if (includeStats && !ownOnly && !exportMode && limit <= 1 && !search && !departmentId) {
+    if (includeStats && !exportMode && limit <= 1 && !search && !departmentId) {
       const where: Record<string, unknown> = {};
-      if (status) where.status = status;
+      if (status) where.status = status === 'inactive' ? { in: INACTIVE_STATUSES } : status;
       if (queryCompanyId) where.companyId = queryCompanyId;
       const monthAgo = new Date();
       monthAgo.setMonth(monthAgo.getMonth() - 1);
@@ -110,7 +122,8 @@ export async function GET(request: Request) {
       const [total, active, inactive, newJoiners] = await Promise.all([
         db.employee.count({ where }),
         db.employee.count({ where: { ...where, status: 'active' } }),
-        db.employee.count({ where: { ...where, status: { not: 'active' } } }),
+        // Card must agree with the Inactive filter: separated staff only
+        db.employee.count({ where: { ...where, status: { in: INACTIVE_STATUSES } } }),
         db.employee.count({ where: { ...where, dateOfJoining: { gte: monthAgo } } }),
       ]);
       return NextResponse.json(
@@ -258,10 +271,6 @@ export async function GET(request: Request) {
     const userId = scopeResult?.userId || jwtUserId;
     const scope = scopeResult?.scope || 'all';
 
-    if (ownOnly && (!isAuthed || !userId)) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
-    }
-
     // ─── For super_admin with companyId, resolve tenant DB from company ───
     // The company belongs to a CompanyGroup which belongs to a Tenant.
     // We need the tenant DB because employees live there, not in platform DB.
@@ -315,7 +324,17 @@ export async function GET(request: Request) {
     try {
       const where: Record<string, unknown> = {};
       if (departmentId) where.departmentId = departmentId;
-      if (status) where.status = status;
+      if (designationId) where.designationId = designationId;
+      if (status) where.status = status === 'inactive' ? { in: INACTIVE_STATUSES } : status;
+      if (excludeManagement && scope !== 'self') {
+        where.NOT = {
+          OR: [
+            { isManagement: true },
+            { user: { role: { in: ['manager', 'admin', 'tenant_admin', 'hr_admin', 'super_admin'] } } },
+            { directReports: { some: { status: { in: ['active', 'on_leave'] } } } },
+          ],
+        };
+      }
       if (search) {
         where.OR = [
           { firstName: { contains: search, mode: 'insensitive' } },
@@ -433,21 +452,6 @@ export async function GET(request: Request) {
         }
       }
 
-      // Some HR pages need only the signed-in HR user's employee profile, not
-      // the tenant-wide employee directory. Keep this opt-in filter tied to
-      // the authenticated user so it cannot expose another employee's data.
-      if (ownOnly) {
-        const ownClauses: Record<string, unknown>[] = [{ userId }];
-        if (jwtEmail) ownClauses.push({ email: jwtEmail });
-        const searchClauses = where.OR;
-        if (searchClauses) {
-          where.AND = [{ OR: ownClauses }, { OR: searchClauses }];
-          delete where.OR;
-        } else {
-          where.OR = ownClauses;
-        }
-      }
-
       const [employeesRaw, total] = await Promise.all([
         queryDb.employee.findMany({
           where,
@@ -467,12 +471,7 @@ export async function GET(request: Request) {
         }),
         queryDb.employee.count({ where }),
       ]);
-      // Attendance rosters and other compact HR views do not render employee
-      // photos. Let those callers skip the extra stored-photo lookup while
-      // preserving the existing photo behavior for all default consumers.
-      const employees = includePhotos
-        ? await attachListPhotoUrls(queryDb, employeesRaw, request.url)
-        : employeesRaw;
+      const employees = await attachListPhotoUrls(queryDb, employeesRaw, request.url, getTokenFromHeaders(request));
 
       let stats: { total: number; active: number; inactive: number; newJoiners: number } | undefined;
       if (includeStats) {
@@ -480,7 +479,8 @@ export async function GET(request: Request) {
         monthAgo.setMonth(monthAgo.getMonth() - 1);
         const [active, inactive, newJoiners] = await Promise.all([
           queryDb.employee.count({ where: { ...where, status: 'active' } }),
-          queryDb.employee.count({ where: { ...where, status: { not: 'active' } } }),
+          // Same definition as the Inactive filter (inactive+terminated+resigned)
+          queryDb.employee.count({ where: { ...where, status: { in: INACTIVE_STATUSES } } }),
           queryDb.employee.count({ where: { ...where, dateOfJoining: { gte: monthAgo } } }),
         ]);
         stats = { total, active, inactive, newJoiners };

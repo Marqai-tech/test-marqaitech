@@ -12,6 +12,7 @@ import { isAdminRole, parseBody, ok, fail, OPTIONS } from '@/lib/attendance-leav
 import { resolveCompanyScope } from '@/lib/companyScope';
 import { getDb, getPlatformDb, getDbForTenantById } from '@/lib/tenant-db';
 import { withSchemaSync } from '@/lib/schema-sync';
+import { ensureAutoPresentColumn } from '@/lib/attendance-auto-present';
 
 export { OPTIONS };
 
@@ -57,6 +58,7 @@ export async function GET(request: Request) {
           canteenFreeForGeneralShift: true,
           canteenFreeForNightShift: true,
           canteenOtfreeThresholdHours: 5,
+          autoPresentManagementEnabled: false,
           companyId: null,
           createdAt: new Date(0),
           updatedAt: new Date(0),
@@ -68,6 +70,11 @@ export async function GET(request: Request) {
       where.companyId = scope.companyId;
     }
     // scope === 'all' && no companyId → admin sees the latest policy (no company filter)
+
+    // Task 82: idempotent self-heal for the auto-present flag column on
+    // whichever DB this request actually resolved to (Vercel's runtime DB
+    // stack can differ from the one patch scripts target).
+    await ensureAutoPresentColumn(db);
 
     let config;
     try {
@@ -118,6 +125,7 @@ export async function GET(request: Request) {
         canteenFreeForGeneralShift: true,
         canteenFreeForNightShift: true,
         canteenOtfreeThresholdHours: 5,
+        autoPresentManagementEnabled: false,
         companyId: scope.companyId || scope.ownCompanyId || null,
         createdAt: new Date(0),
         updatedAt: new Date(0),
@@ -147,6 +155,8 @@ export async function PUT(request: Request) {
   const body = await parseBody(request);
   if (!body) return fail('Invalid JSON');
   try {
+    // Task 82: self-heal the flag column before upserting (see GET).
+    await ensureAutoPresentColumn(db);
     // Determine which company this policy belongs to
     const policyCompanyId = scope.companyId || scope.ownCompanyId || null;
 
@@ -206,6 +216,8 @@ export async function PUT(request: Request) {
       canteenFreeForGeneralShift: body.canteenFreeForGeneralShift !== undefined ? !!body.canteenFreeForGeneralShift : existing?.canteenFreeForGeneralShift ?? true,
       canteenFreeForNightShift: body.canteenFreeForNightShift !== undefined ? !!body.canteenFreeForNightShift : existing?.canteenFreeForNightShift ?? true,
       canteenOtfreeThresholdHours: body.canteenOtfreeThresholdHours !== undefined ? Number(body.canteenOtfreeThresholdHours) : existing?.canteenOtfreeThresholdHours ?? 5,
+      // Auto-Present for Management (Task 82) — off by default
+      autoPresentManagementEnabled: body.autoPresentManagementEnabled !== undefined ? !!body.autoPresentManagementEnabled : existing?.autoPresentManagementEnabled ?? false,
     };
 
     let config;

@@ -1,11 +1,10 @@
 'use client';
 
 import { useEffect, useState, Suspense } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
 import {
-  FiSettings, FiSave, FiRefreshCw, FiMonitor, FiMapPin, FiCamera, FiClock,
+  FiSettings,
   FiFileText, FiPlus, FiSearch, FiEye, FiEdit2, FiTrash2, FiX, FiAlertTriangle,
-  FiList, FiSliders, FiBookOpen, FiCheck, FiChevronDown, FiGitBranch, FiDownload,
+  FiList, FiSliders, FiGitBranch, FiDownload,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
@@ -13,9 +12,7 @@ import { useCompanyContextStore } from '@/store/companyContextStore';
 import { useCompanyData, apiFetch, fmtDate, getStatusBadge } from '@/components/company/useCompanyData';
 import type { PolicyRecord } from '@/components/company/useCompanyData';
 import { PolicyFileUploadField, PolicyFileDownloadLink } from '@/components/hrms/PolicyFileField';
-import ModuleSettingsPanel, { attendanceSections } from '@/components/ModuleSettingsPanel';
 import { PolicyVersionHistoryButton, PolicyAcknowledgeButton, PolicyAcknowledgmentTracker } from '@/components/hrms/PolicyVersionHistory';
-import WorkflowBuilderTab from './WorkflowBuilderTab';
 
 // ─── Helpers ────────────────────────────────────────────────────────
 function getAuthHeaders() {
@@ -84,19 +81,15 @@ interface AttendancePolicyRule {
   status: string;
 }
 
-// ─── Tab types ──────────────────────────────────────────────────────
-// NOTE: 'rules' tab was removed in the unification pass — all policy rule
-// fields (shift, grace, late-mark, OT, gate-pass) are now configured inside
-// the 'workflows' tab alongside the approval chain. The old AttendancePolicyRule
-// table is still read as a legacy fallback at runtime (see lib/attendance-workflow.ts
-// loadWorkflowConfig) so existing saved rules continue to apply until an admin
-// saves a unified workflow config.
-type TabKey = 'documents' | 'workflows';
+// ─── Page structure (Task 84) ───────────────────────────────────────
+// Attendance Settings now owns ONLY the attendance policy documents.
+// The general rule sections (Work Hours & Thresholds, Shift & Weekend
+// Rules, Geofencing & Grace Period) and the Auto-Present for Management
+// toggle were MOVED to /attendance/policy-rules, and the approval
+// workflow builder moved to /attendance/approval-workflows — the user
+// asked for policy rules and approval workflows as separate pages.
 
-const TABS: { key: TabKey; label: string; icon: React.ReactNode }[] = [
-  { key: 'documents', label: 'Policy Documents', icon: <FiBookOpen className="w-4 h-4" /> },
-  { key: 'workflows', label: 'Policy Rules & Approval Workflows', icon: <FiGitBranch className="w-4 h-4" /> },
-];
+const POLICY_CATEGORY = 'attendance';
 
 const EMPLOYMENT_TYPES = [
   { value: 'all', label: 'All Types' },
@@ -105,8 +98,6 @@ const EMPLOYMENT_TYPES = [
   { value: 'contract', label: 'Contract' },
   { value: 'internship', label: 'Internship' },
 ];
-
-const POLICY_CATEGORY = 'attendance';
 
 // ─── Shared UI bits ─────────────────────────────────────────────────
 function Toggle({ checked, onChange }: { checked: boolean; onChange: () => void }) {
@@ -126,24 +117,7 @@ const selectCls = 'w-full px-3 py-2 border border-thb-border rounded-lg text-sm 
 // ─── Main Page ──────────────────────────────────────────────────────
 function AttendanceSettingsContent() {
   const { user } = useAuthStore();
-  const scopeQuery = useCompanyContextStore(s => s.scopeQuery);
-  const companyId = useCompanyContextStore(s => s.effectiveCompanyId());
-  const selectedTenantId = useCompanyContextStore(s => s.selectedTenantId);
   const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
-  const searchParams = useSearchParams()
-  const router = useRouter()
-
-  const tabFromUrl = searchParams.get('tab') as TabKey | null
-  const validTabs: TabKey[] = ['documents', 'workflows']
-  const defaultTab = (tabFromUrl && validTabs.includes(tabFromUrl)) ? tabFromUrl : 'documents'
-  const [activeTab, setActiveTab] = useState<TabKey>(defaultTab);
-
-  useEffect(() => {
-    const t = searchParams.get('tab') as TabKey | null
-    if (t && validTabs.includes(t) && t !== activeTab) {
-      setActiveTab(t)
-    }
-  }, [searchParams])
 
   if (!isAdmin) {
     return (
@@ -163,34 +137,37 @@ function AttendanceSettingsContent() {
         </div>
         <div>
           <h1 className="text-xl font-bold text-thb-text-primary">Attendance Settings</h1>
-          <p className="text-sm text-thb-text-secondary">Manage policy documents, scoped rules, and global configuration</p>
+          <p className="text-sm text-thb-text-secondary">Manage attendance policy documents. Policy rules and approval workflows live on their own pages below.</p>
         </div>
       </div>
 
-      {/* General Attendance Settings — migrated from /settings > Attendance tab in Task 56 */}
-      <ModuleSettingsPanel sections={attendanceSections} />
-
-      {/* Tab Bar */}
-      <div className="flex gap-1 p-1 bg-slate-100 rounded-xl">
-        {TABS.map(tab => (
-          <button
-            key={tab.key}
-            onClick={() => { setActiveTab(tab.key); router.replace(`/attendance/settings?tab=${tab.key}`) }}
-            className={`flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
-              activeTab === tab.key
-                ? 'bg-white text-teal-700 shadow-sm'
-                : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
-            }`}
-          >
-            {tab.icon}
-            {tab.label}
-          </button>
-        ))}
+      {/* Task 84: policy rules & approval workflows are separate pages now */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <a href="/attendance/policy-rules" className="thb-card p-4 flex items-start gap-3 hover:border-teal-300 hover:shadow-sm transition-all group">
+          <div className="p-2 rounded-lg bg-orange-50 text-orange-500 flex-shrink-0">
+            <FiSliders className="w-4 h-4" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-thb-text-primary group-hover:text-teal-700">Attendance Policy Rules</p>
+            <p className="text-xs text-thb-text-secondary mt-0.5 leading-relaxed">
+              Work Hours &amp; Thresholds, Shift &amp; Weekend Rules, Geofencing &amp; Grace Period and Auto-Present for Management Employees — moved here from Attendance Settings.
+            </p>
+          </div>
+        </a>
+        <a href="/attendance/approval-workflows" className="thb-card p-4 flex items-start gap-3 hover:border-teal-300 hover:shadow-sm transition-all group">
+          <div className="p-2 rounded-lg bg-violet-50 text-violet-500 flex-shrink-0">
+            <FiGitBranch className="w-4 h-4" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-thb-text-primary group-hover:text-teal-700">Approval Workflows</p>
+            <p className="text-xs text-thb-text-secondary mt-0.5 leading-relaxed">
+              Multi-level approver routing, SLA windows and rule constraints for Regularization, WFH, Hourly Permission and Gate Pass requests.
+            </p>
+          </div>
+        </a>
       </div>
 
-      {/* Tab Content */}
-      {activeTab === 'documents' && <PolicyDocumentsTab />}
-      {activeTab === 'workflows' && <WorkflowBuilderTab companyId={companyId} />}
+      <PolicyDocumentsTab />
     </div>
   );
 }

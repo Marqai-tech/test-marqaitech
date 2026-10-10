@@ -34,6 +34,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore, useCompanyContextPersistHydrated } from '@/store/companyContextStore';
 import { canAccessEmployeeSettings, canEditEmployeeRecords } from '@/lib/roleAccess';
 import { fileToProfilePhotoDataUrl, MAX_PROFILE_PHOTO_LABEL } from '@/lib/profile-photo';
+import { isSafeDocumentUrl } from '@/lib/sanitize';
 import { getToken } from '@/lib/token-storage';
 import {
   validateEmail as validateEmailFormat,
@@ -350,10 +351,12 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
   const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0, totalPages: 0 });
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [filterDept, setFilterDept] = useState('');
   const [filterDesignation, setFilterDesignation] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+  // Task 81: management-list members are hidden from the Employee List by
+  // default (their directory is the Management List module). Toggle to show.
+  const [includeManagement, setIncludeManagement] = useState(false);
 
 
   const [showForm, setShowForm] = useState(formOnly);
@@ -543,11 +546,29 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
   /* Export CSV */
   const handleExportCSV = async () => {
     try {
+      // QA fix: the export must honour the ACTIVE list filters (search /
+      // department / status incl. Inactive) — previously it always fetched
+      // unfiltered employees, so filtering Inactive then exporting produced
+      // the wrong rows. Mirrors the params sent by fetchEmployees().
       const params = new URLSearchParams({ limit: '500', export: '1' });
+      if (search) params.set('search', search);
+      if (filterDept) params.set('departmentId', filterDept);
+      if (filterDesignation) params.set('designationId', filterDesignation);
+      if (filterStatus) params.set('status', filterStatus);
+      // The export mirrors the on-screen list — management hidden there is
+      // hidden here too (unless the Show Management toggle is on).
+      if (!includeManagement) params.set('excludeManagement', '1');
       const sq = scopeQuery();
       const res = await fetch(`/api/employees?${params.toString()}${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
-      const data = res.ok ? await res.json() : { employees: allEmployees };
-      const exportRows = data.employees || allEmployees;
+      if (!res.ok) {
+        // Fail LOUDLY instead of silently exporting the wrong rows (the old
+        // fallback exported the active-only stats list, which looked like the
+        // filter was ignored).
+        toast.error('Export failed — could not fetch the filtered employee list');
+        return;
+      }
+      const data = await res.json();
+      const exportRows = data.employees || [];
       const rows = exportRows.map((emp: Employee) => ({
       'Employee ID': emp.employeeId || '',
       'First Name': emp.firstName || '',
@@ -590,16 +611,18 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
   };
 
   /* Fetch employees */
-  const fetchEmployees = useCallback(async (page = 1, signal?: AbortSignal) => {
+  const fetchEmployees = useCallback(async (page = 1) => {
     try {
       setLoading(true);
       const params = new URLSearchParams({ page: String(page), limit: '10', includeStats: '1' });
-      if (debouncedSearch) params.set('search', debouncedSearch);
+      if (search) params.set('search', search);
       if (filterDept) params.set('departmentId', filterDept);
+      if (filterDesignation) params.set('designationId', filterDesignation);
       if (filterStatus) params.set('status', filterStatus);
+      if (!includeManagement) params.set('excludeManagement', '1');
       const sq = scopeQuery();
 
-      const res = await fetch(`/api/employees?${params.toString()}${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders(), signal });
+      const res = await fetch(`/api/employees?${params.toString()}${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
       if (!res.ok) throw new Error('Failed to fetch');
       const data = await res.json();
       const fetched = data.employees || [];
@@ -612,14 +635,13 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
         setPagination(data.pagination || { page: 1, limit: 10, total: 0, totalPages: 0 });
       }
     } catch (err) {
-      if (signal?.aborted) return;
       console.error('Failed to load employees from API:', err);
       setEmployees([]);
       setPagination({ page: 1, limit: 10, total: 0, totalPages: 0 });
     } finally {
-      if (!signal?.aborted) setLoading(false);
+      setLoading(false);
     }
-  }, [debouncedSearch, filterDept, filterStatus, scopeCompanyId, scopeTenantId, scopeQuery]);
+  }, [search, filterDept, filterDesignation, filterStatus, includeManagement, scopeCompanyId, scopeTenantId, scopeQuery]);
 
   /* Fetch all employees for stats */
   const fetchAllEmployees = useCallback(async () => {
@@ -694,20 +716,10 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
     }
   }, []);
 
-  // Avoid sending a database search for every keystroke in the HR directory.
-  useEffect(() => {
-    const timeoutId = window.setTimeout(() => setDebouncedSearch(search.trim()), 250);
-    return () => window.clearTimeout(timeoutId);
-  }, [search]);
-
   useEffect(() => {
     if (!persistHydrated) return;
-    const controller = new AbortController();
-    void fetchEmployees(1, controller.signal);
-    return () => {
-      controller.abort();
-    };
-  }, [debouncedSearch, fetchEmployees, persistHydrated]);
+    queueMicrotask(() => fetchEmployees(1));
+  }, [fetchEmployees, persistHydrated]);
 
   useEffect(() => {
     if (!persistHydrated) return;
@@ -1301,6 +1313,11 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
 
   const addStagedDoc = () => {
     if (!docDraft.name.trim()) { toast.error('Document name is required'); return; }
+    // QA fix — Document Link Security: reject unsafe URLs (javascript:, data:text/html, etc.)
+    if (docDraft.fileUrl && !isSafeDocumentUrl(docDraft.fileUrl)) {
+      toast.error('Unsafe document link blocked. Use a full http(s):// URL (e.g. https://drive.google.com/…)');
+      return;
+    }
     setStagedDocs(prev => [...prev, { id: `doc_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, ...docDraft, name: docDraft.name.trim() }]);
     setDocDraft(emptyDocDraft());
     toast.success('Document added — it will be saved when you click "Add Employee"');
@@ -1331,6 +1348,11 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
   const uploadLiveDoc = async () => {
     if (!editingId) return;
     if (!docDraft.name.trim()) { toast.error('Document name is required'); return; }
+    // QA fix — Document Link Security: reject unsafe URLs before they are persisted
+    if (docDraft.fileUrl && !isSafeDocumentUrl(docDraft.fileUrl)) {
+      toast.error('Unsafe document link blocked. Use a full http(s):// URL (e.g. https://drive.google.com/…)');
+      return;
+    }
     try {
       setDocUploading(true);
       const r = await fetch(`/api/employees/${editingId}/documents`, {
@@ -1629,6 +1651,19 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
             </div>
 
             <div className="flex items-center gap-2">
+              {/* Task 81: management members live in the Management List —
+                  hidden here by default, toggle to include them */}
+              <button
+                onClick={() => setIncludeManagement(v => !v)}
+                className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg border transition-colors ${
+                  includeManagement
+                    ? 'bg-violet-50 border-violet-300 text-violet-700'
+                    : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                }`}
+                title="Management List members are hidden from this list by default"
+              >
+                <FiUserCheck className="w-3.5 h-3.5" /> {includeManagement ? 'Management shown' : 'Management hidden'}
+              </button>
               {/* Export */}
               <button onClick={handleExportCSV} className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors">
                 <FiDownload className="w-3.5 h-3.5" /> Export
@@ -2730,6 +2765,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                     {editingId ? editDocs.map(doc => {
                       const cat = FORM_DOC_CATEGORIES.find(c => c.value === (doc.category || 'other'));
                       const isData = (doc.fileUrl || '').startsWith('data:');
+                      const linkSafe = isSafeDocumentUrl(doc.fileUrl);
                       return (
                         <div key={doc.id} className="flex items-center gap-3 py-2.5 border-b border-thb-border/50 last:border-0">
                           <span className="text-lg shrink-0">{cat?.icon || '📎'}</span>
@@ -2737,7 +2773,8 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                             <p className="text-sm font-medium text-thb-text-primary truncate">{doc.name}</p>
                             <p className="text-[11px] text-thb-text-muted">{cat?.label || 'Other'}{doc.expiryDate ? ` · Expires ${formatDate(doc.expiryDate)}` : ''}</p>
                           </div>
-                          {doc.fileUrl && <a href={doc.fileUrl} {...(isData ? { download: doc.name } : { target: '_blank', rel: 'noopener noreferrer' })} className="inline-flex items-center gap-1 px-2 py-1 text-[11px] text-teal-600 hover:bg-teal-50 rounded shrink-0"><FiDownload className="w-3 h-3" /> Download</a>}
+                          {doc.fileUrl && linkSafe && <a href={doc.fileUrl} {...(isData ? { download: doc.name } : { target: '_blank', rel: 'noopener noreferrer' })} className="inline-flex items-center gap-1 px-2 py-1 text-[11px] text-teal-600 hover:bg-teal-50 rounded shrink-0"><FiDownload className="w-3 h-3" /> Download</a>}
+                          {doc.fileUrl && !linkSafe && <span className="inline-flex items-center gap-1 px-2 py-1 text-[11px] text-red-500 bg-red-50 rounded shrink-0" title="This link was blocked for security reasons">Blocked link</span>}
                           <button type="button" onClick={() => deleteLiveDoc(doc.id)} className="p-1.5 text-red-500 hover:bg-red-50 rounded shrink-0" title="Delete document"><FiTrash2 className="w-3.5 h-3.5" /></button>
                         </div>
                       );

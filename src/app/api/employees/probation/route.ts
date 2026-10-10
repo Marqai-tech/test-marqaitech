@@ -14,6 +14,38 @@ export async function OPTIONS() {
   return NextResponse.json({}, { headers: corsHeaders() });
 }
 
+// ─── Inline schema-sync for PerformanceReview table ───
+// CREATE IF NOT EXISTS covers fresh DBs. The ALTER ... ADD COLUMN IF NOT
+// EXISTS statements upgrade LEGACY tables that were created by older schema
+// versions (missing the rating-breakdown / nullable-text columns → P2022) —
+// all statements are additive and idempotent, safe on every tenant DB.
+const PERF_REVIEW_SYNC_STATEMENTS = [
+  `CREATE TABLE IF NOT EXISTS "PerformanceReview" ("id" TEXT NOT NULL, "employeeId" TEXT NOT NULL, "reviewCycle" TEXT NOT NULL, "reviewPeriod" TEXT, "reviewerId" TEXT, "rating" DOUBLE PRECISION NOT NULL DEFAULT 0, "goalsRating" DOUBLE PRECISION NOT NULL DEFAULT 0, "skillsRating" DOUBLE PRECISION NOT NULL DEFAULT 0, "behaviorRating" DOUBLE PRECISION NOT NULL DEFAULT 0, "overallRating" DOUBLE PRECISION NOT NULL DEFAULT 0, "comments" TEXT, "strengths" TEXT, "improvements" TEXT, "status" TEXT NOT NULL DEFAULT 'pending', "reviewDate" TIMESTAMP(3), "createdAt" TIMESTAMP(3) NOT NULL DEFAULT NOW(), "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT NOW(), CONSTRAINT "PerformanceReview_pkey" PRIMARY KEY ("id"))`,
+  `CREATE INDEX IF NOT EXISTS "PerformanceReview_employeeId_idx" ON "PerformanceReview"("employeeId")`,
+  `ALTER TABLE "PerformanceReview" ADD COLUMN IF NOT EXISTS "reviewPeriod" TEXT`,
+  `ALTER TABLE "PerformanceReview" ADD COLUMN IF NOT EXISTS "reviewerId" TEXT`,
+  `ALTER TABLE "PerformanceReview" ADD COLUMN IF NOT EXISTS "rating" DOUBLE PRECISION NOT NULL DEFAULT 0`,
+  `ALTER TABLE "PerformanceReview" ADD COLUMN IF NOT EXISTS "goalsRating" DOUBLE PRECISION NOT NULL DEFAULT 0`,
+  `ALTER TABLE "PerformanceReview" ADD COLUMN IF NOT EXISTS "skillsRating" DOUBLE PRECISION NOT NULL DEFAULT 0`,
+  `ALTER TABLE "PerformanceReview" ADD COLUMN IF NOT EXISTS "behaviorRating" DOUBLE PRECISION NOT NULL DEFAULT 0`,
+  `ALTER TABLE "PerformanceReview" ADD COLUMN IF NOT EXISTS "overallRating" DOUBLE PRECISION NOT NULL DEFAULT 0`,
+  `ALTER TABLE "PerformanceReview" ADD COLUMN IF NOT EXISTS "comments" TEXT`,
+  `ALTER TABLE "PerformanceReview" ADD COLUMN IF NOT EXISTS "strengths" TEXT`,
+  `ALTER TABLE "PerformanceReview" ADD COLUMN IF NOT EXISTS "improvements" TEXT`,
+  `ALTER TABLE "PerformanceReview" ADD COLUMN IF NOT EXISTS "status" TEXT NOT NULL DEFAULT 'pending'`,
+  `ALTER TABLE "PerformanceReview" ADD COLUMN IF NOT EXISTS "reviewDate" TIMESTAMP(3)`,
+  `ALTER TABLE "PerformanceReview" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT NOW()`,
+  `ALTER TABLE "PerformanceReview" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT NOW()`,
+];
+
+async function syncPerformanceReviewTable(db: { $executeRawUnsafe: (sql: string) => Promise<unknown> }): Promise<void> {
+  try {
+    for (const sql of PERF_REVIEW_SYNC_STATEMENTS) {
+      try { await db.$executeRawUnsafe(sql); } catch { /* already exists */ }
+    }
+  } catch { /* non-fatal — never block the request on sync */ }
+}
+
 /**
  * GET /api/employees/probation
  *
@@ -42,16 +74,9 @@ export async function GET(request: Request) {
     const status = searchParams.get('status');
 
     // ─── Inline schema-sync for PerformanceReview table ───
-    // Ensures all columns exist (fixes P2022 on tenant DBs that haven't been synced)
-    try {
-      const syncStatements = [
-        `CREATE TABLE IF NOT EXISTS "PerformanceReview" ("id" TEXT NOT NULL, "employeeId" TEXT NOT NULL, "reviewCycle" TEXT NOT NULL, "reviewPeriod" TEXT, "reviewerId" TEXT, "rating" DOUBLE PRECISION NOT NULL DEFAULT 0, "goalsRating" DOUBLE PRECISION NOT NULL DEFAULT 0, "skillsRating" DOUBLE PRECISION NOT NULL DEFAULT 0, "behaviorRating" DOUBLE PRECISION NOT NULL DEFAULT 0, "overallRating" DOUBLE PRECISION NOT NULL DEFAULT 0, "comments" TEXT, "strengths" TEXT, "improvements" TEXT, "status" TEXT NOT NULL DEFAULT 'pending', "reviewDate" TIMESTAMP(3), "createdAt" TIMESTAMP(3) NOT NULL DEFAULT NOW(), "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT NOW(), CONSTRAINT "PerformanceReview_pkey" PRIMARY KEY ("id"))`,
-        `CREATE INDEX IF NOT EXISTS "PerformanceReview_employeeId_idx" ON "PerformanceReview"("employeeId")`,
-      ];
-      for (const sql of syncStatements) {
-        try { await db.$executeRawUnsafe(sql); } catch { /* already exists */ }
-      }
-    } catch { /* non-fatal */ }
+    // Ensures the table + ALL model columns exist (fixes P2022 on tenant DBs
+    // that haven't been synced, and upgrades legacy table shapes).
+    await syncPerformanceReviewTable(db);
 
     const where: Record<string, unknown> = {
       reviewCycle: 'Probation',
@@ -276,14 +301,20 @@ export async function POST(request: Request) {
       where: { id: employeeId },
       select: { id: true, employeeStatus: true, status: true, firstName: true, lastName: true },
     }).catch(() => null);
-    if (employee) {
-      const empStatus = employee.employeeStatus || employee.status;
-      if (empStatus === 'confirmed' && decision !== 'extend' && decision !== 'terminate') {
-        return NextResponse.json(
-          { error: `${employee.firstName} ${employee.lastName} has already completed probation (status: confirmed). A normal probation review cannot be submitted for confirmed employees. Use "Extend" or "Terminate" if you need to take action.` },
-          { status: 400, headers: corsHeaders() }
-        );
-      }
+    if (!employee) {
+      // QA P2011 hardening: a bogus employeeId used to fall through to the
+      // create and explode as a DB-level error. Fail fast with a clear message.
+      return NextResponse.json(
+        { error: 'Employee not found for this probation review. Please select a valid employee and try again.' },
+        { status: 400, headers: corsHeaders() }
+      );
+    }
+    const empStatus = employee.employeeStatus || employee.status;
+    if (empStatus === 'confirmed' && decision !== 'extend' && decision !== 'terminate') {
+      return NextResponse.json(
+        { error: `${employee.firstName} ${employee.lastName} has already completed probation (status: confirmed). A normal probation review cannot be submitted for confirmed employees. Use "Extend" or "Terminate" if you need to take action.` },
+        { status: 400, headers: corsHeaders() }
+      );
     }
 
     // ─── Task 65: sanitize free-text fields (reviewComments, etc.) ───
@@ -291,15 +322,7 @@ export async function POST(request: Request) {
     const cleanReviewComments = sanitizeMultiLineText(reviewComments, 5000);
 
     // ─── Inline schema-sync for PerformanceReview table ───
-    try {
-      const syncStatements = [
-        `CREATE TABLE IF NOT EXISTS "PerformanceReview" ("id" TEXT NOT NULL, "employeeId" TEXT NOT NULL, "reviewCycle" TEXT NOT NULL, "reviewPeriod" TEXT, "reviewerId" TEXT, "rating" DOUBLE PRECISION NOT NULL DEFAULT 0, "goalsRating" DOUBLE PRECISION NOT NULL DEFAULT 0, "skillsRating" DOUBLE PRECISION NOT NULL DEFAULT 0, "behaviorRating" DOUBLE PRECISION NOT NULL DEFAULT 0, "overallRating" DOUBLE PRECISION NOT NULL DEFAULT 0, "comments" TEXT, "strengths" TEXT, "improvements" TEXT, "status" TEXT NOT NULL DEFAULT 'pending', "reviewDate" TIMESTAMP(3), "createdAt" TIMESTAMP(3) NOT NULL DEFAULT NOW(), "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT NOW(), CONSTRAINT "PerformanceReview_pkey" PRIMARY KEY ("id"))`,
-        `CREATE INDEX IF NOT EXISTS "PerformanceReview_employeeId_idx" ON "PerformanceReview"("employeeId")`,
-      ];
-      for (const sql of syncStatements) {
-        try { await db.$executeRawUnsafe(sql); } catch { /* already exists */ }
-      }
-    } catch { /* non-fatal */ }
+    await syncPerformanceReviewTable(db);
 
     // Serialize the full probation form data as JSON in the comments field
     // so we can retrieve all probation-specific fields later
@@ -321,29 +344,73 @@ export async function POST(request: Request) {
     // HR/Admin can then approve (confirm), extend, or reject via the [id] route.
     let status = 'pending'; // Always pending on submission — goes to HR for review
 
-    const review = await db.performanceReview.create({
-      data: {
-        employeeId,
-        reviewCycle: 'Probation',
-        reviewPeriod: probationPeriod ? `Probation (${probationPeriod} months)` : 'Probation',
-        reviewerId: decoded.userId as string,
-        rating: performanceRating || 0,
-        overallRating: performanceRating || 0,
-        comments: probationData,
-        strengths: null,
-        improvements: null,
-        status, // 'pending' — submitted for HR review
-        reviewDate: effectiveDate ? new Date(effectiveDate) : new Date(),
-      },
-      include: {
-        employee: {
-          select: { firstName: true, lastName: true, employeeId: true },
+    // Null-safe create data: every NOT NULL column gets an explicit, typed
+    // value so Prisma never sends NULL where the DB forbids it (QA P2011 fix).
+    const createData = {
+      employeeId,
+      reviewCycle: 'Probation',
+      reviewPeriod: probationPeriod ? `Probation (${probationPeriod} months)` : 'Probation',
+      reviewerId: (decoded as { userId?: string | null }).userId || null,
+      rating: Number(performanceRating) || 0,
+      overallRating: Number(performanceRating) || 0,
+      comments: probationData,
+      strengths: null,
+      improvements: null,
+      status, // 'pending' — submitted for HR review
+      reviewDate: effectiveDate ? new Date(effectiveDate) : new Date(),
+    };
+
+    let review;
+    try {
+      review = await db.performanceReview.create({
+        data: createData,
+        include: {
+          employee: {
+            select: { firstName: true, lastName: true, employeeId: true },
+          },
         },
-      },
-    }).catch((createErr: { code?: string; message?: string }) => {
+      });
+    } catch (createErrRaw) {
+      const createErr = createErrRaw as { code?: string; message?: string; meta?: { field_name?: string; fields?: string[] } };
       console.error('[Probation POST] create failed:', createErr);
-      throw new Error(`Failed to save probation review: ${createErr.message || 'Unknown error'} (Code: ${createErr.code || 'N/A'})`);
-    });
+      // ─── QA P2011 self-heal ───
+      // Null constraint violation is typically caused by a LEGACY NOT NULL
+      // column the current Prisma model no longer knows about (e.g. cycleId
+      // from the old schema). Relax that column and retry once so the review
+      // saves instead of erroring. Missing table/column (P2021/P2022/P2023)
+      // is healed by re-running the additive schema sync.
+      let healed = false;
+      try {
+        if (createErr.code === 'P2011') {
+          const fieldName = createErr.meta?.field_name
+            || (createErr.meta?.fields && createErr.meta.fields[0])
+            || (/fields?: \(`([^`]+)`\)/.exec(createErr.message || '')?.[1] ?? null);
+          const REQUIRED_FIELDS = new Set(['id', 'employeeId', 'reviewCycle']);
+          if (fieldName && !REQUIRED_FIELDS.has(fieldName)) {
+            const safeCol = fieldName.replace(/"/g, '');
+            await db.$executeRawUnsafe(`ALTER TABLE "PerformanceReview" ALTER COLUMN "${safeCol}" DROP NOT NULL`);
+            console.warn(`[Probation POST] self-heal: dropped NOT NULL on PerformanceReview."${safeCol}" (legacy column) — retrying save`);
+            healed = true;
+          }
+        } else if (createErr.code === 'P2021' || createErr.code === 'P2022' || createErr.code === 'P2023') {
+          await syncPerformanceReviewTable(db);
+          healed = true;
+        }
+      } catch (healErr) {
+        console.error('[Probation POST] self-heal failed:', healErr);
+      }
+      if (!healed) {
+        throw new Error(`Failed to save probation review: ${createErr.message || 'Unknown error'} (Code: ${createErr.code || 'N/A'})`);
+      }
+      review = await db.performanceReview.create({
+        data: createData,
+        include: {
+          employee: {
+            select: { firstName: true, lastName: true, employeeId: true },
+          },
+        },
+      });
+    }
 
     // Log to audit
     try {

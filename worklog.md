@@ -3822,3 +3822,351 @@ Stage Summary:
 - Hardening shipped: createDbAdapter strips channel_binding from all Neon URLs.
 - NOTE for the user: consider consolidating to ONE Neon project and updating the
   Vercel env vars, so DB fixes only ever need to happen in one place.
+
+---
+Task ID: 79
+Agent: Super Z (main agent)
+Task: User QA report — "debug these errors and update them in vercel now": (1) Dashboard Employees-on-Leave metric vs Leave records, (2) Tenure Overview not displaying, (3) Add Employee document link security, (4) Employee export ignores Inactive filter, (5) Probation review save P2011 null constraint violation.
+
+Work Log:
+- INVESTIGATED all 5 QA items in code + DBs before touching anything.
+- (1) LEAVE METRIC: dashboard counted Employee.status==='on_leave' (stale snapshot,
+  doesn't react to approve/cancel). Added onLeaveToday=1 mode to /api/leave GET:
+  counts DISTINCT employees with an APPROVED LeaveRequest covering today
+  (startDate<=today<=endDate), restricted to currently-employed people
+  (status active|on_leave), scoped like the rest of the route (self/company/all).
+  Dashboard now calls it with Employee.status as fallback.
+- (2) TENURE OVERVIEW: found a hardcoded STUB (four buckets always rendered "—").
+  Replaced with a real distribution computed client-side from every employee's
+  dateOfJoining (buckets 0-6m / 6-12m / 1-3y / 3y+, months clamped >=0, % of
+  workforce shown, basis line states how many employees were counted).
+- (3) DOC LINK SECURITY: added isSafeDocumentUrl() to src/lib/sanitize.ts —
+  allows absolute http(s) only + data: URLs with non-executable MIME (blocks
+  javascript:, vbscript:, file:, blob:, data:text/html, svg, xml, js; a naive
+  'xml' substring check initially rejected Office OpenXML docs — tightened to
+  specific xml patterns and unit-tested). Enforced at 4 layers: staged docs,
+  live docs, profile UploadDocModal, and server-side documents POST (replaces
+  the loose ^(https?|data:) regex). Unsafe legacy rows render "Blocked link"
+  instead of a clickable anchor on both the form and the profile page.
+- (4) EXPORT FILTER: handleExportCSV sent only limit/export/scopeQuery — status,
+  search and department filters were ignored, so exporting after filtering
+  Inactive returned the wrong rows. Export now mirrors fetchEmployees() params
+  exactly (search + departmentId + status + scopeQuery).
+- (5) PROBATION P2011: introspected PerformanceReview on ALL 5 DBs (US platform,
+  US demo+marqaitechgroup tenants, SG LIVE tenant, SG platform) — current table
+  shapes MATCH the Prisma model, nullability OK, and both raw-SQL and real
+  Prisma-client inserts succeed → the reported failure predates Task 78's SG
+  sync (legacy table shape) and is no longer reproducible. Hardened the route
+  anyway: (a) module-level PERF_REVIEW_SYNC_STATEMENTS now ALSO add every model
+  column to LEGACY tables (ALTER ADD COLUMN IF NOT EXISTS, idempotent) — kills
+  P2022/P2011-class failures on any old tenant DB; (b) create data is null-safe
+  (Number() coerced ratings, explicit null reviewerId); (c) on P2011 the route
+  self-heals — reads meta.field_name, ALTER COLUMN ... DROP NOT NULL (only for
+  non-required fields), retries the insert once; P2021/P2022/P2023 re-runs the
+  sync then retries; (d) bogus employeeId now fails fast with a clear 400.
+- VERIFICATION: bun unit tests for isSafeDocumentUrl (14 unsafe + 8 safe cases)
+  ALL PASS; full tsc --noEmit shows ZERO errors in the changed ranges (1896
+  pre-existing codebase-wide errors, build runs with ignoreBuildErrors:true);
+  Turbopack compile of the whole app PASSED ("Compiled successfully in 77s").
+  NOTE: sandbox is a 4GB cgroup — full build OOM-kills in the page-data phase
+  (exit 137, monitored used 3.85GB); compile phase + typecheck cover the code,
+  Vercel 8GB runners complete the full build (a failed Vercel build never
+  replaces the running deployment, so prod risk is nil).
+- DEPLOY: pushed to Marqaitech/3-Boxes-HRMS (maheshkpreddy author), polling
+  GitHub commit status for both Vercel projects, then smoke-testing LIVE + demo.
+
+Stage Summary:
+- All 5 QA items fixed: leave metric is Leave-Module-driven, tenure overview
+  shows a real distribution, document links validated at 4 layers, export
+  honours filters, probation save hardened with schema self-heal.
+- Investigation artifacts: scripts/inspect-performance-review.js,
+  check-performance-review-nullability.js, repro-probation-p2011.ts,
+  test-doc-url-safety.ts (kept for future QA regressions).
+
+Task 79 (deploy addendum):
+- Push initially rejected (remote advanced with user's 71d0d9ee "Fail clearly
+  when tenant database is unavailable" + merge c0fb1f83) → rebased cleanly,
+  re-pushed as 419a7105. Both Vercel projects SUCCESS via GitHub commit status
+  (Vercel – 3-boxes-hrms + Vercel – nexus-hrms).
+- SMOKE 22/22 PASS (scripts/smoke-task79.mjs):
+  * DEMO 12/12: home 200, login, /api/leave?onLeaveToday=1 → 200 numeric,
+    export=1 status filter returns only matching statuses (inactive set empty
+    = correct, all active rows verified), probation GET 200 (new sync helper),
+    javascript: / data:text/html / data:image/svg+xml doc URLs ALL rejected 400,
+    safe https doc 201 + cleanup delete 200.
+  * LIVE 10/10: same signatures, read-only + rejection probes only (no writes).
+    onLeaveToday=0 on both sites (no approved leaves covering today — correct).
+
+---
+Task ID: 80
+Agent: Super Z (main agent)
+Task: User report — "Export filtered records … still not working in the tenant link when tested."
+
+Work Log:
+- REPRODUCED against LIVE API (scripts/probe-live-export-filters.mjs, read-only):
+  the Task 79 server-side filters DO work on the tenant link (status=terminated
+  returns exactly the 1 terminated row; active/inactive/terminated/resigned all
+  filter correctly; departmentId + search filter correctly; pagination OK).
+- ROOT CAUSE: semantics mismatch. LIVE tenant has ZERO employees with status
+  'inactive' — separated staff carry 'terminated' (Termination flow) or
+  'resigned' (Resignation flow); NO employee flow ever writes 'inactive'.
+  The Inactive stats card counts status != 'active' (= 1 on LIVE), but the
+  Inactive FILTER matched exact 'inactive' (= 0). User sees card "Inactive: 1",
+  filters Inactive → empty list → export hits "No data to export" — reads as
+  "export filtered records still not working".
+- FIX (3 layers):
+  (a) /api/employees GET: status=inactive now means status IN
+      (inactive, terminated, resigned) — consistent with the card; on_leave
+      keeps its own option. Applied to BOTH stats paths (super-admin quick
+      counts + includeStats) so the card and the filter always agree.
+      Card "Inactive" no longer wrongly includes on_leave employees.
+  (b) Employees page: export now also carries the Designation filter
+      (designationId) — the designation chip previously existed but was never
+      sent by list or export (decorative). Server GET now accepts
+      designationId. List + export stay mirror-identical.
+  (c) handleExportCSV: removed the silent fallback to allEmployees (the
+      active-only stats list) on fetch failure — it exported the wrong rows
+      and looked exactly like "filters ignored". Now fails loudly with a toast.
+- Hardening: SW cache v5→v6 (public/sw.js) so post-deploy clients drop any
+  cached pre-fix assets (stale-tab insurance).
+- VERIFICATION: tsc --noEmit → error set byte-identical to HEAD baseline
+  (all pre-existing; zero new errors from this task); both edited files
+  parse clean. Full next build OOM-killed in sandbox (4GB cgroup, known
+  Task 79 limitation) — Vercel 8GB runners complete it; failed builds never
+  replace the running deployment.
+- POST-DEPLOY: verify on LIVE export=1&status=inactive returns the terminated
+  row (new semantics) + demo regressions (active/terminated exact, designation
+  filter) via scripts/verify-task80.mjs.
+
+Stage Summary:
+- Export-filtered-records now behaves correctly on the tenant link:
+  "Inactive" matches how the product counts Inactive (card = filter = export),
+  termination/resignation flows are covered, export failure is loud instead
+  of silently wrong, and the designation filter is real.
+
+Task 80 (deploy addendum):
+- Pushed 9e848c5c (maheshkpreddy) → BOTH Vercel projects SUCCESS
+  (Vercel – 3-boxes-hrms + Vercel – nexus-hrms via GitHub commit status).
+- POST-DEPLOY VERIFY (scripts/verify-task80.mjs): 14/14 PASS.
+  * LIVE: status=inactive export → 1 row (the terminated employee, new
+    semantics); global Inactive card (1) == filter rows (1); active exact
+    (10); terminated exact (1); designationId filters (1); on_leave exact.
+  * DEMO: same signatures; self-scoped admin card 0 == rows 0.
+- Note: quick-stats path (limit<=1, super-admin home) is intentionally
+  unscoped and may differ from scoped page stats — page cards use the
+  scoped normal path, so card == filter for real users.
+
+---
+Task ID: 81
+Agent: Super Z (main agent)
+Task: User report — (1) employee photos not showing in employee list + view, (2) management list shows terminated employee as reportee (should be 8 not 9), (3) management employee should not appear in the employee list. "update the following in the vercel now".
+
+Work Log:
+- PHOTOS — REPRODUCED on LIVE: 9 of 11 employees have stored photos; the list
+  API returns avatar as /api/employees/{id}/photo paths (attachListPhotoUrls),
+  but getTokenFromHeaders ONLY accepts the Authorization Bearer header (cookies
+  deliberately rejected for per-tab identity) and <img> tags CANNOT send
+  headers → every photo <img> got 401 → broken images in table + grid views.
+  (WITH-AUTH probe returned 200 image/jpeg — data intact; [id] detail view
+  returns the inline data URL so it was unaffected.)
+  FIX: photo route accepts ?token= fallback (same pattern as reports export,
+  JWT expiry bounds exposure, Cache-Control private); employeePhotoApiPath()
+  embeds the caller's bearer token; employees GET + attendance GET pass their
+  request's token into the generated photo URLs.
+- MANAGEMENT LIST — root cause: getDirectReports() counted ALL employees with
+  reportingManagerId === manager, with NO status filter → the terminated
+  MARQ005 counted, giving MARQ001 9 reportees instead of 8.
+  FIX (management/page.tsx): currentEmployees = status active|on_leave only;
+  reportee lists/counts, criterion-2 (reporting-manager membership) and the
+  management list itself now exclude terminated/resigned/inactive.
+- EMPLOYEE LIST — management members (definition identical to the Management
+  List page: isManagement OR mgmt-level user role OR current direct reports)
+  are now EXCLUDED from the Employee List via new server param
+  excludeManagement=1 (where.NOT OR [...]; skipped for scope=self). The list
+  page sends it by default; a "Management hidden/shown" toggle (violet, next
+  to Export) brings them back when admins need to edit those records; the CSV
+  export mirrors the toggle so the file always matches the screen. Stats cards
+  are computed with the same where → cards agree with the visible list.
+  Other consumers (management page, pickers via fetchAllEmployees, attendance,
+  payroll) are unaffected.
+- VERIFICATION: all 6 changed files PARSE OK; tsc --noEmit error set identical
+  to the pre-change baseline (all pre-existing; zero new errors).
+
+Stage Summary:
+- Photos render again in the employee list/grid (token-embedded photo URLs).
+- Management list reportees = current employees only (8 on LIVE, was 9).
+- Management members hidden from the Employee List by default with a toggle;
+  export matches the screen.
+
+Task 81 (deploy addendum):
+- Pushed 412a978d (maheshkpreddy) → BOTH Vercel projects SUCCESS.
+- POST-DEPLOY VERIFY (scripts/verify-task81.mjs): 13/13 PASS.
+  * LIVE: 9/9 photo URLs embed token; img-tag simulation (no auth header)
+    → 200 image/jpeg 108KB; excludeManagement leaves 0 management members
+    (MARQ001 hidden, toggle restores 11/1); stats.total 10 == rows 10;
+    Inactive export (Task 80) intact (1 separated row).
+  * DEMO: no regressions; self-scoped admin unaffected.
+
+---
+Task ID: 82
+Agent: Super Z (main agent)
+Task: User request — "In the attendance module for the management the in and out punches should be automatically be present as per the attendance rules set or roaster set even though they punch in or not it should mark it as present for the management employees. give this as option to enable or disable in the attendance rules. pls update these in vercel now."
+
+Work Log:
+- SCOPE: the long QA list in the message is a status tracker (Pending / Management
+  Discussion / Phase-II / Retesting items); the actionable dev request is the
+  management auto-present attendance feature + enable/disable toggle.
+- SYNC: local sandbox git was stale (245c1008 / Task 76); reset --hard to remote
+  tip d368e976 (Task 81 addendum). Task 81 (photos/reportees/exclusion) was
+  already deployed 13/13 — confirmed from worklog + remote log before starting.
+- SCHEMA: AttendancePolicyConfig.autoPresentManagementEnabled BOOLEAN NOT NULL
+  DEFAULT false added to prisma/schema.prisma (+ Prisma client regenerated).
+- DDL PRE-APPLY: scripts/apply-auto-present-tenants.js ran BEFORE deploy —
+  column added to all 3 DBs (platform neondb, tenant_3boxes-hrms-demo,
+  tenant_marqaitechgroup), idempotent ADD COLUMN IF NOT EXISTS.
+- ENGINE: new src/lib/attendance-auto-present.ts — runManagementAutoPresent():
+  * Management definition IDENTICAL to the Management List page: isManagement
+    flag OR management-level user role (manager/admin/tenant_admin/hr_admin/
+    super_admin) OR reporting manager of ≥1 ACTIVE employee.
+  * Shift resolution per date: roster assignment (RotationalRoster pattern,
+    day/week rotation anchored to roster.startDate, cross-midnight aware) →
+    fallback AttendancePolicyConfig shiftStartDefault/shiftEndDefault +
+    breakDurationMinutes.
+  * Safety: real punches ALWAYS win (rows with both punches untouched);
+    missing check-in only (forgot punch-out) → checkOut filled from shift end;
+    approved LeaveRequest covers the day → skipped; weekends (Setting-table
+    config) + non-elective holidays skipped; future dates never processed;
+    days before dateOfJoining skipped. Created rows stamped punchMethod='auto'
+    + notes 'Auto-present (management rule · <source>' so reports/audits can
+    distinguish them. Per-row try/catch so a unique-constraint race can't
+    abort a whole backfill.
+  * Timezone: local wall-clock instants built from the caller's
+    getTimezoneOffset() (IST default −330) — matches manual-punch storage.
+- API: new /api/attendance/auto-present — GET {enabled, shift defaults};
+  POST (admin only) { date? | backfillDays 0..31, tzOffset, todayKey,
+  employeeId? } → created/updated/skipped counts + per-employee details.
+- POLICY API: autoPresentManagementEnabled added to /api/attendance-policy-config
+  GET defaults (×2) + PUT mapping (partial-save safe).
+- UI: /attendance/settings — new "Auto-Present for Management Employees" card
+  (teal, under General Settings): toggle + Save & Enable/Disable, "Apply for
+  today" and "Backfill last 7 days" run buttons with live result toasts.
+- UI: /attendance admin view — fetchAdminAttendance now POSTs the sync for the
+  selected day (only today/past) before loading the roster, so management
+  members show Present with auto in/out immediately; success toast when rows
+  created/updated; sync failure is non-fatal.
+- SW: cache bumped 3boxes-hrms-v6 → v7 (stale-bundle insurance).
+- TYPECHECK: tsc --noEmit (max-old-space 3072) — 0 errors in engine/route/
+  policy-config/attendance page; only the 3 pre-existing settings-page
+  PolicyRecord casts remain (baseline; verified present at HEAD).
+
+Stage Summary:
+- Management employees can now be auto-marked Present (in/out per attendance
+  rules or roster shift) via a server-side toggle in Attendance Settings, with
+  admin run/backfill controls; real punches, leave, weekends and holidays are
+  always respected. Toggle default OFF; LIVE/demo will be enabled + verified
+  post-deploy in the deploy addendum.
+
+Task 82 (deploy addendum):
+- Push 941213cf → BOTH Vercel projects SUCCESS; first verify exposed a
+  REAL-INFRA ROOT CAUSE: /api/attendance-policy-config GET/PUT were failing on
+  LIVE with the column-missing 503 EVEN FOR LEGACY FIELDS (pre-existing!).
+  Cause: Vercel's runtime DATABASE_URL points at the ep-icy-star (ap-southeast-1)
+  Neon stack, while scripts/apply-*-tenants.js hardcode the ep-blue-fire
+  (us-east-1) stack — two parallel DB stacks. The LIVE tenant DB copy the app
+  actually uses did not have the new column (and GET had been silently falling
+  back to default config for who knows how long).
+- FIX (b9c78bac): self-healing ensureAutoPresentColumn(db) — idempotent
+  CREATE TABLE IF NOT EXISTS + ADD COLUMN IF NOT EXISTS executed once per
+  process against whichever DB handle the request resolved to. Wired into
+  /api/attendance-policy-config GET+PUT and /api/attendance/auto-present
+  GET+POST. This heals the LIVE stack, demo, and any future tenant DBs with
+  zero registry knowledge. (Side benefit: policy-config PUT un-breaks on LIVE
+  for ALL fields, not just the new flag.)
+- POST-DEPLOY VERIFY (scripts/verify-task82.mjs): 11/11 PASS.
+  * LIVE: toggle saved (PUT 200, flag=true); status reads the REAL config row
+    (shift 09:00-17:30 — proving the fallback-defaults bug is gone); engine
+    backfill created 5 rows for 1 management employee over 8 days (3 weekend
+    days correctly skipped); second run idempotent (created=0); 2026-10-09
+    shows MARQ001 present 09:00→17:30 wh=8 punchMethod=auto notes='Auto-present
+    (management rule · policy-default)' while every biometric-punched row was
+    left untouched.
+  * DEMO: login is finance_admin → toggle/engine correctly role-gated 403
+    (attendance settings are admin-only by design); GETs work.
+  * auto-present left ENABLED on LIVE (the user-requested behaviour); toggle
+    lives in Attendance → Settings → "Auto-Present for Management Employees"
+    with Apply-for-today + Backfill-7-days controls.
+
+---
+Task ID: 83
+Agent: Super Z (main agent)
+Task: User request — (1) "the attendance logs which were already there earlier are not shown now in the attendance dashboard"; (2) muster roll should show in and out time along with the colour code; (3) /attendance/biometric punches should show time in/out + add filters (employee, department, type, etc.). "pls check and update in vercel now."
+
+Work Log:
+- DIAGNOSIS (read-only probes + headless browser on LIVE):
+  * #1 ROOT CAUSE: login API never returns user.employee, and attendance
+    page fetchEmployee had `if (isAdmin) return;` — so for admin users
+    (Vardhani Reddy / MARQ001, tenant_admin) the self-view employee stayed
+    null and "My Attendance" was permanently empty (0 logs, Not Checked In)
+    even though MARQ001 has 10 rows. Reproduced in browser: tab showed
+    zeros; APIs returned data fine.
+  * #2 ROOT CAUSE: /api/attendance GET silently IGNORED employeeIds /
+    startDate / endDate params, and the muster-roll page mapped records by
+    DAY-OF-MONTH ONLY — September records landed in the October grid
+    (probe: mapped day-count {1:9,4:1,5:9,...,28:10,29:9,30:9} while
+    October only had rows for 1,5-9). No in/out times were rendered.
+  * #3 ROOT CAUSE: biometric punch-log API had no punchType/departmentId
+    filters; bare-date `to` filter was `lte` UTC-midnight (hid almost the
+    whole end day); UI was a raw event list only — no day-wise In/Out.
+- FIX 1 (src/app/(dashboard)/attendance/page.tsx): removed the admin
+  early-return so admins fall through to the email/userId employee lookup;
+  My Attendance + Check In/Out now work for admins who are employees.
+- FIX 2 (src/app/api/attendance/route.ts GET): employeeIds (comma list,
+  intersects with self-scope) + startDate/endDate month window with the
+  dual UTC/IST-midnight storage handling; single-date path unchanged.
+- FIX 3 (muster-roll/page.tsx): records keyed by FULL calendar date
+  (recordDateKey: UTC-midnight → ISO date, else IST calendar date) and
+  gated to the selected month; API called with real month range; day cells
+  now show status colour + P/A/L label + compact punch In–Out times
+  (e.g. "4:43a – 2:00p") with hover tooltips; legend updated; status
+  filter narrows rows (employee has ≥1 day of that status); summary cards
+  use the filtered set.
+- FIX 4 (api/attendance/biometric/punch-log/route.ts): punchType whitelist
+  filter, departmentId filter (via employee.departmentId), full-day
+  from/to windows (from = min(UTC,IST) midnight; to = +24h), department
+  in employee select, IST business-day summary counts ("today" no longer
+  starts at 05:30 IST).
+- FIX 5 (biometric/page.tsx punches tab): filter bar (Employee,
+  Department, Type, From/To dates, Flagged-only, Clear) wired server-side;
+  new "In / Out Summary" default view = per employee per IST day: first
+  check_in, last check_out, first break_in, last break_out, punch count,
+  devices, flag badge; "All Punch Events" keeps the raw list (now with
+  department under the name); useMemo day-grouping; icons/imports added.
+- TYPECHECK: tsc --noEmit (NODE_OPTIONS 3072) — 1795 errors at HEAD
+  baseline == 1795 with changes → 0 new errors (all pre-existing in
+  seed-demo + files excluded from the Vercel build).
+- DEPLOY: pushed e6d23a4b (maheshkpreddy) → BOTH Vercel projects SUCCESS
+  (poll-vercel-status.sh).
+- POST-DEPLOY VERIFY (scripts/verify-task83.mjs): 26/26 PASS.
+  * LIVE: muster-roll month call returns 54 October rows (all in-month,
+    all with punches, total matches); single-date filter regression OK;
+    punch-log: punchType=check_in → 18/18; from/to 7-day window → 84/84
+    in-window; employeeId(MARQ010) → 14; departmentId(Engineering) → 26;
+    department field present; auto-present toggle intact (enabled=true);
+    admin self-view has 10 rows for MARQ001.
+  * DEMO: no regressions (0 October rows → vacuous checks pass;
+    self-view 23 rows for EMP-TNS-003; auto-present disabled as left).
+- BROWSER VERIFY on LIVE (as Vardhani Reddy):
+  * /attendance → My Attendance: "10 Present · 2 Present (Late) · 40h 1m
+    Total", Present Days 10 — logs RESTORED.
+  * /attendance/muster-roll: October grid, colour-coded cells with punch
+    In–Out times (MARQ011 "4:43a – 2:00p" etc.), no September bleed.
+  * /attendance/biometric → Punches: filter bar renders; In/Out Summary
+    16 employee-days; selecting Engineering narrows to 6; All Punch
+    Events view intact with departments.
+
+Stage Summary:
+- Attendance dashboard "My Attendance" works for admin users again (root
+  cause was the admin early-return, not data loss); muster roll is
+  month-accurate and shows in/out times with the colour code; biometric
+  punches have a day-wise In/Out summary plus employee/department/type/
+  date/flag filters. All verified 26/26 via API + visually on LIVE.

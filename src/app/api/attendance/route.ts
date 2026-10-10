@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { resolveCompanyScope } from '@/lib/companyScope';
 import { withSchemaSync } from '@/lib/schema-sync';
+import { getTokenFromHeaders } from '@/lib/auth';
 import { employeeIdsWithStoredPhoto, employeePhotoApiPath } from '@/lib/profile-photo';
 
 function corsHeaders() {
@@ -28,17 +29,10 @@ export async function GET(request: Request) {
     }
 
     const { searchParams } = new URL(request.url);
-    const page = Math.max(1, Number.parseInt(searchParams.get('page') || '1', 10) || 1);
-    // Keep large report requests bounded. The muster roll passes selected
-    // employee IDs and a month range, so it no longer needs an unbounded
-    // tenant-wide attendance read.
-    const limit = Math.min(5000, Math.max(1, Number.parseInt(searchParams.get('limit') || '20', 10) || 20));
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '20');
     const employeeId = searchParams.get('employeeId');
     const date = searchParams.get('date');
-    const startDate = searchParams.get('startDate');
-    const endDate = searchParams.get('endDate');
-    const requestedEmployeeIds = searchParams.get('employeeIds');
-    const includePhotos = searchParams.get('includePhotos') !== '0';
     const status = searchParams.get('status');
 
     const where: Record<string, unknown> = {};
@@ -59,12 +53,6 @@ export async function GET(request: Request) {
           { headers: corsHeaders() }
         );
       }
-    } else if (scope.scope === 'team') {
-      // Team-scoped users must remain limited to their visible employees,
-      // including when a report supplies an employeeIds filter.
-      where.employeeId = scope.visibleEmployeeIds.length > 0
-        ? { in: scope.visibleEmployeeIds }
-        : '__no_visible_employees__';
     } else if (scope.companyId) {
       // Admin with a specific company selected via CompanySwitcher
       where.employee = { companyId: scope.companyId };
@@ -72,44 +60,43 @@ export async function GET(request: Request) {
     // scope === 'all' && no companyId → admin sees all companies
 
     // Apply additional filters on top of company scope
-    if (requestedEmployeeIds !== null) {
-      const requestedIds = [...new Set(requestedEmployeeIds.split(',').map((id) => id.trim()).filter(Boolean))].slice(0, 500);
-      const scopedIds = scope.scope === 'self'
-        ? (scope.ownEmployeeId ? [scope.ownEmployeeId] : [])
-        : scope.scope === 'team'
-          ? scope.visibleEmployeeIds
-          : null;
-      const allowedIds = scopedIds ? requestedIds.filter((id) => scopedIds.includes(id)) : requestedIds;
-      where.employeeId = allowedIds.length > 0 ? { in: allowedIds } : '__no_matching_employees__';
-    }
-    if (employeeId) {
-      const existingFilter = where.employeeId;
-      if (typeof existingFilter === 'string' && existingFilter !== employeeId) {
-        where.employeeId = '__employee_out_of_scope__';
-      } else if (existingFilter && typeof existingFilter === 'object' && 'in' in existingFilter) {
-        const allowed = (existingFilter as { in: string[] }).in;
-        where.employeeId = allowed.includes(employeeId) ? employeeId : '__employee_out_of_scope__';
-      } else {
-        where.employeeId = employeeId;
+    // Task 83: `employeeIds` (comma-separated) + `startDate`/`endDate` month
+    // range — the Muster Roll page queries a whole month for a set of
+    // employees; previously these params were silently IGNORED, so the grid
+    // mixed records from other months (whatever fit in the default page).
+    const employeeIdsParam = searchParams.get('employeeIds');
+    if (employeeIdsParam) {
+      const ids = employeeIdsParam.split(',').map(s => s.trim()).filter(Boolean);
+      if (ids.length > 0) {
+        // Intersect with a self-scope filter if one is already applied
+        if (where.employeeId && typeof where.employeeId === 'string') {
+          where.employeeId = ids.includes(where.employeeId) ? where.employeeId : '__none__';
+        } else {
+          where.employeeId = { in: ids };
+        }
       }
     }
-
-    const parseDateKey = (value: string | null): Date | null => {
-      if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
-      const parsed = new Date(`${value}T00:00:00.000Z`);
-      return Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== value ? null : parsed;
-    };
-
-    if (startDate || endDate) {
-      const start = parseDateKey(startDate);
-      const end = parseDateKey(endDate);
-      if (!start || !end || start > end) {
-        return NextResponse.json({ error: 'Invalid attendance date range' }, { status: 400, headers: corsHeaders() });
+    if (employeeId) where.employeeId = employeeId;
+    const startDate = searchParams.get('startDate');
+    const endDate = searchParams.get('endDate');
+    if (startDate && endDate) {
+      const s = new Date(startDate);
+      const e = new Date(endDate);
+      if (!isNaN(s.getTime()) && !isNaN(e.getTime())) {
+        // Rows are stored either at UTC midnight of the local calendar day
+        // (`YYYY-MM-DDT00:00:00.000Z`) or at IST midnight (`…+05:30` =
+        // previous day 18:30 UTC). Start from the earlier of the two for the
+        // first day; end at UTC midnight of the day AFTER the last day (this
+        // includes both storage formats for the last day, excludes the next).
+        const utcStart = new Date(startDate.length === 10 ? `${startDate}T00:00:00.000Z` : s.getTime());
+        const istStart = new Date(startDate.length === 10 ? `${startDate}T00:00:00.000+05:30` : s.getTime());
+        const rangeStart = istStart < utcStart ? istStart : utcStart;
+        const endDay = endDate.length === 10 ? endDate : new Date(e.getTime() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+        // UTC midnight of the day AFTER the last day
+        const rangeEnd = new Date(new Date(`${endDay}T00:00:00.000Z`).getTime() + 24 * 60 * 60 * 1000);
+        where.date = { gte: rangeStart, lt: rangeEnd };
       }
-      const istStart = new Date(`${startDate}T00:00:00.000+05:30`);
-      const endExclusive = new Date(end.getTime() + 24 * 60 * 60 * 1000);
-      where.date = { gte: istStart < start ? istStart : start, lt: endExclusive };
-    } else if (date && parseDateKey(date)) {
+    } else if (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
       // Punches are stored either as UTC midnight of the local calendar day
       // (`YYYY-MM-DDT00:00:00.000Z`) or as IST midnight (`…+05:30` = previous
       // 18:30 UTC). Exact `new Date(date)` equality missed one of those and
@@ -145,9 +132,7 @@ export async function GET(request: Request) {
     ]);
 
     const photoIds = [...new Set(attendanceRaw.map((row) => row.employee?.id).filter(Boolean))] as string[];
-    const hasPhoto = includePhotos
-      ? await employeeIdsWithStoredPhoto(db, photoIds)
-      : new Set<string>();
+    const hasPhoto = await employeeIdsWithStoredPhoto(db, photoIds);
     const attendance = attendanceRaw.map((row) => {
       const emp = row.employee;
       if (!emp) return { ...row, employee: null };
@@ -155,7 +140,7 @@ export async function GET(request: Request) {
         ...row,
         employee: {
           ...emp,
-          avatar: hasPhoto.has(emp.id) ? employeePhotoApiPath(emp.id, request.url) : null,
+          avatar: hasPhoto.has(emp.id) ? employeePhotoApiPath(emp.id, request.url, getTokenFromHeaders(request)) : null,
         },
       };
     });

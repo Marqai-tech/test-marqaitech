@@ -314,6 +314,8 @@ export const navSections: NavSection[] = [
       // ── Settings (admin only) ──
       { label: 'Settings', href: '#settings-divider', icon: <FiSettings className="w-3.5 h-3.5" />, moduleKey: 'attendance', roles: ['super_admin', 'tenant_admin', 'admin'], isDivider: true },
       { label: 'Attendance Settings', href: '/attendance/settings', icon: <FiSettings className="w-4 h-4" />, moduleKey: 'attendance', roles: ['super_admin', 'tenant_admin', 'admin'], isNew: true },
+      { label: 'Attendance Policy Rules', href: '/attendance/policy-rules', icon: <FiSliders className="w-4 h-4" />, moduleKey: 'attendance', roles: ['super_admin', 'tenant_admin', 'admin'], isNew: true },
+      { label: 'Approval Workflows', href: '/attendance/approval-workflows', icon: <FiGitBranch className="w-4 h-4" />, moduleKey: 'attendance', roles: ['super_admin', 'tenant_admin', 'admin'], isNew: true },
 
       // ── Reports (admin/manager only) ──
       { label: 'Reports', href: '#reports-divider', icon: <FiFileText className="w-3.5 h-3.5" />, moduleKey: 'attendance', roles: ['super_admin', 'tenant_admin', 'admin', 'manager'], isDivider: true },

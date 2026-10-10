@@ -77,6 +77,13 @@ interface HeadcountTrend {
   exits: number;
 }
 
+/* QA — Tenure Overview: real distribution computed from Employee.dateOfJoining */
+interface TenureBucket {
+  label: string;
+  count: number;
+  color: string;
+}
+
 /* ── Color palette for departments ── */
 const DEPT_COLORS = [
   'bg-green-500', 'bg-emerald-500', 'bg-teal-500', 'bg-orange-500',
@@ -110,6 +117,8 @@ export default function EmployeeDashboardPage() {
   const [departments, setDepartments] = useState<DepartmentDist[]>([]);
   const [recentUpdates, setRecentUpdates] = useState<RecentUpdate[]>([]);
   const [headcountTrend, setHeadcountTrend] = useState<HeadcountTrend[]>([]);
+  const [tenureDist, setTenureDist] = useState<TenureBucket[]>([]);
+  const [tenureCounted, setTenureCounted] = useState(0);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'overview' | 'analytics' | 'updates'>('overview');
   const [searchQuery, setSearchQuery] = useState('');
@@ -192,8 +201,49 @@ export default function EmployeeDashboardPage() {
         });
 
         const activeCount = allEmps.filter((e: any) => e.status === 'active').length;
-        const leaveCount = allEmps.filter((e: any) => e.status === 'on_leave').length;
         const inactiveCount = allEmps.filter((e: any) => e.status !== 'active' && e.status !== 'on_leave').length;
+
+        // ─── QA fix: "Employees on Leave" must mirror the Leave Module ───
+        // Previously this counted Employee.status === 'on_leave', which is a
+        // stale snapshot that does not react to approve/cancel actions.
+        // Now we ask /api/leave (onLeaveToday=1) to count DISTINCT employees
+        // holding an APPROVED leave record covering today — approved leaves
+        // count, cancelled/rejected don't, and only currently-employed people
+        // (active/on_leave) are included. Employee.status stays as fallback.
+        let leaveCount = allEmps.filter((e: any) => e.status === 'on_leave').length;
+        try {
+          const leaveRes = await fetch(`/api/leave?onLeaveToday=1${scopeQuery}`, { headers });
+          if (leaveRes.ok) {
+            const leaveData = await leaveRes.json();
+            if (typeof leaveData.onLeaveToday === 'number') leaveCount = leaveData.onLeaveToday;
+          }
+        } catch { /* keep status-based fallback */ }
+
+        // ─── QA fix: Tenure Overview — real distribution from joining dates ───
+        // Buckets: <6m, 6-12m, 1-3y, 3y+. Same population as Avg Tenure
+        // (every employee with a dateOfJoining), months clamped at 0 so
+        // future-dated joining dates never produce negative tenure.
+        const tBuckets = [
+          { label: '0-6 months', count: 0, color: 'bg-green-100 text-green-700 border-green-200' },
+          { label: '6-12 months', count: 0, color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
+          { label: '1-3 years', count: 0, color: 'bg-amber-100 text-amber-700 border-amber-200' },
+          { label: '3+ years', count: 0, color: 'bg-teal-100 text-teal-700 border-teal-200' },
+        ];
+        let tCounted = 0;
+        (allEmps as any[]).forEach((emp: any) => {
+          if (!emp.dateOfJoining) return;
+          const joinDate = new Date(emp.dateOfJoining);
+          if (isNaN(joinDate.getTime())) return;
+          const months = Math.max(0,
+            (now.getFullYear() - joinDate.getFullYear()) * 12 + (now.getMonth() - joinDate.getMonth()));
+          tCounted++;
+          if (months < 6) tBuckets[0].count++;
+          else if (months < 12) tBuckets[1].count++;
+          else if (months < 36) tBuckets[2].count++;
+          else tBuckets[3].count++;
+        });
+        setTenureDist(tBuckets);
+        setTenureCounted(tCounted);
 
         // ─── Compute lifecycle counts from employee data + lifecycle APIs ───
         // Read probation period from settings (default 6 months = ~180 days)
@@ -324,6 +374,8 @@ export default function EmployeeDashboardPage() {
       setDepartments(getSampleDepartments());
       setRecentUpdates([]);
       setHeadcountTrend([]);
+      setTenureDist([]);
+      setTenureCounted(0);
       setLifecycleCounts({ onProbation: 0, transfers: 0, resignations: 0, terminations: 0, rejoins: 0 });
     } finally {
       setLoading(false);
@@ -832,20 +884,28 @@ export default function EmployeeDashboardPage() {
               Tenure Overview
             </h3>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              {[
-                { label: '0-6 months', color: 'bg-green-100 text-green-700 border-green-200' },
-                { label: '6-12 months', color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
-                { label: '1-3 years', color: 'bg-amber-100 text-amber-700 border-amber-200' },
-                { label: '3+ years', color: 'bg-teal-100 text-teal-700 border-teal-200' },
-              ].map(t => (
-                <div key={t.label} className={`rounded-lg border p-4 text-center ${t.color}`}>
-                  <p className="text-2xl font-bold">—</p>
-                  <p className="text-xs mt-1 font-medium">{t.label}</p>
-                </div>
-              ))}
+              {tenureDist.length > 0 ? tenureDist.map(t => {
+                const pct = tenureCounted > 0 ? Math.round((t.count / tenureCounted) * 100) : 0;
+                return (
+                  <div key={t.label} className={`rounded-lg border p-4 text-center ${t.color}`}>
+                    <p className="text-2xl font-bold">{t.count}</p>
+                    <p className="text-xs mt-1 font-medium">{t.label}</p>
+                    <p className="text-[10px] mt-0.5 opacity-70">{pct}% of workforce</p>
+                  </div>
+                );
+              }) : (
+                ['0-6 months', '6-12 months', '1-3 years', '3+ years'].map(label => (
+                  <div key={label} className="rounded-lg border p-4 text-center bg-slate-50 text-slate-400 border-slate-200">
+                    <p className="text-2xl font-bold">0</p>
+                    <p className="text-xs mt-1 font-medium">{label}</p>
+                  </div>
+                ))
+              )}
             </div>
             <p className="text-xs text-thb-text-secondary mt-3 text-center">
-              Detailed tenure breakdown requires employee date-of-joining data. Connect your employee records for live analytics.
+              {tenureCounted > 0
+                ? `Calculated from date of joining for ${tenureCounted} employee${tenureCounted === 1 ? '' : 's'} with joining dates on record.`
+                : 'No employee joining dates on record yet — add employees with their date of joining to see the tenure breakdown.'}
             </p>
           </div>
         </>

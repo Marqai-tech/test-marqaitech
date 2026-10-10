@@ -27,6 +27,7 @@ import {
   FiRefreshCw,
   FiDatabase,
   FiCoffee,
+  FiInfo,
 } from 'react-icons/fi';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
@@ -311,6 +312,12 @@ export default function AttendancePage() {
   });
   const [viewMode, setViewMode] = useState<'table' | 'calendar'>('calendar');
 
+  /* Task 84: per-day punch counts for the current month — powers the
+   * "Recent days" strip so admins can see at a glance WHICH days have
+   * punches and jump straight to them (weekend/holiday days show zero
+   * punches by design, which previously read as "logs missing"). */
+  const [monthPunchCounts, setMonthPunchCounts] = useState<Map<string, number>>(new Map());
+
   /* ── Detail modal ── */
   const [detailRecord, setDetailRecord] = useState<AttendanceRecord | null>(null);
 
@@ -318,6 +325,25 @@ export default function AttendancePage() {
   const fetchAdminAttendance = useCallback(async () => {
     try {
       setAdminLoading(true);
+      // Task 82: Auto-present for management — before reading the roster, ask
+      // the server to create/fill auto-present rows for the selected day.
+      // No-op when the toggle is off in Attendance Settings; real punches,
+      // approved leave, weekends and holidays are never overwritten.
+      if (selectedDate <= localDateKey(new Date())) {
+        try {
+          const syncRes = await fetch('/api/attendance/auto-present', {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ date: selectedDate, tzOffset: new Date().getTimezoneOffset(), todayKey: localDateKey(new Date()) }),
+          });
+          if (syncRes.ok) {
+            const syncData = await syncRes.json().catch(() => null);
+            if ((syncData?.created || 0) + (syncData?.updated || 0) > 0) {
+              toast.success(syncData?.message || 'Management auto-present applied');
+            }
+          }
+        } catch { /* non-fatal — the roster still loads */ }
+      }
       const params = new URLSearchParams({
         date: selectedDate,
         limit: '200',
@@ -412,10 +438,14 @@ export default function AttendancePage() {
         });
         return;
       }
-      if (isAdmin) {
-        return;
-      }
-      // Fallback: fetch from API and match by email or userId
+      // Task 83: admins must ALSO fall through to the API lookup.
+      // The login response never includes user.employee, so the previous
+      // `if (isAdmin) return;` early-exit left `employee` null for every
+      // admin — the My Attendance tab (calendar, table, stats) then showed
+      // zero logs forever, and Check In/Out errored with "Employee record
+      // not found". Admins who are also employees (e.g. HR manager MARQ001)
+      // now resolve their record by email/userId below. Admins without an
+      // employee row simply find no match and stay in the empty state.
       const sq = scopeQuery();
       const employeeLimit = getDataScope(user?.role || '') === 'self' ? 1 : 500;
       const res = await fetch(`/api/employees?limit=${employeeLimit}${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
@@ -458,6 +488,35 @@ export default function AttendancePage() {
   useEffect(() => { if (isAdmin && activeTab === 'admin') queueMicrotask(() => fetchAdminAttendance()); }, [fetchAdminAttendance, activeTab, isAdmin]);
   useEffect(() => { queueMicrotask(() => fetchOrgContext()); }, [fetchOrgContext]);
   useEffect(() => { queueMicrotask(() => fetchApprovedLeaves()); }, [fetchApprovedLeaves]);
+
+  /* Task 84: month-window punch counts for the Recent-days strip. Counted
+   * for TODAY's month (the strip always shows the last 7 calendar days);
+   * re-counted when the selected date changes so a fresh check-in shows up
+   * after the next navigation/refresh. */
+  useEffect(() => {
+    if (!isAdmin || activeTab !== 'admin') return;
+    (async () => {
+      try {
+        const now = new Date();
+        const m = now.getMonth() + 1;
+        const last = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+        const sq = scopeQuery();
+        const res = await fetch(
+          `/api/attendance?startDate=${now.getFullYear()}-${pad2(m)}-01&endDate=${now.getFullYear()}-${pad2(m)}-${pad2(last)}&limit=10000${sq ? `&${sq}` : ''}`,
+          { headers: getAuthHeaders() }
+        );
+        if (!res.ok) return;
+        const d = await res.json();
+        const counts = new Map<string, number>();
+        (d.attendance || []).forEach((r: AttendanceRecord) => {
+          if (!r.checkIn && !r.checkOut) return;
+          const k = recordDateKey(r.date);
+          counts.set(k, (counts.get(k) || 0) + 1);
+        });
+        setMonthPunchCounts(counts);
+      } catch { /* non-fatal — the strip just shows zero counts */ }
+    })();
+  }, [isAdmin, activeTab, scopeQuery, selectedTenantId, selectedDate]);
 
   /* ── Task 57: GPS capture helper ──
    * Uses navigator.geolocation.getCurrentPosition to grab lat/lng/accuracy
@@ -731,6 +790,34 @@ export default function AttendancePage() {
       onLeave,
     };
   }, [adminRoster]);
+
+  /* ── Task 84: Recent-days strip data (last 7 calendar days) + selected-day
+   * context so an empty table on a weekend/holiday explains itself instead
+   * of looking like missing data. ── */
+  const recentDays = useMemo(() => {
+    const out: Array<{ key: string; label: string; count: number; kind: 'weekend' | 'holiday' | 'punches' | 'empty'; holiday?: string }> = [];
+    const base = new Date();
+    const weekday = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(base.getFullYear(), base.getMonth(), base.getDate() - i);
+      const key = localDateKey(d);
+      const dow = d.getDay();
+      const count = monthPunchCounts.get(key) || 0;
+      const holiday = holidayMap.get(key);
+      out.push({
+        key,
+        label: `${weekday[dow]} ${d.getDate()}`,
+        count,
+        kind: weekendDow.includes(dow) ? 'weekend' : holiday ? 'holiday' : count > 0 ? 'punches' : 'empty',
+        holiday,
+      });
+    }
+    return out;
+  }, [monthPunchCounts, weekendDow, holidayMap]);
+
+  const selectedIsWeekend = weekendDow.includes(new Date(`${selectedDate}T00:00:00`).getDay());
+  const selectedHolidayName = holidayMap.get(selectedDate);
+  const selectedHasRecords = adminAttendance.length > 0;
 
   /* ── Calendar data for selected month ──
    * Keys are built from LOCAL date parts (timezone-safe); days without a
@@ -1047,6 +1134,60 @@ export default function AttendancePage() {
               >
                 <FiRefreshCw className="w-4 h-4" />
               </button>
+            </div>
+          </div>
+
+          {/* ── Task 84: selected-day context banner — explains an empty table ── */}
+          {!adminLoading && !selectedHasRecords && (
+            <div className="thb-card p-4 border-l-4 border-l-sky-400 bg-sky-50/40">
+              <div className="flex items-start gap-3">
+                <FiInfo className="w-4 h-4 text-sky-600 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-thb-text-primary">
+                    {selectedHolidayName
+                      ? `Holiday — ${selectedHolidayName}`
+                      : selectedIsWeekend
+                        ? 'Weekend — no punches expected'
+                        : 'No punches recorded yet'}
+                  </p>
+                  <p className="text-xs text-thb-text-secondary mt-0.5 leading-relaxed">
+                    {selectedHolidayName
+                      ? `${formattedSelectedDate} is a holiday, so regular in/out punches are not expected. Pick a working day below to view its punches.`
+                      : selectedIsWeekend
+                        ? `${formattedSelectedDate} is a non-working day, so there are no in/out punches to show. Use the recent-days chips below to jump to a day with punches.`
+                        : `No attendance records exist for ${formattedSelectedDate} yet — punches appear here as employees check in. Use the recent-days chips below to open a day that already has punches.`}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── Task 84: Recent days strip — jump straight to a day with punches ── */}
+          <div className="thb-card p-3">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-[11px] font-semibold text-thb-text-secondary uppercase tracking-wider mr-1">Recent days</span>
+              {recentDays.map(d => {
+                const isSelected = selectedDate === d.key;
+                const chipCls = isSelected
+                  ? 'bg-cyan-600 text-white border-cyan-600'
+                  : d.kind === 'punches'
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                    : d.kind === 'weekend' || d.kind === 'holiday'
+                      ? 'bg-slate-100 text-slate-500 border-thb-border hover:bg-slate-200/60'
+                      : 'bg-white text-slate-500 border-thb-border hover:bg-slate-50';
+                const sub = d.kind === 'weekend' ? 'Weekend' : d.kind === 'holiday' ? (d.holiday || 'Holiday') : d.count > 0 ? `${d.count} punch${d.count !== 1 ? 'es' : ''}` : 'No punches';
+                return (
+                  <button
+                    key={d.key}
+                    onClick={() => setSelectedDate(d.key)}
+                    title={`${d.label} — ${sub}`}
+                    className={`px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors ${chipCls}`}
+                  >
+                    <span className="font-semibold">{d.label}</span>
+                    <span className={`ml-1.5 text-[10px] ${isSelected ? 'text-white/85' : 'opacity-75'}`}>· {sub}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
