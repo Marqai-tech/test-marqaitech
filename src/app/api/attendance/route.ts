@@ -60,8 +60,43 @@ export async function GET(request: Request) {
     // scope === 'all' && no companyId → admin sees all companies
 
     // Apply additional filters on top of company scope
+    // Task 83: `employeeIds` (comma-separated) + `startDate`/`endDate` month
+    // range — the Muster Roll page queries a whole month for a set of
+    // employees; previously these params were silently IGNORED, so the grid
+    // mixed records from other months (whatever fit in the default page).
+    const employeeIdsParam = searchParams.get('employeeIds');
+    if (employeeIdsParam) {
+      const ids = employeeIdsParam.split(',').map(s => s.trim()).filter(Boolean);
+      if (ids.length > 0) {
+        // Intersect with a self-scope filter if one is already applied
+        if (where.employeeId && typeof where.employeeId === 'string') {
+          where.employeeId = ids.includes(where.employeeId) ? where.employeeId : '__none__';
+        } else {
+          where.employeeId = { in: ids };
+        }
+      }
+    }
     if (employeeId) where.employeeId = employeeId;
-    if (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    const startDate = searchParams.get('startDate');
+    const endDate = searchParams.get('endDate');
+    if (startDate && endDate) {
+      const s = new Date(startDate);
+      const e = new Date(endDate);
+      if (!isNaN(s.getTime()) && !isNaN(e.getTime())) {
+        // Rows are stored either at UTC midnight of the local calendar day
+        // (`YYYY-MM-DDT00:00:00.000Z`) or at IST midnight (`…+05:30` =
+        // previous day 18:30 UTC). Start from the earlier of the two for the
+        // first day; end at UTC midnight of the day AFTER the last day (this
+        // includes both storage formats for the last day, excludes the next).
+        const utcStart = new Date(startDate.length === 10 ? `${startDate}T00:00:00.000Z` : s.getTime());
+        const istStart = new Date(startDate.length === 10 ? `${startDate}T00:00:00.000+05:30` : s.getTime());
+        const rangeStart = istStart < utcStart ? istStart : utcStart;
+        const endDay = endDate.length === 10 ? endDate : new Date(e.getTime() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+        // UTC midnight of the day AFTER the last day
+        const rangeEnd = new Date(new Date(`${endDay}T00:00:00.000Z`).getTime() + 24 * 60 * 60 * 1000);
+        where.date = { gte: rangeStart, lt: rangeEnd };
+      }
+    } else if (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
       // Punches are stored either as UTC midnight of the local calendar day
       // (`YYYY-MM-DDT00:00:00.000Z`) or as IST midnight (`…+05:30` = previous
       // 18:30 UTC). Exact `new Date(date)` equality missed one of those and

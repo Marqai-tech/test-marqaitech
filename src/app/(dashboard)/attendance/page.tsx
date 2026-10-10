@@ -427,10 +427,14 @@ export default function AttendancePage() {
         });
         return;
       }
-      if (isAdmin) {
-        return;
-      }
-      // Fallback: fetch from API and match by email or userId
+      // Task 83: admins must ALSO fall through to the API lookup.
+      // The login response never includes user.employee, so the previous
+      // `if (isAdmin) return;` early-exit left `employee` null for every
+      // admin — the My Attendance tab (calendar, table, stats) then showed
+      // zero logs forever, and Check In/Out errored with "Employee record
+      // not found". Admins who are also employees (e.g. HR manager MARQ001)
+      // now resolve their record by email/userId below. Admins without an
+      // employee row simply find no match and stay in the empty state.
       const sq = scopeQuery();
       const res = await fetch(`/api/employees?limit=500${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
       if (res.ok) {
