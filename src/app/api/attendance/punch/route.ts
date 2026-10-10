@@ -4,6 +4,7 @@ import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { resolveCompanyScope } from '@/lib/companyScope';
 import { safeAuditLog } from '@/lib/audit-safe';
+import { sendEmail } from '@/lib/email';
 
 /**
  * POST /api/attendance/punch
@@ -223,7 +224,7 @@ export async function POST(request: NextRequest) {
     // Verify employee exists + scope-permit
     const employee = await db.employee.findUnique({
       where: { id: employeeId },
-      select: { id: true, companyId: true, userId: true, employeeId: true, firstName: true, lastName: true },
+      select: { id: true, companyId: true, userId: true, employeeId: true, firstName: true, lastName: true, email: true },
     });
     if (!employee) {
       return NextResponse.json({ error: 'Employee not found' }, { status: 404, headers: corsHeaders() });
@@ -423,7 +424,7 @@ export async function POST(request: NextRequest) {
         try {
           const hrUsers = await db.user.findMany({
             where: { tenantId: scope.tenantId, role: { in: ['admin', 'tenant_admin', 'hr_admin', 'hr'] } },
-            select: { id: true },
+            select: { id: true, email: true },
           });
           const recipientIds = Array.from(new Set([employee.userId, ...hrUsers.map((u: { id: string }) => u.id)].filter(Boolean)));
           if (recipientIds.length) {
@@ -437,6 +438,17 @@ export async function POST(request: NextRequest) {
                 category: 'attendance',
                 link: '/attendance/regularize',
               })),
+            });
+          }
+          const emailRecipients = Array.from(new Set([
+            employee.email,
+            ...hrUsers.map((u: { email?: string | null }) => u.email),
+          ].filter((email): email is string => Boolean(email))));
+          if (emailRecipients.length && existingBeforeRules?.status !== 'half_day') {
+            await sendEmail({
+              to: emailRecipients,
+              subject: `Attendance action required: half-day on ${date}`,
+              html: `<p>Attendance for ${date} has been marked half-day for ${employee.firstName} ${employee.lastName}.</p><p>This may be due to the fourth late arrival of the month or production time below eight hours. Please submit regularization for HR approval.</p>`,
             });
           }
         } catch (notificationError) {
