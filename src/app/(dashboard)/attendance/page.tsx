@@ -1300,6 +1300,7 @@ export default function AttendancePage() {
                               <span className={`w-1.5 h-1.5 rounded-full ${statusConfig.dotColor}`} />
                               {statusConfig.label}
                             </span>
+                              {productionHours != null && productionHours < 8 && <div className="mt-1 text-[11px] text-amber-700 font-medium">Below 8 hours — regularization required</div>}
                           </td>
                           {/* Check In */}
                           <td className="px-4 py-3 text-sm text-thb-text-secondary">{a ? formatTime(a.checkIn) : '—'}</td>
@@ -1587,6 +1588,8 @@ export default function AttendancePage() {
                         selfTableRows.map(row => {
                           const a = row.record;
                           const statusConfig = getStatusConfig(row.status || 'not_marked');
+                          const productionHours = a ? calculateProductionHours(a.checkIn, a.checkOut, a.breakIn, a.breakOut) : null;
+                          const lowHours = productionHours != null && productionHours < 8;
                           return (
                             <tr key={row.key} className="border-b border-thb-border/50 hover:bg-slate-50/50 transition-colors">
                               <td className="px-4 py-3 text-sm font-medium text-thb-text-primary">{a ? formatDate(a.date) : new Date(`${row.dateKey}T00:00:00`).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</td>
@@ -1595,10 +1598,11 @@ export default function AttendancePage() {
                                   <span className={`w-1.5 h-1.5 rounded-full ${statusConfig.dotColor}`} />
                                   {statusConfig.label}
                                 </span>
+                                {lowHours && <div className="mt-1 text-[11px] text-amber-700 font-medium">Below 8 hours — <Link href={`/attendance/regularize?date=${encodeURIComponent(row.dateKey)}`} className="underline">Apply for regularization</Link></div>}
                               </td>
                               <td className="px-4 py-3 text-sm text-thb-text-secondary">{a ? formatTime(a.checkIn) : '—'}</td>
                               <td className="px-4 py-3 text-sm text-thb-text-secondary">{a ? formatTime(a.checkOut) : '—'}</td>
-                              <td className="px-4 py-3 text-sm text-thb-text-secondary">{a && calculateProductionHours(a.checkIn, a.checkOut, a.breakIn, a.breakOut) != null ? formatHoursHm(calculateProductionHours(a.checkIn, a.checkOut, a.breakIn, a.breakOut) as number) : '—'}</td>
+                              <td className="px-4 py-3 text-sm text-thb-text-secondary">{productionHours != null ? formatHoursHm(productionHours) : '—'}</td>
                               <td className="px-4 py-3 text-sm text-thb-text-secondary">{a && calculateCompanyOvertime(a.checkOut) > 0 ? formatHoursHm(calculateCompanyOvertime(a.checkOut)) : '—'}</td>
                             </tr>
                           );
