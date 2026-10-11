@@ -138,10 +138,10 @@ const DEFAULT_RULES: RequestRules = {
   requireQrVerification: true,
 
   // Shift & Grace (mirrors legacy AttendancePolicyRule defaults)
-  shiftStartDefault: '09:30',
+  shiftStartDefault: '10:00',
   shiftEndDefault: '18:30',
   breakDurationMinutes: 30,
-  lateGraceMinutes: 15,
+  lateGraceMinutes: 0,
   earlyGraceMinutes: 10,
 
   // Late-mark policy
@@ -683,11 +683,11 @@ async function getShiftDefaults(db: PrismaClient, employeeId: string): Promise<{
   try {
     const pol = await (db as any).attendancePolicyConfig?.findFirst({ orderBy: { updatedAt: 'desc' } });
     if (pol) return {
-      start: pol.shiftStartDefault === '09:00' ? '09:30' : (pol.shiftStartDefault || '09:30'),
+      start: '10:00',
       end: pol.shiftEndDefault === '17:30' ? '18:30' : (pol.shiftEndDefault || '18:30'),
     };
   } catch { /* ignore */ }
-  return { start: '09:30', end: '18:30' };
+  return { start: '10:00', end: '18:30' };
 }
 
 function atTime(date: Date, hhmm: string): Date {

@@ -285,13 +285,24 @@ export async function POST(request: Request) {
           ? { name: `${(manager as any).firstName || ''} ${(manager as any).lastName || ''}`.trim(), email: manager.email }
           : null;
       const tenantId = (user as any).tenantId || (await resolveCompanyScope(request))?.tenantId;
-      if (tenantId && managerRecipient) {
+      const hrUsers = tenantId
+        ? await db.user.findMany({
+            where: { tenantId, role: { in: ['hr_admin', 'hr', 'admin', 'tenant_admin'] }, status: 'active' },
+            select: { id: true, email: true, name: true },
+          }).catch(() => [])
+        : [];
+      const recipients = [
+        employee?.userId ? { userId: employee.userId } : null,
+        managerRecipient,
+        ...hrUsers.map((hr: { id: string; email: string | null; name: string | null }) => ({ userId: hr.id, email: hr.email || undefined, name: hr.name || undefined })),
+      ].filter(Boolean) as Array<{ userId?: string; email?: string; name?: string }>;
+      if (tenantId && recipients.length) {
         const { dispatchNotification } = await import('@/lib/notification-center');
         await dispatchNotification({
           tenantId,
           module: 'attendance',
           eventKey: 'attendance.request.submitted',
-          recipients: [managerRecipient],
+          recipients,
           vars: {
             Employee_Name: `${emp.firstName} ${emp.lastName}`,
             Request_Type: 'Attendance Regularization',

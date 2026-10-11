@@ -314,6 +314,9 @@ export async function runManagementAutoPresent(
   );
   result.managementCount = mgmt.length;
   if (mgmt.length === 0) return result;
+  const now = new Date();
+  const localNow = new Date(now.getTime() + tzOffset * 60_000);
+  const todayLocalMinutes = localNow.getUTCHours() * 60 + localNow.getUTCMinutes();
   const mgmtIds = mgmt.map((e: any) => String(e.id));
   const nameOf = (e: any) => `${e.firstName || ''} ${e.lastName || ''}`.trim() || String(e.employeeId || e.id);
 
@@ -447,18 +450,40 @@ export async function runManagementAutoPresent(
       const autoCheckIn = localInstant(dateKey, window.startMinutes, tzOffset);
       const autoCheckOut = localInstant(dateKey, window.endMinutes, tzOffset);
       const row = rowByKey.get(`${empIdStr}|${dateKey}`);
+      const isToday = dateKey === opts.todayKey;
+      const due = (minutes: number) => !isToday || todayLocalMinutes >= minutes;
+      const dueCheckIn = due(9 * 60 + 30);
+      const dueBreakIn = due(13 * 60 + 30);
+      const dueBreakOut = due(14 * 60 + 30);
+      const dueCheckOut = due(18 * 60 + 30);
+
+      // Do not create future management punches. Today progresses one scheduled
+      // field at a time; past dates are fully auto-presented for reporting.
+      if (isToday && !dueCheckIn) {
+        result.skippedFuture += 1;
+        result.details.push({ ...base, action: 'skipped', reason: 'before 09:30 management check-in time' });
+        continue;
+      }
 
       if (!row) {
-        const workHours = Math.max(0, ((window.endMinutes - window.startMinutes) - window.breakMinutes) / 60);
+        const checkIn = dueCheckIn ? autoCheckIn : null;
+        const breakIn = dueBreakIn ? localInstant(dateKey, 13 * 60 + 30, tzOffset) : null;
+        const breakOut = dueBreakOut ? localInstant(dateKey, 14 * 60 + 30, tzOffset) : null;
+        const checkOut = dueCheckOut ? autoCheckOut : null;
+        const breakMinutes = breakIn && breakOut ? 60 : 0;
+        const workHours = checkIn && checkOut ? Math.max(0, ((checkOut.getTime() - checkIn.getTime()) / 60000 - Math.max(60, breakMinutes)) / 60) : null;
         try {
           await db.attendance.create({
             data: {
               employeeId: empIdStr,
               date: new Date(`${dateKey}T00:00:00.000Z`),
-              checkIn: autoCheckIn,
-              checkOut: autoCheckOut,
+              checkIn,
+              checkOut,
+              breakIn,
+              breakOut,
+              breakMinutes,
               status: 'present',
-              workHours: Math.round(workHours * 100) / 100,
+              workHours: workHours == null ? null : Math.round(workHours * 100) / 100,
               notes: `Auto-present (management rule · ${window.source})`,
               punchMethod: 'auto',
             },
@@ -472,8 +497,29 @@ export async function runManagementAutoPresent(
         }
         result.created += 1;
         result.details.push({
-          ...base, action: 'created', checkIn: autoCheckIn.toISOString(), checkOut: autoCheckOut.toISOString(),
+          ...base, action: 'created', checkIn: checkIn?.toISOString() || null, breakIn: breakIn?.toISOString() || null,
+          breakOut: breakOut?.toISOString() || null, checkOut: checkOut?.toISOString() || null,
         });
+        continue;
+      }
+
+      // For today, fill only scheduled fields whose clock time has arrived.
+      if (isToday) {
+        const patch: Record<string, unknown> = {};
+        if (!row.checkIn && dueCheckIn) patch.checkIn = autoCheckIn;
+        if (!row.breakIn && dueBreakIn) patch.breakIn = localInstant(dateKey, 13 * 60 + 30, tzOffset);
+        if (!row.breakOut && dueBreakOut) patch.breakOut = localInstant(dateKey, 14 * 60 + 30, tzOffset);
+        if (!row.checkOut && dueCheckOut) patch.checkOut = autoCheckOut;
+        if (Object.keys(patch).length) {
+          if (patch.breakIn && patch.breakOut) patch.breakMinutes = 60;
+          if (patch.checkIn && patch.checkOut) {
+            const start = new Date((patch.checkIn || row.checkIn) as Date).getTime();
+            const end = new Date((patch.checkOut || row.checkOut) as Date).getTime();
+            patch.workHours = Math.round(Math.max(0, ((end - start) / 60000 - 60) / 60) * 100) / 100;
+          }
+          await db.attendance.update({ where: { id: String(row.id) }, data: patch });
+          result.updated += 1;
+        }
         continue;
       }
 

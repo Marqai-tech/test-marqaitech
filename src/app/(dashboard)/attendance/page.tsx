@@ -221,7 +221,7 @@ function isOnLeave(leaves: Array<{ employeeId: string; startDate: string; endDat
 
 /* Late-by measured from the configured shift START (policy), e.g.
  * Shift 9:00 · Check-in 9:42 → "42m". Falls back to a 09:00 shift. */
-function calculateLateBy(checkIn: string | null | undefined, shiftStartMinutes = 540): string {
+function calculateLateBy(checkIn: string | null | undefined, shiftStartMinutes = 600): string {
   if (!checkIn) return '0m';
   const checkInTime = new Date(checkIn);
   if (isNaN(checkInTime.getTime())) return '0m';
@@ -234,13 +234,11 @@ function calculateLateBy(checkIn: string | null | undefined, shiftStartMinutes =
   return `${hours}h ${mins}m`;
 }
 
-function calculateBreakDuration(checkIn: string | null | undefined, checkOut: string | null | undefined, workHours: number | null | undefined): string {
+function calculateBreakDuration(checkIn: string | null | undefined, checkOut: string | null | undefined, workHours: number | null | undefined, breakIn?: string | null, breakOut?: string | null): string {
   if (!checkIn || !checkOut || workHours == null) return '—';
-  const totalMs = new Date(checkOut).getTime() - new Date(checkIn).getTime();
-  const totalHours = totalMs / (1000 * 60 * 60);
-  const breakHours = totalHours - workHours;
-  if (breakHours <= 0) return '0m';
-  const breakMins = Math.round(breakHours * 60);
+  const breakMins = breakIn && breakOut
+    ? Math.max(0, Math.round((new Date(breakOut).getTime() - new Date(breakIn).getTime()) / 60000))
+    : 60;
   if (breakMins < 60) return `${breakMins}m`;
   const h = Math.floor(breakMins / 60);
   const m = breakMins % 60;
@@ -248,10 +246,15 @@ function calculateBreakDuration(checkIn: string | null | undefined, checkOut: st
 }
 
 // Dashboard production hours use the fixed one-hour lunch rule.
-function calculateProductionHours(checkIn: string | null | undefined, checkOut: string | null | undefined): number | null {
+function calculateProductionHours(checkIn: string | null | undefined, checkOut: string | null | undefined, breakIn?: string | null, breakOut?: string | null): number | null {
   if (!checkIn || !checkOut) return null;
   const spanMinutes = Math.max(0, Math.round((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / 60000));
-  return Math.round((Math.max(0, spanMinutes - 60) / 60) * 100) / 100;
+  const recordedBreak = breakIn && breakOut
+    ? Math.max(0, Math.round((new Date(breakOut).getTime() - new Date(breakIn).getTime()) / 60000))
+    : 60;
+  // One hour is mandatory; any additional break time reduces production hours.
+  const effectiveBreak = Math.max(60, recordedBreak);
+  return Math.round((Math.max(0, spanMinutes - effectiveBreak) / 60) * 100) / 100;
 }
 
 function calculateCompanyOvertime(checkOut: string | null | undefined): number {
@@ -288,7 +291,7 @@ export default function AttendancePage() {
   const [adminEmployees, setAdminEmployees] = useState<Array<{ id: string; firstName: string; lastName: string; employeeId: string }>>([]);
   const [holidayMap, setHolidayMap] = useState<Map<string, string>>(new Map());
   const [weekendDow, setWeekendDow] = useState<number[]>([0, 6]); // Sun + Sat default
-  const [shiftStartMinutes, setShiftStartMinutes] = useState(570); // 09:30 default
+  const [shiftStartMinutes, setShiftStartMinutes] = useState(600); // 10:00 company late cutoff
   const [approvedLeaves, setApprovedLeaves] = useState<Array<{ employeeId: string; startDate: string; endDate: string }>>([]);
 
   /* ── Self view state ── */
@@ -404,10 +407,9 @@ export default function AttendancePage() {
       try {
         const d = await policyRes.json();
         const cfg = d.config || {};
-        if (typeof cfg.shiftStartDefault === 'string' && /^\d{1,2}:\d{2}$/.test(cfg.shiftStartDefault)) {
-          const [h, m] = cfg.shiftStartDefault.split(':').map(Number);
-          setShiftStartMinutes(h * 60 + m);
-        }
+        // Company rule: Late By is always measured after 10:00 AM IST.
+        // Do not let legacy 09:00/09:30 policy values override this cutoff.
+        setShiftStartMinutes(10 * 60);
         if (Array.isArray(d.weekendDays) && d.weekendDays.length > 0) {
           setWeekendDow(d.weekendDays.map((n: number) => Number(n)));
         }
@@ -901,7 +903,7 @@ export default function AttendancePage() {
   /* ── Self view stats ── */
   const presentCount = attendance.filter(a => ['present', 'late'].includes(a.status)).length;
   const lateCount = attendance.filter(a => a.status === 'late').length;
-  const totalHours = attendance.reduce((sum, a) => sum + (calculateProductionHours(a.checkIn, a.checkOut) || 0), 0);
+  const totalHours = attendance.reduce((sum, a) => sum + (calculateProductionHours(a.checkIn, a.checkOut, a.breakIn, a.breakOut) || 0), 0);
   const totalOvertime = attendance.reduce((sum, a) => sum + calculateCompanyOvertime(a.checkOut), 0);
 
   /* ── Self table rows: real records + derived month days (weekend/holiday/leave/absent) ── */
@@ -1272,8 +1274,8 @@ export default function AttendancePage() {
                       const statusValue = r.status || 'not_marked';
                       const statusConfig = getStatusConfig(statusValue);
                       const lateBy = a ? calculateLateBy(a.checkIn, shiftStartMinutes) : '0m';
-                      const productionHours = a ? calculateProductionHours(a.checkIn, a.checkOut) : null;
-                      const breakDur = a?.checkIn && a?.checkOut ? '1h' : '—';
+                      const productionHours = a ? calculateProductionHours(a.checkIn, a.checkOut, a.breakIn, a.breakOut) : null;
+                      const breakDur = a?.checkIn && a?.checkOut ? calculateBreakDuration(a.checkIn, a.checkOut, a.workHours, a.breakIn, a.breakOut) : '—';
                       return (
                         <tr key={r.key} className="border-b border-thb-border/50 hover:bg-slate-50/80 transition-colors group">
                           {/* Employee */}
@@ -1326,13 +1328,16 @@ export default function AttendancePage() {
                           {/* Actions */}
                           <td className="px-4 py-3">
                             {a && (
-                              <button
-                                onClick={() => setDetailRecord(a)}
-                                className="inline-flex items-center gap-1 text-xs text-cyan-600 hover:text-cyan-700 font-medium opacity-0 group-hover:opacity-100 transition-opacity"
-                              >
-                                <FiEye className="w-3.5 h-3.5" />
-                                View
-                              </button>
+                              <div className="flex items-center gap-2 whitespace-nowrap">
+                                <button
+                                  onClick={() => setDetailRecord(a)}
+                                  className="inline-flex items-center gap-1 text-xs text-cyan-600 hover:text-cyan-700 font-medium"
+                                >
+                                  <FiEye className="w-3.5 h-3.5" /> View
+                                </button>
+                                {isAdmin && <Link href={`/attendance/regularize?employeeId=${encodeURIComponent(r.emp.id)}&date=${encodeURIComponent(recordDateKey(a.date))}`} className="text-xs text-amber-600 hover:text-amber-700 font-medium">Regularize</Link>}
+                                {isAdmin && <Link href={`/attendance/audit-log?employeeId=${encodeURIComponent(r.emp.id)}`} className="text-xs text-slate-500 hover:text-slate-700 font-medium">Audit</Link>}
+                              </div>
                             )}
                           </td>
                         </tr>
@@ -1410,7 +1415,7 @@ export default function AttendancePage() {
             <StatCard
               icon={<FiClock className="w-5 h-5" />}
               label="Work Hours"
-              value={todayRecord && calculateProductionHours(todayRecord.checkIn, todayRecord.checkOut) != null ? formatHoursHm(calculateProductionHours(todayRecord.checkIn, todayRecord.checkOut) as number) : '—'}
+              value={todayRecord && calculateProductionHours(todayRecord.checkIn, todayRecord.checkOut, todayRecord.breakIn, todayRecord.breakOut) != null ? formatHoursHm(calculateProductionHours(todayRecord.checkIn, todayRecord.checkOut, todayRecord.breakIn, todayRecord.breakOut) as number) : '—'}
               iconBg="bg-emerald-100"
               iconColor="text-emerald-600"
               accent="border-l-emerald-500"
@@ -1593,7 +1598,7 @@ export default function AttendancePage() {
                               </td>
                               <td className="px-4 py-3 text-sm text-thb-text-secondary">{a ? formatTime(a.checkIn) : '—'}</td>
                               <td className="px-4 py-3 text-sm text-thb-text-secondary">{a ? formatTime(a.checkOut) : '—'}</td>
-                              <td className="px-4 py-3 text-sm text-thb-text-secondary">{a && calculateProductionHours(a.checkIn, a.checkOut) != null ? formatHoursHm(calculateProductionHours(a.checkIn, a.checkOut) as number) : '—'}</td>
+                              <td className="px-4 py-3 text-sm text-thb-text-secondary">{a && calculateProductionHours(a.checkIn, a.checkOut, a.breakIn, a.breakOut) != null ? formatHoursHm(calculateProductionHours(a.checkIn, a.checkOut, a.breakIn, a.breakOut) as number) : '—'}</td>
                               <td className="px-4 py-3 text-sm text-thb-text-secondary">{a && calculateCompanyOvertime(a.checkOut) > 0 ? formatHoursHm(calculateCompanyOvertime(a.checkOut)) : '—'}</td>
                             </tr>
                           );
@@ -1699,7 +1704,7 @@ export default function AttendancePage() {
               <DetailField label="Work Hours" value={formatHoursHm(detailRecord.workHours)} />
               <DetailField label="Overtime" value={detailRecord.overtime != null && detailRecord.overtime > 0 ? formatHoursHm(detailRecord.overtime) : '—'} />
               <DetailField label="Late By" value={calculateLateBy(detailRecord.checkIn, shiftStartMinutes) !== '0m' ? `Late by ${calculateLateBy(detailRecord.checkIn, shiftStartMinutes)}` : 'On time'} />
-              <DetailField label="Break" value={calculateBreakDuration(detailRecord.checkIn, detailRecord.checkOut, detailRecord.workHours)} />
+              <DetailField label="Break" value={calculateBreakDuration(detailRecord.checkIn, detailRecord.checkOut, detailRecord.workHours, detailRecord.breakIn, detailRecord.breakOut)} />
             </div>
 
             {detailRecord.location && (

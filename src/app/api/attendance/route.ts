@@ -273,30 +273,21 @@ export async function POST(request: Request) {
       }
 
       const now = new Date();
-      // Use policy config for late detection instead of hardcoded time.
+      // Company rule: late counting starts only after 10:00 AM local time.
       // The comparison uses the CLIENT's local time (localTimeStr) when
       // provided — the server runs in UTC so now.getHours() would be wrong
       // for employees in other timezones.
       let isLate = false;
       try {
-        const policyConfig = await db.attendancePolicyConfig.findFirst({
-          where: { companyId: targetEmployee.companyId },
-          select: { shiftStartDefault: true },
-        });
         const localMinutes = localTimeStr
           ? (() => { const [h, m] = localTimeStr.split(':').map(Number); return h * 60 + m; })()
           : now.getHours() * 60 + now.getMinutes();
-        if (policyConfig?.shiftStartDefault) {
-          const [shiftH, shiftM] = policyConfig.shiftStartDefault.split(':').map(Number);
-          isLate = localMinutes > shiftH * 60 + shiftM;
-        } else {
-          isLate = localMinutes > 9 * 60 + 30;
-        }
+        isLate = localMinutes > 10 * 60;
       } catch {
         const localMinutes = localTimeStr
           ? (() => { const [h, m] = localTimeStr.split(':').map(Number); return h * 60 + m; })()
           : now.getHours() * 60 + now.getMinutes();
-        isLate = localMinutes > 9 * 60 + 30;
+        isLate = localMinutes > 10 * 60;
       }
 
       const attendance = await db.attendance.upsert({

@@ -4,7 +4,7 @@
  * is rejected before the request is saved.
  */
 
-export const DEFAULT_SHIFT_START = '09:30';
+export const DEFAULT_SHIFT_START = '10:00';
 export const DEFAULT_SHIFT_END = '18:30';
 
 
