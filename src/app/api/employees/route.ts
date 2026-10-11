@@ -326,7 +326,10 @@ export async function GET(request: Request) {
       if (departmentId) where.departmentId = departmentId;
       if (designationId) where.designationId = designationId;
       if (status) where.status = status === 'inactive' ? { in: INACTIVE_STATUSES } : status;
-      if (excludeManagement && scope !== 'self') {
+      // The Employee List explicitly excludes management members for every
+      // caller. This keeps management in its dedicated directory even when
+      // the current account is itself a management/HR account.
+      if (excludeManagement) {
         where.NOT = {
           OR: [
             { isManagement: true },
