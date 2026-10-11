@@ -902,7 +902,13 @@ export default function AttendancePage() {
 
   /* ── Self view stats ── */
   const presentCount = attendance.reduce((sum, a) => sum + (a.status === 'half_day' ? 0.5 : (['present', 'late'].includes(a.status) ? 1 : 0)), 0);
-  const lateCount = attendance.filter(a => a.status === 'late').length;
+  // Late arrivals are counted from the punch time, not final status. A
+  // fourth-late row may become half_day but must still count as late.
+  const lateCount = attendance.filter(a => {
+    if (!a.checkIn) return false;
+    const t = new Date(a.checkIn);
+    return t.getHours() * 60 + t.getMinutes() > 10 * 60;
+  }).length;
   const totalHours = attendance.reduce((sum, a) => sum + (calculateProductionHours(a.checkIn, a.checkOut, a.breakIn, a.breakOut) || 0), 0);
   const totalOvertime = attendance.reduce((sum, a) => sum + calculateCompanyOvertime(a.checkOut), 0);
 
