@@ -346,8 +346,14 @@ export async function POST(request: Request) {
       }
 
       const now = new Date();
-      // Working hours include break (check-out minus check-in only).
-      const workHours = (now.getTime() - existingRecord.checkIn.getTime()) / (1000 * 60 * 60);
+      // Production hours exclude the mandatory one-hour lunch. If actual
+      // break punches show a longer break, deduct the full actual duration.
+      const grossMinutes = (now.getTime() - existingRecord.checkIn.getTime()) / 60000;
+      const punchedBreakMinutes = existingRecord.breakIn && existingRecord.breakOut
+        ? Math.max(0, (existingRecord.breakOut.getTime() - existingRecord.breakIn.getTime()) / 60000)
+        : 60;
+      const breakMinutes = Math.max(60, punchedBreakMinutes);
+      const workHours = Math.max(0, (grossMinutes - breakMinutes) / 60);
       let standardHours = 9;
       try {
         const policyConfig = await db.attendancePolicyConfig.findFirst({
@@ -365,7 +371,8 @@ export async function POST(request: Request) {
       } catch {
         standardHours = 9;
       }
-      const overtime = Math.max(0, workHours - standardHours);
+      const overtime = Math.max(0, (grossMinutes - (standardHours * 60)) / 60);
+      const belowEightHours = workHours < 8;
 
       const attendance = await db.attendance.update({
         where: {
@@ -378,6 +385,9 @@ export async function POST(request: Request) {
           checkOut: now,
           workHours: parseFloat(workHours.toFixed(2)),
           overtime: parseFloat(overtime.toFixed(2)),
+          status: belowEightHours ? 'half_day' : (existingRecord.status === 'late' ? 'late' : 'present'),
+          halfDay: belowEightHours,
+          breakMinutes: Math.round(breakMinutes),
         },
       });
 
