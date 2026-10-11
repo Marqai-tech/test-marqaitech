@@ -901,7 +901,7 @@ export default function AttendancePage() {
   };
 
   /* ── Self view stats ── */
-  const presentCount = attendance.filter(a => ['present', 'late'].includes(a.status)).length;
+  const presentCount = attendance.reduce((sum, a) => sum + (a.status === 'half_day' ? 0.5 : (['present', 'late'].includes(a.status) ? 1 : 0)), 0);
   const lateCount = attendance.filter(a => a.status === 'late').length;
   const totalHours = attendance.reduce((sum, a) => sum + (calculateProductionHours(a.checkIn, a.checkOut, a.breakIn, a.breakOut) || 0), 0);
   const totalOvertime = attendance.reduce((sum, a) => sum + calculateCompanyOvertime(a.checkOut), 0);

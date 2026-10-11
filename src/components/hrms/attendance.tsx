@@ -69,13 +69,13 @@ export function Attendance() {
 
   useEffect(() => { fetchAttendance(); }, [fetchAttendance]);
 
-  const presentCount = records.filter(r => r.status === 'present').length;
+  const presentEquivalent = records.reduce((sum, r) => sum + (r.status === 'half_day' ? 0.5 : (r.status === 'present' || r.status === 'late' ? 1 : 0)), 0);
   const absentCount = records.filter(r => r.status === 'absent').length;
   const lateCount = records.filter(r => r.status === 'late').length;
   const onLeaveCount = records.filter(r => r.status === 'half_day' || r.status === 'on_leave').length;
 
   const summaryCards = [
-    { label: 'Present Today', value: records.length > 0 ? `${Math.round(presentCount / records.length * 100)}%` : '0%', icon: <CheckCircle2 className="h-5 w-5" />, color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-950/30' },
+    { label: 'Present Today', value: records.length > 0 ? `${Math.round(presentEquivalent / records.length * 100)}%` : '0%', icon: <CheckCircle2 className="h-5 w-5" />, color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-950/30' },
     { label: 'Absent', value: records.length > 0 ? `${Math.round(absentCount / records.length * 100)}%` : '0%', icon: <XCircle className="h-5 w-5" />, color: 'text-red-600', bg: 'bg-red-50 dark:bg-red-950/30' },
     { label: 'Late Arrivals', value: records.length > 0 ? `${Math.round(lateCount / records.length * 100)}%` : '0%', icon: <Clock className="h-5 w-5" />, color: 'text-amber-600', bg: 'bg-amber-50 dark:bg-amber-950/30' },
     { label: 'On Leave', value: records.length > 0 ? `${Math.round(onLeaveCount / records.length * 100)}%` : '0%', icon: <AlertCircle className="h-5 w-5" />, color: 'text-green-600', bg: 'bg-green-50 dark:bg-green-950/30' },
