@@ -103,6 +103,32 @@ export async function POST(request: Request) {
     if (isFuture) return fail('Cannot regularize a future date');
     if (punchType !== 'production_shortfall' && requestedTime > new Date()) return fail('Requested time cannot be in the future');
 
+    // A production-hours-shortfall request is only valid when that date's
+    // recorded net production is actually below the eight-hour requirement.
+    // Check-in/check-out requests remain employee claims and use the normal
+    // punch validation below.
+    if (punchType === 'production_shortfall') {
+      const attendance = await db.attendance.findFirst({
+        where: { employeeId: emp.id, date: new Date(`${dateKey}T00:00:00.000Z`) },
+        select: { workHours: true, checkIn: true, checkOut: true, breakIn: true, breakOut: true },
+      });
+      if (!attendance) {
+        return fail('No attendance record exists for this date. Select a date with production hours below 8 hours.', 422);
+      }
+
+      let productionHours = attendance.workHours == null ? null : Number(attendance.workHours);
+      if (productionHours == null && attendance.checkIn && attendance.checkOut) {
+        const grossMinutes = (new Date(attendance.checkOut).getTime() - new Date(attendance.checkIn).getTime()) / 60000;
+        const breakMinutes = attendance.breakIn && attendance.breakOut
+          ? (new Date(attendance.breakOut).getTime() - new Date(attendance.breakIn).getTime()) / 60000
+          : 60;
+        productionHours = (grossMinutes - Math.max(60, breakMinutes)) / 60;
+      }
+      if (productionHours == null || productionHours >= 8) {
+        return fail('Production hours are not short on this date. Select a date with production hours below 8 hours.', 422);
+      }
+    }
+
     // Punch type and clock time must fit the shift window and any punch already
     // recorded for that day. Check-in at 8:00 PM is rejected for a day shift.
     {
