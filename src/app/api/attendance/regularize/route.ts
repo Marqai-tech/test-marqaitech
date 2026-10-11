@@ -72,7 +72,9 @@ export async function POST(request: Request) {
 
     const date = new Date(body.date as string);
     const punchType = body.punchType as string;
-    const requestedTime = new Date(body.requestedTime as string);
+    const requestedTime = punchType === 'production_shortfall'
+      ? new Date(body.date as string)
+      : new Date(body.requestedTime as string);
     // ─── Whitespace-only reason guard (user report) ───
     // Validate the RAW input before sanitization: sanitize trims, but callers
     // that prefix the reason (e.g. "[HR] <reason>") would otherwise turn a
@@ -82,12 +84,12 @@ export async function POST(request: Request) {
       return fail('Reason is required and cannot be empty or whitespace-only', 422);
     }
     const reason = sanitizeMultiLineText(body.reason, 2000);
-    if (!punchType || !['check_in', 'check_out'].includes(punchType)) return fail('Invalid punchType');
+    if (!punchType || !['check_in', 'check_out', 'production_shortfall'].includes(punchType)) return fail('Invalid punchType');
     if (!reason) return fail('Reason is required');
 
     // ─── Validate dates ───
     if (isNaN(date.getTime())) return fail('Invalid date format');
-    if (isNaN(requestedTime.getTime())) return fail('Invalid requested time format');
+    if (punchType !== 'production_shortfall' && isNaN(requestedTime.getTime())) return fail('Invalid requested time format');
     // Future-date guard: the server's UTC "today" lags behind the employee's
     // local day in timezones ahead of UTC (e.g. IST 00:00–05:30). The client
     // therefore sends its local date (clientToday) and either may vouch.
@@ -99,7 +101,7 @@ export async function POST(request: Request) {
     const dateKey = date.toISOString().slice(0, 10);
     const isFuture = date > serverToday && (!clientTodayKey || dateKey > clientTodayKey);
     if (isFuture) return fail('Cannot regularize a future date');
-    if (requestedTime > new Date()) return fail('Requested time cannot be in the future');
+    if (punchType !== 'production_shortfall' && requestedTime > new Date()) return fail('Requested time cannot be in the future');
 
     // Punch type and clock time must fit the shift window and any punch already
     // recorded for that day. Check-in at 8:00 PM is rejected for a day shift.

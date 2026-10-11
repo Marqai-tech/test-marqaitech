@@ -68,7 +68,7 @@ export default function RegularizePage() {
 
   const handleSubmit = async () => {
     // Trim-validate the reason — whitespace-only input must be rejected
-    if (!form.date || !form.requestedTime || !form.reason.trim()) {
+    if (!form.date || (form.punchType !== 'production_shortfall' && !form.requestedTime) || !form.reason.trim()) {
       toast.error(form.date && form.requestedTime && !form.reason.trim()
         ? 'Reason is required and cannot be empty or whitespace-only'
         : 'All fields are required');
@@ -76,7 +76,7 @@ export default function RegularizePage() {
     }
     setSubmitting(true);
     try {
-      const dt = new Date(`${form.date}T${form.requestedTime}`);
+      const dt = form.punchType === 'production_shortfall' ? null : new Date(`${form.date}T${form.requestedTime}`);
       const r = await fetch(editingId ? `/api/attendance/regularize/${editingId}` : '/api/attendance/regularize', {
         method: editingId ? 'PUT' : 'POST',
         headers: getAuthHeaders(),
@@ -176,11 +176,12 @@ export default function RegularizePage() {
               <select value={form.punchType} onChange={e => setForm({ ...form, punchType: e.target.value })} className="3boxes-input w-full">
                 <option value="check_in">Check-In (forgot to clock in)</option>
                 <option value="check_out">Check-Out (forgot to clock out)</option>
+                <option value="production_shortfall">Production Hours Shortfall (under 8 hours)</option>
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Actual Time <span className="text-red-500 font-bold">*</span></label>
-              <TimePickerAmPm value={form.requestedTime} onChange={v => setForm({ ...form, requestedTime: v })} className="w-full" />
+              <label className="block text-xs font-medium text-slate-600 mb-1">Actual Time {form.punchType === 'production_shortfall' ? <span className="text-slate-400">(Not applicable)</span> : <span className="text-red-500 font-bold">*</span>}</label>
+              <TimePickerAmPm value={form.requestedTime} onChange={v => setForm({ ...form, requestedTime: v })} className="w-full" disabled={form.punchType === 'production_shortfall'} />
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Reason <span className="text-red-500 font-bold">*</span></label>
