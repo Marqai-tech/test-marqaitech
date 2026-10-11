@@ -446,7 +446,14 @@ export async function runManagementAutoPresent(
         continue;
       }
 
-      const window = resolveShiftWindow(dateKey, assignmentsByEmp.get(empIdStr) || null, shiftsById, policy);
+      // Management has its own fixed attendance schedule. Company policy or
+      // employee shift assignments must not change these scheduled punches.
+      const window = {
+        startMinutes: 9 * 60 + 30,
+        endMinutes: 18 * 60 + 30,
+        breakMinutes: 60,
+        source: 'management standard 09:30-18:30',
+      };
       const autoCheckIn = localInstant(dateKey, window.startMinutes, tzOffset);
       const autoCheckOut = localInstant(dateKey, window.endMinutes, tzOffset);
       const row = rowByKey.get(`${empIdStr}|${dateKey}`);
