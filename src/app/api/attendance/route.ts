@@ -391,6 +391,29 @@ export async function POST(request: Request) {
         },
       });
 
+      // Under-eight-hour days must be visible immediately, while the
+      // employee still submits regularization themselves.
+      if (belowEightHours && scope.tenantId) {
+        try {
+          const { dispatchToRoles } = await import('@/lib/notification-center');
+          await dispatchToRoles({
+            tenantId: scope.tenantId,
+            module: 'attendance',
+            eventKey: 'attendance.production_hours.low',
+            recipients: targetEmployee.userId ? [{ userId: targetEmployee.userId }] : [],
+            roles: ['hr_admin', 'admin', 'tenant_admin'],
+            vars: {
+              Production_Hours: workHours.toFixed(2),
+              Required_Hours: '8.00',
+              Attendance_Date: recordDate.toISOString().slice(0, 10),
+            },
+            entity: { type: 'attendance', id: attendance.id, link: '/attendance' },
+          });
+        } catch (notificationError) {
+          console.warn('[attendance] low-hours notification failed:', notificationError);
+        }
+      }
+
       return NextResponse.json(
         { attendance, message: 'Checked out successfully' },
         { headers: corsHeaders() }
