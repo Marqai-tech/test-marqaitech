@@ -373,7 +373,7 @@ export default function AttendancePage() {
       // and the admin counts stayed at 0).
       const [attRes, empRes] = await Promise.all([
         fetch(`/api/attendance?${params.toString()}${sq ? `&${sq}` : ''}&includePhotos=0`, { headers: getAuthHeaders() }),
-        fetch(`/api/employees?limit=500&status=active&includePhotos=0${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() }),
+        fetch(`/api/employees?limit=500&status=active&includePhotos=0&excludeManagement=1${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() }),
       ]);
       if (attRes.ok) {
         const data = await attRes.json();
