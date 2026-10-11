@@ -138,15 +138,17 @@ export async function POST(request: Request) {
         console.warn('[regularize] existing punch lookup failed (non-fatal):', attendanceErr);
       }
 
-      const punchCheck = validatePunchTime({
-        punchType: punchType as 'check_in' | 'check_out',
-        time: toHHmm(requestedTime),
-        shiftStart,
-        shiftEnd,
-        existingCheckIn,
-        existingCheckOut,
-      });
-      if (!punchCheck.ok) return fail(punchCheck.error, 422);
+      if (punchType !== 'production_shortfall') {
+        const punchCheck = validatePunchTime({
+          punchType: punchType as 'check_in' | 'check_out',
+          time: toHHmm(requestedTime),
+          shiftStart,
+          shiftEnd,
+          existingCheckIn,
+          existingCheckOut,
+        });
+        if (!punchCheck.ok) return fail(punchCheck.error, 422);
+      }
     }
 
     // ─── Duplicate request guard (user report) ───
