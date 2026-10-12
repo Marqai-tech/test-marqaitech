@@ -129,17 +129,21 @@ export async function GET(request: NextRequest) {
 /** Dedupe: has this recipient already been reminded for this employee within the repeat window? */
 let lastDedupeError: string | null = null; // surfaced in the response diag
 async function alreadySent(db: any, eventKey: string, entityId: string, recipientId: string, sinceDays: number): Promise<boolean> {
-  const since = new Date(Date.now() - sinceDays * 24 * 3600 * 1000);
   try {
-    // findFirst (plain select) instead of count(): the Neon HTTP driver's
-    // aggregate path proved unreliable on the deployed runtime (returned
-    // phantom matches), while plain selects — used by the action-token
-    // route and the escalation cron — behave correctly.
+    // Equality-only filters + JS-side time check. The Neon HTTP adapter on
+    // the deployed runtime proved unreliable with composite where clauses on
+    // this table (a DateTime `gte` there made findFirst/count match ANY row
+    // of the entityType — phantom dedupe hits that silently suppressed ALL
+    // reminders). String-equality findFirst is the exact query shape used by
+    // the action-token route, which is proven in production.
     const row = await db.notificationDelivery.findFirst({
-      where: { eventKey, entityType: 'policy_ack_reminder', entityId, recipientId, createdAt: { gte: since } },
-      select: { id: true },
+      where: { eventKey, entityType: 'policy_ack_reminder', entityId, recipientId },
+      orderBy: { createdAt: 'desc' },
+      select: { createdAt: true },
     });
-    return !!row;
+    if (!row || !row.createdAt) return false;
+    const ageDays = (Date.now() - new Date(row.createdAt).getTime()) / 86400000;
+    return ageDays < sinceDays;
   } catch (e: any) {
     // On error, assume already sent (safer than spamming) — but record WHY
     // so the cron response can explain a zero-dispatch sweep.
