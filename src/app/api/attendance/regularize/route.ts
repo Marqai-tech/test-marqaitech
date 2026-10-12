@@ -84,7 +84,7 @@ export async function POST(request: Request) {
       return fail('Reason is required and cannot be empty or whitespace-only', 422);
     }
     const reason = sanitizeMultiLineText(body.reason, 2000);
-    if (!punchType || !['check_in', 'check_out', 'production_shortfall'].includes(punchType)) return fail('Invalid punchType');
+    if (!punchType || !['check_in', 'check_out', 'break_in', 'break_out', 'production_shortfall'].includes(punchType)) return fail('Invalid punchType');
     if (!reason) return fail('Reason is required');
 
     // ─── Validate dates ───
@@ -164,7 +164,7 @@ export async function POST(request: Request) {
         console.warn('[regularize] existing punch lookup failed (non-fatal):', attendanceErr);
       }
 
-      if (punchType !== 'production_shortfall') {
+      if (!['production_shortfall', 'break_in', 'break_out'].includes(punchType)) {
         const punchCheck = validatePunchTime({
           punchType: punchType as 'check_in' | 'check_out',
           time: toHHmm(requestedTime),
