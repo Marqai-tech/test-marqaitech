@@ -351,8 +351,15 @@ export async function POST(request: Request) {
       const grossMinutes = (now.getTime() - existingRecord.checkIn.getTime()) / 60000;
       const punchedBreakMinutes = existingRecord.breakIn && existingRecord.breakOut
         ? Math.max(0, (existingRecord.breakOut.getTime() - existingRecord.breakIn.getTime()) / 60000)
-        : 60;
-      const breakMinutes = Math.max(60, punchedBreakMinutes);
+        : null;
+      const localMinutes = (value: Date) => {
+        const parts = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(value);
+        return Number(parts.find(p => p.type === 'hour')?.value || 0) * 60 + Number(parts.find(p => p.type === 'minute')?.value || 0);
+      };
+      const checkInMinutes = localMinutes(existingRecord.checkIn);
+      const checkOutMinutes = localMinutes(now);
+      const overlapsLunch = checkInMinutes < 14 * 60 + 30 && checkOutMinutes > 13 * 60 + 30;
+      const breakMinutes = punchedBreakMinutes != null ? punchedBreakMinutes : (overlapsLunch ? 60 : 0);
       const workHours = Math.max(0, (grossMinutes - breakMinutes) / 60);
       let standardHours = 9;
       try {
