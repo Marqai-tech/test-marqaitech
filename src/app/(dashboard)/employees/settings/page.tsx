@@ -39,7 +39,9 @@ interface Department {
   name: string
 }
 
-type TabKey = 'credentials' | 'invite' | 'bulk' | 'map-company' | 'employee-config' | 'custom-fields'
+// Task 87: 'employee-config' (Configuration) is a standalone page now —
+// /employees/configuration — so it is no longer a tab here.
+type TabKey = 'credentials' | 'invite' | 'bulk' | 'map-company' | 'custom-fields'
 
 /* ── Setting Types ── */
 type SettingType = 'toggle' | 'select' | 'number' | 'text'
@@ -1008,6 +1010,32 @@ export default function EmployeeSettingsPage() {
         </button>
       </div>
 
+      {/* Task 87: Configuration & Approval Workflows are separate pages now */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <a href="/employees/configuration" className="thb-card p-4 flex items-start gap-3 hover:border-green-300 hover:shadow-sm transition-all group">
+          <div className="p-2 rounded-lg bg-green-50 text-green-600 flex-shrink-0">
+            <FiSettings className="w-4 h-4" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-thb-text-primary group-hover:text-green-700">Employee Configuration</p>
+            <p className="text-xs text-thb-text-secondary mt-0.5 leading-relaxed">
+              Employee code generation, probation defaults, access permissions, login security and onboarding/separation — moved to its own page.
+            </p>
+          </div>
+        </a>
+        <a href="/employees/approval-config" className="thb-card p-4 flex items-start gap-3 hover:border-violet-300 hover:shadow-sm transition-all group">
+          <div className="p-2 rounded-lg bg-violet-50 text-violet-500 flex-shrink-0">
+            <FiList className="w-4 h-4" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-thb-text-primary group-hover:text-violet-700">Approval Workflows</p>
+            <p className="text-xs text-thb-text-secondary mt-0.5 leading-relaxed">
+              Multi-tier approver routing for employee profile updates and lifecycle requests — configured on its own page.
+            </p>
+          </div>
+        </a>
+      </div>
+
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         <div className="thb-card p-4 flex items-center gap-3">
@@ -1040,7 +1068,6 @@ export default function EmployeeSettingsPage() {
             { key: 'invite' as TabKey, label: 'Invite', icon: FiSend },
             { key: 'bulk' as TabKey, label: 'Bulk Ops', icon: FiRefreshCw },
             { key: 'map-company' as TabKey, label: 'Map Company', icon: FiBriefcase },
-            { key: 'employee-config' as TabKey, label: 'Configuration', icon: FiSettings },
             { key: 'custom-fields' as TabKey, label: 'Custom Fields', icon: FiList },
           ]).map(tab => (
             <button
@@ -1732,72 +1759,6 @@ export default function EmployeeSettingsPage() {
               </div>
             </div>
           )}
-        </div>
-      )}
-
-      {/* ═══ EMPLOYEE CONFIGURATION TAB ═══ */}
-      {activeTab === 'employee-config' && (
-        <div className="space-y-4">
-          <div className="thb-card border-l-4 border-l-green-500 bg-gradient-to-r from-green-50/60 to-emerald-50/40">
-            <div className="p-4 flex items-start gap-3">
-              <FiSettings className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="font-semibold text-slate-900 mb-1">Employee Configuration</p>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  Configure employee code generation, probation defaults, access permissions, login security policies,
-                  and onboarding/separation settings. These settings are applied across the Employee module.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {employeeSettingSections.map(section => {
-            const isEditing = editingSection === section.title
-            const draft = editDrafts[section.title] || {}
-            const allFields = section.fields
-            return (
-              <div key={section.title} className="thb-card overflow-hidden">
-                <div className="px-5 py-4 border-b border-thb-border flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${section.iconBg} ${section.iconColor}`}>
-                      {section.icon}
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-thb-text-primary">{section.title}</h3>
-                      <p className="text-xs text-thb-text-muted mt-0.5">{section.description}</p>
-                    </div>
-                  </div>
-                  {isEditing ? (
-                    <div className="flex items-center gap-2">
-                      <button onClick={handleSaveSection.bind(null, section.title)} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-xs font-medium transition-colors">
-                        <FiSave className="w-3.5 h-3.5" /> Save
-                      </button>
-                      <button onClick={handleCancelEdit} className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-thb-border text-thb-text-secondary rounded-lg text-xs font-medium hover:bg-slate-50 transition-colors">
-                        <FiX className="w-3.5 h-3.5" /> Cancel
-                      </button>
-                    </div>
-                  ) : (
-                    <button onClick={() => handleStartEdit(section.title)} className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-thb-border text-thb-text-secondary rounded-lg text-xs font-medium hover:bg-slate-50 transition-colors">
-                      <FiEdit2 className="w-3.5 h-3.5" /> Edit
-                    </button>
-                  )}
-                </div>
-                <div className="px-5 py-3 divide-y divide-thb-border">
-                  {allFields.map(field => {
-                    const value = isEditing
-                      ? (draft[field.key] ?? getSettingValue(field.key, allFields, empSettings))
-                      : getSettingValue(field.key, allFields, empSettings)
-                    const onChange = (val: string | number | boolean) => handleDraftChange(section.title, field.key, val)
-                    return (
-                      <div key={field.key}>
-                        {renderSettingField(field, value, onChange, isEditing)}
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            )
-          })}
         </div>
       )}
 

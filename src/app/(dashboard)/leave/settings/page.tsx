@@ -2,23 +2,28 @@
 
 import { Suspense } from 'react';
 import Link from 'next/link';
-import { FiFileText, FiSliders, FiLayers, FiCalendar } from 'react-icons/fi';
+import { FiFileText, FiSliders, FiLayers, FiCheckSquare } from 'react-icons/fi';
 import ModuleSettingsPanel, { leaveSections } from '@/components/ModuleSettingsPanel';
 import ModuleSettingsShell from '@/components/ModuleSettingsShell';
-import ApproverChainPreview from '@/components/ApproverChainPreview';
 
 /**
- * Leave Settings page — uses the shared 4-tab ModuleSettingsShell:
- *   1. Policy            → cross-links to /leave/leave-policy?tab=documents
- *   2. Rules              → ModuleSettingsPanel with leaveSections (Leave Year &
- *                           Carry Forward, Leave Application Rules, Special
- *                           Leaves & Calendar)
- *   3. Configuration      → ModuleSettingsPanel (same sections — they double as
- *                           system configuration defaults; user can edit any
- *                           setting from either tab)
- *   4. Approver Workflow  → ApproverChainPreview for module="leave"
+ * Leave Settings page — Task 87 structure.
  *
- * The shell handles URL ?tab= routing + cross-flow navigation between tabs.
+ * Per the Task 87 request ("keep the approver workflows and configuration in
+ * all the modules separate and remove them from the current
+ * options/configurations"), this page no longer embeds a Configuration tab or
+ * an Approver Workflow tab. It keeps only:
+ *   1. Policy → cross-links to /leave/leave-policy?tab=documents
+ *   2. Rules  → ModuleSettingsPanel with leaveSections (Leave Year &
+ *               Carry Forward, Leave Application Rules, Special Leaves &
+ *               Calendar)
+ *
+ * The separated surfaces now live on their own pages (each with its own
+ * sidebar entry):
+ *   - Leave Configuration   → /leave/configuration
+ *   - Approval Workflows    → /leave/approval-workflows
+ *
+ * The shell renders only the tabs whose content is provided.
  */
 function LeaveSettingsContent() {
   return (
@@ -28,6 +33,31 @@ function LeaveSettingsContent() {
       basePath="/leave/settings"
       policy={
         <div className="space-y-4">
+          {/* Task 87: Configuration & Approval Workflows are separate pages now */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Link href="/leave/configuration" className="thb-card p-4 flex items-start gap-3 hover:border-green-300 hover:shadow-sm transition-all group">
+              <div className="p-2 rounded-lg bg-green-50 text-green-600 flex-shrink-0">
+                <FiSliders className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-thb-text-primary group-hover:text-green-700">Leave Configuration</p>
+                <p className="text-xs text-thb-text-secondary mt-0.5 leading-relaxed">
+                  Leave year &amp; carry-forward, leave application rules, special leaves &amp; calendar — moved to its own page.
+                </p>
+              </div>
+            </Link>
+            <Link href="/leave/approval-workflows" className="thb-card p-4 flex items-start gap-3 hover:border-violet-300 hover:shadow-sm transition-all group">
+              <div className="p-2 rounded-lg bg-violet-50 text-violet-500 flex-shrink-0">
+                <FiCheckSquare className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-thb-text-primary group-hover:text-violet-700">Approval Workflows</p>
+                <p className="text-xs text-thb-text-secondary mt-0.5 leading-relaxed">
+                  Multi-tier approver chain, workflow options and leave policy rules — moved to its own page.
+                </p>
+              </div>
+            </Link>
+          </div>
           <div className="thb-card p-5">
             <h2 className="text-base font-semibold text-thb-text-primary mb-3">Leave Policy Documents</h2>
             <p className="text-xs text-thb-text-muted mb-4">
@@ -43,10 +73,10 @@ function LeaveSettingsContent() {
                   <p className="text-xs text-thb-text-muted">View leave policy documents</p>
                 </div>
               </Link>
-              <Link href="/leave/leave-policy?tab=workflow" className="flex items-start gap-2 p-3 rounded-lg border border-thb-border hover:bg-slate-50 transition-colors">
+              <Link href="/leave/approval-workflows" className="flex items-start gap-2 p-3 rounded-lg border border-thb-border hover:bg-slate-50 transition-colors">
                 <FiSliders className="w-4 h-4 text-amber-500 mt-0.5" />
                 <div>
-                  <p className="text-sm font-medium text-thb-text-primary">Policy Rules & Workflow</p>
+                  <p className="text-sm font-medium text-thb-text-primary">Approval Workflows</p>
                   <p className="text-xs text-thb-text-muted">Multi-tier approval chain, sandwich, pro-rata</p>
                 </div>
               </Link>
@@ -63,20 +93,6 @@ function LeaveSettingsContent() {
         </div>
       }
       rules={<ModuleSettingsPanel sections={leaveSections} />}
-      configuration={<ModuleSettingsPanel sections={leaveSections} />}
-      approverWorkflow={
-        <div className="space-y-4">
-          <div className="thb-card p-5">
-            <h2 className="text-base font-semibold text-thb-text-primary">Leave Approver Chain</h2>
-            <p className="text-xs text-thb-text-muted mb-4">
-              The approval chain below is resolved for the currently logged-in user. Each tier is computed
-              from the Leave Workflow Config (per-tenant, per-leave-type). To customize the chain, visit the
-              <Link href="/leave/leave-policy?tab=workflow" className="text-green-600 hover:underline ml-1">Policy Rules</Link> tab on the Leave Policy page.
-            </p>
-            <ApproverChainPreview module="leave" />
-          </div>
-        </div>
-      }
     />
   );
 }

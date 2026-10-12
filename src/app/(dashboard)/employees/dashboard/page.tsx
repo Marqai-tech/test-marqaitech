@@ -503,7 +503,7 @@ export default function EmployeeDashboardPage() {
         <div>
           <h1 className="text-2xl font-bold text-thb-text-primary flex items-center gap-2">
             <FiUsers className="w-6 h-6 text-green-500" />
-            Employee Dashboard
+            Module Dashboard
           </h1>
           <p className="text-sm text-thb-text-secondary mt-1">
             {isAdmin ? 'Organization-wide employee overview, analytics, and lifecycle tracking'
