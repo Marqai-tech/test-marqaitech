@@ -4192,3 +4192,28 @@ Stage Summary:
 - Demo (nexus-hrms) deploy pipeline UNBLOCKED: per-minute cron demoted to daily (Hobby-compatible); near-real-time freshness preserved via sync-on-dashboard-open; demo now runs the latest build (Tasks 83-85).
 - All Task 83/84 attendance features verified intact and deployed on both sites: 20/20 checks pass.
 - Note for future commits: any commit authored by manoj191112110 will fail the demo project (Vercel access); keep authoring as maheshkpreddy.
+
+---
+Task ID: 86
+Agent: Super Z (main agent)
+Task: User request — "in the employee module - when any employees login using employee self service and updates any field using the edit employee option, it is not coming for approval to the Admin / approver login as per the work flow configured in the employee module. Also email alerts are not coming. Also when any employee edits and updates any information using the update requests / request change it is not showing the admin my approvals section. Also if any employee tries to edit any field using the edit info option using employee self service in the employee login it is throwing error pls check and update these in the vercel link now"
+
+Work Log:
+- Root causes (3 distinct bugs + 1 deploy blocker):
+  (1) EDIT INFO 500: PATCH /api/users/profile called ensureEmployeeProfileColumns() but collaborator commit e830e8b0 removed the import — EVERY employee profile save returned 500 "ensureEmployeeProfileColumns is not defined" (reproduced via API probe on LIVE).
+  (2) BYPASS: the ESS Edit Profile flow wrote employee fields DIRECTLY via raw SQL — the employee-module approval workflow (EmployeeWorkflowConfig, workflowType='update_profile') was never consulted; no update request, no approver email. The user had configured a workflow (verified active on the app DB: single tier reporting_manager, created 2026-10-12 06:00 UTC).
+  (3) ORPHANED APPROVALS: request creation left tiers with approverUserId NULL when the resolved approver had no login (e.g. reporting manager without a user account) — the step matches NOBODY's "My Approvals" inbox. Also update-requests/[id] referenced `request.headers` (variable is `req`) inside dispatchNotification — silent ReferenceError killed ALL approval-result emails (caught by non-fatal catch).
+  (4) DEPLOY BLOCKER: junk commit 76e84ce7 (background process, UUID message) had swept a stale working-tree snapshot into the repo, adding src/app/(dashboard)/candidate-portal with 6 pages colliding with the legitimate top-level src/app/candidate-portal — "two parallel pages that resolve to the same path" failed BOTH Vercel builds from 08:30 UTC (surfaced when my Task 86 commit deployed).
+- FIXES (commit 40e51788):
+  * Restored the ensureEmployeeProfileColumns import (lib intact at src/lib/employee-profile-columns.ts).
+  * New shared engine src/lib/employee-update-request.ts: FIELD_SENSITIVITY (added PF/ESI/professional-tax/LWF as KYC-high; current-address + emergency-relation as low), applyEmployeeFieldChange() — low→direct apply + audit row (tier 0), high→pending request + approval steps + tier-1 email/in-app notification (link → /employees/update-requests), restricted→refused. EVERY tier falls back to active HR/admin accounts so a request always lands in a My Approvals inbox.
+  * PATCH /api/users/profile: HR/admin roles keep direct self-edit; employees/managers get a DIFF of submitted vs current fields — changed fields route through the engine; unchanged fields create nothing (idempotent Save); photo stays direct; Experience stays direct; response carries appliedFields/pendingFields/errors and My Profile toasts "N change(s) sent for approval".
+  * POST /api/employees/update-requests now delegates to the same engine (one code path for "Request Change" + Edit Profile).
+  * [id] route: req.headers fixed (approval-result emails live again), result links → /employees/update-requests, approved firstName/lastName changes now sync User.name.
+- BUILD FIX (commit b07b45e0): git rm -r the duplicate (dashboard)/candidate-portal intruder → both projects green again. Route validation confirmed locally (build passes conflict stage; sandbox OOM at page-data is the documented limit).
+- Verification (scripts/verify-task86.mjs) — 12/12 PASS on LIVE + demo: PATCH no longer 500s (200 + summary), high-sensitivity POST → 201 pending, approval steps carry concrete approver uids (LIVE: reporting_manager; demo: tenant_admin per its configured workflow), notifications API reachable, test requests cancelled (clean state).
+
+Stage Summary:
+- ESS "Edit Info" no longer errors; employee self-edits now follow the workflow configured in the employee module: low-risk fields apply immediately (with edit-log trail), high-risk fields (name, DOB, gender, marital, nationality, bank, PAN/Aadhaar/PF/ESI) go to the configured approval chain with email + in-app alerts to the approver.
+- "Request Change" submissions always have a concrete approver (fallback to HR/admin), so they reliably appear in the admin's My Approvals inbox; approval/rejection emails to the requester work again.
+- Both Vercel projects deploy green; repo route tree restored to a valid state.
