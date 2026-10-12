@@ -457,14 +457,16 @@ export async function GET(request: Request) {
       const [employeesRaw, total] = await Promise.all([
         queryDb.employee.findMany({
           where,
-          omit: { avatar: true },
-          include: {
+          select: {
+            id: true, employeeId: true, firstName: true, lastName: true, email: true,
+            userId: true, departmentId: true, designationId: true, branchId: true,
+            companyId: true, phone: true, status: true, employeeStatus: true,
+            employeeType: true, dateOfJoining: true, reportingManagerId: true,
+            createdAt: true, updatedAt: true,
             department: { select: { id: true, name: true } },
             designation: { select: { id: true, title: true } },
             branch: { select: { id: true, name: true } },
-            user: {
-              select: { id: true, email: true, role: true },
-            },
+            user: { select: { id: true, email: true, role: true } },
             reportingManager: { select: { id: true, firstName: true, lastName: true, employeeId: true } },
           },
           orderBy: { createdAt: 'desc' },
