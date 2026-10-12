@@ -456,7 +456,7 @@ export async function POST(request: Request) {
     }
 
     // Rule 1: Super admin on tenant subdomain (not demo) — reject
-    if (user.role === 'super_admin' && tenantSlug && !isDemoDomain) {
+    if (user.role === 'super_admin' && tenantSlug && !isDemoDomain && !isTestPlatformSite) {
       return NextResponse.json(
         { error: 'Super admin login is only available at 3boxeshrms.com/login. Please use the platform login page.' },
         { status: 403, headers: corsHeaders() }
