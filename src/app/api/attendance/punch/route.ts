@@ -391,6 +391,14 @@ export async function POST(request: NextRequest) {
         let breakMinutes = 0;
         if (refreshed.breakIn && refreshed.breakOut) {
           breakMinutes = Math.max(0, Math.round((refreshed.breakOut.getTime() - refreshed.breakIn.getTime()) / 60000));
+        } else {
+          const local = (value: Date) => {
+            const parts = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(value);
+            return Number(parts.find(p => p.type === 'hour')?.value || 0) * 60 + Number(parts.find(p => p.type === 'minute')?.value || 0);
+          };
+          const start = local(refreshed.checkIn);
+          const end = local(refreshed.checkOut);
+          breakMinutes = Math.max(0, Math.min(end, 14 * 60 + 30) - Math.max(start, 13 * 60 + 30));
         }
         const workMinutes = Math.max(0, spanMinutes - breakMinutes);
         const workHours = Math.round((workMinutes / 60) * 100) / 100;

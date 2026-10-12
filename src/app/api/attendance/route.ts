@@ -358,8 +358,8 @@ export async function POST(request: Request) {
       };
       const checkInMinutes = localMinutes(existingRecord.checkIn);
       const checkOutMinutes = localMinutes(now);
-      const overlapsLunch = checkInMinutes < 14 * 60 + 30 && checkOutMinutes > 13 * 60 + 30;
-      const breakMinutes = punchedBreakMinutes != null ? punchedBreakMinutes : (overlapsLunch ? 60 : 0);
+      const lunchOverlapMinutes = Math.max(0, Math.min(checkOutMinutes, 14 * 60 + 30) - Math.max(checkInMinutes, 13 * 60 + 30));
+      const breakMinutes = punchedBreakMinutes != null ? punchedBreakMinutes : lunchOverlapMinutes;
       const workHours = Math.max(0, (grossMinutes - breakMinutes) / 60);
       const belowEightHours = workHours < 8;
       // Overtime is earned only after both requirements are met:
