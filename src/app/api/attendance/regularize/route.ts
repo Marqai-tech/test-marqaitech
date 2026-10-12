@@ -11,6 +11,7 @@ import { loadWorkflowConfig, buildRequestContext, checkRules, initializeWorkflow
 import { sanitizeMultiLineText } from '@/lib/sanitize';
 import { DEFAULT_SHIFT_END, DEFAULT_SHIFT_START, minutesInTimeZone, validatePunchTime } from '@/lib/punch-time-validation';
 import { resolveCompanyScope } from '@/lib/companyScope';
+import { effectiveBreakMinutes } from '@/lib/attendance-break-rules';
 
 export { OPTIONS };
 
@@ -119,10 +120,13 @@ export async function POST(request: Request) {
       let productionHours = attendance.workHours == null ? null : Number(attendance.workHours);
       if (productionHours == null && attendance.checkIn && attendance.checkOut) {
         const grossMinutes = (new Date(attendance.checkOut).getTime() - new Date(attendance.checkIn).getTime()) / 60000;
-        const breakMinutes = attendance.breakIn && attendance.breakOut
-          ? (new Date(attendance.breakOut).getTime() - new Date(attendance.breakIn).getTime()) / 60000
-          : 60;
-        productionHours = (grossMinutes - Math.max(60, breakMinutes)) / 60;
+        const breakMinutes = effectiveBreakMinutes(
+          attendance.breakIn ? new Date(attendance.breakIn) : null,
+          attendance.breakOut ? new Date(attendance.breakOut) : null,
+          new Date(attendance.checkIn),
+          new Date(attendance.checkOut),
+        );
+        productionHours = (grossMinutes - breakMinutes) / 60;
       }
       if (productionHours == null || productionHours >= 8) {
         return fail('Production hours are not short on this date. Select a date with production hours below 8 hours.', 422);

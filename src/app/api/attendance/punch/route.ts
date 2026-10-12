@@ -5,6 +5,7 @@ import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { resolveCompanyScope } from '@/lib/companyScope';
 import { safeAuditLog } from '@/lib/audit-safe';
 import { sendEmail } from '@/lib/email';
+import { effectiveBreakMinutes } from '@/lib/attendance-break-rules';
 
 /**
  * POST /api/attendance/punch
@@ -255,7 +256,7 @@ export async function POST(request: NextRequest) {
     const existingBeforeRules = await db.attendance.findFirst({ where: { employeeId, date: dateObj } });
     const beforeLunch = localMinutes !== null && localMinutes < 13 * 60 + 30;
     const afterLunchBeforeClose = localMinutes !== null && localMinutes >= 13 * 60 + 30 && localMinutes < 18 * 60 + 30;
-    if (action !== 'checkin' && action !== 'set_early_logout' && action !== 'breakin' && action !== 'breakout') {
+    if (action !== 'checkin' && action !== 'set_early_logout') {
       if (beforeLunch || (afterLunchBeforeClose && existingBeforeRules?.breakIn && action !== 'breakout')) action = 'entry';
       else if (localMinutes !== null && localMinutes >= 18 * 60 + 30) action = 'checkout';
     }
@@ -266,6 +267,9 @@ export async function POST(request: NextRequest) {
         eventId, employeeId, dateObj, timestamp, gpsLat, gpsLng, gpsAccuracy, gpsLabel, method, notes || null,
       );
       return NextResponse.json({ ok: true, event: { id: eventId, type: 'entry', timestamp }, message: 'Entry punch recorded.' }, { headers: corsHeaders() });
+    }
+    if (action === 'breakin' && localMinutes !== null && localMinutes < 13 * 60 + 30) {
+      return NextResponse.json({ error: 'Break-In is available from 1:30 PM onward.' }, { status: 400, headers: corsHeaders() });
     }
     if (action === 'breakin' && !existingBeforeRules?.checkIn) {
       return NextResponse.json({ error: 'You must Check-In before starting a break.' }, { status: 400, headers: corsHeaders() });
@@ -385,21 +389,7 @@ export async function POST(request: NextRequest) {
       if (refreshed?.checkIn && refreshed?.checkOut) {
         const spanMs = refreshed.checkOut.getTime() - refreshed.checkIn.getTime();
         const spanMinutes = Math.max(0, Math.round(spanMs / 60000));
-        const local = (value: Date) => {
-          const parts = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(value);
-          return Number(parts.find(p => p.type === 'hour')?.value || 0) * 60 + Number(parts.find(p => p.type === 'minute')?.value || 0);
-        };
-        let breakMinutes = 0;
-        if (refreshed.breakIn && refreshed.breakOut) {
-          breakMinutes = Math.max(0, Math.round((refreshed.breakOut.getTime() - refreshed.breakIn.getTime()) / 60000));
-          const breakStart = local(refreshed.breakIn);
-          const breakEnd = local(refreshed.breakOut);
-          if (breakEnd < 14 * 60 + 30) breakMinutes = Math.max(breakMinutes, 14 * 60 + 30 - breakStart);
-        } else {
-          const start = local(refreshed.checkIn);
-          const end = local(refreshed.checkOut);
-          breakMinutes = Math.max(0, Math.min(end, 14 * 60 + 30) - Math.max(start, 13 * 60 + 30));
-        }
+        const breakMinutes = effectiveBreakMinutes(refreshed.breakIn, refreshed.breakOut, refreshed.checkIn, refreshed.checkOut);
         const workMinutes = Math.max(0, spanMinutes - breakMinutes);
         const workHours = Math.round((workMinutes / 60) * 100) / 100;
         // OT: anything over 480 min (8h) — simple default; the Shift's

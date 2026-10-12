@@ -4,6 +4,7 @@ import { resolveCompanyScope } from '@/lib/companyScope';
 import { withSchemaSync } from '@/lib/schema-sync';
 import { getTokenFromHeaders } from '@/lib/auth';
 import { employeeIdsWithStoredPhoto, employeePhotoApiPath } from '@/lib/profile-photo';
+import { effectiveBreakMinutes } from '@/lib/attendance-break-rules';
 
 function corsHeaders() {
   return {
@@ -350,7 +351,7 @@ export async function POST(request: Request) {
       // break punches show a longer break, deduct the full actual duration.
       const grossMinutes = (now.getTime() - existingRecord.checkIn.getTime()) / 60000;
       const punchedBreakMinutes = existingRecord.breakIn && existingRecord.breakOut
-        ? Math.max(0, (existingRecord.breakOut.getTime() - existingRecord.breakIn.getTime()) / 60000)
+        ? effectiveBreakMinutes(existingRecord.breakIn, existingRecord.breakOut, existingRecord.checkIn, now)
         : null;
       const localMinutes = (value: Date) => {
         const parts = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(value);
