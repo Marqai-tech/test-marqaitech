@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb, getDbForTenant } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders, hashPassword } from '@/lib/auth';
 import { profilePhotoPayloadError } from '@/lib/profile-photo';
+import { ensureEmployeeProfileColumns } from '@/lib/employee-profile-columns';
+import { canEditEmployeeRecords } from '@/lib/roleAccess';
+import { applyEmployeeFieldChange, FIELD_SENSITIVITY } from '@/lib/employee-update-request';
 
 function corsHeaders() {
   return {
@@ -446,9 +449,15 @@ export async function PATCH(request: Request) {
     }
 
     const derivedName = [firstName, lastName].filter(Boolean).join(' ').trim();
+    // Task 86: HR/admin roles keep direct self-edit rights. Employees and
+    // managers go through the profile-update approval workflow for high-risk
+    // fields (names, DOB, bank, KYC…) — see the routing below.
+    const privileged = canEditEmployeeRecords((decoded.role as string) || '');
     const userUpdateData: Record<string, unknown> = {};
-    if (name !== undefined) userUpdateData.name = name;
-    else if (derivedName) userUpdateData.name = derivedName;
+    if (privileged) {
+      if (name !== undefined) userUpdateData.name = name;
+      else if (derivedName) userUpdateData.name = derivedName;
+    }
     if (avatar !== undefined) userUpdateData.avatar = avatar || null;
 
     const userId = decoded.userId as string;
@@ -552,6 +561,123 @@ export async function PATCH(request: Request) {
       if (empId && empDb) {
         await ensureEmployeeProfileColumns(empDb);
 
+        if (!privileged) {
+          // Photo self-service stays direct (product rule: employees may
+          // change their profile photo anytime) — apply to the Employee row.
+          if (avatar !== undefined) {
+            try { await empDb.$executeRawUnsafe(`UPDATE "Employee" SET "avatar" = $1 WHERE "id" = $2`, avatar || null, empId); } catch (e) {
+              console.error('[Profile PATCH] Employee avatar update failed:', e);
+            }
+          }
+          // ─── Task 86: EMPLOYEE / MANAGER SELF-EDIT → approval workflow ───
+          // Diff the submitted fields against the current employee row and
+          // route each CHANGED field through the shared engine:
+          //   low sensitivity  → applied directly (+ audit row)
+          //   high sensitivity → pending approval request per the workflow
+          //                      configured in the employee module + email /
+          //                      in-app alert to the approver
+          //   restricted       → skipped (never self-service editable)
+          // Unchanged fields create nothing, so pressing Save is idempotent.
+          const appliedFields: string[] = [];
+          const pendingFields: string[] = [];
+          const skippedFields: string[] = [];
+          const errors: string[] = [];
+
+          const current = await (empDb as any).employee.findUnique({ where: { id: empId } });
+          const norm = (v: unknown) => String(v ?? '').trim();
+          const normDate = (v: unknown) => {
+            if (!v) return '';
+            try { return new Date(v as string).toISOString().slice(0, 10); } catch { return ''; }
+          };
+
+          for (const [col, value] of stringFields) {
+            if (value === undefined) continue;
+            const before = norm((current as Record<string, unknown> | null)?.[col]);
+            const after = norm(value);
+            if (before === after) continue;
+            const meta = FIELD_SENSITIVITY[col];
+            if (!meta || meta.sensitivity === 'restricted') { skippedFields.push(meta?.label || col); continue; }
+            try {
+              const r = await applyEmployeeFieldChange(empDb as Record<string, any>, {
+                auth: { userId, role: (decoded.role as string) || 'employee', tenantId: (decoded.tenantId as string) || null },
+                employeeId: empId,
+                fieldName: col,
+                newValue: after,
+                origin: request.headers.get('origin'),
+                req: request,
+              });
+              if (!r.ok) { errors.push(r.error || `Could not submit ${meta.label}`); continue; }
+              if (r.applied) appliedFields.push(meta.label); else pendingFields.push(meta.label);
+            } catch (e) {
+              console.error(`[Profile PATCH] field change failed (${col}):`, e);
+              errors.push(`Could not submit ${meta.label}`);
+            }
+          }
+          if (dateOfBirth !== undefined) {
+            const before = normDate((current as Record<string, unknown> | null)?.dateOfBirth);
+            const after = normDate(dateOfBirth);
+            if (before !== after) {
+              try {
+                const r = await applyEmployeeFieldChange(empDb as Record<string, any>, {
+                  auth: { userId, role: (decoded.role as string) || 'employee', tenantId: (decoded.tenantId as string) || null },
+                  employeeId: empId,
+                  fieldName: 'dateOfBirth',
+                  newValue: after,
+                  origin: request.headers.get('origin'),
+                  req: request,
+                });
+                if (!r.ok) errors.push(r.error || 'Could not submit Date of Birth');
+                else if (r.applied) appliedFields.push('Date of Birth'); else pendingFields.push('Date of Birth');
+              } catch (e) {
+                console.error('[Profile PATCH] dateOfBirth change failed:', e);
+                errors.push('Could not submit Date of Birth');
+              }
+            }
+          }
+          if (Array.isArray(experiences)) {
+            // Experience entries stay a direct self-service edit (structured
+            // history, not a single approval-routable field).
+            try {
+              await empDb.$executeRawUnsafe(`DELETE FROM "Experience" WHERE "employeeId" = $1`, empId);
+              for (const exp of experiences) {
+                const company = String(exp?.company || '').trim();
+                const designation = String(exp?.designation || '').trim();
+                if (!company || !designation) continue;
+                const start = exp.fromDate || exp.startDate;
+                if (!start) continue;
+                const end = exp.toDate || exp.endDate || null;
+                const isCurrent = Boolean(exp.isCurrent);
+                const description = String(exp.description || '') || null;
+                const id = String(exp.id || '').trim() || crypto.randomUUID();
+                await empDb.$executeRawUnsafe(
+                  `INSERT INTO "Experience" ("id","employeeId","company","designation","startDate","endDate","isCurrent","description","createdAt","updatedAt") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,NOW(),NOW())`,
+                  id, empId, company, designation, new Date(start), end ? new Date(end) : null, isCurrent, description,
+                );
+              }
+              appliedFields.push('Experience');
+            } catch (e) {
+              console.error('[Profile PATCH] Experience update failed:', e);
+            }
+          }
+
+          const parts: string[] = [];
+          if (appliedFields.length) parts.push(`${appliedFields.length} field(s) updated`);
+          if (pendingFields.length) parts.push(`${pendingFields.length} change(s) sent for approval`);
+          const message = parts.length
+            ? `Profile saved — ${parts.join(', ')}`
+            : (errors.length ? 'Profile saved with errors' : 'No changes detected');
+          return NextResponse.json({
+            success: true,
+            message,
+            appliedFields,
+            pendingFields,
+            skippedFields,
+            errors,
+            user: { id: updatedUser.id, name: updatedUser.name, email: updatedUser.email, avatar: updatedUser.avatar, role: updatedUser.role },
+          }, { headers: corsHeaders() });
+        }
+
+        // ─── Privileged (HR/admin) self-edit → direct write, as before ───
         const sets: string[] = [];
         const params: any[] = [];
         let pIdx = 1;

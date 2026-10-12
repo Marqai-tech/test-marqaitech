@@ -6,7 +6,11 @@
   "crons": [
     {
       "path": "/api/cron/biometric-sync",
-      "schedule": "* * * * *"
+      "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/policy-ack-reminders",
+      "schedule": "30 3 * * *"
     }
   ]
 }

@@ -609,10 +609,25 @@ export function validateNationality(value: string): { valid: boolean; error?: st
 export function validatePFNumber(value: string): { valid: boolean; error?: string } {
   if (!value || !value.trim()) return { valid: true }; // Optional field
   const trimmed = value.trim();
-  if (trimmed.length < 5) return { valid: false, error: 'PF number must be at least 5 characters' };
+  if (trimmed.length < 8) return { valid: false, error: 'Invalid Member ID' };
   if (trimmed.length > 25) return { valid: false, error: 'PF number is too long (max 25 characters)' };
-  // Allow alphanumeric, slashes, and hyphens (PF format: XX/XXX/XXXXX)
-  if (!/^[A-Za-z0-9\/\-]+$/.test(trimmed)) return { valid: false, error: 'PF number can only contain letters, numbers, slashes, and hyphens' };
+  // EPFO member IDs contain an establishment prefix and a numeric member part.
+  if (!/^[A-Z]{2}\/[A-Z0-9]{3,8}\/[0-9]{3,10}$/i.test(trimmed)) return { valid: false, error: 'Invalid Member ID' };
+  return { valid: true };
+}
+
+export function validateNomineeName(value: string): { valid: boolean; error?: string } {
+  if (!value || !value.trim()) return { valid: true };
+  const name = value.trim();
+  if (!/^[A-Za-z\u00C0-\u017F\u0900-\u097F]+(?:[ .'-][A-Za-z\u00C0-\u017F\u0900-\u097F]+)*$/.test(name)) return { valid: false, error: 'Please enter a valid nominee name.' };
+  return { valid: true };
+}
+
+export function validateLWFNumber(value: string): { valid: boolean; error?: string } {
+  if (!value || !value.trim()) return { valid: true };
+  // Registration identifiers are state-dependent; accept a compact alpha-numeric
+  // registration number and reject descriptive/prefixed text such as LWF-KAR-123.
+  if (!/^[A-Z]{2,4}[0-9]{5,12}$/i.test(value.trim())) return { valid: false, error: 'Please enter a valid LWF registration number.' };
   return { valid: true };
 }
 

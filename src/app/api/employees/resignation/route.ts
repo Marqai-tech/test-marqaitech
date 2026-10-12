@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { createNotification } from '@/lib/notifications';
+import { loadEmployeeSetting } from '@/lib/employee-config';
 
 function corsHeaders() {
   return {
@@ -161,6 +162,10 @@ export async function POST(request: Request) {
     if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401, headers: corsHeaders() });
 
     const body = await request.json();
+    const lifecycle = await loadEmployeeSetting(db as Record<string, any>, request, 'employee_resignation_config', {
+      enabled: true, defaultNoticePeriodDays: 60, approvalRoles: ['tenant_admin', 'admin'], notifyReportingManager: true,
+    });
+    if (!lifecycle.enabled) return NextResponse.json({ error: 'Resignation requests are disabled in Employee Settings' }, { status: 409, headers: corsHeaders() });
     let {
       employeeId,
       employeeName,
@@ -255,7 +260,7 @@ export async function POST(request: Request) {
         lastWorkingDate ? new Date(lastWorkingDate) : null,
         reasonCategory || null,
         cleanDetailedReason || null,
-        Number(noticePeriodDays) || 0,
+        Number(noticePeriodDays) || lifecycle.defaultNoticePeriodDays,
         Boolean(isNoticePeriodWaived),
         cleanWaiverReason || null,
         cleanHandoverPlan || null,
@@ -278,7 +283,7 @@ export async function POST(request: Request) {
         const adminUsers = await db.user.findMany({
           where: {
             tenantId,
-            role: { in: ['tenant_admin', 'admin'] },
+            role: { in: lifecycle.approvalRoles },
             status: 'active',
           },
           select: { id: true },
@@ -298,7 +303,7 @@ export async function POST(request: Request) {
         }
 
         // 2. Notify the employee's reporting manager (if linked)
-        try {
+        if (lifecycle.notifyReportingManager) try {
           const mgrRows = await db.$queryRawUnsafe(
             `SELECT e."reportingManagerId", u."id" AS "managerUserId"
              FROM "Employee" e

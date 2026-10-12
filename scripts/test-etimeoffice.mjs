@@ -75,6 +75,17 @@ test('a punch after the two-minute window remains valid', () => {
   assert.equal(result.classifications.get('out'), 'check_out');
 });
 
+test('a scan before 2:30 PM closes an existing manual break-in', () => {
+  const breakIn = new Date('2026-10-08T13:30:00+05:30');
+  const scan = { id: 'scan', punchTime: new Date('2026-10-08T14:28:00+05:30') };
+  const result = classifyBiometricDay([scan], 2, {
+    manualCheckIn: true,
+    existingBreakIn: breakIn,
+    existingBreakOut: null,
+  });
+  assert.equal(result.classifications.get('scan'), 'break_out');
+});
+
 test('a cursor truncated by env expansion fails before contacting the vendor', async (t) => {
   const fetch = t.mock.method(globalThis, 'fetch', () => { throw new Error('must not call fetch'); });
   await assert.rejects(downloadLatestPunches('102026'), /Escape the dollar sign/);

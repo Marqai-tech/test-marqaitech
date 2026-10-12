@@ -210,7 +210,19 @@ export default function UpdateRequestsPage() {
   useEffect(() => { load(scope); }, [scope, load]);
 
   const act = async (id: string, action: 'approve' | 'reject') => {
-    const comments = window.prompt(`Comments for this ${action}? (optional)`) || '';
+    // Task 88 (spec rule 4): a rejection reason is MANDATORY — the employee
+    // is notified with it and needs it to correct and resubmit.
+    let comments = '';
+    if (action === 'approve') {
+      comments = window.prompt('Comments for this approval? (optional)') || '';
+    } else {
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        comments = window.prompt('Rejection reason (required):') || '';
+        if (comments.trim()) break;
+        if (window.confirm('A rejection reason is required. Cancel the rejection?')) return;
+      }
+    }
     try {
       const res = await fetch(`/api/employees/update-requests/${id}`, {
         method: 'PATCH', headers: getAuthHeaders(),

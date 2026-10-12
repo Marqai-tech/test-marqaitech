@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import {
   FiClock,
   FiLogIn,
@@ -349,9 +349,27 @@ export default function AttendancePage() {
   const [detailRecord, setDetailRecord] = useState<AttendanceRecord | null>(null);
 
   /* ── Fetch admin attendance (all employees for selected date) + roster ── */
+  const lastBiometricSyncAtRef = useRef(0);
   const fetchAdminAttendance = useCallback(async () => {
     try {
       setAdminLoading(true);
+      // Task 85: pull fresh Team Office (ETimeOffice) biometric punches before
+      // rendering. The per-minute Vercel cron was demoted to a daily backstop
+      // so Hobby-plan projects can deploy the shared vercel.json (per-minute
+      // schedules are Pro-only and failed demo deployment validation); this
+      // keeps the dashboard near-real-time whenever an admin opens it. The
+      // route is admin-only and silently no-ops where sync is not configured
+      // (403 on demo). Throttled to one call per minute.
+      if (Date.now() - lastBiometricSyncAtRef.current > 60_000) {
+        lastBiometricSyncAtRef.current = Date.now();
+        try {
+          await fetch('/api/attendance/biometric/sync', {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            signal: AbortSignal.timeout(6000),
+          });
+        } catch { /* non-fatal — roster still loads; daily cron is the backstop */ }
+      }
       // Task 82: Auto-present for management — before reading the roster, ask
       // the server to create/fill auto-present rows for the selected day.
       // No-op when the toggle is off in Attendance Settings; real punches,
@@ -380,9 +398,13 @@ export default function AttendancePage() {
       // the roster lets us derive Absent / On Leave / Weekend / Holiday for
       // employees who have NO attendance row (previously they were invisible
       // and the admin counts stayed at 0).
+      // NOTE: the roster MUST include management employees — their punches
+      // (real or auto-present) are the majority of admin-view rows. Do NOT
+      // add excludeManagement here; hiding management belongs to the Employee
+      // List page only, not the attendance dashboard.
       const [attRes, empRes] = await Promise.all([
         fetch(`/api/attendance?${params.toString()}${sq ? `&${sq}` : ''}&includePhotos=0`, { headers: getAuthHeaders() }),
-        fetch(`/api/employees?limit=500&status=active&includePhotos=0&excludeManagement=1${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() }),
+        fetch(`/api/employees?limit=500&status=active&includePhotos=0${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() }),
       ]);
       if (attRes.ok) {
         const data = await attRes.json();
@@ -1351,8 +1373,7 @@ export default function AttendancePage() {
                                 >
                                   <FiEye className="w-3.5 h-3.5" /> View
                                 </button>
-                                {isAdmin && <Link href={`/attendance/regularize?employeeId=${encodeURIComponent(r.emp.id)}&date=${encodeURIComponent(recordDateKey(a.date))}`} className="text-xs text-amber-600 hover:text-amber-700 font-medium">Regularize</Link>}
-                                {isAdmin && <Link href={`/attendance/audit-log?employeeId=${encodeURIComponent(r.emp.id)}`} className="text-xs text-slate-500 hover:text-slate-700 font-medium">Audit</Link>}
+                                {!isAdmin && <Link href={`/attendance/regularize?date=${encodeURIComponent(recordDateKey(a.date))}`} className="text-xs text-amber-600 hover:text-amber-700 font-medium">Regularize</Link>}
                               </div>
                             )}
                           </td>

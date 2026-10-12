@@ -16,7 +16,7 @@ export type TimedPunch = { id: string; punchTime: Date };
 export function classifyBiometricDay<T extends TimedPunch>(
   punches: T[],
   duplicateWindowMinutes = 2,
-  options: { manualCheckIn?: boolean; existingBreakIn?: Date | null; existingBreakOut?: Date | null; earlyLogout?: boolean } = {},
+  options: { manualCheckIn?: boolean; existingCheckOut?: Date | null; existingBreakIn?: Date | null; existingBreakOut?: Date | null; earlyLogout?: boolean } = {},
 ) {
   const ordered = [...punches].sort((a, b) => a.punchTime.getTime() - b.punchTime.getTime());
   const duplicateWindowMs = Math.max(0, duplicateWindowMinutes) * 60_000;
@@ -51,7 +51,16 @@ export function classifyBiometricDay<T extends TimedPunch>(
       continue;
     }
     const minutes = localMinutes(punch.punchTime);
-    if ((options.manualCheckIn && index === 1) || minutes < 13 * 60 + 30) {
+    // A manual Break-In is part of the same attendance state machine as a
+    // biometric Break-In. Once it exists, the first subsequent biometric
+    // event must close that break, regardless of whether it is before,
+    // exactly at, or after 2:30 PM, and regardless of the biometric index.
+    // Do this before the manual-check-in/entry-only rule so that a scan after
+    // a manual Break-In cannot be misclassified as a normal entry punch.
+    if (hasBreakIn && !hasBreakOut && options.existingBreakIn && punch.punchTime > options.existingBreakIn) {
+      classifications.set(punch.id, 'break_out');
+      hasBreakOut = true;
+    } else if ((!options.existingCheckOut && options.manualCheckIn && index === 1) || minutes < 13 * 60 + 30) {
       classifications.set(punch.id, 'entry_only');
     } else if (!hasBreakIn) {
       classifications.set(punch.id, 'break_in');
@@ -59,7 +68,7 @@ export function classifyBiometricDay<T extends TimedPunch>(
     } else if (!hasBreakOut) {
       classifications.set(punch.id, 'break_out');
       hasBreakOut = true;
-    } else if (minutes <= 18 * 60 + 30) {
+    } else if (minutes < 18 * 60 + 30) {
       classifications.set(punch.id, 'entry_only');
     } else {
       classifications.set(punch.id, 'check_out');

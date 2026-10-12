@@ -39,21 +39,65 @@ async function loadTenantMailSettings(db: PrismaClient, tenantId: string): Promi
   }
 }
 
+// ─── Circuit breakers (Task 88) ────────────────────────────────────────────
+// A broken tenant SMTP (changed password, blocked port — e.g. the webhostbox
+// 535 auth failure) used to stall EVERY notification dispatch: each email
+// retried the full SMTP handshake (~2-10s) and multi-recipient dispatches
+// (approvals, reminder crons) blew past serverless time limits. After
+// repeated failures we short-circuit that sender for CIRCUIT_OPEN_MS and go
+// straight to the next fallback; any success resets the breaker instantly.
+const SMTP_CIRCUIT_OPEN_MS = 5 * 60 * 1000;
+const SMTP_CIRCUIT_THRESHOLD = 2; // consecutive failures before opening
+
+const tenantSmtpBreakers = new Map<string, { fails: number; openedAt: number }>();
+const envSmtpBreaker = { fails: 0, openedAt: 0 };
+const globalSenderBreaker = { fails: 0, openedAt: 0 };
+
+function isCircuitOpen(b: { fails: number; openedAt: number }): boolean {
+  return b.fails >= SMTP_CIRCUIT_THRESHOLD && Date.now() - b.openedAt < SMTP_CIRCUIT_OPEN_MS;
+}
+function recordFailure(b: { fails: number; openedAt: number }) {
+  b.fails += 1;
+  b.openedAt = Date.now();
+}
+function recordSuccess(b: { fails: number; openedAt: number }) {
+  b.fails = 0;
+  b.openedAt = 0;
+}
+function tenantBreaker(tenantId: string) {
+  let b = tenantSmtpBreakers.get(tenantId);
+  if (!b) { b = { fails: 0, openedAt: 0 }; tenantSmtpBreakers.set(tenantId, b); }
+  return b;
+}
+
 export async function sendTenantEmail(
   db: PrismaClient,
   tenantId: string,
   params: { to: string; subject: string; html: string },
 ): Promise<ChannelEmailResult> {
-  const settings = await loadTenantMailSettings(db, tenantId);
-  if (settings) {
-    try {
-      const res = await sendPerTenantEmail(settings as any, params);
-      if (res.success) return { success: true };
-      console.warn(`[NotificationCenter] Tenant email failed (${(res as any).error}) — trying global sender`);
-    } catch (e) {
-      console.warn(`[NotificationCenter] Tenant email error — trying global sender: ${(e as Error).message}`);
+  // 1) Tenant CollaborationSettings SMTP — first choice (breaker-aware)
+  const tb = tenantBreaker(tenantId);
+  if (!isCircuitOpen(tb)) {
+    const settings = await loadTenantMailSettings(db, tenantId);
+    if (settings) {
+      try {
+        const res = await sendPerTenantEmail(settings as any, params);
+        if (res.success) {
+          recordSuccess(tb);
+          return { success: true };
+        }
+        recordFailure(tb);
+        console.warn(`[NotificationCenter] Tenant email failed (${(res as any).error}) — trying global sender`);
+      } catch (e) {
+        recordFailure(tb);
+        console.warn(`[NotificationCenter] Tenant email error — trying global sender: ${(e as Error).message}`);
+      }
     }
+  } else {
+    console.warn(`[NotificationCenter] Tenant SMTP circuit open for tenant ${tenantId} — skipping to fallback (will retry after ${SMTP_CIRCUIT_OPEN_MS / 60000} min)`);
   }
+
+  // 2) Environment SMTP fallback (breaker-aware)
   const envSettings = {
     emailIntegrationEnabled: true,
     emailProvider: 'smtp',
@@ -66,15 +110,32 @@ export async function sendTenantEmail(
     smtpFromAddress: process.env.SMTP_FROM_EMAIL,
   };
   if (envSettings.smtpHost && envSettings.smtpUsername && envSettings.smtpPassword) {
-    try {
-      const res = await sendPerTenantEmail(envSettings as any, params);
-      if (res.success) return { success: true };
-      console.warn(`[NotificationCenter] Local SMTP fallback failed (${(res as any).error})`);
-    } catch (e) {
-      console.warn(`[NotificationCenter] Local SMTP fallback error: ${(e as Error).message}`);
+    if (!isCircuitOpen(envSmtpBreaker)) {
+      try {
+        const res = await sendPerTenantEmail(envSettings as any, params);
+        if (res.success) {
+          recordSuccess(envSmtpBreaker);
+          return { success: true };
+        }
+        recordFailure(envSmtpBreaker);
+        console.warn(`[NotificationCenter] Local SMTP fallback failed (${(res as any).error})`);
+      } catch (e) {
+        recordFailure(envSmtpBreaker);
+        console.warn(`[NotificationCenter] Local SMTP fallback error: ${(e as Error).message}`);
+      }
     }
   }
-  return sendGlobalEmail(params);
+
+  // 3) Global Resend sender (breaker-aware — e.g. Resend sandbox mode only
+  // delivers to the account owner, so repeated failures must not slow
+  // every dispatch down)
+  if (isCircuitOpen(globalSenderBreaker)) {
+    return { success: false, error: 'Global email sender temporarily disabled after repeated failures (auto-retries in a few minutes)' };
+  }
+  const res = await sendGlobalEmail(params);
+  if (res.success) recordSuccess(globalSenderBreaker);
+  else recordFailure(globalSenderBreaker);
+  return res;
 }
 
 // Re-export for callers that already know they want the global sender
