@@ -111,8 +111,10 @@ export async function PUT(request: Request) {
       // Shift & Grace policy (unified from legacy AttendancePolicyRule)
       shiftStartDefault: typeof rules.shiftStartDefault === 'string' ? rules.shiftStartDefault : '09:30',
       shiftEndDefault: typeof rules.shiftEndDefault === 'string' ? rules.shiftEndDefault : '18:30',
-      breakDurationMinutes: Math.max(0, Math.min(180, Number(rules.breakDurationMinutes) || 30)),
-      lateGraceMinutes: Math.max(0, Math.min(120, Number(rules.lateGraceMinutes) || 15)),
+      breakDurationMinutes: Math.max(0, Math.min(180, Number(rules.breakDurationMinutes) || 60)),
+      breakStartDefault: typeof rules.breakStartDefault === 'string' ? rules.breakStartDefault : '13:30',
+      breakEndDefault: typeof rules.breakEndDefault === 'string' ? rules.breakEndDefault : '14:30',
+      lateGraceMinutes: Math.max(0, Math.min(120, Number(rules.lateGraceMinutes) || 30)),
       earlyGraceMinutes: Math.max(0, Math.min(120, Number(rules.earlyGraceMinutes) || 10)),
       // Late-mark policy
       lateMarkAllowancePerMonth: Math.max(0, Math.min(31, Number(rules.lateMarkAllowancePerMonth) || 0)),
@@ -122,6 +124,12 @@ export async function PUT(request: Request) {
       // Overtime policy
       autoOvertimeEnabled: rules.autoOvertimeEnabled !== false,
       overtimeThresholdMinutes: Math.max(0, Math.min(1440, Number(rules.overtimeThresholdMinutes) || 480)),
+      overtimeRequiresProductionThreshold: rules.overtimeRequiresProductionThreshold !== false,
+      firstPunchIsCheckIn: rules.firstPunchIsCheckIn !== false,
+      laterBiometricPunchIsCheckout: rules.laterBiometricPunchIsCheckout !== false,
+      latestPunchIsFinalCheckout: rules.latestPunchIsFinalCheckout !== false,
+      biometricBreaksEnabled: rules.biometricBreaksEnabled === true,
+      duplicatePunchWindowMinutes: Math.max(0, Math.min(30, Number(rules.duplicatePunchWindowMinutes) || 2)),
       // Gate-pass policy
       gatePassMaxPerMonth: Math.max(0, Math.min(31, Number(rules.gatePassMaxPerMonth) || 0)),
       gatePassHalfDayOnExceed: rules.gatePassHalfDayOnExceed !== false,
