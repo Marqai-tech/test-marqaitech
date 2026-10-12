@@ -252,7 +252,7 @@ function calculateLunchOverlapMinutes(checkIn: string, checkOut: string): number
   };
   const start = parts(checkIn);
   const end = parts(checkOut);
-  return start < 14 * 60 + 30 && end > 13 * 60 + 30 ? 60 : 0;
+  return Math.max(0, Math.min(end, 14 * 60 + 30) - Math.max(start, 13 * 60 + 30));
 }
 
 // Dashboard production hours use the fixed one-hour lunch rule.
