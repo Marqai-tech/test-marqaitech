@@ -158,7 +158,10 @@ export async function getDb(request?: Request | null): Promise<PrismaClient> {
     const reqHost = request.headers.get('x-tenant-domain') || request.headers.get('host') || ''
     const testPlatform = isTestPlatformHost(reqHost) || tenantSlug === 'test'
     if (testPlatform) {
-      tenantSlug = ''
+      // The QA host has its own copied tenant database. Keep the platform
+      // host isolated from production, but route tenant requests to that DB
+      // so QA users can see the copied employees and attendance data.
+      tenantSlug = process.env.TEST_TENANT_SLUG || 'acme-global-demo'
     } else if (!tenantSlug) {
       // 2. Try demo domain detection from host header
       const host = request.headers.get('host') || ''
