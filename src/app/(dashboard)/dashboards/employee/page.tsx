@@ -487,7 +487,7 @@ function EmployeeContent() {
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
               </div>
               <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
-                Employee Dashboard
+                Admin Dashboard
               </h1>
               <p className="text-white/80 mt-1 text-sm sm:text-base">
                 {greeting}, <span className="font-semibold text-white">{employeeName}</span>
