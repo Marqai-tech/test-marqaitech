@@ -5,7 +5,7 @@ import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { resolveCompanyScope } from '@/lib/companyScope';
 import { safeAuditLog } from '@/lib/audit-safe';
 import { sendEmail } from '@/lib/email';
-import { effectiveBreakMinutes } from '@/lib/attendance-break-rules';
+import { effectiveBreakMinutes, loadAttendanceBreakPolicy } from '@/lib/attendance-break-rules';
 
 /**
  * POST /api/attendance/punch
@@ -389,7 +389,7 @@ export async function POST(request: NextRequest) {
       if (refreshed?.checkIn && refreshed?.checkOut) {
         const spanMs = refreshed.checkOut.getTime() - refreshed.checkIn.getTime();
         const spanMinutes = Math.max(0, Math.round(spanMs / 60000));
-        const breakMinutes = effectiveBreakMinutes(refreshed.breakIn, refreshed.breakOut, refreshed.checkIn, refreshed.checkOut);
+        const breakMinutes = effectiveBreakMinutes(refreshed.breakIn, refreshed.breakOut, refreshed.checkIn, refreshed.checkOut, await loadAttendanceBreakPolicy(db));
         const workMinutes = Math.max(0, spanMinutes - breakMinutes);
         const workHours = Math.round((workMinutes / 60) * 100) / 100;
         // OT: anything over 480 min (8h) — simple default; the Shift's

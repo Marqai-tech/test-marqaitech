@@ -953,6 +953,10 @@ const SYNC_STATEMENTS: string[] = [
     "shiftStartDefault" TEXT NOT NULL DEFAULT '09:00',
     "shiftEndDefault" TEXT NOT NULL DEFAULT '17:30',
     "breakDurationMinutes" INTEGER NOT NULL DEFAULT 30,
+    "breakStartTime" TEXT NOT NULL DEFAULT '13:30',
+    "breakEndTime" TEXT NOT NULL DEFAULT '14:30',
+    "mandatoryBreakEnabled" BOOLEAN NOT NULL DEFAULT false,
+    "attendanceRuleScope" TEXT NOT NULL DEFAULT 'all_tenants',
     "gatePassMaxPerMonth" INTEGER NOT NULL DEFAULT 1,
     "gatePassHalfDayOnExceed" BOOLEAN NOT NULL DEFAULT true,
     "gatePassHalfDayNextDay" BOOLEAN NOT NULL DEFAULT true,
@@ -966,6 +970,10 @@ const SYNC_STATEMENTS: string[] = [
     CONSTRAINT "AttendancePolicyConfig_pkey" PRIMARY KEY ("id")
   )`,
   `CREATE INDEX IF NOT EXISTS "AttendancePolicyConfig_companyId_idx" ON "AttendancePolicyConfig"("companyId")`,
+  `ALTER TABLE "AttendancePolicyConfig" ADD COLUMN IF NOT EXISTS "breakStartTime" TEXT NOT NULL DEFAULT '13:30'`,
+  `ALTER TABLE "AttendancePolicyConfig" ADD COLUMN IF NOT EXISTS "breakEndTime" TEXT NOT NULL DEFAULT '14:30'`,
+  `ALTER TABLE "AttendancePolicyConfig" ADD COLUMN IF NOT EXISTS "mandatoryBreakEnabled" BOOLEAN NOT NULL DEFAULT false`,
+  `ALTER TABLE "AttendancePolicyConfig" ADD COLUMN IF NOT EXISTS "attendanceRuleScope" TEXT NOT NULL DEFAULT 'all_tenants'`,
 
   // ─── EmailMessage: ensure table exists ───
   `CREATE TABLE IF NOT EXISTS "EmailMessage" (

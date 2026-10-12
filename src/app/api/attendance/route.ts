@@ -4,7 +4,7 @@ import { resolveCompanyScope } from '@/lib/companyScope';
 import { withSchemaSync } from '@/lib/schema-sync';
 import { getTokenFromHeaders } from '@/lib/auth';
 import { employeeIdsWithStoredPhoto, employeePhotoApiPath } from '@/lib/profile-photo';
-import { effectiveBreakMinutes } from '@/lib/attendance-break-rules';
+import { effectiveBreakMinutes, loadAttendanceBreakPolicy } from '@/lib/attendance-break-rules';
 
 function corsHeaders() {
   return {
@@ -350,8 +350,9 @@ export async function POST(request: Request) {
       // Production hours exclude the mandatory one-hour lunch. If actual
       // break punches show a longer break, deduct the full actual duration.
       const grossMinutes = (now.getTime() - existingRecord.checkIn.getTime()) / 60000;
+      const breakPolicy = await loadAttendanceBreakPolicy(db);
       const punchedBreakMinutes = existingRecord.breakIn && existingRecord.breakOut
-        ? effectiveBreakMinutes(existingRecord.breakIn, existingRecord.breakOut, existingRecord.checkIn, now)
+        ? effectiveBreakMinutes(existingRecord.breakIn, existingRecord.breakOut, existingRecord.checkIn, now, breakPolicy)
         : null;
       const localMinutes = (value: Date) => {
         const parts = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(value);
@@ -359,7 +360,7 @@ export async function POST(request: Request) {
       };
       const checkInMinutes = localMinutes(existingRecord.checkIn);
       const checkOutMinutes = localMinutes(now);
-      const lunchOverlapMinutes = Math.max(0, Math.min(checkOutMinutes, 14 * 60 + 30) - Math.max(checkInMinutes, 13 * 60 + 30));
+      const lunchOverlapMinutes = effectiveBreakMinutes(null, null, existingRecord.checkIn, now, breakPolicy);
       const breakMinutes = punchedBreakMinutes != null ? punchedBreakMinutes : lunchOverlapMinutes;
       const workHours = Math.max(0, (grossMinutes - breakMinutes) / 60);
       const belowEightHours = workHours < 8;
