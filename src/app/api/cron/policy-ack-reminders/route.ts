@@ -2,10 +2,13 @@
  * Policy Acknowledgement Reminder Cron (Task 88)
  *
  *   GET /api/cron/policy-ack-reminders?secret=CRON_SECRET
+ *   GET /api/cron/policy-ack-reminders   (Authorization: Bearer <admin JWT>
+ *                                         → sweeps ONLY the caller's tenant)
  *
  * Spec: "Pending Policy Acknowledgement — Notification & Email Workflow v1.0"
  *
- * Sweeps every active tenant daily and:
+ * Sweeps every tenant with a DEDICATED database (shared platform-DB tenants
+ * are skipped — their legacy rows have no per-tenant scoping) and:
  *   1. Finds ACTIVE policies whose assignment date (effectiveDate || createdAt)
  *      is ≥ 30 calendar days in the past.
  *   2. Finds active employees who have NOT acknowledged the policy's current
@@ -22,10 +25,12 @@
  *      for a policy version once it is acknowledged.
  *
  * Schedule (vercel.json): daily 03:00 UTC = 08:30 IST — Hobby-plan safe.
+ * Vercel Cron injects `Authorization: Bearer $CRON_SECRET` automatically.
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { getPlatformDb, getDbForTenantById } from '@/lib/tenant-db';
 import { dispatchNotification } from '@/lib/notification-center';
+import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 const CRON_SECRET = process.env.CRON_SECRET || '3boxes-hrms-cron-2026';
 const THRESHOLD_DAYS = 30;   // first escalation after 30 calendar days
@@ -51,12 +56,45 @@ export async function GET(request: NextRequest) {
     const searchParams = new URL(request.url).searchParams;
     const bearer = request.headers.get('authorization');
     const bearerToken = bearer?.startsWith('Bearer ') ? bearer.slice(7).trim() : null;
-    if (searchParams.get('secret') !== CRON_SECRET && bearerToken !== CRON_SECRET) {
+
+    // Auth mode 1 — Vercel Cron (secret): sweep ALL dedicated tenants.
+    const isCronSecret = searchParams.get('secret') === CRON_SECRET || bearerToken === CRON_SECRET;
+
+    // Auth mode 2 — admin/HR JWT: sweep ONLY the caller's tenant (manual
+    // "run now" from the app; also lets admins verify the reminder pipeline).
+    let adminTenantId: string | null = null;
+    if (!isCronSecret && bearerToken) {
+      try {
+        const decoded = await verifyToken(getTokenFromHeaders(request) || '');
+        const role = (decoded as { role?: string } | null)?.role || '';
+        const tid = (decoded as { tenantId?: string | null } | null)?.tenantId || null;
+        if (['super_admin', 'tenant_admin', 'admin', 'hr_admin', 'company_hr_admin'].includes(role)) {
+          adminTenantId = tid;
+        }
+      } catch { /* fall through to unauthorized */ }
+    }
+
+    if (!isCronSecret && !adminTenantId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: cors() });
     }
 
     const platformDb = getPlatformDb();
-    const tenants = await platformDb.tenant.findMany({ where: { status: 'active' }, select: { id: true, name: true } });
+
+    // Dedicated-DB tenants only (LIVE + demo pattern). Shared platform-DB
+    // tenants are skipped: their legacy rows have no tenant scoping and
+    // re-sweeping the platform DB once per shared tenant caused timeouts.
+    const dedicated = await platformDb.tenantDatabase.findMany({
+      where: { isActive: true },
+      select: { tenantId: true, tenant: { select: { name: true, slug: true, status: true } } },
+    });
+    let tenants = dedicated
+      .filter((d: any) => d.tenant?.status === 'active')
+      .map((d: any) => ({ id: d.tenantId, name: d.tenant?.name || d.tenant?.slug || d.tenantId }));
+
+    // Admin-JWT mode: restrict to the caller's own tenant (super admins with
+    // no tenant scope sweep everything, same as cron mode).
+    const sweepAll = isCronSecret || !adminTenantId;
+    if (!sweepAll) tenants = tenants.filter((t: { id: string }) => t.id === adminTenantId);
 
     let alertsSent = 0;
     const details: any[] = [];
@@ -72,6 +110,8 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
+      mode: sweepAll ? 'all_tenants' : 'admin_single_tenant',
+      tenantsSwept: tenants.length,
       alertsSent,
       details,
       thresholdDays: THRESHOLD_DAYS,
@@ -139,6 +179,10 @@ async function sweepTenant(db: any, tenantId: string, tenantName: string, detail
 
   let sent = 0;
 
+  // Task 88 diagnostics: per-employee skip reasons surfaced in the response
+  // so a zero-dispatch sweep is explainable from the outside.
+  const hrCount = hrUsers.length;
+
   for (const emp of employees) {
     // Eligible pending policies for this employee
     const pending: { title: string; version: string; assignedOn: string; days: number }[] = [];
@@ -173,6 +217,12 @@ async function sweepTenant(db: any, tenantId: string, tenantName: string, detail
       Days_Pending: String(Math.max(...pending.map((p) => p.days))),
     };
 
+    const rmUserId = emp.reportingManager?.userId;
+    const empDiag: Record<string, unknown> = {
+      hasLogin: !!emp.userId,
+      hasRm: !!rmUserId,
+    };
+
     // 1) Employee reminder (recommended by the spec matrix)
     if (emp.userId && !(await alreadySent(db, 'core_hr.policy.ack_employee_reminder', emp.id, emp.userId, REPEAT_DAYS))) {
       const res = await dispatchNotification({
@@ -184,39 +234,52 @@ async function sweepTenant(db: any, tenantId: string, tenantName: string, detail
           Days_Pending: baseVars.Days_Pending,
         },
         entity: { type: 'policy_ack_reminder', id: emp.id, link: '/policies-handbook' },
-      }).catch(() => null);
-      sent += res ? res.deliveries.filter((d: any) => d.status === 'sent').length : 0;
+      }).catch((e: Error) => ({ skipped: `threw: ${e.message}` }));
+      const d = res as { skipped?: string; deliveries?: { status: string }[] } | null;
+      empDiag.employeeDispatch = d ? { skipped: d.skipped || null, sent: (d.deliveries || []).filter((x) => x.status === 'sent').length, total: (d.deliveries || []).length } : 'null';
+      sent += d ? (d.deliveries || []).filter((x: any) => x.status === 'sent').length : 0;
+    } else {
+      empDiag.employeeDispatch = emp.userId ? 'deduped' : 'no login';
     }
 
     // 2) Reporting Manager alert (identifies the employee + pending policies)
-    const rmUserId = emp.reportingManager?.userId;
     if (rmUserId && !(await alreadySent(db, 'core_hr.policy.ack_pending', emp.id, rmUserId, REPEAT_DAYS))) {
       const res = await dispatchNotification({
         tenantId, module: 'core_hr', eventKey: 'core_hr.policy.ack_pending',
         recipients: [{ userId: rmUserId }],
         vars: baseVars,
         entity: { type: 'policy_ack_reminder', id: emp.id, link: '/company/policies' },
-      }).catch(() => null);
-      sent += res ? res.deliveries.filter((d: any) => d.status === 'sent').length : 0;
+      }).catch((e: Error) => ({ skipped: `threw: ${e.message}` }));
+      const d = res as { skipped?: string; deliveries?: { status: string }[] } | null;
+      empDiag.rmDispatch = d ? { skipped: d.skipped || null, sent: (d.deliveries || []).filter((x) => x.status === 'sent').length, total: (d.deliveries || []).length } : 'null';
+      sent += d ? (d.deliveries || []).filter((x: any) => x.status === 'sent').length : 0;
+    } else {
+      empDiag.rmDispatch = rmUserId ? 'deduped' : 'no rm login';
     }
 
     // 3) HR / Admin alerts
+    let hrSent = 0; let hrSkipped = 0;
     for (const hr of hrUsers) {
-      if (await alreadySent(db, 'core_hr.policy.ack_pending', emp.id, hr.id, REPEAT_DAYS)) continue;
+      if (await alreadySent(db, 'core_hr.policy.ack_pending', emp.id, hr.id, REPEAT_DAYS)) { hrSkipped++; continue; }
       const res = await dispatchNotification({
         tenantId, module: 'core_hr', eventKey: 'core_hr.policy.ack_pending',
         recipients: [{ userId: hr.id }],
         vars: baseVars,
         entity: { type: 'policy_ack_reminder', id: emp.id, link: '/company/policies' },
-      }).catch(() => null);
-      sent += res ? res.deliveries.filter((d: any) => d.status === 'sent').length : 0;
+      }).catch((e: Error) => ({ skipped: `threw: ${e.message}` }));
+      const d = res as { skipped?: string; deliveries?: { status: string }[] } | null;
+      if (!d || d.skipped) { hrSkipped++; empDiag.hrDispatchSkipped = d?.skipped || 'unknown'; continue; }
+      hrSent += (d.deliveries || []).filter((x) => x.status === 'sent').length;
     }
+    sent += hrSent;
+    empDiag.hrDispatch = { hrUsers: hrCount, sent: hrSent, deduped: hrSkipped };
 
     details.push({
       tenant: tenantName,
       employee: empName,
       pendingPolicies: pending.map((p) => `${p.title} (v${p.version})`),
       daysPending: baseVars.Days_Pending,
+      diag: empDiag,
     });
   }
   return sent;
