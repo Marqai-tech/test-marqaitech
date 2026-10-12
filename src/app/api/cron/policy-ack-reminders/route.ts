@@ -33,6 +33,7 @@ import { dispatchNotification } from '@/lib/notification-center';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 const CRON_SECRET = process.env.CRON_SECRET || '3boxes-hrms-cron-2026';
+const BUILD_STAMP = 'task88-e3d0859a-plus-dbprobe';
 const THRESHOLD_DAYS = 30;   // first escalation after 30 calendar days
 const REPEAT_DAYS = 7;       // follow-up reminder interval (configurable)
 
@@ -110,6 +111,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
+      buildStamp: BUILD_STAMP,
       mode: sweepAll ? 'all_tenants' : 'admin_single_tenant',
       tenantsSwept: tenants.length,
       alertsSent,
@@ -143,6 +145,14 @@ async function alreadySent(db: any, eventKey: string, entityId: string, recipien
 
 async function sweepTenant(db: any, tenantId: string, tenantName: string, details: any[]): Promise<number> {
   const now = new Date();
+
+  // Ops diagnostics: which physical DB is this handle REALLY on, and what
+  // does the server clock say (dedupe windows depend on it)?
+  let dbName = 'unknown';
+  try {
+    const rows = await db.$queryRawUnsafe('SELECT current_database() AS db, NOW() AS now');
+    dbName = rows?.[0]?.db || 'unknown';
+  } catch { dbName = 'probe-failed'; }
 
   // Active policies + their assignment date (effectiveDate || createdAt)
   const policies = await db.policy.findMany({
@@ -284,7 +294,10 @@ async function sweepTenant(db: any, tenantId: string, tenantName: string, detail
 
     details.push({
       tenant: tenantName,
+      dbName,
+      serverNow: now.toISOString(),
       employee: empName,
+      employeeRecordId: emp.id,
       pendingPolicies: pending.map((p) => `${p.title} (v${p.version})`),
       daysPending: baseVars.Days_Pending,
       diag: empDiag,
