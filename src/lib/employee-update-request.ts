@@ -18,7 +18,8 @@
  * in every "My Approvals" inbox.
  */
 import { sanitizeMultiLineText } from '@/lib/sanitize';
-import { loadWorkflowConfig, resolveTierApprovers, type WorkflowTier } from '@/lib/approverResolve';
+import { ensureWorkflowConfig, resolveTierApprovers, type WorkflowTier } from '@/lib/approverResolve';
+import { loadEmployeeFieldRules } from '@/lib/employee-config';
 
 export type FieldSensitivity = 'low' | 'high' | 'restricted';
 
@@ -149,7 +150,10 @@ export async function applyEmployeeFieldChange(
   },
 ): Promise<FieldChangeResult> {
   const { auth, employeeId, fieldName } = opts;
-  const fieldConfig = FIELD_SENSITIVITY[fieldName];
+  // Saved tenant settings are the authority. The default is persisted only
+  // for first-time tenants so all subsequent requests read configuration.
+  const fieldRules = await loadEmployeeFieldRules(db, opts.req || new Request('http://local/'));
+  const fieldConfig = fieldRules[fieldName];
   if (!fieldConfig) return { ok: false, status: 400, error: `Unknown field: ${fieldName}`, applied: false };
   if (fieldConfig.sensitivity === 'restricted') {
     return { ok: false, status: 403, error: `Field "${fieldConfig.label}" is restricted and cannot be changed via self-service.`, applied: false };
@@ -185,18 +189,11 @@ export async function applyEmployeeFieldChange(
   }
 
   // ─── HIGH-risk: pending approval chain ───
-  let wfConfig: { id?: string; tiers: WorkflowTier[] } | null = null;
-  try {
-    const loaded = await loadWorkflowConfig(db, opts.req || new Request('http://local/'), 'update_profile');
-    if (loaded?.tiers?.length) wfConfig = loaded;
-  } catch { /* fall back to default chain */ }
-
-  const tiers: WorkflowTier[] = wfConfig?.tiers?.length
-    ? wfConfig.tiers
-    : [
-        { approverType: 'reporting_manager', approverName: 'Reporting Manager' },
-        { approverType: 'hr_admin', approverName: 'HR Admin' },
-      ];
+  const wfConfig = await ensureWorkflowConfig(db, opts.req || new Request('http://local/'), 'update_profile');
+  if (!wfConfig?.tiers?.length) {
+    return { ok: false, status: 409, error: 'Employee profile workflow is not configured for this tenant', applied: false };
+  }
+  const tiers: WorkflowTier[] = wfConfig.tiers;
 
   const configSnapshot = JSON.stringify({
     fieldSensitivity: fieldConfig,

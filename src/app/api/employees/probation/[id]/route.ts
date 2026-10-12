@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
-import { loadWorkflowConfig, resolveTierApprovers } from '@/lib/approverResolve';
+import { ensureWorkflowConfig, resolveTierApprovers } from '@/lib/approverResolve';
 
 function corsHeaders() {
   return {
@@ -234,8 +234,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const body = await request.json();
     const { action, comments, extensionPeriod } = body;
 
-    if (!action || !['approve', 'extend', 'reject'].includes(action)) {
-      return NextResponse.json({ error: 'action must be approve, extend, or reject' }, { status: 400, headers: corsHeaders() });
+    if (!action || typeof action !== 'string') {
+      return NextResponse.json({ error: 'A workflow action is required' }, { status: 400, headers: corsHeaders() });
     }
 
     const existing = await db.performanceReview.findUnique({ where: { id } });
@@ -261,7 +261,14 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     // multi-tier chain replaces the fixed HR → MD/Admin flow. Tiers are acted
     // on in order; only the LAST tier's decision finalizes the review. Legacy
     // 'hr_review'/'md_review' stages map onto tiers 1/2 for in-flight reviews.
-    const wfConfig = await loadWorkflowConfig(db as Record<string, any>, request, 'probation_confirmation');
+    const wfConfig = await ensureWorkflowConfig(db as Record<string, any>, request, 'probation_confirmation');
+    if (!wfConfig && currentStage !== 'completed') {
+      return NextResponse.json({ error: 'Employee probation workflow is not configured for this tenant' }, { status: 409, headers: corsHeaders() });
+    }
+    const actionRule = wfConfig?.actionRules?.[action];
+    if (wfConfig && currentStage !== 'completed' && !actionRule) {
+      return NextResponse.json({ error: `Action "${action}" is not enabled in the Employee probation configuration` }, { status: 400, headers: corsHeaders() });
+    }
     if (wfConfig && currentStage !== 'completed') {
       let tierIdx = Number(probationData.tierIndex) || 0;
       if (!tierIdx) {
@@ -293,8 +300,13 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         by: decoded.userId,
         at: new Date().toISOString(),
       });
-      if (action === 'extend' && extensionPeriod) {
-        probationData.extensionPeriod = extensionPeriod;
+      if (action === 'extend') {
+        if (!wfConfig.extension?.enabled) return NextResponse.json({ error: 'Probation extension is disabled in Employee settings' }, { status: 400, headers: corsHeaders() });
+        const months = Number(extensionPeriod || wfConfig.extension.defaultMonths);
+        if (!Number.isFinite(months) || months <= 0 || months > wfConfig.extension.maxMonths) {
+          return NextResponse.json({ error: `Extension must be between 1 and ${wfConfig.extension.maxMonths} months` }, { status: 400, headers: corsHeaders() });
+        }
+        probationData.extensionPeriod = months;
       }
 
       const reviewForName = await db.performanceReview.update({
@@ -343,11 +355,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       }
 
       // ─── Final tier: finalize the review (same semantics as legacy md_review) ───
-      let newStatus = 'pending';
-      let newDecision = 'pending';
-      if (action === 'approve') { newStatus = 'completed'; newDecision = 'confirm'; }
-      else if (action === 'extend') { newStatus = 'in_progress'; newDecision = 'extend'; }
-      else if (action === 'reject') { newStatus = 'rejected'; newDecision = 'terminate'; }
+      const newStatus = actionRule?.reviewStatus || 'pending';
+      const newDecision = actionRule?.decision || 'pending';
 
       probationData.decision = newDecision;
       probationData.finalAction = action;
@@ -361,9 +370,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         include: { employee: { select: { id: true, firstName: true, lastName: true, employeeId: true } } },
       });
 
-      if (action === 'approve') {
+      if (actionRule?.employeeStatus) {
         try {
-          await db.employee.update({ where: { id: existing.employeeId }, data: { employeeStatus: 'confirmed' } });
+          await db.employee.update({ where: { id: existing.employeeId }, data: { employeeStatus: actionRule.employeeStatus } });
         } catch { /* non-critical */ }
       }
 

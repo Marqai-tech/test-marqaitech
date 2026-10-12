@@ -48,6 +48,8 @@ import {
   validateZipCode,
   validateNationality,
   validatePFNumber,
+  validateNomineeName,
+  validateLWFNumber,
   validateESINumber,
   onlyDigits,
   onlyLetters,
@@ -211,6 +213,14 @@ const FORM_DOC_CATEGORIES = [
 ];
 
 const FORM_DOC_TYPES = ['offer_letter','id_proof','contract','certificate','policy','aadhaar','pan_card','bank_proof','passport','visa','education','experience','medical','other'];
+const DOC_TYPES_BY_CATEGORY: Record<string, string[]> = {
+  identification: ['id_proof', 'aadhaar', 'pan_card', 'passport', 'visa'],
+  onboarding: ['offer_letter', 'contract', 'policy'],
+  qualifications: ['certificate', 'education', 'experience'],
+  financial: ['pan_card', 'bank_proof'],
+  lifecycle: ['policy', 'medical', 'other'],
+  other: ['other'],
+};
 
 const emptyDocDraft = () => ({
   name: '',
@@ -469,8 +479,10 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
     statutory: [
       { field: 'pfUAN', label: 'UAN', validate: validateUAN },
       { field: 'pfNumber', label: 'PF Number', validate: validatePFNumber },
+      { field: 'pfNomineeName', label: 'PF Nominee Name', validate: validateNomineeName },
       { field: 'esiNumber', label: 'ESI Number', validate: validateESINumber },
       { field: 'panNumber', label: 'PAN', validate: validatePAN },
+      { field: 'lwfNumber', label: 'LWF Number', validate: validateLWFNumber },
     ],
     emergency: [
       { field: 'emergencyContactName', label: 'Emergency Contact Name', validate: (v) => validateName(v, 'Emergency Contact Name') },
@@ -484,7 +496,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
   };
 
   /** Validate current step and advance to next if valid */
-  const handleNextStep = () => {
+  const handleNextStep = async () => {
     if (submitting) return; // Prevent double-click
     setStepErrors({});
     const errors: Record<string, string> = {};
@@ -514,6 +526,24 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
       setStepErrors(errors);
       toast.error(`Please fix: ${Object.values(errors).join(', ')}`, { duration: 4000 });
       return; // BLOCK navigation
+    }
+
+    // Check phone uniqueness before allowing Personal → Address navigation.
+    if (formTab === 'personal' && form.phone && !editingId) {
+      try {
+        const sq = scopeQuery();
+        const response = await fetch(`/api/employees?limit=500${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
+        if (response.ok) {
+          const data = await response.json();
+          const normalized = form.phone.replace(/\D/g, '').slice(-10);
+          const duplicate = (data.employees || []).some((employee: { phone?: string | null }) => (employee.phone || '').replace(/\D/g, '').slice(-10) === normalized);
+          if (duplicate) {
+            setStepErrors({ phone: 'This phone number is already registered.' });
+            toast.error('This phone number is already registered.');
+            return;
+          }
+        }
+      } catch { /* server validates again on submit */ }
     }
 
     // Mark current step as completed
@@ -1128,6 +1158,9 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
       const r = validateUAN(form.pfUAN);
       if (!r.valid) formatErrors.push(r.error!);
     }
+    if (form.pfNumber) { const r = validatePFNumber(form.pfNumber); if (!r.valid) formatErrors.push(r.error!); }
+    if (form.pfNomineeName) { const r = validateNomineeName(form.pfNomineeName); if (!r.valid) formatErrors.push(r.error!); }
+    if (form.lwfNumber) { const r = validateLWFNumber(form.lwfNumber); if (!r.valid) formatErrors.push(r.error!); }
     if (form.emergencyContactPhone) {
       const r = validatePhone(form.emergencyContactPhone);
       if (!r.valid) formatErrors.push(`Emergency contact: ${r.error!}`);
@@ -1303,6 +1336,11 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
       e.target.value = '';
       return;
     }
+    if (file.size === 0 || !['application/pdf', 'image/jpeg', 'image/png', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'].includes(file.type)) {
+      toast.error('Invalid or corrupted file. Please upload a valid document.');
+      e.target.value = '';
+      return;
+    }
     const reader = new FileReader();
     reader.onloadend = () => {
       setDocDraft(prev => ({ ...prev, fileUrl: reader.result as string, fileName: file.name }));
@@ -1313,6 +1351,8 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
 
   const addStagedDoc = () => {
     if (!docDraft.name.trim()) { toast.error('Document name is required'); return; }
+    if (!DOC_TYPES_BY_CATEGORY[docDraft.category]?.includes(docDraft.type)) { toast.error('The selected document type is not valid for this category.'); return; }
+    if (stagedDocs.some(doc => doc.category === docDraft.category && doc.type === docDraft.type)) { toast.error('A document of this type is already in the upload list.'); return; }
     // QA fix — Document Link Security: reject unsafe URLs (javascript:, data:text/html, etc.)
     if (docDraft.fileUrl && !isSafeDocumentUrl(docDraft.fileUrl)) {
       toast.error('Unsafe document link blocked. Use a full http(s):// URL (e.g. https://drive.google.com/…)');
@@ -1348,6 +1388,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
   const uploadLiveDoc = async () => {
     if (!editingId) return;
     if (!docDraft.name.trim()) { toast.error('Document name is required'); return; }
+    if (!DOC_TYPES_BY_CATEGORY[docDraft.category]?.includes(docDraft.type)) { toast.error('The selected document type is not valid for this category.'); return; }
     // QA fix — Document Link Security: reject unsafe URLs before they are persisted
     if (docDraft.fileUrl && !isSafeDocumentUrl(docDraft.fileUrl)) {
       toast.error('Unsafe document link blocked. Use a full http(s):// URL (e.g. https://drive.google.com/…)');
@@ -1790,7 +1831,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                         <input type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
                       </label>
                       {photoPreview && (
-                        <button type="button" onClick={() => { setPhotoPreview(null); updateForm('avatar', ''); }} className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center">
+                        <button type="button" onClick={() => { setPhotoPreview(null); updateForm('avatar', ''); toast.success('Image removed successfully.'); }} className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center">
                           <FiX className="w-3 h-3" />
                         </button>
                       )}
@@ -2237,7 +2278,8 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                       <div>
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">Nominee Name</label>
-                        <input type="text" value={form.pfNomineeName} onChange={e => updateForm('pfNomineeName', e.target.value)} placeholder="Full name of nominee" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
+                        <input type="text" value={form.pfNomineeName} onChange={e => updateForm('pfNomineeName', e.target.value.replace(/[^A-Za-z\s.'-]/g, ''))} placeholder="Full name of nominee" className={`w-full px-3 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 ${stepErrors.pfNomineeName ? 'border-red-400 bg-red-50' : 'border-thb-border'}`} />
+                        {stepErrors.pfNomineeName && <p className="text-xs text-red-500 mt-1">{stepErrors.pfNomineeName}</p>}
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">Nominee Relationship</label>
@@ -2308,7 +2350,8 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">LWF Number</label>
-                        <input type="text" value={form.lwfNumber} onChange={e => updateForm('lwfNumber', e.target.value)} placeholder="Labour Welfare Fund number" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
+                        <input type="text" value={form.lwfNumber} onChange={e => updateForm('lwfNumber', e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))} placeholder="State registration number" className={`w-full px-3 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 ${stepErrors.lwfNumber ? 'border-red-400 bg-red-50' : 'border-thb-border'}`} />
+                        {stepErrors.lwfNumber && <p className="text-xs text-red-500 mt-1">{stepErrors.lwfNumber}</p>}
                       </div>
                     </div>
                   </div>
@@ -2698,14 +2741,14 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">Category</label>
-                        <select value={docDraft.category} onChange={e => setDocDraft(prev => ({ ...prev, category: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
+                        <select value={docDraft.category} onChange={e => { const category = e.target.value; setDocDraft(prev => ({ ...prev, category, type: DOC_TYPES_BY_CATEGORY[category][0] })); }} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                           {FORM_DOC_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.icon} {c.label}</option>)}
                         </select>
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">Document Type</label>
                         <select value={docDraft.type} onChange={e => setDocDraft(prev => ({ ...prev, type: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
-                          {FORM_DOC_TYPES.map(t => <option key={t} value={t}>{t.replace(/_/g, ' ').replace(/\b\w/g, ch => ch.toUpperCase())}</option>)}
+                          {(DOC_TYPES_BY_CATEGORY[docDraft.category] || FORM_DOC_TYPES).map(t => <option key={t} value={t}>{t.replace(/_/g, ' ').replace(/\b\w/g, ch => ch.toUpperCase())}</option>)}
                         </select>
                       </div>
                       <div>

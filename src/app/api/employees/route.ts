@@ -6,9 +6,10 @@ import { getEmployeeCompanyFilter, getCompanyFilter, getAuthInfo, resolveCompany
 import { checkTenantStatusOrBlock } from '@/lib/tenant-guard';
 import { isServerLiveSite } from '@/lib/tenant-filter';
 // Note: isServerLiveSite is used later for the manual guard on normal queries
-import { validateEmail, validatePhone, validateAadhaar, validatePAN, validateIFSC, validateBankAccount, validateOfficialEmail } from '@/lib/validators';
+import { validateEmail, validatePhone, validateAadhaar, validatePAN, validateIFSC, validateBankAccount, validateOfficialEmail, validateUAN, validatePFNumber, validateNomineeName, validateLWFNumber } from '@/lib/validators';
 import { profilePhotoPayloadError, employeeIdsWithStoredPhoto, employeePhotoApiPath } from '@/lib/profile-photo';
 import { ensureEmployeeWriteColumns } from '@/lib/employee-profile-columns';
+import { loadEmployeeSetting } from '@/lib/employee-config';
 
 function generateRandomPassword(length = 12): string {
   const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -332,7 +333,6 @@ export async function GET(request: Request) {
       if (excludeManagement) {
         where.NOT = {
           OR: [
-            { isManagement: true },
             { user: { role: { in: ['manager', 'admin', 'tenant_admin', 'hr_admin', 'super_admin'] } } },
             { directReports: { some: { status: { in: ['active', 'on_leave'] } } } },
           ],
@@ -458,14 +458,16 @@ export async function GET(request: Request) {
       const [employeesRaw, total] = await Promise.all([
         queryDb.employee.findMany({
           where,
-          omit: { avatar: true },
-          include: {
+          select: {
+            id: true, employeeId: true, firstName: true, lastName: true, email: true,
+            userId: true, departmentId: true, designationId: true, branchId: true,
+            companyId: true, phone: true, status: true, employeeStatus: true,
+            employeeType: true, dateOfJoining: true, reportingManagerId: true,
+            createdAt: true, updatedAt: true,
             department: { select: { id: true, name: true } },
             designation: { select: { id: true, title: true } },
             branch: { select: { id: true, name: true } },
-            user: {
-              select: { id: true, email: true, role: true },
-            },
+            user: { select: { id: true, email: true, role: true } },
             reportingManager: { select: { id: true, firstName: true, lastName: true, employeeId: true } },
           },
           orderBy: { createdAt: 'desc' },
@@ -669,6 +671,8 @@ export async function POST(request: Request) {
       if (!phoneResult.valid) {
         return NextResponse.json({ error: phoneResult.error }, { status: 400, headers: corsHeaders() });
       }
+      const matchingPhone = await db.employee.findFirst({ where: { phone }, select: { id: true } });
+      if (matchingPhone) return NextResponse.json({ error: 'This phone number is already registered.' }, { status: 409, headers: corsHeaders() });
     }
     if (email && typeof email === 'string') {
       // Validate email format AND ensure it's an official email (not personal)
@@ -701,6 +705,10 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: bankResult.error }, { status: 400, headers: corsHeaders() });
       }
     }
+    if (body.pfUAN) { const result = validateUAN(String(body.pfUAN)); if (!result.valid) return NextResponse.json({ error: result.error || 'Invalid UAN.' }, { status: 400, headers: corsHeaders() }); }
+    if (body.pfNumber) { const result = validatePFNumber(String(body.pfNumber)); if (!result.valid) return NextResponse.json({ error: result.error || 'Invalid Member ID.' }, { status: 400, headers: corsHeaders() }); }
+    if (body.pfNomineeName) { const result = validateNomineeName(String(body.pfNomineeName)); if (!result.valid) return NextResponse.json({ error: result.error }, { status: 400, headers: corsHeaders() }); }
+    if (body.lwfNumber) { const result = validateLWFNumber(String(body.lwfNumber)); if (!result.valid) return NextResponse.json({ error: result.error }, { status: 400, headers: corsHeaders() }); }
 
     // Try to create in database
     try {
@@ -1050,6 +1058,9 @@ export async function POST(request: Request) {
       //   - status = 'pending' (goes to HR/Admin for review)
       if (employeeStatus === 'probation' && dateOfJoining) {
         try {
+          const onboardingConfig = await loadEmployeeSetting(db as Record<string, any>, request, 'employee_onboarding_config', {
+            autoCreateProbationReview: true, defaultProbationMonths: 6, initialProbationStatus: 'pending',
+          });
           // Calculate the probation end date
           // Use the form-provided probationEndDate if available, otherwise default to 6 months
           let endDate: Date;
@@ -1057,7 +1068,7 @@ export async function POST(request: Request) {
             endDate = new Date(probationEndDate);
           } else {
             endDate = new Date(dateOfJoining);
-            endDate.setMonth(endDate.getMonth() + 6);
+            endDate.setMonth(endDate.getMonth() + Number(onboardingConfig.defaultProbationMonths));
           }
 
           // Calculate the probation period in months (for display)
@@ -1069,7 +1080,7 @@ export async function POST(request: Request) {
           const probationData = JSON.stringify({
             probationStartDate: dateOfJoining,
             probationEndDate: endDate.toISOString().split('T')[0],
-            probationPeriod: probPeriodMonths || 6,
+            probationPeriod: probPeriodMonths || Number(onboardingConfig.defaultProbationMonths),
             extensionPeriod: 0,
             performanceRating: 0,
             reviewComments: 'Auto-created from employee onboarding. Employee status: Probation.',

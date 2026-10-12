@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { createNotification } from '@/lib/notifications';
+import { loadEmployeeSetting } from '@/lib/employee-config';
 
 function corsHeaders() {
   return {
@@ -25,6 +26,12 @@ export async function GET(request: Request) {
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
     const decoded = await verifyToken(token);
     if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401, headers: corsHeaders() });
+
+    const lifecycle = await loadEmployeeSetting(db as Record<string, any>, request, 'employee_termination_config', {
+      enabled: true, allowedRoles: ['super_admin', 'tenant_admin', 'admin'], finalStatus: 'terminated',
+      deactivateAccount: true, finalSettlementRequired: true, notificationRoles: ['tenant_admin', 'admin'], notifyReportingManager: true,
+    });
+    if (!lifecycle.enabled) return NextResponse.json({ error: 'Terminations are disabled in Employee Settings' }, { status: 409, headers: corsHeaders() });
 
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
@@ -151,7 +158,7 @@ export async function POST(request: Request) {
 
     // Only admins can terminate
     const role = decoded.role as string;
-    if (!['super_admin', 'tenant_admin', 'admin'].includes(role)) {
+    if (!lifecycle.allowedRoles.includes(role)) {
       return NextResponse.json(
         { error: 'Only administrators can process employee terminations' },
         { status: 403, headers: corsHeaders() }
@@ -270,7 +277,7 @@ export async function POST(request: Request) {
         reasonCategory || null,
         cleanDetailedReason || null,
         cleanAssetsToReturn || null,
-        Boolean(finalSettlementRequired),
+        finalSettlementRequired === undefined ? lifecycle.finalSettlementRequired : Boolean(finalSettlementRequired),
         submittedById,
       );
     } catch (insertErr) {
@@ -284,7 +291,8 @@ export async function POST(request: Request) {
     // Update employee status to 'terminated'
     try {
       await db.$executeRawUnsafe(
-        `UPDATE "Employee" SET "status" = 'terminated', "updatedAt" = NOW() WHERE "id" = $1`,
+        `UPDATE "Employee" SET "status" = $1, "updatedAt" = NOW() WHERE "id" = $2`,
+        lifecycle.finalStatus,
         employeeId,
       );
     } catch (e) {
@@ -293,7 +301,7 @@ export async function POST(request: Request) {
     }
 
     // Deactivate the linked User account
-    if (existingEmp.userId) {
+    if (existingEmp.userId && lifecycle.deactivateAccount) {
       try {
         await db.$executeRawUnsafe(
           `UPDATE "User" SET "status" = 'inactive', "updatedAt" = NOW() WHERE "id" = $1`,
@@ -314,7 +322,7 @@ export async function POST(request: Request) {
         const adminUsers = await db.user.findMany({
           where: {
             tenantId,
-            role: { in: ['tenant_admin', 'admin'] },
+            role: { in: lifecycle.notificationRoles },
             status: 'active',
           },
           select: { id: true },
@@ -346,7 +354,7 @@ export async function POST(request: Request) {
         }
 
         // 3. Notify the reporting manager
-        try {
+        if (lifecycle.notifyReportingManager) try {
           const mgrRows = await db.$queryRawUnsafe(
             `SELECT e."reportingManagerId", u."id" AS "managerUserId"
              FROM "Employee" e
