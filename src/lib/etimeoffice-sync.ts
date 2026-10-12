@@ -261,6 +261,7 @@ export async function syncETimeOfficePunches(db: PrismaClient, tenantId: string)
       const duplicateWindowMinutes = Number(process.env.ETIMEOFFICE_DUPLICATE_WINDOW_MINUTES || '2');
       const classified = classifyBiometricDay(dayPunches, Number.isFinite(duplicateWindowMinutes) ? duplicateWindowMinutes : 2, {
         manualCheckIn: Boolean(existingAttendance?.checkIn && existingAttendance?.punchMethod !== 'biometric'),
+        existingCheckOut: existingAttendance?.checkOut,
         existingBreakIn: existingAttendance?.breakIn,
         existingBreakOut: existingAttendance?.breakOut,
         earlyLogout: Boolean(existingAttendance?.earlyLogout),
@@ -269,7 +270,8 @@ export async function syncETimeOfficePunches(db: PrismaClient, tenantId: string)
       if (!acceptedPunches.length) continue;
       const first = acceptedPunches[0];
       const checkIn = existingAttendance?.checkIn || (classified.classifications.get(first.id) === 'check_in' ? first.punchTime : null);
-      const checkoutPunch = acceptedPunches.find(p => classified.classifications.get(p.id) === 'check_out');
+      const checkoutPunches = acceptedPunches.filter(p => classified.classifications.get(p.id) === 'check_out');
+      const checkoutPunch = checkoutPunches[checkoutPunches.length - 1];
       const candidateOut = checkoutPunch?.punchTime || null;
       const checkOut = candidateOut && existingAttendance?.checkOut && existingAttendance.checkOut > candidateOut
         ? existingAttendance.checkOut : candidateOut || existingAttendance?.checkOut || null;

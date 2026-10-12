@@ -16,7 +16,7 @@ export type TimedPunch = { id: string; punchTime: Date };
 export function classifyBiometricDay<T extends TimedPunch>(
   punches: T[],
   duplicateWindowMinutes = 2,
-  options: { manualCheckIn?: boolean; existingBreakIn?: Date | null; existingBreakOut?: Date | null; earlyLogout?: boolean } = {},
+  options: { manualCheckIn?: boolean; existingCheckOut?: Date | null; existingBreakIn?: Date | null; existingBreakOut?: Date | null; earlyLogout?: boolean } = {},
 ) {
   const ordered = [...punches].sort((a, b) => a.punchTime.getTime() - b.punchTime.getTime());
   const duplicateWindowMs = Math.max(0, duplicateWindowMinutes) * 60_000;
@@ -60,7 +60,7 @@ export function classifyBiometricDay<T extends TimedPunch>(
     if (hasBreakIn && !hasBreakOut && options.existingBreakIn && punch.punchTime > options.existingBreakIn) {
       classifications.set(punch.id, 'break_out');
       hasBreakOut = true;
-    } else if ((options.manualCheckIn && index === 1) || minutes < 13 * 60 + 30) {
+    } else if ((!options.existingCheckOut && options.manualCheckIn && index === 1) || minutes < 13 * 60 + 30) {
       classifications.set(punch.id, 'entry_only');
     } else if (!hasBreakIn) {
       classifications.set(punch.id, 'break_in');
