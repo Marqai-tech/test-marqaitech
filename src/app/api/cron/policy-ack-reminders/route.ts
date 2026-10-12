@@ -125,12 +125,20 @@ export async function GET(request: NextRequest) {
 }
 
 /** Dedupe: has this recipient already been reminded for this employee within the repeat window? */
+let lastDedupeError: string | null = null; // surfaced in the response diag
 async function alreadySent(db: any, eventKey: string, entityId: string, recipientId: string, sinceDays: number): Promise<boolean> {
   const since = new Date(Date.now() - sinceDays * 24 * 3600 * 1000);
-  const count = await db.notificationDelivery.count({
-    where: { eventKey, entityType: 'policy_ack_reminder', entityId, recipientId, createdAt: { gte: since } },
-  }).catch(() => 1); // on error, assume already sent (safer than spamming)
-  return count > 0;
+  try {
+    const count = await db.notificationDelivery.count({
+      where: { eventKey, entityType: 'policy_ack_reminder', entityId, recipientId, createdAt: { gte: since } },
+    });
+    return count > 0;
+  } catch (e: any) {
+    // On error, assume already sent (safer than spamming) — but record WHY
+    // so the cron response can explain a zero-dispatch sweep.
+    lastDedupeError = `${e?.code || ''} ${e?.message?.slice(0, 160) || e}`;
+    return true;
+  }
 }
 
 async function sweepTenant(db: any, tenantId: string, tenantName: string, details: any[]): Promise<number> {
@@ -281,6 +289,9 @@ async function sweepTenant(db: any, tenantId: string, tenantName: string, detail
       daysPending: baseVars.Days_Pending,
       diag: empDiag,
     });
+  }
+  if (lastDedupeError) {
+    details.push({ tenant: tenantName, dedupeError: lastDedupeError });
   }
   return sent;
 }
