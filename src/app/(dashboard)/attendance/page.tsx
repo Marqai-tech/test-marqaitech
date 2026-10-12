@@ -371,9 +371,13 @@ export default function AttendancePage() {
       // the roster lets us derive Absent / On Leave / Weekend / Holiday for
       // employees who have NO attendance row (previously they were invisible
       // and the admin counts stayed at 0).
+      // NOTE: the roster MUST include management employees — their punches
+      // (real or auto-present) are the majority of admin-view rows. Do NOT
+      // add excludeManagement here; hiding management belongs to the Employee
+      // List page only, not the attendance dashboard.
       const [attRes, empRes] = await Promise.all([
         fetch(`/api/attendance?${params.toString()}${sq ? `&${sq}` : ''}&includePhotos=0`, { headers: getAuthHeaders() }),
-        fetch(`/api/employees?limit=500&status=active&includePhotos=0&excludeManagement=1${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() }),
+        fetch(`/api/employees?limit=500&status=active&includePhotos=0${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() }),
       ]);
       if (attRes.ok) {
         const data = await attRes.json();
