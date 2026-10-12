@@ -139,10 +139,20 @@ async function alreadySent(db: any, eventKey: string, entityId: string, recipien
     const row = await db.notificationDelivery.findFirst({
       where: { eventKey, entityType: 'policy_ack_reminder', entityId, recipientId },
       orderBy: { createdAt: 'desc' },
-      select: { createdAt: true },
+      select: { id: true },
     });
-    if (!row || !row.createdAt) return false;
-    const ageDays = (Date.now() - new Date(row.createdAt).getTime()) / 86400000;
+    if (!row?.id) return false;
+    // Phantom-match guard: the deployed Neon adapter has returned findFirst
+    // rows that don't exist in the database. Confirm via the proven
+    // findUnique-by-id path before trusting the match — phantoms fail here
+    // and the reminder proceeds (missing a dedupe is spam-safe; silently
+    // suppressing ALL reminders is not).
+    const confirmed = await db.notificationDelivery.findUnique({
+      where: { id: row.id },
+      select: { createdAt: true },
+    }).catch(() => null);
+    if (!confirmed?.createdAt) return false;
+    const ageDays = (Date.now() - new Date(confirmed.createdAt).getTime()) / 86400000;
     return ageDays < sinceDays;
   } catch (e: any) {
     // On error, assume already sent (safer than spamming) — but record WHY
