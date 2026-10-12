@@ -326,7 +326,16 @@ export default function MyProfilePage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to update profile');
-      toast.success('Profile updated successfully');
+      // Task 86: employee self-edits route high-risk fields (name, DOB, bank,
+      // KYC…) through the approval workflow. Surface what happened.
+      const pending: string[] = Array.isArray(data.pendingFields) ? data.pendingFields : [];
+      const failures: string[] = Array.isArray(data.errors) ? data.errors : [];
+      failures.forEach((e: string) => toast.error(e));
+      if (pending.length > 0) {
+        toast.success(`Profile saved — ${pending.length} change(s) sent for approval`);
+      } else {
+        toast.success(data.message || 'Profile updated successfully');
+      }
       setIsEditing(false);
       fetchProfile();
       fetchUser();

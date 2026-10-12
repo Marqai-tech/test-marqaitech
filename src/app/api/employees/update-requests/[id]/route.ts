@@ -131,8 +131,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
               Approver_Name: '',
               Comment: comments ? `Comments: ${comments}` : '',
             },
-            entity: { type: 'employee_update_request', id, link: '/profile' },
-            origin: request.headers.get('origin') || undefined,
+            entity: { type: 'employee_update_request', id, link: '/employees/update-requests' },
+            origin: req.headers.get('origin') || undefined,
           });
         }
       } catch { /* non-fatal */ }
@@ -169,6 +169,20 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           where: { id },
           data: { status: 'applied', appliedAt: new Date() },
         });
+        // Task 86: keep the login account's display name in sync when an
+        // approved change alters the employee's first/last name.
+        if (['firstName', 'lastName'].includes(updateRequest.fieldName)) {
+          try {
+            const empFull = await db.employee.findUnique({
+              where: { id: updateRequest.employeeId },
+              select: { firstName: true, lastName: true, userId: true },
+            });
+            const newName = empFull ? `${empFull.firstName || ''} ${empFull.lastName || ''}`.trim() : '';
+            if (empFull?.userId && newName) {
+              await db.user.update({ where: { id: empFull.userId }, data: { name: newName } });
+            }
+          } catch { /* non-fatal */ }
+        }
         // Notify the requester — multi-channel (Task 36)
         try {
           if (auth.tenantId) {
@@ -184,8 +198,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
                 Approver_Name: '',
                 Comment: comments ? `Comments: ${comments}` : '',
               },
-              entity: { type: 'employee_update_request', id, link: '/profile' },
-              origin: request.headers.get('origin') || undefined,
+              entity: { type: 'employee_update_request', id, link: '/employees/update-requests' },
+              origin: req.headers.get('origin') || undefined,
             });
           }
         } catch { /* non-fatal */ }
