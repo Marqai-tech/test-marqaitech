@@ -332,7 +332,6 @@ export async function GET(request: Request) {
       if (excludeManagement) {
         where.NOT = {
           OR: [
-            { isManagement: true },
             { user: { role: { in: ['manager', 'admin', 'tenant_admin', 'hr_admin', 'super_admin'] } } },
             { directReports: { some: { status: { in: ['active', 'on_leave'] } } } },
           ],
