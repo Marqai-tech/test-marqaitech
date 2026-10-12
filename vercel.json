@@ -6,7 +6,7 @@
   "crons": [
     {
       "path": "/api/cron/biometric-sync",
-      "schedule": "* * * * *"
+      "schedule": "0 2 * * *"
     }
   ]
 }

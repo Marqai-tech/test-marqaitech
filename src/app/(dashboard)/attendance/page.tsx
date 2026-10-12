@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import {
   FiClock,
   FiLogIn,
@@ -340,9 +340,27 @@ export default function AttendancePage() {
   const [detailRecord, setDetailRecord] = useState<AttendanceRecord | null>(null);
 
   /* ── Fetch admin attendance (all employees for selected date) + roster ── */
+  const lastBiometricSyncAtRef = useRef(0);
   const fetchAdminAttendance = useCallback(async () => {
     try {
       setAdminLoading(true);
+      // Task 85: pull fresh Team Office (ETimeOffice) biometric punches before
+      // rendering. The per-minute Vercel cron was demoted to a daily backstop
+      // so Hobby-plan projects can deploy the shared vercel.json (per-minute
+      // schedules are Pro-only and failed demo deployment validation); this
+      // keeps the dashboard near-real-time whenever an admin opens it. The
+      // route is admin-only and silently no-ops where sync is not configured
+      // (403 on demo). Throttled to one call per minute.
+      if (Date.now() - lastBiometricSyncAtRef.current > 60_000) {
+        lastBiometricSyncAtRef.current = Date.now();
+        try {
+          await fetch('/api/attendance/biometric/sync', {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            signal: AbortSignal.timeout(6000),
+          });
+        } catch { /* non-fatal — roster still loads; daily cron is the backstop */ }
+      }
       // Task 82: Auto-present for management — before reading the roster, ask
       // the server to create/fill auto-present rows for the selected day.
       // No-op when the toggle is off in Attendance Settings; real punches,
