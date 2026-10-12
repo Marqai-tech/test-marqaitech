@@ -42,6 +42,10 @@ interface PolicyConfig {
   shiftStartDefault: string;
   shiftEndDefault: string;
   breakDurationMinutes: number;
+  breakStartTime: string;
+  breakEndTime: string;
+  mandatoryBreakEnabled: boolean;
+  attendanceRuleScope: string;
   gatePassMaxPerMonth: number;
   gatePassHalfDayOnExceed: boolean;
   gatePassHalfDayNextDay: boolean;
@@ -445,6 +449,8 @@ function PolicyRulesTab({ companyId, scopeQuery }: { companyId: string; scopeQue
   const emptyRule = (): AttendancePolicyRule => ({
     id: '', name: '', companyId: companyId || '', employmentType: 'all',
     shiftStartDefault: '09:30', shiftEndDefault: '18:30', breakDurationMinutes: 60,
+    breakStartTime: '13:30', breakEndTime: '14:30', mandatoryBreakEnabled: true,
+    attendanceRuleScope: 'marqaitechgroup_only',
     lateGraceMinutes: 15, earlyGraceMinutes: 10,
     lateMarkAllowancePerMonth: 4, lateMarkHalfDayOnExceed: true, halfDayAfterMinutes: 21, lateMarkNotApplicableOnTour: true,
     autoOvertimeEnabled: true, overtimeThresholdMinutes: 480,
@@ -607,6 +613,17 @@ function PolicyRulesTab({ companyId, scopeQuery }: { companyId: string; scopeQue
                     <label className="block text-xs font-medium text-thb-text-secondary mb-1">Break Duration (min)</label>
                     <input type="number" value={form.breakDurationMinutes} onChange={e => updateForm('breakDurationMinutes', Number(e.target.value))} min={0} className={inputCls} />
                   </div>
+                </div>
+                <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3">
+                  <p className="text-xs font-semibold text-amber-800">MarqAI Tech Group tenant only</p>
+                  <p className="text-[11px] text-amber-700 mt-1">These mandatory lunch rules apply only when scope is MarqAI Tech Group.</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 mt-3">
+                    <div><label className="block text-xs mb-1">Break starts</label><input type="time" value={form.breakStartTime} onChange={e => updateForm('breakStartTime', e.target.value)} className={inputCls} /></div>
+                    <div><label className="block text-xs mb-1">Break ends</label><input type="time" value={form.breakEndTime} onChange={e => updateForm('breakEndTime', e.target.value)} className={inputCls} /></div>
+                    <div><label className="block text-xs mb-1">Mandatory minutes</label><input type="number" min={0} value={form.breakDurationMinutes} onChange={e => updateForm('breakDurationMinutes', Number(e.target.value))} className={inputCls} /></div>
+                    <label className="flex items-center gap-2 text-xs mt-5"><input type="checkbox" checked={form.mandatoryBreakEnabled} onChange={e => updateForm('mandatoryBreakEnabled', e.target.checked)} /> Enforce mandatory break</label>
+                  </div>
+                  <input type="hidden" value="marqaitechgroup_only" onChange={() => undefined} />
                 </div>
               </div>
 

@@ -6059,6 +6059,10 @@ model AttendancePolicyConfig {
   shiftStartDefault String @default("09:30") // default shift start time
   shiftEndDefault String @default("18:30") // default shift end time
   breakDurationMinutes Int @default(60) // lunch break duration in minutes
+  breakStartTime String @default("13:30")
+  breakEndTime String @default("14:30")
+  mandatoryBreakEnabled Boolean @default(false)
+  attendanceRuleScope String @default("all_tenants") // marqaitechgroup_only | all_tenants
 
   // ── Auto-Present for Management (Task 82) ──
   // When enabled, management employees (same definition as the Management

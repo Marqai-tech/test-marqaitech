@@ -11,7 +11,7 @@ import { loadWorkflowConfig, buildRequestContext, checkRules, initializeWorkflow
 import { sanitizeMultiLineText } from '@/lib/sanitize';
 import { DEFAULT_SHIFT_END, DEFAULT_SHIFT_START, minutesInTimeZone, validatePunchTime } from '@/lib/punch-time-validation';
 import { resolveCompanyScope } from '@/lib/companyScope';
-import { effectiveBreakMinutes } from '@/lib/attendance-break-rules';
+import { effectiveBreakMinutes, loadAttendanceBreakPolicy } from '@/lib/attendance-break-rules';
 
 export { OPTIONS };
 
@@ -124,7 +124,7 @@ export async function POST(request: Request) {
           attendance.breakIn ? new Date(attendance.breakIn) : null,
           attendance.breakOut ? new Date(attendance.breakOut) : null,
           new Date(attendance.checkIn),
-          new Date(attendance.checkOut),
+          new Date(attendance.checkOut), await loadAttendanceBreakPolicy(db),
         );
         productionHours = (grossMinutes - breakMinutes) / 60;
       }
