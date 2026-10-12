@@ -86,7 +86,9 @@ export async function POST(request: Request) {
       tenantSlug = '';
     }
     if (isTestPlatformHost(hostHeader) || tenantSlug === 'test') {
-      tenantSlug = '';
+      // QA uses the isolated copied tenant database rather than the platform
+      // database, which only contains platform identities.
+      tenantSlug = process.env.TEST_TENANT_SLUG || 'acme-global-demo';
     }
     let subdomainTenantId: string | null = null;
 
