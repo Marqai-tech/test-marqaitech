@@ -42,7 +42,7 @@ interface Department {
 type TabKey = 'credentials' | 'invite' | 'bulk' | 'map-company' | 'employee-config' | 'custom-fields'
 
 /* ── Setting Types ── */
-type SettingType = 'toggle' | 'select' | 'number' | 'text'
+type SettingType = 'toggle' | 'select' | 'number' | 'text' | 'textarea'
 
 interface SettingField {
   key: string
@@ -130,6 +130,21 @@ const employeeSettingSections: SettingSection[] = [
       { key: 'employee_send_welcome_email', label: 'Send Welcome Email on Onboarding', type: 'toggle', defaultValue: true, description: 'Automatically send a welcome email with login credentials when onboarding' },
       { key: 'employee_disable_account_on_exit', label: 'Disable Account on Separation', type: 'toggle', defaultValue: true, description: 'Automatically disable login account when employee is terminated/resigned' },
       { key: 'employee_exit_clearance_required', label: 'Exit Clearance Required', type: 'toggle', defaultValue: true, description: 'Require clearance approval before final account deactivation' },
+    ],
+  },
+  {
+    title: 'Lifecycle Workflow Rules',
+    description: 'Transfer, resignation and termination routing. Values are saved per tenant and applied immediately.',
+    icon: <FiBriefcase className="w-5 h-5" />,
+    iconBg: 'bg-violet-50',
+    iconColor: 'text-violet-500',
+    fields: [
+      { key: 'employee_transfer_config', label: 'Transfer Workflow Configuration', type: 'textarea', defaultValue: '{"enabled":true,"defaultTransferType":"permanent","approvalRoles":["tenant_admin","admin"],"notifyReportingManager":true}', description: 'Configure transfer enablement, default type, approver roles and manager notification.' },
+      { key: 'employee_resignation_config', label: 'Resignation Workflow Configuration', type: 'textarea', defaultValue: '{"enabled":true,"defaultNoticePeriodDays":60,"approvalRoles":["tenant_admin","admin"],"notifyReportingManager":true}', description: 'Configure resignation enablement, notice period, approver roles and manager notification.' },
+      { key: 'employee_termination_config', label: 'Termination Workflow Configuration', type: 'textarea', defaultValue: '{"enabled":true,"allowedRoles":["super_admin","tenant_admin","admin"],"finalStatus":"terminated","deactivateAccount":true,"finalSettlementRequired":true,"notificationRoles":["tenant_admin","admin"],"notifyReportingManager":true}', description: 'Configure termination access, status, account deactivation, settlement and notifications.' },
+      { key: 'employee_rejoin_config', label: 'Rejoin Workflow Configuration', type: 'textarea', defaultValue: '{"enabled":true,"allowedRoles":["super_admin","tenant_admin","admin"],"finalStatus":"active","reactivateAccount":true}', description: 'Configure rejoin enablement, allowed roles, employee status and account reactivation.' },
+      { key: 'employee_onboarding_config', label: 'Onboarding Configuration', type: 'textarea', defaultValue: '{"autoCreateProbationReview":true,"defaultProbationMonths":6,"initialProbationStatus":"pending"}', description: 'Configure automatic probation review creation and the default probation duration for new employees.' },
+      { key: 'employee_field_rules', label: 'Profile Field Approval Rules', type: 'textarea', defaultValue: '{}', description: 'JSON map of profile fields with low, high or restricted sensitivity. High-risk fields use the configured approval workflow.' },
     ],
   },
 ]
@@ -316,6 +331,19 @@ export default function EmployeeSettingsPage() {
   /* Load settings */
   useEffect(() => {
     setEmpSettings(loadEmployeeSettings())
+    fetch('/api/governance-settings?category=employee', { headers: getAuthHeaders() })
+      .then(async (res) => res.ok ? (await res.json()).settings : [])
+      .then((rows: Array<{ key: string; value: string; dataType?: string }>) => {
+        if (!rows?.length) return
+        const server: Record<string, string | number | boolean> = {}
+        for (const row of rows) {
+          if (row.dataType === 'json') server[row.key] = row.value
+          else try { server[row.key] = JSON.parse(row.value) } catch { server[row.key] = row.value }
+        }
+        setEmpSettings(prev => ({ ...prev, ...server }))
+        saveEmployeeSettings({ ...loadEmployeeSettings(), ...server })
+      })
+      .catch(() => { /* local values remain available during migration */ })
     const stored = typeof window !== 'undefined' ? localStorage.getItem('3boxes_hrms_custom_fields') : null
     if (stored) {
       try { setCustomFields(JSON.parse(stored)) } catch { /* ignore */ }
@@ -852,12 +880,23 @@ export default function EmployeeSettingsPage() {
     }))
   }
 
-  const handleSaveSection = (sectionTitle: string) => {
+  const handleSaveSection = async (sectionTitle: string) => {
     const draft = editDrafts[sectionTitle]
     if (!draft) return
+    for (const [key, value] of Object.entries(draft)) {
+      const field = employeeSettingSections.flatMap(section => section.fields).find(item => item.key === key)
+      if (field?.type === 'textarea') {
+        try { JSON.parse(String(value)) } catch { toast.error(`${field.label} must contain valid JSON`); return }
+      }
+    }
     const next = { ...empSettings, ...draft }
     setEmpSettings(next)
     saveEmployeeSettings(next)
+    await Promise.all(Object.entries(draft).map(([key, value]) => fetch('/api/governance-settings', {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ key, value, category: 'employee', dataType: typeof value === 'boolean' ? 'boolean' : typeof value === 'number' ? 'number' : (typeof value === 'string' && /^[{[]/.test(value.trim()) ? 'json' : 'string') }),
+    })))
     const nextDrafts = { ...editDrafts }
     delete nextDrafts[sectionTitle]
     setEditDrafts(nextDrafts)
@@ -968,6 +1007,13 @@ export default function EmployeeSettingsPage() {
             max={field.max}
             step={field.step || 1}
             className="w-full max-w-xs px-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20"
+          />
+        ) : field.type === 'textarea' ? (
+          <textarea
+            value={String(value)}
+            onChange={e => onChange(e.target.value)}
+            rows={5}
+            className="w-full font-mono text-xs px-3 py-2 rounded-lg border border-thb-border focus:outline-none focus:ring-2 focus:ring-teal-500/20"
           />
         ) : (
           <input

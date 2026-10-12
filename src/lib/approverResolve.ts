@@ -26,7 +26,31 @@ export interface ParsedWorkflowConfig {
   name: string;
   tiers: WorkflowTier[];
   fieldSensitivity?: Record<string, string>;
+  actionRules?: Record<string, { reviewStatus: string; decision: string; employeeStatus?: string }>;
+  extension?: { enabled: boolean; maxMonths: number; defaultMonths: number };
 }
+
+/**
+ * The first-run values are migration seeds, not runtime fallbacks.  They are
+ * written to EmployeeWorkflowConfig and all workflow execution reads the
+ * tenant's saved row afterwards.
+ */
+export const WORKFLOW_SEEDS: Record<'update_profile' | 'probation_confirmation', WorkflowTier[]> = {
+  update_profile: [
+    { approverType: 'reporting_manager', approverName: 'Reporting Manager' },
+    { approverType: 'hr_admin', approverName: 'HR Admin' },
+  ],
+  probation_confirmation: [
+    { approverType: 'hr_admin', approverName: 'HR Review' },
+    { approverType: 'tenant_admin', approverName: 'MD/Admin Final Confirmation' },
+  ],
+};
+
+export const PROBATION_RULE_SEED = {
+  approve: { reviewStatus: 'completed', decision: 'confirm', employeeStatus: 'confirmed' },
+  extend: { reviewStatus: 'in_progress', decision: 'extend' },
+  reject: { reviewStatus: 'rejected', decision: 'terminate', employeeStatus: 'terminated' },
+};
 
 export const APPROVER_TYPE_LABELS: Record<ApproverType, string> = {
   reporting_manager: 'Reporting Manager',
@@ -50,11 +74,53 @@ export async function loadWorkflowConfig(
       orderBy: { updatedAt: 'desc' },
     });
     if (!cfg) return null;
-    let parsed: { tiers?: WorkflowTier[]; fieldSensitivity?: Record<string, string> } = {};
+    let parsed: { tiers?: WorkflowTier[]; fieldSensitivity?: Record<string, string>; actionRules?: ParsedWorkflowConfig['actionRules']; extension?: ParsedWorkflowConfig['extension'] } = {};
     try { parsed = JSON.parse(cfg.config || '{}'); } catch { return null; }
     const tiers = Array.isArray(parsed.tiers) ? parsed.tiers.filter((t) => t && t.approverType) : [];
     if (!tiers.length) return null;
-    return { id: cfg.id, name: cfg.name, tiers, fieldSensitivity: parsed.fieldSensitivity };
+    return { id: cfg.id, name: cfg.name, tiers, fieldSensitivity: parsed.fieldSensitivity, actionRules: parsed.actionRules, extension: parsed.extension };
+  } catch {
+    return null;
+  }
+}
+
+/** Ensure a tenant has a persisted configuration before a workflow runs. */
+export async function ensureWorkflowConfig(
+  db: Record<string, any>,
+  req: Request,
+  workflowType: 'update_profile' | 'probation_confirmation',
+): Promise<ParsedWorkflowConfig | null> {
+  const existing = await loadWorkflowConfig(db, req, workflowType);
+  if (existing) {
+    if (workflowType === 'probation_confirmation' && (!existing.actionRules || !existing.extension)) {
+      try {
+        const auth = await getAuthInfo(req);
+        const current = await db.employeeWorkflowConfig.findUnique({ where: { id: existing.id } });
+        const parsed = JSON.parse(current.config || '{}');
+        const migrated = { ...parsed, actionRules: parsed.actionRules || PROBATION_RULE_SEED, extension: parsed.extension || { enabled: true, maxMonths: 12, defaultMonths: 3 } };
+        await db.employeeWorkflowConfig.update({ where: { id: existing.id }, data: { config: JSON.stringify(migrated) } });
+        return { ...existing, actionRules: migrated.actionRules, extension: migrated.extension };
+      } catch { /* existing configuration remains authoritative */ }
+    }
+    return existing;
+  }
+  try {
+    const auth = await getAuthInfo(req);
+    if (!auth?.tenantId) return null;
+    const tiers = WORKFLOW_SEEDS[workflowType];
+    const config = workflowType === 'probation_confirmation'
+      ? { tiers, actionRules: PROBATION_RULE_SEED, extension: { enabled: true, maxMonths: 12, defaultMonths: 3 } }
+      : { tiers };
+    const cfg = await db.employeeWorkflowConfig.create({
+      data: {
+        tenantId: auth.tenantId,
+        workflowType,
+        isActive: true,
+        name: workflowType === 'update_profile' ? 'Profile Update Approval Workflow' : 'Probation Confirmation Approval Workflow',
+        config: JSON.stringify(config),
+      },
+    });
+    return { id: cfg.id, name: cfg.name, tiers, actionRules: workflowType === 'probation_confirmation' ? PROBATION_RULE_SEED : undefined, extension: workflowType === 'probation_confirmation' ? { enabled: true, maxMonths: 12, defaultMonths: 3 } : undefined };
   } catch {
     return null;
   }

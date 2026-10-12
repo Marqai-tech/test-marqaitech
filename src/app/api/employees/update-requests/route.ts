@@ -13,8 +13,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/tenant-db';
 import { getAuthInfo } from '@/lib/companyScope';
 import { sanitizeMultiLineText } from '@/lib/sanitize';
-import { loadWorkflowConfig, resolveTierApprovers } from '@/lib/approverResolve';
+import { ensureWorkflowConfig, resolveTierApprovers } from '@/lib/approverResolve';
 import { canEditEmployeeRecords } from '@/lib/roleAccess';
+import { loadEmployeeFieldRules } from '@/lib/employee-config';
 
 function corsHeaders() {
   return {
@@ -140,7 +141,8 @@ export async function POST(req: NextRequest) {
     }
 
     // Check field sensitivity
-    const fieldConfig = FIELD_SENSITIVITY[fieldName];
+    const configuredFieldRules = await loadEmployeeFieldRules(db as Record<string, any>, req);
+    const fieldConfig = configuredFieldRules[fieldName];
     if (!fieldConfig) {
       return NextResponse.json({ error: `Unknown field: ${fieldName}` }, { status: 400, headers: corsHeaders() });
     }
@@ -185,13 +187,11 @@ export async function POST(req: NextRequest) {
     // Approval chain comes from the ACTIVE EmployeeWorkflowConfig
     // (workflowType='update_profile') when configured; otherwise the
     // 2-tier default (Reporting Manager → HR Admin) applies.
-    const wfConfig = await loadWorkflowConfig(db as Record<string, any>, req, 'update_profile');
-    const tiers = wfConfig?.tiers?.length
-      ? wfConfig.tiers.map((t, i) => ({ tier: i + 1, approverType: t.approverType, approverUserId: t.approverUserId || null, approverName: t.approverName || null }))
-      : [
-          { tier: 1, approverType: 'reporting_manager', approverName: 'Reporting Manager' },
-          { tier: 2, approverType: 'hr_admin', approverName: 'HR Admin' },
-        ];
+    const wfConfig = await ensureWorkflowConfig(db as Record<string, any>, req, 'update_profile');
+    if (!wfConfig?.tiers?.length) {
+      return NextResponse.json({ error: 'Employee profile workflow is not configured for this tenant' }, { status: 409, headers: corsHeaders() });
+    }
+    const tiers = wfConfig.tiers.map((t, i) => ({ tier: i + 1, approverType: t.approverType, approverUserId: t.approverUserId || null, approverName: t.approverName || null }));
 
     const configSnapshot = JSON.stringify({
       fieldSensitivity: fieldConfig,

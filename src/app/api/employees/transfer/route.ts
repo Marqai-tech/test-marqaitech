@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { createNotification } from '@/lib/notifications';
+import { loadEmployeeSetting } from '@/lib/employee-config';
 
 function corsHeaders() {
   return {
@@ -171,6 +172,13 @@ export async function POST(request: Request) {
     if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401, headers: corsHeaders() });
 
     const body = await request.json();
+    const configuredTransfer = await loadEmployeeSetting(db as Record<string, any>, request, 'employee_transfer_config', {
+      enabled: true,
+      defaultTransferType: 'permanent',
+      approvalRoles: ['tenant_admin', 'admin'],
+      notifyReportingManager: true,
+    });
+    if (!configuredTransfer.enabled) return NextResponse.json({ error: 'Employee transfers are disabled in Employee Settings' }, { status: 409, headers: corsHeaders() });
     const {
       employeeId,
       currentDepartment,
@@ -233,7 +241,7 @@ export async function POST(request: Request) {
         currentLocation || null,
         newLocation || null,
         transferDate ? new Date(transferDate) : new Date(),
-        transferType || 'permanent',
+        transferType || configuredTransfer.defaultTransferType,
         reason || null,
         reportingManager || null,
         comments || null,
@@ -268,7 +276,7 @@ export async function POST(request: Request) {
         const adminUsers = await db.user.findMany({
           where: {
             tenantId,
-            role: { in: ['tenant_admin', 'admin'] },
+            role: { in: configuredTransfer.approvalRoles },
             status: 'active',
           },
           select: { id: true },
@@ -293,7 +301,7 @@ export async function POST(request: Request) {
 
     // Notify the employee's reporting manager if specified
     try {
-      if (reportingManager) {
+      if (reportingManager && configuredTransfer.notifyReportingManager) {
         const tenantId = (decoded as any).tenantId;
         if (tenantId) {
           await createNotification({
@@ -335,7 +343,7 @@ export async function POST(request: Request) {
           fromDepartment: currentDepartment || null,
           toDepartment: newDepartment,
           transferDate,
-          transferType: transferType || 'permanent',
+          transferType: transferType || configuredTransfer.defaultTransferType,
           reason: reason || '',
           status: 'pending',
           createdAt: new Date().toISOString(),
