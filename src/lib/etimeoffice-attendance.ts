@@ -68,7 +68,7 @@ export function classifyBiometricDay<T extends TimedPunch>(
     } else if (!hasBreakOut) {
       classifications.set(punch.id, 'break_out');
       hasBreakOut = true;
-    } else if (minutes <= 18 * 60 + 30) {
+    } else if (minutes < 18 * 60 + 30) {
       classifications.set(punch.id, 'entry_only');
     } else {
       classifications.set(punch.id, 'check_out');
