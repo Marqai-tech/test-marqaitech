@@ -40,102 +40,49 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Total employees (scoped by role + company)
-    const totalEmployees = await db.employee.count({
-      where: employeeFilter,
-    });
-
     // New hires this month
     const now = new Date();
     const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const newHires = await db.employee.count({
-      where: {
-        ...employeeFilter,
-        joiningDate: { gte: firstOfMonth },
-      },
-    });
-
-    // Open positions (company-scoped)
-    const openPositions = isSelfOnly ? 0 : await db.job.count({
-      where: {
-        ...companyFilter,
-        status: 'open',
-      },
-    });
-
-    // Attendance rate for today
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const totalAttendanceToday = await db.attendance.count({
-      where: {
-        date: { gte: today },
-        status: 'present',
-        employee: employeeFilter,
-      },
-    });
-    const expectedAttendance = totalEmployees || 1;
-    const attendanceRate = Math.round((totalAttendanceToday / expectedAttendance) * 100);
-
-    // Pending approvals (leaves, expenses, travel) — company-scoped
-    const pendingLeaves = await db.leave.count({
-      where: {
-        status: 'pending',
-        employee: employeeFilter,
-      },
-    });
-    const pendingExpenses = await db.expenseClaim.count({
-      where: {
-        status: 'pending',
-        employee: employeeFilter,
-      },
-    });
-    const pendingTravel = await db.travelRequest.count({
-      where: {
-        status: 'pending',
-        employee: employeeFilter,
-      },
-    });
-    const pendingApprovals = pendingLeaves + pendingExpenses + pendingTravel;
-
-    // Recent activities from audit logs — scoped by tenant for admins
-    const recentActivities = await db.auditLog.findMany({
-      take: 10,
-      orderBy: { createdAt: 'desc' },
-      include: {
-        user: {
-          select: { name: true, email: true, avatar: true },
-        },
-      },
-    });
-
     // Notifications count
     const url = new URL(req.url);
     const reqUserId = url.searchParams.get('userId') || userId;
-    let unreadNotifications = 0;
-    let recentNotifications: unknown[] = [];
-    if (reqUserId) {
-      unreadNotifications = await db.notification.count({
-        where: { userId: reqUserId, isRead: false },
-      });
-      recentNotifications = await db.notification.findMany({
-        where: { userId: reqUserId },
-        take: 5,
+    const [
+      totalEmployees,
+      newHires,
+      openPositions,
+      totalAttendanceToday,
+      pendingLeaves,
+      pendingExpenses,
+      pendingTravel,
+      recentActivities,
+      unreadNotifications,
+      recentNotifications,
+      departmentDistribution,
+      departments,
+    ] = await Promise.all([
+      db.employee.count({ where: employeeFilter }),
+      db.employee.count({ where: { ...employeeFilter, joiningDate: { gte: firstOfMonth } } }),
+      isSelfOnly ? Promise.resolve(0) : db.job.count({ where: { ...companyFilter, status: 'open' } }),
+      db.attendance.count({ where: { date: { gte: today }, status: 'present', employee: employeeFilter } }),
+      db.leave.count({ where: { status: 'pending', employee: employeeFilter } }),
+      db.expenseClaim.count({ where: { status: 'pending', employee: employeeFilter } }),
+      db.travelRequest.count({ where: { status: 'pending', employee: employeeFilter } }),
+      db.auditLog.findMany({
+        take: 10,
         orderBy: { createdAt: 'desc' },
-      });
-    }
+        include: { user: { select: { name: true, email: true, avatar: true } } },
+      }),
+      reqUserId ? db.notification.count({ where: { userId: reqUserId, isRead: false } }) : Promise.resolve(0),
+      reqUserId ? db.notification.findMany({ where: { userId: reqUserId }, take: 5, orderBy: { createdAt: 'desc' } }) : Promise.resolve([]),
+      db.employee.groupBy({ by: ['departmentId'], where: employeeFilter, _count: { id: true } }),
+      db.department.findMany({ where: companyFilter, select: { id: true, name: true } }),
+    ]);
 
-    // Department distribution — company-scoped
-    const departmentDistribution = await db.employee.groupBy({
-      by: ['departmentId'],
-      where: employeeFilter,
-      _count: { id: true },
-    });
+    const attendanceRate = Math.round((totalAttendanceToday / (totalEmployees || 1)) * 100);
+    const pendingApprovals = pendingLeaves + pendingExpenses + pendingTravel;
 
-    // Get department names — company-scoped
-    const departments = await db.department.findMany({
-      where: companyFilter,
-      select: { id: true, name: true },
-    });
     const deptMap = new Map(departments.map((d) => [d.id, d.name]));
 
     const departmentStats = departmentDistribution.map((d) => ({

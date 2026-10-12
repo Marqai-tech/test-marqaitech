@@ -72,7 +72,9 @@ export async function POST(request: Request) {
 
     const date = new Date(body.date as string);
     const punchType = body.punchType as string;
-    const requestedTime = new Date(body.requestedTime as string);
+    const requestedTime = punchType === 'production_shortfall'
+      ? new Date(body.date as string)
+      : new Date(body.requestedTime as string);
     // ─── Whitespace-only reason guard (user report) ───
     // Validate the RAW input before sanitization: sanitize trims, but callers
     // that prefix the reason (e.g. "[HR] <reason>") would otherwise turn a
@@ -82,12 +84,12 @@ export async function POST(request: Request) {
       return fail('Reason is required and cannot be empty or whitespace-only', 422);
     }
     const reason = sanitizeMultiLineText(body.reason, 2000);
-    if (!punchType || !['check_in', 'check_out'].includes(punchType)) return fail('Invalid punchType');
+    if (!punchType || !['check_in', 'check_out', 'break_in', 'break_out', 'production_shortfall'].includes(punchType)) return fail('Invalid punchType');
     if (!reason) return fail('Reason is required');
 
     // ─── Validate dates ───
     if (isNaN(date.getTime())) return fail('Invalid date format');
-    if (isNaN(requestedTime.getTime())) return fail('Invalid requested time format');
+    if (punchType !== 'production_shortfall' && isNaN(requestedTime.getTime())) return fail('Invalid requested time format');
     // Future-date guard: the server's UTC "today" lags behind the employee's
     // local day in timezones ahead of UTC (e.g. IST 00:00–05:30). The client
     // therefore sends its local date (clientToday) and either may vouch.
@@ -99,7 +101,33 @@ export async function POST(request: Request) {
     const dateKey = date.toISOString().slice(0, 10);
     const isFuture = date > serverToday && (!clientTodayKey || dateKey > clientTodayKey);
     if (isFuture) return fail('Cannot regularize a future date');
-    if (requestedTime > new Date()) return fail('Requested time cannot be in the future');
+    if (punchType !== 'production_shortfall' && requestedTime > new Date()) return fail('Requested time cannot be in the future');
+
+    // A production-hours-shortfall request is only valid when that date's
+    // recorded net production is actually below the eight-hour requirement.
+    // Check-in/check-out requests remain employee claims and use the normal
+    // punch validation below.
+    if (punchType === 'production_shortfall') {
+      const attendance = await db.attendance.findFirst({
+        where: { employeeId: emp.id, date: new Date(`${dateKey}T00:00:00.000Z`) },
+        select: { workHours: true, checkIn: true, checkOut: true, breakIn: true, breakOut: true },
+      });
+      if (!attendance) {
+        return fail('No attendance record exists for this date. Select a date with production hours below 8 hours.', 422);
+      }
+
+      let productionHours = attendance.workHours == null ? null : Number(attendance.workHours);
+      if (productionHours == null && attendance.checkIn && attendance.checkOut) {
+        const grossMinutes = (new Date(attendance.checkOut).getTime() - new Date(attendance.checkIn).getTime()) / 60000;
+        const breakMinutes = attendance.breakIn && attendance.breakOut
+          ? (new Date(attendance.breakOut).getTime() - new Date(attendance.breakIn).getTime()) / 60000
+          : 60;
+        productionHours = (grossMinutes - Math.max(60, breakMinutes)) / 60;
+      }
+      if (productionHours == null || productionHours >= 8) {
+        return fail('Production hours are not short on this date. Select a date with production hours below 8 hours.', 422);
+      }
+    }
 
     // Punch type and clock time must fit the shift window and any punch already
     // recorded for that day. Check-in at 8:00 PM is rejected for a day shift.
@@ -136,15 +164,17 @@ export async function POST(request: Request) {
         console.warn('[regularize] existing punch lookup failed (non-fatal):', attendanceErr);
       }
 
-      const punchCheck = validatePunchTime({
-        punchType: punchType as 'check_in' | 'check_out',
-        time: toHHmm(requestedTime),
-        shiftStart,
-        shiftEnd,
-        existingCheckIn,
-        existingCheckOut,
-      });
-      if (!punchCheck.ok) return fail(punchCheck.error, 422);
+      if (!['production_shortfall', 'break_in', 'break_out'].includes(punchType)) {
+        const punchCheck = validatePunchTime({
+          punchType: punchType as 'check_in' | 'check_out',
+          time: toHHmm(requestedTime),
+          shiftStart,
+          shiftEnd,
+          existingCheckIn,
+          existingCheckOut,
+        });
+        if (!punchCheck.ok) return fail(punchCheck.error, 422);
+      }
     }
 
     // ─── Duplicate request guard (user report) ───
@@ -285,13 +315,24 @@ export async function POST(request: Request) {
           ? { name: `${(manager as any).firstName || ''} ${(manager as any).lastName || ''}`.trim(), email: manager.email }
           : null;
       const tenantId = (user as any).tenantId || (await resolveCompanyScope(request))?.tenantId;
-      if (tenantId && managerRecipient) {
+      const hrUsers = tenantId
+        ? await db.user.findMany({
+            where: { tenantId, role: { in: ['hr_admin', 'hr', 'admin', 'tenant_admin'] }, status: 'active' },
+            select: { id: true, email: true, name: true },
+          }).catch(() => [])
+        : [];
+      const recipients = [
+        employee?.userId ? { userId: employee.userId } : null,
+        managerRecipient,
+        ...hrUsers.map((hr: { id: string; email: string | null; name: string | null }) => ({ userId: hr.id, email: hr.email || undefined, name: hr.name || undefined })),
+      ].filter(Boolean) as Array<{ userId?: string; email?: string; name?: string }>;
+      if (tenantId && recipients.length) {
         const { dispatchNotification } = await import('@/lib/notification-center');
         await dispatchNotification({
           tenantId,
           module: 'attendance',
           eventKey: 'attendance.request.submitted',
-          recipients: [managerRecipient],
+          recipients,
           vars: {
             Employee_Name: `${emp.firstName} ${emp.lastName}`,
             Request_Type: 'Attendance Regularization',

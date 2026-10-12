@@ -4,6 +4,7 @@ import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { resolveCompanyScope } from '@/lib/companyScope';
 import { safeAuditLog } from '@/lib/audit-safe';
+import { sendEmail } from '@/lib/email';
 
 /**
  * POST /api/attendance/punch
@@ -200,7 +201,7 @@ export async function POST(request: NextRequest) {
     if (!scope) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
 
     const body = await request.json();
-    const { employeeId, action, date, localTime, utcTimestamp, gps, notes } = body;
+    let { employeeId, action, date, localTime, utcTimestamp, gps, notes } = body;
 
     if (!employeeId || !action || !date || (!localTime && !utcTimestamp)) {
       return NextResponse.json(
@@ -223,7 +224,7 @@ export async function POST(request: NextRequest) {
     // Verify employee exists + scope-permit
     const employee = await db.employee.findUnique({
       where: { id: employeeId },
-      select: { id: true, companyId: true, userId: true, employeeId: true, firstName: true, lastName: true },
+      select: { id: true, companyId: true, userId: true, employeeId: true, firstName: true, lastName: true, email: true },
     });
     if (!employee) {
       return NextResponse.json({ error: 'Employee not found' }, { status: 404, headers: corsHeaders() });
@@ -252,6 +253,20 @@ export async function POST(request: NextRequest) {
     const gpsLabel = gps && gps.label ? String(gps.label) : null;
 
     const existingBeforeRules = await db.attendance.findFirst({ where: { employeeId, date: dateObj } });
+    const beforeLunch = localMinutes !== null && localMinutes < 13 * 60 + 30;
+    const afterLunchBeforeClose = localMinutes !== null && localMinutes >= 13 * 60 + 30 && localMinutes < 18 * 60 + 30;
+    if (action !== 'checkin' && action !== 'set_early_logout') {
+      if (beforeLunch || (afterLunchBeforeClose && existingBeforeRules?.breakIn && action !== 'breakout')) action = 'entry';
+      else if (localMinutes !== null && localMinutes >= 18 * 60 + 30) action = 'checkout';
+    }
+    if (action === 'entry') {
+      const eventId = `pe-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+      await db.$executeRawUnsafe(
+        `INSERT INTO "PunchEvent" ("id", "employeeId", "type", "date", "timestamp", "gpsLat", "gpsLng", "gpsAccuracy", "gpsLabel", "method", "notes", "createdAt") VALUES ($1,$2,'entry',$3,$4,$5,$6,$7,$8,$9,$10,NOW())`,
+        eventId, employeeId, dateObj, timestamp, gpsLat, gpsLng, gpsAccuracy, gpsLabel, method, notes || null,
+      );
+      return NextResponse.json({ ok: true, event: { id: eventId, type: 'entry', timestamp }, message: 'Entry punch recorded.' }, { headers: corsHeaders() });
+    }
     if (action === 'breakin' && localMinutes !== null && localMinutes < 13 * 60 + 30) {
       return NextResponse.json({ error: 'Break-In is available from 1:30 PM onward.' }, { status: 400, headers: corsHeaders() });
     }
@@ -261,7 +276,7 @@ export async function POST(request: NextRequest) {
     if (action === 'breakout' && !existingBeforeRules?.breakIn) {
       return NextResponse.json({ error: 'You must record Break-In before Break-Out.' }, { status: 400, headers: corsHeaders() });
     }
-    if (action === 'checkout' && (!existingBeforeRules?.checkIn || existingBeforeRules?.checkOut)) {
+    if (action === 'checkout' && (!existingBeforeRules?.checkIn || (existingBeforeRules?.checkOut && !(localMinutes !== null && localMinutes >= 18 * 60 + 30)))) {
       return NextResponse.json({ error: existingBeforeRules?.checkOut ? 'Already checked out today.' : 'You must Check-In before checking out.' }, { status: 400, headers: corsHeaders() });
     }
     if (action === 'set_early_logout') {
@@ -383,19 +398,62 @@ export async function POST(request: NextRequest) {
         // otThresholdMinutes would override when the shift is linked.
         const otMinutes = Math.max(0, workMinutes - 480);
         const overtime = Math.round((otMinutes / 60) * 100) / 100;
+        const preservedHalfDay = attendance.status === 'half_day';
         await db.attendance.update({
           where: { id: attendance.id },
           data: {
             workHours,
             breakMinutes,
             overtime,
-            status: workHours < 8 ? 'half_day' : (attendance.status === 'half_day' ? 'present' : attendance.status),
+            status: workHours < 8 ? 'half_day' : (preservedHalfDay ? 'half_day' : attendance.status),
             notes: workHours < 8
               ? 'Net working time is below the required 8 hours. Apply Attendance Regularization for full-day correction.'
               : attendance.notes,
           },
         });
         attendance = { ...attendance, workHours, breakMinutes, overtime };
+      }
+    }
+
+    // Surface automatic attendance penalties to the employee and HR. These
+    // are in-app notifications; the existing notification center can fan out
+    // email when the tenant has email delivery enabled.
+    if (action === 'checkin' || action === 'checkout' || action === 'breakout') {
+      const automaticHalfDay = attendance?.status === 'half_day';
+      if (automaticHalfDay && scope.tenantId) {
+        try {
+          const hrUsers = await db.user.findMany({
+            where: { tenantId: scope.tenantId, role: { in: ['admin', 'tenant_admin', 'hr_admin', 'hr'] } },
+            select: { id: true, email: true },
+          });
+          const recipientIds = Array.from(new Set([employee.userId, ...hrUsers.map((u: { id: string }) => u.id)].filter(Boolean)));
+          if (recipientIds.length) {
+            await db.notification.createMany({
+              data: recipientIds.map((userId: string) => ({
+                tenantId: scope.tenantId,
+                userId,
+                title: 'Attendance marked half-day',
+                message: `Attendance for ${date} is marked half-day. Submit regularization for HR approval if a full-day correction is required.`,
+                type: 'warning',
+                category: 'attendance',
+                link: '/attendance/regularize',
+              })),
+            });
+          }
+          const emailRecipients = Array.from(new Set([
+            employee.email,
+            ...hrUsers.map((u: { email?: string | null }) => u.email),
+          ].filter((email): email is string => Boolean(email))));
+          if (emailRecipients.length && existingBeforeRules?.status !== 'half_day') {
+            await sendEmail({
+              to: emailRecipients,
+              subject: `Attendance action required: half-day on ${date}`,
+              html: `<p>Attendance for ${date} has been marked half-day for ${employee.firstName} ${employee.lastName}.</p><p>This may be due to the fourth late arrival of the month or production time below eight hours. Please submit regularization for HR approval.</p>`,
+            });
+          }
+        } catch (notificationError) {
+          console.warn('[punch] automatic half-day notification failed (non-fatal):', notificationError);
+        }
       }
     }
 

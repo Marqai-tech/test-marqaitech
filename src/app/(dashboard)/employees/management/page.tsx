@@ -5,6 +5,7 @@ import Link from 'next/link';
 import {
   FiUsers, FiRefreshCw, FiDownload, FiSearch, FiUser, FiFilter,
   FiChevronRight, FiUserCheck, FiUsers as FiUsersIcon, FiArrowLeft, FiStar,
+  FiEye, FiEdit2,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
@@ -24,6 +25,7 @@ interface MgmtEmployee {
   email: string;
   phone: string | null;
   isManagement?: boolean;
+  avatar?: string | null;   // Task 87: photo URL attached by /api/employees (with embedded token)
   department?: { id: string; name: string } | null;
   designation?: { id: string; title: string } | null;
   user?: { id: string; role: string } | null;
@@ -37,6 +39,7 @@ interface DirectReport {
   firstName: string;
   lastName: string;
   employeeId: string;
+  avatar?: string | null;
 }
 
 const ROLE_LABEL: Record<string, string> = {
@@ -85,17 +88,29 @@ export default function ManagementListPage() {
         "Is Management = true" in the bulk import. This is the primary source.
      1. Their linked User has role: manager, admin, tenant_admin, hr_admin, super_admin
      2. They are a reporting manager for other employees (have direct reports)
+
+     Task 81: separated employees (terminated / resigned / inactive) are NEVER
+     management and NEVER count as reportees — only currently-employed people
+     (active / on_leave) are listed or counted.
   */
+  const CURRENT_STATUSES = ['active', 'on_leave'];
+  const currentEmployees = useMemo(
+    () => allEmployees.filter(e => CURRENT_STATUSES.includes(e.status)),
+    [allEmployees],
+  );
+
   const managementEmployees = useMemo(() => {
     const mgmtRoles = ['manager', 'admin', 'tenant_admin', 'hr_admin', 'super_admin'];
 
     // Build a set of reporting manager IDs (employees who have direct reports)
+    // from CURRENT employees only — terminated reportees no longer make someone
+    // a reporting manager.
     const reportingManagerIds = new Set<string>();
-    allEmployees.forEach(emp => {
+    currentEmployees.forEach(emp => {
       if (emp.reportingManagerId) reportingManagerIds.add(emp.reportingManagerId);
     });
 
-    return allEmployees.filter(emp => {
+    return currentEmployees.filter(emp => {
       // Criterion 0: explicitly designated as management from the employee form / bulk upload
       if (emp.isManagement === true) return true;
       // Criterion 1: User role is management-level
@@ -104,17 +119,18 @@ export default function ManagementListPage() {
       if (reportingManagerIds.has(emp.id)) return true;
       return false;
     });
-  }, [allEmployees]);
+  }, [currentEmployees]);
 
-  /* ─── Get direct reports for an employee ─── */
+  /* ─── Get direct reports for an employee (currently-employed only) ─── */
   const getDirectReports = useCallback((empId: string): DirectReport[] => {
-    return allEmployees.filter(e => e.reportingManagerId === empId).map(e => ({
+    return currentEmployees.filter(e => e.reportingManagerId === empId).map(e => ({
       id: e.id,
       firstName: e.firstName,
       lastName: e.lastName,
       employeeId: e.employeeId,
+      avatar: e.avatar,
     }));
-  }, [allEmployees]);
+  }, [currentEmployees]);
 
   /* ─── Filtered results based on source filter + search. Designated employees sort first. ─── */
   const filtered = useMemo(() => {
@@ -296,9 +312,17 @@ export default function ManagementListPage() {
                     <tr key={e.id} className="border-b border-slate-50 hover:bg-slate-50/50">
                       <td className="py-2.5 px-4">
                         <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600 font-bold text-xs flex-shrink-0">
-                            {e.firstName?.[0]}{e.lastName?.[0] || ''}
-                          </div>
+                          {e.avatar ? (
+                            <img
+                              src={e.avatar}
+                              alt={fullName}
+                              className="w-8 h-8 rounded-full object-cover flex-shrink-0 border border-slate-200"
+                            />
+                          ) : (
+                            <div className="w-8 h-8 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600 font-bold text-xs flex-shrink-0">
+                              {e.firstName?.[0]}{e.lastName?.[0] || ''}
+                            </div>
+                          )}
                           <div>
                             <p className="font-medium text-thb-text-primary">{fullName}</p>
                             <p className="text-xs text-thb-text-muted">{e.employeeId} · {e.email}</p>
@@ -340,14 +364,30 @@ export default function ManagementListPage() {
                         {e.reportingManager ? `${e.reportingManager.firstName} ${e.reportingManager.lastName}` : '—'}
                       </td>
                       <td className="py-2.5 px-4 text-center">
-                        <button
-                          onClick={() => setExpandedId(expandedId === e.id ? null : e.id)}
-                          className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-emerald-600 hover:bg-emerald-50 rounded transition-colors"
-                          title="View direct reports"
-                        >
-                          <FiChevronRight className={`w-3.5 h-3.5 transition-transform ${expandedId === e.id ? 'rotate-90' : ''}`} />
-                          Details
-                        </button>
+                        <div className="inline-flex items-center gap-1">
+                          <Link
+                            href={`/employees/${e.id}`}
+                            className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-teal-600 hover:bg-teal-50 rounded transition-colors"
+                            title="View employee profile"
+                          >
+                            <FiEye className="w-3.5 h-3.5" /> View
+                          </Link>
+                          <Link
+                            href={`/employees?editId=${e.id}`}
+                            className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                            title="Edit employee"
+                          >
+                            <FiEdit2 className="w-3.5 h-3.5" /> Edit
+                          </Link>
+                          <button
+                            onClick={() => setExpandedId(expandedId === e.id ? null : e.id)}
+                            className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-emerald-600 hover:bg-emerald-50 rounded transition-colors"
+                            title="View direct reports"
+                          >
+                            <FiChevronRight className={`w-3.5 h-3.5 transition-transform ${expandedId === e.id ? 'rotate-90' : ''}`} />
+                            Details
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -374,9 +414,13 @@ export default function ManagementListPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                 {reports.map(r => (
                   <div key={r.id} className="flex items-center gap-2 p-2 bg-slate-50 rounded-lg border border-slate-200">
-                    <div className="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold text-[10px]">
-                      {r.firstName?.[0]}{r.lastName?.[0] || ''}
-                    </div>
+                    {r.avatar ? (
+                      <img src={r.avatar} alt={`${r.firstName} ${r.lastName}`} className="w-6 h-6 rounded-full object-cover flex-shrink-0 border border-slate-200" />
+                    ) : (
+                      <div className="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold text-[10px]">
+                        {r.firstName?.[0]}{r.lastName?.[0] || ''}
+                      </div>
+                    )}
                     <div>
                       <p className="text-xs font-medium text-thb-text-primary">{r.firstName} {r.lastName}</p>
                       <p className="text-[10px] text-thb-text-muted">{r.employeeId}</p>

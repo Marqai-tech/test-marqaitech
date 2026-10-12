@@ -6,9 +6,10 @@ import { getEmployeeCompanyFilter, getCompanyFilter, getAuthInfo, resolveCompany
 import { checkTenantStatusOrBlock } from '@/lib/tenant-guard';
 import { isServerLiveSite } from '@/lib/tenant-filter';
 // Note: isServerLiveSite is used later for the manual guard on normal queries
-import { validateEmail, validatePhone, validateAadhaar, validatePAN, validateIFSC, validateBankAccount, validateOfficialEmail } from '@/lib/validators';
+import { validateEmail, validatePhone, validateAadhaar, validatePAN, validateIFSC, validateBankAccount, validateOfficialEmail, validateUAN, validatePFNumber, validateNomineeName, validateLWFNumber } from '@/lib/validators';
 import { profilePhotoPayloadError, employeeIdsWithStoredPhoto, employeePhotoApiPath } from '@/lib/profile-photo';
 import { ensureEmployeeWriteColumns } from '@/lib/employee-profile-columns';
+import { loadEmployeeSetting } from '@/lib/employee-config';
 
 function generateRandomPassword(length = 12): string {
   const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -43,11 +44,12 @@ async function attachListPhotoUrls<T extends { id: string; user?: { id: string; 
   queryDb: { $queryRawUnsafe: (sql: string, ...values: unknown[]) => Promise<unknown> },
   employees: T[],
   requestUrl: string,
+  token?: string | null,
 ): Promise<Array<T & { avatar: string | null; user: T['user'] & { avatar: string | null } | null }>> {
   if (employees.length === 0) return [];
   const hasPhoto = await employeeIdsWithStoredPhoto(queryDb, employees.map((e) => e.id));
   return employees.map((e) => {
-    const photo = hasPhoto.has(e.id) ? employeePhotoApiPath(e.id, requestUrl) : null;
+    const photo = hasPhoto.has(e.id) ? employeePhotoApiPath(e.id, requestUrl, token) : null;
     return {
       ...e,
       avatar: photo,
@@ -69,8 +71,23 @@ export async function GET(request: Request) {
       ? Math.min(Math.max(rawLimit || 20, 1), 500)
       : Math.min(Math.max(rawLimit || 20, 1), 100);
     const departmentId = searchParams.get('departmentId');
+    const designationId = searchParams.get('designationId');
     const status = searchParams.get('status');
     const search = searchParams.get('search');
+    // Task 81: Employee List page asks to hide management-list members (the
+    // Management List module is their directory). Same membership definition as
+    // the Management List page: designated (isManagement), management-level
+    // user role, or currently-employed direct reports. Only the list sends
+    // this — pickers, attendance, payroll etc. still see everyone.
+    const excludeManagement = searchParams.get('excludeManagement') === '1';
+    // Task 80: "Inactive" must mean "not currently employed" — the same
+    // definition the Inactive stats card uses. Employees separated via the
+    // Termination / Resignation flows get status 'terminated' / 'resigned'
+    // (NOT 'inactive'), so an exact match made the Inactive filter return 0
+    // rows on tenants whose separated staff are terminated/resigned, and the
+    // export then reported "No data to export". on_leave keeps its own filter
+    // option and is deliberately NOT part of this set.
+    const INACTIVE_STATUSES = ['inactive', 'terminated', 'resigned'];
     // Tenant scope — only meaningful for super_admin (tenant_admin is already
     // scoped to their own tenantId in the JWT).
     const tenantId = searchParams.get('tenantId');
@@ -98,7 +115,7 @@ export async function GET(request: Request) {
     // nested includes for a count-only call was extra Neon work (~2.6s).
     if (includeStats && !exportMode && limit <= 1 && !search && !departmentId) {
       const where: Record<string, unknown> = {};
-      if (status) where.status = status;
+      if (status) where.status = status === 'inactive' ? { in: INACTIVE_STATUSES } : status;
       if (queryCompanyId) where.companyId = queryCompanyId;
       const monthAgo = new Date();
       monthAgo.setMonth(monthAgo.getMonth() - 1);
@@ -106,7 +123,8 @@ export async function GET(request: Request) {
       const [total, active, inactive, newJoiners] = await Promise.all([
         db.employee.count({ where }),
         db.employee.count({ where: { ...where, status: 'active' } }),
-        db.employee.count({ where: { ...where, status: { not: 'active' } } }),
+        // Card must agree with the Inactive filter: separated staff only
+        db.employee.count({ where: { ...where, status: { in: INACTIVE_STATUSES } } }),
         db.employee.count({ where: { ...where, dateOfJoining: { gte: monthAgo } } }),
       ]);
       return NextResponse.json(
@@ -307,7 +325,19 @@ export async function GET(request: Request) {
     try {
       const where: Record<string, unknown> = {};
       if (departmentId) where.departmentId = departmentId;
-      if (status) where.status = status;
+      if (designationId) where.designationId = designationId;
+      if (status) where.status = status === 'inactive' ? { in: INACTIVE_STATUSES } : status;
+      // The Employee List explicitly excludes management members for every
+      // caller. This keeps management in its dedicated directory even when
+      // the current account is itself a management/HR account.
+      if (excludeManagement) {
+        where.NOT = {
+          OR: [
+            { user: { role: { in: ['manager', 'admin', 'tenant_admin', 'hr_admin', 'super_admin'] } } },
+            { directReports: { some: { status: { in: ['active', 'on_leave'] } } } },
+          ],
+        };
+      }
       if (search) {
         where.OR = [
           { firstName: { contains: search, mode: 'insensitive' } },
@@ -428,14 +458,16 @@ export async function GET(request: Request) {
       const [employeesRaw, total] = await Promise.all([
         queryDb.employee.findMany({
           where,
-          omit: { avatar: true },
-          include: {
+          select: {
+            id: true, employeeId: true, firstName: true, lastName: true, email: true,
+            userId: true, departmentId: true, designationId: true, branchId: true,
+            companyId: true, phone: true, status: true, employeeStatus: true,
+            employeeType: true, dateOfJoining: true, reportingManagerId: true,
+            createdAt: true, updatedAt: true,
             department: { select: { id: true, name: true } },
             designation: { select: { id: true, title: true } },
             branch: { select: { id: true, name: true } },
-            user: {
-              select: { id: true, email: true, role: true },
-            },
+            user: { select: { id: true, email: true, role: true } },
             reportingManager: { select: { id: true, firstName: true, lastName: true, employeeId: true } },
           },
           orderBy: { createdAt: 'desc' },
@@ -444,7 +476,7 @@ export async function GET(request: Request) {
         }),
         queryDb.employee.count({ where }),
       ]);
-      const employees = await attachListPhotoUrls(queryDb, employeesRaw, request.url);
+      const employees = await attachListPhotoUrls(queryDb, employeesRaw, request.url, getTokenFromHeaders(request));
 
       let stats: { total: number; active: number; inactive: number; newJoiners: number } | undefined;
       if (includeStats) {
@@ -452,7 +484,8 @@ export async function GET(request: Request) {
         monthAgo.setMonth(monthAgo.getMonth() - 1);
         const [active, inactive, newJoiners] = await Promise.all([
           queryDb.employee.count({ where: { ...where, status: 'active' } }),
-          queryDb.employee.count({ where: { ...where, status: { not: 'active' } } }),
+          // Same definition as the Inactive filter (inactive+terminated+resigned)
+          queryDb.employee.count({ where: { ...where, status: { in: INACTIVE_STATUSES } } }),
           queryDb.employee.count({ where: { ...where, dateOfJoining: { gte: monthAgo } } }),
         ]);
         stats = { total, active, inactive, newJoiners };
@@ -485,8 +518,19 @@ export async function GET(request: Request) {
       );
     } catch (dbError) {
       console.error('DB employees query failed:', dbError);
+      // Task 78 diagnostics: surface the underlying DB error (same pattern as
+      // the [id] route) so tenant DB failures are observable from the client.
+      const e: any = dbError;
+      const cause = e?.cause;
+      const details = [
+        e?.message,
+        e?.code ? `code=${e.code}` : '',
+        e?.meta ? `meta=${JSON.stringify(e.meta).slice(0, 200)}` : '',
+        cause?.message ? `cause=${cause.message}` : '',
+        cause?.code ? `causeCode=${cause.code}` : '',
+      ].filter(Boolean).join(' | ');
       return NextResponse.json(
-        { error: 'Service temporarily unavailable. Please try again.', code: 'DB_UNAVAILABLE' },
+        { error: 'Service temporarily unavailable. Please try again.', code: 'DB_UNAVAILABLE', details: String(details).slice(0, 600) },
         { status: 503, headers: corsHeaders() }
       );
     }
@@ -627,6 +671,8 @@ export async function POST(request: Request) {
       if (!phoneResult.valid) {
         return NextResponse.json({ error: phoneResult.error }, { status: 400, headers: corsHeaders() });
       }
+      const matchingPhone = await db.employee.findFirst({ where: { phone }, select: { id: true } });
+      if (matchingPhone) return NextResponse.json({ error: 'This phone number is already registered.' }, { status: 409, headers: corsHeaders() });
     }
     if (email && typeof email === 'string') {
       // Validate email format AND ensure it's an official email (not personal)
@@ -659,6 +705,10 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: bankResult.error }, { status: 400, headers: corsHeaders() });
       }
     }
+    if (body.pfUAN) { const result = validateUAN(String(body.pfUAN)); if (!result.valid) return NextResponse.json({ error: result.error || 'Invalid UAN.' }, { status: 400, headers: corsHeaders() }); }
+    if (body.pfNumber) { const result = validatePFNumber(String(body.pfNumber)); if (!result.valid) return NextResponse.json({ error: result.error || 'Invalid Member ID.' }, { status: 400, headers: corsHeaders() }); }
+    if (body.pfNomineeName) { const result = validateNomineeName(String(body.pfNomineeName)); if (!result.valid) return NextResponse.json({ error: result.error }, { status: 400, headers: corsHeaders() }); }
+    if (body.lwfNumber) { const result = validateLWFNumber(String(body.lwfNumber)); if (!result.valid) return NextResponse.json({ error: result.error }, { status: 400, headers: corsHeaders() }); }
 
     // Try to create in database
     try {
@@ -1008,6 +1058,9 @@ export async function POST(request: Request) {
       //   - status = 'pending' (goes to HR/Admin for review)
       if (employeeStatus === 'probation' && dateOfJoining) {
         try {
+          const onboardingConfig = await loadEmployeeSetting(db as Record<string, any>, request, 'employee_onboarding_config', {
+            autoCreateProbationReview: true, defaultProbationMonths: 6, initialProbationStatus: 'pending',
+          });
           // Calculate the probation end date
           // Use the form-provided probationEndDate if available, otherwise default to 6 months
           let endDate: Date;
@@ -1015,7 +1068,7 @@ export async function POST(request: Request) {
             endDate = new Date(probationEndDate);
           } else {
             endDate = new Date(dateOfJoining);
-            endDate.setMonth(endDate.getMonth() + 6);
+            endDate.setMonth(endDate.getMonth() + Number(onboardingConfig.defaultProbationMonths));
           }
 
           // Calculate the probation period in months (for display)
@@ -1027,7 +1080,7 @@ export async function POST(request: Request) {
           const probationData = JSON.stringify({
             probationStartDate: dateOfJoining,
             probationEndDate: endDate.toISOString().split('T')[0],
-            probationPeriod: probPeriodMonths || 6,
+            probationPeriod: probPeriodMonths || Number(onboardingConfig.defaultProbationMonths),
             extensionPeriod: 0,
             performanceRating: 0,
             reviewComments: 'Auto-created from employee onboarding. Employee status: Probation.',

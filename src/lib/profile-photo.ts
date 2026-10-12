@@ -37,13 +37,21 @@ export async function employeeIdsWithStoredPhoto(
   }
 }
 
-export function employeePhotoApiPath(employeeId: string, requestUrl: string): string {
+export function employeePhotoApiPath(
+  employeeId: string,
+  requestUrl: string,
+  token?: string | null,
+): string {
   const url = new URL(requestUrl);
   const qs = new URLSearchParams();
   const tenantId = url.searchParams.get('tenantId');
   const companyId = url.searchParams.get('companyId');
   if (tenantId) qs.set('tenantId', tenantId);
   if (companyId) qs.set('companyId', companyId);
+  // Task 81: <img> tags cannot send the Authorization header — embed the
+  // caller's bearer token so the photo endpoint accepts the browser's plain
+  // image request (mirrors the reports-export query-token fallback).
+  if (token) qs.set('token', token);
   const suffix = qs.toString() ? `?${qs.toString()}` : '';
   return `/api/employees/${employeeId}/photo${suffix}`;
 }

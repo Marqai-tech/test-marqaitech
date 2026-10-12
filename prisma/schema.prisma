@@ -1151,6 +1151,7 @@ model PunchEvent {
   @@index([employeeId])
   @@index([date])
   @@index([type])
+  @@index([employeeId, timestamp])
 }
 
 // ============ PAYROLL ============
@@ -6055,9 +6056,19 @@ model AttendancePolicyConfig {
   lateMarkNotApplicableOnTour Boolean @default(true) // late marks not applicable for tour/OD
 
   // ── Shift Defaults ──
-  shiftStartDefault String @default("09:00") // default shift start time
-  shiftEndDefault String @default("17:30") // default shift end time
-  breakDurationMinutes Int @default(30) // lunch break duration in minutes
+  shiftStartDefault String @default("09:30") // default shift start time
+  shiftEndDefault String @default("18:30") // default shift end time
+  breakDurationMinutes Int @default(60) // lunch break duration in minutes
+
+  // ── Auto-Present for Management (Task 82) ──
+  // When enabled, management employees (same definition as the Management
+  // List: isManagement flag, management-level user role, or current direct
+  // reports) are automatically marked PRESENT for each working day with
+  // in/out punches taken from their roster/shift assignment (or the policy
+  // default shift) — even if they never punch. Real punches always win:
+  // existing rows are never overwritten, only missing check-in/check-out
+  // halves are filled.
+  autoPresentManagementEnabled Boolean @default(false)
 
   // ── Gate Pass / Permission Policy ──
   gatePassMaxPerMonth Int @default(1) // max gate passes per month (0 = unlimited)
@@ -6134,9 +6145,9 @@ model AttendancePolicyRule {
   department      Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
 
   // Shift & timing overrides for this rule
-  shiftStartDefault     String @default("09:00")
-  shiftEndDefault       String @default("17:30")
-  breakDurationMinutes  Int @default(30)
+  shiftStartDefault     String @default("09:30")
+  shiftEndDefault       String @default("18:30")
+  breakDurationMinutes  Int @default(60)
   lateGraceMinutes      Int @default(15)
   earlyGraceMinutes     Int @default(10)
 

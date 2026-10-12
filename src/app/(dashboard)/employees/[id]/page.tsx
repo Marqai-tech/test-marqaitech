@@ -42,6 +42,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore, useCompanyContextPersistHydrated } from '@/store/companyContextStore';
 import { canAccessEmployeeSettings, canEditEmployeeRecords } from '@/lib/roleAccess';
 import { employeePhotoUrl } from '@/lib/profile-photo';
+import { isSafeDocumentUrl } from '@/lib/sanitize';
 import { getToken } from '@/lib/token-storage';
 import { formatHoursHm } from '@/lib/format-hours';
 
@@ -1356,7 +1357,8 @@ function EmployeeDocumentsTab({ employeeId, initialDocuments, viewOnly = false }
                   {doc.requiredFormat && <p>Required: {doc.requiredFormat.toUpperCase()}</p>}
                 </div>
                 <div className="mt-3 flex items-center gap-2">
-                  {doc.fileUrl && <a href={doc.fileUrl} {...((doc.fileUrl || '').startsWith('data:') ? { download: doc.name } : { target: '_blank', rel: 'noopener noreferrer' })} className="inline-flex items-center gap-1 px-2 py-1 text-[11px] text-teal-600 hover:bg-teal-50 rounded"><FiDownload className="w-3 h-3" /> Download</a>}
+                  {doc.fileUrl && isSafeDocumentUrl(doc.fileUrl) && <a href={doc.fileUrl} {...((doc.fileUrl || '').startsWith('data:') ? { download: doc.name } : { target: '_blank', rel: 'noopener noreferrer' })} className="inline-flex items-center gap-1 px-2 py-1 text-[11px] text-teal-600 hover:bg-teal-50 rounded"><FiDownload className="w-3 h-3" /> Download</a>}
+                  {doc.fileUrl && !isSafeDocumentUrl(doc.fileUrl) && <span className="inline-flex items-center gap-1 px-2 py-1 text-[11px] text-red-500 bg-red-50 rounded" title="This link was blocked for security reasons">Blocked link</span>}
                   {isAdmin && !viewOnly && <button onClick={() => handleDelete(doc.id, doc.name)} className="inline-flex items-center gap-1 px-2 py-1 text-[11px] text-red-500 hover:bg-red-50 rounded ml-auto"><FiTrash2 className="w-3 h-3" /></button>}
                 </div>
               </div>
@@ -1378,6 +1380,8 @@ function UploadDocModal({ employeeId, onClose, onDone }: { employeeId: string; o
   const [description, setDescription] = useState(''); const [expiryDate, setExpiryDate] = useState(''); const [saving, setSaving] = useState(false);
   const submit = async () => {
     if (!name || !fileUrl) { toast.error('Name and file URL are required'); return; }
+    // QA fix — Document Link Security: reject unsafe URLs before they are persisted
+    if (!isSafeDocumentUrl(fileUrl)) { toast.error('Unsafe document link blocked. Use a full http(s):// URL (e.g. https://…)'); return; }
     setSaving(true);
     try {
       const r = await fetch(`/api/employees/${employeeId}/documents`, { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify({ name, category, type, fileUrl, description, expiryDate: expiryDate || undefined }) });

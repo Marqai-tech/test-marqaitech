@@ -60,17 +60,28 @@ export default function ModuleSettingsShell({
 }: Props) {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const tabFromUrl = (searchParams.get('tab') as TabKey) || 'policy';
-  const activeTab: TabKey = TABS.some(t => t.key === tabFromUrl) ? tabFromUrl : 'policy';
+
+  // Task 87: render ONLY the tabs whose content was provided. Modules that
+  // moved Configuration / Approver Workflow to standalone pages simply stop
+  // passing those props — the shell adapts instead of showing empty tabs.
+  const visibleTabs = TABS.filter(t =>
+    (t.key === 'policy' && policy) ||
+    (t.key === 'rules' && rules) ||
+    (t.key === 'configuration' && configuration) ||
+    (t.key === 'approver-workflow' && approverWorkflow)
+  );
+
+  const tabFromUrl = (searchParams.get('tab') as TabKey) || visibleTabs[0]?.key;
+  const activeTab: TabKey = visibleTabs.some(t => t.key === tabFromUrl) ? tabFromUrl : (visibleTabs[0]?.key || 'policy');
 
   // Sync URL when user clicks a tab
   const setActiveTab = (key: TabKey) => {
     router.push(`${basePath}?tab=${key}`);
   };
 
-  const currentTab = TABS.find(t => t.key === activeTab)!;
-  const currentIdx = TABS.findIndex(t => t.key === activeTab);
-  const nextTab = TABS[currentIdx + 1];
+  const currentTab = visibleTabs.find(t => t.key === activeTab)!;
+  const currentIdx = visibleTabs.findIndex(t => t.key === activeTab);
+  const nextTab = visibleTabs[currentIdx + 1];
 
   const accentClasses: Record<string, { activeBg: string; activeText: string; activeBorder: string; btn: string }> = {
     green:    { activeBg: 'bg-green-50',    activeText: 'text-green-700',    activeBorder: 'border-green-500',    btn: 'bg-green-500 hover:bg-green-600' },
@@ -94,7 +105,7 @@ export default function ModuleSettingsShell({
 
       {/* Tab Bar */}
       <div className="flex gap-1 p-1 bg-slate-100 rounded-xl w-fit overflow-x-auto">
-        {TABS.map(tab => (
+        {visibleTabs.map(tab => (
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
@@ -122,7 +133,7 @@ export default function ModuleSettingsShell({
       {nextTab && (
         <div className="flex items-center justify-between pt-4 border-t border-thb-border">
           <p className="text-xs text-thb-text-muted">
-            Step {currentIdx + 1} of {TABS.length} — {currentTab.label}
+            Step {currentIdx + 1} of {visibleTabs.length} — {currentTab.label}
           </p>
           <button
             onClick={() => setActiveTab(nextTab.key)}
@@ -134,7 +145,7 @@ export default function ModuleSettingsShell({
       )}
       {!nextTab && (
         <div className="flex items-center justify-between pt-4 border-t border-thb-border">
-          <p className="text-xs text-thb-text-muted">All 4 steps complete — your {moduleName.toLowerCase()} settings flow is fully configured.</p>
+          <p className="text-xs text-thb-text-muted">All {visibleTabs.length} steps complete — your {moduleName.toLowerCase()} settings flow is fully configured.</p>
           <Link href={basePath} className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium ${a.activeBg} ${a.activeText} border ${a.activeBorder} transition-colors`}>
             Back to top
           </Link>

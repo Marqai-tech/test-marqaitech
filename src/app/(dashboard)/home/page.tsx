@@ -433,15 +433,16 @@ function HRAdminHome({ firstName, greeting, today }: { firstName: string; greeti
       } catch { return null; }
     };
 
-    const [empData, empList, leaveData, payrollData] = await Promise.all([
-      safe(`/api/employees?limit=1&status=active${scopeQuery}`),
+    const [empList, leaveData, payrollData] = await Promise.all([
       safe(`/api/employees?limit=200&status=active${scopeQuery}`),
       safe(`/api/leave?status=pending&limit=10${scopeQuery}`),
       safe(`/api/payroll?status=draft&limit=1${scopeQuery}`),
     ]);
 
-    const total = empData?.pagination?.total || empData?.total || 0;
     const empRows = empList?.employees || empList?.data || [];
+    // The paginated employee response already includes the full match count;
+    // avoid a second request that repeats the same count query.
+    const total = empList?.pagination?.total ?? empList?.total ?? empRows.length;
     const now = new Date();
     const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const joiners = empRows.filter((e: { dateOfJoining?: string }) => e.dateOfJoining && new Date(e.dateOfJoining) >= firstOfMonth);
@@ -638,19 +639,21 @@ function ManagerHome({ firstName, greeting, today }: { firstName: string; greeti
       } catch { return null; }
     };
 
+    // Resolve today's local calendar key before fetching so the leave query
+    // only returns approvals that overlap today, not up to 500 historical rows.
+    const nowD = new Date();
+    const todayStr = `${nowD.getFullYear()}-${String(nowD.getMonth() + 1).padStart(2, '0')}-${String(nowD.getDate()).padStart(2, '0')}`;
     const [empData, attData, pendingLeaveData, approvedLeaveData] = await Promise.all([
       safe(`/api/employees?limit=200&status=active${scopeQuery}`),
       safe(`/api/attendance?limit=300${scopeQuery}`),
       safe(`/api/leave?status=pending&limit=20${scopeQuery}`),
-      safe(`/api/leave?status=approved&limit=500${scopeQuery}`),
+      safe(`/api/leave?status=approved&fromDate=${todayStr}&toDate=${todayStr}&limit=500${scopeQuery}`),
     ]);
 
     const empRows = empData?.employees || empData?.data || [];
     // Use actual attendance data to compute presentToday — NOT a mocked percentage
     const attRows = attData?.attendance || attData?.records || [];
     // LOCAL calendar day (toISOString rolls back a day in timezones ahead of UTC)
-    const nowD = new Date();
-    const todayStr = `${nowD.getFullYear()}-${String(nowD.getMonth() + 1).padStart(2, '0')}-${String(nowD.getDate()).padStart(2, '0')}`;
     const todayRecords = attRows.filter((a: { date: string }) => {
       const d = typeof a.date === 'string' ? a.date.split('T')[0] : '';
       return d === todayStr;
@@ -658,11 +661,8 @@ function ManagerHome({ firstName, greeting, today }: { firstName: string; greeti
     const presentCount = todayRecords.filter((a: { status: string }) => ['present', 'late', 'half_day'].includes(a.status?.toLowerCase())).length;
     // On Leave = approved leaves that cover TODAY (previously this counted all
     // PENDING requests — a completely different metric)
-    const onLeaveToday = (approvedLeaveData?.leaveRequests || approvedLeaveData?.leaves || []).filter((l: { startDate: string; endDate: string }) => {
-      const s = typeof l.startDate === 'string' ? l.startDate.split('T')[0] : '';
-      const e = typeof l.endDate === 'string' ? l.endDate.split('T')[0] : '';
-      return s <= todayStr && todayStr <= e;
-    }).length;
+    // The API already returns only approvals overlapping today's date.
+    const onLeaveToday = (approvedLeaveData?.leaveRequests || approvedLeaveData?.leaves || []).length;
     setStats({
       teamSize: empData?.pagination?.total || empRows.length,
       presentToday: presentCount > 0 ? presentCount : (todayRecords.length > 0 ? todayRecords.filter((a: { status: string }) => a.status !== 'absent').length : 0),
@@ -1227,7 +1227,7 @@ function EmployeeHome({ firstName, greeting, today }: { firstName: string; greet
       } catch { return null; }
     };
 
-    const [leaveData, summaryData, ticketData, payslipData, timesheetData, policyData] = await Promise.all([
+    const [leaveData, summaryData, ticketData, payslipData, timesheetData, policyData, announcementData] = await Promise.all([
       safe(`/api/leave/balance?limit=50${scopeQuery}`),
       // Live attendance summary for the current month — uses the shared
       // server-side helper so the rate matches the ESS dashboard exactly.
@@ -1237,6 +1237,7 @@ function EmployeeHome({ firstName, greeting, today }: { firstName: string; greet
       safe(`/api/timesheets?limit=5${scopeQuery}`),
       // Policies & Handbook pending-acknowledgement badge (employee home card)
       safe('/api/policies/handbook?summary=1'),
+      safe(`/api/announcements?limit=5${scopeQuery}`),
     ]);
 
     // Leave balances — API returns { balances: [...] } or { data: { balances: [...] } }
@@ -1295,7 +1296,6 @@ function EmployeeHome({ firstName, greeting, today }: { firstName: string; greet
     // Announcements — fetch from API, NOT hardcoded
     // GOLDEN RULE: No dummy data on the super admin or any live page.
     // Only show announcements that actually exist in the database.
-    const announcementData = await safe(`/api/announcements?limit=5${scopeQuery}`);
     const apiAnnouncements = announcementData?.announcements || announcementData?.data || [];
     if (apiAnnouncements.length > 0) {
       setAnnouncements(apiAnnouncements.map((a: { title: string; createdAt: string; type?: string }) => ({

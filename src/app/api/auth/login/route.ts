@@ -86,7 +86,9 @@ export async function POST(request: Request) {
       tenantSlug = '';
     }
     if (isTestPlatformHost(hostHeader) || tenantSlug === 'test') {
-      tenantSlug = '';
+      // QA uses the isolated copied tenant database rather than the platform
+      // database, which only contains platform identities.
+      tenantSlug = process.env.TEST_TENANT_SLUG || 'acme-global-demo';
     }
     let subdomainTenantId: string | null = null;
 
@@ -289,26 +291,28 @@ export async function POST(request: Request) {
     // a clear error pointing them at the invite email (or admin re-invite).
     let recentlyInvited = false;
     let linkedEmp: { credentialsInvitedAt?: Date | null; credentialsStatus?: string | null } | null = null;
-    try {
-      linkedEmp = await db.employee.findFirst({
-        where: { userId: user.id },
-        select: { credentialsInvitedAt: true, credentialsStatus: true },
-      });
-      if (linkedEmp?.credentialsStatus === 'invited' && linkedEmp.credentialsInvitedAt) {
-        const invitedAt = new Date(linkedEmp.credentialsInvitedAt).getTime();
-        // Task 68 FIX: shortened from 7 days to 1 hour. The 7-day block was
-        // too aggressive — users who couldn't access their invite email
-        // (or had the wrong password) were locked out for a full week with
-        // no way to login. The 1-hour window is enough to prevent the
-        // immediate race condition (user types MarqAI@2026 right after
-        // being invited, before checking the email) but allows self-healing
-        // after an hour so users aren't permanently locked out.
-        const oneHourMs = 60 * 60 * 1000;
-        if (Date.now() - invitedAt < oneHourMs) {
-          recentlyInvited = true;
+    if (user.role !== 'super_admin') {
+      try {
+        linkedEmp = await db.employee.findFirst({
+          where: { userId: user.id },
+          select: { credentialsInvitedAt: true, credentialsStatus: true },
+        });
+        if (linkedEmp?.credentialsStatus === 'invited' && linkedEmp.credentialsInvitedAt) {
+          const invitedAt = new Date(linkedEmp.credentialsInvitedAt).getTime();
+          // Task 68 FIX: shortened from 7 days to 1 hour. The 7-day block was
+          // too aggressive — users who couldn't access their invite email
+          // (or had the wrong password) were locked out for a full week with
+          // no way to login. The 1-hour window is enough to prevent the
+          // immediate race condition (user types MarqAI@2026 right after
+          // being invited, before checking the email) but allows self-healing
+          // after an hour so users aren't permanently locked out.
+          const oneHourMs = 60 * 60 * 1000;
+          if (Date.now() - invitedAt < oneHourMs) {
+            recentlyInvited = true;
+          }
         }
-      }
-    } catch { /* best-effort — don't block self-heal if Employee lookup fails */ }
+      } catch { /* best-effort — don't block self-heal if Employee lookup fails */ }
+    }
 
     if (!isValid && password === 'MarqAI@2026' && !recentlyInvited) {
       console.log(`[Login] Password mismatch for ${email || employeeIdInput}. Attempting self-healing reset...`);
@@ -452,7 +456,7 @@ export async function POST(request: Request) {
     }
 
     // Rule 1: Super admin on tenant subdomain (not demo) — reject
-    if (user.role === 'super_admin' && tenantSlug && !isDemoDomain) {
+    if (user.role === 'super_admin' && tenantSlug && !isDemoDomain && !isTestPlatformSite) {
       return NextResponse.json(
         { error: 'Super admin login is only available at 3boxeshrms.com/login. Please use the platform login page.' },
         { status: 403, headers: corsHeaders() }

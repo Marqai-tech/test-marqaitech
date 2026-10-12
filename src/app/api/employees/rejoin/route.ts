@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { createNotification } from '@/lib/notifications';
+import { loadEmployeeSetting } from '@/lib/employee-config';
 
 function corsHeaders() {
   return {
@@ -25,6 +26,11 @@ export async function GET(request: Request) {
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
     const decoded = await verifyToken(token);
     if (!decoded) return NextResponse.json({ error: 'Invalid token' }, { status: 401, headers: corsHeaders() });
+
+    const rejoinConfig = await loadEmployeeSetting(db as Record<string, any>, request, 'employee_rejoin_config', {
+      enabled: true, allowedRoles: ['super_admin', 'tenant_admin', 'admin'], finalStatus: 'active', reactivateAccount: true,
+    });
+    if (!rejoinConfig.enabled) return NextResponse.json({ error: 'Employee rejoins are disabled in Employee Settings' }, { status: 409, headers: corsHeaders() });
 
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
@@ -153,7 +159,7 @@ export async function POST(request: Request) {
 
     // Only admins can process rejoins
     const role = decoded.role as string;
-    if (!['super_admin', 'tenant_admin', 'admin'].includes(role)) {
+    if (!rejoinConfig.allowedRoles.includes(role)) {
       return NextResponse.json(
         { error: 'Only administrators can process employee rejoins' },
         { status: 403, headers: corsHeaders() }

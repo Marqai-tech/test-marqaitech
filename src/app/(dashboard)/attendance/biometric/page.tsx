@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   FiCpu,
   FiPlus,
@@ -15,6 +15,9 @@ import {
   FiUserCheck,
   FiCopy,
   FiX,
+  FiClock,
+  FiList,
+  FiCalendar,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
@@ -74,7 +77,23 @@ interface BiometricPunch {
   attendanceId: string | null;
   createdAt: string;
   device: { id: string; name: string; serialNumber: string; vendor: string; branch?: { name: string } | null };
-  employee: { id: string; firstName: string; lastName: string; employeeId: string; email: string } | null;
+  employee: { id: string; firstName: string; lastName: string; employeeId: string; email: string; department?: { id: string; name: string } | null } | null;
+}
+
+/* Task 83: day summary row — first In / last Out per employee per day. */
+interface PunchDaySummary {
+  employeeId: string;
+  employeeName: string;
+  employeeCode: string;
+  department: string;
+  dateKey: string;
+  firstIn: string | null;
+  lastOut: string | null;
+  firstBreakIn: string | null;
+  lastBreakOut: string | null;
+  punchCount: number;
+  flaggedCount: number;
+  devices: string[];
 }
 
 interface AiThresholds {
@@ -101,7 +120,7 @@ interface ETimeOfficeSyncStatus {
 
 interface Branch { id: string; name: string }
 interface Geofence { id: string; name: string }
-interface Employee { id: string; employeeId: string; firstName: string; lastName: string; email: string }
+interface Employee { id: string; employeeId: string; firstName: string; lastName: string; email: string; department?: { id: string; name: string } | null }
 
 /* ── Tips & Workflow ── */
 const biometricTips = [
@@ -146,6 +165,31 @@ export default function BiometricPage() {
   const [nowTick, setNowTick] = useState(() => Date.now());
   const cid = effectiveCompanyId();
   const scopeQuery = cid ? `companyId=${cid}&` : '';
+
+  /* ── Task 83: Punches-tab filters + day-summary view ── */
+  const [punchView, setPunchView] = useState<'summary' | 'events'>('summary');
+  const [fEmployeeId, setFEmployeeId] = useState('');
+  const [fDepartment, setFDepartment] = useState('');
+  const [fPunchType, setFPunchType] = useState('');
+  const [fFlagged, setFFlagged] = useState(false);
+  const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+  const thirtyAgoStr = new Date(Date.now() - 30 * 86400000).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+  const [fFrom, setFFrom] = useState(thirtyAgoStr);
+  const [fTo, setFTo] = useState(todayStr);
+
+  const punchFiltersActive = !!(fEmployeeId || fDepartment || fPunchType || fFlagged);
+  const clearPunchFilters = () => {
+    setFEmployeeId(''); setFDepartment(''); setFPunchType(''); setFFlagged(false);
+  };
+
+  /* Departments available for the filter (from the employee roster). */
+  const punchDepartments = useMemo(() => {
+    const map = new Map<string, string>(); // name -> id
+    employees.forEach(e => {
+      if (e.department?.id && e.department?.name) map.set(e.department.name, e.department.id);
+    });
+    return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+  }, [employees]);
 
 
   useEffect(() => {
@@ -197,7 +241,19 @@ export default function BiometricPage() {
 
   const fetchPunches = useCallback(async () => {
     try {
-      const r = await fetch(`/api/attendance/biometric/punch-log?${scopeQuery}limit=100`, { headers: getAuthHeaders() });
+      // Task 83: server-side filters — employee, department, punch type,
+      // flagged, date window (full IST business days).
+      const params = new URLSearchParams({ limit: '200' });
+      if (fEmployeeId) params.set('employeeId', fEmployeeId);
+      if (fDepartment) {
+        const deptId = punchDepartments.find(([name]) => name === fDepartment)?.[1];
+        if (deptId) params.set('departmentId', deptId);
+      }
+      if (fPunchType) params.set('punchType', fPunchType);
+      if (fFlagged) params.set('flagged', 'true');
+      if (fFrom) params.set('from', fFrom);
+      if (fTo) params.set('to', fTo);
+      const r = await fetch(`/api/attendance/biometric/punch-log?${scopeQuery}${params.toString()}`, { headers: getAuthHeaders() });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error);
       setPunches(d.punches || []);
@@ -205,7 +261,7 @@ export default function BiometricPage() {
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : 'Failed to load punches');
     }
-  }, [scopeQuery]);
+  }, [scopeQuery, fEmployeeId, fDepartment, fPunchType, fFlagged, fFrom, fTo, punchDepartments]);
 
   const fetchThresholds = useCallback(async () => {
     try {
@@ -415,6 +471,54 @@ export default function BiometricPage() {
   const copyToClipboard = (text: string) => {
     navigator.clipboard?.writeText(text);
     toast.success('Copied to clipboard');
+  };
+
+  /* ── Task 83: Day-summary derivation (first In / last Out per employee per
+   * IST calendar day). Built from the filtered punch events. ── */
+  const punchDays = useMemo<PunchDaySummary[]>(() => {
+    const map = new Map<string, PunchDaySummary & { deviceSet: Set<string> }>();
+    punches.forEach(p => {
+      if (!p.employee) return; // unmatched punches have no day summary row
+      const dateKey = new Date(p.punchTime).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+      const key = `${p.employee.id}|${dateKey}`;
+      let row = map.get(key);
+      if (!row) {
+        row = {
+          employeeId: p.employee.id,
+          employeeName: `${p.employee.firstName} ${p.employee.lastName}`.trim(),
+          employeeCode: p.employee.employeeId,
+          department: p.employee.department?.name || '—',
+          dateKey,
+          firstIn: null, lastOut: null, firstBreakIn: null, lastBreakOut: null,
+          punchCount: 0, flaggedCount: 0,
+          devices: [],
+          deviceSet: new Set<string>(),
+        };
+        map.set(key, row);
+      }
+      row.punchCount++;
+      if (p.flagged) row.flaggedCount++;
+      if (p.device?.name && !row.deviceSet.has(p.device.name)) { row.deviceSet.add(p.device.name); row.devices.push(p.device.name); }
+      if (p.punchType === 'check_in' && (!row.firstIn || new Date(p.punchTime) < new Date(row.firstIn))) row.firstIn = p.punchTime;
+      if (p.punchType === 'check_out' && (!row.lastOut || new Date(p.punchTime) > new Date(row.lastOut))) row.lastOut = p.punchTime;
+      if (p.punchType === 'break_in' && (!row.firstBreakIn || new Date(p.punchTime) < new Date(row.firstBreakIn))) row.firstBreakIn = p.punchTime;
+      if (p.punchType === 'break_out' && (!row.lastBreakOut || new Date(p.punchTime) > new Date(row.lastBreakOut))) row.lastBreakOut = p.punchTime;
+    });
+    return Array.from(map.values())
+      .map(({ deviceSet: _ds, ...rest }) => rest)
+      .sort((a, b) => b.dateKey.localeCompare(a.dateKey) || a.employeeName.localeCompare(b.employeeName));
+  }, [punches]);
+
+  const fmtDayTime = (iso: string | null) => {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return '—';
+    return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+  };
+  const fmtDayDate = (dateKey: string) => {
+    const d = new Date(`${dateKey}T00:00:00Z`);
+    if (isNaN(d.getTime())) return dateKey;
+    return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' });
   };
 
   /* ── Render ── */
@@ -692,6 +796,76 @@ export default function BiometricPage() {
       {/* Punches Tab */}
       {tab === 'punches' && (
         <div className="space-y-4">
+          {/* Task 83: filter bar — employee, department, type, date range, flagged */}
+          <div className="thb-card p-4 flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-1.5">
+              <FiUserCheck className="w-4 h-4 text-thb-text-muted" />
+              <select
+                value={fEmployeeId}
+                onChange={(e) => setFEmployeeId(e.target.value)}
+                className="px-2.5 py-1.5 border border-thb-border rounded-lg text-sm bg-white max-w-[190px]"
+              >
+                <option value="">All Employees</option>
+                {employees.map((e) => (
+                  <option key={e.id} value={e.id}>{e.firstName} {e.lastName} ({e.employeeId})</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <FiShield className="w-4 h-4 text-thb-text-muted" />
+              <select
+                value={fDepartment}
+                onChange={(e) => setFDepartment(e.target.value)}
+                className="px-2.5 py-1.5 border border-thb-border rounded-lg text-sm bg-white max-w-[170px]"
+              >
+                <option value="">All Departments</option>
+                {punchDepartments.map(([name]) => (
+                  <option key={name} value={name}>{name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <FiActivity className="w-4 h-4 text-thb-text-muted" />
+              <select
+                value={fPunchType}
+                onChange={(e) => setFPunchType(e.target.value)}
+                className="px-2.5 py-1.5 border border-thb-border rounded-lg text-sm bg-white"
+              >
+                <option value="">All Types</option>
+                <option value="check_in">In</option>
+                <option value="check_out">Out</option>
+                <option value="break_in">Break In</option>
+                <option value="break_out">Break Out</option>
+                <option value="duplicate">Duplicate</option>
+                <option value="unmatched">Unmatched</option>
+              </select>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <FiCalendar className="w-4 h-4 text-thb-text-muted" />
+              <label className="text-xs font-medium text-thb-text-secondary">From</label>
+              <input type="date" value={fFrom} onChange={(e) => setFFrom(e.target.value)} className="px-2 py-1.5 border border-thb-border rounded-lg text-sm bg-white" />
+              <label className="text-xs font-medium text-thb-text-secondary ml-1">To</label>
+              <input type="date" value={fTo} onChange={(e) => setFTo(e.target.value)} className="px-2 py-1.5 border border-thb-border rounded-lg text-sm bg-white" />
+            </div>
+            <label className="inline-flex items-center gap-1.5 text-xs font-medium text-thb-text-secondary">
+              <input type="checkbox" checked={fFlagged} onChange={(e) => setFFlagged(e.target.checked)} />
+              Flagged only
+            </label>
+            {punchFiltersActive && (
+              <button onClick={clearPunchFilters} className="text-xs font-medium text-cyan-600 hover:text-cyan-700 underline">
+                Clear filters
+              </button>
+            )}
+            <div className="ml-auto flex items-center gap-1 p-1 bg-slate-100 rounded-lg">
+              <button onClick={() => setPunchView('summary')} className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${punchView === 'summary' ? 'bg-white text-thb-text-primary shadow-sm' : 'text-thb-text-secondary hover:text-thb-text-primary'}`}>
+                <FiClock className="w-3.5 h-3.5 inline mr-1" />In / Out Summary
+              </button>
+              <button onClick={() => setPunchView('events')} className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${punchView === 'events' ? 'bg-white text-thb-text-primary shadow-sm' : 'text-thb-text-secondary hover:text-thb-text-primary'}`}>
+                <FiList className="w-3.5 h-3.5 inline mr-1" />All Punch Events
+              </button>
+            </div>
+          </div>
+
           {punchesSummary && (
             <div className="grid grid-cols-3 gap-4">
               <div className="thb-card p-4">
@@ -709,80 +883,141 @@ export default function BiometricPage() {
             </div>
           )}
 
-          <div className="thb-card overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-thb-border bg-slate-50/50">
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Time</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Employee</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Device</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Type</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Spoofing</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Buddy</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Flag reasons</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {punches.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="px-4 py-12 text-center text-thb-text-muted">
-                        No biometric punches ingested yet. Once devices start pushing, you&apos;ll see them here.
-                      </td>
+          {/* ── Day summary view: first In / last Out per employee per day ── */}
+          {punchView === 'summary' ? (
+            <div className="thb-card overflow-hidden">
+              <div className="px-4 py-3 border-b border-thb-border">
+                <h3 className="text-sm font-semibold text-thb-text-primary">In / Out Summary ({punchDays.length} employee-days)</h3>
+                <p className="text-xs text-thb-text-muted mt-0.5">First In and last Out per employee per day, from biometric punches (IST dates).</p>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-thb-border bg-slate-50/50">
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Employee</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Date</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">In Time</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Out Time</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Break In</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Break Out</th>
+                      <th className="text-center px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Punches</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Device</th>
+                      <th className="text-center px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Flags</th>
                     </tr>
-                  ) : (
-                    punches.map((p) => (
-                      <tr key={p.id} className={`border-b border-thb-border/50 ${p.flagged ? 'bg-amber-50/40' : ''}`}>
-                        <td className="px-4 py-3 text-sm text-thb-text-secondary">
-                          {new Date(p.punchTime).toLocaleString()}
-                        </td>
-                        <td className="px-4 py-3 text-sm">
-                          {p.employee ? (
-                            <>
-                              <div className="font-medium text-thb-text-primary">{p.employee.firstName} {p.employee.lastName}</div>
-                              <div className="text-xs text-thb-text-muted">{p.employee.employeeId}</div>
-                            </>
-                          ) : <span className="text-thb-text-muted">Unmatched</span>}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-thb-text-secondary">
-                          <div>{p.device.name}</div>
-                          <div className="text-xs text-thb-text-muted">{p.device.vendor}{p.device.branch?.name ? ` · ${p.device.branch.name}` : ''}</div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className={`thb-badge ${p.punchType === 'check_in' ? 'bg-emerald-50 text-emerald-700' : p.punchType === 'check_out' ? 'bg-red-50 text-red-700' : 'bg-slate-50 text-slate-700'}`}>
-                            {p.punchType === 'check_in' ? 'In'
-                              : p.punchType === 'check_out' ? 'Out'
-                                : p.punchType === 'break_in' ? 'Break In'
-                                  : p.punchType === 'break_out' ? 'Break Out'
-                                    : p.punchType === 'duplicate' ? 'Duplicate'
-                                      : p.punchType === 'unmatched' ? 'Unmatched' : 'Punch'}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-sm">
-                          <RiskBadge value={p.spoofingRisk} />
-                        </td>
-                        <td className="px-4 py-3 text-sm">
-                          <RiskBadge value={p.buddyPunchRisk} />
-                        </td>
-                        <td className="px-4 py-3 text-xs">
-                          {p.flagged ? (
-                            <div className="flex flex-wrap gap-1">
-                              <FiAlertTriangle className="w-3.5 h-3.5 text-amber-500" />
-                              {(p.flagReasons || []).map((r) => (
-                                <span key={r} className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 text-[10px]">{r}</span>
-                              ))}
-                            </div>
-                          ) : (
-                            <FiCheckCircle className="w-4 h-4 text-emerald-500" />
-                          )}
+                  </thead>
+                  <tbody>
+                    {punchDays.length === 0 ? (
+                      <tr>
+                        <td colSpan={9} className="px-4 py-12 text-center text-thb-text-muted">
+                          No biometric punches in the selected filters. Adjust the employee / department / type / date filters above.
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+                    ) : (
+                      punchDays.map((d) => (
+                        <tr key={d.employeeId + d.dateKey} className="border-b border-thb-border/50 hover:bg-slate-50/60">
+                          <td className="px-4 py-3 text-sm">
+                            <div className="font-medium text-thb-text-primary">{d.employeeName}</div>
+                            <div className="text-xs text-thb-text-muted">{d.employeeCode} · {d.department}</div>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-thb-text-secondary whitespace-nowrap">{fmtDayDate(d.dateKey)}</td>
+                          <td className="px-4 py-3 text-sm font-medium text-emerald-700 whitespace-nowrap">{fmtDayTime(d.firstIn)}</td>
+                          <td className="px-4 py-3 text-sm font-medium text-red-700 whitespace-nowrap">{fmtDayTime(d.lastOut)}</td>
+                          <td className="px-4 py-3 text-sm text-amber-700 whitespace-nowrap">{fmtDayTime(d.firstBreakIn)}</td>
+                          <td className="px-4 py-3 text-sm text-teal-700 whitespace-nowrap">{fmtDayTime(d.lastBreakOut)}</td>
+                          <td className="px-4 py-3 text-sm text-center text-thb-text-secondary">{d.punchCount}</td>
+                          <td className="px-4 py-3 text-xs text-thb-text-muted">{d.devices.join(', ') || '—'}</td>
+                          <td className="px-4 py-3 text-center">
+                            {d.flaggedCount > 0 ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-[11px] font-medium">
+                                <FiAlertTriangle className="w-3 h-3" /> {d.flaggedCount}
+                              </span>
+                            ) : (
+                              <FiCheckCircle className="w-4 h-4 text-emerald-500 inline" />
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="thb-card overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-thb-border bg-slate-50/50">
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Time</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Employee</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Device</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Type</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Spoofing</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Buddy</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Flag reasons</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {punches.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="px-4 py-12 text-center text-thb-text-muted">
+                          No biometric punches in the selected filters. Once devices start pushing, you&apos;ll see them here.
+                        </td>
+                      </tr>
+                    ) : (
+                      punches.map((p) => (
+                        <tr key={p.id} className={`border-b border-thb-border/50 ${p.flagged ? 'bg-amber-50/40' : ''}`}>
+                          <td className="px-4 py-3 text-sm text-thb-text-secondary">
+                            {new Date(p.punchTime).toLocaleString()}
+                          </td>
+                          <td className="px-4 py-3 text-sm">
+                            {p.employee ? (
+                              <>
+                                <div className="font-medium text-thb-text-primary">{p.employee.firstName} {p.employee.lastName}</div>
+                                <div className="text-xs text-thb-text-muted">{p.employee.employeeId}{p.employee.department?.name ? ` · ${p.employee.department.name}` : ''}</div>
+                              </>
+                            ) : <span className="text-thb-text-muted">Unmatched</span>}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-thb-text-secondary">
+                            <div>{p.device.name}</div>
+                            <div className="text-xs text-thb-text-muted">{p.device.vendor}{p.device.branch?.name ? ` · ${p.device.branch.name}` : ''}</div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`thb-badge ${p.punchType === 'check_in' ? 'bg-emerald-50 text-emerald-700' : p.punchType === 'check_out' ? 'bg-red-50 text-red-700' : 'bg-slate-50 text-slate-700'}`}>
+                              {p.punchType === 'check_in' ? 'In'
+                                : p.punchType === 'check_out' ? 'Out'
+                                  : p.punchType === 'break_in' ? 'Break In'
+                                    : p.punchType === 'break_out' ? 'Break Out'
+                                      : p.punchType === 'duplicate' ? 'Duplicate'
+                                        : p.punchType === 'unmatched' ? 'Unmatched' : 'Punch'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-sm">
+                            <RiskBadge value={p.spoofingRisk} />
+                          </td>
+                          <td className="px-4 py-3 text-sm">
+                            <RiskBadge value={p.buddyPunchRisk} />
+                          </td>
+                          <td className="px-4 py-3 text-xs">
+                            {p.flagged ? (
+                              <div className="flex flex-wrap gap-1">
+                                <FiAlertTriangle className="w-3.5 h-3.5 text-amber-500" />
+                                {(p.flagReasons || []).map((r) => (
+                                  <span key={r} className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 text-[10px]">{r}</span>
+                                ))}
+                              </div>
+                            ) : (
+                              <FiCheckCircle className="w-4 h-4 text-emerald-500" />
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

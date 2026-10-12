@@ -30,6 +30,23 @@ function fmtDate(ds?: string | null): string {
   return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' });
 }
 
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  concurrency: number,
+  mapper: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let nextIndex = 0;
+  const workerCount = Math.min(Math.max(1, concurrency), items.length);
+  await Promise.all(Array.from({ length: workerCount }, async () => {
+    while (nextIndex < items.length) {
+      const index = nextIndex++;
+      results[index] = await mapper(items[index]);
+    }
+  }));
+  return results;
+}
+
 /** Hook that reverse-geocodes any GPS coordinates missing a stored label.
  * Returns a map of eventId → area name. Fetches in the background; the
  * component re-renders when each geocode resolves so the user sees the
@@ -41,17 +58,25 @@ function useGeocodedLabels(events: PunchEvent[]): Record<string, string> {
     let cancelled = false;
     const pending = events.filter(e => e.gps && e.gps.lat && e.gps.lng && !e.gps.label);
     if (pending.length === 0) return;
-    // Sequentially geocode (BigDataCloud allows parallel but we keep it
-    // gentle — avoids a thundering herd of network requests on big lists).
+    const byCoordinate = new Map<string, { lat: number; lng: number; eventIds: string[] }>();
+    for (const event of pending) {
+      if (!event.gps) continue;
+      const key = `${event.gps.lat.toFixed(3)},${event.gps.lng.toFixed(3)}`;
+      const group = byCoordinate.get(key) || { lat: event.gps.lat, lng: event.gps.lng, eventIds: [] };
+      group.eventIds.push(event.id);
+      byCoordinate.set(key, group);
+    }
     (async () => {
-      for (const e of pending) {
-        if (cancelled) break;
-        if (!e.gps) continue;
-        const label = await reverseGeocode(e.gps.lat, e.gps.lng);
-        if (label && !cancelled) {
-          setLabels(prev => ({ ...prev, [e.id]: label }));
-        }
+      const resolved = await mapWithConcurrency([...byCoordinate.values()], 5, async group => ({
+        group,
+        label: await reverseGeocode(group.lat, group.lng),
+      }));
+      if (cancelled) return;
+      const additions: Record<string, string> = {};
+      for (const { group, label } of resolved) {
+        if (label) for (const eventId of group.eventIds) additions[eventId] = label;
       }
+      if (Object.keys(additions).length > 0) setLabels(prev => ({ ...prev, ...additions }));
     })();
     return () => { cancelled = true; };
   }, [events]);
@@ -107,6 +132,7 @@ export default function PunchLogPage() {
   const [events, setEvents] = useState<PunchEvent[]>([]);
   const [days, setDays] = useState<DaySummary[]>([]);
   const [summary, setSummary] = useState({ totalEvents: 0, totalDays: 0, totalWorkHours: 0, totalBreakMinutes: 0, totalOvertime: 0 });
+  const [summaryTruncated, setSummaryTruncated] = useState(false);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'events' | 'daily'>('events');
 
@@ -126,9 +152,11 @@ export default function PunchLogPage() {
       setEvents(j.events || []);
       setDays(j.days || []);
       setSummary(j.summary || { totalEvents: 0, totalDays: 0, totalWorkHours: 0, totalBreakMinutes: 0, totalOvertime: 0 });
+      setSummaryTruncated(Boolean(j.summaryTruncated));
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to load punch log');
       setEvents([]); setDays([]);
+      setSummaryTruncated(false);
     } finally {
       setLoading(false);
     }
@@ -164,22 +192,35 @@ export default function PunchLogPage() {
     let cancelled = false;
     // For each day row that has raw GPS but no usable location string,
     // reverse-geocode the check-in GPS (most reliable per-day location).
-    (async () => {
-      for (const d of days) {
-        if (cancelled) break;
-        const hasUsableLocation = d.location && !looksLikeRawCoords(d.location);
-        if (hasUsableLocation) continue;
-        const gps = d.checkInGps || d.checkOutGps;
-        if (!gps || !gps.lat || !gps.lng) continue;
-        if (gps.label) {
-          setDayLabels(prev => ({ ...prev, [d.employeeId + '|' + d.date]: gps.label! }));
-          continue;
-        }
-        const label = await reverseGeocode(gps.lat, gps.lng);
-        if (label && !cancelled) {
-          setDayLabels(prev => ({ ...prev, [d.employeeId + '|' + d.date]: label }));
-        }
+    const byCoordinate = new Map<string, { lat: number; lng: number; dayKeys: string[] }>();
+    const directLabels: Record<string, string> = {};
+    for (const day of days) {
+      const hasUsableLocation = day.location && !looksLikeRawCoords(day.location);
+      if (hasUsableLocation) continue;
+      const gps = day.checkInGps || day.checkOutGps;
+      if (!gps || !gps.lat || !gps.lng) continue;
+      const dayKey = `${day.employeeId}|${day.date}`;
+      if (gps.label) {
+        directLabels[dayKey] = gps.label;
+        continue;
       }
+      const coordinateKey = `${gps.lat.toFixed(3)},${gps.lng.toFixed(3)}`;
+      const group = byCoordinate.get(coordinateKey) || { lat: gps.lat, lng: gps.lng, dayKeys: [] };
+      group.dayKeys.push(dayKey);
+      byCoordinate.set(coordinateKey, group);
+    }
+    if (Object.keys(directLabels).length > 0) setDayLabels(prev => ({ ...prev, ...directLabels }));
+    (async () => {
+      const resolved = await mapWithConcurrency([...byCoordinate.values()], 5, async group => ({
+        group,
+        label: await reverseGeocode(group.lat, group.lng),
+      }));
+      if (cancelled) return;
+      const additions: Record<string, string> = {};
+      for (const { group, label } of resolved) {
+        if (label) for (const dayKey of group.dayKeys) additions[dayKey] = label;
+      }
+      if (Object.keys(additions).length > 0) setDayLabels(prev => ({ ...prev, ...additions }));
     })();
     return () => { cancelled = true; };
   }, [days]);
@@ -238,6 +279,12 @@ export default function PunchLogPage() {
           </button>
         </div>
       </div>
+
+      {summaryTruncated && (
+        <div role="status" className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          Daily summaries reached the 10,000-row safety limit. Narrow the date range or filter to one employee to see the complete summary.
+        </div>
+      )}
 
       {/* Filters */}
       <div className="thb-card p-4 flex flex-wrap items-center gap-3">

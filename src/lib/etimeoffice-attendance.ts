@@ -16,7 +16,7 @@ export type TimedPunch = { id: string; punchTime: Date };
 export function classifyBiometricDay<T extends TimedPunch>(
   punches: T[],
   duplicateWindowMinutes = 2,
-  options: { manualCheckIn?: boolean; existingBreakIn?: Date | null; existingBreakOut?: Date | null; earlyLogout?: boolean } = {},
+  options: { manualCheckIn?: boolean; existingCheckOut?: Date | null; existingBreakIn?: Date | null; existingBreakOut?: Date | null; earlyLogout?: boolean } = {},
 ) {
   const ordered = [...punches].sort((a, b) => a.punchTime.getTime() - b.punchTime.getTime());
   const duplicateWindowMs = Math.max(0, duplicateWindowMinutes) * 60_000;
@@ -32,38 +32,16 @@ export function classifyBiometricDay<T extends TimedPunch>(
     accepted.push(punch);
   }
 
-  const localMinutes = (date: Date) => {
-    const parts = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(date);
-    return Number(parts.find(p => p.type === 'hour')?.value || 0) * 60 + Number(parts.find(p => p.type === 'minute')?.value || 0);
-  };
-  let hasBreakIn = Boolean(options.existingBreakIn);
-  let hasBreakOut = Boolean(options.existingBreakOut);
-  let sawCheckIn = false;
   for (const [index, punch] of accepted.entries()) {
     if (index === 0 && !options.manualCheckIn) {
       classifications.set(punch.id, 'check_in');
-      sawCheckIn = true;
       continue;
     }
-    if (options.earlyLogout && (options.manualCheckIn || sawCheckIn || index > 0)) {
-      classifications.set(punch.id, 'check_out');
-      options = { ...options, earlyLogout: false };
-      continue;
-    }
-    const minutes = localMinutes(punch.punchTime);
-    if ((options.manualCheckIn && index === 1) || minutes < 13 * 60 + 30) {
-      classifications.set(punch.id, 'entry_only');
-    } else if (!hasBreakIn) {
-      classifications.set(punch.id, 'break_in');
-      hasBreakIn = true;
-    } else if (!hasBreakOut) {
-      classifications.set(punch.id, 'break_out');
-      hasBreakOut = true;
-    } else if (minutes <= 18 * 60 + 30) {
-      classifications.set(punch.id, 'entry_only');
-    } else {
-      classifications.set(punch.id, 'check_out');
-    }
+    // Biometric devices only report that the employee presented at the
+    // entrance. They cannot identify a break. Once the first check-in is
+    // accepted, every later non-duplicate scan is a checkout candidate,
+    // regardless of time or whether the check-in was manual.
+    classifications.set(punch.id, 'check_out');
   }
 
   const completedBreaks: Array<{ start: Date; end: Date }> = [];

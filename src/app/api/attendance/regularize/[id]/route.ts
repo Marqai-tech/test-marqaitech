@@ -160,15 +160,23 @@ export async function PATCH(
 
     // Notify the employee of the final decision through in-app + email channels.
     try {
-      const employee = await db.employee.findUnique({ where: { id: existing.employeeId }, select: { userId: true, firstName: true, lastName: true } });
+      const employee = await db.employee.findUnique({ where: { id: existing.employeeId }, select: { userId: true, firstName: true, lastName: true, reportingManager: { select: { userId: true } } } });
       const tenantId = (user as any).tenantId || (await resolveCompanyScope(request))?.tenantId;
-      if (tenantId && employee?.userId) {
+      const hrUsers = tenantId
+        ? await db.user.findMany({ where: { tenantId, role: { in: ['hr_admin', 'hr', 'admin', 'tenant_admin'] }, status: 'active' }, select: { id: true } }).catch(() => [])
+        : [];
+      const recipients = [
+        employee?.userId ? { userId: employee.userId } : null,
+        employee?.reportingManager?.userId ? { userId: employee.reportingManager.userId } : null,
+        ...hrUsers.map((hr: { id: string }) => ({ userId: hr.id })),
+      ].filter(Boolean) as Array<{ userId: string }>;
+      if (tenantId && recipients.length) {
         const { dispatchNotification } = await import('@/lib/notification-center');
         await dispatchNotification({
           tenantId,
           module: 'attendance',
           eventKey: 'attendance.request.result',
-          recipients: [{ userId: employee.userId }],
+          recipients,
           vars: {
             Employee_Name: `${employee.firstName} ${employee.lastName}`,
             Request_Type: 'Attendance Regularization',

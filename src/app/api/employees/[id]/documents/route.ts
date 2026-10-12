@@ -16,7 +16,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/tenant-db';
 import { getAuthInfo } from '@/lib/companyScope';
-import { sanitizeMultiLineText } from '@/lib/sanitize';
+import { sanitizeMultiLineText, isSafeDocumentUrl } from '@/lib/sanitize';
 import { canEditEmployeeRecords } from '@/lib/roleAccess';
 
 function corsHeaders() {
@@ -33,6 +33,22 @@ export async function OPTIONS() {
 
 const VALID_CATEGORIES = ['identification', 'onboarding', 'qualifications', 'financial', 'lifecycle', 'other'];
 const VALID_TYPES = ['offer_letter', 'id_proof', 'contract', 'certificate', 'policy', 'aadhaar', 'pan_card', 'bank_proof', 'passport', 'visa', 'education', 'experience', 'medical', 'other'];
+const CATEGORY_TYPES: Record<string, string[]> = {
+  identification: ['id_proof', 'aadhaar', 'pan_card', 'passport', 'visa'],
+  onboarding: ['offer_letter', 'contract', 'policy'],
+  qualifications: ['certificate', 'education', 'experience'],
+  financial: ['pan_card', 'bank_proof'],
+  lifecycle: ['policy', 'medical', 'other'],
+  other: ['other'],
+};
+
+function validFilePayload(fileUrl: string): boolean {
+  if (!fileUrl.startsWith('data:')) return true;
+  const match = /^data:([^;,]+);base64,([A-Za-z0-9+/=]+)$/i.exec(fileUrl);
+  if (!match || !match[2] || match[2].length < 8) return false;
+  const allowed = ['application/pdf', 'image/jpeg', 'image/png', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+  return allowed.includes(match[1].toLowerCase());
+}
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const db = await getDb(req);
@@ -102,7 +118,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     // ─── Upload mode (employee or admin uploads a document) ───
     // fileUrl is optional: a document entry may represent a physical/offline
     // document (e.g. collected during onboarding) with no digital file yet.
-    const name = sanitizeMultiLineText(body.name, 200);
+    const name = sanitizeMultiLineText(body.name, 200).replace(/[<>]/g, '');
     const fileUrl = String(body.fileUrl || '');
     const category = VALID_CATEGORIES.includes(String(body.category)) ? String(body.category) : 'other';
     const type = VALID_TYPES.includes(String(body.type)) ? String(body.type) : 'other';
@@ -113,11 +129,25 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (!name) {
       return NextResponse.json({ error: 'Name is required' }, { status: 400, headers: corsHeaders() });
     }
-    if (fileUrl && !/^(https?:\/\/|data:)/i.test(fileUrl)) {
-      return NextResponse.json({ error: 'fileUrl must be a valid http(s) or data URL' }, { status: 400, headers: corsHeaders() });
+    if (!CATEGORY_TYPES[category]?.includes(type)) {
+      return NextResponse.json({ error: 'The selected document type is not valid for this category.' }, { status: 400, headers: corsHeaders() });
+    }
+    // QA — Document Link Security: only safe http(s) URLs and non-executable
+    // data: payloads (PDFs/images/office files) may be persisted. Blocks
+    // javascript:, vbscript:, data:text/html, data:image/svg+xml, etc. so an
+    // unsafe link can never be stored — even via a direct API call.
+    if (fileUrl && !isSafeDocumentUrl(fileUrl)) {
+      return NextResponse.json({ error: 'fileUrl must be a safe http(s) URL or a non-executable file (data URL). javascript:, data:text/html and similar schemes are not allowed.' }, { status: 400, headers: corsHeaders() });
+    }
+    if (fileUrl && !validFilePayload(fileUrl)) {
+      return NextResponse.json({ error: 'Invalid or corrupted file. Please upload a valid document.' }, { status: 400, headers: corsHeaders() });
     }
     if (expiryDate && isNaN(expiryDate.getTime())) {
       return NextResponse.json({ error: 'Invalid expiry date' }, { status: 400, headers: corsHeaders() });
+    }
+    const duplicate = await db.document.findFirst({ where: { employeeId: id, category, type, status: { not: 'archived' } }, select: { id: true } });
+    if (duplicate) {
+      return NextResponse.json({ error: 'A document of this type is already on record for this employee. Remove or replace the existing document first.' }, { status: 409, headers: corsHeaders() });
     }
 
     const doc = await db.document.create({

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { resolveCompanyScope } from '@/lib/companyScope';
 import { withSchemaSync } from '@/lib/schema-sync';
+import { getTokenFromHeaders } from '@/lib/auth';
 import { employeeIdsWithStoredPhoto, employeePhotoApiPath } from '@/lib/profile-photo';
 
 function corsHeaders() {
@@ -59,8 +60,43 @@ export async function GET(request: Request) {
     // scope === 'all' && no companyId → admin sees all companies
 
     // Apply additional filters on top of company scope
+    // Task 83: `employeeIds` (comma-separated) + `startDate`/`endDate` month
+    // range — the Muster Roll page queries a whole month for a set of
+    // employees; previously these params were silently IGNORED, so the grid
+    // mixed records from other months (whatever fit in the default page).
+    const employeeIdsParam = searchParams.get('employeeIds');
+    if (employeeIdsParam) {
+      const ids = employeeIdsParam.split(',').map(s => s.trim()).filter(Boolean);
+      if (ids.length > 0) {
+        // Intersect with a self-scope filter if one is already applied
+        if (where.employeeId && typeof where.employeeId === 'string') {
+          where.employeeId = ids.includes(where.employeeId) ? where.employeeId : '__none__';
+        } else {
+          where.employeeId = { in: ids };
+        }
+      }
+    }
     if (employeeId) where.employeeId = employeeId;
-    if (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    const startDate = searchParams.get('startDate');
+    const endDate = searchParams.get('endDate');
+    if (startDate && endDate) {
+      const s = new Date(startDate);
+      const e = new Date(endDate);
+      if (!isNaN(s.getTime()) && !isNaN(e.getTime())) {
+        // Rows are stored either at UTC midnight of the local calendar day
+        // (`YYYY-MM-DDT00:00:00.000Z`) or at IST midnight (`…+05:30` =
+        // previous day 18:30 UTC). Start from the earlier of the two for the
+        // first day; end at UTC midnight of the day AFTER the last day (this
+        // includes both storage formats for the last day, excludes the next).
+        const utcStart = new Date(startDate.length === 10 ? `${startDate}T00:00:00.000Z` : s.getTime());
+        const istStart = new Date(startDate.length === 10 ? `${startDate}T00:00:00.000+05:30` : s.getTime());
+        const rangeStart = istStart < utcStart ? istStart : utcStart;
+        const endDay = endDate.length === 10 ? endDate : new Date(e.getTime() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+        // UTC midnight of the day AFTER the last day
+        const rangeEnd = new Date(new Date(`${endDay}T00:00:00.000Z`).getTime() + 24 * 60 * 60 * 1000);
+        where.date = { gte: rangeStart, lt: rangeEnd };
+      }
+    } else if (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
       // Punches are stored either as UTC midnight of the local calendar day
       // (`YYYY-MM-DDT00:00:00.000Z`) or as IST midnight (`…+05:30` = previous
       // 18:30 UTC). Exact `new Date(date)` equality missed one of those and
@@ -104,7 +140,7 @@ export async function GET(request: Request) {
         ...row,
         employee: {
           ...emp,
-          avatar: hasPhoto.has(emp.id) ? employeePhotoApiPath(emp.id, request.url) : null,
+          avatar: hasPhoto.has(emp.id) ? employeePhotoApiPath(emp.id, request.url, getTokenFromHeaders(request)) : null,
         },
       };
     });
@@ -237,30 +273,21 @@ export async function POST(request: Request) {
       }
 
       const now = new Date();
-      // Use policy config for late detection instead of hardcoded time.
+      // Company rule: late counting starts only after 10:00 AM local time.
       // The comparison uses the CLIENT's local time (localTimeStr) when
       // provided — the server runs in UTC so now.getHours() would be wrong
       // for employees in other timezones.
       let isLate = false;
       try {
-        const policyConfig = await db.attendancePolicyConfig.findFirst({
-          where: { companyId: targetEmployee.companyId },
-          select: { shiftStartDefault: true },
-        });
         const localMinutes = localTimeStr
           ? (() => { const [h, m] = localTimeStr.split(':').map(Number); return h * 60 + m; })()
           : now.getHours() * 60 + now.getMinutes();
-        if (policyConfig?.shiftStartDefault) {
-          const [shiftH, shiftM] = policyConfig.shiftStartDefault.split(':').map(Number);
-          isLate = localMinutes > shiftH * 60 + shiftM;
-        } else {
-          isLate = localMinutes > 9 * 60 + 30;
-        }
+        isLate = localMinutes > 10 * 60;
       } catch {
         const localMinutes = localTimeStr
           ? (() => { const [h, m] = localTimeStr.split(':').map(Number); return h * 60 + m; })()
           : now.getHours() * 60 + now.getMinutes();
-        isLate = localMinutes > 9 * 60 + 30;
+        isLate = localMinutes > 10 * 60;
       }
 
       const attendance = await db.attendance.upsert({
@@ -319,8 +346,21 @@ export async function POST(request: Request) {
       }
 
       const now = new Date();
-      // Working hours include break (check-out minus check-in only).
-      const workHours = (now.getTime() - existingRecord.checkIn.getTime()) / (1000 * 60 * 60);
+      // Production hours exclude the mandatory one-hour lunch. If actual
+      // break punches show a longer break, deduct the full actual duration.
+      const grossMinutes = (now.getTime() - existingRecord.checkIn.getTime()) / 60000;
+      const punchedBreakMinutes = existingRecord.breakIn && existingRecord.breakOut
+        ? Math.max(0, (existingRecord.breakOut.getTime() - existingRecord.breakIn.getTime()) / 60000)
+        : null;
+      const localMinutes = (value: Date) => {
+        const parts = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(value);
+        return Number(parts.find(p => p.type === 'hour')?.value || 0) * 60 + Number(parts.find(p => p.type === 'minute')?.value || 0);
+      };
+      const checkInMinutes = localMinutes(existingRecord.checkIn);
+      const checkOutMinutes = localMinutes(now);
+      const overlapsLunch = checkInMinutes < 14 * 60 + 30 && checkOutMinutes > 13 * 60 + 30;
+      const breakMinutes = punchedBreakMinutes != null ? punchedBreakMinutes : (overlapsLunch ? 60 : 0);
+      const workHours = Math.max(0, (grossMinutes - breakMinutes) / 60);
       let standardHours = 9;
       try {
         const policyConfig = await db.attendancePolicyConfig.findFirst({
@@ -338,7 +378,8 @@ export async function POST(request: Request) {
       } catch {
         standardHours = 9;
       }
-      const overtime = Math.max(0, workHours - standardHours);
+      const overtime = Math.max(0, (grossMinutes - (standardHours * 60)) / 60);
+      const belowEightHours = workHours < 8;
 
       const attendance = await db.attendance.update({
         where: {
@@ -351,8 +392,34 @@ export async function POST(request: Request) {
           checkOut: now,
           workHours: parseFloat(workHours.toFixed(2)),
           overtime: parseFloat(overtime.toFixed(2)),
+          status: belowEightHours ? 'half_day' : (existingRecord.status === 'late' ? 'late' : 'present'),
+          halfDay: belowEightHours,
+          breakMinutes: Math.round(breakMinutes),
         },
       });
+
+      // Under-eight-hour days must be visible immediately, while the
+      // employee still submits regularization themselves.
+      if (belowEightHours && scope.tenantId) {
+        try {
+          const { dispatchToRoles } = await import('@/lib/notification-center');
+          await dispatchToRoles({
+            tenantId: scope.tenantId,
+            module: 'attendance',
+            eventKey: 'attendance.production_hours.low',
+            recipients: targetEmployee.userId ? [{ userId: targetEmployee.userId }] : [],
+            roles: ['hr_admin', 'admin', 'tenant_admin'],
+            vars: {
+              Production_Hours: workHours.toFixed(2),
+              Required_Hours: '8.00',
+              Attendance_Date: recordDate.toISOString().slice(0, 10),
+            },
+            entity: { type: 'attendance', id: attendance.id, link: '/attendance' },
+          });
+        } catch (notificationError) {
+          console.warn('[attendance] low-hours notification failed:', notificationError);
+        }
+      }
 
       return NextResponse.json(
         { attendance, message: 'Checked out successfully' },

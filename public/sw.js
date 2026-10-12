@@ -3,8 +3,10 @@
 // v1.1 — Task 58: bump cache version to force-clear any stale cached
 // bundles / login page states that could cause "Failed to fetch" errors
 // on the login API for super admin (or any other role).
+// v1.2 — Task 80: bump cache version again to guarantee post-deploy
+// clients drop any cached assets from before the export-filter fixes.
 
-const CACHE_NAME = '3boxes-hrms-v5';
+const CACHE_NAME = '3boxes-hrms-v8';
 const STATIC_ASSETS = [
   '/login',
   '/icon.png',

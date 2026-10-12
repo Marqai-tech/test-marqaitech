@@ -3,6 +3,8 @@ import { getDb, getPlatformDb, getDbForTenant } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders, hashPassword } from '@/lib/auth';
 import { profilePhotoPayloadError } from '@/lib/profile-photo';
 import { ensureEmployeeProfileColumns } from '@/lib/employee-profile-columns';
+import { canEditEmployeeRecords } from '@/lib/roleAccess';
+import { applyEmployeeFieldChange, FIELD_SENSITIVITY } from '@/lib/employee-update-request';
 
 function corsHeaders() {
   return {
@@ -30,6 +32,21 @@ function rowVal(row: Record<string, unknown> | null | undefined, ...keys: string
   return null;
 }
 
+const PROFILE_USER_SELECT = {
+  id: true,
+  tenantId: true,
+  email: true,
+  name: true,
+  role: true,
+  avatar: true,
+  status: true,
+  lastLogin: true,
+  createdAt: true,
+  tenant: {
+    select: { id: true, name: true, slug: true, plan: true, currency: true, timezone: true },
+  },
+} as const;
+
 // GET — Fetch current user profile using RAW SQL (bypasses all Prisma issues)
 export async function GET(request: Request) {
   const db = await getDb(request);
@@ -46,18 +63,18 @@ export async function GET(request: Request) {
 
     // Try by ID in resolved DB (tenant DB — this is where the employee lives)
     try {
-      user = await db.user.findUnique({ where: { id: decoded.userId as string }, include: { tenant: true } });
+      user = await db.user.findUnique({ where: { id: decoded.userId as string }, select: PROFILE_USER_SELECT });
     } catch {}
     // Try by ID in platform DB
     if (!user) {
-      try { user = await platformDb.user.findUnique({ where: { id: decoded.userId as string }, include: { tenant: true } }); if (user) foundInPlatform = true; } catch {}
+      try { user = await platformDb.user.findUnique({ where: { id: decoded.userId as string }, select: PROFILE_USER_SELECT }); if (user) foundInPlatform = true; } catch {}
     }
     // Try by email
     if (!user) {
       const email = (decoded as any).email;
       if (email) {
-        try { user = await db.user.findUnique({ where: { email }, include: { tenant: true } }); } catch {}
-        if (!user) { try { user = await platformDb.user.findUnique({ where: { email }, include: { tenant: true } }); if (user) foundInPlatform = true; } catch {} }
+        try { user = await db.user.findUnique({ where: { email }, select: PROFILE_USER_SELECT }); } catch {}
+        if (!user) { try { user = await platformDb.user.findUnique({ where: { email }, select: PROFILE_USER_SELECT }); if (user) foundInPlatform = true; } catch {} }
       }
     }
 
@@ -75,14 +92,20 @@ export async function GET(request: Request) {
     let tenantSlug: string | null = null;
     if (user.tenantId) {
       try {
-        const tenant = await platformDb.tenant.findUnique({
-          where: { id: user.tenantId },
-          select: { slug: true },
-        });
-        if (tenant?.slug) {
-          tenantSlug = tenant.slug;
-          explicitTenantDb = await getDbForTenant(tenant.slug);
-          console.log(`[Profile] Explicitly resolved tenant DB for slug "${tenant.slug}"`);
+        // user.tenant is already included above. Reuse its slug to avoid an
+        // extra platform database round-trip for every profile page load.
+        let resolvedSlug = user.tenant?.slug as string | undefined;
+        if (!resolvedSlug) {
+          const tenant = await platformDb.tenant.findUnique({
+            where: { id: user.tenantId },
+            select: { slug: true },
+          });
+          resolvedSlug = tenant?.slug;
+        }
+        if (resolvedSlug) {
+          tenantSlug = resolvedSlug;
+          explicitTenantDb = await getDbForTenant(resolvedSlug);
+          console.log(`[Profile] Explicitly resolved tenant DB for slug "${resolvedSlug}"`);
         }
       } catch (e) {
         console.error('[Profile] Failed to resolve tenant DB from tenantId:', e);
@@ -112,11 +135,6 @@ export async function GET(request: Request) {
 
     for (const tryDb of allDbs) {
       const dbName = tryDb === platformDb ? 'platformDb' : (tryDb === explicitTenantDb ? 'explicitTenantDb' : 'tenantDb');
-
-      // Ensure Employee table exists
-      try {
-        await tryDb.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "Employee" ("id" TEXT NOT NULL, "employeeId" TEXT NOT NULL, "firstName" TEXT NOT NULL, "lastName" TEXT NOT NULL, "email" TEXT NOT NULL, "userId" TEXT, "departmentId" TEXT, "designationId" TEXT, "branchId" TEXT, "companyId" TEXT, "phone" TEXT, "avatar" TEXT, "personalEmail" TEXT, "reportingManagerId" TEXT, "dateOfJoining" TIMESTAMP(3), "dateOfBirth" TIMESTAMP(3), "gender" TEXT, "maritalStatus" TEXT, "nationality" TEXT, "address" TEXT, "city" TEXT, "state" TEXT, "zipCode" TEXT, "country" TEXT, "bloodGroup" TEXT, "emergencyContactName" TEXT, "emergencyContactPhone" TEXT, "status" TEXT NOT NULL DEFAULT 'active', "employeeStatus" TEXT, "employeeType" TEXT, "bankName" TEXT, "bankAccountNo" TEXT, "bankIfscCode" TEXT, "panNumber" TEXT, "aadhaarNumber" TEXT, "taxId" TEXT, "salary" DOUBLE PRECISION, "salaryCurrency" TEXT, "leavePolicyId" TEXT, "attendancePolicyId" TEXT, "travelPolicyId" TEXT, "salaryStructureId" TEXT, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT NOW(), "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT NOW(), CONSTRAINT "Employee_pkey" PRIMARY KEY ("id"))`);
-      } catch {}
 
       // Try by userId
       try {
@@ -240,47 +258,43 @@ export async function GET(request: Request) {
       }
     }
 
-    // Include the assigned manager in the self-service profile. The employee
-    // can navigate to this profile for viewing, but edit permission remains
-    // controlled by the employee-record role gate.
-    if (employee.reportingManagerId && empDb) {
-      try {
-        const managerRows = await empDb.$queryRawUnsafe(
-          `SELECT "id", "employeeId", "firstName", "lastName", "email" FROM "Employee" WHERE "id" = $1 LIMIT 1`,
-          employee.reportingManagerId,
-        ) as any[];
-        employee.reportingManager = managerRows?.[0] || null;
-      } catch { employee.reportingManager = null; }
-    }
-
     console.log('[Profile] Employee:', employee ? `${rowVal(employee, 'firstName', 'firstname') || ''} ${rowVal(employee, 'lastName', 'lastname') || ''}`.trim() : 'NOT FOUND', '| Strategy:', foundByStrategy || 'none');
 
     // Build employee data from raw SQL row (quoted columns stay camelCase)
     let employeeData = null;
     if (employee) {
 
-      // Fetch relations via raw SQL
+      // These independent, employee-scoped lookups should not block one
+      // another; sequential round-trips were adding noticeable profile delay.
       let department = null, designation = null, branch = null;
       const departmentId = rowVal(employee, 'departmentId', 'departmentid');
       const designationId = rowVal(employee, 'designationId', 'designationid');
       const branchId = rowVal(employee, 'branchId', 'branchid');
-      if (departmentId) {
-        try { const r = await empDb.$queryRawUnsafe(`SELECT "name" FROM "Department" WHERE "id" = $1`, departmentId) as any[]; if (r?.[0]) department = r[0]; } catch {}
-      }
-      if (designationId) {
-        try { const r = await empDb.$queryRawUnsafe(`SELECT "title" FROM "Designation" WHERE "id" = $1`, designationId) as any[]; if (r?.[0]) designation = r[0]; } catch {}
-      }
-      if (branchId) {
-        try { const r = await empDb.$queryRawUnsafe(`SELECT "name" FROM "Branch" WHERE "id" = $1`, branchId) as any[]; if (r?.[0]) branch = r[0]; } catch {}
-      }
-
-      let dependents: any[] = [], qualifications: any[] = [], documents: any[] = [], experiences: any[] = [];
-      try { dependents = await empDb.$queryRawUnsafe(`SELECT * FROM "Dependent" WHERE "employeeId" = $1`, employee.id) as any[]; } catch {}
-      try { qualifications = await empDb.$queryRawUnsafe(`SELECT * FROM "Qualification" WHERE "employeeId" = $1`, employee.id) as any[]; } catch {}
-      try { documents = await empDb.$queryRawUnsafe(`SELECT "id","name","type","status","category","fileUrl","expiryDate","description" FROM "Document" WHERE "employeeId" = $1 ORDER BY "createdAt" DESC`, employee.id) as any[]; } catch {}
-      try {
-        experiences = await empDb.$queryRawUnsafe(`SELECT * FROM "Experience" WHERE "employeeId" = $1 ORDER BY "startDate" DESC`, employee.id) as any[];
-      } catch {}
+      const [departmentRows, designationRows, branchRows, dependents, managerRows] = await Promise.all([
+        departmentId
+          ? empDb.$queryRawUnsafe(`SELECT "name" FROM "Department" WHERE "id" = $1 LIMIT 1`, departmentId).catch(() => [])
+          : Promise.resolve([]),
+        designationId
+          ? empDb.$queryRawUnsafe(`SELECT "title" FROM "Designation" WHERE "id" = $1 LIMIT 1`, designationId).catch(() => [])
+          : Promise.resolve([]),
+        branchId
+          ? empDb.$queryRawUnsafe(`SELECT "name" FROM "Branch" WHERE "id" = $1 LIMIT 1`, branchId).catch(() => [])
+          : Promise.resolve([]),
+        empDb.$queryRawUnsafe(`SELECT "id", "name", "relation" AS "relationship", "dateOfBirth", "gender" FROM "Dependent" WHERE "employeeId" = $1`, employee.id).catch(() => []),
+        employee.reportingManagerId
+          ? empDb.$queryRawUnsafe(`SELECT "id", "employeeId", "firstName", "lastName", "email" FROM "Employee" WHERE "id" = $1 LIMIT 1`, employee.reportingManagerId).catch(() => [])
+          : Promise.resolve([]),
+      ]) as [
+        Array<Record<string, unknown>>,
+        Array<Record<string, unknown>>,
+        Array<Record<string, unknown>>,
+        Array<Record<string, unknown>>,
+        Array<Record<string, unknown>>,
+      ];
+      department = departmentRows[0] || null;
+      designation = designationRows[0] || null;
+      branch = branchRows[0] || null;
+      employee.reportingManager = managerRows[0] || null;
 
       employeeData = {
         id: employee.id,
@@ -294,7 +308,9 @@ export async function GET(request: Request) {
         reportingManagerId: rowVal(employee, 'reportingManagerId', 'reportingmanagerid') || null,
         reportingManager: employee.reportingManager || null,
         phone: rowVal(employee, 'phone') || '',
-        avatar: rowVal(employee, 'avatar') || '',
+        // The same image is already returned once at the top-level `avatar`;
+        // duplicating a base64 photo here needlessly inflated the response.
+        avatar: '',
         emergencyContactName: rowVal(employee, 'emergencyContactName', 'emergencycontactname') || '',
         emergencyContactPhone: rowVal(employee, 'emergencyContactPhone', 'emergencycontactphone') || '',
         emergencyContactRelation: rowVal(employee, 'emergencyContactRelation', 'emergencycontactrelation') || '',
@@ -370,26 +386,7 @@ export async function GET(request: Request) {
         travelPolicyId: rowVal(employee, 'travelPolicyId', 'travelpolicyid') || '',
         salaryStructureId: rowVal(employee, 'salaryStructureId', 'salarystructureid') || '',
         dependents: dependents || [],
-        qualifications: qualifications || [],
-        experiences: (experiences || []).map((exp: any) => ({
-          id: exp.id,
-          company: rowVal(exp, 'company') || '',
-          designation: rowVal(exp, 'designation') || '',
-          fromDate: toISOStr(rowVal(exp, 'startDate', 'startdate')),
-          toDate: toISOStr(rowVal(exp, 'endDate', 'enddate')),
-          isCurrent: Boolean(rowVal(exp, 'isCurrent', 'iscurrent')),
-          description: rowVal(exp, 'description') || '',
-        })),
-        documents: (documents || []).map((d: any) => ({
-          id: d.id,
-          name: d.name,
-          type: d.type,
-          status: d.status,
-          category: d.category,
-          fileUrl: d.fileUrl || d.fileurl || '',
-          expiryDate: toISOStr(rowVal(d, 'expiryDate', 'expirydate')),
-          description: d.description || '',
-        })),
+        documents: [],
       };
     }
 
@@ -452,9 +449,15 @@ export async function PATCH(request: Request) {
     }
 
     const derivedName = [firstName, lastName].filter(Boolean).join(' ').trim();
+    // Task 86: HR/admin roles keep direct self-edit rights. Employees and
+    // managers go through the profile-update approval workflow for high-risk
+    // fields (names, DOB, bank, KYC…) — see the routing below.
+    const privileged = canEditEmployeeRecords((decoded.role as string) || '');
     const userUpdateData: Record<string, unknown> = {};
-    if (name !== undefined) userUpdateData.name = name;
-    else if (derivedName) userUpdateData.name = derivedName;
+    if (privileged) {
+      if (name !== undefined) userUpdateData.name = name;
+      else if (derivedName) userUpdateData.name = derivedName;
+    }
     if (avatar !== undefined) userUpdateData.avatar = avatar || null;
 
     const userId = decoded.userId as string;
@@ -558,6 +561,123 @@ export async function PATCH(request: Request) {
       if (empId && empDb) {
         await ensureEmployeeProfileColumns(empDb);
 
+        if (!privileged) {
+          // Photo self-service stays direct (product rule: employees may
+          // change their profile photo anytime) — apply to the Employee row.
+          if (avatar !== undefined) {
+            try { await empDb.$executeRawUnsafe(`UPDATE "Employee" SET "avatar" = $1 WHERE "id" = $2`, avatar || null, empId); } catch (e) {
+              console.error('[Profile PATCH] Employee avatar update failed:', e);
+            }
+          }
+          // ─── Task 86: EMPLOYEE / MANAGER SELF-EDIT → approval workflow ───
+          // Diff the submitted fields against the current employee row and
+          // route each CHANGED field through the shared engine:
+          //   low sensitivity  → applied directly (+ audit row)
+          //   high sensitivity → pending approval request per the workflow
+          //                      configured in the employee module + email /
+          //                      in-app alert to the approver
+          //   restricted       → skipped (never self-service editable)
+          // Unchanged fields create nothing, so pressing Save is idempotent.
+          const appliedFields: string[] = [];
+          const pendingFields: string[] = [];
+          const skippedFields: string[] = [];
+          const errors: string[] = [];
+
+          const current = await (empDb as any).employee.findUnique({ where: { id: empId } });
+          const norm = (v: unknown) => String(v ?? '').trim();
+          const normDate = (v: unknown) => {
+            if (!v) return '';
+            try { return new Date(v as string).toISOString().slice(0, 10); } catch { return ''; }
+          };
+
+          for (const [col, value] of stringFields) {
+            if (value === undefined) continue;
+            const before = norm((current as Record<string, unknown> | null)?.[col]);
+            const after = norm(value);
+            if (before === after) continue;
+            const meta = FIELD_SENSITIVITY[col];
+            if (!meta || meta.sensitivity === 'restricted') { skippedFields.push(meta?.label || col); continue; }
+            try {
+              const r = await applyEmployeeFieldChange(empDb as Record<string, any>, {
+                auth: { userId, role: (decoded.role as string) || 'employee', tenantId: (decoded.tenantId as string) || null },
+                employeeId: empId,
+                fieldName: col,
+                newValue: after,
+                origin: request.headers.get('origin'),
+                req: request,
+              });
+              if (!r.ok) { errors.push(r.error || `Could not submit ${meta.label}`); continue; }
+              if (r.applied) appliedFields.push(meta.label); else pendingFields.push(meta.label);
+            } catch (e) {
+              console.error(`[Profile PATCH] field change failed (${col}):`, e);
+              errors.push(`Could not submit ${meta.label}`);
+            }
+          }
+          if (dateOfBirth !== undefined) {
+            const before = normDate((current as Record<string, unknown> | null)?.dateOfBirth);
+            const after = normDate(dateOfBirth);
+            if (before !== after) {
+              try {
+                const r = await applyEmployeeFieldChange(empDb as Record<string, any>, {
+                  auth: { userId, role: (decoded.role as string) || 'employee', tenantId: (decoded.tenantId as string) || null },
+                  employeeId: empId,
+                  fieldName: 'dateOfBirth',
+                  newValue: after,
+                  origin: request.headers.get('origin'),
+                  req: request,
+                });
+                if (!r.ok) errors.push(r.error || 'Could not submit Date of Birth');
+                else if (r.applied) appliedFields.push('Date of Birth'); else pendingFields.push('Date of Birth');
+              } catch (e) {
+                console.error('[Profile PATCH] dateOfBirth change failed:', e);
+                errors.push('Could not submit Date of Birth');
+              }
+            }
+          }
+          if (Array.isArray(experiences)) {
+            // Experience entries stay a direct self-service edit (structured
+            // history, not a single approval-routable field).
+            try {
+              await empDb.$executeRawUnsafe(`DELETE FROM "Experience" WHERE "employeeId" = $1`, empId);
+              for (const exp of experiences) {
+                const company = String(exp?.company || '').trim();
+                const designation = String(exp?.designation || '').trim();
+                if (!company || !designation) continue;
+                const start = exp.fromDate || exp.startDate;
+                if (!start) continue;
+                const end = exp.toDate || exp.endDate || null;
+                const isCurrent = Boolean(exp.isCurrent);
+                const description = String(exp.description || '') || null;
+                const id = String(exp.id || '').trim() || crypto.randomUUID();
+                await empDb.$executeRawUnsafe(
+                  `INSERT INTO "Experience" ("id","employeeId","company","designation","startDate","endDate","isCurrent","description","createdAt","updatedAt") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,NOW(),NOW())`,
+                  id, empId, company, designation, new Date(start), end ? new Date(end) : null, isCurrent, description,
+                );
+              }
+              appliedFields.push('Experience');
+            } catch (e) {
+              console.error('[Profile PATCH] Experience update failed:', e);
+            }
+          }
+
+          const parts: string[] = [];
+          if (appliedFields.length) parts.push(`${appliedFields.length} field(s) updated`);
+          if (pendingFields.length) parts.push(`${pendingFields.length} change(s) sent for approval`);
+          const message = parts.length
+            ? `Profile saved — ${parts.join(', ')}`
+            : (errors.length ? 'Profile saved with errors' : 'No changes detected');
+          return NextResponse.json({
+            success: true,
+            message,
+            appliedFields,
+            pendingFields,
+            skippedFields,
+            errors,
+            user: { id: updatedUser.id, name: updatedUser.name, email: updatedUser.email, avatar: updatedUser.avatar, role: updatedUser.role },
+          }, { headers: corsHeaders() });
+        }
+
+        // ─── Privileged (HR/admin) self-edit → direct write, as before ───
         const sets: string[] = [];
         const params: any[] = [];
         let pIdx = 1;

@@ -34,6 +34,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore, useCompanyContextPersistHydrated } from '@/store/companyContextStore';
 import { canAccessEmployeeSettings, canEditEmployeeRecords } from '@/lib/roleAccess';
 import { fileToProfilePhotoDataUrl, MAX_PROFILE_PHOTO_LABEL } from '@/lib/profile-photo';
+import { isSafeDocumentUrl } from '@/lib/sanitize';
 import { getToken } from '@/lib/token-storage';
 import {
   validateEmail as validateEmailFormat,
@@ -47,6 +48,8 @@ import {
   validateZipCode,
   validateNationality,
   validatePFNumber,
+  validateNomineeName,
+  validateLWFNumber,
   validateESINumber,
   onlyDigits,
   onlyLetters,
@@ -210,6 +213,14 @@ const FORM_DOC_CATEGORIES = [
 ];
 
 const FORM_DOC_TYPES = ['offer_letter','id_proof','contract','certificate','policy','aadhaar','pan_card','bank_proof','passport','visa','education','experience','medical','other'];
+const DOC_TYPES_BY_CATEGORY: Record<string, string[]> = {
+  identification: ['id_proof', 'aadhaar', 'pan_card', 'passport', 'visa'],
+  onboarding: ['offer_letter', 'contract', 'policy'],
+  qualifications: ['certificate', 'education', 'experience'],
+  financial: ['pan_card', 'bank_proof'],
+  lifecycle: ['policy', 'medical', 'other'],
+  other: ['other'],
+};
 
 const emptyDocDraft = () => ({
   name: '',
@@ -353,6 +364,9 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
   const [filterDept, setFilterDept] = useState('');
   const [filterDesignation, setFilterDesignation] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+  // Task 81: management-list members are hidden from the Employee List by
+  // default (their directory is the Management List module). Toggle to show.
+  const [includeManagement, setIncludeManagement] = useState(false);
 
 
   const [showForm, setShowForm] = useState(formOnly);
@@ -465,8 +479,10 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
     statutory: [
       { field: 'pfUAN', label: 'UAN', validate: validateUAN },
       { field: 'pfNumber', label: 'PF Number', validate: validatePFNumber },
+      { field: 'pfNomineeName', label: 'PF Nominee Name', validate: validateNomineeName },
       { field: 'esiNumber', label: 'ESI Number', validate: validateESINumber },
       { field: 'panNumber', label: 'PAN', validate: validatePAN },
+      { field: 'lwfNumber', label: 'LWF Number', validate: validateLWFNumber },
     ],
     emergency: [
       { field: 'emergencyContactName', label: 'Emergency Contact Name', validate: (v) => validateName(v, 'Emergency Contact Name') },
@@ -480,7 +496,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
   };
 
   /** Validate current step and advance to next if valid */
-  const handleNextStep = () => {
+  const handleNextStep = async () => {
     if (submitting) return; // Prevent double-click
     setStepErrors({});
     const errors: Record<string, string> = {};
@@ -510,6 +526,24 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
       setStepErrors(errors);
       toast.error(`Please fix: ${Object.values(errors).join(', ')}`, { duration: 4000 });
       return; // BLOCK navigation
+    }
+
+    // Check phone uniqueness before allowing Personal → Address navigation.
+    if (formTab === 'personal' && form.phone && !editingId) {
+      try {
+        const sq = scopeQuery();
+        const response = await fetch(`/api/employees?limit=500${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
+        if (response.ok) {
+          const data = await response.json();
+          const normalized = form.phone.replace(/\D/g, '').slice(-10);
+          const duplicate = (data.employees || []).some((employee: { phone?: string | null }) => (employee.phone || '').replace(/\D/g, '').slice(-10) === normalized);
+          if (duplicate) {
+            setStepErrors({ phone: 'This phone number is already registered.' });
+            toast.error('This phone number is already registered.');
+            return;
+          }
+        }
+      } catch { /* server validates again on submit */ }
     }
 
     // Mark current step as completed
@@ -542,11 +576,29 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
   /* Export CSV */
   const handleExportCSV = async () => {
     try {
+      // QA fix: the export must honour the ACTIVE list filters (search /
+      // department / status incl. Inactive) — previously it always fetched
+      // unfiltered employees, so filtering Inactive then exporting produced
+      // the wrong rows. Mirrors the params sent by fetchEmployees().
       const params = new URLSearchParams({ limit: '500', export: '1' });
+      if (search) params.set('search', search);
+      if (filterDept) params.set('departmentId', filterDept);
+      if (filterDesignation) params.set('designationId', filterDesignation);
+      if (filterStatus) params.set('status', filterStatus);
+      // The export mirrors the on-screen list — management hidden there is
+      // hidden here too (unless the Show Management toggle is on).
+      if (!includeManagement) params.set('excludeManagement', '1');
       const sq = scopeQuery();
       const res = await fetch(`/api/employees?${params.toString()}${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
-      const data = res.ok ? await res.json() : { employees: allEmployees };
-      const exportRows = data.employees || allEmployees;
+      if (!res.ok) {
+        // Fail LOUDLY instead of silently exporting the wrong rows (the old
+        // fallback exported the active-only stats list, which looked like the
+        // filter was ignored).
+        toast.error('Export failed — could not fetch the filtered employee list');
+        return;
+      }
+      const data = await res.json();
+      const exportRows = data.employees || [];
       const rows = exportRows.map((emp: Employee) => ({
       'Employee ID': emp.employeeId || '',
       'First Name': emp.firstName || '',
@@ -595,7 +647,9 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
       const params = new URLSearchParams({ page: String(page), limit: '10', includeStats: '1' });
       if (search) params.set('search', search);
       if (filterDept) params.set('departmentId', filterDept);
+      if (filterDesignation) params.set('designationId', filterDesignation);
       if (filterStatus) params.set('status', filterStatus);
+      if (!includeManagement) params.set('excludeManagement', '1');
       const sq = scopeQuery();
 
       const res = await fetch(`/api/employees?${params.toString()}${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
@@ -617,7 +671,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
     } finally {
       setLoading(false);
     }
-  }, [search, filterDept, filterStatus, scopeCompanyId, scopeTenantId, scopeQuery]);
+  }, [search, filterDept, filterDesignation, filterStatus, includeManagement, scopeCompanyId, scopeTenantId, scopeQuery]);
 
   /* Fetch all employees for stats */
   const fetchAllEmployees = useCallback(async () => {
@@ -1104,6 +1158,9 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
       const r = validateUAN(form.pfUAN);
       if (!r.valid) formatErrors.push(r.error!);
     }
+    if (form.pfNumber) { const r = validatePFNumber(form.pfNumber); if (!r.valid) formatErrors.push(r.error!); }
+    if (form.pfNomineeName) { const r = validateNomineeName(form.pfNomineeName); if (!r.valid) formatErrors.push(r.error!); }
+    if (form.lwfNumber) { const r = validateLWFNumber(form.lwfNumber); if (!r.valid) formatErrors.push(r.error!); }
     if (form.emergencyContactPhone) {
       const r = validatePhone(form.emergencyContactPhone);
       if (!r.valid) formatErrors.push(`Emergency contact: ${r.error!}`);
@@ -1279,6 +1336,11 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
       e.target.value = '';
       return;
     }
+    if (file.size === 0 || !['application/pdf', 'image/jpeg', 'image/png', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'].includes(file.type)) {
+      toast.error('Invalid or corrupted file. Please upload a valid document.');
+      e.target.value = '';
+      return;
+    }
     const reader = new FileReader();
     reader.onloadend = () => {
       setDocDraft(prev => ({ ...prev, fileUrl: reader.result as string, fileName: file.name }));
@@ -1289,6 +1351,13 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
 
   const addStagedDoc = () => {
     if (!docDraft.name.trim()) { toast.error('Document name is required'); return; }
+    if (!DOC_TYPES_BY_CATEGORY[docDraft.category]?.includes(docDraft.type)) { toast.error('The selected document type is not valid for this category.'); return; }
+    if (stagedDocs.some(doc => doc.category === docDraft.category && doc.type === docDraft.type)) { toast.error('A document of this type is already in the upload list.'); return; }
+    // QA fix — Document Link Security: reject unsafe URLs (javascript:, data:text/html, etc.)
+    if (docDraft.fileUrl && !isSafeDocumentUrl(docDraft.fileUrl)) {
+      toast.error('Unsafe document link blocked. Use a full http(s):// URL (e.g. https://drive.google.com/…)');
+      return;
+    }
     setStagedDocs(prev => [...prev, { id: `doc_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, ...docDraft, name: docDraft.name.trim() }]);
     setDocDraft(emptyDocDraft());
     toast.success('Document added — it will be saved when you click "Add Employee"');
@@ -1319,6 +1388,12 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
   const uploadLiveDoc = async () => {
     if (!editingId) return;
     if (!docDraft.name.trim()) { toast.error('Document name is required'); return; }
+    if (!DOC_TYPES_BY_CATEGORY[docDraft.category]?.includes(docDraft.type)) { toast.error('The selected document type is not valid for this category.'); return; }
+    // QA fix — Document Link Security: reject unsafe URLs before they are persisted
+    if (docDraft.fileUrl && !isSafeDocumentUrl(docDraft.fileUrl)) {
+      toast.error('Unsafe document link blocked. Use a full http(s):// URL (e.g. https://drive.google.com/…)');
+      return;
+    }
     try {
       setDocUploading(true);
       const r = await fetch(`/api/employees/${editingId}/documents`, {
@@ -1617,6 +1692,19 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
             </div>
 
             <div className="flex items-center gap-2">
+              {/* Task 81: management members live in the Management List —
+                  hidden here by default, toggle to include them */}
+              <button
+                onClick={() => setIncludeManagement(v => !v)}
+                className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg border transition-colors ${
+                  includeManagement
+                    ? 'bg-violet-50 border-violet-300 text-violet-700'
+                    : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                }`}
+                title="Management List members are hidden from this list by default"
+              >
+                <FiUserCheck className="w-3.5 h-3.5" /> {includeManagement ? 'Management shown' : 'Management hidden'}
+              </button>
               {/* Export */}
               <button onClick={handleExportCSV} className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors">
                 <FiDownload className="w-3.5 h-3.5" /> Export
@@ -1743,7 +1831,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                         <input type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
                       </label>
                       {photoPreview && (
-                        <button type="button" onClick={() => { setPhotoPreview(null); updateForm('avatar', ''); }} className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center">
+                        <button type="button" onClick={() => { setPhotoPreview(null); updateForm('avatar', ''); toast.success('Image removed successfully.'); }} className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center">
                           <FiX className="w-3 h-3" />
                         </button>
                       )}
@@ -2190,7 +2278,8 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                       <div>
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">Nominee Name</label>
-                        <input type="text" value={form.pfNomineeName} onChange={e => updateForm('pfNomineeName', e.target.value)} placeholder="Full name of nominee" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
+                        <input type="text" value={form.pfNomineeName} onChange={e => updateForm('pfNomineeName', e.target.value.replace(/[^A-Za-z\s.'-]/g, ''))} placeholder="Full name of nominee" className={`w-full px-3 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 ${stepErrors.pfNomineeName ? 'border-red-400 bg-red-50' : 'border-thb-border'}`} />
+                        {stepErrors.pfNomineeName && <p className="text-xs text-red-500 mt-1">{stepErrors.pfNomineeName}</p>}
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">Nominee Relationship</label>
@@ -2261,7 +2350,8 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">LWF Number</label>
-                        <input type="text" value={form.lwfNumber} onChange={e => updateForm('lwfNumber', e.target.value)} placeholder="Labour Welfare Fund number" className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
+                        <input type="text" value={form.lwfNumber} onChange={e => updateForm('lwfNumber', e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))} placeholder="State registration number" className={`w-full px-3 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 ${stepErrors.lwfNumber ? 'border-red-400 bg-red-50' : 'border-thb-border'}`} />
+                        {stepErrors.lwfNumber && <p className="text-xs text-red-500 mt-1">{stepErrors.lwfNumber}</p>}
                       </div>
                     </div>
                   </div>
@@ -2651,14 +2741,14 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">Category</label>
-                        <select value={docDraft.category} onChange={e => setDocDraft(prev => ({ ...prev, category: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
+                        <select value={docDraft.category} onChange={e => { const category = e.target.value; setDocDraft(prev => ({ ...prev, category, type: DOC_TYPES_BY_CATEGORY[category][0] })); }} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
                           {FORM_DOC_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.icon} {c.label}</option>)}
                         </select>
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-thb-text-secondary mb-1">Document Type</label>
                         <select value={docDraft.type} onChange={e => setDocDraft(prev => ({ ...prev, type: e.target.value }))} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
-                          {FORM_DOC_TYPES.map(t => <option key={t} value={t}>{t.replace(/_/g, ' ').replace(/\b\w/g, ch => ch.toUpperCase())}</option>)}
+                          {(DOC_TYPES_BY_CATEGORY[docDraft.category] || FORM_DOC_TYPES).map(t => <option key={t} value={t}>{t.replace(/_/g, ' ').replace(/\b\w/g, ch => ch.toUpperCase())}</option>)}
                         </select>
                       </div>
                       <div>
@@ -2718,6 +2808,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                     {editingId ? editDocs.map(doc => {
                       const cat = FORM_DOC_CATEGORIES.find(c => c.value === (doc.category || 'other'));
                       const isData = (doc.fileUrl || '').startsWith('data:');
+                      const linkSafe = isSafeDocumentUrl(doc.fileUrl);
                       return (
                         <div key={doc.id} className="flex items-center gap-3 py-2.5 border-b border-thb-border/50 last:border-0">
                           <span className="text-lg shrink-0">{cat?.icon || '📎'}</span>
@@ -2725,7 +2816,8 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                             <p className="text-sm font-medium text-thb-text-primary truncate">{doc.name}</p>
                             <p className="text-[11px] text-thb-text-muted">{cat?.label || 'Other'}{doc.expiryDate ? ` · Expires ${formatDate(doc.expiryDate)}` : ''}</p>
                           </div>
-                          {doc.fileUrl && <a href={doc.fileUrl} {...(isData ? { download: doc.name } : { target: '_blank', rel: 'noopener noreferrer' })} className="inline-flex items-center gap-1 px-2 py-1 text-[11px] text-teal-600 hover:bg-teal-50 rounded shrink-0"><FiDownload className="w-3 h-3" /> Download</a>}
+                          {doc.fileUrl && linkSafe && <a href={doc.fileUrl} {...(isData ? { download: doc.name } : { target: '_blank', rel: 'noopener noreferrer' })} className="inline-flex items-center gap-1 px-2 py-1 text-[11px] text-teal-600 hover:bg-teal-50 rounded shrink-0"><FiDownload className="w-3 h-3" /> Download</a>}
+                          {doc.fileUrl && !linkSafe && <span className="inline-flex items-center gap-1 px-2 py-1 text-[11px] text-red-500 bg-red-50 rounded shrink-0" title="This link was blocked for security reasons">Blocked link</span>}
                           <button type="button" onClick={() => deleteLiveDoc(doc.id)} className="p-1.5 text-red-500 hover:bg-red-50 rounded shrink-0" title="Delete document"><FiTrash2 className="w-3.5 h-3.5" /></button>
                         </div>
                       );

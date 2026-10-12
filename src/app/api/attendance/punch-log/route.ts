@@ -17,13 +17,17 @@ export async function OPTIONS() {
 }
 
 /**
- * Ensure the Task 57 columns exist on the Attendance table before we run
- * any Prisma findMany that references them. Without this, the demo tenant
- * DB (which hasn't been migrated) throws "column (not available) does not
- * exist" the first time the route is hit. Idempotent ALTER TABLE ADD COLUMN
- * IF NOT EXISTS — runs in ~10ms after the first call.
+ * Legacy tenant databases may not yet have the attendance punch columns.
+ * Keep this compatibility check, but run it once per tenant client and send
+ * the additive DDL as one statement rather than 20 sequential DB round-trips
+ * on every page load.
  */
-async function ensureAttendanceColumns(db: any) {
+const attendanceSchemaSyncs = new WeakMap<object, Promise<void>>();
+
+async function ensureAttendanceColumns(db: any): Promise<void> {
+  const cached = attendanceSchemaSyncs.get(db);
+  if (cached) return cached;
+
   const cols: [string, string][] = [
     ['"breakIn"', 'TIMESTAMP(3)'],
     ['"breakOut"', 'TIMESTAMP(3)'],
@@ -46,9 +50,24 @@ async function ensureAttendanceColumns(db: any) {
     ['"breakOutGpsLabel"', 'TEXT'],
     ['"punchMethod"', 'TEXT'],
   ];
-  for (const [col, type] of cols) {
-    await db.$executeRawUnsafe(`ALTER TABLE "Attendance" ADD COLUMN IF NOT EXISTS ${col} ${type}`).catch(() => null);
-  }
+  const alters = cols
+    .map(([col, type]) => `ALTER TABLE "Attendance" ADD COLUMN IF NOT EXISTS ${col} ${type};`)
+    .join('\n');
+  const statement = `DO $attendance_schema$ BEGIN
+    IF to_regclass('"Attendance"') IS NOT NULL THEN
+      ${alters}
+    END IF;
+  END;
+  $attendance_schema$;`;
+
+  const sync = db.$executeRawUnsafe(statement).then(() => undefined).catch((error: unknown) => {
+    // Preserve the route's legacy best-effort behavior. Clear the cache so a
+    // later request can retry if this was a transient database failure.
+    attendanceSchemaSyncs.delete(db);
+    console.warn('[attendance/punch-log] Could not ensure legacy attendance columns:', error);
+  });
+  attendanceSchemaSyncs.set(db, sync);
+  return sync;
 }
 
 /**
@@ -103,10 +122,10 @@ export async function GET(request: NextRequest) {
 
     // Fetch the active employees in scope (so we can join names)
     const employees = await db.employee.findMany({
-      where: empFilter,
+      where: filterEmployeeId ? { ...empFilter, id: filterEmployeeId } : empFilter,
       select: { id: true, employeeId: true, firstName: true, lastName: true, userId: true,
         department: { select: { name: true } } },
-      take: 500,
+      take: filterEmployeeId ? 1 : 500,
     });
     const empMap = new Map(employees.map(e => [e.id, e]));
     let empIds = employees.map(e => e.id);
@@ -125,6 +144,7 @@ export async function GET(request: NextRequest) {
 
     // Fetch PunchEvent rows (one per punch action — checkin/checkout/breakin/breakout)
     // Also fetch Attendance rows for the daily summary (workHours, breakMinutes, overtime)
+    const maxAttendanceRows = 10000;
     const [events, attRows] = await Promise.all([
       db.$queryRawUnsafe(
         `SELECT e."id", e."employeeId", e."type", e."date", e."timestamp", e."gpsLat", e."gpsLng",
@@ -155,12 +175,16 @@ export async function GET(request: NextRequest) {
           checkInGpsLat: true, checkInGpsLng: true, checkInGpsLabel: true,
           checkOutGpsLat: true, checkOutGpsLng: true, checkOutGpsLabel: true,
         },
+        orderBy: { date: 'desc' },
+        take: maxAttendanceRows + 1,
       }),
     ]);
+    const summaryTruncated = attRows.length > maxAttendanceRows;
+    const summaryRows = attRows.slice(0, maxAttendanceRows);
 
     // Build per-day summary from attendance rows
     const daysMap = new Map<string, any>();
-    for (const a of attRows) {
+    for (const a of summaryRows) {
       const ds = new Date(a.date).toISOString().split('T')[0];
       const emp = empMap.get(a.employeeId);
       if (!emp) continue;
@@ -228,6 +252,7 @@ export async function GET(request: NextRequest) {
         totalBreakMinutes,
         totalOvertime: Math.round(totalOvertime * 10) / 10,
       },
+      summaryTruncated,
       dataScope: dataScope,
     }, { headers: corsHeaders() });
   } catch (error) {

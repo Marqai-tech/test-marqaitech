@@ -196,6 +196,10 @@ export default function MyProfilePage() {
   const [editForm, setEditForm] = useState<Record<string, string>>({});
   const [docDraft, setDocDraft] = useState(emptyDocDraft());
   const [addingDoc, setAddingDoc] = useState(false);
+  const [documents, setDocuments] = useState<Record<string, unknown>[]>([]);
+  const [documentsLoading, setDocumentsLoading] = useState(false);
+  const [documentsLoadedFor, setDocumentsLoadedFor] = useState<string | null>(null);
+  const [documentsError, setDocumentsError] = useState<string | null>(null);
 
   const fetchProfile = useCallback(async () => {
     try {
@@ -290,6 +294,25 @@ export default function MyProfilePage() {
 
   useEffect(() => { fetchProfile(); }, [fetchProfile]);
 
+  const loadDocuments = useCallback(async (employeeId: string) => {
+    if (!employeeId) return;
+    setDocumentsLoading(true);
+    setDocumentsError(null);
+    try {
+      const res = await fetch(`/api/employees/${encodeURIComponent(employeeId)}/documents`, {
+        headers: getAuthHeaders(),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Could not load documents');
+      setDocuments(Array.isArray(data.documents) ? data.documents : []);
+      setDocumentsLoadedFor(employeeId);
+    } catch (err) {
+      setDocumentsError(err instanceof Error ? err.message : 'Could not load documents');
+    } finally {
+      setDocumentsLoading(false);
+    }
+  }, []);
+
   const handleSave = async () => {
     setSaving(true);
     try {
@@ -303,7 +326,16 @@ export default function MyProfilePage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to update profile');
-      toast.success('Profile updated successfully');
+      // Task 86: employee self-edits route high-risk fields (name, DOB, bank,
+      // KYC…) through the approval workflow. Surface what happened.
+      const pending: string[] = Array.isArray(data.pendingFields) ? data.pendingFields : [];
+      const failures: string[] = Array.isArray(data.errors) ? data.errors : [];
+      failures.forEach((e: string) => toast.error(e));
+      if (pending.length > 0) {
+        toast.success(`Profile saved — ${pending.length} change(s) sent for approval`);
+      } else {
+        toast.success(data.message || 'Profile updated successfully');
+      }
       setIsEditing(false);
       fetchProfile();
       fetchUser();
@@ -380,7 +412,7 @@ export default function MyProfilePage() {
       if (!res.ok) throw new Error(data.error || 'Failed to add document');
       toast.success('Document added');
       setDocDraft(emptyDocDraft());
-      fetchProfile();
+      await loadDocuments(employeeRecordId);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to add document');
     } finally {
@@ -417,7 +449,7 @@ export default function MyProfilePage() {
         throw new Error(data.error || 'Failed to delete document');
       }
       toast.success('Document deleted');
-      fetchProfile();
+      await loadDocuments(employeeRecordId);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to delete document');
     }
@@ -700,7 +732,13 @@ export default function MyProfilePage() {
               return (
                 <button
                   key={tab.key}
-                  onClick={() => setActiveTab(tab.key)}
+                  onClick={() => {
+                    setActiveTab(tab.key);
+                    const employeeRecordId = String((profileData?.employee as Record<string, unknown> | null | undefined)?.id || '');
+                    if (tab.key === 'documents' && employeeRecordId && documentsLoadedFor !== employeeRecordId) {
+                      void loadDocuments(employeeRecordId);
+                    }
+                  }}
                   className={`relative flex items-center gap-2 px-4 py-3 text-sm font-medium transition-all whitespace-nowrap ${
                     isActive
                       ? 'text-green-600'
@@ -1152,10 +1190,24 @@ export default function MyProfilePage() {
                 </div>
               </SectionCard>
             )}
-            {Array.isArray(emp?.documents) && (emp?.documents as unknown[]).length > 0 ? (
+            {documentsLoading ? (
+              <div className="thb-card p-8 text-center text-sm text-thb-text-muted">Loading documents…</div>
+            ) : documentsError ? (
+              <div className="thb-card p-8 text-center">
+                <p className="text-sm text-red-600">{documentsError}</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const employeeRecordId = String(emp?.id || '');
+                    if (employeeRecordId) void loadDocuments(employeeRecordId);
+                  }}
+                  className="mt-3 text-sm font-medium text-teal-600 hover:text-teal-700"
+                >Retry</button>
+              </div>
+            ) : documents.length > 0 ? (
               <SectionCard title="Uploaded Documents" icon={<FiBookOpen className="w-4 h-4" />} accent="blue">
                 <div className="col-span-full space-y-2">
-                  {(emp?.documents as Record<string, unknown>[]).map((doc, idx) => {
+                  {documents.map((doc, idx) => {
                     const fileUrl = str(doc.fileUrl);
                     const isData = fileUrl.startsWith('data:');
                     const cat = FORM_DOC_CATEGORIES.find((c) => c.value === str(doc.category));

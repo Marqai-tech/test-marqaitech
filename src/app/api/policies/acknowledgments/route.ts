@@ -138,7 +138,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'This policy is not active' }, { status: 400, headers: corsHeaders() });
     }
 
-    const emp = await db.employee.findFirst({ where: { userId: auth.userId }, select: { id: true, firstName: true } });
+    const emp = await db.employee.findFirst({ where: { userId: auth.userId }, select: { id: true, firstName: true, userId: true } });
     if (!emp) return NextResponse.json({ error: 'No employee record is linked to your account. Acknowledgments are recorded per-employee.' }, { status: 400, headers: corsHeaders() });
 
     // Mandatory rejection reason
@@ -178,6 +178,27 @@ export async function POST(req: NextRequest) {
             comments: reason ?? (typeof comments === 'string' && comments.trim() ? sanitizeMultiLineText(comments, 300) : null),
           },
         });
+
+    // Task 88 (spec Workflow 3): confirmation notification to the EMPLOYEE
+    // (even when HR marked it on their behalf). Non-fatal.
+    try {
+      if (auth.tenantId && action === 'accepted') {
+        const { dispatchNotification } = await import('@/lib/notification-center');
+        await dispatchNotification({
+          tenantId: auth.tenantId,
+          module: 'core_hr',
+          eventKey: 'core_hr.policy.ack_confirmed',
+          recipients: [{ userId: emp.userId || auth.userId }],
+          vars: {
+            Policy_Name: policy.title,
+            Policy_Version: policy.version || '1.0',
+            Acknowledged_On: new Date().toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }),
+          },
+          entity: { type: 'policy', id: policyId, link: '/policies-handbook' },
+          origin: req.headers.get('origin') || undefined,
+        });
+      }
+    } catch { /* non-fatal */ }
 
     return NextResponse.json({
       acknowledgment,

@@ -91,6 +91,8 @@ export interface RequestRules {
   shiftStartDefault: string;         // '09:30'
   shiftEndDefault: string;           // '18:30'
   breakDurationMinutes: number;      // lunch break minutes
+  breakStartDefault: string;         // Mark AI Tech app break start, e.g. '13:30'
+  breakEndDefault: string;           // Mark AI Tech app break end, e.g. '14:30'
   lateGraceMinutes: number;          // grace before marking late
   earlyGraceMinutes: number;         // grace before marking early-departure
 
@@ -103,6 +105,14 @@ export interface RequestRules {
   // ─── Overtime policy ───
   autoOvertimeEnabled: boolean;
   overtimeThresholdMinutes: number;  // 480 = 8 hours
+  overtimeRequiresProductionThreshold: boolean;
+
+  // Attendance punch state (tenant-specific; biometric devices cannot infer breaks)
+  firstPunchIsCheckIn: boolean;
+  laterBiometricPunchIsCheckout: boolean;
+  latestPunchIsFinalCheckout: boolean;
+  biometricBreaksEnabled: boolean;
+  duplicatePunchWindowMinutes: number;
 
   // ─── Gate-pass policy ───
   gatePassMaxPerMonth: number;       // 0 = unlimited
@@ -140,12 +150,14 @@ const DEFAULT_RULES: RequestRules = {
   // Shift & Grace (mirrors legacy AttendancePolicyRule defaults)
   shiftStartDefault: '09:30',
   shiftEndDefault: '18:30',
-  breakDurationMinutes: 30,
-  lateGraceMinutes: 15,
+  breakDurationMinutes: 60,
+  breakStartDefault: '13:30',
+  breakEndDefault: '14:30',
+  lateGraceMinutes: 30,
   earlyGraceMinutes: 10,
 
   // Late-mark policy
-  lateMarkAllowancePerMonth: 4,
+  lateMarkAllowancePerMonth: 3,
   lateMarkHalfDayOnExceed: true,
   halfDayAfterMinutes: 21,
   lateMarkNotApplicableOnTour: true,
@@ -153,6 +165,12 @@ const DEFAULT_RULES: RequestRules = {
   // Overtime
   autoOvertimeEnabled: true,
   overtimeThresholdMinutes: 480,
+  overtimeRequiresProductionThreshold: true,
+  firstPunchIsCheckIn: true,
+  laterBiometricPunchIsCheckout: true,
+  latestPunchIsFinalCheckout: true,
+  biometricBreaksEnabled: false,
+  duplicatePunchWindowMinutes: 2,
 
   // Gate-pass
   gatePassMaxPerMonth: 1,
@@ -683,11 +701,11 @@ async function getShiftDefaults(db: PrismaClient, employeeId: string): Promise<{
   try {
     const pol = await (db as any).attendancePolicyConfig?.findFirst({ orderBy: { updatedAt: 'desc' } });
     if (pol) return {
-      start: pol.shiftStartDefault === '09:00' ? '09:30' : (pol.shiftStartDefault || '09:30'),
+      start: '10:00',
       end: pol.shiftEndDefault === '17:30' ? '18:30' : (pol.shiftEndDefault || '18:30'),
     };
   } catch { /* ignore */ }
-  return { start: '09:30', end: '18:30' };
+  return { start: '10:00', end: '18:30' };
 }
 
 function atTime(date: Date, hhmm: string): Date {

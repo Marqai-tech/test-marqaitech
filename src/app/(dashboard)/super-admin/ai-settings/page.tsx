@@ -253,31 +253,31 @@ export default function AISettingsPage() {
   useEffect(() => {
     (async () => {
       try {
-        // Fetch saved AI settings
-        const settingsRes = await fetch('/api/super-admin/ai-settings', { headers: getAuthHeaders() });
-        if (settingsRes.ok) {
-          const data = await settingsRes.json();
-          if (data.engine) setEngine(data.engine);
-          if (data.features) setFeatures(data.features);
-          if (data.prompts) setPrompts(data.prompts);
-        }
+        const headers = getAuthHeaders();
+        // These APIs are independent; start both together so usage stats do
+        // not wait for the settings request to finish.
+        const [settingsData, adminData] = await Promise.all([
+          fetch('/api/super-admin/ai-settings', { headers })
+            .then((res) => res.ok ? res.json() : null)
+            .catch(() => null),
+          fetch('/api/ai-admin', { headers })
+            .then((res) => res.ok ? res.json() : null)
+            .catch(() => null),
+        ]);
 
-        // Fetch usage stats from ai-admin
-        const adminRes = await fetch('/api/ai-admin', { headers: getAuthHeaders() });
-        if (adminRes.ok) {
-          const adminData = await adminRes.json();
-          const stats = adminData.stats || {};
-          const categoryUsage = stats.categoryUsage || {};
-          // Build usage rows from live API data
-          if (Object.keys(categoryUsage).length > 0) {
-            const liveUsage: UsageMetric[] = Object.entries(categoryUsage).map(([feature, calls]: [string, any]) => ({
-              feature,
-              calls: Number(calls) || 0,
-              tokens: Number(calls) * 200, // estimate
-              cost: Number(calls) * 0.01,  // estimate
-            }));
-            setUsageData(liveUsage);
-          }
+        if (settingsData?.engine) setEngine(settingsData.engine);
+        if (settingsData?.features) setFeatures(settingsData.features);
+        if (settingsData?.prompts) setPrompts(settingsData.prompts);
+
+        const categoryUsage = adminData?.stats?.categoryUsage || {};
+        if (Object.keys(categoryUsage).length > 0) {
+          const liveUsage: UsageMetric[] = Object.entries(categoryUsage).map(([feature, calls]: [string, any]) => ({
+            feature,
+            calls: Number(calls) || 0,
+            tokens: Number(calls) * 200, // estimate
+            cost: Number(calls) * 0.01,  // estimate
+          }));
+          setUsageData(liveUsage);
         }
       } catch { /* use defaults */ } finally { setLoading(false); }
     })();
