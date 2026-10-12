@@ -2,10 +2,13 @@
  * Policy Acknowledgement Reminder Cron (Task 88)
  *
  *   GET /api/cron/policy-ack-reminders?secret=CRON_SECRET
+ *   GET /api/cron/policy-ack-reminders   (Authorization: Bearer <admin JWT>
+ *                                         → sweeps ONLY the caller's tenant)
  *
  * Spec: "Pending Policy Acknowledgement — Notification & Email Workflow v1.0"
  *
- * Sweeps every active tenant daily and:
+ * Sweeps every tenant with a DEDICATED database (shared platform-DB tenants
+ * are skipped — their legacy rows have no per-tenant scoping) and:
  *   1. Finds ACTIVE policies whose assignment date (effectiveDate || createdAt)
  *      is ≥ 30 calendar days in the past.
  *   2. Finds active employees who have NOT acknowledged the policy's current
@@ -22,10 +25,12 @@
  *      for a policy version once it is acknowledged.
  *
  * Schedule (vercel.json): daily 03:00 UTC = 08:30 IST — Hobby-plan safe.
+ * Vercel Cron injects `Authorization: Bearer $CRON_SECRET` automatically.
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { getPlatformDb, getDbForTenantById } from '@/lib/tenant-db';
 import { dispatchNotification } from '@/lib/notification-center';
+import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 
 const CRON_SECRET = process.env.CRON_SECRET || '3boxes-hrms-cron-2026';
 const THRESHOLD_DAYS = 30;   // first escalation after 30 calendar days
@@ -51,12 +56,45 @@ export async function GET(request: NextRequest) {
     const searchParams = new URL(request.url).searchParams;
     const bearer = request.headers.get('authorization');
     const bearerToken = bearer?.startsWith('Bearer ') ? bearer.slice(7).trim() : null;
-    if (searchParams.get('secret') !== CRON_SECRET && bearerToken !== CRON_SECRET) {
+
+    // Auth mode 1 — Vercel Cron (secret): sweep ALL dedicated tenants.
+    const isCronSecret = searchParams.get('secret') === CRON_SECRET || bearerToken === CRON_SECRET;
+
+    // Auth mode 2 — admin/HR JWT: sweep ONLY the caller's tenant (manual
+    // "run now" from the app; also lets admins verify the reminder pipeline).
+    let adminTenantId: string | null = null;
+    if (!isCronSecret && bearerToken) {
+      try {
+        const decoded = await verifyToken(getTokenFromHeaders(request.headers) || '');
+        const role = (decoded as { role?: string } | null)?.role || '';
+        const tid = (decoded as { tenantId?: string | null } | null)?.tenantId || null;
+        if (['super_admin', 'tenant_admin', 'admin', 'hr_admin', 'company_hr_admin'].includes(role)) {
+          adminTenantId = tid;
+        }
+      } catch { /* fall through to unauthorized */ }
+    }
+
+    if (!isCronSecret && !adminTenantId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: cors() });
     }
 
     const platformDb = getPlatformDb();
-    const tenants = await platformDb.tenant.findMany({ where: { status: 'active' }, select: { id: true, name: true } });
+
+    // Dedicated-DB tenants only (LIVE + demo pattern). Shared platform-DB
+    // tenants are skipped: their legacy rows have no tenant scoping and
+    // re-sweeping the platform DB once per shared tenant caused timeouts.
+    const dedicated = await platformDb.tenantDatabase.findMany({
+      where: { isActive: true },
+      select: { tenantId: true, tenant: { select: { name: true, slug: true, status: true } } },
+    });
+    let tenants = dedicated
+      .filter((d: any) => d.tenant?.status === 'active')
+      .map((d: any) => ({ id: d.tenantId, name: d.tenant?.name || d.tenant?.slug || d.tenantId }));
+
+    // Admin-JWT mode: restrict to the caller's own tenant (super admins with
+    // no tenant scope sweep everything, same as cron mode).
+    const sweepAll = isCronSecret || !adminTenantId;
+    if (!sweepAll) tenants = tenants.filter((t: { id: string }) => t.id === adminTenantId);
 
     let alertsSent = 0;
     const details: any[] = [];
@@ -72,6 +110,8 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
+      mode: sweepAll ? 'all_tenants' : 'admin_single_tenant',
+      tenantsSwept: tenants.length,
       alertsSent,
       details,
       thresholdDays: THRESHOLD_DAYS,
