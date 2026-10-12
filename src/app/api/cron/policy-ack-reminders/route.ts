@@ -179,6 +179,10 @@ async function sweepTenant(db: any, tenantId: string, tenantName: string, detail
 
   let sent = 0;
 
+  // Task 88 diagnostics: per-employee skip reasons surfaced in the response
+  // so a zero-dispatch sweep is explainable from the outside.
+  const hrCount = hrUsers.length;
+
   for (const emp of employees) {
     // Eligible pending policies for this employee
     const pending: { title: string; version: string; assignedOn: string; days: number }[] = [];
@@ -213,6 +217,11 @@ async function sweepTenant(db: any, tenantId: string, tenantName: string, detail
       Days_Pending: String(Math.max(...pending.map((p) => p.days))),
     };
 
+    const empDiag: Record<string, unknown> = {
+      hasLogin: !!emp.userId,
+      hasRm: !!rmUserId,
+    };
+
     // 1) Employee reminder (recommended by the spec matrix)
     if (emp.userId && !(await alreadySent(db, 'core_hr.policy.ack_employee_reminder', emp.id, emp.userId, REPEAT_DAYS))) {
       const res = await dispatchNotification({
@@ -224,8 +233,12 @@ async function sweepTenant(db: any, tenantId: string, tenantName: string, detail
           Days_Pending: baseVars.Days_Pending,
         },
         entity: { type: 'policy_ack_reminder', id: emp.id, link: '/policies-handbook' },
-      }).catch(() => null);
-      sent += res ? res.deliveries.filter((d: any) => d.status === 'sent').length : 0;
+      }).catch((e: Error) => ({ skipped: `threw: ${e.message}` }));
+      const d = res as { skipped?: string; deliveries?: { status: string }[] } | null;
+      empDiag.employeeDispatch = d ? { skipped: d.skipped || null, sent: (d.deliveries || []).filter((x) => x.status === 'sent').length, total: (d.deliveries || []).length } : 'null';
+      sent += d ? (d.deliveries || []).filter((x: any) => x.status === 'sent').length : 0;
+    } else {
+      empDiag.employeeDispatch = emp.userId ? 'deduped' : 'no login';
     }
 
     // 2) Reporting Manager alert (identifies the employee + pending policies)
@@ -236,27 +249,37 @@ async function sweepTenant(db: any, tenantId: string, tenantName: string, detail
         recipients: [{ userId: rmUserId }],
         vars: baseVars,
         entity: { type: 'policy_ack_reminder', id: emp.id, link: '/company/policies' },
-      }).catch(() => null);
-      sent += res ? res.deliveries.filter((d: any) => d.status === 'sent').length : 0;
+      }).catch((e: Error) => ({ skipped: `threw: ${e.message}` }));
+      const d = res as { skipped?: string; deliveries?: { status: string }[] } | null;
+      empDiag.rmDispatch = d ? { skipped: d.skipped || null, sent: (d.deliveries || []).filter((x) => x.status === 'sent').length, total: (d.deliveries || []).length } : 'null';
+      sent += d ? (d.deliveries || []).filter((x: any) => x.status === 'sent').length : 0;
+    } else {
+      empDiag.rmDispatch = rmUserId ? 'deduped' : 'no rm login';
     }
 
     // 3) HR / Admin alerts
+    let hrSent = 0; let hrSkipped = 0;
     for (const hr of hrUsers) {
-      if (await alreadySent(db, 'core_hr.policy.ack_pending', emp.id, hr.id, REPEAT_DAYS)) continue;
+      if (await alreadySent(db, 'core_hr.policy.ack_pending', emp.id, hr.id, REPEAT_DAYS)) { hrSkipped++; continue; }
       const res = await dispatchNotification({
         tenantId, module: 'core_hr', eventKey: 'core_hr.policy.ack_pending',
         recipients: [{ userId: hr.id }],
         vars: baseVars,
         entity: { type: 'policy_ack_reminder', id: emp.id, link: '/company/policies' },
-      }).catch(() => null);
-      sent += res ? res.deliveries.filter((d: any) => d.status === 'sent').length : 0;
+      }).catch((e: Error) => ({ skipped: `threw: ${e.message}` }));
+      const d = res as { skipped?: string; deliveries?: { status: string }[] } | null;
+      if (!d || d.skipped) { hrSkipped++; empDiag.hrDispatchSkipped = d?.skipped || 'unknown'; continue; }
+      hrSent += (d.deliveries || []).filter((x) => x.status === 'sent').length;
     }
+    sent += hrSent;
+    empDiag.hrDispatch = { hrUsers: hrCount, sent: hrSent, deduped: hrSkipped };
 
     details.push({
       tenant: tenantName,
       employee: empName,
       pendingPolicies: pending.map((p) => `${p.title} (v${p.version})`),
       daysPending: baseVars.Days_Pending,
+      diag: empDiag,
     });
   }
   return sent;
