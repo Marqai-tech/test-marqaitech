@@ -189,6 +189,24 @@ export async function applyEmployeeFieldChange(
   }
 
   // ─── HIGH-risk: pending approval chain ───
+
+  // Task 88 (spec rule 8 — duplicate requests): block a second pending
+  // request for the same employee+field so approvers never see stacked
+  // identical entries and the employee gets a clear message instead.
+  const existingPending = await (db as any).employeeUpdateRequest.findFirst({
+    where: { employeeId, fieldName, status: 'pending' },
+    orderBy: { requestedAt: 'desc' },
+  }).catch(() => null);
+  if (existingPending) {
+    const submittedOn = existingPending.requestedAt
+      ? new Date(existingPending.requestedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+      : 'recently';
+    return {
+      ok: false, status: 409, applied: false,
+      error: `A change for "${fieldConfig.label}" is already pending approval (submitted ${submittedOn}). Your existing details remain unchanged until it is approved — cancel it from Update Requests if you want to submit a new value.`,
+    };
+  }
+
   const wfConfig = await ensureWorkflowConfig(db, opts.req || new Request('http://local/'), 'update_profile');
   if (!wfConfig?.tiers?.length) {
     return { ok: false, status: 409, error: 'Employee profile workflow is not configured for this tenant', applied: false };
@@ -246,32 +264,57 @@ export async function applyEmployeeFieldChange(
     });
   }
 
-  // Notify the tier-1 approver — multi-channel + actionable (email + in-app)
+  // ─── Notifications (multi-channel, email + in-app; failures are non-fatal) ───
   try {
-    const firstStep = await (db as any).employeeUpdateApprovalStep.findFirst({
-      where: { updateRequestId: updateRequest.id, tier: 1 },
-    });
-    if (firstStep?.approverUserId && auth.tenantId) {
+    const empRow = await db.employee.findUnique({ where: { id: employeeId }, select: { firstName: true, lastName: true } });
+    const employeeName = empRow ? `${empRow.firstName || ''} ${empRow.lastName || ''}`.trim() : 'An employee';
+    const critical = ['bank', 'account', 'salary', 'pan', 'aadhaar', 'ssn', 'tax', 'pf', 'esi'].some((k) => fieldName.toLowerCase().includes(k));
+
+    if (auth.tenantId) {
       const { dispatchNotification } = await import('@/lib/notification-center');
-      const empRow = await db.employee.findUnique({ where: { id: employeeId }, select: { firstName: true, lastName: true } });
-      const critical = ['bank', 'account', 'salary', 'pan', 'aadhaar', 'ssn', 'tax', 'pf', 'esi'].some((k) => fieldName.toLowerCase().includes(k));
+      const entity = { type: 'employee_update_request', id: updateRequest.id, link: '/employees/update-requests' };
+      const submittedAt = new Date().toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
+
+      // Notify the tier-1 approver — actionable (email + in-app)
+      const firstStep = await (db as any).employeeUpdateApprovalStep.findFirst({
+        where: { updateRequestId: updateRequest.id, tier: 1 },
+      });
+      if (firstStep?.approverUserId) {
+        await dispatchNotification({
+          tenantId: auth.tenantId,
+          module: 'core_hr',
+          eventKey: 'core_hr.profile.update_requested',
+          recipients: [{ userId: firstStep.approverUserId }],
+          vars: {
+            Employee_Name: employeeName,
+            Field_Name: fieldConfig.label || fieldName,
+            New_Value: cleanNewValue,
+            Critical: critical ? ' This is a PAYROLL-CRITICAL change.' : '',
+          },
+          entity,
+          origin: opts.origin || undefined,
+        });
+      }
+
+      // Task 88 (spec Workflow 1): submission confirmation to the requesting
+      // employee — in-app + email. Their details stay unchanged until approval.
       await dispatchNotification({
         tenantId: auth.tenantId,
         module: 'core_hr',
-        eventKey: 'core_hr.profile.update_requested',
-        recipients: [{ userId: firstStep.approverUserId }],
+        eventKey: 'core_hr.profile.update_submitted',
+        recipients: [{ userId: auth.userId }],
         vars: {
-          Employee_Name: empRow ? `${empRow.firstName || ''} ${empRow.lastName || ''}`.trim() : 'An employee',
+          Employee_Name: employeeName,
           Field_Name: fieldConfig.label || fieldName,
           New_Value: cleanNewValue,
-          Critical: critical ? ' This is a PAYROLL-CRITICAL change.' : '',
+          Requested_At: submittedAt,
         },
-        entity: { type: 'employee_update_request', id: updateRequest.id, link: '/employees/update-requests' },
+        entity,
         origin: opts.origin || undefined,
       });
     }
   } catch (e) {
-    console.warn('[employee-update-request] approver notification failed (non-fatal):', (e as Error).message);
+    console.warn('[employee-update-request] notification failed (non-fatal):', (e as Error).message);
   }
 
   return { ok: true, applied: false, request: updateRequest, message: 'Update request submitted for approval' };

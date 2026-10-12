@@ -532,10 +532,14 @@ export default function EmployeeDashboardPage() {
       </div>
 
       {/* ── Tab Navigation ── */}
+      {/* Task 88: the Analytics tab is company-wide HR analytics — hidden
+          from employee & manager logins per requirement ("Remove the
+          Analytics section from My Dashboard in the Employee login").
+          Admin / HR roles retain it. */}
       <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-xl w-fit">
         {[
           { key: 'overview' as const, label: 'Overview', icon: FiGrid },
-          { key: 'analytics' as const, label: 'Analytics', icon: FiBarChart2 },
+          ...(isAdmin ? [{ key: 'analytics' as const, label: 'Analytics', icon: FiBarChart2 }] : []),
           { key: 'updates' as const, label: 'Updates', icon: FiActivity },
         ].map(tab => {
           const Icon = tab.icon;
@@ -755,9 +759,9 @@ export default function EmployeeDashboardPage() {
       )}
 
       {/* ══════════════════════════════════════════════════════════════
-          ANALYTICS TAB
+          ANALYTICS TAB (admin / HR only — Task 88)
          ══════════════════════════════════════════════════════════════ */}
-      {activeTab === 'analytics' && (
+      {isAdmin && activeTab === 'analytics' && (
         <>
           {/* Headcount Trend */}
           <div className="thb-card p-5">

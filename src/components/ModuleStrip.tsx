@@ -81,7 +81,7 @@ const navSections: NavSection[] = [
     items: [
       { label: 'HR Dashboard', href: '/dashboards/hr', icon: <FiUsers className="w-5 h-5" />, isNew: true },
       { label: 'My Profile', href: '/my-profile', icon: <FiUsers className="w-5 h-5" /> },
-      { label: 'Employee Dashboard', href: '/dashboards/employee', icon: <FiUsers className="w-5 h-5" />, isNew: true },
+      { label: 'Admin Dashboard', href: '/dashboards/employee', icon: <FiUsers className="w-5 h-5" />, isNew: true },
       { label: 'Employees', href: '/employees', icon: <FiUsers className="w-5 h-5" />, moduleKey: 'employees' },
       { label: 'Company Management', href: '/company', icon: <FiGlobe className="w-5 h-5" />, moduleKey: 'company' },
     ],

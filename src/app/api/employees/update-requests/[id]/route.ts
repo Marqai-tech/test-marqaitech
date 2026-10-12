@@ -86,9 +86,19 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (!['approve', 'reject'].includes(action)) {
       return NextResponse.json({ error: 'Unknown action' }, { status: 400, headers: corsHeaders() });
     }
+    // Task 88 (spec rule 4): the admin must provide a reason when rejecting.
+    if (action === 'reject' && !comments) {
+      return NextResponse.json({ error: 'A rejection reason is required' }, { status: 400, headers: corsHeaders() });
+    }
     if (updateRequest.status !== 'pending') {
       return NextResponse.json({ error: `This request is already ${updateRequest.status}` }, { status: 400, headers: corsHeaders() });
     }
+
+    // Task 88: include the decision-maker's name in employee notifications.
+    const actor = await db.user.findUnique({ where: { id: auth.userId }, select: { name: true, email: true } }).catch(() => null);
+    const approverName = (actor as { name?: string | null; email?: string | null } | null)?.name
+      || (actor as { email?: string | null } | null)?.email
+      || 'Admin';
 
     const currentTier = updateRequest.currentTier || 1;
     const step = await (db as any).employeeUpdateApprovalStep.findFirst({
@@ -128,7 +138,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
             vars: {
               Field_Name: updateRequest.fieldLabel || updateRequest.fieldName,
               Status: 'REJECTED',
-              Approver_Name: '',
+              Approver_Name: approverName,
               Comment: comments ? `Comments: ${comments}` : '',
             },
             entity: { type: 'employee_update_request', id, link: '/employees/update-requests' },
@@ -195,7 +205,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
               vars: {
                 Field_Name: updateRequest.fieldLabel || updateRequest.fieldName,
                 Status: 'APPROVED & APPLIED',
-                Approver_Name: '',
+                Approver_Name: approverName,
                 Comment: comments ? `Comments: ${comments}` : '',
               },
               entity: { type: 'employee_update_request', id, link: '/employees/update-requests' },
@@ -215,6 +225,31 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       where: { id },
       data: { currentTier: nextStep.tier },
     });
+
+    // Task 88: notify the next-tier approver (email + in-app) so tiered
+    // chains never stall silently at tier 2+.
+    try {
+      if (auth.tenantId && nextStep.approverUserId) {
+        const { dispatchNotification } = await import('@/lib/notification-center');
+        const empRow = await db.employee.findUnique({ where: { id: updateRequest.employeeId }, select: { firstName: true, lastName: true } });
+        const critical = ['bank', 'account', 'salary', 'pan', 'aadhaar', 'ssn', 'tax', 'pf', 'esi'].some((k) => updateRequest.fieldName.toLowerCase().includes(k));
+        await dispatchNotification({
+          tenantId: auth.tenantId,
+          module: 'core_hr',
+          eventKey: 'core_hr.profile.update_requested',
+          recipients: [{ userId: nextStep.approverUserId }],
+          vars: {
+            Employee_Name: empRow ? `${empRow.firstName || ''} ${empRow.lastName || ''}`.trim() : 'An employee',
+            Field_Name: updateRequest.fieldLabel || updateRequest.fieldName,
+            New_Value: updateRequest.newValue,
+            Critical: critical ? ' This is a PAYROLL-CRITICAL change.' : '',
+          },
+          entity: { type: 'employee_update_request', id, link: '/employees/update-requests' },
+          origin: req.headers.get('origin') || undefined,
+        });
+      }
+    } catch { /* non-fatal */ }
+
     return NextResponse.json({ message: `Approved — moved to Tier ${nextStep.tier}`, finalized: false }, { headers: corsHeaders() });
   } catch (error) {
     console.error('Update request PATCH error:', error);

@@ -39,8 +39,8 @@ const DASHBOARD_CATEGORIES = [
         iconColor: 'text-white',
       },
       {
-        title: 'Employee Dashboard',
-        description: 'Personal employee view — attendance, leave balance, payslips, schedule, and announcements',
+        title: 'Admin Dashboard',
+        description: 'Personal admin view — attendance, leave balance, payslips, schedule, and announcements',
         icon: FiUser,
         route: '/dashboards/employee',
         gradient: 'from-emerald-500 to-teal-600',
