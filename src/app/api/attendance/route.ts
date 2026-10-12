@@ -361,25 +361,12 @@ export async function POST(request: Request) {
       const overlapsLunch = checkInMinutes < 14 * 60 + 30 && checkOutMinutes > 13 * 60 + 30;
       const breakMinutes = punchedBreakMinutes != null ? punchedBreakMinutes : (overlapsLunch ? 60 : 0);
       const workHours = Math.max(0, (grossMinutes - breakMinutes) / 60);
-      let standardHours = 9;
-      try {
-        const policyConfig = await db.attendancePolicyConfig.findFirst({
-          where: { companyId: targetEmployee.companyId },
-          select: { shiftStartDefault: true, shiftEndDefault: true },
-        });
-        const startMins = policyConfig?.shiftStartDefault && /^\d{1,2}:\d{2}$/.test(policyConfig.shiftStartDefault)
-          ? (() => { const [h, m] = policyConfig.shiftStartDefault.split(':').map(Number); return h * 60 + m; })()
-          : 9 * 60 + 30;
-        const endMins = policyConfig?.shiftEndDefault && /^\d{1,2}:\d{2}$/.test(policyConfig.shiftEndDefault)
-          ? (() => { const [h, m] = policyConfig.shiftEndDefault.split(':').map(Number); return h * 60 + m; })()
-          : 18 * 60 + 30;
-        const span = endMins > startMins ? endMins - startMins : endMins + 24 * 60 - startMins;
-        standardHours = span / 60;
-      } catch {
-        standardHours = 9;
-      }
-      const overtime = Math.max(0, (grossMinutes - (standardHours * 60)) / 60);
       const belowEightHours = workHours < 8;
+      // Overtime is earned only after both requirements are met:
+      // eight net production hours and the 6:30 PM IST shift end.
+      const overtime = workHours >= 8 && checkOutMinutes > 18 * 60 + 30
+        ? Math.max(0, (checkOutMinutes - (18 * 60 + 30)) / 60)
+        : 0;
 
       const attendance = await db.attendance.update({
         where: {
