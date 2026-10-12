@@ -515,11 +515,17 @@ export async function POST(request: NextRequest) {
       details: `${action} for employee ${employee.employeeId} at ${timestamp.toISOString()}${gpsLat != null ? ` (GPS: ${gpsLat.toFixed(6)},${gpsLng!.toFixed(6)})` : ''}`,
     });
 
+    const userMessage = action === 'breakin' && localMinutes !== null && localMinutes < 13 * 60 + 30
+      ? 'Early Break-In recorded. The official break starts at 1:30 PM; taking break early may reduce production time.'
+      : action === 'breakout' && localMinutes !== null && localMinutes < 14 * 60 + 30
+        ? 'Break-Out recorded. Production hours start at 2:30 PM.'
+        : undefined;
     return NextResponse.json({
       ok: true,
       event: punchEvent,
       attendance,
       timestamp: timestamp.toISOString(),
+      ...(userMessage ? { message: userMessage } : {}),
     }, { headers: corsHeaders() });
   } catch (error) {
     console.error('[punch] POST error:', error);
