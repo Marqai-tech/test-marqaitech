@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
     let adminTenantId: string | null = null;
     if (!isCronSecret && bearerToken) {
       try {
-        const decoded = await verifyToken(getTokenFromHeaders(request.headers) || '');
+        const decoded = await verifyToken(getTokenFromHeaders(request) || '');
         const role = (decoded as { role?: string } | null)?.role || '';
         const tid = (decoded as { tenantId?: string | null } | null)?.tenantId || null;
         if (['super_admin', 'tenant_admin', 'admin', 'hr_admin', 'company_hr_admin'].includes(role)) {
