@@ -131,10 +131,15 @@ let lastDedupeError: string | null = null; // surfaced in the response diag
 async function alreadySent(db: any, eventKey: string, entityId: string, recipientId: string, sinceDays: number): Promise<boolean> {
   const since = new Date(Date.now() - sinceDays * 24 * 3600 * 1000);
   try {
-    const count = await db.notificationDelivery.count({
+    // findFirst (plain select) instead of count(): the Neon HTTP driver's
+    // aggregate path proved unreliable on the deployed runtime (returned
+    // phantom matches), while plain selects — used by the action-token
+    // route and the escalation cron — behave correctly.
+    const row = await db.notificationDelivery.findFirst({
       where: { eventKey, entityType: 'policy_ack_reminder', entityId, recipientId, createdAt: { gte: since } },
+      select: { id: true },
     });
-    return count > 0;
+    return !!row;
   } catch (e: any) {
     // On error, assume already sent (safer than spamming) — but record WHY
     // so the cron response can explain a zero-dispatch sweep.
