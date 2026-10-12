@@ -217,6 +217,7 @@ async function sweepTenant(db: any, tenantId: string, tenantName: string, detail
       Days_Pending: String(Math.max(...pending.map((p) => p.days))),
     };
 
+    const rmUserId = emp.reportingManager?.userId;
     const empDiag: Record<string, unknown> = {
       hasLogin: !!emp.userId,
       hasRm: !!rmUserId,
@@ -242,7 +243,6 @@ async function sweepTenant(db: any, tenantId: string, tenantName: string, detail
     }
 
     // 2) Reporting Manager alert (identifies the employee + pending policies)
-    const rmUserId = emp.reportingManager?.userId;
     if (rmUserId && !(await alreadySent(db, 'core_hr.policy.ack_pending', emp.id, rmUserId, REPEAT_DAYS))) {
       const res = await dispatchNotification({
         tenantId, module: 'core_hr', eventKey: 'core_hr.policy.ack_pending',
