@@ -29,6 +29,16 @@ interface Regularization {
   employee?: { id: string; firstName: string; lastName: string; employeeId: string };
 }
 
+interface AttendanceContext {
+  checkIn?: string | null;
+  checkOut?: string | null;
+  breakIn?: string | null;
+  breakOut?: string | null;
+  breakMinutes?: number | null;
+  workHours?: number | null;
+  status?: string | null;
+}
+
 export default function RegularizePage() {
   const { user } = useAuthStore();
   const scopeQuery = useCompanyContextStore(s => s.scopeQuery);
@@ -41,6 +51,8 @@ export default function RegularizePage() {
   const [submitting, setSubmitting] = useState(false);
   const [viewTarget, setViewTarget] = useState<Regularization | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [attendanceContext, setAttendanceContext] = useState<AttendanceContext | null>(null);
+  const [attendanceLoading, setAttendanceLoading] = useState(false);
 
   const [form, setForm] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -65,6 +77,18 @@ export default function RegularizePage() {
   }, [scopeQuery, selectedTenantId]);
 
   useEffect(() => { fetchItems(); }, [fetchItems]);
+
+  useEffect(() => {
+    if (!showForm || !form.date || !form.punchType) { setAttendanceContext(null); return; }
+    let cancelled = false;
+    setAttendanceLoading(true);
+    fetch(`/api/attendance?date=${encodeURIComponent(form.date)}&limit=1`, { headers: getAuthHeaders() })
+      .then(r => r.json())
+      .then(d => { if (!cancelled) setAttendanceContext((d.attendance || d.records || [])[0] || null); })
+      .catch(() => { if (!cancelled) setAttendanceContext(null); })
+      .finally(() => { if (!cancelled) setAttendanceLoading(false); });
+    return () => { cancelled = true; };
+  }, [showForm, form.date, form.punchType]);
 
   const handleSubmit = async () => {
     // Trim-validate the reason — whitespace-only input must be rejected
@@ -176,6 +200,8 @@ export default function RegularizePage() {
               <select value={form.punchType} onChange={e => setForm({ ...form, punchType: e.target.value })} className="3boxes-input w-full">
                 <option value="check_in">Check-In (forgot to clock in)</option>
                 <option value="check_out">Check-Out (forgot to clock out)</option>
+                <option value="break_in">Break-In (incorrect break start)</option>
+                <option value="break_out">Break-Out (incorrect break return)</option>
                 <option value="production_shortfall">Production Hours Shortfall (under 8 hours)</option>
               </select>
             </div>
@@ -188,6 +214,21 @@ export default function RegularizePage() {
               <input type="text" value={form.reason} onChange={e => setForm({ ...form, reason: e.target.value })} className="3boxes-input w-full" placeholder="e.g. Forgot to punch in after meeting" />
             </div>
           </div>
+          {form.date && form.punchType && (
+            <div className="mt-4 rounded-lg border border-cyan-100 bg-cyan-50/50 p-4">
+              <p className="text-sm font-semibold text-slate-700 mb-3">Attendance details for selected date</p>
+              {attendanceLoading ? <p className="text-xs text-slate-500">Loading attendance details…</p> : attendanceContext ? (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                  {([['Check-in', attendanceContext.checkIn], ['Check-out', attendanceContext.checkOut], ['Break-in', attendanceContext.breakIn], ['Break-out', attendanceContext.breakOut]] as const).map(([label, value]) => (
+                    <div key={label}><p className="text-slate-500">{label}</p><p className="font-semibold text-slate-800">{value ? new Date(value).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}</p></div>
+                  ))}
+                  <div><p className="text-slate-500">Break duration</p><p className="font-semibold text-slate-800">{attendanceContext.breakMinutes ?? 0} min</p></div>
+                  <div><p className="text-slate-500">Production hours</p><p className="font-semibold text-slate-800">{attendanceContext.workHours ?? '—'}</p></div>
+                  <div><p className="text-slate-500">Status</p><p className="font-semibold text-slate-800 capitalize">{attendanceContext.status?.replace('_', ' ') || '—'}</p></div>
+                </div>
+              ) : <p className="text-xs text-slate-500">No attendance record found for this date.</p>}
+            </div>
+          )}
           <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
             <p className="text-xs text-amber-700">
               <FiZap className="w-3.5 h-3.5 inline mr-1" />
