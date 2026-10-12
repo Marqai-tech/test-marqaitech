@@ -238,11 +238,21 @@ function calculateBreakDuration(checkIn: string | null | undefined, checkOut: st
   if (!checkIn || !checkOut || workHours == null) return '—';
   const breakMins = breakIn && breakOut
     ? Math.max(0, Math.round((new Date(breakOut).getTime() - new Date(breakIn).getTime()) / 60000))
-    : 60;
+    : calculateLunchOverlapMinutes(checkIn, checkOut);
   if (breakMins < 60) return `${breakMins}m`;
   const h = Math.floor(breakMins / 60);
   const m = breakMins % 60;
   return `${h}h ${m}m`;
+}
+
+function calculateLunchOverlapMinutes(checkIn: string, checkOut: string): number {
+  const parts = (value: string) => {
+    const formatted = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(new Date(value));
+    return Number(formatted.find(p => p.type === 'hour')?.value || 0) * 60 + Number(formatted.find(p => p.type === 'minute')?.value || 0);
+  };
+  const start = parts(checkIn);
+  const end = parts(checkOut);
+  return start < 14 * 60 + 30 && end > 13 * 60 + 30 ? 60 : 0;
 }
 
 // Dashboard production hours use the fixed one-hour lunch rule.
@@ -251,9 +261,8 @@ function calculateProductionHours(checkIn: string | null | undefined, checkOut: 
   const spanMinutes = Math.max(0, Math.round((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / 60000));
   const recordedBreak = breakIn && breakOut
     ? Math.max(0, Math.round((new Date(breakOut).getTime() - new Date(breakIn).getTime()) / 60000))
-    : 60;
-  // One hour is mandatory; any additional break time reduces production hours.
-  const effectiveBreak = Math.max(60, recordedBreak);
+    : calculateLunchOverlapMinutes(checkIn, checkOut);
+  const effectiveBreak = recordedBreak;
   return Math.round((Math.max(0, spanMinutes - effectiveBreak) / 60) * 100) / 100;
 }
 
