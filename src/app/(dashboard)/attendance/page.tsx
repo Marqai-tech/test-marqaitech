@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import {
   FiClock,
   FiLogIn,
@@ -27,6 +27,7 @@ import {
   FiRefreshCw,
   FiDatabase,
   FiCoffee,
+  FiInfo,
 } from 'react-icons/fi';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
@@ -220,7 +221,7 @@ function isOnLeave(leaves: Array<{ employeeId: string; startDate: string; endDat
 
 /* Late-by measured from the configured shift START (policy), e.g.
  * Shift 9:00 · Check-in 9:42 → "42m". Falls back to a 09:00 shift. */
-function calculateLateBy(checkIn: string | null | undefined, shiftStartMinutes = 540): string {
+function calculateLateBy(checkIn: string | null | undefined, shiftStartMinutes = 600): string {
   if (!checkIn) return '0m';
   const checkInTime = new Date(checkIn);
   if (isNaN(checkInTime.getTime())) return '0m';
@@ -233,17 +234,44 @@ function calculateLateBy(checkIn: string | null | undefined, shiftStartMinutes =
   return `${hours}h ${mins}m`;
 }
 
-function calculateBreakDuration(checkIn: string | null | undefined, checkOut: string | null | undefined, workHours: number | null | undefined): string {
+function calculateBreakDuration(checkIn: string | null | undefined, checkOut: string | null | undefined, workHours: number | null | undefined, breakIn?: string | null, breakOut?: string | null): string {
   if (!checkIn || !checkOut || workHours == null) return '—';
-  const totalMs = new Date(checkOut).getTime() - new Date(checkIn).getTime();
-  const totalHours = totalMs / (1000 * 60 * 60);
-  const breakHours = totalHours - workHours;
-  if (breakHours <= 0) return '0m';
-  const breakMins = Math.round(breakHours * 60);
+  const breakMins = breakIn && breakOut
+    ? Math.max(0, Math.round((new Date(breakOut).getTime() - new Date(breakIn).getTime()) / 60000))
+    : calculateLunchOverlapMinutes(checkIn, checkOut);
   if (breakMins < 60) return `${breakMins}m`;
   const h = Math.floor(breakMins / 60);
   const m = breakMins % 60;
   return `${h}h ${m}m`;
+}
+
+function calculateLunchOverlapMinutes(checkIn: string, checkOut: string): number {
+  const parts = (value: string) => {
+    const formatted = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(new Date(value));
+    return Number(formatted.find(p => p.type === 'hour')?.value || 0) * 60 + Number(formatted.find(p => p.type === 'minute')?.value || 0);
+  };
+  const start = parts(checkIn);
+  const end = parts(checkOut);
+  return start < 14 * 60 + 30 && end > 13 * 60 + 30 ? 60 : 0;
+}
+
+// Dashboard production hours use the fixed one-hour lunch rule.
+function calculateProductionHours(checkIn: string | null | undefined, checkOut: string | null | undefined, breakIn?: string | null, breakOut?: string | null): number | null {
+  if (!checkIn || !checkOut) return null;
+  const spanMinutes = Math.max(0, Math.round((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / 60000));
+  const recordedBreak = breakIn && breakOut
+    ? Math.max(0, Math.round((new Date(breakOut).getTime() - new Date(breakIn).getTime()) / 60000))
+    : calculateLunchOverlapMinutes(checkIn, checkOut);
+  const effectiveBreak = recordedBreak;
+  return Math.round((Math.max(0, spanMinutes - effectiveBreak) / 60) * 100) / 100;
+}
+
+function calculateCompanyOvertime(checkOut: string | null | undefined): number {
+  if (!checkOut) return 0;
+  const end = new Date(checkOut);
+  const cutoff = new Date(end);
+  cutoff.setHours(18, 30, 0, 0);
+  return Math.max(0, Math.round((end.getTime() - cutoff.getTime()) / 60000) / 60);
 }
 
 /* ── Sample Attendance Data removed — data comes from API only ── */
@@ -272,7 +300,7 @@ export default function AttendancePage() {
   const [adminEmployees, setAdminEmployees] = useState<Array<{ id: string; firstName: string; lastName: string; employeeId: string }>>([]);
   const [holidayMap, setHolidayMap] = useState<Map<string, string>>(new Map());
   const [weekendDow, setWeekendDow] = useState<number[]>([0, 6]); // Sun + Sat default
-  const [shiftStartMinutes, setShiftStartMinutes] = useState(570); // 09:30 default
+  const [shiftStartMinutes, setShiftStartMinutes] = useState(600); // 10:00 company late cutoff
   const [approvedLeaves, setApprovedLeaves] = useState<Array<{ employeeId: string; startDate: string; endDate: string }>>([]);
 
   /* ── Self view state ── */
@@ -311,13 +339,56 @@ export default function AttendancePage() {
   });
   const [viewMode, setViewMode] = useState<'table' | 'calendar'>('calendar');
 
+  /* Task 84: per-day punch counts for the current month — powers the
+   * "Recent days" strip so admins can see at a glance WHICH days have
+   * punches and jump straight to them (weekend/holiday days show zero
+   * punches by design, which previously read as "logs missing"). */
+  const [monthPunchCounts, setMonthPunchCounts] = useState<Map<string, number>>(new Map());
+
   /* ── Detail modal ── */
   const [detailRecord, setDetailRecord] = useState<AttendanceRecord | null>(null);
 
   /* ── Fetch admin attendance (all employees for selected date) + roster ── */
+  const lastBiometricSyncAtRef = useRef(0);
   const fetchAdminAttendance = useCallback(async () => {
     try {
       setAdminLoading(true);
+      // Task 85: pull fresh Team Office (ETimeOffice) biometric punches before
+      // rendering. The per-minute Vercel cron was demoted to a daily backstop
+      // so Hobby-plan projects can deploy the shared vercel.json (per-minute
+      // schedules are Pro-only and failed demo deployment validation); this
+      // keeps the dashboard near-real-time whenever an admin opens it. The
+      // route is admin-only and silently no-ops where sync is not configured
+      // (403 on demo). Throttled to one call per minute.
+      if (Date.now() - lastBiometricSyncAtRef.current > 60_000) {
+        lastBiometricSyncAtRef.current = Date.now();
+        try {
+          await fetch('/api/attendance/biometric/sync', {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            signal: AbortSignal.timeout(6000),
+          });
+        } catch { /* non-fatal — roster still loads; daily cron is the backstop */ }
+      }
+      // Task 82: Auto-present for management — before reading the roster, ask
+      // the server to create/fill auto-present rows for the selected day.
+      // No-op when the toggle is off in Attendance Settings; real punches,
+      // approved leave, weekends and holidays are never overwritten.
+      if (selectedDate <= localDateKey(new Date())) {
+        try {
+          const syncRes = await fetch('/api/attendance/auto-present', {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ date: selectedDate, tzOffset: new Date().getTimezoneOffset(), todayKey: localDateKey(new Date()) }),
+          });
+          if (syncRes.ok) {
+            const syncData = await syncRes.json().catch(() => null);
+            if ((syncData?.created || 0) + (syncData?.updated || 0) > 0) {
+              toast.success(syncData?.message || 'Management auto-present applied');
+            }
+          }
+        } catch { /* non-fatal — the roster still loads */ }
+      }
       const params = new URLSearchParams({
         date: selectedDate,
         limit: '200',
@@ -327,9 +398,13 @@ export default function AttendancePage() {
       // the roster lets us derive Absent / On Leave / Weekend / Holiday for
       // employees who have NO attendance row (previously they were invisible
       // and the admin counts stayed at 0).
+      // NOTE: the roster MUST include management employees — their punches
+      // (real or auto-present) are the majority of admin-view rows. Do NOT
+      // add excludeManagement here; hiding management belongs to the Employee
+      // List page only, not the attendance dashboard.
       const [attRes, empRes] = await Promise.all([
-        fetch(`/api/attendance?${params.toString()}${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() }),
-        fetch(`/api/employees?limit=500&status=active${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() }),
+        fetch(`/api/attendance?${params.toString()}${sq ? `&${sq}` : ''}&includePhotos=0`, { headers: getAuthHeaders() }),
+        fetch(`/api/employees?limit=500&status=active&includePhotos=0${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() }),
       ]);
       if (attRes.ok) {
         const data = await attRes.json();
@@ -354,45 +429,48 @@ export default function AttendancePage() {
 
   /* ── Fetch org context: shift policy (late threshold + weekend days) + holidays ── */
   const fetchOrgContext = useCallback(async () => {
-    try {
-      const sq = scopeQuery();
-      const res = await fetch(`/api/attendance-policy-config${sq ? `?${sq}` : ''}`, { headers: getAuthHeaders() });
-      if (res.ok) {
-        const d = await res.json();
+    const sq = scopeQuery();
+    const [policyRes, holidayRes] = await Promise.all([
+      fetch(`/api/attendance-policy-config${sq ? `?${sq}` : ''}`, { headers: getAuthHeaders() }).catch(() => null),
+      fetch(`/api/holidays?year=${selectedMonth.year}&limit=200${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() }).catch(() => null),
+    ]);
+    if (policyRes?.ok) {
+      try {
+        const d = await policyRes.json();
         const cfg = d.config || {};
-        if (typeof cfg.shiftStartDefault === 'string' && /^\d{1,2}:\d{2}$/.test(cfg.shiftStartDefault)) {
-          const [h, m] = cfg.shiftStartDefault.split(':').map(Number);
-          setShiftStartMinutes(h * 60 + m);
-        }
+        // Company rule: Late By is always measured after 10:00 AM IST.
+        // Do not let legacy 09:00/09:30 policy values override this cutoff.
+        setShiftStartMinutes(10 * 60);
         if (Array.isArray(d.weekendDays) && d.weekendDays.length > 0) {
           setWeekendDow(d.weekendDays.map((n: number) => Number(n)));
         }
-      }
-    } catch { /* defaults stay */ }
-    try {
-      const sq = scopeQuery();
-      const res = await fetch(`/api/holidays?year=${selectedMonth.year}&limit=200${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
-      if (res.ok) {
-        const d = await res.json();
+      } catch { /* defaults stay */ }
+    }
+    if (holidayRes?.ok) {
+      try {
+        const d = await holidayRes.json();
         const rows = d.data || d.holidays || [];
         const map = new Map<string, string>();
         rows.forEach((h: { date: string; name?: string }) => { map.set(recordDateKey(h.date), h.name || 'Holiday'); });
         setHolidayMap(map);
-      }
-    } catch { /* keep previous */ }
+      } catch { /* keep previous */ }
+    }
   }, [scopeQuery, selectedTenantId, selectedMonth.year]);
 
   /* ── Fetch approved leaves (company-wide for admins, own for employees) ── */
   const fetchApprovedLeaves = useCallback(async () => {
     try {
       const sq = scopeQuery();
-      const res = await fetch(`/api/leave?status=approved&limit=500${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
+      const fromDate = `${selectedMonth.year}-${String(selectedMonth.month + 1).padStart(2, '0')}-01`;
+      const lastDay = new Date(selectedMonth.year, selectedMonth.month + 1, 0).getDate();
+      const toDate = `${selectedMonth.year}-${String(selectedMonth.month + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+      const res = await fetch(`/api/leave?status=approved&fromDate=${fromDate}&toDate=${toDate}&limit=500${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
       if (!res.ok) return;
       const d = await res.json();
       const rows = d.leaveRequests || d.leaves || [];
       setApprovedLeaves(rows.map((r: { employeeId: string; startDate: string; endDate: string }) => ({ employeeId: r.employeeId, startDate: r.startDate, endDate: r.endDate })));
     } catch { /* keep previous */ }
-  }, [scopeQuery, selectedTenantId]);
+  }, [scopeQuery, selectedTenantId, selectedMonth.month, selectedMonth.year]);
 
   /* ── Find current user's employee record ── */
   const fetchEmployee = useCallback(async () => {
@@ -408,30 +486,42 @@ export default function AttendancePage() {
         });
         return;
       }
-      if (isAdmin) {
-        return;
-      }
-      // Fallback: fetch from API and match by email or userId
+      // Task 83: admins must ALSO fall through to the API lookup.
+      // The login response never includes user.employee, so the previous
+      // `if (isAdmin) return;` early-exit left `employee` null for every
+      // admin — the My Attendance tab (calendar, table, stats) then showed
+      // zero logs forever, and Check In/Out errored with "Employee record
+      // not found". Admins who are also employees (e.g. HR manager MARQ001)
+      // now resolve their record by email/userId below. Admins without an
+      // employee row simply find no match and stay in the empty state.
       const sq = scopeQuery();
-      const res = await fetch(`/api/employees?limit=500${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
+      const employeeLimit = getDataScope(user?.role || '') === 'self' ? 1 : 500;
+      const res = await fetch(`/api/employees?limit=${employeeLimit}${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
         const myEmp = data.employees?.find((e: { email: string; userId?: string }) =>
           e.email === user?.email || e.userId === user?.id
         );
         if (myEmp) setEmployee(myEmp);
+        else setLoading(false);
+      } else {
+        setLoading(false);
       }
     } catch (err) {
       console.error('fetchEmployee error:', err);
+      setLoading(false);
     }
-  }, [user?.email, user?.id, user?.employee, isAdmin, scopeQuery, selectedTenantId]);
+  }, [user?.email, user?.id, user?.role, user?.employee, isAdmin, scopeQuery, selectedTenantId]);
 
   /* ── Fetch self attendance ── */
   const fetchAttendance = useCallback(async () => {
-    if (!employee) return;
+    if (!employee) {
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
-      const res = await fetch(`/api/attendance?employeeId=${employee.id}&limit=100`, { headers: getAuthHeaders() });
+      const res = await fetch(`/api/attendance?employeeId=${employee.id}&limit=100&includePhotos=0`, { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
         const fetched = data.attendance || [];
@@ -451,8 +541,46 @@ export default function AttendancePage() {
   useEffect(() => { queueMicrotask(() => fetchEmployee()); }, [fetchEmployee]);
   useEffect(() => { if (employee) queueMicrotask(() => fetchAttendance()); }, [employee, fetchAttendance]);
   useEffect(() => { if (isAdmin && activeTab === 'admin') queueMicrotask(() => fetchAdminAttendance()); }, [fetchAdminAttendance, activeTab, isAdmin]);
-  useEffect(() => { queueMicrotask(() => fetchOrgContext()); }, [fetchOrgContext]);
-  useEffect(() => { queueMicrotask(() => fetchApprovedLeaves()); }, [fetchApprovedLeaves]);
+  // Load the attendance record first. Policy/holiday and approved-leave data
+  // enrich the calendar but are not needed to render the main table or punch
+  // controls, so defer them until the browser has painted the primary view.
+  useEffect(() => {
+    const timer = window.setTimeout(() => fetchOrgContext(), 250);
+    return () => window.clearTimeout(timer);
+  }, [fetchOrgContext]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => fetchApprovedLeaves(), 350);
+    return () => window.clearTimeout(timer);
+  }, [fetchApprovedLeaves]);
+
+  /* Task 84: month-window punch counts for the Recent-days strip. Counted
+   * for TODAY's month (the strip always shows the last 7 calendar days);
+   * re-counted when the selected date changes so a fresh check-in shows up
+   * after the next navigation/refresh. */
+  useEffect(() => {
+    if (!isAdmin || activeTab !== 'admin') return;
+    (async () => {
+      try {
+        const now = new Date();
+        const m = now.getMonth() + 1;
+        const last = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+        const sq = scopeQuery();
+        const res = await fetch(
+          `/api/attendance?startDate=${now.getFullYear()}-${pad2(m)}-01&endDate=${now.getFullYear()}-${pad2(m)}-${pad2(last)}&limit=10000${sq ? `&${sq}` : ''}`,
+          { headers: getAuthHeaders() }
+        );
+        if (!res.ok) return;
+        const d = await res.json();
+        const counts = new Map<string, number>();
+        (d.attendance || []).forEach((r: AttendanceRecord) => {
+          if (!r.checkIn && !r.checkOut) return;
+          const k = recordDateKey(r.date);
+          counts.set(k, (counts.get(k) || 0) + 1);
+        });
+        setMonthPunchCounts(counts);
+      } catch { /* non-fatal — the strip just shows zero counts */ }
+    })();
+  }, [isAdmin, activeTab, scopeQuery, selectedTenantId, selectedDate]);
 
   /* ── Task 57: GPS capture helper ──
    * Uses navigator.geolocation.getCurrentPosition to grab lat/lng/accuracy
@@ -583,7 +711,7 @@ export default function AttendancePage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Could not enable Early Logout');
       setEarlyLogout(true);
-      toast.success('Early Logout enabled. Your next punch will be Check-Out.');
+      toast.success('Half-Day Leave / Early Checkout enabled. Your next punch will be Check-Out.');
       await fetchAttendance();
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Could not enable Early Logout');
@@ -727,6 +855,34 @@ export default function AttendancePage() {
     };
   }, [adminRoster]);
 
+  /* ── Task 84: Recent-days strip data (last 7 calendar days) + selected-day
+   * context so an empty table on a weekend/holiday explains itself instead
+   * of looking like missing data. ── */
+  const recentDays = useMemo(() => {
+    const out: Array<{ key: string; label: string; count: number; kind: 'weekend' | 'holiday' | 'punches' | 'empty'; holiday?: string }> = [];
+    const base = new Date();
+    const weekday = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(base.getFullYear(), base.getMonth(), base.getDate() - i);
+      const key = localDateKey(d);
+      const dow = d.getDay();
+      const count = monthPunchCounts.get(key) || 0;
+      const holiday = holidayMap.get(key);
+      out.push({
+        key,
+        label: `${weekday[dow]} ${d.getDate()}`,
+        count,
+        kind: weekendDow.includes(dow) ? 'weekend' : holiday ? 'holiday' : count > 0 ? 'punches' : 'empty',
+        holiday,
+      });
+    }
+    return out;
+  }, [monthPunchCounts, weekendDow, holidayMap]);
+
+  const selectedIsWeekend = weekendDow.includes(new Date(`${selectedDate}T00:00:00`).getDay());
+  const selectedHolidayName = holidayMap.get(selectedDate);
+  const selectedHasRecords = adminAttendance.length > 0;
+
   /* ── Calendar data for selected month ──
    * Keys are built from LOCAL date parts (timezone-safe); days without a
    * punch are derived as weekend / holiday / on-leave / absent. */
@@ -776,10 +932,16 @@ export default function AttendancePage() {
   };
 
   /* ── Self view stats ── */
-  const presentCount = attendance.filter(a => ['present', 'late'].includes(a.status)).length;
-  const lateCount = attendance.filter(a => a.status === 'late').length;
-  const totalHours = attendance.reduce((sum, a) => sum + (a.workHours || 0), 0);
-  const totalOvertime = attendance.reduce((sum, a) => sum + (a.overtime || 0), 0);
+  const presentCount = attendance.reduce((sum, a) => sum + (a.status === 'half_day' ? 0.5 : (['present', 'late'].includes(a.status) ? 1 : 0)), 0);
+  // Late arrivals are counted from the punch time, not final status. A
+  // fourth-late row may become half_day but must still count as late.
+  const lateCount = attendance.filter(a => {
+    if (!a.checkIn) return false;
+    const t = new Date(a.checkIn);
+    return t.getHours() * 60 + t.getMinutes() > 10 * 60;
+  }).length;
+  const totalHours = attendance.reduce((sum, a) => sum + (calculateProductionHours(a.checkIn, a.checkOut, a.breakIn, a.breakOut) || 0), 0);
+  const totalOvertime = attendance.reduce((sum, a) => sum + calculateCompanyOvertime(a.checkOut), 0);
 
   /* ── Self table rows: real records + derived month days (weekend/holiday/leave/absent) ── */
   const selfTableRows = useMemo(() => {
@@ -866,7 +1028,7 @@ export default function AttendancePage() {
           </button>
           <label className="inline-flex items-center gap-2 px-3 py-2 text-xs text-slate-700 border border-slate-200 rounded-lg bg-white">
             <input type="checkbox" checked={earlyLogoutEnabled} disabled={!isCheckedIn || isCheckedOut || earlyLogoutEnabled} onChange={e => handleEarlyLogout(e.target.checked)} />
-            Early Logout
+            Half-Day Leave / Early Checkout
           </label>
           {/* Task 57: Break In / Break Out buttons (self-service lunch/tea break) */}
           {isCheckedIn && !isCheckedOut && (
@@ -1045,6 +1207,60 @@ export default function AttendancePage() {
             </div>
           </div>
 
+          {/* ── Task 84: selected-day context banner — explains an empty table ── */}
+          {!adminLoading && !selectedHasRecords && (
+            <div className="thb-card p-4 border-l-4 border-l-sky-400 bg-sky-50/40">
+              <div className="flex items-start gap-3">
+                <FiInfo className="w-4 h-4 text-sky-600 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-thb-text-primary">
+                    {selectedHolidayName
+                      ? `Holiday — ${selectedHolidayName}`
+                      : selectedIsWeekend
+                        ? 'Weekend — no punches expected'
+                        : 'No punches recorded yet'}
+                  </p>
+                  <p className="text-xs text-thb-text-secondary mt-0.5 leading-relaxed">
+                    {selectedHolidayName
+                      ? `${formattedSelectedDate} is a holiday, so regular in/out punches are not expected. Pick a working day below to view its punches.`
+                      : selectedIsWeekend
+                        ? `${formattedSelectedDate} is a non-working day, so there are no in/out punches to show. Use the recent-days chips below to jump to a day with punches.`
+                        : `No attendance records exist for ${formattedSelectedDate} yet — punches appear here as employees check in. Use the recent-days chips below to open a day that already has punches.`}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── Task 84: Recent days strip — jump straight to a day with punches ── */}
+          <div className="thb-card p-3">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-[11px] font-semibold text-thb-text-secondary uppercase tracking-wider mr-1">Recent days</span>
+              {recentDays.map(d => {
+                const isSelected = selectedDate === d.key;
+                const chipCls = isSelected
+                  ? 'bg-cyan-600 text-white border-cyan-600'
+                  : d.kind === 'punches'
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                    : d.kind === 'weekend' || d.kind === 'holiday'
+                      ? 'bg-slate-100 text-slate-500 border-thb-border hover:bg-slate-200/60'
+                      : 'bg-white text-slate-500 border-thb-border hover:bg-slate-50';
+                const sub = d.kind === 'weekend' ? 'Weekend' : d.kind === 'holiday' ? (d.holiday || 'Holiday') : d.count > 0 ? `${d.count} punch${d.count !== 1 ? 'es' : ''}` : 'No punches';
+                return (
+                  <button
+                    key={d.key}
+                    onClick={() => setSelectedDate(d.key)}
+                    title={`${d.label} — ${sub}`}
+                    className={`px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors ${chipCls}`}
+                  >
+                    <span className="font-semibold">{d.label}</span>
+                    <span className={`ml-1.5 text-[10px] ${isSelected ? 'text-white/85' : 'opacity-75'}`}>· {sub}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           {/* ── Attendance Table ── */}
           <div className="thb-card overflow-hidden">
             <div className="px-6 py-4 border-b border-thb-border flex items-center justify-between">
@@ -1095,7 +1311,8 @@ export default function AttendancePage() {
                       const statusValue = r.status || 'not_marked';
                       const statusConfig = getStatusConfig(statusValue);
                       const lateBy = a ? calculateLateBy(a.checkIn, shiftStartMinutes) : '0m';
-                      const breakDur = a ? calculateBreakDuration(a.checkIn, a.checkOut, a.workHours) : '—';
+                      const productionHours = a ? calculateProductionHours(a.checkIn, a.checkOut, a.breakIn, a.breakOut) : null;
+                      const breakDur = a?.checkIn && a?.checkOut ? calculateBreakDuration(a.checkIn, a.checkOut, a.workHours, a.breakIn, a.breakOut) : '—';
                       return (
                         <tr key={r.key} className="border-b border-thb-border/50 hover:bg-slate-50/80 transition-colors group">
                           {/* Employee */}
@@ -1120,6 +1337,7 @@ export default function AttendancePage() {
                               <span className={`w-1.5 h-1.5 rounded-full ${statusConfig.dotColor}`} />
                               {statusConfig.label}
                             </span>
+                              {productionHours != null && productionHours < 8 && <div className="mt-1 text-[11px] text-amber-700 font-medium">Below 8 hours — regularization required</div>}
                           </td>
                           {/* Check In */}
                           <td className="px-4 py-3 text-sm text-thb-text-secondary">{a ? formatTime(a.checkIn) : '—'}</td>
@@ -1136,25 +1354,27 @@ export default function AttendancePage() {
                           {/* Production Hours */}
                           <td className="px-4 py-3">
                             <span className={`text-sm font-medium ${
-                              a?.workHours != null
-                                ? a.workHours >= 8
+                              productionHours != null
+                                ? productionHours >= 8
                                   ? 'text-emerald-600'
                                   : 'text-amber-600'
                                 : 'text-thb-text-muted'
                             }`}>
-                              {a?.workHours != null ? formatHoursHm(a.workHours) : '—'}
+                              {productionHours != null ? formatHoursHm(productionHours) : '—'}
                             </span>
                           </td>
                           {/* Actions */}
                           <td className="px-4 py-3">
                             {a && (
-                              <button
-                                onClick={() => setDetailRecord(a)}
-                                className="inline-flex items-center gap-1 text-xs text-cyan-600 hover:text-cyan-700 font-medium opacity-0 group-hover:opacity-100 transition-opacity"
-                              >
-                                <FiEye className="w-3.5 h-3.5" />
-                                View
-                              </button>
+                              <div className="flex items-center gap-2 whitespace-nowrap">
+                                <button
+                                  onClick={() => setDetailRecord(a)}
+                                  className="inline-flex items-center gap-1 text-xs text-cyan-600 hover:text-cyan-700 font-medium"
+                                >
+                                  <FiEye className="w-3.5 h-3.5" /> View
+                                </button>
+                                {!isAdmin && <Link href={`/attendance/regularize?date=${encodeURIComponent(recordDateKey(a.date))}`} className="text-xs text-amber-600 hover:text-amber-700 font-medium">Regularize</Link>}
+                              </div>
                             )}
                           </td>
                         </tr>
@@ -1232,7 +1452,7 @@ export default function AttendancePage() {
             <StatCard
               icon={<FiClock className="w-5 h-5" />}
               label="Work Hours"
-              value={todayRecord?.workHours != null ? formatHoursHm(todayRecord.workHours) : '—'}
+              value={todayRecord && calculateProductionHours(todayRecord.checkIn, todayRecord.checkOut, todayRecord.breakIn, todayRecord.breakOut) != null ? formatHoursHm(calculateProductionHours(todayRecord.checkIn, todayRecord.checkOut, todayRecord.breakIn, todayRecord.breakOut) as number) : '—'}
               iconBg="bg-emerald-100"
               iconColor="text-emerald-600"
               accent="border-l-emerald-500"
@@ -1404,6 +1624,8 @@ export default function AttendancePage() {
                         selfTableRows.map(row => {
                           const a = row.record;
                           const statusConfig = getStatusConfig(row.status || 'not_marked');
+                          const productionHours = a ? calculateProductionHours(a.checkIn, a.checkOut, a.breakIn, a.breakOut) : null;
+                          const lowHours = productionHours != null && productionHours < 8;
                           return (
                             <tr key={row.key} className="border-b border-thb-border/50 hover:bg-slate-50/50 transition-colors">
                               <td className="px-4 py-3 text-sm font-medium text-thb-text-primary">{a ? formatDate(a.date) : new Date(`${row.dateKey}T00:00:00`).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</td>
@@ -1412,11 +1634,12 @@ export default function AttendancePage() {
                                   <span className={`w-1.5 h-1.5 rounded-full ${statusConfig.dotColor}`} />
                                   {statusConfig.label}
                                 </span>
+                                {lowHours && <div className="mt-1 text-[11px] text-amber-700 font-medium">Below 8 hours — <Link href={`/attendance/regularize?date=${encodeURIComponent(row.dateKey)}`} className="underline">Apply for regularization</Link></div>}
                               </td>
                               <td className="px-4 py-3 text-sm text-thb-text-secondary">{a ? formatTime(a.checkIn) : '—'}</td>
                               <td className="px-4 py-3 text-sm text-thb-text-secondary">{a ? formatTime(a.checkOut) : '—'}</td>
-                              <td className="px-4 py-3 text-sm text-thb-text-secondary">{a?.workHours != null ? formatHoursHm(a.workHours) : '—'}</td>
-                              <td className="px-4 py-3 text-sm text-thb-text-secondary">{a?.overtime != null && a.overtime > 0 ? formatHoursHm(a.overtime) : '—'}</td>
+                              <td className="px-4 py-3 text-sm text-thb-text-secondary">{productionHours != null ? formatHoursHm(productionHours) : '—'}</td>
+                              <td className="px-4 py-3 text-sm text-thb-text-secondary">{a && calculateCompanyOvertime(a.checkOut) > 0 ? formatHoursHm(calculateCompanyOvertime(a.checkOut)) : '—'}</td>
                             </tr>
                           );
                         })
@@ -1521,7 +1744,7 @@ export default function AttendancePage() {
               <DetailField label="Work Hours" value={formatHoursHm(detailRecord.workHours)} />
               <DetailField label="Overtime" value={detailRecord.overtime != null && detailRecord.overtime > 0 ? formatHoursHm(detailRecord.overtime) : '—'} />
               <DetailField label="Late By" value={calculateLateBy(detailRecord.checkIn, shiftStartMinutes) !== '0m' ? `Late by ${calculateLateBy(detailRecord.checkIn, shiftStartMinutes)}` : 'On time'} />
-              <DetailField label="Break" value={calculateBreakDuration(detailRecord.checkIn, detailRecord.checkOut, detailRecord.workHours)} />
+              <DetailField label="Break" value={calculateBreakDuration(detailRecord.checkIn, detailRecord.checkOut, detailRecord.workHours, detailRecord.breakIn, detailRecord.breakOut)} />
             </div>
 
             {detailRecord.location && (
@@ -1652,3 +1875,4 @@ function QuickLinkSmall({ href, icon, label, color }: {
     </Link>
   );
 }
+
