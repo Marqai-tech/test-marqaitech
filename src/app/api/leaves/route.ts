@@ -62,7 +62,7 @@ export async function GET(req: NextRequest) {
     }
 
     const [leaves, total] = await Promise.all([
-      db.leave.findMany({
+      db.leaveRequest.findMany({
         where,
         skip,
         take: limit,
@@ -75,22 +75,22 @@ export async function GET(req: NextRequest) {
               department: { select: { name: true } },
             },
           },
-          approver: {
-            select: { id: true, firstName: true, lastName: true },
-          },
-          workflowInstance: {
-            include: {
-              workflowDef: { select: { name: true } },
-              steps: { orderBy: { stepOrder: 'asc' } },
-            },
-          },
+          leaveType: { select: { id: true, name: true, code: true } },
         },
       }),
-      db.leave.count({ where }),
+      db.leaveRequest.count({ where }),
     ]);
 
+    // Map to the shape legacy consumers expect (type/totalDays are not columns
+    // on LeaveRequest — derive them from the leave type code and date range).
+    const data = leaves.map((r) => ({
+      ...r,
+      type: r.leaveType?.code?.split('-')[0]?.toLowerCase() ?? r.leaveType?.name?.toLowerCase() ?? null,
+      totalDays: Math.max(1, Math.round((new Date(r.endDate).getTime() - new Date(r.startDate).getTime()) / 86400000) + 1),
+    }));
+
     return NextResponse.json({
-      data: leaves,
+      data,
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
     });
   } catch (error) {
