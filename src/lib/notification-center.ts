@@ -416,7 +416,11 @@ async function sendToChannel(ctx: SendContext): Promise<{ status: string; error?
         entityLink: entity?.link,
         actionable: !!(tpl.actionable && ctx.actionToken),
         actionToken: ctx.actionToken || undefined,
-        actionExpiresAt: ctx.actionToken ? actionExpiresAt || new Date(Date.now() + tpl.expiresHours * 3600 * 1000) : undefined,
+        // Task 93 fix: this used to reference the CALLER-LOCAL actionExpiresAt
+        // (ReferenceError: actionExpiresAt is not defined) which silently
+        // failed delivery.create for EVERY actionable notification
+        // (probation review, profile updates, requisitions, escalations...).
+        actionExpiresAt: ctx.actionToken ? (ctx.actionExpiresAt || new Date(Date.now() + tpl.expiresHours * 3600 * 1000)) : undefined,
         metadata: JSON.stringify(vars),
       },
     });
