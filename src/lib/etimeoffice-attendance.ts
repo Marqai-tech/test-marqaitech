@@ -37,22 +37,17 @@ export function classifyBiometricDay<T extends TimedPunch>(
       classifications.set(punch.id, 'check_in');
       continue;
     }
-    // Biometric devices only report that the employee presented at the
-    // entrance. They cannot identify a break. Once the first check-in is
-    // accepted, every later non-duplicate scan is a checkout candidate,
-    // regardless of time or whether the check-in was manual.
+    // Company access rule: the first punch establishes check-in. Every later
+    // biometric scan is an exit/checkout signal, irrespective of its time.
+    // Lunch break-in/out are explicit app actions and are never inferred from
+    // biometric scans. The sync layer keeps the latest checkout scan.
     classifications.set(punch.id, 'check_out');
   }
 
+  // Biometric devices are used only for first check-in and subsequent
+  // checkout updates. Lunch breaks are recorded explicitly in the app.
   const completedBreaks: Array<{ start: Date; end: Date }> = [];
-  const breakPunches = accepted.filter(p => classifications.get(p.id) === 'break_in' || classifications.get(p.id) === 'break_out');
-  for (let index = 0; index + 1 < breakPunches.length; index += 2) {
-    completedBreaks.push({ start: breakPunches[index].punchTime, end: breakPunches[index + 1].punchTime });
-  }
-  const breakMinutes = completedBreaks.reduce(
-    (total, interval) => total + Math.max(0, Math.round((interval.end.getTime() - interval.start.getTime()) / 60_000)),
-    0,
-  );
+  const breakMinutes = 0;
 
   return { accepted, classifications, completedBreaks, breakMinutes };
 }
