@@ -418,7 +418,7 @@ export default function AttendancePage() {
       // add excludeManagement here; hiding management belongs to the Employee
       // List page only, not the attendance dashboard.
       const [attRes, empRes] = await Promise.all([
-        fetch(`/api/attendance?${params.toString()}${sq ? `&${sq}` : ''}&includePhotos=0`, { headers: getAuthHeaders() }),
+        fetch(`/api/attendance?${params.toString()}${sq ? `&${sq}` : ''}&includePhotos=0`, { headers: getAuthHeaders(), cache: 'no-store' }),
         fetch(`/api/employees?limit=500&status=active&includePhotos=0${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() }),
       ]);
       if (attRes.ok) {
@@ -536,7 +536,7 @@ export default function AttendancePage() {
     }
     try {
       setLoading(true);
-      const res = await fetch(`/api/attendance?employeeId=${employee.id}&limit=100&includePhotos=0`, { headers: getAuthHeaders() });
+      const res = await fetch(`/api/attendance?employeeId=${employee.id}&limit=100&includePhotos=0`, { headers: getAuthHeaders(), cache: 'no-store' });
       if (res.ok) {
         const data = await res.json();
         const fetched = data.attendance || [];
@@ -556,6 +556,13 @@ export default function AttendancePage() {
   useEffect(() => { queueMicrotask(() => fetchEmployee()); }, [fetchEmployee]);
   useEffect(() => { if (employee) queueMicrotask(() => fetchAttendance()); }, [employee, fetchAttendance]);
   useEffect(() => { if (isAdmin && activeTab === 'admin') queueMicrotask(() => fetchAdminAttendance()); }, [fetchAdminAttendance, activeTab, isAdmin]);
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      if (isAdmin && activeTab === 'admin') void fetchAdminAttendance();
+      else if (employee) void fetchAttendance();
+    }, 60_000);
+    return () => window.clearInterval(timer);
+  }, [activeTab, employee, fetchAdminAttendance, fetchAttendance, isAdmin]);
   // Load the attendance record first. Policy/holiday and approved-leave data
   // enrich the calendar but are not needed to render the main table or punch
   // controls, so defer them until the browser has painted the primary view.

@@ -156,7 +156,7 @@ export async function GET(request: Request) {
           totalPages: Math.ceil(total / limit),
         },
       },
-      { headers: corsHeaders() }
+      { headers: { ...corsHeaders(), 'Cache-Control': 'no-store, no-cache, must-revalidate' } }
     );
   } catch (error) {
     console.error('Get attendance error:', error);
