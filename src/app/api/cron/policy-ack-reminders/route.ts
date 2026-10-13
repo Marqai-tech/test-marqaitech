@@ -129,12 +129,31 @@ export async function GET(request: NextRequest) {
 /** Dedupe: has this recipient already been reminded for this employee within the repeat window? */
 let lastDedupeError: string | null = null; // surfaced in the response diag
 async function alreadySent(db: any, eventKey: string, entityId: string, recipientId: string, sinceDays: number): Promise<boolean> {
-  const since = new Date(Date.now() - sinceDays * 24 * 3600 * 1000);
   try {
-    const count = await db.notificationDelivery.count({
-      where: { eventKey, entityType: 'policy_ack_reminder', entityId, recipientId, createdAt: { gte: since } },
+    // Equality-only filters + JS-side time check. The Neon HTTP adapter on
+    // the deployed runtime proved unreliable with composite where clauses on
+    // this table (a DateTime `gte` there made findFirst/count match ANY row
+    // of the entityType — phantom dedupe hits that silently suppressed ALL
+    // reminders). String-equality findFirst is the exact query shape used by
+    // the action-token route, which is proven in production.
+    const row = await db.notificationDelivery.findFirst({
+      where: { eventKey, entityType: 'policy_ack_reminder', entityId, recipientId },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true },
     });
-    return count > 0;
+    if (!row?.id) return false;
+    // Phantom-match guard: the deployed Neon adapter has returned findFirst
+    // rows that don't exist in the database. Confirm via the proven
+    // findUnique-by-id path before trusting the match — phantoms fail here
+    // and the reminder proceeds (missing a dedupe is spam-safe; silently
+    // suppressing ALL reminders is not).
+    const confirmed = await db.notificationDelivery.findUnique({
+      where: { id: row.id },
+      select: { createdAt: true },
+    }).catch(() => null);
+    if (!confirmed?.createdAt) return false;
+    const ageDays = (Date.now() - new Date(confirmed.createdAt).getTime()) / 86400000;
+    return ageDays < sinceDays;
   } catch (e: any) {
     // On error, assume already sent (safer than spamming) — but record WHY
     // so the cron response can explain a zero-dispatch sweep.

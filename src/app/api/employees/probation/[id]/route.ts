@@ -348,6 +348,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
         const nextTierDef = wfConfig.tiers[tierIdx];
         const nextResolved = await resolveTierApprovers(db as Record<string, any>, nextTierDef, existing.employeeId);
+        /* Local email delivery is retained alongside the shared notification center. */
         const actor = await db.user.findUnique({ where: { id: String(decoded.userId) }, select: { name: true } }).catch(() => null);
         const currentEnd = new Date(probationData.probationStartDate);
         currentEnd.setMonth(currentEnd.getMonth() + Number(probationData.probationPeriod || 0));
@@ -363,6 +364,51 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
             subject: title,
             html: `<p>Hi,</p><p>${actor?.name || 'HR'} has recommended extending this employee's probation.</p><p><strong>Employee:</strong> ${empName}<br/><strong>Employee ID:</strong> ${(reviewForName as any).employee?.employeeId || '—'}<br/><strong>Current Probation End Date:</strong> ${currentEnd.toLocaleDateString('en-IN')}<br/><strong>Proposed Revised End Date:</strong> ${proposedEnd.toLocaleDateString('en-IN')}<br/><strong>Extension Reason:</strong> ${comments || '—'}<br/><strong>Status:</strong> Awaiting MD Approval</p><p>Please open HRMS to approve or reject the extension.</p>`,
           }).catch(() => null);
+
+        // ─── Task 93: route the next-step notification through the
+        // Notification Center (in-app + email, duplicate-guarded). An HR
+        // "extend" at this step IS the spec's "HR clicks Extend → notify
+        // the MD that an extension decision is required" (template 2). ───
+        try {
+          const { dispatchProbationEvent, computeProbationEndDate, fmtDate } = await import('@/lib/probation-notify');
+          const tenantId = (decoded as any).tenantId as string;
+          const empRow = await db.employee.findUnique({
+            where: { id: existing.employeeId },
+            select: { id: true, userId: true, firstName: true, lastName: true, employeeId: true, department: { select: { name: true } } },
+          }).catch(() => null);
+          const actionLabel = action === 'approve' ? 'Approved / recommended confirmation' : action === 'extend' ? 'Extension recommended' : action === 'reject' ? 'Rejected' : action;
+          await dispatchProbationEvent({
+            db: db as Record<string, any>,
+            tenantId,
+            eventKey: action === 'extend' ? 'probation.extension_requested' : 'probation.tier_review',
+            reviewId: id,
+            employee: empRow ? {
+              id: empRow.id,
+              userId: empRow.userId,
+              firstName: empRow.firstName,
+              lastName: empRow.lastName,
+              employeeId: empRow.employeeId,
+              departmentName: empRow.department?.name,
+            } : { id: existing.employeeId },
+            recipients: nextResolved.userIds.map((uid) => ({ userId: uid })),
+            vars: action === 'extend' ? {
+              HR_Name: probationData.hrActionedBy ? (probationData.hrActionedByName || 'HR') : ((decoded as any).name || 'HR'),
+              Current_End_Date: computeProbationEndDate({ ...probationData, extensionPeriod: 0 }),
+              Proposed_End_Date: computeProbationEndDate(probationData),
+              Extension_Reason: comments || probationData.hrComments || '—',
+              Review_Status: 'Awaiting MD Approval',
+            } : {
+              Employee_ID: empRow?.employeeId || '—',
+              Tier_Position: String(tierIdx + 1),
+              Total_Tiers: String(wfConfig.tiers.length),
+              Previous_Action: `${actionLabel} (tier ${tierIdx})`,
+              Approver_Comments: comments || 'No comments',
+            },
+            origin: request.headers.get('origin') || undefined,
+          });
+          void fmtDate;
+        } catch (notifyErr) {
+          console.warn('[Probation PATCH] next-tier notification failed (non-critical):', notifyErr);
         }
         try {
           await db.auditLog.create({
@@ -390,15 +436,136 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         actorId: String(decoded.userId), actorRole: userRole, comments, probationData,
         terminateOnReject: actionRule?.employeeStatus === 'terminated',
       });
+      /* Local finalizer status is retained alongside the shared status guard. */
       const newStatus = finalResult.reviewStatus;
       const newDecision = finalResult.decision;
 
-      // Notify HR admins that the decision is final
+      // ─── Task 93: apply the configured employee-status outcome and gate
+      // the employee-facing outcome notification on its SUCCESS. ───
+      let employeeStatusApplied = false;
+      if (actionRule?.employeeStatus) {
+        try {
+          await db.employee.update({
+            where: { id: existing.employeeId },
+            data: { employeeStatus: actionRule.employeeStatus, status: actionRule.employeeStatus },
+          });
+          employeeStatusApplied = true;
+        } catch (statusErr) {
+          console.warn('[Probation PATCH] employee status update failed:', statusErr);
+        }
+      }
+
+      // ─── Task 93: status-based outcome notifications ───
       try {
-        const { getPlatformDb } = await import('@/lib/tenant-db');
-        const platformDb = getPlatformDb();
-        const hrAdmins = await platformDb.user.findMany({
-          where: { role: { in: ['admin', 'company_hr_admin', 'hr_admin'] }, status: 'active' },
+        const { dispatchProbationEvent, computeProbationEndDate, fmtDate } = await import('@/lib/probation-notify');
+        const tenantId = (decoded as any).tenantId as string;
+        const empRow = await db.employee.findUnique({
+          where: { id: existing.employeeId },
+          select: { id: true, userId: true, firstName: true, lastName: true, employeeId: true, department: { select: { name: true } } },
+        }).catch(() => null);
+        const approver = await db.user.findUnique({ where: { id: String(decoded.userId) }, select: { name: true, email: true } }).catch(() => null);
+        const approverName = (approver as any)?.name || (approver as any)?.email || resolved.label || 'Authorized approver';
+        const today = fmtDate(new Date());
+        const effectiveDate = probationData.effectiveDate ? fmtDate(probationData.effectiveDate) : today;
+        const notifyBase = {
+          db: db as Record<string, any>,
+          tenantId,
+          reviewId: id,
+          employee: empRow ? {
+            id: empRow.id,
+            userId: empRow.userId,
+            firstName: empRow.firstName,
+            lastName: empRow.lastName,
+            employeeId: empRow.employeeId,
+            departmentName: empRow.department?.name,
+          } : { id: existing.employeeId },
+          origin: request.headers.get('origin') || undefined,
+        };
+
+        if (newDecision === 'confirm' && employeeStatusApplied) {
+          // Workflow 3 — employee confirmed (in-app + email)
+          await dispatchProbationEvent({
+            ...notifyBase,
+            eventKey: 'probation.confirmed',
+            vars: {
+              Effective_Date: effectiveDate,
+              Confirmed_By: approverName,
+              Review_Status: 'Confirmed',
+            },
+          });
+          // Confirmation letter: store the letter record in the employee's
+          // Documents so the "available in your employee documents" promise
+          // in the notification holds (spec rule: generate/store + notify).
+          try {
+            if (probationData.confirmationLetter !== false) {
+              const letter = await (db as any).document.create({
+                data: {
+                  employeeId: existing.employeeId,
+                  name: `Probation Confirmation Letter — ${empName}`,
+                  type: 'certificate',
+                  status: 'active',
+                  category: 'lifecycle',
+                  description: `Employment confirmed with effect from ${effectiveDate}. Confirmed by ${approverName} via probation review ${id}. Ratings: ${probationData.performanceRating || '—'}.`,
+                },
+              }).catch(() => null);
+              if (letter?.id) {
+                probationData.confirmationLetterDocId = letter.id;
+                probationData.confirmationLetterIssuedOn = new Date().toISOString();
+                await db.performanceReview.update({ where: { id }, data: { comments: JSON.stringify(probationData) } });
+              }
+            }
+          } catch (letterErr) {
+            console.warn('[Probation PATCH] confirmation letter record failed (non-critical):', letterErr);
+          }
+        } else if (newDecision === 'extend') {
+          // Workflow 4 — extension approved: employee notified with the
+          // approved revised probation end date.
+          await dispatchProbationEvent({
+            ...notifyBase,
+            eventKey: 'probation.extension_approved',
+            vars: {
+              Previous_End_Date: computeProbationEndDate({ ...probationData, extensionPeriod: 0 }),
+              Revised_End_Date: computeProbationEndDate(probationData),
+              Extension_Reason: probationData.finalComments || probationData.hrComments || '—',
+              Approved_By: approverName,
+              Review_Status: 'Probation Extended',
+            },
+          });
+        } else if (newDecision === 'terminate') {
+          if (actionRule?.employeeStatus === 'terminated' && employeeStatusApplied) {
+            // Workflow 5 — termination email ONLY after the authorized
+            // termination action succeeded.
+            await dispatchProbationEvent({
+              ...notifyBase,
+              eventKey: 'probation.terminated',
+              vars: {
+                Decision_Date: today,
+                Effective_Date: effectiveDate,
+                Authorized_By: approverName,
+              },
+            });
+          } else {
+            // Rejection WITHOUT a termination outcome — review-rejection
+            // notification with next steps (spec "Important distinction").
+            await dispatchProbationEvent({
+              ...notifyBase,
+              eventKey: 'probation.review_rejected',
+              vars: {
+                Decision_Date: today,
+                Approver_Comments: comments || probationData.hrComments || 'No comments',
+                Next_Steps: 'Your employment remains active. HR will share the next steps and any improvement plan with you separately.',
+              },
+            });
+          }
+        }
+      } catch (notifyErr) {
+        console.warn('[Probation PATCH] outcome notification failed (non-critical):', notifyErr);
+      }
+
+      // Notify HR admins (tenant DB users) that the decision is final
+      try {
+        const hrAdmins = await db.user.findMany({
+          where: { role: { in: ['admin', 'company_hr_admin', 'hr_admin', 'tenant_admin'] }, status: 'active' },
           select: { id: true },
         }).catch(() => []);
         const decisionLabel = newDecision === 'confirm' ? 'Confirmed' : newDecision === 'extend' ? 'Extended' : 'Terminated';
@@ -422,7 +589,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
       try {
         await db.auditLog.create({
-          data: { userId: decoded.userId as string, action: `PROBATION_FINAL_${action.toUpperCase()}`, module: 'employees', details: `Final tier decision "${action}" (${newDecision}) for ${empName}. Chain: ${wfConfig.tiers.length} tier(s).` },
+          data: { userId: decoded.userId as string, action: `PROBATION_FINAL_${action.toUpperCase()}`, module: 'employees', details: `Final tier decision "${action}" (${newDecision}) for ${empName}. Chain: ${wfConfig.tiers.length} tier(s). Comments: ${comments || 'none'}. Employee status target: ${actionRule?.employeeStatus || 'unchanged'}. Decision date: ${new Date().toISOString()}.` },
         });
       } catch { /* non-critical */ }
 

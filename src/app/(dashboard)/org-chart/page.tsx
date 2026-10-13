@@ -442,9 +442,13 @@ export default function OrgChartPage() {
         const filteredChildren = filter(node.children);
         // Keep this node if:
         //   - It matches both filters (dept + search), OR
-        //   - It matches the dept filter AND any descendant matches the search, OR
-        //   - No filters are active
-        if ((matchesDept && matchesSearch) || (matchesDept && filteredChildren.length > 0)) {
+        //   - Any of its DESCENDANTS survived the filter — the reporting
+        //     chain to a matching employee must stay visible even when the
+        //     manager themself belongs to a different department (org trees
+        //     are built by reporting lines, not department boundaries).
+        //     Pruning such ancestors used to drop their matching descendants
+        //     too, which emptied the whole chart on department clicks.
+        if ((matchesDept && matchesSearch) || filteredChildren.length > 0) {
           acc.push({ ...node, children: filteredChildren });
         }
         return acc;

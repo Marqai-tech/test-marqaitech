@@ -37,9 +37,17 @@ export async function GET(request: Request) {
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '20');
     const unreadOnly = searchParams.get('unread') === 'true';
+    const category = searchParams.get('category');
 
+    // Task 92: the bell feed must surface MODULE updates (leave, attendance,
+    // payroll, approvals, …) — not login noise. Every login used to write an
+    // 'auth' notification, and those rows (500+ over time) crowded the
+    // 20-slot dropdown until only login updates were visible. Default feed
+    // now excludes category='auth'; an explicit ?category= still filters
+    // exactly (Notifications page chips).
     const where = {
       userId: decoded.userId as string,
+      ...(category ? { category } : { category: { not: 'auth' } }),
       ...(unreadOnly && { isRead: false }),
     };
 

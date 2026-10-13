@@ -458,7 +458,7 @@ export async function POST(request: Request) {
       });
     } catch { /* non-critical */ }
 
-    // ─── Task 65: send notifications based on decision ───
+    /* local notification delivery retained alongside the shared dispatcher */
     // Probation Review Submitted → notify Employee + HR
     // (For extend/terminate/confirm, the [id] route handles the follow-up
     // notifications to MD/Employee. Here we just notify that the review
@@ -530,6 +530,121 @@ export async function POST(request: Request) {
       probationPayload.notificationHistory = deliveryHistory;
       await db.performanceReview.update({ where: { id: (review as any).id }, data: { comments: JSON.stringify(probationPayload) } }).catch(() => null);
     } catch { /* non-critical */ }
+    // ─── Task 93 spec: employee status changes ONLY when the authorized
+    // workflow action succeeds (final tier decision), never at submission.
+    // The recommended decision ('terminate' etc.) is stored in the review
+    // JSON and applied by the PATCH approval chain. A submission-time
+    // audit entry documents the recommendation. ───
+    if (decision === 'terminate' && employee) {
+      try {
+        await db.auditLog.create({
+          data: {
+            userId: decoded.userId as string,
+            action: 'PROBATION_TERMINATE_RECOMMENDED',
+            module: 'employees',
+            details: `Probation review for ${employee.firstName} ${employee.lastName} recommends termination. Employee status will change only after the approval chain authorizes it.`,
+          },
+        });
+      } catch { /* non-critical */ }
+    }
+
+    // ─── Task 93: Probation Review — Notification & Email Workflow ───
+    // (1) Assigned HR (workflow tier 1 approvers, OTHER than the submitting
+    //     HR user) get "Action Required – Probation Review Pending"
+    //     (in-app + email via the Notification Center).
+    // (2) The employee gets a "review submitted and under review" heads-up
+    //     (unless employee-facing submission updates are disabled).
+    // (3) The submitting HR user gets an in-app submission confirmation.
+    // All dispatches are duplicate-guarded and recorded in
+    // NotificationDelivery (audit trail).
+    try {
+      const { dispatchProbationEvent, resolveProbationTierRecipients, fmtDateTime } = await import('@/lib/probation-notify');
+      const { loadWorkflowConfig } = await import('@/lib/approverResolve');
+      const tenantId = (decoded as any).tenantId as string;
+      const submitterId = (decoded as { userId?: string | null }).userId || null;
+      const empName = `${employee.firstName || ''} ${employee.lastName || ''}`.trim();
+      const empCode = (review as any).employee?.employeeId || '—';
+      const submittedOn = fmtDateTime(new Date());
+
+      const wfCfg = await loadWorkflowConfig(db as Record<string, any>, request, 'probation_confirmation').catch(() => null);
+
+      // (1) Assigned HR reviewers — tier 1 of the configured chain
+      const hrRecipients = await resolveProbationTierRecipients(
+        db as Record<string, any>, wfCfg?.tiers, 1, employeeId,
+      );
+      await dispatchProbationEvent({
+        db: db as Record<string, any>,
+        tenantId,
+        eventKey: 'probation.review_submitted',
+        reviewId: (review as any).id,
+        employee: {
+          id: employeeId,
+          firstName: employee.firstName,
+          lastName: employee.lastName,
+          employeeId: empCode,
+        },
+        recipients: hrRecipients,
+        excludeUserIds: [submitterId], // spec: only if the recipient is a DIFFERENT HR user
+        vars: {
+          Probation_End_Date: probationStartDate ? fmtDateTime(probationStartDate).split(',')[0] : '—',
+          Submitted_By: (decoded as any).name || 'HR',
+          Submitted_On: submittedOn,
+          Review_Status: 'Pending HR Review',
+        },
+        origin: request.headers.get('origin') || undefined,
+      });
+
+      // (2) Employee heads-up (unless disabled in the workflow configuration)
+      const empUser = await db.employee.findUnique({
+        where: { id: employeeId },
+        select: { userId: true },
+      }).catch(() => null);
+      if (empUser?.userId) {
+        await dispatchProbationEvent({
+          db: db as Record<string, any>,
+          tenantId,
+          eventKey: 'probation.submitted_employee',
+          reviewId: (review as any).id,
+          employee: {
+            id: employeeId,
+            userId: empUser.userId,
+            firstName: employee.firstName,
+            lastName: employee.lastName,
+            employeeId: empCode,
+          },
+          vars: {
+            Submitted_By: (decoded as any).name || 'HR',
+            Submitted_On: submittedOn,
+            Review_Status: 'under review',
+          },
+          origin: request.headers.get('origin') || undefined,
+        });
+      }
+
+      // (3) Submission confirmation to the submitting HR user (in-app)
+      if (submitterId) {
+        await dispatchProbationEvent({
+          db: db as Record<string, any>,
+          tenantId,
+          eventKey: 'probation.submission_ack',
+          reviewId: (review as any).id,
+          employee: {
+            id: employeeId,
+            firstName: employee.firstName,
+            lastName: employee.lastName,
+            employeeId: empCode,
+          },
+          recipients: [{ userId: submitterId }],
+          vars: {
+            Submitted_On: submittedOn,
+          },
+          origin: request.headers.get('origin') || undefined,
+        });
+      }
+      void empName;
+    } catch (notifyErr) {
+      console.warn('[Probation POST] notification dispatch failed (non-critical):', notifyErr);
+    }
 
     return NextResponse.json(
       {
