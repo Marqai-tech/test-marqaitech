@@ -291,6 +291,28 @@ export async function POST(request: Request) {
         isLate = localMinutes > 10 * 60;
       }
 
+      let checkInStatus = isLate ? 'late' : 'present';
+      if (isLate) {
+        const priorRows = await db.attendance.findMany({
+          where: {
+            employeeId,
+            date: { gte: new Date(`${today.toISOString().slice(0, 7)}-01T00:00:00.000Z`), lt: today },
+            checkIn: { not: null },
+          },
+          select: { checkIn: true },
+        });
+        const priorLateCount = priorRows.filter(row => {
+          if (!row.checkIn) return false;
+          const parts = new Intl.DateTimeFormat('en-GB', {
+            timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: false,
+          }).formatToParts(row.checkIn);
+          const hour = Number(parts.find(part => part.type === 'hour')?.value || 0) % 24;
+          const minute = Number(parts.find(part => part.type === 'minute')?.value || 0);
+          return hour * 60 + minute > 10 * 60;
+        }).length;
+        if (priorLateCount >= 3) checkInStatus = 'half_day';
+      }
+
       const attendance = await db.attendance.upsert({
         where: {
           employeeId_date: {
@@ -302,12 +324,12 @@ export async function POST(request: Request) {
           employeeId,
           date: today,
           checkIn: now,
-          status: isLate ? 'late' : 'present',
+          status: checkInStatus,
           location,
         },
         update: {
           checkIn: now,
-          status: isLate ? 'late' : 'present',
+          status: checkInStatus,
           location,
         },
       });
@@ -363,11 +385,12 @@ export async function POST(request: Request) {
       const lunchOverlapMinutes = effectiveBreakMinutes(null, null, existingRecord.checkIn, now, breakPolicy);
       const breakMinutes = punchedBreakMinutes != null ? punchedBreakMinutes : lunchOverlapMinutes;
       const workHours = Math.max(0, (grossMinutes - breakMinutes) / 60);
-      const belowEightHours = workHours < 8;
+      const canFinalize = checkOutMinutes >= breakPolicy.shiftEndMinutes;
+      const belowEightHours = canFinalize && workHours < 8;
       // Overtime is earned only after both requirements are met:
       // eight net production hours and the 6:30 PM IST shift end.
-      const overtime = workHours >= 8 && checkOutMinutes > 18 * 60 + 30
-        ? Math.max(0, (checkOutMinutes - (18 * 60 + 30)) / 60)
+      const overtime = workHours >= 8 && checkOutMinutes > breakPolicy.shiftEndMinutes
+        ? Math.max(0, (checkOutMinutes - breakPolicy.shiftEndMinutes) / 60)
         : 0;
 
       const attendance = await db.attendance.update({
@@ -379,9 +402,9 @@ export async function POST(request: Request) {
         },
         data: {
           checkOut: now,
-          workHours: parseFloat(workHours.toFixed(2)),
-          overtime: parseFloat(overtime.toFixed(2)),
-          status: belowEightHours ? 'half_day' : (existingRecord.status === 'late' ? 'late' : 'present'),
+          workHours: canFinalize ? parseFloat(workHours.toFixed(2)) : null,
+          overtime: canFinalize ? parseFloat(overtime.toFixed(2)) : 0,
+          status: belowEightHours ? 'half_day' : existingRecord.status,
           halfDay: belowEightHours,
           breakMinutes: Math.round(breakMinutes),
         },

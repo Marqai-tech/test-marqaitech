@@ -968,8 +968,6 @@ export default function AttendancePage() {
       seen.add(k);
     });
     const { month, year } = selectedMonth;
-    const now = new Date();
-    const isCurrentMonthView = month === now.getMonth() && year === now.getFullYear();
     const totalDays = new Date(year, month + 1, 0).getDate();
     for (let d = 1; d <= totalDays; d++) {
       const dateKey = `${year}-${pad2(month + 1)}-${pad2(d)}`;
@@ -983,9 +981,9 @@ export default function AttendancePage() {
         weekendDow,
         todayKey: todayStr,
       });
-      // Past working days only get an "absent" derivation for the CURRENT month
-      // (older months would otherwise mark every pre-joining day absent)
-      if (!status || (status === 'absent' && !isCurrentMonthView)) continue;
+      // Keep every calendar date in the table. Future/unclassified dates use
+      // the existing "Not Marked" presentation instead of disappearing.
+      // This also guarantees complete months (28/29/30/31 rows as applicable).
       rows.push({ key: `derived-${dateKey}`, dateKey, status });
     }
     rows.sort((a, b) => b.dateKey.localeCompare(a.dateKey));

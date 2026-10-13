@@ -5,7 +5,7 @@ import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { resolveCompanyScope } from '@/lib/companyScope';
 import { safeAuditLog } from '@/lib/audit-safe';
 import { sendEmail } from '@/lib/email';
-import { effectiveBreakMinutes, loadAttendanceBreakPolicy } from '@/lib/attendance-break-rules';
+import { attendanceLocalMinutes, effectiveBreakMinutes, loadAttendanceBreakPolicy } from '@/lib/attendance-break-rules';
 
 /**
  * POST /api/attendance/punch
@@ -387,9 +387,11 @@ export async function POST(request: NextRequest) {
     if (action === 'checkout' || action === 'breakout') {
       const refreshed = await db.attendance.findUnique({ where: { id: attendance.id } });
       if (refreshed?.checkIn && refreshed?.checkOut) {
+        const breakPolicy = await loadAttendanceBreakPolicy(db);
+        const canFinalize = attendanceLocalMinutes(refreshed.checkOut) >= breakPolicy.shiftEndMinutes;
         const spanMs = refreshed.checkOut.getTime() - refreshed.checkIn.getTime();
         const spanMinutes = Math.max(0, Math.round(spanMs / 60000));
-        const breakMinutes = effectiveBreakMinutes(refreshed.breakIn, refreshed.breakOut, refreshed.checkIn, refreshed.checkOut, await loadAttendanceBreakPolicy(db));
+        const breakMinutes = effectiveBreakMinutes(refreshed.breakIn, refreshed.breakOut, refreshed.checkIn, refreshed.checkOut, breakPolicy);
         const workMinutes = Math.max(0, spanMinutes - breakMinutes);
         const workHours = Math.round((workMinutes / 60) * 100) / 100;
         // OT: anything over 480 min (8h) — simple default; the Shift's
@@ -400,16 +402,16 @@ export async function POST(request: NextRequest) {
         await db.attendance.update({
           where: { id: attendance.id },
           data: {
-            workHours,
+            workHours: canFinalize ? workHours : null,
             breakMinutes,
-            overtime,
-            status: workHours < 8 ? 'half_day' : (preservedHalfDay ? 'half_day' : attendance.status),
-            notes: workHours < 8
+            overtime: canFinalize ? overtime : 0,
+            status: canFinalize && workHours < 8 ? 'half_day' : (preservedHalfDay ? 'half_day' : attendance.status),
+            notes: canFinalize && workHours < 8
               ? 'Net working time is below the required 8 hours. Apply Attendance Regularization for full-day correction.'
               : attendance.notes,
           },
         });
-        attendance = { ...attendance, workHours, breakMinutes, overtime };
+        attendance = { ...attendance, workHours: canFinalize ? workHours : null, breakMinutes, overtime: canFinalize ? overtime : 0 };
       }
     }
 

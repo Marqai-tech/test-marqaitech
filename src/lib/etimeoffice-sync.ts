@@ -3,6 +3,7 @@ import type { Prisma, PrismaClient } from '@/generated/prisma/client';
 import { downloadLatestPunches, hrmsEmployeeCode, type ETimeOfficePunch } from '@/lib/etimeoffice-client';
 import { classifyBiometricDay } from '@/lib/etimeoffice-attendance';
 import { localDayStartFor } from '@/lib/timezone-utils';
+import { effectiveBreakMinutes, loadAttendanceBreakPolicy } from '@/lib/attendance-break-rules';
 
 const CHECKPOINT_KEY = 'etimeoffice_biometric_last_record';
 const STATUS_KEY = 'etimeoffice_biometric_sync_status';
@@ -17,6 +18,18 @@ type ParsedPunch = {
   punchTime: Date;
   recordKey: string;
 };
+
+function localMinutesFor(value: Date, timeZone: string): number {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone,
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(value);
+  const hour = Number(parts.find(part => part.type === 'hour')?.value || 0) % 24;
+  const minute = Number(parts.find(part => part.type === 'minute')?.value || 0);
+  return hour * 60 + minute;
+}
 
 function localDateTimeToUtc(value: string, timeZone: string): Date {
   const match = /^(\d{1,2})\/(\d{1,2})\/(\d{4})[ T](\d{1,2}):(\d{2})(?::(\d{2}))?$/.exec(value.trim());
@@ -256,7 +269,7 @@ export async function syncETimeOfficePunches(db: PrismaClient, tenantId: string)
 
       const existingAttendance = await tx.attendance.findUnique({
         where: { employeeId_date: { employeeId: group.employeeId, date: group.dayStart } },
-        select: { checkIn: true, checkOut: true, breakIn: true, breakOut: true, breakMinutes: true, punchMethod: true, earlyLogout: true },
+        select: { checkIn: true, checkOut: true, breakIn: true, breakOut: true, breakMinutes: true, punchMethod: true, earlyLogout: true, status: true },
       });
       const duplicateWindowMinutes = Number(process.env.ETIMEOFFICE_DUPLICATE_WINDOW_MINUTES || '2');
       const classified = classifyBiometricDay(dayPunches, Number.isFinite(duplicateWindowMinutes) ? duplicateWindowMinutes : 2, {
@@ -278,12 +291,41 @@ export async function syncETimeOfficePunches(db: PrismaClient, tenantId: string)
       const firstBreak = classified.completedBreaks[0] || null;
       const breakIn = firstBreak?.start || existingAttendance?.breakIn || null;
       const breakOut = firstBreak?.end || existingAttendance?.breakOut || null;
-      const breakMinutes = classified.completedBreaks.length
-        ? classified.breakMinutes
+      const breakPolicy = await loadAttendanceBreakPolicy(tx);
+      const breakMinutes = checkIn && checkOut
+        ? effectiveBreakMinutes(breakIn, breakOut, checkIn, checkOut, breakPolicy)
         : existingAttendance?.breakMinutes || 0;
-      const workHours = checkIn && checkOut && checkOut > checkIn
+      const canFinalize = Boolean(checkOut && localMinutesFor(checkOut, timeZone) >= breakPolicy.shiftEndMinutes);
+      const workHours = canFinalize && checkIn && checkOut && checkOut > checkIn
         ? Number((Math.max(0, (checkOut.getTime() - checkIn.getTime()) / 60_000 - breakMinutes) / 60).toFixed(2))
         : null;
+      let attendanceStatus = existingAttendance?.status || 'present';
+      if (checkIn) {
+        const localParts = new Intl.DateTimeFormat('en-CA', {
+          timeZone,
+          year: 'numeric',
+          month: '2-digit',
+        }).formatToParts(checkIn);
+        const year = Number(localParts.find(part => part.type === 'year')?.value);
+        const month = Number(localParts.find(part => part.type === 'month')?.value);
+        const nextMonth = month === 12 ? 1 : month + 1;
+        const nextYear = month === 12 ? year + 1 : year;
+        const monthStart = localDateTimeToUtc(`01/${String(month).padStart(2, '0')}/${year} 00:00:00`, timeZone);
+        const monthEnd = localDateTimeToUtc(`01/${String(nextMonth).padStart(2, '0')}/${nextYear} 00:00:00`, timeZone);
+        const previousCheckIns = await tx.attendance.findMany({
+          where: {
+            employeeId: group.employeeId,
+            date: { gte: monthStart, lt: monthEnd },
+            checkIn: { not: null, lt: checkIn },
+          },
+          select: { checkIn: true },
+        });
+        const isLate = localMinutesFor(checkIn, timeZone) > 10 * 60;
+        const previousLateCount = previousCheckIns.filter(row => row.checkIn && localMinutesFor(row.checkIn, timeZone) > 10 * 60).length;
+        attendanceStatus = (existingAttendance?.status === 'half_day' || (canFinalize && workHours !== null && workHours < 8) || (isLate && previousLateCount >= 3))
+          ? 'half_day'
+          : isLate ? 'late' : 'present';
+      }
       const attendance = await tx.attendance.upsert({
         where: { employeeId_date: { employeeId: group.employeeId, date: group.dayStart } },
         create: {
@@ -295,7 +337,7 @@ export async function syncETimeOfficePunches(db: PrismaClient, tenantId: string)
           breakIn,
           breakOut,
           breakMinutes: breakMinutes || null,
-          status: 'present',
+          status: attendanceStatus,
           punchMethod: 'biometric',
           location: device.name,
         },
@@ -306,7 +348,7 @@ export async function syncETimeOfficePunches(db: PrismaClient, tenantId: string)
           breakIn,
           breakOut,
           breakMinutes: breakMinutes || null,
-          status: 'present',
+          status: attendanceStatus,
           punchMethod: 'biometric',
           location: device.name,
         },
