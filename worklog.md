@@ -4320,3 +4320,21 @@ Work Log:
 Stage Summary:
 - Department (and search) drill-down in the org chart now keeps the full reporting chain to matching employees on BOTH sites; chart no longer empties on department clicks.
 - Demo deploy pipeline protected again from the per-minute cron plan violation (third occurrence; collaborator informed via commit message rationale).
+
+---
+Task ID: 92
+Agent: Super Z (main)
+Task: "in the admin login / employee login or any other login in the notifications bell icon it is showing only the login updates but it should also show other notifications related to other modules also so that the respective user can check those updates accordingly. pls update these in the vercel now"
+
+Work Log:
+- DIAGNOSIS (demo tenant DB, direct read): Notification rows by category — auth/login 511, system 314, leave 336, payroll 30, workflow 48, employee_lifecycle 29. Module notifications WERE being written all along; the problem was flood + wipe: (1) /api/auth/login wrote an 'auth' category "successfully logged in" Notification on EVERY login, and the bell dropdown serves the latest 20 rows — for admin@3boxeshrms.com the latest-20 mix was 19 auth + 1 module; (2) the same login code marked ALL unread notifications read on every login, silently erasing the unread badge for module updates before the user ever opened the bell.
+- FIX (4 files): (a) GET /api/notifications — default feed now excludes category='auth'; explicit ?category= filters exactly (kept for the Notifications page chips). (b) /api/auth/login — removed the per-login notification create AND the mark-all-read-on-login; logins remain fully recorded in AuditLog; module notifications persist unread until opened or Mark-all-read. (c) legacy [...nextauth] credentials route — same per-login create removed (dormant path, no signIn() callers). (d) /notifications page — selected category chip now passed to the server (?category=) so the Auth chip keeps working with the new server-side default.
+- COVERAGE: bell dropdown (Header), mobile notification panel (dashboard layout), NotificationPopup and the /notifications page all read the same store/API — fixed everywhere at once; no component changes needed for the bell itself.
+- DEPLOY: commit 245a4715 (maheshkpreddy) → BOTH Vercel contexts success (LIVE + demo).
+- VERIFY (scripts/verify-task92-bell.mjs, E2E via app APIs on both sites): LIVE bell feed latest-50 = {leave 36, system 11, workflow 2, employee_lifecycle 1}, 0 auth rows; DEMO latest-50 = {leave 46, system 4}, 0 auth rows; explicit ?category=auth still returns legacy rows (Auth chip intact); two extra logins each → feed totals unchanged (no new noise). Historical unread shows 0 for the two admin logins because the OLD code wiped unread state at every prior login — new module events will now accumulate unread correctly.
+- Observation (not acted on): pre-existing tsc-only syntax noise in src/lib/currency.ts (JSX inside a .ts file, commit 76e84ce7) — SWC + typescript.ignoreBuildErrors tolerate it and both Vercel builds are green; only `npx tsc --noEmit` flags it. Left untouched.
+
+Stage Summary:
+- The bell now surfaces MODULE notifications (leave, attendance workflows, payroll, policy-ack reminders, escalations, approvals) for every login role on BOTH sites; login updates no longer flood it and are no longer written at all (AuditLog remains the login record).
+- Unread state survives logins from now on — new module notifications show the badge + bold rows until the user opens them or presses Mark all read.
+- Legacy 'auth' rows stay queryable via ?category=auth (Notifications page Auth chip) — nothing deleted.
