@@ -4304,3 +4304,19 @@ Stage Summary:
 - Remember-me now actually persists: ticked → session restores after tab close/browser restart for 30 days (JWT-backed); unticked → previous per-tab behavior. User should hard-refresh (Ctrl+Shift+R) once to pick up the new client bundle.
 - New admin diagnostic: GET /api/admin/tenant-users?deliveries=N (roster + where alert emails actually went) and PATCH { userId, status } for alert-routing data fixes — reusable for future recipient issues.
 - Observation (not acted on): platform-DB login rows for the 3boxes* accounts remain active — if the user wants those logins disabled too, deactivate via the same endpoint (needs the platform-DB ids).
+
+---
+Task ID: 91
+Agent: Super Z (main)
+Task: Org chart — clicking a department dynamically shows no data; debug and update in Vercel.
+
+Work Log:
+- Root cause (src/app/(dashboard)/org-chart/page.tsx, filteredTree keep-condition): `(matchesDept && matchesSearch) || (matchesDept && filteredChildren.length > 0)` — the second branch required the ANCESTOR itself to match the department before it could preserve matching descendants. The tree is built by REPORTING LINES, so department members sit deep under managers from other departments; pruning those managers dropped the matching employees with them → empty chart on every department click (except the root's own department). The code comment already stated the intended logic ("kept if it matches OR any descendants match").
+- Fix: keep-condition is now `(matchesDept && matchesSearch) || filteredChildren.length > 0` — reporting chains to matching employees stay visible; non-matching branches still pruned. Also fixes the same latent bug for search (ancestor pruning when only descendants matched).
+- PROOF on LIVE data (scripts/simulate-orgchart-filter.js — mirrors buildOrgTree + filter): OLD condition → 0 visible nodes for Software Development / Operations / Finance & Accounting / QA, 1 for Management; NEW condition → 5 / 3 / 2 / 3 / 1 nodes (members + their reporting chains).
+- vercel.json: collaborator commit 9418081b reintroduced the per-minute biometric cron (* * * * *) — Pro-only, rejects the Hobby demo project at deploy validation (the exact Task 85 outage). Demoted back to daily 0 2 * * *; near-real-time freshness preserved by the throttled sync-on-dashboard-open (verified still present in attendance/page.tsx).
+- DEPLOY: commits 0e3df0e6 (org-chart fix) + 18f6003b (cron) authored maheshkpreddy → BOTH Vercel contexts success (LIVE + demo). LIVE /org-chart serves 200.
+
+Stage Summary:
+- Department (and search) drill-down in the org chart now keeps the full reporting chain to matching employees on BOTH sites; chart no longer empties on department clicks.
+- Demo deploy pipeline protected again from the per-minute cron plan violation (third occurrence; collaborator informed via commit message rationale).
