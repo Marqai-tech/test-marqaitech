@@ -1082,6 +1082,47 @@ export default function EmployeeSettingsPage() {
         </a>
       </div>
 
+      {/* Lifecycle workflow settings are kept here because transfer APIs read them
+          from governance settings. Keep this visible on the page so admins can
+          enable and configure transfers without editing the database. */}
+      <div className="thb-card p-5 space-y-3">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold text-thb-text-primary">Lifecycle Workflow Rules</h2>
+            <p className="text-xs text-thb-text-secondary mt-1">Transfer, resignation and termination routing. Values are saved per tenant.</p>
+          </div>
+          {editingSection === 'Lifecycle Workflow Rules' ? (
+            <div className="flex gap-2">
+              <button onClick={handleCancelEdit} className="px-3 py-1.5 text-xs rounded-lg border border-thb-border">Cancel</button>
+              <button onClick={() => handleSaveSection('Lifecycle Workflow Rules')} className="px-3 py-1.5 text-xs rounded-lg bg-teal-500 text-white">Save</button>
+            </div>
+          ) : (
+            <button onClick={() => handleStartEdit('Lifecycle Workflow Rules')} className="px-3 py-1.5 text-xs rounded-lg border border-teal-200 text-teal-700">Edit</button>
+          )}
+        </div>
+        {(() => {
+          const field = employeeSettingSections.find(s => s.title === 'Lifecycle Workflow Rules')?.fields.find(f => f.key === 'employee_transfer_config')
+          if (!field) return null
+          const editing = editingSection === 'Lifecycle Workflow Rules'
+          const value = editing
+            ? (editDrafts['Lifecycle Workflow Rules']?.[field.key] ?? getSettingValue(field.key, [field], empSettings))
+            : getSettingValue(field.key, [field], empSettings)
+          return (
+            <div>
+              <label className="block text-xs font-medium text-thb-text-primary mb-1">{field.label}</label>
+              <textarea
+                value={String(value)}
+                readOnly={!editing}
+                onChange={e => handleDraftChange('Lifecycle Workflow Rules', field.key, e.target.value)}
+                rows={5}
+                className="w-full rounded-lg border border-thb-border px-3 py-2 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-teal-500/20"
+              />
+              <p className="text-xs text-thb-text-muted mt-1">Set <code>enabled</code> to <code>true</code> to allow transfer requests.</p>
+            </div>
+          )
+        })()}
+      </div>
+
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         <div className="thb-card p-4 flex items-center gap-3">

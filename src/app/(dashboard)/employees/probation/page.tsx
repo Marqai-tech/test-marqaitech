@@ -66,6 +66,7 @@ interface ProbationRecord {
   employeeName: string;
   employeeCode: string;
   probationPeriod: number;
+  extensionPeriod?: number;
   startDate: string;
   endDate: string;
   decision: string;
@@ -84,6 +85,10 @@ interface ProbationRecord {
   designation?: string;
   performanceRating?: number;
   kpiStatus?: string;
+  payrollEligible?: boolean;
+  payrollEligibilityDate?: string | null;
+  confirmationLetter?: string | null;
+  statusHistory?: Array<{ action: string; actorId: string; actorRole: string; comments?: string; at: string; fromStatus?: string; toStatus?: string }>;
 }
 
 const initialForm = {
@@ -230,14 +235,18 @@ export default function ProbationPage() {
   const validate = (): string | null => {
     if (!form.employeeId) return 'Please select an employee';
     if (!form.probationStartDate) return 'Probation Start Date is required';
+    if (form.effectiveDate && form.effectiveDate < form.probationStartDate) return 'Effective date cannot be before the employee start date';
     if (!form.reviewComments.trim() || form.reviewComments.trim().length < 20) return 'Review comments must be at least 20 characters';
-    if (form.decision === 'extend' && form.extensionPeriod <= 0) return 'Extension period must be greater than 0';
+    if (form.decision === 'extend' && Number(form.extensionPeriod) <= 0) return 'Extension period must be greater than 0';
     return null;
   };
 
   const handleSubmit = async () => {
     const error = validate();
-    if (error) { toast.error(error); return; }
+    if (error) {
+      toast.error(error);
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -245,7 +254,7 @@ export default function ProbationPage() {
         employeeId: form.employeeId,
         probationStartDate: form.probationStartDate,
         probationPeriod: form.probationPeriod,
-        extensionPeriod: form.decision === 'extend' ? form.extensionPeriod : 0,
+        extensionPeriod: form.decision === 'extend' ? (Number(form.extensionPeriod) || 1) : 0,
         performanceRating: form.performanceRating,
         reviewComments: form.reviewComments.trim(),
         kpiStatus: form.kpiStatus,
@@ -263,6 +272,7 @@ export default function ProbationPage() {
       if (!res.ok) throw new Error(data.error || 'Failed to submit probation review');
 
       toast.success('Probation review submitted successfully');
+      window.dispatchEvent(new Event('notifications:refresh'));
       setForm(initialForm);
       fetchRecords();
     } catch (e: unknown) {
@@ -377,6 +387,7 @@ export default function ProbationPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to process');
       toast.success(`Probation review ${action}d successfully`);
+      window.dispatchEvent(new Event('notifications:refresh'));
       setApproveRecord(null);
       setHrComments('');
       setExtendPeriod(1);
@@ -388,8 +399,10 @@ export default function ProbationPage() {
     }
   };
 
+  const isMdReviewStage = (ws?: string) => ws === 'md_review' || (typeof ws === 'string' && /^tier_[2-9]\d*$/.test(ws));
+
   const statusLabel = (s: string, ws?: string) => {
-    if (ws === 'md_review') return 'Awaiting MD Approval';
+    if (isMdReviewStage(ws)) return 'Awaiting MD Approval';
     if (ws === 'completed' && s === 'completed') return 'Confirmed';
     if (ws === 'completed' && s === 'in_progress') return 'Extended';
     if (ws === 'completed' && s === 'rejected') return 'Terminated';
@@ -503,13 +516,13 @@ export default function ProbationPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <div>
             <label className="block text-xs font-medium text-thb-text-secondary mb-1">Decision <span className="text-red-500 font-bold">*</span></label>
-            <select value={form.decision} onChange={e => updateField('decision', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
+            <select value={form.decision} onChange={e => { const decision = e.target.value; updateField('decision', decision); if (decision === 'extend' && Number(form.extensionPeriod) <= 0) updateField('extensionPeriod', 1); }} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
               {DECISIONS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
             </select>
           </div>
           <div>
             <label className="block text-xs font-medium text-thb-text-secondary mb-1 flex items-center gap-1"><FiCalendar className="w-3 h-3" />Effective Date <span className="text-red-500 font-bold">*</span></label>
-            <input type="date" value={form.effectiveDate} onChange={e => updateField('effectiveDate', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
+            <input type="date" min={form.probationStartDate || undefined} value={form.effectiveDate} onChange={e => updateField('effectiveDate', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400" />
           </div>
           <div className="flex items-center gap-3 pt-5">
             <input type="checkbox" id="confirm-letter" checked={form.confirmationLetter} onChange={e => updateField('confirmationLetter', e.target.checked)} className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" />
@@ -538,7 +551,7 @@ export default function ProbationPage() {
       </div>
 
       {/* Actions */}
-      <div className="flex justify-end gap-3">
+      <form className="flex justify-end gap-3" onSubmit={e => { e.preventDefault(); void handleSubmit(); }}>
         <button onClick={() => router.push('/employees')} className="inline-flex items-center gap-2 px-4 py-2.5 bg-white text-thb-text-secondary border border-thb-border rounded-xl hover:bg-slate-50 font-medium text-sm transition-all">
           <FiArrowLeft className="w-4 h-4" /> Cancel
         </button>
@@ -553,12 +566,12 @@ export default function ProbationPage() {
             </button>
           </>
         ) : (
-          <button onClick={handleSubmit} disabled={submitting} className="inline-flex items-center gap-2 px-5 py-2.5 bg-amber-600 text-white rounded-xl hover:bg-amber-700 font-medium text-sm shadow-sm transition-all">
+        <button type="submit" disabled={submitting} className="inline-flex items-center gap-2 px-5 py-2.5 bg-amber-600 text-white rounded-xl hover:bg-amber-700 font-medium text-sm shadow-sm transition-all">
             {submitting ? <FiRefreshCw className="w-4 h-4 animate-spin" /> : <FiCheckCircle className="w-4 h-4" />}
             {submitting ? 'Submitting...' : 'Submit Probation Review'}
           </button>
         )}
-      </div>
+      </form>
 
       {/* Probation Records */}
       <div className="thb-card overflow-hidden">
@@ -618,8 +631,8 @@ export default function ProbationPage() {
                       )}
                       {/* Approve/Extend/Reject — admin only, only for pending reviews */}
                       {r.status === 'pending' && isAdmin && (
-                        <button onClick={() => { setApproveRecord(r); setHrComments(''); setExtendPeriod(1); }} className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors" title={r.workflowStage === 'md_review' ? 'MD/Admin Final Approval' : 'HR Review & Submit to MD'}>
-                          <FiThumbsUp className="w-3.5 h-3.5" /> {r.workflowStage === 'md_review' ? 'MD Approve' : 'HR Review'}
+                        <button onClick={() => { setApproveRecord(r); setHrComments(''); setExtendPeriod(1); }} className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors" title={isMdReviewStage(r.workflowStage) ? 'MD/Admin Final Approval' : 'HR Review & Submit to MD'}>
+                          <FiThumbsUp className="w-3.5 h-3.5" /> {isMdReviewStage(r.workflowStage) ? 'MD Approve' : 'HR Review'}
                         </button>
                       )}
                     </div>
@@ -679,6 +692,23 @@ export default function ProbationPage() {
                   {viewRecord.mdActionDate && <p className="text-[10px] text-emerald-500 mt-1">Finalized: {fmtDate(viewRecord.mdActionDate)}</p>}
                 </div>
               )}
+              {!!viewRecord.statusHistory?.length && (
+                <div className="border-t border-slate-200 pt-3">
+                  <p className="text-xs font-semibold text-slate-700 mb-2">Decision & Status History</p>
+                  <div className="space-y-2">
+                    {viewRecord.statusHistory.map((entry, index) => (
+                      <div key={`${entry.at}-${index}`} className="p-2.5 rounded-lg bg-slate-50 border border-slate-100 text-xs">
+                        <div className="flex justify-between gap-3">
+                          <span className="font-medium text-slate-700 capitalize">{entry.action.replaceAll('_', ' ')}</span>
+                          <span className="text-slate-400">{new Date(entry.at).toLocaleString('en-IN')}</span>
+                        </div>
+                        <p className="text-slate-500 mt-1">{entry.actorRole} · {entry.actorId}</p>
+                        {entry.comments && <p className="text-slate-600 mt-1 whitespace-pre-wrap">{entry.comments}</p>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -708,7 +738,7 @@ export default function ProbationPage() {
                   <p className="text-xs text-slate-600 whitespace-pre-wrap">{approveRecord.reviewComments}</p>
                 </div>
               )}
-              {approveRecord.hrDecision && approveRecord.workflowStage === 'md_review' && (
+              {approveRecord.hrDecision && isMdReviewStage(approveRecord.workflowStage) && (
                 <div className="p-3 bg-amber-50 border border-amber-100 rounded-lg">
                   <p className="text-xs font-semibold text-amber-700 mb-1">HR Submitted Decision: {decisionLabel(approveRecord.hrDecision)}</p>
                   <p className="text-xs text-amber-600">{approveRecord.hrComments || 'No HR comments'}</p>
@@ -717,7 +747,7 @@ export default function ProbationPage() {
               )}
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">
-                  {approveRecord.workflowStage === 'md_review' ? 'MD/Admin Comments' : 'HR Comments'} <span className="text-slate-400">(optional)</span>
+                  {isMdReviewStage(approveRecord.workflowStage) ? 'MD/Admin Comments' : 'HR Comments'} <span className="text-slate-400">(optional)</span>
                 </label>
                 <textarea value={hrComments} onChange={e => setHrComments(e.target.value)} rows={3} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 resize-none" placeholder="Add your comments for this decision..." />
               </div>

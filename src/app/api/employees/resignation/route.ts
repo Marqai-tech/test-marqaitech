@@ -46,6 +46,10 @@ export async function GET(request: Request) {
     try {
       const syncStatements = [
         `CREATE TABLE IF NOT EXISTS "Resignation" ("id" TEXT NOT NULL, "employeeId" TEXT NOT NULL, "employeeName" TEXT, "employeeCode" TEXT, "department" TEXT, "designation" TEXT, "resignationDate" TIMESTAMP(3), "lastWorkingDate" TIMESTAMP(3), "reasonCategory" TEXT, "detailedReason" TEXT, "noticePeriodDays" INTEGER, "isNoticePeriodWaived" BOOLEAN NOT NULL DEFAULT false, "waiverReason" TEXT, "handoverPlan" TEXT, "pendingTasks" TEXT, "status" TEXT NOT NULL DEFAULT 'pending', "submittedById" TEXT, "approvedById" TEXT, "approvedAt" TIMESTAMP(3), "createdAt" TIMESTAMP(3) NOT NULL DEFAULT NOW(), "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT NOW(), CONSTRAINT "Resignation_pkey" PRIMARY KEY ("id"))`,
+        `ALTER TABLE "Resignation" ADD COLUMN IF NOT EXISTS "rejectionReason" TEXT`,
+        `ALTER TABLE "Resignation" ADD COLUMN IF NOT EXISTS "decisionDate" TIMESTAMP(3)`,
+        `ALTER TABLE "Resignation" ADD COLUMN IF NOT EXISTS "approvalHistory" JSONB`,
+        `ALTER TABLE "Resignation" ADD COLUMN IF NOT EXISTS "notificationHistory" JSONB`,
         `CREATE INDEX IF NOT EXISTS "Resignation_employeeId_idx" ON "Resignation"("employeeId")`,
         `CREATE INDEX IF NOT EXISTS "Resignation_status_idx" ON "Resignation"("status")`,
       ];
@@ -241,6 +245,11 @@ export async function POST(request: Request) {
     const submittedById = decoded.userId as string;
 
     // Insert the resignation record
+    const activeRows = await db.$queryRawUnsafe(
+      `SELECT "id" FROM "Resignation" WHERE "employeeId"=$1 AND "status" IN ('pending','pending_approval','notice_period') LIMIT 1`, employeeId,
+    ) as any[];
+    if (activeRows?.length) return NextResponse.json({ error: 'An active resignation request already exists for this employee.' }, { status: 409, headers: corsHeaders() });
+
     try {
       await db.$executeRawUnsafe(
         `INSERT INTO "Resignation"

@@ -110,6 +110,7 @@ interface Employee {
   branch?: { id: string; name: string } | null;
   dateOfJoining: string;
   status: string;
+  employeeStatus?: string | null;
   dateOfBirth?: string | null;
   gender?: string | null;
   maritalStatus?: string | null;
@@ -3072,10 +3073,17 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
                             </div>
                           </td>
                           <td className="px-4 py-3">
-                            <span className={`inline-flex items-center gap-1.5 ${badge.className}`}>
-                              <span className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />
-                              {badge.label}
-                            </span>
+                            <div className="flex flex-col items-start gap-1">
+                              <span className={`inline-flex items-center gap-1.5 ${badge.className}`}>
+                                <span className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />
+                                {badge.label}
+                              </span>
+                              {emp.employeeStatus && (
+                                <span className="text-[10px] font-medium text-slate-500 capitalize">
+                                  Employment: {emp.employeeStatus.replace(/_/g, ' ')}
+                                </span>
+                              )}
+                            </div>
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex items-center justify-end relative" ref={actionMenuOpen === emp.id ? actionMenuRef : null}>

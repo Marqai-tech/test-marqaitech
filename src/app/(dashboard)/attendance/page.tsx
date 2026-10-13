@@ -1051,7 +1051,7 @@ export default function AttendancePage() {
             Half-Day Leave / Early Checkout
           </label>
           {/* Task 57: Break In / Break Out buttons (self-service lunch/tea break) */}
-          {isCheckedIn && !isCheckedOut && (
+          {isCheckedIn && (
             <>
               <button
                 onClick={handleBreakIn}

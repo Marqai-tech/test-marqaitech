@@ -56,6 +56,9 @@ interface ResignationRecord {
   reasonCategory: string;
   status: string;
   createdAt: string;
+  id: string;
+  rejectionReason?: string | null;
+  decisionDate?: string | null;
 }
 
 const initialForm = {
@@ -77,6 +80,7 @@ const initialForm = {
 export default function ResignationPage() {
   const router = useRouter();
   const { user } = useAuthStore();
+  const isApprover = ['super_admin', 'tenant_admin', 'admin', 'hr_admin'].includes(user?.role || '');
   const scopeQuery = useCompanyContextStore(s => s.scopeQuery);
   const selectedTenantId = useCompanyContextStore(s => s.selectedTenantId);
 
@@ -177,6 +181,21 @@ export default function ResignationPage() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const decide = async (record: ResignationRecord, action: 'approve' | 'reject') => {
+    let comments = '';
+    if (action === 'reject') {
+      comments = window.prompt('Enter the rejection reason')?.trim() || '';
+      if (!comments) return;
+    }
+    try {
+      const res = await fetch(`/api/employees/resignation/${record.id}`, { method: 'PATCH', headers: getAuthHeaders(), body: JSON.stringify({ action, comments }) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to process decision');
+      toast.success(action === 'approve' ? 'Resignation approved successfully' : 'Resignation rejected successfully');
+      fetchRecords();
+    } catch (e) { toast.error(e instanceof Error ? e.message : 'Failed to process decision'); }
   };
 
   const reasonLabel = (v: string) => REASON_CATEGORIES.find(c => c.value === v)?.label || v;
@@ -328,13 +347,14 @@ export default function ResignationPage() {
                 <th className="text-left px-4 py-3 font-semibold text-slate-700">Last Working Day</th>
                 <th className="text-left px-4 py-3 font-semibold text-slate-700">Reason</th>
                 <th className="text-left px-4 py-3 font-semibold text-slate-700">Status</th>
+                {isApprover && <th className="text-left px-4 py-3 font-semibold text-slate-700">Actions</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
-                <tr><td colSpan={6} className="text-center py-8 text-slate-400">Loading...</td></tr>
+                <tr><td colSpan={isApprover ? 7 : 6} className="text-center py-8 text-slate-400">Loading...</td></tr>
               ) : records.length === 0 ? (
-                <tr><td colSpan={6} className="text-center py-12">
+                <tr><td colSpan={isApprover ? 7 : 6} className="text-center py-12">
                   <FiFileText className="w-8 h-8 text-slate-300 mx-auto mb-2" />
                   <p className="text-slate-500">No resignation requests yet</p>
                   <p className="text-xs text-slate-400 mt-1">Submit a resignation request using the form above</p>
@@ -349,6 +369,12 @@ export default function ResignationPage() {
                   <td className="px-4 py-3">
                     <span className={getStatusBadge(r.status)}>{r.status}</span>
                   </td>
+                  {isApprover && <td className="px-4 py-3">
+                    {r.status === 'pending' || r.status === 'pending_approval' ? <div className="flex gap-2">
+                      <button onClick={() => decide(r, 'approve')} className="text-xs px-2 py-1 rounded bg-emerald-600 text-white">Approve</button>
+                      <button onClick={() => decide(r, 'reject')} className="text-xs px-2 py-1 rounded bg-rose-600 text-white">Reject</button>
+                    </div> : <span className="text-xs text-slate-500">{r.rejectionReason || (r.decisionDate ? fmtDate(r.decisionDate) : '—')}</span>}
+                  </td>}
                 </tr>
               ))}
             </tbody>

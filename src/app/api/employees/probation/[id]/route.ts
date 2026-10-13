@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { ensureWorkflowConfig, resolveTierApprovers } from '@/lib/approverResolve';
+import { applyFinalProbationDecision, appendProbationHistory, cleanProbationComment, parseProbationData, validateEffectiveDate } from '@/lib/probation-workflow';
+import { createNotification } from '@/lib/notifications';
+import { sendTenantEmail } from '@/lib/notification-channels';
 
 function corsHeaders() {
   return {
@@ -37,6 +40,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
             firstName: true,
             lastName: true,
             employeeId: true,
+            dateOfJoining: true,
+            email: true,
             avatar: true,
             department: { select: { name: true } },
             designation: { select: { title: true } },
@@ -87,6 +92,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         decision: probationData.decision || 'pending',
         effectiveDate: probationData.effectiveDate || null,
         confirmationLetter: probationData.confirmationLetter || null,
+        payrollEligible: probationData.payrollEligible === true,
+        payrollEligibilityDate: probationData.payrollEligibilityDate || null,
+        revisedEndDate: probationData.revisedEndDate || null,
+        statusHistory: Array.isArray(probationData.statusHistory) ? probationData.statusHistory : [],
+        notificationHistory: Array.isArray(probationData.notificationHistory) ? probationData.notificationHistory : [],
         // Workflow fields
         status: review.status,
         reviewerId: review.reviewerId,
@@ -129,7 +139,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     } = body;
 
     // Check if the review exists
-    const existing = await db.performanceReview.findUnique({ where: { id } });
+    const existing = await db.performanceReview.findUnique({ where: { id }, include: { employee: { select: { dateOfJoining: true } } } });
     if (!existing) {
       return NextResponse.json({ error: 'Probation review not found' }, { status: 404, headers: corsHeaders() });
     }
@@ -150,17 +160,23 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       }
     } catch { /* not JSON */ }
 
-    const updatedProbationData = JSON.stringify({
+    const nextEffectiveDate = effectiveDate !== undefined ? effectiveDate : existingData.effectiveDate;
+    const dateError = validateEffectiveDate(nextEffectiveDate, (existing as any).employee.dateOfJoining);
+    if (dateError) return NextResponse.json({ error: dateError }, { status: 400, headers: corsHeaders() });
+    const updatedData: Record<string, any> = {
+      ...existingData,
       probationStartDate: probationStartDate !== undefined ? probationStartDate : existingData.probationStartDate,
       probationPeriod: probationPeriod !== undefined ? probationPeriod : existingData.probationPeriod,
       extensionPeriod: extensionPeriod !== undefined ? extensionPeriod : (existingData.extensionPeriod || 0),
       performanceRating: performanceRating !== undefined ? performanceRating : (existingData.performanceRating || 0),
-      reviewComments: reviewComments !== undefined ? reviewComments : (existingData.reviewComments || ''),
+      reviewComments: reviewComments !== undefined ? cleanProbationComment(reviewComments) : (existingData.reviewComments || ''),
       kpiStatus: kpiStatus !== undefined ? kpiStatus : (existingData.kpiStatus || 'pending'),
       decision: decision !== undefined ? decision : (existingData.decision || 'pending'),
       effectiveDate: effectiveDate !== undefined ? effectiveDate : existingData.effectiveDate,
       confirmationLetter: confirmationLetter !== undefined ? confirmationLetter : existingData.confirmationLetter,
-    });
+    };
+    appendProbationHistory(updatedData, { action: 'edited', actorId: String(decoded.userId), actorRole: String(decoded.role || 'employee'), comments: reviewComments, fromStatus: existing.status, toStatus: existing.status });
+    const updatedProbationData = JSON.stringify(updatedData);
 
     const review = await db.performanceReview.update({
       where: { id },
@@ -232,7 +248,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     const userRole = ((decoded.role as string) || 'employee').toLowerCase();
     const body = await request.json();
-    const { action, comments, extensionPeriod } = body;
+    const { action, extensionPeriod } = body;
+    const comments = cleanProbationComment(body.comments);
 
     if (!action || typeof action !== 'string') {
       return NextResponse.json({ error: 'A workflow action is required' }, { status: 400, headers: corsHeaders() });
@@ -244,12 +261,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     }
 
     // Parse existing probation data
-    let probationData: any = {};
-    try {
-      if (existing.comments && existing.comments.startsWith('{')) {
-        probationData = JSON.parse(existing.comments);
-      }
-    } catch { /* not JSON */ }
+    let probationData: any = parseProbationData(existing.comments);
 
     // Determine current workflow stage
     const currentStage = probationData.workflowStage || 'hr_review';
@@ -300,6 +312,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         by: decoded.userId,
         at: new Date().toISOString(),
       });
+      appendProbationHistory(probationData, {
+        action: `tier_${tierIdx}_${action}`, actorId: String(decoded.userId), actorRole: userRole,
+        comments, fromStatus: existing.status, toStatus: tierIdx >= wfConfig.tiers.length ? (actionRule?.reviewStatus || existing.status) : 'pending',
+      });
       if (action === 'extend') {
         if (!wfConfig.extension?.enabled) return NextResponse.json({ error: 'Probation extension is disabled in Employee settings' }, { status: 400, headers: corsHeaders() });
         const months = Number(extensionPeriod || wfConfig.extension.defaultMonths);
@@ -309,15 +325,22 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         probationData.extensionPeriod = months;
       }
 
-      const reviewForName = await db.performanceReview.update({
+      // Do not persist a tier decision before the complete action succeeds.
+      // A previous implementation wrote this history first, so a later PDF or
+      // notification failure left a false approval entry and retries duplicated
+      // it. Keep it in memory until either advancing a tier or finalizing.
+      const reviewForName = await db.performanceReview.findUnique({
         where: { id },
-        data: { comments: JSON.stringify(probationData) },
         include: { employee: { select: { firstName: true, lastName: true, employeeId: true } } },
       });
       const empName = `${(reviewForName as any).employee?.firstName || ''} ${(reviewForName as any).employee?.lastName || ''}`.trim();
 
+      // Workflow spec: HR confirmation is final. Only an extension request
+      // advances to the assigned MD. A rejection finalizes according to the
+      // tenant's configured reject outcome.
       const isLastTier = tierIdx >= wfConfig.tiers.length;
-      if (!isLastTier) {
+      const shouldFinalizeNow = isLastTier || action === 'approve' || action === 'reject';
+      if (!shouldFinalizeNow) {
         // Advance to the next tier
         probationData.tierIndex = tierIdx + 1;
         probationData.workflowStage = `tier_${tierIdx + 1}`;
@@ -325,21 +348,21 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
         const nextTierDef = wfConfig.tiers[tierIdx];
         const nextResolved = await resolveTierApprovers(db as Record<string, any>, nextTierDef, existing.employeeId);
+        const actor = await db.user.findUnique({ where: { id: String(decoded.userId) }, select: { name: true } }).catch(() => null);
+        const currentEnd = new Date(probationData.probationStartDate);
+        currentEnd.setMonth(currentEnd.getMonth() + Number(probationData.probationPeriod || 0));
+        const proposedEnd = new Date(currentEnd);
+        proposedEnd.setMonth(proposedEnd.getMonth() + Number(probationData.extensionPeriod || extensionPeriod || 0));
         for (const uid of nextResolved.userIds) {
-          try {
-            await db.notification.create({
-              data: {
-                userId: uid,
-                title: `Probation Review Needs Your Approval — ${empName}`,
-                message: `Tier ${tierIdx} decision (${action}) has been recorded. Your approval is required as ${nextResolved.label} (tier ${tierIdx + 1} of ${wfConfig.tiers.length}).`,
-                type: 'probation',
-                category: 'probation_tier_review',
-                isRead: false,
-                isEmailSent: false,
-                actionUrl: '/employees/probation',
-              },
-            }).catch(() => null);
-          } catch { /* non-critical */ }
+          const title = 'Approval Required – Probation Extension';
+          const message = `${actor?.name || 'HR'} recommended extending ${empName}'s probation until ${proposedEnd.toLocaleDateString('en-IN')}. Your decision is required.`;
+          await createNotification({ tenantId: String((decoded as any).tenantId), userId: uid, title, message, type: 'workflow', category: 'performance', link: '/employees/probation' }).catch(() => null);
+          const approver = await db.user.findUnique({ where: { id: uid }, select: { email: true } }).catch(() => null);
+          if (approver?.email) await sendTenantEmail(db, String((decoded as any).tenantId), {
+            to: approver.email,
+            subject: title,
+            html: `<p>Hi,</p><p>${actor?.name || 'HR'} has recommended extending this employee's probation.</p><p><strong>Employee:</strong> ${empName}<br/><strong>Employee ID:</strong> ${(reviewForName as any).employee?.employeeId || '—'}<br/><strong>Current Probation End Date:</strong> ${currentEnd.toLocaleDateString('en-IN')}<br/><strong>Proposed Revised End Date:</strong> ${proposedEnd.toLocaleDateString('en-IN')}<br/><strong>Extension Reason:</strong> ${comments || '—'}<br/><strong>Status:</strong> Awaiting MD Approval</p><p>Please open HRMS to approve or reject the extension.</p>`,
+          }).catch(() => null);
         }
         try {
           await db.auditLog.create({
@@ -354,27 +377,21 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         }, { headers: corsHeaders() });
       }
 
-      // ─── Final tier: finalize the review (same semantics as legacy md_review) ───
-      const newStatus = actionRule?.reviewStatus || 'pending';
-      const newDecision = actionRule?.decision || 'pending';
-
-      probationData.decision = newDecision;
-      probationData.finalAction = action;
-      probationData.finalComments = comments || '';
-      probationData.workflowStage = 'completed';
+      // ─── Final tier: one shared finalizer performs status, payroll date,
+      // letter generation, employee notification/email and immutable audit. ───
       probationData.tierIndex = tierIdx;
-
-      const finalReview = await db.performanceReview.update({
-        where: { id },
-        data: { status: newStatus, comments: JSON.stringify(probationData), reviewDate: new Date() },
-        include: { employee: { select: { id: true, firstName: true, lastName: true, employeeId: true } } },
+      const priorDecision = probationData.tierDecisions?.[probationData.tierDecisions.length - 2]?.action;
+      // At the final tier, "approve" approves the preceding HR recommendation.
+      // This is essential for HR Extend → MD Approve to remain an extension.
+      const finalAction = action === 'approve' && ['extend', 'reject'].includes(priorDecision) ? priorDecision : action;
+      const finalResult = await applyFinalProbationDecision({
+        db, tenantId: String((decoded as any).tenantId), reviewId: id, employeeId: existing.employeeId,
+        action: finalAction, effectiveDate: probationData.effectiveDate, extensionPeriod,
+        actorId: String(decoded.userId), actorRole: userRole, comments, probationData,
+        terminateOnReject: actionRule?.employeeStatus === 'terminated',
       });
-
-      if (actionRule?.employeeStatus) {
-        try {
-          await db.employee.update({ where: { id: existing.employeeId }, data: { employeeStatus: actionRule.employeeStatus } });
-        } catch { /* non-critical */ }
-      }
+      const newStatus = finalResult.reviewStatus;
+      const newDecision = finalResult.decision;
 
       // Notify HR admins that the decision is final
       try {
@@ -412,7 +429,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       return NextResponse.json({
         success: true,
         message: `Probation review ${action}d at the final approval tier. Employee status updated.`,
-        probation: { id, status: newStatus, decision: newDecision, workflowStage: 'completed' },
+        probation: { id, status: newStatus, decision: newDecision, workflowStage: finalResult.data.workflowStage, confirmationLetter: finalResult.letterDocument?.id || null },
       }, { headers: corsHeaders() });
     }
 
@@ -429,7 +446,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       let hrDecision = 'pending';
       if (action === 'approve') hrDecision = 'confirm';
       else if (action === 'extend') hrDecision = 'extend';
-      else if (action === 'reject') hrDecision = 'terminate';
+      else if (action === 'reject') hrDecision = 'rejected';
 
       probationData.hrDecision = hrDecision;
       probationData.hrAction = action;
@@ -468,7 +485,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
         const emp = (review as any).employee || {};
         const empName = `${emp.firstName || ''} ${emp.lastName || ''}`.trim();
-        const decisionLabel = hrDecision === 'confirm' ? 'Confirm (End Probation)' : hrDecision === 'extend' ? 'Extend Probation' : 'Terminate';
+        const decisionLabel = hrDecision === 'confirm' ? 'Confirm (End Probation)' : hrDecision === 'extend' ? 'Extend Probation' : 'Reject Review';
 
         for (const md of mdAdmins) {
           try {
@@ -526,7 +543,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         newDecision = 'extend';
       } else if (action === 'reject') {
         newStatus = 'rejected';
-        newDecision = 'terminate';
+        newDecision = 'rejected';
       }
 
       probationData.decision = newDecision;

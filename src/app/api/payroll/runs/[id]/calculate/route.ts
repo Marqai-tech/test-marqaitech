@@ -62,7 +62,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
 
     // 2. Get all active employees for the legal entity
-    const employees = await db.employee.findMany({
+    const activeEmployees = await db.employee.findMany({
       where: {
         status: 'active',
         companyId: payrollRun.companyId || undefined,
@@ -71,6 +71,32 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         designation: true,
         department: true,
       },
+    });
+
+    // Probation employees become payroll-eligible only after confirmation and
+    // from the approved effective date. Existing confirmed employees without a
+    // probation review remain eligible for backwards compatibility.
+    const [periodYear, periodMonth] = String(payrollRun.payrollPeriod).split('-').map(Number);
+    const periodEnd = new Date(Date.UTC(periodYear, periodMonth, 0, 23, 59, 59, 999));
+    const confirmedReviews = await db.performanceReview.findMany({
+      where: { reviewCycle: 'Probation', status: 'completed', employeeId: { in: activeEmployees.map(e => e.id) } },
+      select: { employeeId: true, comments: true, updatedAt: true },
+      orderBy: { updatedAt: 'desc' },
+    }).catch(() => []);
+    const confirmationDateByEmployee = new Map<string, Date>();
+    for (const review of confirmedReviews) {
+      if (confirmationDateByEmployee.has(review.employeeId)) continue;
+      try {
+        const data = review.comments?.startsWith('{') ? JSON.parse(review.comments) : {};
+        if (data.decision === 'confirm' && data.payrollEligible !== false) {
+          confirmationDateByEmployee.set(review.employeeId, new Date(data.payrollEligibilityDate || data.effectiveDate || review.updatedAt));
+        }
+      } catch { /* malformed historical review: employee status remains the fallback */ }
+    }
+    const employees = activeEmployees.filter(employee => {
+      if ((employee.employeeStatus || '').toLowerCase() === 'probation') return false;
+      const eligibleFrom = confirmationDateByEmployee.get(employee.id);
+      return !eligibleFrom || eligibleFrom <= periodEnd;
     });
 
     if (employees.length === 0) {

@@ -9,6 +9,7 @@ export async function GET(req: NextRequest) {
     const action = url.searchParams.get('action');
     const entity = url.searchParams.get('entity');
     const entityId = url.searchParams.get('entityId');
+    const module = url.searchParams.get('module');
     const startDate = url.searchParams.get('startDate');
     const endDate = url.searchParams.get('endDate');
     const page = parseInt(url.searchParams.get('page') || '1');
@@ -20,6 +21,7 @@ export async function GET(req: NextRequest) {
     if (action) where.action = action;
     if (entity) where.entity = entity;
     if (entityId) where.entityId = entityId;
+    if (module) where.module = module;
     if (startDate || endDate) {
       where.createdAt = {};
       if (startDate) (where.createdAt as Record<string, unknown>).gte = new Date(startDate);

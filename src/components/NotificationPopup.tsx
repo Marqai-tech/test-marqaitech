@@ -151,17 +151,6 @@ export default function NotificationPopup() {
       hasShownLoginNotif.current = false;
       prevAuthState.current = isAuthed;
 
-      // Preserve the existing behavior of clearing older notifications on a
-      // fresh login so the popup does not replay an accumulated backlog.
-      if (isAuthed) {
-        fetch('/api/notifications', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ markAll: true }),
-        }).catch(() => {
-          // Silently fail — this is just cleanup
-        });
-      }
       return;
     }
 
@@ -191,14 +180,9 @@ export default function NotificationPopup() {
           setPopups([popup]);
         });
 
-        // Keep the existing one-popup-per-session behavior.
-        fetch('/api/notifications', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ markAll: true }),
-        }).catch(() => {
-          // Silently fail
-        });
+        // Showing a toast must not mark notifications as read. The unread
+        // badge should remain visible until the user explicitly opens the
+        // notification center or chooses "Mark all read".
       }
     }
   }, [notifications, isAuthed]);

@@ -72,6 +72,10 @@ interface TerminationRecord {
   reasonCategory: string;
   status: string;
   createdAt: string;
+  rejectionReason?: string | null;
+  decisionDate?: string | null;
+  settlementStatus?: string | null;
+  clearanceStatus?: string | null;
 }
 
 const initialForm = {
@@ -183,11 +187,21 @@ export default function TerminationPage() {
     if (!form.lastWorkingDate) return 'Last Working Date is required';
     // Task 65 FIX: Last Working Date must NOT be earlier than Termination Date
     if (form.lastWorkingDate < form.terminationDate) {
-      return `Last Working Date (${form.lastWorkingDate}) cannot be earlier than the Termination Date (${form.terminationDate}). Please correct the date.`;
+      return 'Last Working Date cannot be earlier than the Termination Date.';
     }
     if (!form.reasonCategory) return 'Reason Category is required';
     if (!form.detailedReason.trim() || form.detailedReason.trim().length < 20) return 'Detailed reason must be at least 20 characters';
     return null;
+  };
+
+  const decide = async (record: TerminationRecord, action: 'approve' | 'reject') => {
+    const rejectionReason = action === 'reject' ? window.prompt('Enter the rejection reason:') : undefined;
+    if (action === 'reject' && !rejectionReason?.trim()) { toast.error('Rejection reason is required.'); return; }
+    const res = await fetch(`/api/employees/termination/${record.id}`, { method: 'PATCH', headers: getAuthHeaders(), body: JSON.stringify({ action, rejectionReason }) });
+    const data = await res.json();
+    if (!res.ok) { toast.error(data.error || 'Unable to update request'); return; }
+    toast.success(action === 'approve' ? 'Termination request approved' : 'Termination request rejected');
+    fetchRecords();
   };
 
   const handleSubmit = async () => {
@@ -392,13 +406,14 @@ export default function TerminationPage() {
                 <th className="text-left px-4 py-3 font-semibold text-slate-700">Date</th>
                 <th className="text-left px-4 py-3 font-semibold text-slate-700">Reason</th>
                 <th className="text-left px-4 py-3 font-semibold text-slate-700">Status</th>
+                <th className="text-left px-4 py-3 font-semibold text-slate-700">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
-                <tr><td colSpan={5} className="text-center py-8 text-slate-400">Loading...</td></tr>
+                <tr><td colSpan={6} className="text-center py-8 text-slate-400">Loading...</td></tr>
               ) : records.length === 0 ? (
-                <tr><td colSpan={5} className="text-center py-12">
+                <tr><td colSpan={6} className="text-center py-12">
                   <FiAlertCircle className="w-8 h-8 text-slate-300 mx-auto mb-2" />
                   <p className="text-slate-500">No termination records</p>
                   <p className="text-xs text-slate-400 mt-1">Submit a termination request using the form above</p>
@@ -409,7 +424,10 @@ export default function TerminationPage() {
                   <td className="px-4 py-3 text-slate-600">{termTypeLabel(r.terminationType)}</td>
                   <td className="px-4 py-3 text-slate-600">{fmtDate(r.terminationDate)}</td>
                   <td className="px-4 py-3 text-slate-600">{reasonLabel(r.reasonCategory)}</td>
-                  <td className="px-4 py-3"><span className={getStatusBadge(r.status)}>{r.status}</span></td>
+                  <td className="px-4 py-3"><span className={getStatusBadge(r.status)}>{r.status}</span>{r.rejectionReason && <div className="text-xs text-red-600 mt-1">{r.rejectionReason}</div>}</td>
+                  <td className="px-4 py-3">
+                    {r.status === 'pending' && <div className="flex gap-2"><button onClick={() => decide(r, 'approve')} className="text-xs px-2 py-1 rounded bg-emerald-600 text-white">Approve</button><button onClick={() => decide(r, 'reject')} className="text-xs px-2 py-1 rounded bg-red-600 text-white">Reject</button></div>}
+                  </td>
                 </tr>
               ))}
             </tbody>

@@ -204,13 +204,23 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
   const token = useAuthStore.getState().token;
   useEffect(() => {
     if (!token) return;
-    const start = window.setTimeout(() => fetchNotifications(), 2000);
+    const refresh = () => fetchNotifications();
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') refresh();
+    };
+    const start = window.setTimeout(refresh, 500);
     const interval = setInterval(() => {
-      fetchNotifications();
-    }, 30000);
+      refresh();
+    }, 15000);
+    window.addEventListener('focus', refresh);
+    window.addEventListener('notifications:refresh', refresh);
+    document.addEventListener('visibilitychange', refreshWhenVisible);
     return () => {
       clearTimeout(start);
       clearInterval(interval);
+      window.removeEventListener('focus', refresh);
+      window.removeEventListener('notifications:refresh', refresh);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
     };
   }, [token, fetchNotifications]);
 
@@ -386,7 +396,10 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
         {/* Notification Bell */}
         <div className="relative" ref={notifRef}>
           <button
-            onClick={() => setShowNotifications(!showNotifications)}
+            onClick={() => {
+              fetchNotifications();
+              setShowNotifications(!showNotifications);
+            }}
             className="relative p-2 rounded-lg text-thb-text-secondary hover:text-thb-text-primary hover:bg-slate-100 transition-colors"
           >
             <FiBell className="w-5 h-5" />

@@ -36,6 +36,16 @@ const PERF_REVIEW_SYNC_STATEMENTS = [
   `ALTER TABLE "PerformanceReview" ADD COLUMN IF NOT EXISTS "reviewDate" TIMESTAMP(3)`,
   `ALTER TABLE "PerformanceReview" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT NOW()`,
   `ALTER TABLE "PerformanceReview" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT NOW()`,
+  // Legacy schemas required these obsolete fields and caused Prisma P2011.
+  // They are no longer part of the current review model, so make only these
+  // known legacy columns nullable instead of altering an arbitrary DB column.
+  `DO $$ BEGIN IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='PerformanceReview' AND column_name='cycleId') THEN ALTER TABLE "PerformanceReview" ALTER COLUMN "cycleId" DROP NOT NULL; END IF; END $$`,
+  `DO $$ BEGIN IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='PerformanceReview' AND column_name='revieweeId') THEN ALTER TABLE "PerformanceReview" ALTER COLUMN "revieweeId" DROP NOT NULL; END IF; END $$`,
+  // The current Prisma model allows reviewerId to be null. Older databases
+  // made it mandatory, which caused P2011 when the submitting HR user did not
+  // have a linked Employee profile. Keep the legacy column, but align its
+  // nullability with the current model.
+  `DO $$ BEGIN IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='PerformanceReview' AND column_name='reviewerId') THEN ALTER TABLE "PerformanceReview" ALTER COLUMN "reviewerId" DROP NOT NULL; END IF; END $$`,
 ];
 
 async function syncPerformanceReviewTable(db: { $executeRawUnsafe: (sql: string) => Promise<unknown> }): Promise<void> {
@@ -124,6 +134,7 @@ export async function GET(request: Request) {
            e."firstName" AS "empFirstName",
            e."lastName"  AS "empLastName",
            e."employeeId" AS "empCode",
+           e."dateOfJoining" AS "empDateOfJoining",
            e."avatar" AS "empAvatar",
            d."name" AS "deptName",
            des."title" AS "desgTitle"
@@ -205,6 +216,10 @@ export async function GET(request: Request) {
         decision: probationData.decision || 'pending',
         effectiveDate: probationData.effectiveDate || null,
         confirmationLetter: probationData.confirmationLetter || null,
+        payrollEligible: probationData.payrollEligible === true,
+        payrollEligibilityDate: probationData.payrollEligibilityDate || null,
+        statusHistory: Array.isArray(probationData.statusHistory) ? probationData.statusHistory : [],
+        notificationHistory: Array.isArray(probationData.notificationHistory) ? probationData.notificationHistory : [],
         // Workflow fields
         workflowStage: probationData.workflowStage || 'hr_review',
         hrDecision: probationData.hrDecision || null,
@@ -283,7 +298,7 @@ export async function POST(request: Request) {
       where: {
         employeeId,
         reviewCycle: 'Probation',
-        status: { in: ['pending', 'approved', 'active'] }, // NOT rejected/archived
+        status: { in: ['pending', 'approved', 'active', 'in_progress'] }, // NOT rejected/archived/completed
       },
       select: { id: true, status: true, createdAt: true },
     }).catch(() => null);
@@ -299,7 +314,7 @@ export async function POST(request: Request) {
     // should not be eligible for another normal probation review.
     const employee = await db.employee.findUnique({
       where: { id: employeeId },
-      select: { id: true, employeeStatus: true, status: true, firstName: true, lastName: true },
+      select: { id: true, employeeId: true, employeeStatus: true, status: true, firstName: true, lastName: true, dateOfJoining: true, userId: true, email: true, department: { select: { name: true } } },
     }).catch(() => null);
     if (!employee) {
       // QA P2011 hardening: a bogus employeeId used to fall through to the
@@ -308,6 +323,14 @@ export async function POST(request: Request) {
         { error: 'Employee not found for this probation review. Please select a valid employee and try again.' },
         { status: 400, headers: corsHeaders() }
       );
+    }
+    if (!probationStartDate || !probationPeriod) {
+      return NextResponse.json({ error: 'Probation start date and probation period are required.' }, { status: 400, headers: corsHeaders() });
+    }
+    const { validateEffectiveDate, appendProbationHistory } = await import('@/lib/probation-workflow');
+    const effectiveDateError = validateEffectiveDate(effectiveDate, employee.dateOfJoining);
+    if (effectiveDateError) {
+      return NextResponse.json({ error: effectiveDateError }, { status: 400, headers: corsHeaders() });
     }
     const empStatus = employee.employeeStatus || employee.status;
     if (empStatus === 'confirmed' && decision !== 'extend' && decision !== 'terminate') {
@@ -326,7 +349,7 @@ export async function POST(request: Request) {
 
     // Serialize the full probation form data as JSON in the comments field
     // so we can retrieve all probation-specific fields later
-    const probationData = JSON.stringify({
+    const probationPayload: Record<string, unknown> = {
       probationStartDate,
       probationPeriod,
       extensionPeriod: extensionPeriod || 0,
@@ -336,13 +359,28 @@ export async function POST(request: Request) {
       decision: decision || 'pending',
       effectiveDate: effectiveDate || null,
       confirmationLetter: confirmationLetter || null,
+      workflowStage: 'hr_review',
+      tierIndex: 1,
+    };
+    appendProbationHistory(probationPayload, {
+      action: 'submitted', actorId: String(decoded.userId), actorRole: String(decoded.role || 'employee'),
+      comments: cleanReviewComments, fromStatus: 'draft', toStatus: 'pending',
     });
+    const probationData = JSON.stringify(probationPayload);
 
     // Map decision → submitted status
     // When an employee/manager submits a probation review, it goes to HR/Admin
     // for approval. The status is always 'pending' on submission.
     // HR/Admin can then approve (confirm), extend, or reject via the [id] route.
-    let status = 'pending'; // Always pending on submission — goes to HR for review
+    const status = 'pending'; // Always pending on submission — goes to HR for review
+
+    // Preserve the submitting HR user's Employee id when one exists. The
+    // current model makes reviewerId optional, so a valid HR/User account can
+    // submit even when it has not been linked to an Employee profile yet.
+    const reviewerEmployee = await db.employee.findFirst({
+      where: { userId: String(decoded.userId) },
+      select: { id: true },
+    }).catch(() => null);
 
     // Null-safe create data: every NOT NULL column gets an explicit, typed
     // value so Prisma never sends NULL where the DB forbids it (QA P2011 fix).
@@ -350,7 +388,7 @@ export async function POST(request: Request) {
       employeeId,
       reviewCycle: 'Probation',
       reviewPeriod: probationPeriod ? `Probation (${probationPeriod} months)` : 'Probation',
-      reviewerId: (decoded as { userId?: string | null }).userId || null,
+      reviewerId: reviewerEmployee?.id || null,
       rating: Number(performanceRating) || 0,
       overallRating: Number(performanceRating) || 0,
       comments: probationData,
@@ -373,25 +411,13 @@ export async function POST(request: Request) {
     } catch (createErrRaw) {
       const createErr = createErrRaw as { code?: string; message?: string; meta?: { field_name?: string; fields?: string[] } };
       console.error('[Probation POST] create failed:', createErr);
-      // ─── QA P2011 self-heal ───
-      // Null constraint violation is typically caused by a LEGACY NOT NULL
-      // column the current Prisma model no longer knows about (e.g. cycleId
-      // from the old schema). Relax that column and retry once so the review
-      // saves instead of erroring. Missing table/column (P2021/P2022/P2023)
-      // is healed by re-running the additive schema sync.
+      // Retry only after the explicit, allow-listed schema sync above. Never
+      // drop NOT NULL from an arbitrary column based on an exception string.
       let healed = false;
       try {
         if (createErr.code === 'P2011') {
-          const fieldName = createErr.meta?.field_name
-            || (createErr.meta?.fields && createErr.meta.fields[0])
-            || (/fields?: \(`([^`]+)`\)/.exec(createErr.message || '')?.[1] ?? null);
-          const REQUIRED_FIELDS = new Set(['id', 'employeeId', 'reviewCycle']);
-          if (fieldName && !REQUIRED_FIELDS.has(fieldName)) {
-            const safeCol = fieldName.replace(/"/g, '');
-            await db.$executeRawUnsafe(`ALTER TABLE "PerformanceReview" ALTER COLUMN "${safeCol}" DROP NOT NULL`);
-            console.warn(`[Probation POST] self-heal: dropped NOT NULL on PerformanceReview."${safeCol}" (legacy column) — retrying save`);
-            healed = true;
-          }
+          await syncPerformanceReviewTable(db);
+          healed = true;
         } else if (createErr.code === 'P2021' || createErr.code === 'P2022' || createErr.code === 'P2023') {
           await syncPerformanceReviewTable(db);
           healed = true;
@@ -400,16 +426,24 @@ export async function POST(request: Request) {
         console.error('[Probation POST] self-heal failed:', healErr);
       }
       if (!healed) {
-        throw new Error(`Failed to save probation review: ${createErr.message || 'Unknown error'} (Code: ${createErr.code || 'N/A'})`);
+        if (createErr.code === 'P2003') {
+          return NextResponse.json({ error: 'The selected employee or reviewer account is not valid for this tenant. Please refresh the employee list and try again.' }, { status: 400, headers: corsHeaders() });
+        }
+        return NextResponse.json({ error: 'The probation review could not be saved because required review data is missing. Please verify the employee, dates, and review period.' }, { status: 400, headers: corsHeaders() });
       }
-      review = await db.performanceReview.create({
-        data: createData,
-        include: {
-          employee: {
-            select: { firstName: true, lastName: true, employeeId: true },
+      try {
+        review = await db.performanceReview.create({
+          data: createData,
+          include: {
+            employee: {
+              select: { firstName: true, lastName: true, employeeId: true },
+            },
           },
-        },
-      });
+        });
+      } catch (retryError) {
+        console.error('[Probation POST] create retry failed:', retryError);
+        return NextResponse.json({ error: 'The probation review could not be saved. Please verify all required employee, date, period, rating, and comment fields.' }, { status: 400, headers: corsHeaders() });
+      }
     }
 
     // Log to audit
@@ -424,22 +458,6 @@ export async function POST(request: Request) {
       });
     } catch { /* non-critical */ }
 
-    // ─── Task 65 FIX: update Employee status when terminated via probation ───
-    // When an employee is marked as Terminated through the probation review,
-    // the employee's status should be updated to 'terminated' consistently
-    // across the system (Employee List, Dashboard, etc.).
-    if (decision === 'terminate' && employee) {
-      try {
-        await db.employee.update({
-          where: { id: employeeId },
-          data: { status: 'terminated', employeeStatus: 'terminated' },
-        });
-        console.log(`[Probation POST] Employee ${employeeId} status updated to 'terminated' via probation review`);
-      } catch (statusErr) {
-        console.warn('[Probation POST] Failed to update employee status to terminated:', statusErr);
-      }
-    }
-
     // ─── Task 65: send notifications based on decision ───
     // Probation Review Submitted → notify Employee + HR
     // (For extend/terminate/confirm, the [id] route handles the follow-up
@@ -447,43 +465,70 @@ export async function POST(request: Request) {
     // was submitted.)
     try {
       const { createNotification } = await import('@/lib/notifications');
-      const { dispatchNotification, resolveRoleRecipients } = await import('@/lib/notification-center');
+      const { resolveRoleRecipients } = await import('@/lib/notification-center');
+      const { sendTenantEmail } = await import('@/lib/notification-channels');
+      const { ensureWorkflowConfig, resolveTierApprovers } = await import('@/lib/approverResolve');
       const empName = `${(review as any).employee?.firstName || ''} ${(review as any).employee?.lastName || ''}`.trim();
       const tenantId = (decoded as any).tenantId as string;
+      const appOrigin = new URL(request.url).origin;
+      const submittingUser = await db.user.findUnique({ where: { id: String(decoded.userId) }, select: { name: true, email: true } }).catch(() => null);
+      const probationEnd = new Date(probationStartDate);
+      probationEnd.setMonth(probationEnd.getMonth() + Number(probationPeriod || 0));
+      const deliveryHistory: Array<Record<string, unknown>> = [];
 
       // Notify the employee
       if (employee && employee.id) {
-        // Get employee.userId for notification
-        const empUser = await db.employee.findUnique({
-          where: { id: employeeId },
-          select: { userId: true },
-        }).catch(() => null);
-        if (empUser?.userId) {
+        if (employee.userId) {
           await createNotification({
             tenantId,
-            userId: empUser.userId,
+            userId: employee.userId,
             title: 'Probation Review Submitted',
             message: `Your probation review has been submitted. Decision: ${decision || 'pending'}. HR will review and process it shortly.`,
             type: 'info',
-            category: 'employees',
+            category: 'performance',
             link: '/employees/probation',
           }).catch(() => null);
         }
+        const employeeEmailResult = employee.email ? await sendTenantEmail(db, tenantId, {
+          to: employee.email,
+          subject: 'Probation Review Submitted',
+          html: `<p>Your probation review has been submitted and is pending HR review.</p>`,
+        }).catch((error) => ({ success: false, error: error instanceof Error ? error.message : 'Email delivery failed' })) : null;
+        deliveryHistory.push({ event: 'probation_submitted_employee', recipientUserId: employee.userId, recipientEmail: employee.email, inAppStatus: employee.userId ? 'sent' : 'skipped', emailStatus: employeeEmailResult?.success ? 'sent' : employee.email ? 'failed' : 'skipped', emailError: employeeEmailResult?.error || null, at: new Date().toISOString() });
       }
 
-      // Notify HR admins
-      const hrRecipients = await resolveRoleRecipients(db, tenantId, ['admin', 'hr_admin', 'tenant_admin']);
-      for (const r of hrRecipients) {
+      // Notify the configured first-tier HR approver(s). Fall back to active
+      // HR administrators only when the tenant has no resolvable assignment.
+      const workflow = await ensureWorkflowConfig(db as Record<string, any>, request, 'probation_confirmation').catch(() => null);
+      const assigned = workflow?.tiers?.[0]
+        ? await resolveTierApprovers(db as Record<string, any>, workflow.tiers[0], employeeId).catch(() => null)
+        : null;
+      const submitterIsHr = ['admin', 'company_hr_admin', 'hr_admin', 'tenant_admin', 'super_admin'].includes(String(decoded.role || '').toLowerCase());
+      const hrRecipients = submitterIsHr
+        ? [String(decoded.userId)]
+        : assigned?.userIds?.length
+          ? assigned.userIds
+          : await resolveRoleRecipients(db, ['admin', 'company_hr_admin', 'hr_admin', 'tenant_admin']);
+      for (const userId of hrRecipients) {
         await createNotification({
           tenantId,
-          userId: r.userId,
-          title: 'Probation Review Submitted',
-          message: `A probation review has been submitted for ${empName}. Decision: ${decision || 'pending'}. Please review.`,
+          userId,
+          title: 'Action Required – Probation Review Pending',
+          message: `Probation review for ${empName} (${employee.employeeId}) is waiting for HR action. Probation ends ${probationEnd.toLocaleDateString('en-IN')}. Status: Pending HR Review.`,
           type: 'info',
-          category: 'employees',
+          category: 'performance',
           link: '/employees/probation',
         }).catch(() => null);
+        const hrUser = await db.user.findUnique({ where: { id: userId }, select: { email: true } }).catch(() => null);
+        const hrEmailResult = hrUser?.email ? await sendTenantEmail(db, tenantId, {
+          to: hrUser.email,
+          subject: userId === String(decoded.userId) ? `Probation Review Submitted — ${empName}` : `Action Required – Probation Review Pending`,
+          html: `<p>Hi,</p><p>A probation review has been submitted${userId === String(decoded.userId) ? ' successfully' : ' and requires your review'}.</p><p><strong>Employee:</strong> ${empName}<br/><strong>Employee ID:</strong> ${employee.employeeId}<br/><strong>Department:</strong> ${employee.department?.name || '—'}<br/><strong>Probation End Date:</strong> ${probationEnd.toLocaleDateString('en-IN')}<br/><strong>Submitted By:</strong> ${submittingUser?.name || 'HR'}<br/><strong>Submitted On:</strong> ${new Date().toLocaleString('en-IN')}<br/><strong>Status:</strong> Pending HR Review</p><p><a href="${appOrigin}/employees/probation">View Probation Review</a></p>`,
+        }).catch((error) => ({ success: false, error: error instanceof Error ? error.message : 'Email delivery failed' })) : null;
+        deliveryHistory.push({ event: 'probation_submitted_hr', recipientUserId: userId, recipientEmail: hrUser?.email || null, inAppStatus: 'sent', emailStatus: hrEmailResult?.success ? 'sent' : hrUser?.email ? 'failed' : 'skipped', emailError: hrEmailResult?.error || null, at: new Date().toISOString() });
       }
+      probationPayload.notificationHistory = deliveryHistory;
+      await db.performanceReview.update({ where: { id: (review as any).id }, data: { comments: JSON.stringify(probationPayload) } }).catch(() => null);
     } catch { /* non-critical */ }
 
     return NextResponse.json(

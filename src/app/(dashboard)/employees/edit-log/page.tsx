@@ -36,6 +36,14 @@ interface UpdateRequest {
   documentId: string | null;
 }
 
+interface TransferAudit {
+  id: string;
+  action: string;
+  details?: string | null;
+  user?: { name?: string | null; email?: string | null } | null;
+  createdAt: string;
+}
+
 function fmtTime(iso?: string | null): string {
   if (!iso) return '—';
   const d = new Date(iso);
@@ -60,6 +68,7 @@ export default function EmployeeEditLogPage() {
   const isAdmin = ['super_admin', 'tenant_admin', 'admin', 'hr_admin'].includes(user?.role || '');
 
   const [requests, setRequests] = useState<UpdateRequest[]>([]);
+  const [transferAudits, setTransferAudits] = useState<TransferAudit[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [filterCategory, setFilterCategory] = useState<string>('all');
@@ -78,9 +87,43 @@ export default function EmployeeEditLogPage() {
       // The API returns either { requests } or { inbox, mine, all } based on role
       const list = j.requests || j.all || j.inbox || j.mine || [];
       setRequests(list);
+      const auditRes = await Promise.race([
+        fetch('/api/audit?module=employees&limit=200', { headers: getAuthHeaders() }),
+        new Promise<Response>(resolve => setTimeout(() => resolve(new Response(null, { status: 504 })), 4000)),
+      ]);
+      if (auditRes.ok) {
+        const auditJson = await auditRes.json();
+        const transferActions = ['CREATE_TRANSFER_REQUEST', 'APPROVE_TRANSFER_LEVEL', 'APPROVE_TRANSFER_REQUEST', 'REJECT_TRANSFER_REQUEST'];
+        const auditEntries = (auditJson.data || []).filter((entry: TransferAudit) => transferActions.includes(entry.action));
+        if (auditEntries.length) {
+          setTransferAudits(auditEntries);
+        } else {
+          const transferRes = await Promise.race([
+            fetch('/api/employees/transfer?limit=200', { headers: getAuthHeaders() }),
+            new Promise<Response>(resolve => setTimeout(() => resolve(new Response(null, { status: 504 })), 4000)),
+          ]);
+          const transferJson = transferRes.ok ? await transferRes.json() : { transfers: [] };
+          const derived: TransferAudit[] = (transferJson.transfers || []).flatMap((transfer: any) => {
+            const entries: TransferAudit[] = [{
+              id: `${transfer.id}-created`, action: 'CREATE_TRANSFER_REQUEST',
+              details: `Transfer request for ${transfer.employeeName} (${transfer.employeeCode}) — ${transfer.fromDepartment} → ${transfer.toDepartment}`,
+              createdAt: transfer.createdAt,
+            }];
+            if (transfer.status === 'approved' || transfer.status === 'rejected') entries.push({
+              id: `${transfer.id}-${transfer.status}`, action: transfer.status === 'approved' ? 'APPROVE_TRANSFER_REQUEST' : 'REJECT_TRANSFER_REQUEST',
+              details: transfer.status === 'approved' ? `Approved transfer for ${transfer.employeeName} (${transfer.employeeCode})` : `Rejected transfer for ${transfer.employeeName} (${transfer.employeeCode}) — ${transfer.rejectionReason || 'No reason provided'}`,
+              user: transfer.approverId ? { name: transfer.approverId } : null,
+              createdAt: transfer.decisionDate || transfer.updatedAt,
+            });
+            return entries;
+          });
+          setTransferAudits(derived);
+        }
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to load edit log');
       setRequests([]);
+      setTransferAudits([]);
     } finally {
       setLoading(false);
     }
@@ -234,6 +277,42 @@ export default function EmployeeEditLogPage() {
                     </tr>
                   );
                 })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <div className="thb-card overflow-hidden">
+        <div className="p-4 border-b border-thb-border flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-semibold text-thb-text-primary">Transfer Audit History ({transferAudits.length})</h3>
+            <p className="text-xs text-thb-text-muted mt-1">Submission, approval, and rejection actions for employee transfers.</p>
+          </div>
+          <FiFileText className="w-4 h-4 text-teal-600" />
+        </div>
+        {transferAudits.length === 0 ? (
+          <div className="p-8 text-center text-sm text-thb-text-muted">No transfer audit actions found.</div>
+        ) : (
+          <div className="overflow-x-auto max-h-[520px]">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50 sticky top-0 z-10">
+                <tr>
+                  <th className="text-left py-3 px-4 font-semibold text-thb-text-secondary">Action</th>
+                  <th className="text-left py-3 px-4 font-semibold text-thb-text-secondary">Details</th>
+                  <th className="text-left py-3 px-4 font-semibold text-thb-text-secondary">Performed By</th>
+                  <th className="text-left py-3 px-4 font-semibold text-thb-text-secondary">Date &amp; Time</th>
+                </tr>
+              </thead>
+              <tbody>
+                {transferAudits.map(audit => (
+                  <tr key={audit.id} className="border-b border-slate-50 hover:bg-slate-50/50">
+                    <td className="py-2.5 px-4 font-medium text-thb-text-primary">{audit.action.replaceAll('_', ' ')}</td>
+                    <td className="py-2.5 px-4 text-xs text-thb-text-secondary max-w-[420px] truncate" title={audit.details || ''}>{audit.details || '—'}</td>
+                    <td className="py-2.5 px-4 text-xs text-thb-text-secondary">{audit.user?.name || audit.user?.email || 'System'}</td>
+                    <td className="py-2.5 px-4 whitespace-nowrap text-xs text-thb-text-secondary">{fmtTime(audit.createdAt)}</td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>

@@ -2,7 +2,9 @@ import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { createNotification } from '@/lib/notifications';
+import { sendTenantEmail } from '@/lib/notification-channels';
 import { loadEmployeeSetting } from '@/lib/employee-config';
+import { sanitizeMultiLineText } from '@/lib/sanitize';
 
 function corsHeaders() {
   return {
@@ -10,6 +12,29 @@ function corsHeaders() {
     'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
   };
+}
+
+async function ensureTransferSchema(db: any) {
+  const statements = [
+    `ALTER TABLE "Transfer" ADD COLUMN IF NOT EXISTS "rejectionReason" TEXT`,
+    `ALTER TABLE "Transfer" ADD COLUMN IF NOT EXISTS "decisionDate" TIMESTAMP(3)`,
+    `ALTER TABLE "Transfer" ADD COLUMN IF NOT EXISTS "approverId" TEXT`,
+    `ALTER TABLE "Transfer" ADD COLUMN IF NOT EXISTS "notificationHistory" JSONB`,
+    `ALTER TABLE "Transfer" ADD COLUMN IF NOT EXISTS "approvalHistory" JSONB`,
+    `ALTER TABLE "Transfer" ADD COLUMN IF NOT EXISTS "currentApprovalLevel" INTEGER NOT NULL DEFAULT 0`,
+    `CREATE INDEX IF NOT EXISTS "Transfer_employee_pending_idx" ON "Transfer"("employeeId", "status")`,
+  ];
+  for (const sql of statements) { try { await db.$executeRawUnsafe(sql); } catch { /* older databases are upgraded lazily */ } }
+}
+
+async function notifyTransfer(db: any, tenantId: string, userId: string | null, email: string | null, title: string, message: string, link = '/employees/transfer') {
+  const withTimeout = <T>(promise: Promise<T>, fallback: T) => Promise.race([
+    promise,
+    new Promise<T>(resolve => setTimeout(() => resolve(fallback), 2500)),
+  ]);
+  const inApp = userId ? await withTimeout(createNotification({ tenantId, userId, title, message, type: 'info', category: 'workflow', link }).catch(() => null), null) : null;
+  const mail = email ? await withTimeout(sendTenantEmail(db, tenantId, { to: email, subject: title, html: `<p>${message.replace(/\n/g, '<br/>')}</p>` }).catch(() => ({ success: false })), { success: false }) : null;
+  return { userId, email, inApp: !!inApp, emailSent: !!mail?.success };
 }
 
 export async function OPTIONS() {
@@ -134,6 +159,10 @@ export async function GET(request: Request) {
       reason: r.reason || '',
       status: r.status,
       comments: r.comments || '',
+      reportingManagerId: r.reportingManagerId || null,
+      approverId: r.approverId || r.approvedById || null,
+      decisionDate: r.decisionDate || r.approvedAt || null,
+      rejectionReason: r.rejectionReason || null,
       createdAt: r.createdAt,
       updatedAt: r.updatedAt,
     }));
@@ -178,6 +207,14 @@ export async function POST(request: Request) {
       approvalRoles: ['tenant_admin', 'admin'],
       notifyReportingManager: true,
     });
+    // Merge defaults for older partial tenant settings. Missing `enabled`
+    // must not turn a previously configured workflow off.
+    Object.assign(configuredTransfer as Record<string, any>, {
+      enabled: true,
+      defaultTransferType: 'permanent',
+      approvalRoles: ['tenant_admin', 'admin'],
+      notifyReportingManager: true,
+    }, configuredTransfer);
     if (!configuredTransfer.enabled) return NextResponse.json({ error: 'Employee transfers are disabled in Employee Settings' }, { status: 409, headers: corsHeaders() });
     const {
       employeeId,
@@ -206,6 +243,16 @@ export async function POST(request: Request) {
         { status: 400, headers: corsHeaders() }
       );
     }
+    if (!reportingManager) {
+      return NextResponse.json(
+        { error: 'Please select a Reporting Manager before submitting the transfer request.' },
+        { status: 400, headers: corsHeaders() }
+      );
+    }
+    const employee = await db.employee.findUnique({ where: { id: employeeId }, select: { id: true, firstName: true, lastName: true, email: true, userId: true, reportingManagerId: true } });
+    if (!employee) return NextResponse.json({ error: 'Employee not found' }, { status: 404, headers: corsHeaders() });
+    const manager = await db.employee.findUnique({ where: { id: reportingManager }, select: { id: true } }).catch(() => null);
+    if (!manager) return NextResponse.json({ error: 'Selected Reporting Manager is invalid.' }, { status: 400, headers: corsHeaders() });
 
     // ─── Inline schema-sync for Transfer table ───
     try {
@@ -218,6 +265,12 @@ export async function POST(request: Request) {
         try { await db.$executeRawUnsafe(sql); } catch { /* already exists */ }
       }
     } catch { /* non-fatal */ }
+    await ensureTransferSchema(db);
+
+    const pending = await db.$queryRawUnsafe(`SELECT "id" FROM "Transfer" WHERE "employeeId" = $1 AND "status" = 'pending' LIMIT 1`, employeeId) as any[];
+    if (pending?.length) {
+      return NextResponse.json({ error: 'An active transfer request is already pending for this employee.' }, { status: 409, headers: corsHeaders() });
+    }
 
     const transferId = `trf-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const submittedById = decoded.userId as string;
@@ -242,9 +295,9 @@ export async function POST(request: Request) {
         newLocation || null,
         transferDate ? new Date(transferDate) : new Date(),
         transferType || configuredTransfer.defaultTransferType,
-        reason || null,
+        sanitizeMultiLineText(reason, 2000) || null,
         reportingManager || null,
-        comments || null,
+        sanitizeMultiLineText(comments, 5000) || null,
         submittedById,
       );
     } catch (insertErr) {
@@ -279,7 +332,7 @@ export async function POST(request: Request) {
             role: { in: configuredTransfer.approvalRoles },
             status: 'active',
           },
-          select: { id: true },
+          select: { id: true, email: true },
         }).catch(() => []);
 
         const empName = transferRow ? `${transferRow.firstName || ''} ${transferRow.lastName || ''}`.trim() : 'an employee';
@@ -293,6 +346,7 @@ export async function POST(request: Request) {
             category: 'employee_lifecycle',
             link: '/employees/transfer',
           }).catch(() => {});
+          if (admin.email) await sendTenantEmail(db, tenantId, { to: admin.email, subject: 'New Transfer Request Submitted', html: `<p>A transfer request has been submitted for ${empName}. Please review it in Employee &gt; Transfer.</p>` }).catch(() => {});
         }
       }
     } catch (e) {
@@ -331,6 +385,12 @@ export async function POST(request: Request) {
       });
     } catch { /* non-critical */ }
 
+    if (employee.userId || employee.email) {
+      await notifyTransfer(db, String((decoded as any).tenantId || ''), employee.userId, employee.email,
+        'Transfer Request Submitted',
+        `Your transfer request for ${new Date(transferDate || new Date()).toLocaleDateString('en-IN')} was submitted and is pending approval.`).catch(() => {});
+    }
+
     return NextResponse.json(
       {
         success: true,
@@ -357,5 +417,68 @@ export async function POST(request: Request) {
       { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown' },
       { status: 500, headers: corsHeaders() }
     );
+  }
+}
+
+/** Approve or reject a pending transfer. Employee data is changed only on approval. */
+export async function PATCH(request: Request) {
+  const db = await getDb(request);
+  try {
+    const token = getTokenFromHeaders(request);
+    const decoded = token ? await verifyToken(token) : null;
+    if (!decoded) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
+    const body = await request.json();
+    const transferId = String(body.transferId || body.id || '');
+    const action = String(body.action || '').toLowerCase();
+    const rejectionReason = sanitizeMultiLineText(body.rejectionReason || body.reason, 2000);
+    if (!transferId || !['approve', 'reject'].includes(action)) return NextResponse.json({ error: 'transferId and action (approve/reject) are required' }, { status: 400, headers: corsHeaders() });
+    if (action === 'reject' && !rejectionReason) return NextResponse.json({ error: 'A rejection reason is required.' }, { status: 400, headers: corsHeaders() });
+    await ensureTransferSchema(db);
+
+    const actorId = String((decoded as any).userId);
+    const role = String((decoded as any).role || '');
+    const configured = await loadEmployeeSetting(db as Record<string, any>, request, 'employee_transfer_config', { approvalRoles: ['tenant_admin', 'admin'] });
+    const approvalRoles = Array.isArray(configured.approvalRoles) && configured.approvalRoles.length ? configured.approvalRoles : ['tenant_admin', 'admin'];
+    const rows = await db.$queryRawUnsafe(`SELECT t.*, e."firstName", e."lastName", e."email", e."userId" AS "employeeUserId" FROM "Transfer" t LEFT JOIN "Employee" e ON e."id"=t."employeeId" WHERE t."id"=$1 LIMIT 1`, transferId) as any[];
+    const transfer = rows?.[0];
+    if (!transfer) return NextResponse.json({ error: 'Transfer request not found.' }, { status: 404, headers: corsHeaders() });
+    if (transfer.status !== 'pending') return NextResponse.json({ error: `Transfer request is already ${transfer.status}.` }, { status: 409, headers: corsHeaders() });
+    const approvalLevel = Number(transfer.currentApprovalLevel || 0);
+    const expectedRole = approvalRoles[approvalLevel] || approvalRoles[approvalRoles.length - 1];
+    if (role !== 'super_admin' && role !== expectedRole) return NextResponse.json({ error: `This request is awaiting approval from role: ${expectedRole}.` }, { status: 403, headers: corsHeaders() });
+
+    const decisionDate = new Date();
+    const approvalHistory = Array.isArray(transfer.approvalHistory) ? transfer.approvalHistory : [];
+    approvalHistory.push({ action, actorId, role, level: approvalLevel, decisionDate: decisionDate.toISOString(), rejectionReason: rejectionReason || null });
+    if (action === 'approve' && approvalLevel < approvalRoles.length - 1) {
+      const nextRole = approvalRoles[approvalLevel + 1];
+      await db.$executeRawUnsafe(`UPDATE "Transfer" SET "currentApprovalLevel"=$1, "approvalHistory"=$2::jsonb, "updatedAt"=NOW() WHERE "id"=$3`, approvalLevel + 1, JSON.stringify(approvalHistory), transferId);
+      const tenantId = String((decoded as any).tenantId || '');
+      const nextApprovers = await db.user.findMany({ where: { tenantId, role: nextRole, status: 'active' }, select: { id: true, email: true } }).catch(() => []);
+      for (const next of nextApprovers) await notifyTransfer(db, tenantId, next.id, next.email, 'Transfer Request Awaiting Approval', `Transfer request for ${transfer.firstName || ''} ${transfer.lastName || ''} is awaiting your approval.`);
+      await db.auditLog.create({ data: { userId: actorId, action: 'APPROVE_TRANSFER_LEVEL', module: 'employees', details: JSON.stringify({ transferId, employeeId: transfer.employeeId, level: approvalLevel, nextRole, decisionDate }) } }).catch(() => null);
+      return NextResponse.json({ success: true, status: 'pending', transferId, approvalLevel: approvalLevel + 1, nextApproverRole: nextRole, decisionDate }, { headers: corsHeaders() });
+    }
+    if (action === 'approve') {
+      await db.$transaction(async (tx: any) => {
+        await tx.employee.update({ where: { id: transfer.employeeId }, data: { departmentId: transfer.toDepartmentId, designationId: transfer.toDesignationId, branchId: transfer.toBranchId, reportingManagerId: transfer.reportingManagerId } });
+        await tx.$executeRawUnsafe(`UPDATE "Transfer" SET "status"='approved', "approvedById"=$1, "approverId"=$1, "approvedAt"=$2, "decisionDate"=$2, "updatedAt"=NOW() WHERE "id"=$3`, actorId, decisionDate, transferId);
+        await tx.auditLog.create({ data: { userId: actorId, action: 'APPROVE_TRANSFER_REQUEST', module: 'employees', details: JSON.stringify({ transferId, employeeId: transfer.employeeId, effectiveDate: transfer.transferDate, decisionDate }) } }).catch(() => null);
+      });
+    } else {
+      await db.$executeRawUnsafe(`UPDATE "Transfer" SET "status"='rejected', "rejectionReason"=$1, "approvedById"=$2, "approverId"=$2, "approvedAt"=$3, "decisionDate"=$3, "updatedAt"=NOW() WHERE "id"=$4`, rejectionReason, actorId, decisionDate, transferId);
+      await db.auditLog.create({ data: { userId: actorId, action: 'REJECT_TRANSFER_REQUEST', module: 'employees', details: JSON.stringify({ transferId, employeeId: transfer.employeeId, rejectionReason, decisionDate }) } }).catch(() => null);
+    }
+    const tenantId = String((decoded as any).tenantId || '');
+    const employeeName = `${transfer.firstName || ''} ${transfer.lastName || ''}`.trim();
+    const message = action === 'approve'
+      ? `Your transfer request has been approved. Effective ${new Date(transfer.transferDate).toLocaleDateString('en-IN')}, your new department, designation, location, and Reporting Manager will be updated.`
+      : `Your transfer request has been rejected. Reason: ${rejectionReason}`;
+    const notification = await notifyTransfer(db, tenantId, transfer.employeeUserId, transfer.email, action === 'approve' ? 'Transfer Request Approved' : 'Transfer Request Rejected', message);
+    await db.$executeRawUnsafe(`UPDATE "Transfer" SET "notificationHistory"=$1::jsonb, "approvalHistory"=$2::jsonb WHERE "id"=$3`, JSON.stringify([{ action, actorId, decisionDate: decisionDate.toISOString(), rejectionReason: rejectionReason || null, notification }]), JSON.stringify(approvalHistory), transferId).catch(() => null);
+    return NextResponse.json({ success: true, status: action === 'approve' ? 'approved' : 'rejected', transferId, employeeName, decisionDate, rejectionReason: rejectionReason || null, notification }, { headers: corsHeaders() });
+  } catch (error) {
+    console.error('Transfer decision error:', error);
+    return NextResponse.json({ error: 'Failed to process transfer decision', details: error instanceof Error ? error.message : 'Unknown' }, { status: 500, headers: corsHeaders() });
   }
 }

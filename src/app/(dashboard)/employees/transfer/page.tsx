@@ -54,6 +54,8 @@ interface TransferRecord {
   transferType: string;
   status: string;
   createdAt: string;
+  rejectionReason?: string | null;
+  decisionDate?: string | null;
 }
 
 const initialForm = {
@@ -102,6 +104,8 @@ export default function TransferPage() {
   const [submitting, setSubmitting] = useState(false);
   const [records, setRecords] = useState<TransferRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const [rejectionReason, setRejectionReason] = useState('');
 
   const updateField = (field: string, value: string) => {
     setForm(prev => ({ ...prev, [field]: value }));
@@ -148,6 +152,7 @@ export default function TransferPage() {
     if (!form.newDesignation) return 'New Designation is required';
     if (!form.newLocation) return 'New Location is required';
     if (!form.transferDate) return 'Transfer Date is required';
+    if (!form.reportingManager) return 'Please select a Reporting Manager before submitting the transfer request.';
     if (!form.reason.trim() || form.reason.trim().length < 20) return 'Reason must be at least 20 characters';
     if (form.newDepartment === form.currentDepartment && form.newDesignation === form.currentDesignation && form.newLocation === form.currentLocation) {
       return 'At least one detail must change in the transfer';
@@ -197,6 +202,26 @@ export default function TransferPage() {
     }
   };
 
+  const handleDecision = async (id: string, action: 'approve' | 'reject') => {
+    if (action === 'reject') { setRejectingId(id); setRejectionReason(''); return; }
+    await submitDecision(id, action, '');
+  };
+
+  const submitDecision = async (id: string, action: 'approve' | 'reject', reason: string) => {
+    if (action === 'reject' && !reason.trim()) { toast.error('A rejection reason is required.'); return; }
+    try {
+      const res = await fetch('/api/employees/transfer', { method: 'PATCH', headers: getAuthHeaders(), body: JSON.stringify({ transferId: id, action, rejectionReason: reason.trim() }) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Unable to process transfer');
+      toast.success(action === 'approve' ? 'Transfer approved successfully' : 'Transfer rejected successfully');
+      setRejectingId(null);
+      setRejectionReason('');
+      fetchRecords();
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Unable to process transfer');
+    }
+  };
+
   const transferTypeLabel = (v: string) => TRANSFER_TYPES.find(t => t.value === v)?.label || v;
   const deptLabel = (v: string) => DEPARTMENTS.find(d => d.value === v)?.label || (v || '—');
   const desgLabel = (v: string) => DESIGNATIONS.find(d => d.value === v)?.label || (v || '—');
@@ -217,6 +242,8 @@ export default function TransferPage() {
           <p className="text-sm text-slate-500 mt-1">Initiate employee transfer across departments, designations, or locations</p>
         </div>
       </div>
+
+      {rejectingId && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"><div className="w-full max-w-md rounded-xl bg-white p-5 shadow-xl"><h3 className="text-lg font-semibold text-slate-800">Reject Transfer Request</h3><p className="text-sm text-slate-500 mt-1">Enter a reason for rejecting this request.</p><textarea autoFocus value={rejectionReason} onChange={e => setRejectionReason(e.target.value)} className="w-full mt-4 rounded-lg border border-slate-300 p-3 text-sm" rows={4} placeholder="Rejection reason" /><div className="flex justify-end gap-2 mt-4"><button onClick={() => setRejectingId(null)} className="px-3 py-2 rounded-lg border text-sm">Cancel</button><button onClick={() => submitDecision(rejectingId, 'reject', rejectionReason)} className="px-3 py-2 rounded-lg bg-red-600 text-white text-sm">Confirm Rejection</button></div></div></div>}
 
       {/* Select Employee */}
       <div className="thb-card p-6 rounded-xl">
@@ -302,8 +329,8 @@ export default function TransferPage() {
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-medium text-thb-text-secondary mb-1">Reporting Manager</label>
-            <select value={form.reportingManager} onChange={e => updateField('reportingManager', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
+            <label className="block text-xs font-medium text-thb-text-secondary mb-1">Reporting Manager <span className="text-red-500 font-bold">*</span></label>
+            <select required value={form.reportingManager} onChange={e => updateField('reportingManager', e.target.value)} className="w-full px-3 py-2.5 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400">
               <option value="">Select Manager</option>
               {employeeList.filter(e => e.designation?.title?.toLowerCase().includes('manager') || e.designation?.title?.toLowerCase().includes('lead') || e.designation?.title?.toLowerCase().includes('director')).map(e => <option key={e.id} value={e.id}>{e.employeeId} — {e.firstName} {e.lastName}</option>)}
             </select>
@@ -343,7 +370,7 @@ export default function TransferPage() {
                 <th className="text-left px-4 py-3 font-semibold text-slate-700">To</th>
                 <th className="text-left px-4 py-3 font-semibold text-slate-700">Transfer Date</th>
                 <th className="text-left px-4 py-3 font-semibold text-slate-700">Type</th>
-                <th className="text-left px-4 py-3 font-semibold text-slate-700">Status</th>
+                <th className="text-left px-4 py-3 font-semibold text-slate-700">Status / Decision</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -364,6 +391,9 @@ export default function TransferPage() {
                   <td className="px-4 py-3 text-slate-600">{transferTypeLabel(r.transferType)}</td>
                   <td className="px-4 py-3">
                     <span className={getStatusBadge(r.status)}>{r.status}</span>
+                    {r.decisionDate && <div className="text-[10px] text-slate-400 mt-1">{fmtDate(r.decisionDate)}</div>}
+                    {r.rejectionReason && <div className="text-[10px] text-red-500 mt-1 max-w-[180px]" title={r.rejectionReason}>Reason: {r.rejectionReason}</div>}
+                    {isAdmin && r.status === 'pending' && <div className="flex gap-1 mt-2"><button onClick={() => handleDecision(r.id, 'approve')} className="text-[11px] px-2 py-1 rounded bg-emerald-600 text-white">Approve</button><button onClick={() => handleDecision(r.id, 'reject')} className="text-[11px] px-2 py-1 rounded bg-red-600 text-white">Reject</button></div>}
                   </td>
                 </tr>
               ))}
