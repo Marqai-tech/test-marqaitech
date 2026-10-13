@@ -1,9 +1,11 @@
 /**
  * 3Boxes HRMS — Session token storage
  *
- * `tb_token` lives only in sessionStorage, which is isolated per tab.
- * Remember-me may lengthen the token expiry, but never stores credentials in
- * localStorage because localStorage and cookies are shared across tabs.
+ * `tb_token` lives in sessionStorage (per-tab) by default. With remember-me,
+ * the token is additionally backed up in real localStorage (bypassing the
+ * per-tab shim) so the session restores after the tab is closed or the
+ * browser restarts — the server JWT carries the 30-day expiry, no secrets
+ * beyond the token itself are ever stored.
  *
  * Native localStorage methods are captured before the shim is installed so
  * remember-me cleanup never wipes the in-tab session token.
@@ -17,6 +19,14 @@ let originalGetItem: ((key: string) => string | null) | null = null;
 let originalSetItem: ((key: string, value: string) => void) | null = null;
 let originalRemoveItem: ((key: string) => void) | null = null;
 let fetchShimInstalled = false;
+
+function rawGet(key: string): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    if (originalGetItem) return originalGetItem(key);
+    return window.localStorage.getItem(key);
+  } catch { return null; }
+}
 
 function rawRemove(key: string): void {
   if (typeof window === 'undefined') return;
@@ -79,7 +89,16 @@ export function installTokenStorageShim(): void {
 export function getToken(): string | null {
   if (typeof window === 'undefined') return null;
   installTokenStorageShim();
-  try { return window.sessionStorage.getItem(TOKEN_KEY); } catch { return null; }
+  try {
+    const session = window.sessionStorage.getItem(TOKEN_KEY);
+    if (session) return session;
+    // Remember-me sessions survive tab close / browser restart: the token is
+    // backed up in real localStorage (bypassing the per-tab shim) while
+    // remember-me is active. The server JWT itself carries the 30-day expiry.
+    if (rawGet(REMEMBER_KEY) === '1') return rawGet(TOKEN_KEY);
+    return null;
+  } catch { return null;
+  }
 }
 
 export function setToken(token: string, options?: { remember?: boolean }): void {
@@ -88,10 +107,19 @@ export function setToken(token: string, options?: { remember?: boolean }): void 
   if (typeof options?.remember === 'boolean') {
     if (options.remember) {
       try { window.sessionStorage.setItem(REMEMBER_KEY, '1'); } catch { /* ignore */ }
+      // Durable backup in REAL localStorage (shim bypassed via captured
+      // originals) so the session restores after the tab is closed.
+      try {
+        if (originalSetItem) {
+          originalSetItem(TOKEN_KEY, token);
+          originalSetItem(REMEMBER_KEY, '1');
+        }
+      } catch { /* ignore */ }
     } else {
       try {
         window.sessionStorage.removeItem(REMEMBER_KEY);
         rawRemove(TOKEN_KEY);
+        rawRemove(REMEMBER_KEY);
       } catch { /* ignore */ }
     }
   }
