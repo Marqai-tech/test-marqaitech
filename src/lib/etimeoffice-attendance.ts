@@ -32,58 +32,22 @@ export function classifyBiometricDay<T extends TimedPunch>(
     accepted.push(punch);
   }
 
-  const localMinutes = (date: Date) => {
-    const parts = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(date);
-    return Number(parts.find(p => p.type === 'hour')?.value || 0) * 60 + Number(parts.find(p => p.type === 'minute')?.value || 0);
-  };
-  let hasBreakIn = Boolean(options.existingBreakIn);
-  let hasBreakOut = Boolean(options.existingBreakOut);
-  let sawCheckIn = false;
   for (const [index, punch] of accepted.entries()) {
     if (index === 0 && !options.manualCheckIn) {
       classifications.set(punch.id, 'check_in');
-      sawCheckIn = true;
       continue;
     }
-    if (options.earlyLogout && (options.manualCheckIn || sawCheckIn || index > 0)) {
-      classifications.set(punch.id, 'check_out');
-      options = { ...options, earlyLogout: false };
-      continue;
-    }
-    const minutes = localMinutes(punch.punchTime);
-    // A manual Break-In is part of the same attendance state machine as a
-    // biometric Break-In. Once it exists, the first subsequent biometric
-    // event must close that break, regardless of whether it is before,
-    // exactly at, or after 2:30 PM, and regardless of the biometric index.
-    // Do this before the manual-check-in/entry-only rule so that a scan after
-    // a manual Break-In cannot be misclassified as a normal entry punch.
-    if (hasBreakIn && !hasBreakOut && options.existingBreakIn && punch.punchTime > options.existingBreakIn) {
-      classifications.set(punch.id, 'break_out');
-      hasBreakOut = true;
-    } else if ((!options.existingCheckOut && options.manualCheckIn && index === 1) || minutes < 13 * 60 + 30) {
-      classifications.set(punch.id, 'entry_only');
-    } else if (!hasBreakIn) {
-      classifications.set(punch.id, 'break_in');
-      hasBreakIn = true;
-    } else if (!hasBreakOut) {
-      classifications.set(punch.id, 'break_out');
-      hasBreakOut = true;
-    } else if (minutes < 18 * 60 + 30) {
-      classifications.set(punch.id, 'entry_only');
-    } else {
-      classifications.set(punch.id, 'check_out');
-    }
+    // Company access rule: the first punch establishes check-in. Every later
+    // biometric scan is an exit/checkout signal, irrespective of its time.
+    // Lunch break-in/out are explicit app actions and are never inferred from
+    // biometric scans. The sync layer keeps the latest checkout scan.
+    classifications.set(punch.id, 'check_out');
   }
 
+  // Biometric devices are used only for first check-in and subsequent
+  // checkout updates. Lunch breaks are recorded explicitly in the app.
   const completedBreaks: Array<{ start: Date; end: Date }> = [];
-  const breakPunches = accepted.filter(p => classifications.get(p.id) === 'break_in' || classifications.get(p.id) === 'break_out');
-  for (let index = 0; index + 1 < breakPunches.length; index += 2) {
-    completedBreaks.push({ start: breakPunches[index].punchTime, end: breakPunches[index + 1].punchTime });
-  }
-  const breakMinutes = completedBreaks.reduce(
-    (total, interval) => total + Math.max(0, Math.round((interval.end.getTime() - interval.start.getTime()) / 60_000)),
-    0,
-  );
+  const breakMinutes = 0;
 
   return { accepted, classifications, completedBreaks, breakMinutes };
 }

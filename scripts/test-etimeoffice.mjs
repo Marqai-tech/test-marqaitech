@@ -51,7 +51,7 @@ test('mapping supports MarqAI employee-code overrides', () => {
   }
 });
 
-test('biometric day ignores two-minute duplicates and pairs middle punches as a break', () => {
+test('biometric day ignores two-minute duplicates and treats every later scan as checkout', () => {
   const at = (id, time) => ({ id, punchTime: new Date(`2026-10-08T${time}:00+05:30`) });
   const result = classifyBiometricDay([
     at('in', '09:30'),
@@ -62,10 +62,10 @@ test('biometric day ignores two-minute duplicates and pairs middle punches as a 
   ]);
   assert.equal(result.classifications.get('in'), 'check_in');
   assert.equal(result.classifications.get('duplicate'), 'duplicate');
-  assert.equal(result.classifications.get('break-in'), 'break_in');
-  assert.equal(result.classifications.get('break-out'), 'break_out');
+  assert.equal(result.classifications.get('break-in'), 'check_out');
+  assert.equal(result.classifications.get('break-out'), 'check_out');
   assert.equal(result.classifications.get('out'), 'check_out');
-  assert.equal(result.breakMinutes, 60);
+  assert.equal(result.breakMinutes, 0);
 });
 
 test('a punch after the two-minute window remains valid', () => {
@@ -75,7 +75,7 @@ test('a punch after the two-minute window remains valid', () => {
   assert.equal(result.classifications.get('out'), 'check_out');
 });
 
-test('a scan before 2:30 PM closes an existing manual break-in', () => {
+test('a biometric scan remains checkout even when an app break is open', () => {
   const breakIn = new Date('2026-10-08T13:30:00+05:30');
   const scan = { id: 'scan', punchTime: new Date('2026-10-08T14:28:00+05:30') };
   const result = classifyBiometricDay([scan], 2, {
@@ -83,7 +83,7 @@ test('a scan before 2:30 PM closes an existing manual break-in', () => {
     existingBreakIn: breakIn,
     existingBreakOut: null,
   });
-  assert.equal(result.classifications.get('scan'), 'break_out');
+  assert.equal(result.classifications.get('scan'), 'check_out');
 });
 
 test('a cursor truncated by env expansion fails before contacting the vendor', async (t) => {
