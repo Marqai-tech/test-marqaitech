@@ -608,26 +608,13 @@ export async function POST(request: Request) {
         }
       }
 
-      try {
-        await postLoginDataDb.notification.updateMany({
-          where: { userId: loginUser.id, isRead: false },
-          data: { isRead: true },
-        });
-        await postLoginDataDb.notification.create({
-          data: {
-            tenantId: loginUser.tenantId,
-            userId: loginUser.id,
-            title: 'Welcome to 3Boxes HRMS',
-            message: `Hello ${loginUser.name}! You have successfully logged in. Check your dashboard for updates.`,
-            type: 'login',
-            category: 'auth',
-            isRead: false,
-            isEmailSent: false,
-          },
-        });
-      } catch (e) {
-        console.error('Failed to create notification:', e);
-      }
+      // Task 92: no per-login bell notification anymore. Every login used to
+      // (a) mark ALL unread notifications read and (b) write an 'auth' noise
+      // row — together they wiped the unread badge for module updates and
+      // flooded the bell dropdown with login updates until module
+      // notifications were invisible. Logins remain fully recorded in
+      // AuditLog (below); module notifications now persist unread until the
+      // user actually opens them (or uses Mark-all-read in the bell).
       try {
         await postLoginDataDb.auditLog.create({
           data: {

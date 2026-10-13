@@ -124,6 +124,10 @@ export default function NotificationsPage() {
       const headers = getAuthHeaders();
       const params = new URLSearchParams({ limit: '100' });
       if (filterRead === 'unread') params.set('unread', 'true');
+      // Task 92: pass the category chip to the server — the API now excludes
+      // login-noise 'auth' rows from the default feed, so the Auth chip must
+      // request its category explicitly to keep working.
+      if (filterCategory) params.set('category', filterCategory);
       const res = await fetch(`/api/notifications?${params.toString()}`, { headers });
       if (res.ok) {
         const data = await res.json();
@@ -134,7 +138,7 @@ export default function NotificationsPage() {
     } finally {
       setLoading(false);
     }
-  }, [filterRead]);
+  }, [filterRead, filterCategory]);
 
   useEffect(() => { queueMicrotask(() => fetchData()); }, [fetchData]);
 

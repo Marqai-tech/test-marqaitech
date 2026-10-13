@@ -70,16 +70,8 @@ export const authOptions: NextAuthOptions = {
           },
         })
 
-        // Create welcome notification
-        await db.notification.create({
-          data: {
-            companyId: user.companyId || null,
-            userId: user.id,
-            type: 'auth',
-            title: 'Login Successful',
-            message: `Welcome back, ${user.name}! You logged in at ${new Date().toLocaleString()}`,
-          },
-        })
+        // Task 92: no per-login bell notification (flooded the feed with
+        // login noise; logins are already recorded in AuditLog above).
 
         return {
           id: user.id,
