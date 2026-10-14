@@ -364,6 +364,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
             subject: title,
             html: `<p>Hi,</p><p>${actor?.name || 'HR'} has recommended extending this employee's probation.</p><p><strong>Employee:</strong> ${empName}<br/><strong>Employee ID:</strong> ${(reviewForName as any).employee?.employeeId || '—'}<br/><strong>Current Probation End Date:</strong> ${currentEnd.toLocaleDateString('en-IN')}<br/><strong>Proposed Revised End Date:</strong> ${proposedEnd.toLocaleDateString('en-IN')}<br/><strong>Extension Reason:</strong> ${comments || '—'}<br/><strong>Status:</strong> Awaiting MD Approval</p><p>Please open HRMS to approve or reject the extension.</p>`,
           }).catch(() => null);
+        } // close for (const uid of nextResolved.userIds)
 
         // ─── Task 93: route the next-step notification through the
         // Notification Center (in-app + email, duplicate-guarded). An HR
