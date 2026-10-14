@@ -3,6 +3,7 @@ import { getDb, getPlatformDb, getDbForTenantById } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { checkTenantStatusOrBlock } from '@/lib/tenant-guard';
 import { validateEmail, validatePhone, validateWebsite, validateZipCode } from '@/lib/validators';
+import { getHiddenSlugsForRequest, PLATFORM_PLACEHOLDER_NAME } from '@/lib/tenant-filter';
 
 function corsHeaders() {
   return {
@@ -80,6 +81,34 @@ export async function GET(req: NextRequest) {
       : db;
 
     const where: Record<string, unknown> = {};
+    // ─── GOLDEN RULE (Task 98): the unscoped super-admin view must NEVER show
+    // hidden/seed tenants' companies. Previously it returned companies across
+    // ALL tenants — which surfaced the seed tenants' 7 dummy companies (Apex
+    // Services, Global Dynamics, Innovatech, Prime Healthcare, SparkL-ight,
+    // Stellar, TechNova) and no real data (real tenants with dedicated DBs
+    // have no company rows in the platform DB). Hidden tenants are resolved
+    // per request host (same rule as every listing) and excluded here.
+    if (role === 'super_admin' && !effectiveTenantId && !requestedGroupId && !requestedCompanyId) {
+      try {
+        const hiddenSlugs = getHiddenSlugsForRequest(req);
+        const hiddenTenants = await getPlatformDb().tenant.findMany({
+          where: {
+            OR: [
+              { slug: { in: hiddenSlugs } },
+              ...(PLATFORM_PLACEHOLDER_NAME ? [{ name: PLATFORM_PLACEHOLDER_NAME }] : []),
+            ],
+          },
+          select: { id: true },
+        });
+        const hiddenIds = hiddenTenants.map((t) => t.id);
+        if (hiddenIds.length > 0) {
+          where.companyGroup = { tenantId: { notIn: hiddenIds } };
+        }
+      } catch {
+        // Non-fatal — if the platform tenant table is unavailable, keep the
+        // legacy behavior rather than breaking the endpoint.
+      }
+    }
     if (requestedGroupId) {
       // Group filter takes precedence over tenant filter (a group already
       // belongs to exactly one tenant). For tenant_admin / others, the
