@@ -203,12 +203,13 @@ export async function GET(request: Request) {
             : [];
           where.companyId = companies.length ? { in: companies.map((c) => c.id) } : '__never__';
         }
-      } else if (jwtRole === 'super_admin' && !tenantId && !queryCompanyId) {
-        // GOLDEN RULE (Task 98-d): a super admin JWT carries the demo
-        // tenant's tenantId, so getDb() routes the unscoped call into that
-        // tenant DB (sample data!). Force the PLATFORM DB instead — the
-        // platform-wide view with hidden tenants excluded (mirrors
-        // /api/super-admin/dashboard).
+      } else if (jwtRole === 'super_admin' && !tenantId && !queryCompanyId && isServerLiveSite(request)) {
+        // GOLDEN RULE (Task 98-d): on LIVE hosts, a super admin JWT carries
+        // the demo tenant's tenantId, so getDb() routes the unscoped call
+        // into that tenant DB (sample data!). Force the PLATFORM DB instead
+        // — the platform-wide view with hidden tenants excluded (mirrors
+        // /api/super-admin/dashboard). Demo/test hosts keep their own
+        // architecture: unscoped demo views show the demo tenant's sample DB.
         statsDb = getPlatformDb();
         const hiddenExcl = await hiddenTenantEmployeeExclusion(request);
         if (hiddenExcl?.companyId) where.companyId = hiddenExcl.companyId;
@@ -525,7 +526,7 @@ export async function GET(request: Request) {
       // + 'Marq AI Tech Pvt Ltd' placeholder) — mirrors the companies fix
       // from Task 98 and the super-admin dashboard. No-ops when a company or
       // tenant scope is active.
-      if (jwtRole === 'super_admin' && !effectiveCompanyIdFilter && !tenantId) {
+      if (jwtRole === 'super_admin' && !effectiveCompanyIdFilter && !tenantId && isServerLiveSite(request)) {
         if (queryDb !== getPlatformDb()) {
           queryDb = getPlatformDb();
         }
