@@ -105,6 +105,7 @@ if (typeof globalThis !== 'undefined' && typeof setInterval === 'function') {
 // ─── Demo domain detection ───────────────────────────────────────────
 
 const DEMO_DOMAINS = [
+  'nexus-hrms-demo.vercel.app',
   'nexus-hrms-mu.vercel.app',
   'nexus-hrms.vercel.app',
   '3boxes-hrms.vercel.app',
