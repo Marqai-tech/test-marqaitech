@@ -204,6 +204,12 @@ export async function GET(request: Request) {
           where.companyId = companies.length ? { in: companies.map((c) => c.id) } : '__never__';
         }
       } else if (jwtRole === 'super_admin' && !tenantId && !queryCompanyId) {
+        // GOLDEN RULE (Task 98-d): a super admin JWT carries the demo
+        // tenant's tenantId, so getDb() routes the unscoped call into that
+        // tenant DB (sample data!). Force the PLATFORM DB instead — the
+        // platform-wide view with hidden tenants excluded (mirrors
+        // /api/super-admin/dashboard).
+        statsDb = getPlatformDb();
         const hiddenExcl = await hiddenTenantEmployeeExclusion(request);
         if (hiddenExcl?.companyId) where.companyId = hiddenExcl.companyId;
       }
@@ -512,11 +518,17 @@ export async function GET(request: Request) {
       }
 
       // ─── GOLDEN RULE (Task 98-d): unscoped super-admin views show NO dummy ───
-      // On the platform DB, exclude every employee whose company belongs to a
-      // hidden tenant (demo + seed sample tenants + 'Marq AI Tech Pvt Ltd'
-      // placeholder). Mirrors the companies API fix from Task 98. No-ops when
-      // a company/tenant scope is active or a dedicated tenant DB is in use.
-      if (jwtRole === 'super_admin' && !effectiveCompanyIdFilter && !tenantId && queryDb === getPlatformDb()) {
+      // A super admin JWT carries the demo tenant's tenantId, so getDb()
+      // routes unscoped calls into that tenant DB (sample data!). Force the
+      // PLATFORM DB for the platform-wide view and exclude every employee
+      // whose company belongs to a hidden tenant (demo + seed sample tenants
+      // + 'Marq AI Tech Pvt Ltd' placeholder) — mirrors the companies fix
+      // from Task 98 and the super-admin dashboard. No-ops when a company or
+      // tenant scope is active.
+      if (jwtRole === 'super_admin' && !effectiveCompanyIdFilter && !tenantId) {
+        if (queryDb !== getPlatformDb()) {
+          queryDb = getPlatformDb();
+        }
         const hiddenExcl = await hiddenTenantEmployeeExclusion(request);
         if (hiddenExcl?.companyId) {
           where.companyId = hiddenExcl.companyId;
