@@ -4466,3 +4466,22 @@ Stage Summary:
 - Root cause of the demo failure is the old Vercel account's Git connection, not code — reconnect (Option A) or migrate (Option B) in the Vercel dashboard; both documented click-by-click in docs/VERCEL_DEMO_CONNECTION.md.
 - CI-based independent deploys are wired (vercel-deploy.yml) and activate the moment VERCEL_TOKEN/ORG/PROJECT secrets are added (needs repo admin, sandbox PAT is push-only).
 - LIVE unaffected and green throughout.
+
+---
+Task ID: 98
+Agent: Super Z (main)
+Task: "do Option A now to unblock the demo, then Option B + the CI workflow... in the super admin link it is showing the dummy data but it should only the original tenant link selected from the company switcher... make it a golden rule now and update it in vercel now."
+
+Work Log:
+- USER DECISION: Option A now, then Option B + CI workflow for durable single-account setup.
+- OPTION A STATUS: reconnecting the old Vercel account's Git integration requires logging into that Vercel dashboard — the sandbox has NO credentials/token for it (PAT check re-confirmed: push-only, no admin; no Vercel token anywhere). Exact clicks re-sent to the user (Settings -> Git -> Connect maheshkpreddy/nexus-hrms -> Redeploy). Code-side everything is ready so the demo picks up ALL pending modules (Task 94/95/96/98) the moment the reconnect lands.
+- DUMMY-DATA ROOT CAUSE FOUND (scripts/task98-scope-audit.mjs): GET /api/companies, super-admin UNSCOPED branch, returned companies across ALL tenants from the platform DB = the hidden seed tenants' 7 DUMMY companies (Apex Services Ltd, Global Dynamics Corp, Innovatech Systems, Prime Healthcare Group, SparkL-ight PVT LTD, Stellar Enterprises, TechNova Solutions) and NO real data (real tenant marqaitechgroup keeps its 4 companies in its DEDICATED DB, invisible to the platform-DB query). Exact match for the user's complaint "showing all dummy data and no real data". Demo showed the same 7 both unscoped AND scoped (old build ignores scope entirely — fixed by deploy after Option A).
+- GOLDEN-RULE FIX (commit 3b5b3d3a): (1) /api/companies super-admin unscoped view now resolves hidden tenants per request host (getHiddenSlugsForRequest + PLATFORM_PLACEHOLDER_NAME) and EXCLUDES their companies via companyGroup.tenantId notIn — dummy companies can never appear again regardless of switcher state; scoped (?tenantId=) behavior unchanged (strict single-tenant from dedicated DB). (2) /super-admin subscriptions + purchase-transactions pages now send the company-switcher selectedTenantId (API scoping existed since before; pages weren't sending it). Dead legacy component hrms/super-admin.tsx identified (not imported anywhere) — left alone. (3) .gitignore now excludes .github/ and .vercel/ (the environment auto-checkpoint swept .github/workflows/vercel-deploy.yml into a commit and GitHub rejected pushes — PAT lacks workflow scope; the workflow source of truth stays at docs/vercel-deploy.yml.txt).
+- SYNTAX SCAN: 1145 files, 0 errors. DEPLOY: LIVE (Vercel – 3-boxes-hrms) SUCCESS 08:44:56 UTC at 3b5b3d3a; demo still pending Option A (old account build failure is the disconnect itself).
+- POST-DEPLOY VERIFY (LIVE): unscoped /api/companies = 0 (dummies GONE); scoped ?tenantId=marqaitechgroup = 4 REAL companies (3 Boxes Consulting Services, 3 Boxes Luxury Curations, 3 Boxes Technologies, MarqAI Tech Pvt Ltd); scoped dashboard companies=4 tenants=1 scopeTenant=marqaitechgroup; subscriptions 0 both ways.
+- GOVERNANCE: change request "Task 98 — golden rule enforcement" registered (id cmv7v49rh000206l5ouewqgda), approval email SENT to mahesh@marqaitech.com, approved in-app, marked implemented with commit 3b5b3d3a. Trail: 4 requests, 0 pending.
+
+Stage Summary:
+- LIVE super admin now obeys the golden rule end-to-end: NO dummy data anywhere (companies leak killed), and every scoped module shows only the switcher-selected tenant's data.
+- Demo gets the same golden rule automatically once Option A reconnect completes (its build failure IS the disconnected Git integration).
+- Option A reconnect + CI workflow secrets remain the two user-side actions (docs/VERCEL_DEMO_CONNECTION.md has every click).
