@@ -9,7 +9,7 @@ const TARGETS = [
   {
     name: 'LIVE tenant (marqaitechgroup.3boxeshrms.com)',
     base: 'https://marqaitechgroup.3boxeshrms.com',
-    login: { email: 'admin@marqaitechgroup.com', password: 'MarqAI@2026' },
+    login: { email: 'hr@marqaitech.com', password: 'MarqAI@2026' },
     paths: [
       '/api/me/context', '/api/dashboard', '/api/employees', '/api/attendance',
       '/api/leaves', '/api/leave-requests', '/api/payroll', '/api/companies',
