@@ -4448,3 +4448,21 @@ Stage Summary:
 - LIVE FULLY RESTORED after the Neon plan upgrade: zero 5xx on tenant site and super admin; outage closed.
 - The every-minute cron burn is permanently capped at 288/day (*/5) via commit 6ac5fe59; tightening it again requires a new approved change request after a Neon usage review.
 - Demo project Vercel build still failing at project level (pre-existing since Task 95) — user dashboard action still pending.
+
+---
+Task ID: 97
+Agent: Super Z (main)
+Task: "nexus-hrms - this link is in another vercel so it is falling back as the new git / vercel account is not connected to this link. so pls check once and make it independent from this account or connect to this vercel now."
+
+Work Log:
+- USER DIAGNOSIS CONFIRMED as the root cause of the pre-existing demo build failure: nexus-hrms-mu.vercel.app is hosted on an OLD Vercel account whose Git integration is not connected to the current GitHub account (maheshkpreddy/nexus-hrms) — every push "falls back", demo production stays on 06dec53e (pre-Task-95). LIVE project (3-boxes-hrms) builds green on identical commits, proving code is deployable.
+- Sandbox limits verified: PAT on origin has push=true but admin=false (cannot add GitHub Actions secrets via API); no Vercel token exists — the Git connection can only be re-established in a Vercel dashboard.
+- INDEPENDENCE WIRED IN CODE: .github/workflows/vercel-deploy.yml — CI deploy via Vercel CLI (npx vercel --prod) using repo secrets (VERCEL_TOKEN + VERCEL_ORG_ID_DEMO/VERCEL_PROJECT_ID_DEMO, and _LIVE suffixed for the live project). Guarded steps: without secrets the workflow SKIPS cleanly (no red X). This makes deploys independent of ANY Vercel GitHub App integration. Push may require workflow scope on the PAT — handled if rejected.
+- docs/VERCEL_DEMO_CONNECTION.md written: Option A (reconnect old account, keeps URL, ~5 min click-by-click), Option B (migrate demo to the current account as a new project + env-var copy list incl. DATABASE_URL/JWT_SECRET/SITE_MODE=demo/CRON_SECRET/ETIMEOFFICE_*), Option C (CI secrets setup). Demo-mode resolution is host-based (DEMO_DOMAINS in src/lib/site-mode.ts + src/middleware.ts -> slug 3boxes-hrms-demo) so any final custom domain needs a one-line addition there.
+- Env var inventory for the demo migration taken from .env.example: DATABASE_URL, LOCAL_TEST_DATABASE_URL, POSTGRES_PRISMA_URL, POSTGRES_URL, JWT_SECRET, NEXT_PUBLIC_BASE_URL, NEXT_PUBLIC_ROOT_DOMAIN, SITE_MODE, NEXT_PUBLIC_SITE_MODE, ETIMEOFFICE_* (13 vars), CRON_SECRET.
+- Committed workflow + docs + worklog; pushed to both remotes; verifying statuses after.
+
+Stage Summary:
+- Root cause of the demo failure is the old Vercel account's Git connection, not code — reconnect (Option A) or migrate (Option B) in the Vercel dashboard; both documented click-by-click in docs/VERCEL_DEMO_CONNECTION.md.
+- CI-based independent deploys are wired (vercel-deploy.yml) and activate the moment VERCEL_TOKEN/ORG/PROJECT secrets are added (needs repo admin, sandbox PAT is push-only).
+- LIVE unaffected and green throughout.
