@@ -89,6 +89,9 @@ interface DashboardData {
   totalTenants: number; activeTenants: number; suspendedTenants: number; inactiveTenants: number;
   totalGroupCompanies?: number; totalCompanies: number; totalEmployees: number; totalRevenue: number; platformHealth: number;
   recentActivity: AuditLog[];
+  // GOLDEN RULE: when the company switcher has a tenant selected, the API
+  // scopes every metric to it and echoes the scope back here.
+  scopeTenant?: { id: string; name: string; slug: string } | null;
   // Dynamic chart & list data
   companiesByMonth?: { month: string; companies: number }[];
   revenueByMonth?: { month: string; revenue: number }[];
@@ -125,7 +128,7 @@ const planTypeLabel: Record<string, string> = {
 // ─── Main Component ───────────────────────────────────────
 export default function SuperAdminPage() {
   const { user } = useAuthStore();
-  const { hydrate: hydrateContext } = useCompanyContextStore();
+  const { hydrate: hydrateContext, selectedTenantId, availableTenants } = useCompanyContextStore();
   const [activeTab, setActiveTab] = useState<'dashboard' | 'tenants' | 'groups' | 'plans' | 'audit' | 'backups'>('dashboard');
 
   // Dashboard state
@@ -233,17 +236,20 @@ export default function SuperAdminPage() {
   const viewRef = useRef<HTMLDivElement>(null);
 
   // ─── Data Fetching ──────────────────────────────────────
-  const fetchDashboard = useCallback(async (signal?: AbortSignal) => {
+  // GOLDEN RULE: the dashboard follows the company switcher. When a tenant is
+  // selected, tenantId is sent and the API scopes EVERY metric to it.
+  const fetchDashboard = useCallback(async (signal?: AbortSignal, tenantId?: string | null) => {
     try {
       setDashLoading(true);
-      const res = await fetch('/api/super-admin/dashboard', { headers: getAuthHeaders(), signal });
+      const scopeQs = tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : '';
+      const res = await fetch(`/api/super-admin/dashboard${scopeQs}`, { headers: getAuthHeaders(), signal });
       if (signal?.aborted) return;
       if (res.ok) {
         const data = await res.json();
         setDashboard(data);
       }
       setDashLoading(false);
-      const fullRes = await fetch('/api/super-admin/dashboard?full=1', { headers: getAuthHeaders(), signal });
+      const fullRes = await fetch(`/api/super-admin/dashboard?full=1${scopeQs ? `&tenantId=${encodeURIComponent(tenantId as string)}` : ''}`, { headers: getAuthHeaders(), signal });
       if (signal?.aborted) return;
       if (fullRes.ok) {
         setDashboard(await fullRes.json());
@@ -336,9 +342,9 @@ export default function SuperAdminPage() {
 
   useEffect(() => {
     const ac = new AbortController();
-    queueMicrotask(() => fetchDashboard(ac.signal));
+    queueMicrotask(() => fetchDashboard(ac.signal, selectedTenantId));
     return () => ac.abort();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selectedTenantId]); // re-fetch when the company-switcher scope changes
 
   useEffect(() => {
     if (activeTab === 'tenants' || activeTab === 'groups') queueMicrotask(() => fetchTenants());
@@ -1140,6 +1146,20 @@ export default function SuperAdminPage() {
                     </p>
                   </div>
                 </div>
+              </div>
+
+              {/* ─── GOLDEN RULE scope indicator — dashboard follows the company switcher ─── */}
+              <div className={`thb-card p-3 flex items-start sm:items-center gap-2 text-sm border-l-4 ${dashboard.scopeTenant ? 'border-l-teal-600' : 'border-l-slate-300'}`}>
+                <FiFilter className="w-4 h-4 mt-0.5 sm:mt-0 text-teal-600 shrink-0" />
+                {dashboard.scopeTenant ? (
+                  <span className="text-slate-600">
+                    Showing data for <b>{dashboard.scopeTenant.name}</b> <span className="text-slate-400">({dashboard.scopeTenant.slug})</span> — the tenant selected in the company switcher. All metrics, charts and lists on this page show ONLY this tenant&apos;s data.
+                  </span>
+                ) : (
+                  <span className="text-slate-600">
+                    Platform-wide view (all visible tenants). Pick a tenant in the <b>company switcher</b> (top bar) to scope every metric and list on this page to that tenant only.
+                  </span>
+                )}
               </div>
 
               {/* ─── Stat Cards (Dynamic) ─── */}

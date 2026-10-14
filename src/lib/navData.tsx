@@ -114,6 +114,7 @@ export const navSections: NavSection[] = [
       { label: 'Storage Quotas', href: '/super-admin/storage-quotas', icon: <FiHardDrive className="w-4 h-4" />, roles: ['super_admin'], isNew: true },
       { label: 'SSO Providers', href: '/super-admin/sso-providers', icon: <FiLock className="w-4 h-4" />, roles: ['super_admin'], isNew: true },
       { label: 'Trial Requests', href: '/super-admin/trial-requests', icon: <FiBriefcase className="w-4 h-4" />, roles: ['super_admin'], isNew: true },
+      { label: 'Change Approvals', href: '/super-admin/change-approvals', icon: <FiUserCheck className="w-4 h-4" />, roles: ['super_admin'], isNew: true },
       { label: 'RBAC Management', href: '/super-admin/rbac', icon: <FiLock className="w-4 h-4" />, roles: ['super_admin'] },
       { label: 'Module Management', href: '/super-admin/tenant-modules', icon: <FiGrid className="w-4 h-4" />, roles: ['super_admin'], isNew: true },
       { label: 'Tenant Configuration', href: '/super-admin/tenant-configuration', icon: <FiSettings className="w-4 h-4" />, roles: ['super_admin'], isNew: true },
