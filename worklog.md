@@ -4485,3 +4485,22 @@ Stage Summary:
 - LIVE super admin now obeys the golden rule end-to-end: NO dummy data anywhere (companies leak killed), and every scoped module shows only the switcher-selected tenant's data.
 - Demo gets the same golden rule automatically once Option A reconnect completes (its build failure IS the disconnected Git integration).
 - Option A reconnect + CI workflow secrets remain the two user-side actions (docs/VERCEL_DEMO_CONNECTION.md has every click).
+
+---
+Task ID: 98-b
+Agent: Main agent (Super Z)
+Task: User supplied a Vercel token for the demo unblock (Option B / CI). Validate it, execute Option B programmatically if possible, pre-stage whatever can be pre-staged, report exact remaining user-side actions.
+
+Work Log:
+- TOKEN VALIDATION: token vcp_85IL... belongs to the CURRENT account (team_ALrSsdNlfJYe6FxgR59NEG6N, slug marqaitech1; LIVE project 3-boxes-hrms prj_lFkap5sRhG6L4qj0PrkNB1TCfFqb, git-linked to Marqaitech/3-Boxes-HRMS, latest prod dpl_9hQSMBbg5iVSejycEvJKQVt6KP9i READY/PROMOTED).
+- TOKEN IS READ-ONLY: POST /v10/projects -> 403 "You don't have permission to create the project" (action=create, resource=project); /v2/user 404 + /v2/teams 403; env values come back as encrypted envelopes even with decrypt=true (no env-decrypt scope); Vercel CLI unusable ("User not found" with --scope slug AND team-id). Token CAN read projects/env-list/deployments (v6). VERDICT: cannot create the demo project or deploy with this token — a FULL-ACCESS token is required (Account Settings -> Tokens -> Scope: Full Account).
+- DOMAIN SELECTION: nexus-hrms.vercel.app is OCCUPIED (serves an unrelated "ManageQ | Enterprise OS" app). HTTP-probed candidates (404 = free): nexus-hrms-demo.vercel.app FREE, 3boxes-demo.vercel.app FREE, nexus-hrms2.vercel.app FREE, hrms-demo.vercel.app taken. PICKED: nexus-hrms-demo.vercel.app (closest to the old demo name).
+- PRE-STAGING (commit 4141dbd1, pushed to BOTH remotes, LIVE build SUCCESS 11:46:19 UTC, post-deploy apex+tenant /login 200): added 'nexus-hrms-demo.vercel.app' to DEMO_DOMAINS in src/middleware.ts, src/lib/site-mode.ts, src/lib/tenant-db.ts. Zero impact on LIVE routing (additive entry). Once the demo project exists, the new URL automatically resolves to tenant 3boxes-hrms-demo with demo mode + golden-rule scoping.
+- OPTION B AUTOMATION READY: scripts/task98-option-b-setup.mjs — with a full-access token it reads LIVE env (decrypt), creates project nexus-hrms-demo, upserts env vars (COPY: DATABASE_URL, DIRECT_URL, POSTGRES_URL, POSTGRES_PRISMA_URL [src/lib/db.ts prefers POSTGRES_PRISMA_URL || POSTGRES_URL || DATABASE_URL], NEXT_PUBLIC_ROOT_DOMAIN, CRON_SECRET; FRESH: SITE_MODE=demo, NEXT_PUBLIC_SITE_MODE=demo, NEXT_PUBLIC_BASE_URL/NEXTAUTH_URL=https://nexus-hrms-demo.vercel.app; SKIP: ETIMEOFFICE_* LIVE-biometric, SMTP/RESEND, NEON_AUTH/TURBO system vars), then prints orgId/projectId + exact CLI deploy commands. JWT_SECRET not needed (code fallback, same as LIVE); next-auth secret also falls back (NEXTAUTH_SECRET fallback in [...nextauth]/route.ts).
+- CI SECRET VALUES KNOWN: VERCEL_ORG_ID_DEMO = team_ALrSsdNlfJYe6FxgR59NEG6N (same org as LIVE), VERCEL_PROJECT_ID_LIVE = prj_lFkap5sRhG6L4qj0PrkNB1TCfFqb, VERCEL_PROJECT_ID_DEMO = TBD after project creation. NOTE: the supplied read-only token CANNOT power CI deploys either — CI needs the same full-access token.
+- GOVERNANCE: change request "Task 98-b — demo migration pre-staging: DEMO_DOMAINS += nexus-hrms-demo.vercel.app" registered (id cmv81musg000506juloxzc4s1), approval email SENT to mahesh@marqaitech.com, approved in-app, marked implemented with commit 4141dbd1. Trail: 5 requests, 0 pending, 5 implemented.
+
+Stage Summary:
+- LIVE super-admin golden rule (Task 98, commit 3b5b3d3a) re-verified healthy; LIVE redeployed cleanly with the pre-staged demo domain (4141dbd1).
+- Demo unblock is now a 3-minute operation the moment a FULL-ACCESS Vercel token arrives: run scripts/task98-option-b-setup.mjs -> CLI deploy -> verify https://nexus-hrms-demo.vercel.app/login. Alternative user-side paths unchanged: Option A (old account reconnect, keeps nexus-hrms-mu.vercel.app) or Option B dashboard clicks (docs/VERCEL_DEMO_CONNECTION.md).
+- Remaining user-side actions: (1) full-access token OR dashboard clicks for Option A/B; (2) install .github/workflows/vercel-deploy.yml from docs/vercel-deploy.yml.txt via GitHub UI; (3) add CI secrets (org/project ids above + deploy-capable token).
