@@ -4520,3 +4520,21 @@ Work Log:
 
 Stage Summary:
 - Demo live on the CURRENT single account; old frozen nexus-hrms-mu.vercel.app can be deleted. Token rotation recommended after CI secrets are set.
+
+---
+Task ID: 98-d
+Agent: Main agent (Super Z)
+Task: User-reported — LIVE super admin (3boxeshrms.com) still showed dummy data in the employee list and dashboard employees. Investigate and fix.
+
+Work Log:
+- REPRODUCED: unscoped GET /api/employees on LIVE returned 20 rows incl. dummies (Veeha N <veeha@technova.com>), pagination.total=59; includeStats total=59. The dashboard route (/api/super-admin/dashboard) was already clean (9 employees / 4 companies / 1 tenant — Task 95/98 scoping held there).
+- ROOT CAUSE 1 (scoped path broken): the company switcher sends tenantId=<platform uuid> (companyContextStore.scopeQuery) but getDb() only resolves x-tenant-slug header / JWT tenantId — scoped super-admin lists landed on whatever DB the JWT routed to, not the selected tenant's DB.
+- ROOT CAUSE 2 (unscoped path — the reported bug): the super admin JWT (superadmin@3boxeshrms.com) CARRIES the demo tenant's tenantId (cmrmxegjy...), so getDb() routed EVERY unscoped super-admin call into the DEMO TENANT DB (59 sample employees). The platform DB only has 18 employee rows (10 real marqaitechgroup copies + 8 seed samples) — verified via read-only Neon diagnostic (scripts/task98d-diag.mjs).
+- FIX (src/app/api/employees/route.ts, 3 commits: d4775667, 99326761, 8dbc9f9e): (a) switcherTenantScope() — resolves ?tenantId= → hidden/unknown ⇒ zero rows; dedicated DB ⇒ query it directly; shared-mode ⇒ platform company filter (list + includeStats paths); (b) hiddenTenantEmployeeExclusion() — excludes employees whose company belongs to hidden tenants (per-host hidden slugs + 'Marq AI Tech Pvt Ltd' placeholder), mirroring the Task 98 companies fix; (c) on LIVE hosts, unscoped super-admin views FORCE the platform DB (overriding the JWT's demo-tenant routing) before applying the exclusion — demo/test hosts keep their own golden rule (unscoped demo views show the demo tenant's sample DB).
+- SANDBOX INCIDENT: the environment checkpoint diverged local history again (GUID commit 64bfb590 lost the 98-b/98-c disk content). Recovered via reset --hard 07aa1d29 + re-apply (98-c worklog re-created; 98-b content restored from origin).
+- GOVERNANCE: change request "Task 98-d — golden rule for employees" registered (id cmv8756rr000306jvr0dbi32o), approval email sent, approved in-app, marked implemented (deployCommit recorded as a41982c1 — the pre-rebase SHA; actual deployed SHAs are d4775667/99326761/8dbc9f9e, same change). Trail: 6 requests, 0 pending, 6 implemented.
+- VERIFIED ON LIVE (builds SUCCESS for d4775667 14:24Z, 99326761 14:32Z, 8dbc9f9e 14:37Z): unscoped employees = 10 real / 0 dummies; unscoped stats = 10/10; scoped switcher = 10 real from dedicated DB (Shaik Siraj first); scoped stats = 10/9/1; dashboard = 1 tenant / 9 employees / 4 companies; apex + tenant logins 200.
+
+Stage Summary:
+- The golden rule now holds end-to-end on LIVE for the employee domain: super-admin employee list + employee stat cards show ONLY real tenant data (platform-wide visible view when no switcher selection, exactly the selected tenant's dedicated-DB data when one is selected). Zero dummy rows verified by automated probes.
+- Demo site unaffected (stale CLI build from 4141dbd1 still serving; will pick these fixes up on its next deploy via CI/git-connect when installed).
