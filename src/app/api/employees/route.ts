@@ -4,8 +4,10 @@ import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { getDataScope, canEditEmployeeRecords } from '@/lib/roleAccess';
 import { getEmployeeCompanyFilter, getCompanyFilter, getAuthInfo, resolveCompanyScope } from '@/lib/companyScope';
 import { checkTenantStatusOrBlock } from '@/lib/tenant-guard';
-import { isServerLiveSite } from '@/lib/tenant-filter';
+import { isServerLiveSite, getHiddenSlugsForRequest, PLATFORM_PLACEHOLDER_NAME } from '@/lib/tenant-filter';
 // Note: isServerLiveSite is used later for the manual guard on normal queries
+// Task 98-d: getHiddenSlugsForRequest + PLATFORM_PLACEHOLDER_NAME power the
+// golden-rule exclusion — unscoped super-admin views never show seed/dummy rows.
 import { validateEmail, validatePhone, validateAadhaar, validatePAN, validateIFSC, validateBankAccount, validateOfficialEmail, validateUAN, validatePFNumber, validateNomineeName, validateLWFNumber } from '@/lib/validators';
 import { profilePhotoPayloadError, employeeIdsWithStoredPhoto, employeePhotoApiPath } from '@/lib/profile-photo';
 import { ensureEmployeeWriteColumns } from '@/lib/employee-profile-columns';
@@ -38,6 +40,65 @@ function corsHeaders() {
 
 export async function OPTIONS() {
   return NextResponse.json({}, { headers: corsHeaders() });
+}
+
+type TenantDbClient = Awaited<ReturnType<typeof getDbForTenant>>;
+
+// ─── GOLDEN RULE helpers (Task 98-d) ─────────────────────────────────
+// Employee has no `company` relation (bare companyId only), so hidden-tenant
+// exclusion must resolve hidden tenants → their platform-DB company IDs.
+async function hiddenTenantEmployeeExclusion(request: Request): Promise<Record<string, unknown> | null> {
+  try {
+    const pdb = getPlatformDb();
+    const hiddenSlugs = getHiddenSlugsForRequest(request);
+    const hiddenTenants = await pdb.tenant.findMany({
+      where: {
+        OR: [
+          { slug: { in: hiddenSlugs } },
+          ...(PLATFORM_PLACEHOLDER_NAME ? [{ name: { contains: PLATFORM_PLACEHOLDER_NAME } }] : []),
+        ],
+      },
+      select: { id: true },
+    });
+    const hiddenIds = hiddenTenants.map((t) => t.id);
+    if (hiddenIds.length === 0) return null;
+    const hiddenCompanies = await pdb.company.findMany({
+      where: { companyGroup: { tenantId: { in: hiddenIds } } },
+      select: { id: true },
+    });
+    if (hiddenCompanies.length === 0) return null;
+    return { companyId: { notIn: hiddenCompanies.map((c) => c.id) } };
+  } catch {
+    // Non-fatal — on platform-DB failure keep legacy behavior.
+    return null;
+  }
+}
+
+// Resolve the company-switcher tenant (?tenantId=<platform uuid>):
+//   hidden/unknown tenant → hidden:true (caller must show NOTHING)
+//   dedicated DB          → tenantDb set (real employees live there)
+//   shared-mode           → both falsy (caller keeps platform DB + company filter)
+async function switcherTenantScope(
+  request: Request,
+  tenantId: string,
+): Promise<{ hidden: boolean; tenantDb: TenantDbClient | null }> {
+  try {
+    const pdb = getPlatformDb();
+    const tenant = await pdb.tenant
+      .findUnique({ where: { id: tenantId }, select: { slug: true } })
+      .catch(() => null);
+    if (!tenant?.slug) return { hidden: true, tenantDb: null };
+    if (getHiddenSlugsForRequest(request).includes(tenant.slug)) {
+      return { hidden: true, tenantDb: null };
+    }
+    const hasDedicated = await pdb.tenantDatabase
+      .findFirst({ where: { tenant: { slug: tenant.slug }, isActive: true }, select: { id: true } })
+      .catch(() => null);
+    if (!hasDedicated) return { hidden: false, tenantDb: null };
+    return { hidden: false, tenantDb: await getDbForTenant(tenant.slug) };
+  } catch {
+    return { hidden: false, tenantDb: null };
+  }
 }
 
 async function attachListPhotoUrls<T extends { id: string; user?: { id: string; email: string; role: string } | null }>(
@@ -117,15 +178,44 @@ export async function GET(request: Request) {
       const where: Record<string, unknown> = {};
       if (status) where.status = status === 'inactive' ? { in: INACTIVE_STATUSES } : status;
       if (queryCompanyId) where.companyId = queryCompanyId;
+      // ─── GOLDEN RULE (Task 98-d): super-admin stats follow the switcher ───
+      // ?tenantId= (company switcher): count from the tenant's DEDICATED DB
+      // when it has one; shared-mode tenants get a platform-DB company filter;
+      // hidden/unknown tenants show nothing. Unscoped: hidden-tenant (dummy)
+      // employees are excluded entirely.
+      let statsDb = db;
+      if (jwtRole === 'super_admin' && tenantId && !queryCompanyId) {
+        const scope = await switcherTenantScope(request, tenantId);
+        if (scope.hidden) {
+          where.id = '__never__';
+        } else if (scope.tenantDb) {
+          statsDb = scope.tenantDb;
+        } else {
+          const pdb = getPlatformDb();
+          const groups = await pdb.companyGroup
+            .findMany({ where: { tenantId }, select: { id: true } })
+            .catch(() => []);
+          const groupIds = groups.map((g) => g.id);
+          const companies = groupIds.length
+            ? await pdb.company
+                .findMany({ where: { companyGroupId: { in: groupIds } }, select: { id: true } })
+                .catch(() => [])
+            : [];
+          where.companyId = companies.length ? { in: companies.map((c) => c.id) } : '__never__';
+        }
+      } else if (jwtRole === 'super_admin' && !tenantId && !queryCompanyId) {
+        const hiddenExcl = await hiddenTenantEmployeeExclusion(request);
+        if (hiddenExcl?.companyId) where.companyId = hiddenExcl.companyId;
+      }
       const monthAgo = new Date();
       monthAgo.setMonth(monthAgo.getMonth() - 1);
       const tQ = Date.now();
       const [total, active, inactive, newJoiners] = await Promise.all([
-        db.employee.count({ where }),
-        db.employee.count({ where: { ...where, status: 'active' } }),
+        statsDb.employee.count({ where }),
+        statsDb.employee.count({ where: { ...where, status: 'active' } }),
         // Card must agree with the Inactive filter: separated staff only
-        db.employee.count({ where: { ...where, status: { in: INACTIVE_STATUSES } } }),
-        db.employee.count({ where: { ...where, dateOfJoining: { gte: monthAgo } } }),
+        statsDb.employee.count({ where: { ...where, status: { in: INACTIVE_STATUSES } } }),
+        statsDb.employee.count({ where: { ...where, dateOfJoining: { gte: monthAgo } } }),
       ]);
       return NextResponse.json(
         {
@@ -321,6 +411,21 @@ export async function GET(request: Request) {
       }
     }
 
+    // ─── GOLDEN RULE (Task 98-d): company-switcher ?tenantId= routing ───
+    // The UI sends tenantId=<platform uuid> (companyContextStore.scopeQuery)
+    // but getDb() only resolves the x-tenant-slug header / JWT tenantId, so
+    // scoped super-admin lists landed on the platform DB and returned seed
+    // rows mixed with real ones. Resolve the selected tenant now: hidden or
+    // unknown → nothing may leak (list filter below); dedicated DB → query
+    // it directly; shared-mode → platform-DB company filter below.
+    let switcherScope: { hidden: boolean; tenantDb: TenantDbClient | null } | null = null;
+    if (jwtRole === 'super_admin' && tenantId && !queryCompanyId) {
+      switcherScope = await switcherTenantScope(request, tenantId);
+      if (switcherScope.tenantDb) {
+        queryDb = switcherScope.tenantDb;
+      }
+    }
+
     // Try database query
     try {
       const where: Record<string, unknown> = {};
@@ -374,33 +479,47 @@ export async function GET(request: Request) {
       }
 
       // ─── Tenant scope filter (super_admin only) ───
-      // For super_admin with no companyId selected, allow narrowing to a
-      // specific tenant's companies. Employee has no `company` relation —
-      // only a bare companyId field, so we must resolve company IDs first.
-      // Dedicated tenant DB from getDb(?tenantId=) is already scoped. Extra
-      // group/company ID filters only add sequential hops on that same DB.
+      // Task 98-d: the switcher tenant was resolved above — hidden/unknown
+      // tenants show NOTHING, dedicated-DB tenants are already querying their
+      // own DB (no extra filter needed), and shared-mode tenants get a
+      // platform-DB company filter. Employee has no `company` relation (bare
+      // companyId only), so the filter must resolve company IDs first.
       if (!scopeResult?.companyId && tenantId && userRole === 'super_admin') {
-        const platformDb = getPlatformDb();
-        if (queryDb === platformDb) {
-        const tenantGroups = await db.companyGroup.findMany({
-          where: { tenantId },
-          select: { id: true },
-        });
-        const groupIds = tenantGroups.map(g => g.id);
-        if (groupIds.length > 0) {
-          const tenantCompanies = await db.company.findMany({
-            where: { companyGroupId: { in: groupIds } },
+        if (switcherScope?.hidden) {
+          where.id = '__never__';
+        } else if (!switcherScope?.tenantDb) {
+          const platformDb = getPlatformDb();
+          const tenantGroups = await platformDb.companyGroup.findMany({
+            where: { tenantId },
             select: { id: true },
           });
-          const companyIds = tenantCompanies.map(c => c.id);
-          if (companyIds.length > 0) {
-            where.companyId = { in: companyIds };
+          const groupIds = tenantGroups.map(g => g.id);
+          if (groupIds.length > 0) {
+            const tenantCompanies = await platformDb.company.findMany({
+              where: { companyGroupId: { in: groupIds } },
+              select: { id: true },
+            });
+            const companyIds = tenantCompanies.map(c => c.id);
+            if (companyIds.length > 0) {
+              where.companyId = { in: companyIds };
+            } else {
+              where.id = '__never__';
+            }
           } else {
             where.id = '__never__';
           }
-        } else {
-          where.id = '__never__';
         }
+      }
+
+      // ─── GOLDEN RULE (Task 98-d): unscoped super-admin views show NO dummy ───
+      // On the platform DB, exclude every employee whose company belongs to a
+      // hidden tenant (demo + seed sample tenants + 'Marq AI Tech Pvt Ltd'
+      // placeholder). Mirrors the companies API fix from Task 98. No-ops when
+      // a company/tenant scope is active or a dedicated tenant DB is in use.
+      if (jwtRole === 'super_admin' && !effectiveCompanyIdFilter && !tenantId && queryDb === getPlatformDb()) {
+        const hiddenExcl = await hiddenTenantEmployeeExclusion(request);
+        if (hiddenExcl?.companyId) {
+          where.companyId = hiddenExcl.companyId;
         }
       }
 

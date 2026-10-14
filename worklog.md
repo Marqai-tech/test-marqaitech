@@ -4504,3 +4504,19 @@ Stage Summary:
 - LIVE super-admin golden rule (Task 98, commit 3b5b3d3a) re-verified healthy; LIVE redeployed cleanly with the pre-staged demo domain (4141dbd1).
 - Demo unblock is now a 3-minute operation the moment a FULL-ACCESS Vercel token arrives: run scripts/task98-option-b-setup.mjs -> CLI deploy -> verify https://nexus-hrms-demo.vercel.app/login. Alternative user-side paths unchanged: Option A (old account reconnect, keeps nexus-hrms-mu.vercel.app) or Option B dashboard clicks (docs/VERCEL_DEMO_CONNECTION.md).
 - Remaining user-side actions: (1) full-access token OR dashboard clicks for Option A/B; (2) install .github/workflows/vercel-deploy.yml from docs/vercel-deploy.yml.txt via GitHub UI; (3) add CI secrets (org/project ids above + deploy-capable token).
+
+---
+Task ID: 98-c (worklog re-created — the entry was lost to a sandbox checkpoint revert; the work itself shipped in commit 07aa1d29)
+Agent: Main agent (Super Z)
+Task: Full-control Vercel token — execute Option B end-to-end.
+
+Work Log:
+- Token validated (marqaitech / team_ALrSsdNlfJYe6FxgR59NEG6N). REST env decrypt returns ciphertext even for full tokens — CLI `vercel env pull` used as plaintext source; scripts/task98-option-b-setup.mjs extended with env-file fallback.
+- Project nexus-hrms-demo CREATED (prj_yOsBojQSP3GdgKEE8rFQVjrDKxqh); 10 env vars (platform DB copied + SITE_MODE/NEXT_PUBLIC_SITE_MODE=demo + demo URLs).
+- Deployed via CLI --prod (3m remote build), aliased https://nexus-hrms-demo.vercel.app; ssoProtection disabled via PATCH (public access).
+- VERIFIED: login 200; 7 sample companies ALL demo-tenant-owned, zero real-data leaks; 20 sample employees; scoped-by-tenant-id = same 7.
+- vercel git connect FAILED (Vercel GitHub App not linked for maheshkpreddy/nexus-hrms on this account) — user one-click or CI workflow covers push-to-deploy.
+- CI SECRETS: VERCEL_ORG_ID_DEMO=team_ALrSsdNlfJYe6FxgR59NEG6N, VERCEL_PROJECT_ID_DEMO=prj_yOsBojQSP3GdgKEE8rFQVjrDKxqh, VERCEL_PROJECT_ID_LIVE=prj_lFkap5sRhG6L4qj0PrkNB1TCfFqb.
+
+Stage Summary:
+- Demo live on the CURRENT single account; old frozen nexus-hrms-mu.vercel.app can be deleted. Token rotation recommended after CI secrets are set.
