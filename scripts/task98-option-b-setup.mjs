@@ -44,6 +44,21 @@ const live = {};
 for (const e of liveEnvs) live[e.key] = e.value;
 console.log(`LIVE env read: ${liveEnvs.length} vars`);
 
+// Fallback: Vercel's REST API no longer decrypts env values (encrypted at rest).
+// Plaintext values come from the CLI: `vercel env pull` (see docs / run below).
+const fs = await import('node:fs');
+const ENV_FILE = process.env.ENV_FILE || '/tmp/vlink/live.env';
+const envFile = {};
+if (fs.existsSync(ENV_FILE)) {
+  for (const line of fs.readFileSync(ENV_FILE, 'utf8').split('\n')) {
+    const m = line.match(/^([A-Za-z_0-9]+)="([\s\S]*)"?\s*$/);
+    if (m) envFile[m[1]] = m[2].replace(/\\n/g, '\n');
+  }
+  console.log(`Env file fallback loaded: ${ENV_FILE} (${Object.keys(envFile).length} keys)`);
+} else {
+  console.log(`WARN: no env file at ${ENV_FILE} — run "vercel env pull" first if decryption fails`);
+}
+
 // Copy list — platform DB + shared config (src/lib/db.ts prefers
 // POSTGRES_PRISMA_URL || POSTGRES_URL || DATABASE_URL).
 const COPY_KEYS = ['DATABASE_URL', 'DIRECT_URL', 'POSTGRES_URL', 'POSTGRES_PRISMA_URL', 'NEXT_PUBLIC_ROOT_DOMAIN', 'CRON_SECRET'];
@@ -58,10 +73,11 @@ const SET_VARS = {
 const envPayload = [];
 let decryptFail = false;
 for (const k of COPY_KEYS) {
-  const v = live[k];
-  if (v === undefined) { console.log(`WARN: LIVE has no ${k} — skipped`); continue; }
+  let v = live[k];
+  if (typeof v !== 'string' || !v || v.startsWith('eyJ2IjoidjIi')) v = envFile[k]; // CLI-pulled plaintext fallback
+  if (v === undefined) { console.log(`WARN: no value for ${k} — skipped`); continue; }
   if (typeof v === 'string' && v.startsWith('eyJ2IjoidjIi')) {
-    console.error(`DECRYPT FAILED for ${k} (token lacks env-value read scope)`);
+    console.error(`DECRYPT FAILED for ${k} (no plaintext source)`);
     decryptFail = true; continue;
   }
   envPayload.push({ key: k, value: v, type: 'encrypted', target: ['production'] });
