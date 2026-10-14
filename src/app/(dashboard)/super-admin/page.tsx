@@ -302,6 +302,8 @@ export default function SuperAdminPage() {
       if (auditModule) params.set('module', auditModule);
       if (auditStartDate) params.set('startDate', auditStartDate);
       if (auditEndDate) params.set('endDate', auditEndDate);
+      // GOLDEN RULE: audit list follows the company switcher scope
+      if (selectedTenantId) params.set('tenantId', selectedTenantId);
       const res = await fetch(`/api/super-admin/audit-logs?${params.toString()}`, { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
@@ -311,7 +313,7 @@ export default function SuperAdminPage() {
       }
     } catch { toast.error('Failed to load audit logs'); }
     finally { setAuditLoading(false); }
-  }, [auditPage, auditAction, auditModule, auditStartDate, auditEndDate]);
+  }, [auditPage, auditAction, auditModule, auditStartDate, auditEndDate, selectedTenantId]);
 
   // ─── Cleanup Demo Data ────────────────────────────────────
   const handleCleanupDemoData = useCallback(async (tenantSlug: string) => {

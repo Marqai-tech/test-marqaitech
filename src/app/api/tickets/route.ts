@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getDb, getPlatformDb } from '@/lib/tenant-db';
+import { getDb, getPlatformDb, getDbForTenantById } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
 import { getServerHiddenSlugs, PLATFORM_PLACEHOLDER_NAME, isServerLiveSite } from '@/lib/tenant-filter';
 
@@ -33,7 +33,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
-  const db = await getDb(request);
+  let db = await getDb(request);
   try {
     const token = getTokenFromHeaders(request);
     if (!token) {
@@ -57,10 +57,22 @@ export async function GET(request: Request) {
 
     const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(decoded.role as string);
 
-    // ─── GOLDEN RULE: No dummy/seed data on LIVE for super_admin ───
-    // The Ticket model has no tenantId, so for super_admin on the platform DB,
-    // we'd see orphan/seed tickets. Return empty for super_admin with no
-    // specific requester/tenant filter.
+    // ─── GOLDEN RULE (Task 95): super-admin ticket views follow the company switcher ───
+    // The Ticket model has no tenantId — tickets live in whichever DB the context
+    // resolves. Without scope, getDb() for a super admin returns their HOME tenant
+    // DB, leaking that tenant's seed/showcase tickets into the platform view.
+    //  - No ?tenantId= → PLATFORM DB tickets only (never the home tenant DB).
+    //  - ?tenantId=<id> → resolve THAT tenant's dedicated DB (shared tenants
+    //    fall back to the platform DB via getDbForTenantById).
+    if (decoded.role === 'super_admin') {
+      if (tenantIdParam) {
+        db = await getDbForTenantById(tenantIdParam);
+      } else {
+        db = getPlatformDb();
+      }
+    }
+
+    // ─── GOLDEN RULE: No dummy/seed data on LIVE for unscoped super_admin ───
     if (decoded.role === 'super_admin' && !requesterId && !assignedAgentId && !tenantIdParam && isServerLiveSite(request)) {
       return NextResponse.json(
         { tickets: [], pagination: { page, limit, total: 0, totalPages: 0 } },
