@@ -121,15 +121,16 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   }
 }
 
-async function auditDecision(request: Request, decoded: { userId?: string }, details: string, title: string) {
+async function auditDecision(request: Request, decoded: { userId?: string; email?: string }, details: string, title: string) {
   try {
     const db = await getDb(request);
+    // userId left null — the platform super admin may not exist in the resolved
+    // audit DB (FK to User would silently kill the row). Actor is in details.
     await db.auditLog.create({
       data: {
-        userId: decoded.userId as string,
         action: 'DECIDE_CHANGE_REQUEST',
         module: 'governance',
-        details: `Change request "${title}": ${details}`,
+        details: `Change request "${title}" by ${decoded.email || 'superadmin'}: ${details}`,
       },
     });
   } catch { /* best-effort */ }
