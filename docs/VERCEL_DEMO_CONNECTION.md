@@ -44,16 +44,23 @@
    (one-line change) — demo mode and tenant resolution are host-based.
 7. When done, the old project can be deleted on the old account.
 
-## Option C — CI deploys via Vercel CLI (integration-independent, already wired)
-`.github/workflows/vercel-deploy.yml` is now in the repo. It deploys via the
-Vercel CLI using repo secrets, so it works **no matter which Vercel account
-hosts the project** and no matter what happens to GitHub App connections:
-1. Vercel dashboard → project → Settings → copy **Vercel ID** (org) and
+## Option C — CI deploys via Vercel CLI (integration-independent, ready to install)
+The workflow content is ready at **`docs/vercel-deploy.yml.txt`**. It deploys
+via the Vercel CLI using repo secrets, so it works **no matter which Vercel
+account hosts the project** and no matter what happens to GitHub App
+connections:
+1. Install the workflow (one-time; the sandbox PAT lacks the `workflow` scope,
+   so GitHub rejected pushing `.github/workflows/` directly):
+   - Easiest: on GitHub → repo → **Add file → Create new file** → path
+     `.github/workflows/vercel-deploy.yml` → paste the full content of
+     `docs/vercel-deploy.yml.txt` → commit to `main`.
+   - Or update the PAT with the `workflow` scope and let us push it.
+2. Vercel dashboard → project → Settings → copy **Vercel ID** (org) and
    **Project ID**; create an **API token** (Account Settings → Tokens).
-2. GitHub repo → Settings → Secrets and variables → Actions → add:
+3. GitHub repo → Settings → Secrets and variables → Actions → add:
    - `VERCEL_TOKEN`, `VERCEL_ORG_ID_DEMO`, `VERCEL_PROJECT_ID_DEMO` (demo), and
      optionally `VERCEL_TOKEN_LIVE`, `VERCEL_ORG_ID_LIVE`, `VERCEL_PROJECT_ID_LIVE`.
-3. Every push to `main` then deploys through CI. Without the secrets the
+4. Every push to `main` then deploys through CI. Without the secrets the
    workflow skips cleanly (no failing checks).
    (Adding secrets needs repo admin — the sandbox PAT has push-only rights, so
    add them in the GitHub UI or hand over an admin PAT/token.)
