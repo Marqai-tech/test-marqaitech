@@ -4417,3 +4417,17 @@ Stage Summary:
 - Updates ARE in https://github.com/Marqaitech/3-Boxes-HRMS (main 8f304d9f) and were deployed to Vercel successfully — the "Internal Server Error" is NOT a code/regression issue.
 - Root cause: LIVE Neon Postgres project exceeded plan quota (all LIVE DB queries fail; demo unaffected).
 - Fix applied in code: biometric cron 1,440/day -> 288/day to stop re-exhaustion; service restoration requires the user to upgrade the Neon plan in the Neon console.
+
+---
+Task ID: 96-b (deploy verification addendum)
+Agent: Super Z (main)
+Task: Verify Task 96 deploy on both Vercel contexts
+
+Work Log:
+- Pushed 6ac5fe59 to BOTH remotes (Marqaitech/3-Boxes-HRMS main + maheshkpreddy/nexus-hrms main — repos are mirrored, same statuses).
+- GitHub commit-status API at 6ac5fe59: LIVE "Vercel – 3-boxes-hrms" = SUCCESS 07:20:00 UTC ("Deployment has completed"); DEMO "Vercel – nexus-hrms" = FAILURE 07:11:25 UTC — pre-existing demo project-level build failure (failed on empty commits too per Task 95; not caused by this change — vercel.json cron-only edit).
+- Draft commit e424ea1d (GUID-named: candidate-portal drafts, download assets, task scripts) kept LOCAL on branch local-drafts — deliberately NOT shipped to remotes.
+- Post-deploy LIVE login probe still returns the Neon quota error (expected — quota is a billing state; only a Neon plan upgrade or quota-window reset restores DB connectivity; no redeploy involved).
+
+Stage Summary:
+- LIVE deploy SUCCESS with the */5 cron mitigation; service restoration pending user's Neon plan upgrade. Demo deploy still blocked by its known project-level build issue (user Vercel dashboard action).
