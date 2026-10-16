@@ -1,5 +1,32 @@
 # Demo Deployment (nexus-hrms) — Reconnect or Make Independent
 
+> ## ⚡ STATUS UPDATE (Task 100, Oct 16) — READ THIS FIRST
+> **Option B is DONE.** The current test link is **`nexus-hrms-demo.vercel.app`**
+> (project `nexus-hrms-demo`, project ID `prj_yOsBojQSP3GdgKEE8rFQVjrDKxqh`,
+> org/team `team_ALrSsdNlfJYe6FxgR59NEG6N` — the same account as production).
+> It is deployed from the latest code and hosts 100% sample data
+> (4 sample tenants, 7 sample companies, 60 sample employees — zero real MarqAI data).
+>
+> **`nexus-hrms-mu.vercel.app` is DEPRECATED.** It lives on the old Vercel
+> account, is frozen at a Task-95-era build, and can no longer receive updates
+> (its cron config is rejected on the old account's plan — every build attempt
+> fails). Ignore it; delete it from the old account when convenient.
+>
+> **CI auto-deploy (remaining user steps — 2 minutes):**
+> 1. Vercel → Account Settings → Tokens → create a token (Full Account scope)
+>    → GitHub repo `maheshkpreddy/nexus-hrms` → Settings → Secrets and
+>    variables → Actions → add secret **`VERCEL_TOKEN`**.
+>    (`VERCEL_ORG_ID_DEMO` and `VERCEL_PROJECT_ID_DEMO` are ALREADY pre-staged.)
+> 2. GitHub repo → Actions → paste `docs/vercel-deploy.yml.txt` as
+>    `.github/workflows/vercel-deploy.yml` (Create workflow → paste → commit).
+>    From the next push, every commit to `main` auto-deploys the demo link.
+>
+> **Alternative (no secrets at all):** install the Vercel GitHub App on
+> `maheshkpreddy/nexus-hrms` and connect project `nexus-hrms-demo` to it
+> (Vercel → nexus-hrms-demo → Settings → Git → Connect).
+>
+> Everything below is the original Task-97 analysis, kept for history.
+
 ## Situation
 - The demo link `nexus-hrms-mu.vercel.app` is hosted on an **old Vercel account**.
 - Its Git integration is NOT connected to the current GitHub account
