@@ -1,11 +1,22 @@
 class ApiConfig {
-  static const String baseUrl = 'https://nexus-hrms-mu.vercel.app';
+  /// Default workspace = the 3Boxes demo workspace (sample data, safe for evaluation).
+  static const String defaultBaseUrl = 'https://nexus-hrms-demo.vercel.app';
+  /// Live production workspace (set from the Sign In screen when needed).
+  static const String liveBaseUrl = 'https://3boxeshrms.com';
+
+  static String _baseUrl = defaultBaseUrl;
+  static String get baseUrl => _baseUrl;
+  static void setBaseUrl(String url) {
+    final u = url.trim().replaceFirst(RegExp(r'/+$'), '');
+    _baseUrl = u.isEmpty ? defaultBaseUrl : u;
+  }
+
   static const String apiPrefix = '/api';
   static const Duration timeout = Duration(seconds: 30);
   static const String tenantSlug = '3boxes-hrms-demo';
 
   // Demo credentials
-  static const String demoEmail = 'admin@3boxes.com';
+  static const String demoEmail = 'admin@acme-global.com';
   static const String demoPassword = 'MarqAI@2026';
 
   // Current active tenant slug (can be changed at runtime)

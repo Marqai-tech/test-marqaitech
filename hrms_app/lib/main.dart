@@ -22,6 +22,12 @@ import 'screens/profile/profile_screen.dart';
 import 'screens/settings/settings_screen.dart';
 import 'screens/notifications/notifications_screen.dart';
 import 'models/employee.dart';
+import 'screens/onboarding/onboarding_screen.dart';
+import 'screens/auth/role_select_screen.dart';
+import 'screens/auth/signin_screen.dart';
+import 'screens/home/home_screen.dart';
+import 'screens/employees/employee_management_screen.dart';
+import 'screens/employees/employee_empty_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -50,6 +56,12 @@ class HRMSApp extends StatelessWidget {
         initialRoute: '/',
         routes: {
           '/': (_) => const _AppWrapper(),
+          '/onboarding': (_) => const OnboardingScreen(),
+          '/role-select': (_) => const RoleSelectScreen(),
+          '/signin': (_) => const SignInScreen(),
+          '/home-new': (_) => const HomeScreen(),
+          '/employees-new': (_) => const EmployeeManagementScreen(),
+          '/employee-empty': (_) => const EmployeeEmptyScreen(),
           '/login': (_) => const LoginScreen(),
           '/dashboard': (_) => const _MainNavigation(),
           '/employees': (_) => const EmployeeListScreen(),
@@ -90,10 +102,14 @@ class _AppWrapperState extends State<_AppWrapper> {
     await Future.delayed(const Duration(seconds: 2));
     if (!mounted) return;
     final auth = context.read<AuthProvider>();
+    final seenOnboarding = StorageService.prefs.getBool('seen_onboarding') ?? false;
     if (auth.isLoggedIn) {
-      Navigator.pushReplacementNamed(context, '/dashboard');
+      Navigator.pushReplacementNamed(context, '/home-new');
+    } else if (!seenOnboarding) {
+      await StorageService.prefs.setBool('seen_onboarding', true);
+      Navigator.pushReplacementNamed(context, '/onboarding');
     } else {
-      Navigator.pushReplacementNamed(context, '/login');
+      Navigator.pushReplacementNamed(context, '/role-select');
     }
   }
 
