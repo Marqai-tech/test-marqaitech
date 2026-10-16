@@ -4538,3 +4538,20 @@ Work Log:
 Stage Summary:
 - The golden rule now holds end-to-end on LIVE for the employee domain: super-admin employee list + employee stat cards show ONLY real tenant data (platform-wide visible view when no switcher selection, exactly the selected tenant's dedicated-DB data when one is selected). Zero dummy rows verified by automated probes.
 - Demo site unaffected (stale CLI build from 4141dbd1 still serving; will pick these fixes up on its next deploy via CI/git-connect when installed).
+
+---
+Task ID: 99
+Agent: Super Z (main)
+Task: "confirm whether the test link - nexus-hrms-mu.vercel.app is linked in the production vercel - https://vercel.com/marqaitech1 and code in the git link - https://github.com/Marqaitech/3-Boxes-HRMS or not?"
+
+Work Log:
+- Environment reset detected this session (.vercel/ dir + task98 option-b script gone; Vercel token no longer available) — verification done via GitHub commit-status API (origin PAT works; marqai PAT gets 401 on REST but git ls-remote succeeds), vercel.link redirect tracing, HTTP probes with dpl-hash extraction, and git ls-remote on both remotes (scripts/task99-verify-linkage.mjs, task99-verify-linkage2.mjs, task99-live-sanity.mjs).
+- PRODUCTION VERCEL CONFIRMED = vercel.com/marqaitech1: LIVE project 3-boxes-hrms posts SUCCESS statuses with target https://vercel.com/marqaitech1/3-boxes-hrms/<deploymentId>; the LIVE site serves dpl_A9Fu3gQUbeCSRNRJRgoFmhTi64wq which EXACTLY matches the status target of commit 78e86b6f — LIVE runs the latest code.
+- nexus-hrms-mu.vercel.app is NOT in marqaitech1: it is the OLD project (nexus-hrms) on the OLD separate Vercel account (matches user's own Task 97 diagnosis; also why Option B created a new project rather than fixing it with the current account's full-access token). It is still ALIVE (200 + login API responds) but FROZEN on its last-good pre-Task-95 build; its git integration only posts FAILURE statuses whose target (vercel.link/3Fpeeb1) redirects to Vercel's "cron jobs usage and pricing" docs — i.e. the every-5-min biometric cron is not permitted on the old account's plan, so pushes can never deploy there. It does NOT contain Tasks 95/96/98 code.
+- GIT CONFIRMED: Marqaitech/3-Boxes-HRMS main = 78e86b6f AND maheshkpreddy/nexus-hrms main = 78e86b6f (git ls-remote, live check) — repos mirrored and current; both Vercel projects' statuses post onto these commits.
+- DISCOVERY: remote had Task 98-d commits (d4775667, 99326761, 8dbc9f9e, 78e86b6f — golden rule for unscoped super-admin EMPLOYEE views: JWT demo-tenant routing forced to platform DB on LIVE hosts + hidden-tenant employee exclusion) completed in the lost session portion; local main fast-forwarded 3b5b3d3a..78e86b6f and worklog section recovered.
+- LIVE RE-VERIFIED NOW: super-admin unscoped /api/employees = 10 real rows, 0 dummies (veeha@technova.com et al. GONE); dashboard clean. P0 fix holding at 78e86b6f.
+
+Stage Summary:
+- Answer: nexus-hrms-mu.vercel.app is NOT linked in production Vercel (marqaitech1) and does NOT serve Marqaitech/3-Boxes-HRMS code — it is a frozen deprecated relic on the old account. The real links are: 3boxeshrms.com (3-boxes-hrms, marqaitech1, latest 78e86b6f) and nexus-hrms-demo.vercel.app (nexus-hrms-demo, same account, same code).
+- User action queued: delete the old nexus-hrms project from the OLD Vercel account dashboard to remove confusion; optionally install Vercel GitHub App / CI secrets so nexus-hrms-demo auto-deploys.
