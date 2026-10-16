@@ -4575,3 +4575,20 @@ Stage Summary:
 - Parity verdict: nexus-hrms-mu = NOT up to date (frozen Task-95-era super admin, cannot be updated, deprecated) — tenant-admin side functionally current. nexus-hrms-demo = current for a demo environment (sample data by design), will be 100% code-current on its next deploy.
 - CI auto-deploy: 2 of 3 pieces done by sandbox (secrets pre-staged + workflow source ready in docs/vercel-deploy.yml.txt). User does 2 steps: (1) create Vercel token → add repo secret VERCEL_TOKEN, (2) paste docs/vercel-deploy.yml.txt as .github/workflows/vercel-deploy.yml via GitHub UI. Alternative one-click: install Vercel GitHub App and connect nexus-hrms-demo.
 - If the user pastes a fresh VERCEL_TOKEN in chat, the demo can be deployed to latest main immediately via CLI (no CI needed).
+
+---
+Task ID: 100-b
+Agent: Super Z (main)
+Task: User supplied a fresh full-control Vercel token — deploy demo to latest + fully arm CI.
+
+Work Log:
+- TOKEN VALIDATED: user=marqaitech (licenses@marqaitech.com), team=marqaitech1 (team_ALrSsdNlfJYe6FxgR59NEG6N = the PRODUCTION account). Old account (nexus-hrms-mu) NOT in scope — confirmed unmanageable from here.
+- DEMO DEPLOYED: .vercel/project.json → nexus-hrms-demo (prj_yOsBojQSP3GdgKEE8rFQVjrDKxqh); `npx vercel@latest deploy --prod` → Ready in 2m, aliased https://nexus-hrms-demo.vercel.app, build dpl_EErbhtP7w6vUk4dS1uP2qMQ4CaeZ (was dpl_4ESN…). CLI attach git metadata → Vercel now posts "Vercel – nexus-hrms-demo" SUCCESS commit statuses.
+- POST-DEPLOY VERIFY (scripts/task100b-verify-demo-deploy.mjs): super-admin login OK; change-requests count=6 (shared platform DB — expected); switcher = 4 SAMPLE tenants only; 60 sample employees (demo golden rule by design); tenant-admin login OK, 8/8 core APIs, workflow-config 200. LIVE untouched by the deploy; its own git-integration rebuilt from the doc pushes (dpl_7xhszJtEwpHEQNRSQ1ZgzgDNQVRF, status SUCCESS at 1dde947a) and re-verified clean (10 real employees, 0 dummies).
+- CI FULLY ARMED: VERCEL_TOKEN stored into GitHub Actions secrets via libsodium sealed box (scripts/task100b-arm-ci-secret.mjs; token passed via env only, never written to files/git). Repo secrets now: VERCEL_TOKEN, VERCEL_ORG_ID_DEMO, VERCEL_PROJECT_ID_DEMO.
+- DOCS UPDATED to final state: vercel-deploy.yml.txt (all secrets stored; one step left = paste workflow via UI) + VERCEL_DEMO_CONNECTION.md header (demo 100% code-current NOW; single activation step remains).
+
+Stage Summary:
+- nexus-hrms-demo.vercel.app = 100% code-current (build 1dde947a, dpl_EErb…) with all Task 95/96/98/98-d modules live in the demo context.
+- CI: secrets complete; user's ONLY remaining step is pasting docs/vercel-deploy.yml.txt as .github/workflows/vercel-deploy.yml in the GitHub UI (PAT lacks workflow scope; ~1 min) — or one-click Vercel GitHub App connect. After that every push auto-deploys the demo.
+- Old nexus-hrms-mu remains deprecated on the unreachable old account — delete it there when convenient.

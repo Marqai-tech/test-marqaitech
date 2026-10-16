@@ -12,14 +12,14 @@
 > (its cron config is rejected on the old account's plan — every build attempt
 > fails). Ignore it; delete it from the old account when convenient.
 >
-> **CI auto-deploy (remaining user steps — 2 minutes):**
-> 1. Vercel → Account Settings → Tokens → create a token (Full Account scope)
->    → GitHub repo `maheshkpreddy/nexus-hrms` → Settings → Secrets and
->    variables → Actions → add secret **`VERCEL_TOKEN`**.
->    (`VERCEL_ORG_ID_DEMO` and `VERCEL_PROJECT_ID_DEMO` are ALREADY pre-staged.)
-> 2. GitHub repo → Actions → paste `docs/vercel-deploy.yml.txt` as
->    `.github/workflows/vercel-deploy.yml` (Create workflow → paste → commit).
->    From the next push, every commit to `main` auto-deploys the demo link.
+> **CI auto-deploy — FULLY ARMED (Task 100-b):** all three secrets
+> (`VERCEL_TOKEN`, `VERCEL_ORG_ID_DEMO`, `VERCEL_PROJECT_ID_DEMO`) are stored
+> on the repo. The demo was ALSO already redeployed to the latest main via CLI
+> (build `dpl_EErbhtP7w6vUk4dS1uP2qMQ4CaeZ`), so the test link is 100%
+> code-current right now. The single remaining activation step: GitHub repo →
+> Actions → paste `docs/vercel-deploy.yml.txt` as
+> `.github/workflows/vercel-deploy.yml` (Create workflow → paste → commit).
+> From the next push, every commit to `main` auto-deploys the demo link.
 >
 > **Alternative (no secrets at all):** install the Vercel GitHub App on
 > `maheshkpreddy/nexus-hrms` and connect project `nexus-hrms-demo` to it
