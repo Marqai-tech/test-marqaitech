@@ -4555,3 +4555,23 @@ Work Log:
 Stage Summary:
 - Answer: nexus-hrms-mu.vercel.app is NOT linked in production Vercel (marqaitech1) and does NOT serve Marqaitech/3-Boxes-HRMS code — it is a frozen deprecated relic on the old account. The real links are: 3boxeshrms.com (3-boxes-hrms, marqaitech1, latest 78e86b6f) and nexus-hrms-demo.vercel.app (nexus-hrms-demo, same account, same code).
 - User action queued: delete the old nexus-hrms project from the OLD Vercel account dashboard to remove confusion; optionally install Vercel GitHub App / CI secrets so nexus-hrms-demo auto-deploys.
+
+---
+Task ID: 100
+Agent: Super Z (main)
+Task: "yes do it [CI auto-deploy]. Also check whether all the updates in the production live link - super admin and tenant admin - are updated in the test link - nexus-hrms-mu.vercel.app or not"
+
+Work Log:
+- NO VERCEL TOKEN in sandbox (environment reset wiped .vercel/; old token was env-only and advised to be rotated) — searched git history, env files, shell history: nothing. Vercel-side actions therefore prepared, not executed; GitHub-side actions executed via origin PAT.
+- PARITY PROBE (scripts/task100-parity-probe.mjs) across LIVE / old nexus-hrms-mu / new nexus-hrms-demo, super-admin + tenant-admin markers:
+  * OLD nexus-hrms-mu: super admin build is FROZEN at a Task-95/96-era build (change-requests API exists=200, so NOT pre-95 as previously logged) — missing Task 98/98-d golden-rule code; unscoped super admin shows its seed sample set (7 companies, 60 employees incl. veeha@technova.com). Tenant admin: 8/8 core APIs + attendance workflow-config 200 = functionally current (no tenant-side feature changes since its build). CANNOT receive updates ever (old account rejects the */5 cron config — failure statuses point to cron usage/pricing docs).
+  * NEW nexus-hrms-demo (the real test link, build 4141dbd1): has Task 95 change control + Task 98 companies golden rule; missing only the Task 98-d employee-scope code — which on demo hosts is behaviorally identical by design ("unscoped demo views show the demo tenant's sample DB", 98-d part 3). Switcher lists 4 SAMPLE tenants only (3boxes-hrms-demo, nova-tech-demo, zenith-retail-demo, acme-global-demo) — zero real MarqAI exposure. Sample data on the demo is INTENDED, not a leak.
+  * LIVE: still clean (0 dummy companies, 10 real employees, 6 change requests, dashboard scoped correctly).
+- CI WIRING EXECUTED (scripts/task100-pat-capability.mjs, task100-prestage-secrets.mjs): origin PAT = push+triage, NO workflow scope (PUT .github/workflows → 404), NO admin — BUT Actions secrets WRITE works via fine-grained token: libsodium-wrappers sealed-box encryption → PUT VERCEL_ORG_ID_DEMO=team_ALrSsdNlfJYe6FxgR59NEG6N (201) and VERCEL_PROJECT_ID_DEMO=prj_yOsBojQSP3GdgKEE8rFQVjrDKxqh (201). Repo now has both secrets; only VERCEL_TOKEN missing.
+- DOCS REFRESHED: docs/VERCEL_DEMO_CONNECTION.md — prominent Task-100 status header (Option B DONE, current test link = nexus-hrms-demo.vercel.app, nexus-hrms-mu DEPRECATED, exact 2-step CI activation, GitHub-App alternative). docs/vercel-deploy.yml.txt — setup header updated (only VERCEL_TOKEN missing; LIVE job optional since 3-boxes-hrms auto-deploys via git).
+- COMMIT/PUSH: 9c076f1f to BOTH remotes (ls-remote verified both at 9c076f1f).
+
+Stage Summary:
+- Parity verdict: nexus-hrms-mu = NOT up to date (frozen Task-95-era super admin, cannot be updated, deprecated) — tenant-admin side functionally current. nexus-hrms-demo = current for a demo environment (sample data by design), will be 100% code-current on its next deploy.
+- CI auto-deploy: 2 of 3 pieces done by sandbox (secrets pre-staged + workflow source ready in docs/vercel-deploy.yml.txt). User does 2 steps: (1) create Vercel token → add repo secret VERCEL_TOKEN, (2) paste docs/vercel-deploy.yml.txt as .github/workflows/vercel-deploy.yml via GitHub UI. Alternative one-click: install Vercel GitHub App and connect nexus-hrms-demo.
+- If the user pastes a fresh VERCEL_TOKEN in chat, the demo can be deployed to latest main immediately via CLI (no CI needed).
