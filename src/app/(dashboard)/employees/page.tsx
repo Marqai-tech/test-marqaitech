@@ -367,7 +367,10 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
   const [filterStatus, setFilterStatus] = useState('');
   // Task 81: management-list members are hidden from the Employee List by
   // default (their directory is the Management List module). Toggle to show.
-  const [includeManagement, setIncludeManagement] = useState(false);
+  // Show the complete employee directory by default. Some tenants classify
+  // every employee as management-linked; hiding those records by default
+  // makes the directory appear empty even though employees exist.
+  const [includeManagement, setIncludeManagement] = useState(true);
 
 
   const [showForm, setShowForm] = useState(formOnly);

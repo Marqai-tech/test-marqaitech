@@ -27,7 +27,13 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     const status = action === 'approve' ? 'approved' : 'rejected';
     await db.$executeRawUnsafe(`UPDATE "Resignation" SET "status"=$1,"approvedById"=$2,"approvedAt"=$3,"decisionDate"=$3,"rejectionReason"=$4,"approvalHistory"=$5::jsonb,"updatedAt"=NOW() WHERE "id"=$6`, status, actorId, decisionDate, action === 'reject' ? comments : null, JSON.stringify(history), id);
     if (action === 'approve') {
-      await db.$executeRawUnsafe(`UPDATE "Employee" SET "status"='resigned' WHERE "id"=$1`, resignation.employeeId).catch(() => {});
+      // Approval records the decision immediately, but employment ends only on
+      // the approved last-working date. Future-dated resignations must not
+      // remove the employee's active access before that effective date.
+      const lastWorkingDate = resignation.lastWorkingDate ? new Date(resignation.lastWorkingDate) : null;
+      if (lastWorkingDate && lastWorkingDate <= new Date()) {
+        await db.$executeRawUnsafe(`UPDATE "Employee" SET "status"='resigned' WHERE "id"=$1`, resignation.employeeId).catch(() => {});
+      }
     }
     const empRows = await db.$queryRawUnsafe(`SELECT "userId","email" FROM "Employee" WHERE "id"=$1 LIMIT 1`, resignation.employeeId) as any[];
     const recipient = empRows[0];

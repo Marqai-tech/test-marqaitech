@@ -4,7 +4,7 @@ import { resolveCompanyScope } from '@/lib/companyScope';
 import { withSchemaSync } from '@/lib/schema-sync';
 import { getTokenFromHeaders } from '@/lib/auth';
 import { employeeIdsWithStoredPhoto, employeePhotoApiPath } from '@/lib/profile-photo';
-import { effectiveBreakMinutes, loadAttendanceBreakPolicy } from '@/lib/attendance-break-rules';
+import { effectiveBreakMinutes, loadAttendanceBreakPolicy, loadAttendanceRulePolicy } from '@/lib/attendance-break-rules';
 
 function corsHeaders() {
   return {
@@ -274,21 +274,21 @@ export async function POST(request: Request) {
       }
 
       const now = new Date();
-      // Company rule: late counting starts only after 10:00 AM local time.
-      // The comparison uses the CLIENT's local time (localTimeStr) when
-      // provided — the server runs in UTC so now.getHours() would be wrong
-      // for employees in other timezones.
+      const attendancePolicy = await loadAttendanceRulePolicy(db);
+      // The comparison uses the CLIENT's local time when provided — the
+      // server runs in UTC. The shift start and grace period come from the
+      // Attendance Policy Configuration, never from a hardcoded clock time.
       let isLate = false;
       try {
         const localMinutes = localTimeStr
           ? (() => { const [h, m] = localTimeStr.split(':').map(Number); return h * 60 + m; })()
           : now.getHours() * 60 + now.getMinutes();
-        isLate = localMinutes > 10 * 60;
+        isLate = localMinutes > attendancePolicy.shiftStartMinutes + attendancePolicy.lateGraceMinutes;
       } catch {
         const localMinutes = localTimeStr
           ? (() => { const [h, m] = localTimeStr.split(':').map(Number); return h * 60 + m; })()
           : now.getHours() * 60 + now.getMinutes();
-        isLate = localMinutes > 10 * 60;
+        isLate = localMinutes > attendancePolicy.shiftStartMinutes + attendancePolicy.lateGraceMinutes;
       }
 
       let checkInStatus = isLate ? 'late' : 'present';
@@ -308,9 +308,9 @@ export async function POST(request: Request) {
           }).formatToParts(row.checkIn);
           const hour = Number(parts.find(part => part.type === 'hour')?.value || 0) % 24;
           const minute = Number(parts.find(part => part.type === 'minute')?.value || 0);
-          return hour * 60 + minute > 10 * 60;
+          return hour * 60 + minute > attendancePolicy.shiftStartMinutes + attendancePolicy.lateGraceMinutes;
         }).length;
-        if (priorLateCount >= 3) checkInStatus = 'half_day';
+        if (attendancePolicy.lateMarkHalfDayOnExceed && priorLateCount >= attendancePolicy.lateMarkAllowancePerMonth - 1) checkInStatus = 'half_day';
       }
 
       const attendance = await db.attendance.upsert({
@@ -372,8 +372,9 @@ export async function POST(request: Request) {
       // Production hours exclude the mandatory one-hour lunch. If actual
       // break punches show a longer break, deduct the full actual duration.
       const grossMinutes = (now.getTime() - existingRecord.checkIn.getTime()) / 60000;
-      const breakPolicy = await loadAttendanceBreakPolicy(db);
-      const punchedBreakMinutes = existingRecord.breakIn && existingRecord.breakOut
+      const breakPolicy = await loadAttendanceRulePolicy(db);
+      const hasCompleteBreak = Boolean(existingRecord.breakIn && existingRecord.breakOut);
+      const punchedBreakMinutes = hasCompleteBreak
         ? effectiveBreakMinutes(existingRecord.breakIn, existingRecord.breakOut, existingRecord.checkIn, now, breakPolicy)
         : null;
       const localMinutes = (value: Date) => {
@@ -382,14 +383,13 @@ export async function POST(request: Request) {
       };
       const checkInMinutes = localMinutes(existingRecord.checkIn);
       const checkOutMinutes = localMinutes(now);
-      const lunchOverlapMinutes = effectiveBreakMinutes(null, null, existingRecord.checkIn, now, breakPolicy);
-      const breakMinutes = punchedBreakMinutes != null ? punchedBreakMinutes : lunchOverlapMinutes;
-      const workHours = Math.max(0, (grossMinutes - breakMinutes) / 60);
+      const breakMinutes = punchedBreakMinutes;
+      const workHours = breakMinutes == null ? null : Math.max(0, (grossMinutes - breakMinutes) / 60);
       const canFinalize = checkOutMinutes >= breakPolicy.shiftEndMinutes;
-      const belowEightHours = canFinalize && workHours < 8;
+      const belowThreshold = canFinalize && workHours != null && workHours * 60 < breakPolicy.productionThresholdMinutes;
       // Overtime is earned only after both requirements are met:
       // eight net production hours and the 6:30 PM IST shift end.
-      const overtime = workHours >= 8 && checkOutMinutes > breakPolicy.shiftEndMinutes
+      const overtime = workHours != null && workHours * 60 >= breakPolicy.productionThresholdMinutes && checkOutMinutes > breakPolicy.shiftEndMinutes
         ? Math.max(0, (checkOutMinutes - breakPolicy.shiftEndMinutes) / 60)
         : 0;
 
@@ -402,17 +402,20 @@ export async function POST(request: Request) {
         },
         data: {
           checkOut: now,
-          workHours: canFinalize ? parseFloat(workHours.toFixed(2)) : null,
+          workHours: canFinalize && workHours != null ? parseFloat(workHours.toFixed(2)) : null,
           overtime: canFinalize ? parseFloat(overtime.toFixed(2)) : 0,
-          status: belowEightHours ? 'half_day' : existingRecord.status,
-          halfDay: belowEightHours,
-          breakMinutes: Math.round(breakMinutes),
+          status: belowThreshold ? 'half_day' : existingRecord.status,
+          halfDay: belowThreshold || existingRecord.status === 'half_day',
+          breakMinutes: breakMinutes == null ? null : Math.round(breakMinutes),
+          notes: breakMinutes == null
+            ? `${existingRecord.notes ? `${existingRecord.notes} ` : ''}Break-In and Break-Out are required. Apply attendance regularization.`
+            : existingRecord.notes,
         },
       });
 
       // Under-eight-hour days must be visible immediately, while the
       // employee still submits regularization themselves.
-      if (belowEightHours && scope.tenantId) {
+      if (belowThreshold && scope.tenantId) {
         try {
           const { dispatchToRoles } = await import('@/lib/notification-center');
           await dispatchToRoles({
@@ -422,7 +425,7 @@ export async function POST(request: Request) {
             recipients: targetEmployee.userId ? [{ userId: targetEmployee.userId }] : [],
             roles: ['hr_admin', 'admin', 'tenant_admin'],
             vars: {
-              Production_Hours: workHours.toFixed(2),
+                Production_Hours: workHours == null ? 'Pending break regularization' : workHours.toFixed(2),
               Required_Hours: '8.00',
               Attendance_Date: recordDate.toISOString().slice(0, 10),
             },

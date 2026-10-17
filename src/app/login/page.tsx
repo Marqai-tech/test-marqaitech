@@ -1241,7 +1241,7 @@ export default function LoginPage() {
                 <div className="space-y-2.5">
                   {/* Android APK Download */}
                   <a
-                    href="/downloads/3boxes-hrms-mobile.apk"
+                    href="/downloads/"
                     download
                     className="w-full flex items-center gap-3 p-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-green-600 text-white shadow-lg shadow-emerald-500/20 hover:from-emerald-600 hover:to-green-700 transition-all"
                   >
@@ -1261,11 +1261,8 @@ export default function LoginPage() {
                     <FiDownload className="w-5 h-5 shrink-0" />
                   </a>
 
-                  {/* iOS - Download center */}
-                  <a
-                    href="/downloads/"
-                    className="w-full flex items-center gap-3 p-3.5 rounded-xl bg-gradient-to-r from-slate-700 to-slate-800 text-white hover:from-slate-600 hover:to-slate-700 transition-all"
-                  >
+                  {/* iOS - Coming Soon */}
+                  <div className="w-full flex items-center gap-3 p-3.5 rounded-xl bg-gradient-to-r from-slate-600 to-slate-700 text-white opacity-90">
                     <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center shrink-0">
                       <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none">
                         <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83" fill="white"/>
@@ -1274,10 +1271,10 @@ export default function LoginPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-bold">iOS App</p>
-                      <p className="text-[11px] text-white/70">Download center · install options</p>
+                      <p className="text-[11px] text-white/70">Coming soon on App Store</p>
                     </div>
-                    <span className="px-2 py-0.5 rounded-full bg-white/20 text-[10px] font-bold">VIEW</span>
-                  </a>
+                    <span className="px-2 py-0.5 rounded-full bg-white/20 text-[10px] font-bold">SOON</span>
+                  </div>
                 </div>
 
                 {/* PWA Install option */}

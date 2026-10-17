@@ -104,7 +104,10 @@ export async function PATCH(
       const date = existing.date;
       let attendance = await db.attendance.findFirst({ where: { employeeId: existing.employeeId, date } });
       const beforeData = attendance ? {
-        checkIn: attendance.checkIn, checkOut: attendance.checkOut, status: attendance.status,
+        checkIn: attendance.checkIn, checkOut: attendance.checkOut,
+        breakIn: attendance.breakIn, breakOut: attendance.breakOut,
+        workHours: attendance.workHours, breakMinutes: attendance.breakMinutes,
+        status: attendance.status,
       } : null;
 
       if (existing.punchType === 'check_in') {
@@ -120,6 +123,32 @@ export async function PATCH(
               date,
               checkIn: existing.requestedTime,
               status: 'present',
+            },
+          });
+        }
+      } else if (existing.punchType === 'break_in' || existing.punchType === 'break_out') {
+        if (!attendance) return fail('No attendance record exists for this date', 422);
+        attendance = await db.attendance.update({
+          where: { id: attendance.id },
+          data: existing.punchType === 'break_in'
+            ? { breakIn: existing.requestedTime }
+            : { breakOut: existing.requestedTime },
+        });
+        if (attendance.breakIn && attendance.breakOut && attendance.checkIn && attendance.checkOut) {
+          const policy = await loadAttendanceBreakPolicy(db);
+          const breakMinutes = effectiveBreakMinutes(attendance.breakIn, attendance.breakOut, attendance.checkIn, attendance.checkOut, policy);
+          const grossMinutes = (attendance.checkOut.getTime() - attendance.checkIn.getTime()) / (1000 * 60);
+          const hours = Math.max(0, (grossMinutes - breakMinutes) / 60);
+          const fourthLate = attendance.status === 'half_day' && (attendance.notes || '').includes('Fourth late arrival');
+          attendance = await db.attendance.update({
+            where: { id: attendance.id },
+            data: {
+              breakMinutes,
+              workHours: Math.round(hours * 100) / 100,
+              overtime: Math.max(0, Math.round((hours - 8) * 100) / 100),
+              status: fourthLate ? 'half_day' : hours < 8 ? 'half_day' : attendance.status === 'half_day' ? 'present' : attendance.status,
+              halfDay: fourthLate || hours < 8,
+              notes: fourthLate ? attendance.notes : 'Break regularization approved. Production hours calculated.',
             },
           });
         }
@@ -150,7 +179,10 @@ export async function PATCH(
           action: 'regularization_approved',
           beforeData: beforeData as object,
           afterData: {
-            checkIn: attendance?.checkIn, checkOut: attendance?.checkOut, status: attendance?.status,
+            checkIn: attendance?.checkIn, checkOut: attendance?.checkOut,
+            breakIn: attendance?.breakIn, breakOut: attendance?.breakOut,
+            workHours: attendance?.workHours, breakMinutes: attendance?.breakMinutes,
+            status: attendance?.status,
           },
           changedBy: user.id || user.email || 'system',
           reason: `Regularization: ${existing.reason}`,

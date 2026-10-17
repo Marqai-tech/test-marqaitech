@@ -256,7 +256,10 @@ export async function POST(request: NextRequest) {
     const existingBeforeRules = await db.attendance.findFirst({ where: { employeeId, date: dateObj } });
     const beforeLunch = localMinutes !== null && localMinutes < 13 * 60 + 30;
     const afterLunchBeforeClose = localMinutes !== null && localMinutes >= 13 * 60 + 30 && localMinutes < 18 * 60 + 30;
-    if (action !== 'checkin' && action !== 'set_early_logout') {
+    // Break punches are explicit actions and remain valid after Check-Out so
+    // an employee can complete a missed break record before regularization.
+    // Only generic biometric/entry punches are normalized to entry/checkout.
+    if (action !== 'checkin' && action !== 'set_early_logout' && action !== 'breakin' && action !== 'breakout') {
       if (beforeLunch || (afterLunchBeforeClose && existingBeforeRules?.breakIn && action !== 'breakout')) action = 'entry';
       else if (localMinutes !== null && localMinutes >= 18 * 60 + 30) action = 'checkout';
     }
@@ -386,9 +389,12 @@ export async function POST(request: NextRequest) {
     // On checkout or breakout: recompute derived fields (workHours, breakMinutes, overtime)
     if (action === 'checkout' || action === 'breakout') {
       const refreshed = await db.attendance.findUnique({ where: { id: attendance.id } });
-      if (refreshed?.checkIn && refreshed?.checkOut) {
+      if (refreshed?.checkIn && refreshed?.checkOut && refreshed.breakIn && refreshed.breakOut) {
         const breakPolicy = await loadAttendanceBreakPolicy(db);
-        const canFinalize = attendanceLocalMinutes(refreshed.checkOut) >= breakPolicy.shiftEndMinutes;
+        // Finalization begins when the 6:30 PM shift boundary is reached,
+        // even if the employee checked out earlier and later completed a
+        // missing break punch or performed another face scan.
+        const canFinalize = attendanceLocalMinutes(new Date()) >= breakPolicy.shiftEndMinutes;
         const spanMs = refreshed.checkOut.getTime() - refreshed.checkIn.getTime();
         const spanMinutes = Math.max(0, Math.round(spanMs / 60000));
         const breakMinutes = effectiveBreakMinutes(refreshed.breakIn, refreshed.breakOut, refreshed.checkIn, refreshed.checkOut, breakPolicy);
@@ -399,6 +405,12 @@ export async function POST(request: NextRequest) {
         const otMinutes = Math.max(0, workMinutes - 480);
         const overtime = Math.round((otMinutes / 60) * 100) / 100;
         const preservedHalfDay = attendance.status === 'half_day';
+        const fourthLate = (attendance.notes || '').includes('Fourth late arrival');
+        const lowProduction = canFinalize && workHours < 8;
+        const combinedNotes = [
+          fourthLate ? 'Fourth late arrival this month: attendance automatically marked Half-Day.' : '',
+          lowProduction ? 'Net working time is below the required 8 hours. Apply Attendance Regularization for full-day correction.' : '',
+        ].filter(Boolean).join(' ');
         await db.attendance.update({
           where: { id: attendance.id },
           data: {
@@ -406,9 +418,7 @@ export async function POST(request: NextRequest) {
             breakMinutes,
             overtime: canFinalize ? overtime : 0,
             status: canFinalize && workHours < 8 ? 'half_day' : (preservedHalfDay ? 'half_day' : attendance.status),
-            notes: canFinalize && workHours < 8
-              ? 'Net working time is below the required 8 hours. Apply Attendance Regularization for full-day correction.'
-              : attendance.notes,
+            notes: combinedNotes || attendance.notes,
           },
         });
         attendance = { ...attendance, workHours: canFinalize ? workHours : null, breakMinutes, overtime: canFinalize ? overtime : 0 };

@@ -13,7 +13,6 @@ function corsHeaders() {
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
   };
 }
-
 export async function OPTIONS() {
   return NextResponse.json({}, { headers: corsHeaders() });
 }
@@ -364,7 +363,6 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
             subject: title,
             html: `<p>Hi,</p><p>${actor?.name || 'HR'} has recommended extending this employee's probation.</p><p><strong>Employee:</strong> ${empName}<br/><strong>Employee ID:</strong> ${(reviewForName as any).employee?.employeeId || '—'}<br/><strong>Current Probation End Date:</strong> ${currentEnd.toLocaleDateString('en-IN')}<br/><strong>Proposed Revised End Date:</strong> ${proposedEnd.toLocaleDateString('en-IN')}<br/><strong>Extension Reason:</strong> ${comments || '—'}<br/><strong>Status:</strong> Awaiting MD Approval</p><p>Please open HRMS to approve or reject the extension.</p>`,
           }).catch(() => null);
-        } // close for (const uid of nextResolved.userIds)
 
         // ─── Task 93: route the next-step notification through the
         // Notification Center (in-app + email, duplicate-guarded). An HR
@@ -804,6 +802,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     return NextResponse.json({
       error: `This probation review has already been completed. Workflow stage: ${currentStage}`,
     }, { status: 400, headers: corsHeaders() });
+    }
   } catch (error) {
     console.error('Approve/Reject probation review error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() });
@@ -861,3 +860,4 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders() });
   }
 }
+

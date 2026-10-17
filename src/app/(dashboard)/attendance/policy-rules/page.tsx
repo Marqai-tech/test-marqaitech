@@ -18,11 +18,13 @@ import { useEffect, useState, Suspense } from 'react';
 import { FiSliders, FiClock, FiSave, FiRefreshCw } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import { useCompanyContextStore } from '@/store/companyContextStore';
+import { getAuthHeaders as getSessionAuthHeaders } from '@/lib/token-storage';
 import ModuleSettingsPanel, { attendanceSections } from '@/components/ModuleSettingsPanel';
+import { AttendanceMockSettingsPreview } from '../MarqaitechAttendancePolicyPreview';
 
 function getAuthHeaders() {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('tb_token') : null;
-  return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+  return getSessionAuthHeaders();
 }
 
 function Toggle({ checked, onChange }: { checked: boolean; onChange: () => void }) {
@@ -154,7 +156,54 @@ function AutoPresentCard() {
 
 function PolicyRulesContent() {
   const { user } = useAuthStore();
-  const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(user?.role || '');
+  const selectedTenant = useCompanyContextStore((state) => state.selectedTenant());
+  const selectedTenantId = useCompanyContextStore((state) => state.selectedTenantId);
+  const contextHydrated = useCompanyContextStore((state) => state.hydrated);
+  const role = (user?.role || '').toLowerCase();
+  const isAdmin = ['super_admin', 'tenant_admin', 'admin'].includes(role);
+  const selectedId = role === 'super_admin' ? (selectedTenant?.id || selectedTenantId || '') : '';
+  const lookupKey = `${role}:${selectedId}`;
+  const [tenantVariantLookup, setTenantVariantLookup] = useState<{
+    key: string;
+    result: { isMarqaitechGroup: boolean; reason: string; tenantSlug?: string | null };
+  } | null>(null);
+  const lookupResult = tenantVariantLookup?.key === lookupKey
+    ? tenantVariantLookup.result
+    : role === 'super_admin' && contextHydrated && !selectedId
+      ? { isMarqaitechGroup: false, reason: 'tenant_not_selected' }
+      : null;
+
+  useEffect(() => {
+    let cancelled = false;
+    if (role === 'super_admin' && !contextHydrated) return () => { cancelled = true; };
+    if (role === 'super_admin' && !selectedId) return () => { cancelled = true; };
+    const query = selectedId
+      ? `?tenantId=${encodeURIComponent(selectedId)}`
+      : '';
+    fetch(`/api/attendance/policy-rules/tenant-variant${query}`, { headers: getAuthHeaders(), cache: 'no-store' })
+      .then(async (response) => {
+        const data = await response.json().catch(() => null);
+        if (!response.ok || !data) throw new Error('Tenant scope lookup failed');
+        return data;
+      })
+      .then((data) => {
+        if (!cancelled) {
+          setTenantVariantLookup({
+            key: lookupKey,
+            result: {
+              isMarqaitechGroup: data.isMarqaitechGroup === true,
+              reason: typeof data.reason === 'string' ? data.reason : 'scope_resolved',
+              tenantSlug: typeof data.tenantSlug === 'string' ? data.tenantSlug : null,
+            },
+          });
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setTenantVariantLookup({ key: lookupKey, result: { isMarqaitechGroup: false, reason: 'lookup_failed' } });
+      });
+
+    return () => { cancelled = true; };
+  }, [role, lookupKey, selectedId, contextHydrated]);
 
   if (!isAdmin) {
     return (
@@ -165,8 +214,26 @@ function PolicyRulesContent() {
     );
   }
 
+  // Marqaitech Group gets the proposed editable preview on this same policy
+  // route. Other tenants retain the existing policy UI and live settings.
+  if (lookupResult?.isMarqaitechGroup === true) {
+    return <AttendanceMockSettingsPreview />;
+  }
+
+  // Wait for tenant context/verified lookup before choosing between tenant UIs.
+  if (lookupResult === null) {
+    return <div className="flex items-center justify-center py-20"><div className="animate-spin w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full" /></div>;
+  }
+
   return (
     <div className="space-y-6">
+      {process.env.NODE_ENV === 'development' && (
+        <div role="status" className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          {lookupResult.isMarqaitechGroup
+            ? 'Marqaitech attendance policy is active.'
+            : `Marqaitech attendance policy is not active (${lookupResult.reason}${lookupResult.tenantSlug ? `; tenant slug: ${lookupResult.tenantSlug}` : ''}). The default policy screen is shown.`}
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-center gap-3">
         <div className="p-2.5 rounded-xl bg-teal-50">

@@ -7,7 +7,6 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
-import { useCompanyContextStore } from '@/store/companyContextStore';
 import { isClientLiveMode } from '@/lib/site-mode';
 import { isTenantHiddenClient, PLATFORM_PLACEHOLDER_NAME } from '@/lib/tenant-filter';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -41,8 +40,6 @@ export default function PurchaseTransactionsPage() {
   const currency = liveMode ? '₹' : '$';
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
-  // GOLDEN RULE: company-switcher scope for this module
-  const { selectedTenantId } = useCompanyContextStore();
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -50,10 +47,7 @@ export default function PurchaseTransactionsPage() {
   const fetchTransactions = useCallback(async () => {
     setLoading(true);
     try {
-      // GOLDEN RULE: follow the company switcher — when a tenant is selected,
-      // only that tenant's transactions are fetched.
-      const scopeQs = selectedTenantId ? `&tenantId=${encodeURIComponent(selectedTenantId)}` : '';
-      const res = await fetch(`/api/subscriptions?limit=100${scopeQs}`, { headers: getAuthHeaders() });
+      const res = await fetch('/api/subscriptions?limit=100', { headers: getAuthHeaders() });
       if (!res.ok) throw new Error('Failed to fetch subscriptions');
       const data = await res.json();
       const subs = data.subscriptions || data || [];
@@ -79,7 +73,7 @@ export default function PurchaseTransactionsPage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedTenantId]);
+  }, []);
 
   useEffect(() => { fetchTransactions(); }, [fetchTransactions]);
 

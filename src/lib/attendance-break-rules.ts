@@ -1,5 +1,20 @@
 export type AttendanceBreakPolicy = { startMinutes: number; endMinutes: number; durationMinutes: number; mandatory: boolean; shiftEndMinutes: number };
+export type AttendanceRulePolicy = AttendanceBreakPolicy & {
+  shiftStartMinutes: number;
+  lateGraceMinutes: number;
+  lateMarkAllowancePerMonth: number;
+  lateMarkHalfDayOnExceed: boolean;
+  productionThresholdMinutes: number;
+};
 const DEFAULT_POLICY: AttendanceBreakPolicy = { startMinutes: 810, endMinutes: 870, durationMinutes: 60, mandatory: false, shiftEndMinutes: 1110 };
+const DEFAULT_RULE_POLICY: AttendanceRulePolicy = {
+  ...DEFAULT_POLICY,
+  shiftStartMinutes: 570,
+  lateGraceMinutes: 30,
+  lateMarkAllowancePerMonth: 4,
+  lateMarkHalfDayOnExceed: true,
+  productionThresholdMinutes: 480,
+};
 
 function parseTime(value: string | null | undefined, fallback: number) {
   const match = String(value || '').match(/^(\d{1,2}):(\d{2})$/);
@@ -13,6 +28,29 @@ export async function loadAttendanceBreakPolicy(db: any): Promise<AttendanceBrea
     if (!row || row.attendanceRuleScope !== 'marqaitechgroup_only') return DEFAULT_POLICY;
     return { startMinutes: parseTime(row.breakStartTime, 810), endMinutes: parseTime(row.breakEndTime, 870), durationMinutes: Number(row.breakDurationMinutes) || 60, mandatory: !!row.mandatoryBreakEnabled, shiftEndMinutes: parseTime(row.shiftEndDefault, 1110) };
   } catch { return DEFAULT_POLICY; }
+}
+
+/** Load all punch/late/production rules from AttendancePolicyConfig. */
+export async function loadAttendanceRulePolicy(db: any): Promise<AttendanceRulePolicy> {
+  try {
+    const rows = await db.$queryRawUnsafe(`SELECT "shiftStartDefault", "shiftEndDefault", "breakStartTime", "breakEndTime", "breakDurationMinutes", "mandatoryBreakEnabled", "lateGraceMinutes", "lateMarkAllowancePerMonth", "lateMarkHalfDayOnExceed", "overtimeThresholdMinutes", "attendanceRuleScope" FROM "AttendancePolicyConfig" ORDER BY "updatedAt" DESC LIMIT 1`);
+    const row = rows?.[0];
+    if (!row || row.attendanceRuleScope !== 'marqaitechgroup_only' && row.attendanceRuleScope !== 'all_tenants') return DEFAULT_RULE_POLICY;
+    return {
+      startMinutes: parseTime(row.breakStartTime, DEFAULT_RULE_POLICY.startMinutes),
+      endMinutes: parseTime(row.breakEndTime, DEFAULT_RULE_POLICY.endMinutes),
+      durationMinutes: Number(row.breakDurationMinutes) || DEFAULT_RULE_POLICY.durationMinutes,
+      mandatory: !!row.mandatoryBreakEnabled,
+      shiftStartMinutes: parseTime(row.shiftStartDefault, DEFAULT_RULE_POLICY.shiftStartMinutes),
+      shiftEndMinutes: parseTime(row.shiftEndDefault, DEFAULT_RULE_POLICY.shiftEndMinutes),
+      lateGraceMinutes: Number(row.lateGraceMinutes ?? DEFAULT_RULE_POLICY.lateGraceMinutes),
+      lateMarkAllowancePerMonth: Number(row.lateMarkAllowancePerMonth ?? DEFAULT_RULE_POLICY.lateMarkAllowancePerMonth),
+      lateMarkHalfDayOnExceed: row.lateMarkHalfDayOnExceed ?? DEFAULT_RULE_POLICY.lateMarkHalfDayOnExceed,
+      productionThresholdMinutes: Number(row.overtimeThresholdMinutes ?? DEFAULT_RULE_POLICY.productionThresholdMinutes),
+    };
+  } catch {
+    return DEFAULT_RULE_POLICY;
+  }
 }
 
 export function attendanceLocalMinutes(value: Date): number {

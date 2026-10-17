@@ -47,5 +47,3 @@ next-env.d.ts
 nexus-hrms/
 tool-results/
 dev-verify.log
-.github/
-.vercel/

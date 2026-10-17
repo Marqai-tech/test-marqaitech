@@ -126,6 +126,8 @@ export async function GET(request: Request) {
       handoverPlan: r.handoverPlan || '',
       pendingTasks: r.pendingTasks || '',
       status: r.status,
+      rejectionReason: r.rejectionReason || null,
+      decisionDate: r.decisionDate || null,
       createdAt: r.createdAt,
       updatedAt: r.updatedAt,
     }));
