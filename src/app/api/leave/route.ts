@@ -501,14 +501,42 @@ export async function POST(request: Request) {
     // BUG_063 fix (insufficient balance): error message now matches the
     // spec format: "Insufficient leave balance. Available balance: X days.
     // Requested leave: Y days."
+    //
+    // BUG_067 fix (effective balance): the raw DB `remaining` field doesn't
+    // account for PENDING leave requests. An employee with 9 days remaining
+    // but 9 days of pending requests has an EFFECTIVE balance of 0. The
+    // validation must subtract pending days to match what the UI displays.
     const requestedDays = leaveDaysConsumed(walk, halfDay);
     let availableDays: number | null = null;
     let balanceIsTracked = false;
     try {
-      const balanceRow = await db.leaveBalance.findFirst({
+      // 1. Try Prisma query for the current year's balance
+      let balanceRow = await db.leaveBalance.findFirst({
         where: { employeeId, leaveTypeId, year: parsedStart.getUTCFullYear() },
         select: { remaining: true, total: true },
+      }).catch((e: any) => {
+        console.error('[leave] BUG_067: Prisma balance query failed:', e?.message || e);
+        return null;
       });
+
+      // 2. If Prisma failed (adapter issue), try raw SQL fallback
+      if (!balanceRow) {
+        try {
+          const rows: any[] = await db.$queryRawUnsafe(
+            `SELECT "remaining", "total" FROM "LeaveBalance"
+             WHERE "employeeId" = $1 AND "leaveTypeId" = $2 AND "year" = $3
+             LIMIT 1`,
+            employeeId, leaveTypeId, parsedStart.getUTCFullYear(),
+          );
+          if (rows && rows.length > 0) {
+            balanceRow = { remaining: Number(rows[0].remaining), total: Number(rows[0].total) };
+            console.log('[leave] BUG_067: Raw SQL fallback succeeded — remaining:', balanceRow.remaining);
+          }
+        } catch (sqlErr: any) {
+          console.error('[leave] BUG_067: Raw SQL balance query also failed:', sqlErr?.message);
+        }
+      }
+
       if (balanceRow) {
         balanceIsTracked = true;
         availableDays = balanceRow.remaining;
@@ -519,8 +547,40 @@ export async function POST(request: Request) {
         balanceIsTracked = true;
         availableDays = leaveType.defaultDays;
       }
+
+      // 3. BUG_067: subtract pending leave days to get EFFECTIVE balance
+      // The UI shows remaining - pending = effective. If an employee has
+      // 9 days remaining but 9 days of pending requests, effective = 0.
+      if (balanceIsTracked && availableDays !== null && availableDays > 0) {
+        try {
+          const pendingRequests = await db.leaveRequest.findMany({
+            where: {
+              employeeId,
+              leaveTypeId,
+              status: 'pending',
+              startDate: { gte: new Date(parsedStart.getUTCFullYear(), 0, 1) },
+              endDate: { lte: new Date(parsedStart.getUTCFullYear(), 11, 31, 23, 59, 59) },
+            },
+            select: { startDate: true, endDate: true, halfDay: true },
+          });
+          let pendingDays = 0;
+          for (const pr of pendingRequests) {
+            const prWalk = computeWorkingDays(
+              new Date(pr.startDate), new Date(pr.endDate),
+              weekendDow, holidayDaySet,
+            );
+            pendingDays += leaveDaysConsumed(prWalk, pr.halfDay);
+          }
+          if (pendingDays > 0) {
+            availableDays = Math.max(0, availableDays - pendingDays);
+            console.log(`[leave] BUG_067: Effective balance after pending deduction: ${availableDays} (raw=${balanceRow?.remaining ?? leaveType.defaultDays}, pending=${pendingDays})`);
+          }
+        } catch (pendingErr: any) {
+          console.warn('[leave] BUG_067: Pending deduction check failed (non-fatal):', pendingErr?.message);
+        }
+      }
     } catch (balErr) {
-      console.warn('[leave] Balance check failed (non-fatal):', balErr);
+      console.error('[leave] Balance check failed (non-fatal):', balErr);
     }
 
     // BUG_062: determine if this is an unpaid / LOP leave type.
