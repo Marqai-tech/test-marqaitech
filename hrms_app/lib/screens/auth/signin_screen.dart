@@ -37,7 +37,8 @@ class _SignInScreenState extends State<SignInScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() { _busy = true; _error = null; });
 
-    final ws = _workspace.text.trim().replaceFirst(RegExp(r'/+$'), '');
+    // "marqaitechgroup" / "marqaitechgroup.3boxeshrms.com" / full URL — all work.
+    final ws = ApiConfig.normalizeWorkspaceUrl(_workspace.text) ?? '';
     ApiConfig.setBaseUrl(ws.isEmpty ? ApiConfig.defaultBaseUrl : ws);
     if (_saveMe) {
       await StorageService.setRememberMe(true);
@@ -59,7 +60,8 @@ class _SignInScreenState extends State<SignInScreen> {
     } else {
       setState(() {
         _busy = false;
-        _error = 'Invalid credentials or the workspace is unreachable.\n'
+        _error = context.read<AuthProvider>().error ??
+            'Invalid credentials or the workspace is unreachable.\n'
             'Demo workspace hint: admin@acme-global.com · MarqAI@2026';
       });
     }
@@ -228,16 +230,21 @@ class _SignInScreenState extends State<SignInScreen> {
                       TextButton(
                         onPressed: () => setState(() => _showAdvanced = !_showAdvanced),
                         child: Text(
-                          _showAdvanced ? 'Hide workspace settings' : 'Workspace settings',
+                          _showAdvanced ? 'Hide workspace settings' : 'Workspace settings (optional — auto-detected)',
                           style: const TextStyle(fontSize: 12.5, color: MaanColors.faint),
                         ),
                       ),
                       if (_showAdvanced) ...[
                         MaanField(
                           label: 'Workspace URL',
-                          hint: 'https://yourcompany.3boxeshrms.com',
+                          hint: 'yourcompany.3boxeshrms.com — or leave as-is',
                           controller: _workspace,
                           keyboard: TextInputType.url,
+                        ),
+                        const SizedBox(height: 4),
+                        const Text(
+                          'Most users can ignore this: your company workspace is detected automatically at sign-in.',
+                          style: TextStyle(fontSize: 11.5, color: MaanColors.faint),
                         ),
                         const SizedBox(height: 8),
                         Row(
@@ -260,7 +267,7 @@ class _SignInScreenState extends State<SignInScreen> {
                             Expanded(
                               child: OutlinedButton(
                                 onPressed: () {
-                                  _workspace.text = 'https://3boxeshrms.com';
+                                  _workspace.text = ApiConfig.liveBaseUrl;
                                   _identity.clear();
                                   _password.clear();
                                 },
@@ -268,7 +275,7 @@ class _SignInScreenState extends State<SignInScreen> {
                                   side: const BorderSide(color: MaanColors.line),
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                 ),
-                                child: const Text('Use live workspace', style: TextStyle(fontSize: 12.5, color: MaanColors.navy, fontWeight: FontWeight.w600)),
+                                child: const Text('Use live platform (super admin)', style: TextStyle(fontSize: 12.5, color: MaanColors.navy, fontWeight: FontWeight.w600)),
                               ),
                             ),
                           ],

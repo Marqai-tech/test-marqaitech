@@ -1,14 +1,52 @@
+import '../services/storage_service.dart';
+
 class ApiConfig {
   /// Default workspace = the 3Boxes demo workspace (sample data, safe for evaluation).
+  /// NOTE: tenant users don't need to touch this — the login ladder in
+  /// ApiService auto-discovers their company workspace from the email.
   static const String defaultBaseUrl = 'https://nexus-hrms-demo.vercel.app';
   /// Live production workspace (set from the Sign In screen when needed).
   static const String liveBaseUrl = 'https://3boxeshrms.com';
 
   static String _baseUrl = defaultBaseUrl;
   static String get baseUrl => _baseUrl;
-  static void setBaseUrl(String url) {
-    final u = url.trim().replaceFirst(RegExp(r'/+$'), '');
-    _baseUrl = u.isEmpty ? defaultBaseUrl : u;
+
+  /// Point all API calls at [url] and remember it for the next launches
+  /// (write-through persistence — previously the workspace reset to the demo
+  /// server on every app restart, breaking stored tenant sessions).
+  static void setBaseUrl(String url, {bool persist = true}) {
+    final u = normalizeWorkspaceUrl(url) ?? defaultBaseUrl;
+    _baseUrl = u;
+    if (persist) StorageService.setWorkspaceUrl(u);
+  }
+
+  /// Restore the persisted workspace (call once at app startup, before any
+  /// API request). Returns true when a non-default workspace was restored.
+  static bool restoreFromStorage() {
+    final saved = StorageService.getWorkspaceUrl();
+    if (saved != null && saved.isNotEmpty) {
+      _baseUrl = saved;
+      return saved != defaultBaseUrl;
+    }
+    return false;
+  }
+
+  /// Normalize whatever the user typed into a usable base URL.
+  ///   "marqaitechgroup.3boxeshrms.com"  → https://marqaitechgroup.3boxeshrms.com
+  ///   "marqaitechgroup"                  → https://marqaitechgroup.3boxeshrms.com
+  ///   "mycompany.com"                    → https://mycompany.com
+  ///   "https://x.com/"                   → https://x.com
+  /// Returns null for empty input.
+  static String? normalizeWorkspaceUrl(String input) {
+    var u = input.trim();
+    if (u.isEmpty) return null;
+    u = u.replaceFirst(RegExp(r'/+$'), '');
+    if (!u.startsWith(RegExp(r'https?://', caseSensitive: false))) {
+      // A bare subdomain fragment (no dot) belongs to the platform domain.
+      if (!u.contains('.')) u = '$u.3boxeshrms.com';
+      u = 'https://$u';
+    }
+    return u;
   }
 
   static const String apiPrefix = '/api';

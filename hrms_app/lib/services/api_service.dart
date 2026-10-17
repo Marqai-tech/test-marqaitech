@@ -45,23 +45,89 @@ class ApiService {
   }
 
   // ============ Auth ============
+
+  /// POST to a host's /api/auth/login and return (status, body-map).
+  /// Never throws for non-2xx; tolerates non-JSON error pages.
+  static Future<(int, Map<String, dynamic>)> _loginAttempt(String baseUrl, String email, String password) async {
+    try {
+      final response = await http
+          .post(
+            Uri.parse('$baseUrl/api/auth/login'),
+            headers: const {'Content-Type': 'application/json'},
+            body: jsonEncode({'email': email, 'password': password}),
+          )
+          .timeout(ApiConfig.timeout);
+      Map<String, dynamic> data;
+      try {
+        data = jsonDecode(response.body) as Map<String, dynamic>;
+      } catch (_) {
+        data = {'error': 'Server returned an unexpected response (${response.statusCode})'};
+      }
+      return (response.statusCode, data);
+    } catch (_) {
+      return (0, {'error': 'Could not reach $baseUrl'});
+    }
+  }
+
+  /// Smart workspace-aware login.
+  ///
+  /// Handles every 3Boxes workspace type from ONE form:
+  ///  1. Try the configured workspace (demo default / typed URL / persisted).
+  ///  2. On failure, try the live platform apex — it validates super admins
+  ///     directly and, for tenant users, answers 403 with `suggestedUrl`
+  ///     pointing at their company subdomain.
+  ///  3. Auto-retry at the suggested tenant subdomain.
+  /// The workspace that finally succeeds is persisted so the session (and
+  /// future launches) keep talking to the right server.
   static Future<Map<String, dynamic>> login(String email, String password) async {
-    final response = await _post(ApiConfig.login, {'email': email, 'password': password});
-    final data = jsonDecode(response.body);
-    if (response.statusCode == 200) {
-      final token = data['token'] ?? data['data']?['token'];
-      if (token != null) {
-        setToken(token);
-        await StorageService.setToken(token);
-        final userJson = data['user'] ?? data['data']?['user'] ?? data['data'];
-        if (userJson != null) {
-          final userStr = jsonEncode(userJson);
-          await StorageService.setUserData(userStr);
+    final attempted = <String>{};
+    final triedUrls = <String>[];
+    var lastStatus = 0;
+    var lastError = 'Login failed';
+
+    String current = ApiConfig.baseUrl;
+    while (attempted.length < 3) {
+      attempted.add(current);
+      triedUrls.add(current);
+      final (status, data) = await _loginAttempt(current, email, password);
+      lastStatus = status;
+      lastError = (data['error'] ?? data['message'] ?? lastError).toString();
+
+      if (status == 200) {
+        final token = data['token'] ?? data['data']?['token'];
+        if (token != null) {
+          setToken(token);
+          await StorageService.setToken(token);
+          final userJson = data['user'] ?? data['data']?['user'] ?? data['data'];
+          if (userJson != null) {
+            await StorageService.setUserData(jsonEncode(userJson));
+          }
+        }
+        // Remember the workspace that actually authenticated this user.
+        ApiConfig.setBaseUrl(current);
+        return data;
+      }
+
+      // Platform apex tells tenant users exactly where their workspace is.
+      final suggested = data['suggestedUrl'] as String?;
+      if (suggested != null && suggested.isNotEmpty) {
+        final target = ApiConfig.normalizeWorkspaceUrl(suggested) ?? suggested;
+        if (!attempted.contains(target)) {
+          triedUrls.add('↳ redirect: $target');
+          current = target;
+          continue;
         }
       }
-      return data;
+
+      // Fallback: the configured workspace failed — ask the live platform.
+      if (current != ApiConfig.liveBaseUrl) {
+        current = ApiConfig.liveBaseUrl;
+        continue;
+      }
+      break;
     }
-    throw Exception(data['error'] ?? data['message'] ?? 'Login failed');
+
+    throw AuthException(lastStatus, lastError, triedUrls: triedUrls);
   }
 
   static Future<UserModel?> getStoredUser() async {
@@ -303,4 +369,16 @@ class PunchGps {
   final double lng;
   final double? accuracy;
   const PunchGps({required this.lat, required this.lng, this.accuracy});
+}
+
+/// Login failure carrying the server's own message (and the hosts that were
+/// tried) so the sign-in screen can show something specific instead of a
+/// generic error.
+class AuthException implements Exception {
+  final int status;
+  final String message;
+  final List<String> triedUrls;
+  const AuthException(this.status, this.message, {this.triedUrls = const []});
+  @override
+  String toString() => message;
 }

@@ -28,6 +28,13 @@ class StorageService {
   static Future<void> setRememberedEmail(String email) async => await prefs.setString('remembered_email', email);
   static String? getRememberedEmail() => prefs.getString('remembered_email');
 
+  // Workspace (the HRMS server this session talks to, e.g. the tenant
+  // subdomain). Persisted so the stored token keeps working after an app
+  // restart — without it every launch silently reset to the demo server.
+  static Future<void> setWorkspaceUrl(String url) async => await prefs.setString('workspace_url', url);
+  static String? getWorkspaceUrl() => prefs.getString('workspace_url');
+  static Future<void> removeWorkspaceUrl() async => await prefs.remove('workspace_url');
+
   // Theme
   static Future<void> setThemeMode(String mode) async => await prefs.setString('theme_mode', mode);
   static String getThemeMode() => prefs.getString('theme_mode') ?? 'light';
@@ -42,6 +49,7 @@ class StorageService {
     await prefs.remove('user_data');
     await prefs.remove('remember_me');
     await prefs.remove('remembered_email');
+    await prefs.remove('workspace_url');
   }
 
   static bool get isLoggedIn => getToken() != null;

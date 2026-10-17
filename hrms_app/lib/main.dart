@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'config/api_config.dart';
 import 'config/colors.dart';
 import 'config/constants.dart';
 import 'config/theme.dart';
@@ -38,6 +39,9 @@ import 'providers/attendance_provider.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await StorageService.init();
+  // Restore the persisted workspace BEFORE touching any API, so a stored
+  // tenant token keeps talking to its own server after an app restart.
+  ApiConfig.restoreFromStorage();
   final token = StorageService.getToken();
   if (token != null) ApiService.setToken(token);
   runApp(const HRMSApp());
