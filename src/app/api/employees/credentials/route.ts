@@ -1,8 +1,19 @@
 import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb, getDbForTenant } from '@/lib/tenant-db';
-import { hashPassword, getTokenFromHeaders, verifyToken } from '@/lib/auth';
+import { hashPassword, hashPasswordFast, getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { getDataScope, canAccessEmployeeSettings } from '@/lib/roleAccess';
 import { isServerLiveSite } from '@/lib/tenant-filter';
+
+// Vercel serverless function timeout: Hobby=10s, Pro=60s. Set to 60s so
+// bulk credential generation (which hashes many bcrypt passwords) doesn't
+// get killed at 10s. On Hobby plan, Vercel will still cap at 10s — the
+// batch limit below is the real safeguard.
+export const maxDuration = 60;
+
+// Max employees to process per request. Each bcrypt hash takes ~75ms (cost
+// factor 10 via hashPasswordFast), so 20 employees ≈ 1.5s + DB overhead.
+// This stays well under Vercel Hobby's 10s timeout.
+const MAX_BATCH_SIZE = 20;
 
 function corsHeaders() {
   return {
@@ -503,12 +514,21 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'No employees found' }, { status: 404, headers: corsHeaders() });
     }
 
+    // ─── Batch limit: prevent Vercel function timeout ───
+    // Each bcrypt hash takes ~75ms (cost 10). With DB updates + email sync,
+    // each employee takes ~200ms. 20 employees ≈ 4s — well under the 10s
+    // Hobby timeout. If more than MAX_BATCH_SIZE, process only the first
+    // batch and return a "partial" flag so the UI can re-request.
+    const totalCount = employees.length;
+    const batch = employees.slice(0, MAX_BATCH_SIZE);
+    const hasMore = totalCount > MAX_BATCH_SIZE;
+
     const platformDb = getPlatformDb();
 
-    for (const emp of employees) {
+    for (const emp of batch) {
       try {
         const pwd = password || generateRandomPassword();
-        const hashedPwd = await hashPassword(pwd);
+        const hashedPwd = await hashPasswordFast(pwd);
 
         if (emp.userId) {
           // Update existing user password in tenant DB
@@ -621,7 +641,7 @@ export async function POST(request: Request) {
             const existingUser = await db.user.findUnique({ where: { email: emp.email } });
             if (existingUser) {
               const pwd = password || generateRandomPassword();
-              const hashedPwd = await hashPassword(pwd);
+              const hashedPwd = await hashPasswordFast(pwd);
               await db.user.update({
                 where: { id: existingUser.id },
                 data: { password: hashedPwd, status: 'active' },
@@ -700,9 +720,19 @@ export async function POST(request: Request) {
     const failCount = results.filter(r => !r.success).length;
 
     return NextResponse.json({
-      message: `Processed ${results.length} employees: ${successCount} succeeded, ${failCount} failed`,
+      message: hasMore
+        ? `Processed ${results.length} of ${totalCount} employees: ${successCount} succeeded, ${failCount} failed. ${totalCount - MAX_BATCH_SIZE} remaining — call again to process the next batch.`
+        : `Processed ${results.length} employees: ${successCount} succeeded, ${failCount} failed`,
       results,
-      summary: { total: results.length, succeeded: successCount, failed: failCount },
+      summary: {
+        total: results.length,
+        succeeded: successCount,
+        failed: failCount,
+        totalCount,        // total employees matched by the query
+        processedCount: results.length,  // how many we actually processed
+        remainingCount: hasMore ? totalCount - MAX_BATCH_SIZE : 0,
+        partial: hasMore,  // true if there are more employees to process
+      },
     }, { headers: corsHeaders() });
   } catch (error) {
     console.error('[Credentials POST] Error:', error);
@@ -806,7 +836,7 @@ export async function PUT(request: Request) {
 
     if (action === 'reset_password') {
       const pwd = password || generateRandomPassword();
-      const hashedPwd = await hashPassword(pwd);
+      const hashedPwd = await hashPasswordFast(pwd);
 
       if (employee.userId) {
         // Update password in tenant DB
