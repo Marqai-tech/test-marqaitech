@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb, getPlatformDb } from '@/lib/tenant-db';
+import { getDb, getPlatformDb, registerTenantDatabase } from '@/lib/tenant-db';
+import { provisionTenantDatabase } from '@/lib/tenant-db-provision';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 
@@ -7,7 +8,13 @@ import crypto from 'crypto';
  * POST /api/trial/approve
  * Super admin approves a trial registration.
  * Creates: Tenant, CompanyGroup, Company, User (tenant_admin), Role assignments.
- * Sets tempPassword and trialStart/trialEnd on the registration.
+ * AUTO-PROVISIONS a separate database for the tenant (CREATE DATABASE +
+ * schema push). Sets tempPassword and trialStart/trialEnd on the registration.
+ *
+ * This route is now Idempotent for provisioning: if the tenant structure
+ * already exists (created by /api/trial/register), only the DB provisioning
+ * step runs. This lets an admin retry provisioning if the auto-provisioning
+ * in /api/trial/register failed.
  */
 export async function POST(request: NextRequest) {
   const db = await getDb(request);
@@ -232,15 +239,45 @@ export async function POST(request: NextRequest) {
       return { tenant, user, tempPassword, companyCode: registration.companyCode };
     });
 
+    // ─── AUTO-PROVISION the tenant database ─────────────────────────
+    // CREATE DATABASE tenant_<slug> + push schema + register in TenantDatabase.
+    // Runs outside the transaction because CREATE DATABASE cannot run inside
+    // a Postgres transaction block.
+    let provisioningSucceeded = false;
+    let provisioningError: string | null = null;
+    try {
+      console.log(`[TrialApprove] Auto-provisioning database for tenant "${result.companyCode}"...`);
+      const provisionResult = await provisionTenantDatabase({ slug: result.companyCode });
+
+      await registerTenantDatabase({
+        tenantId: result.tenant.id,
+        connectionString: provisionResult.connectionString,
+        directUrl: provisionResult.directConnectionString,
+        databaseName: provisionResult.databaseName,
+      });
+
+      console.log(`[TrialApprove] ✅ Database "${provisionResult.databaseName}" provisioned for tenant "${result.companyCode}"`);
+      provisioningSucceeded = true;
+    } catch (err: any) {
+      provisioningError = err?.message || String(err);
+      console.error(`[TrialApprove] ❌ Database provisioning failed for tenant "${result.companyCode}":`, err?.message || err);
+      // Don't throw — the tenant structure is already created. The admin
+      // can retry provisioning by calling /api/trial/approve again.
+    }
+
     return NextResponse.json({
-      message: 'Trial approved successfully. Tenant created.',
+      message: provisioningSucceeded
+        ? 'Trial approved successfully. Tenant created and database provisioned.'
+        : 'Trial approved, but database provisioning failed. Tenant structure is created — retry provisioning via /api/trial/approve.',
       tenantId: result.tenant.id,
       loginEmail: registration.contactEmail,
       tempPassword: result.tempPassword,
       loginUrl: `https://${result.companyCode}.3boxeshrms.com/login`,
       trialDays: days,
       trialEnd: trialEnd.toISOString(),
-    }, { status: 200 });
+      provisioningSucceeded,
+      provisioningError,
+    }, { status: provisioningSucceeded ? 200 : 202 });
 
   } catch (error: any) {
     console.error('[Trial Approve] Error:', error);

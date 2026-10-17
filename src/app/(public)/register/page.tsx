@@ -51,6 +51,7 @@ export default function TrialRegisterPage() {
   const [submitted, setSubmitted] = useState(false);
   const [registrationCode, setRegistrationCode] = useState('');
   const [autoApproved, setAutoApproved] = useState(false);
+  const [tempPassword, setTempPassword] = useState('');
   const [error, setError] = useState('');
 
   const [form, setForm] = useState({
@@ -297,9 +298,26 @@ export default function TrialRegisterPage() {
     const companyEmailResult = validateEmail(form.companyEmail);
     if (!companyEmailResult.valid) { setError(companyEmailResult.error!); return; }
 
-    if (form.companyPhone) {
-      const phoneResult = validatePhone(form.companyPhone);
-      if (!phoneResult.valid) { setError(phoneResult.error!); return; }
+    // BUG_004: Company Phone is now mandatory
+    if (!form.companyPhone || form.companyPhone.trim() === '') {
+      setError('Company phone is required'); return;
+    }
+    const companyPhoneResult = validatePhone(form.companyPhone);
+    if (!companyPhoneResult.valid) { setError(companyPhoneResult.error!); return; }
+
+    // BUG_004: Industry is now mandatory — placeholder "Select industry" not accepted
+    if (!form.industry || form.industry.trim() === '') {
+      setError('Please select an industry'); return;
+    }
+
+    // BUG_004: Country is now mandatory
+    if (!form.country || form.country.trim() === '') {
+      setError('Please select a country'); return;
+    }
+
+    // BUG_004: Expected Employees is now mandatory
+    if (!form.employeeCount || form.employeeCount < 1) {
+      setError('Please enter the expected number of employees'); return;
     }
 
     const contactNameResult = validateName(form.contactName, 'Contact name');
@@ -308,9 +326,25 @@ export default function TrialRegisterPage() {
     const contactEmailResult = validateEmail(form.contactEmail);
     if (!contactEmailResult.valid) { setError(contactEmailResult.error!); return; }
 
-    if (form.contactPhone) {
-      const contactPhoneResult = validatePhone(form.contactPhone);
-      if (!contactPhoneResult.valid) { setError(contactPhoneResult.error!); return; }
+    // BUG_004: Contact Phone is now mandatory
+    if (!form.contactPhone || form.contactPhone.trim() === '') {
+      setError('Contact phone is required'); return;
+    }
+    const contactPhoneResult = validatePhone(form.contactPhone);
+    if (!contactPhoneResult.valid) { setError(contactPhoneResult.error!); return; }
+
+    // BUG_004: Address, City, State, ZIP are now mandatory
+    if (!form.address || form.address.trim() === '') {
+      setError('Company address is required'); return;
+    }
+    if (!form.city || form.city.trim() === '') {
+      setError('City is required'); return;
+    }
+    if (!form.state || form.state.trim() === '') {
+      setError('State is required'); return;
+    }
+    if (!form.zipCode || form.zipCode.trim() === '') {
+      setError('ZIP code is required'); return;
     }
 
     setLoading(true);
@@ -330,6 +364,9 @@ export default function TrialRegisterPage() {
 
       setRegistrationCode(data.companyCode);
       setAutoApproved(data.autoApproved || false);
+      // BUG_019: capture tempPassword from response so we can show it on
+      // the confirmation screen (also sent via email as a backup).
+      setTempPassword(data.tempPassword || '');
       setSubmitted(true);
     } catch {
       setError('Network error. Please try again.');
@@ -387,7 +424,7 @@ export default function TrialRegisterPage() {
                   </div>
                   <div className="flex items-center gap-2 bg-white p-3 rounded-lg border">
                     <span className="text-gray-500 w-24">Password:</span>
-                    <span className="font-mono font-medium text-emerald-700">Check your email</span>
+                    <span className="font-mono font-medium text-emerald-700">{tempPassword || 'Check your email'}</span>
                   </div>
                   <div className="flex items-center gap-2 bg-white p-3 rounded-lg border">
                     <span className="text-gray-500 w-24">Login URL:</span>
@@ -570,23 +607,23 @@ export default function TrialRegisterPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-                <input type="tel" value={form.companyPhone} onChange={(e) => setForm({ ...form, companyPhone: e.target.value })} className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500" placeholder="+91 98765 43210" />
+                <label className="block text-sm font-medium text-gray-700 mb-1">Company Phone <span className="text-red-500">*</span></label>
+                <input type="tel" required value={form.companyPhone} onChange={(e) => setForm({ ...form, companyPhone: e.target.value })} className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500" placeholder="+91 98765 43210" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Website</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Website <span className="text-xs text-gray-400 font-normal">(optional)</span></label>
                 <input type="url" value={form.companyWebsite} onChange={(e) => setForm({ ...form, companyWebsite: e.target.value })} className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500" placeholder="https://www.company.com" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Industry</label>
-                <select value={form.industry} onChange={(e) => setForm({ ...form, industry: e.target.value })} className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Industry <span className="text-red-500">*</span></label>
+                <select required value={form.industry} onChange={(e) => setForm({ ...form, industry: e.target.value })} className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500">
                   <option value="">Select industry</option>
                   {industries.map((ind) => (<option key={ind} value={ind}>{ind}</option>))}
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
-                <select value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })} className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Country <span className="text-red-500">*</span></label>
+                <select required value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })} className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500">
                   <option value="IN">India</option>
                   <option value="US">United States</option>
                   <option value="GB">United Kingdom</option>
@@ -596,8 +633,8 @@ export default function TrialRegisterPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Expected Employees</label>
-                <input type="number" min={1} max={10000} value={form.employeeCount} onChange={(e) => setForm({ ...form, employeeCount: parseInt(e.target.value) || 10 })} className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500" />
+                <label className="block text-sm font-medium text-gray-700 mb-1">Expected Employees <span className="text-red-500">*</span></label>
+                <input type="number" required min={1} max={10000} value={form.employeeCount} onChange={(e) => setForm({ ...form, employeeCount: parseInt(e.target.value) || 10 })} className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500" />
               </div>
             </div>
           </div>
@@ -608,6 +645,7 @@ export default function TrialRegisterPage() {
               <span className="w-7 h-7 bg-green-100 text-green-700 rounded-lg flex items-center justify-center text-sm font-bold">2</span>
               Contact Person <span className="text-xs text-gray-400 font-normal">(will become the admin)</span>
             </h3>
+            <p className="text-xs text-gray-500 mb-3">All fields marked <span className="text-red-500">*</span> are required.</p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
@@ -618,11 +656,11 @@ export default function TrialRegisterPage() {
                 <input type="email" required value={form.contactEmail} onChange={(e) => setForm({ ...form, contactEmail: e.target.value })} className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500" placeholder="john@company.com" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-                <input type="tel" value={form.contactPhone} onChange={(e) => setForm({ ...form, contactPhone: e.target.value })} className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500" placeholder="+91 98765 43210" />
+                <label className="block text-sm font-medium text-gray-700 mb-1">Phone <span className="text-red-500">*</span></label>
+                <input type="tel" required value={form.contactPhone} onChange={(e) => setForm({ ...form, contactPhone: e.target.value })} className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500" placeholder="+91 98765 43210" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Designation</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Designation <span className="text-xs text-gray-400 font-normal">(optional)</span></label>
                 <input type="text" value={form.designation} onChange={(e) => setForm({ ...form, designation: e.target.value })} className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500" placeholder="HR Manager / CEO / Director" />
               </div>
             </div>
@@ -632,24 +670,24 @@ export default function TrialRegisterPage() {
           <div className="mb-8">
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
               <span className="w-7 h-7 bg-green-100 text-green-700 rounded-lg flex items-center justify-center text-sm font-bold">3</span>
-              Company Address
+              Company Address <span className="text-xs text-red-500 font-normal">* all fields required</span>
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
-                <input type="text" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500" placeholder="123 Business Park, Sector 5" />
+                <label className="block text-sm font-medium text-gray-700 mb-1">Address <span className="text-red-500">*</span></label>
+                <input type="text" required value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500" placeholder="123 Business Park, Sector 5" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
-                <input type="text" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500" placeholder="Mumbai" />
+                <label className="block text-sm font-medium text-gray-700 mb-1">City <span className="text-red-500">*</span></label>
+                <input type="text" required value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500" placeholder="Mumbai" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">State</label>
-                <input type="text" value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })} className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500" placeholder="Maharashtra" />
+                <label className="block text-sm font-medium text-gray-700 mb-1">State <span className="text-red-500">*</span></label>
+                <input type="text" required value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })} className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500" placeholder="Maharashtra" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">ZIP Code</label>
-                <input type="text" value={form.zipCode} onChange={(e) => setForm({ ...form, zipCode: e.target.value })} className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500" placeholder="400001" />
+                <label className="block text-sm font-medium text-gray-700 mb-1">ZIP Code <span className="text-red-500">*</span></label>
+                <input type="text" required value={form.zipCode} onChange={(e) => setForm({ ...form, zipCode: e.target.value })} className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500" placeholder="400001" />
               </div>
             </div>
           </div>
