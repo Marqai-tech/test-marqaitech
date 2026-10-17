@@ -337,6 +337,16 @@ setAttendanceRate(typeof summaryData?.attendanceRate === 'number' ? summaryData.
       setRegularizations((regData.regularizations as RegularizationRow[]).slice(0, 5));
     }
 
+    // BUG_026 fix: Pending Approvals count must include BOTH pending leave
+    // requests AND pending regularization requests. Previously only pending
+    // leaves were counted, so an employee with 1 pending regularization but
+    // 0 pending leaves saw "0 — Awaiting manager response" — which looked
+    // wrong. Now we sum both.
+    const pendingRegCount = Array.isArray(regData?.regularizations)
+      ? (regData.regularizations as RegularizationRow[]).filter((r) => (r.status || '').toLowerCase() === 'pending').length
+      : 0;
+    setPendingLeaves((prev) => prev + pendingRegCount);
+
     setLoading(false);
   }, [userRole, effectiveCompanyId]);
 
@@ -377,7 +387,7 @@ setAttendanceRate(typeof summaryData?.attendanceRate === 'number' ? summaryData.
   const quickActions = [
     { icon: <FiCalendar className="w-5 h-5" />, label: 'Apply Leave', href: '/leave', bg: 'from-amber-400 to-orange-500', shadow: 'shadow-orange-500/25' },
     { icon: <FiClock className="w-5 h-5" />, label: 'My Attendance', href: '/attendance', bg: 'from-cyan-400 to-green-500', shadow: 'shadow-green-500/25' },
-    { icon: <FiFileText className="w-5 h-5" />, label: 'My Payslips', href: '/payroll', bg: 'from-emerald-400 to-green-500', shadow: 'shadow-green-500/25' },
+    { icon: <FiFileText className="w-5 h-5" />, label: 'My Payslips', href: '/payroll/payslips', bg: 'from-emerald-400 to-green-500', shadow: 'shadow-green-500/25' },
     { icon: <FiHeadphones className="w-5 h-5" />, label: 'Raise Ticket', href: '/helpdesk', bg: 'from-teal-400 to-teal-500', shadow: 'shadow-teal-500/25' },
     { icon: <FiUser className="w-5 h-5" />, label: 'My Profile', href: '/my-profile', bg: 'from-pink-400 to-rose-500', shadow: 'shadow-rose-500/25' },
     { icon: <FiDollarSign className="w-5 h-5" />, label: 'Expenses', href: '/expenses', bg: 'from-teal-400 to-emerald-500', shadow: 'shadow-emerald-500/25' },
@@ -743,10 +753,29 @@ setAttendanceRate(typeof summaryData?.attendanceRate === 'number' ? summaryData.
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-xs font-medium text-rose-700/70">Latest Review · {performance.reviewCycle || 'Current cycle'}</p>
-                      <p className="text-2xl font-bold text-rose-700 mt-0.5">
-                        {(performance.overallRating ?? performance.rating ?? 0).toFixed(1)}
-                        <span className="text-sm font-medium text-rose-400"> / 5</span>
-                      </p>
+                      {/* BUG_028 fix: hide the numeric rating while the review
+                          is still Pending — showing "3.0 / 5" next to a
+                          Pending badge is misleading (the score is not final
+                          until the review is completed). Show "Not rated yet"
+                          instead. */}
+                      {(() => {
+                        const status = (performance.status || '').toLowerCase();
+                        const isPending = status === 'pending' || status === 'in_progress' || status === 'draft';
+                        const rating = performance.overallRating ?? performance.rating;
+                        if (isPending || rating == null || Number.isNaN(Number(rating))) {
+                          return (
+                            <p className="text-2xl font-bold text-rose-700 mt-0.5">
+                              Not rated yet
+                            </p>
+                          );
+                        }
+                        return (
+                          <p className="text-2xl font-bold text-rose-700 mt-0.5">
+                            {Number(rating).toFixed(1)}
+                            <span className="text-sm font-medium text-rose-400"> / 5</span>
+                          </p>
+                        );
+                      })()}
                       <p className="text-xs text-rose-700/70 mt-0.5">
                         {performance.reviewer ? `By ${performance.reviewer.firstName} ${performance.reviewer.lastName}` : 'Self / Manager review'}
                       </p>
@@ -812,7 +841,30 @@ setAttendanceRate(typeof summaryData?.attendanceRate === 'number' ? summaryData.
             </div>
           ) : (
             <div className="space-y-3">
-              {training.map((t) => (
+              {training.map((t) => {
+                // BUG_029 fix: derive training status from start/end dates.
+                // The API may return a stale 'upcoming' status for trainings
+                // whose dates have already passed. We compute the effective
+                // status client-side:
+                //   - both dates in the past → 'Completed'
+                //   - today is between start and end → 'In Progress'
+                //   - start date in the future → 'Upcoming'
+                //   - dates missing → fall back to the API-supplied status.
+                const deriveStatus = (): string => {
+                  const now = Date.now();
+                  const start = t.training.startDate ? new Date(t.training.startDate).getTime() : null;
+                  const end = t.training.endDate ? new Date(t.training.endDate).getTime() : null;
+                  if (start == null && end == null) return t.status;
+                  // Add 1 day grace to end so a training ending "today" is still
+                  // 'In Progress' rather than flipping to 'Completed' at midnight.
+                  const endWithGrace = end != null ? end + 24 * 60 * 60 * 1000 : null;
+                  if (start != null && now < start) return 'upcoming';
+                  if (endWithGrace != null && now > endWithGrace) return 'completed';
+                  if (start != null && (endWithGrace == null || now <= endWithGrace)) return 'in_progress';
+                  return t.status;
+                };
+                const effectiveStatus = deriveStatus();
+                return (
                 <div key={t.id} className="flex items-start gap-3 p-3 rounded-xl bg-slate-50/60 border border-slate-100">
                   <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-emerald-400 to-green-500 text-white flex items-center justify-center flex-shrink-0">
                     <FiBookOpen className="w-4 h-4" />
@@ -824,9 +876,10 @@ setAttendanceRate(typeof summaryData?.attendanceRate === 'number' ? summaryData.
                       {t.training.endDate ? ` → ${fmtDate(t.training.endDate)}` : ''}
                     </p>
                   </div>
-                  {statusBadge(t.status)}
+                  {statusBadge(effectiveStatus)}
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

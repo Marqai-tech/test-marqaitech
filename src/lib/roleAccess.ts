@@ -517,6 +517,10 @@ export function isSelfServicePathAllowed(pathname: string, search = ''): boolean
     '/travel',
     '/expenses',
     '/assets',
+    // BUG_035 fix: employees must be able to reach the Grievance page from
+    // the Quick Actions tile. Without this entry, the dashboard layout's
+    // self-service path guard redirects /grievances → /my-profile.
+    '/grievances',
   ];
   return allowedPrefixes.some((prefix) => path === prefix || path.startsWith(`${prefix}/`));
 }

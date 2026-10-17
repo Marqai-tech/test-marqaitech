@@ -39,9 +39,42 @@ export async function GET(request: Request) {
     const employeeId = searchParams.get('employeeId');
     const status = searchParams.get('status');
 
+    // BUG_027 fix: SECURITY + correctness — restrict performance review
+    // visibility by role. Previously the API returned ALL reviews in the
+    // tenant DB when no `employeeId` was supplied, which meant an employee
+    // with no reviews still saw OTHER employees' reviews (the bug report
+    // describes static-looking data like "Probation 3.0/5 - Pending" with
+    // goals 84%/99%/49% — that was actually someone else's review).
+    //
+    //   - super_admin / tenant_admin / admin / hr_manager / manager: may
+    //     view any employee's reviews. If `employeeId` query param is
+    //     supplied we filter by it; otherwise we return all (admin-level).
+    //   - employee / finance / it_admin / any other self-service role: may
+    //     ONLY view their own reviews. We resolve their employeeId from the
+    //     JWT's userId and force the where clause.
+    const role = (decoded.role as string) || '';
+    const ADMIN_ROLES = ['super_admin', 'tenant_admin', 'admin', 'hr_manager', 'manager'];
+    const isAdmin = ADMIN_ROLES.includes(role.toLowerCase());
+
     const where: Record<string, unknown> = {};
-    if (employeeId) where.employeeId = employeeId;
     if (status) where.status = status;
+
+    if (isAdmin) {
+      if (employeeId) where.employeeId = employeeId;
+    } else {
+      const userId = decoded.userId as string;
+      const me = await db.employee.findUnique({
+        where: { userId },
+        select: { id: true },
+      }).catch(() => null);
+      if (!me) {
+        return NextResponse.json({
+          reviews: [],
+          pagination: { page, limit, total: 0, totalPages: 0 },
+        }, { headers: corsHeaders() });
+      }
+      where.employeeId = me.id;
+    }
 
     const [reviews, total] = await Promise.all([
       db.performanceReview.findMany({
