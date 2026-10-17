@@ -102,18 +102,27 @@ export async function POST(request: Request) {
         // Super admins can still log in from any domain (they control tenant status).
         // For all other roles, a suspended/inactive/pending_approval tenant
         // means the user cannot log in.
-        if (subdomainTenant.status !== 'active') {
+        //
+        // BUG_019 fix: tenants with status 'trial' or 'active' may log in.
+        // The previous check (`status !== 'active'`) rejected trial tenants
+        // outright with a "tenant is trial, access denied" error — meaning
+        // the admin who just created a trial could NOT log in to the trial
+        // portal they had just provisioned. Trial expiry is enforced later
+        // in the flow (lines ~481+) by inspecting TrialRegistration.trialEnd.
+        const TRIAL_ALLOWED_STATUSES = ['active', 'trial'];
+        if (!TRIAL_ALLOWED_STATUSES.includes(subdomainTenant.status)) {
           const statusMessages: Record<string, string> = {
             suspended: `Your tenant "${subdomainTenant.name}" has been suspended. Please contact the super admin to reactivate your account.`,
             inactive: `Your tenant "${subdomainTenant.name}" is inactive. Please contact the super admin.`,
             pending_approval: `Your tenant "${subdomainTenant.name}" is pending approval. You cannot log in until the super admin approves your account.`,
+            expired: `Your trial for "${subdomainTenant.name}" has expired. Please contact 3Boxes HRMS support to activate your subscription.`,
           };
           // Note: We don't know the user's role yet at this point, but we
           // check the tenant status first. Super admins log in via the
           // platform domain (3boxeshrms.com) which has no tenant slug,
           // so this check won't affect them.
           return NextResponse.json(
-            { 
+            {
               error: statusMessages[subdomainTenant.status] || `Your tenant "${subdomainTenant.name}" is ${subdomainTenant.status}. Access denied.`,
               code: 'TENANT_BLOCKED',
               tenantStatus: subdomainTenant.status,

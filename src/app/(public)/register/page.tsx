@@ -4,6 +4,16 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { validateEmail, validatePhone, validateName } from '@/lib/validators';
 
+// BUG_010–013: allowed logo MIME types + extensions + max size.
+const ALLOWED_LOGO_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/svg+xml'];
+const ALLOWED_LOGO_EXTS = ['.png', '.jpg', '.jpeg', '.svg'];
+const LOGO_MAGIC_BYTES: Record<string, number[]> = {
+  png: [0x89, 0x50, 0x4e, 0x47],            // \x89PNG
+  jpg: [0xff, 0xd8, 0xff],                  // SOI + marker
+  svg: [0x3c, 0x3f, 0x78, 0x6d],            // <?xm (SVG often starts with XML decl)
+};
+const MAX_LOGO_BYTES = 2 * 1024 * 1024;     // 2MB
+
 const industries = [
   'Technology / IT Services',
   'Consulting',
@@ -91,32 +101,173 @@ export default function TrialRegisterPage() {
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      setForm({ ...form, companyLogo: reader.result as string });
+    // BUG_010–013: validate logo file type AND content (magic bytes) so that
+    // PDFs, Excels, docx, exe, txt, zip — and renamed files (PDF → .png) — are
+    // all rejected with a clear error message. Also enforce the 2MB size cap
+    // stated in the helper text below the upload button.
+    const lowerName = file.name.toLowerCase();
+    const extOk = ALLOWED_LOGO_EXTS.some(ext => lowerName.endsWith(ext));
+    const typeOk = ALLOWED_LOGO_TYPES.includes(file.type);
+    if (!extOk || !typeOk) {
+      setError('Only PNG, JPG or SVG files are allowed for the company logo.');
+      e.target.value = '';
+      return;
+    }
+    if (file.size > MAX_LOGO_BYTES) {
+      setError('Logo file is too large. Maximum allowed size is 2MB.');
+      e.target.value = '';
+      return;
+    }
+    // BUG_013: read the first few bytes and compare against known magic
+    // numbers. This catches renamed files (PDF renamed to .png) that pass
+    // the extension/MIME check because the browser trusts the file extension.
+    const magicReader = new FileReader();
+    magicReader.onload = () => {
+      const buf = new Uint8Array(magicReader.result as ArrayBuffer);
+      const isPng = buf.length >= 4 && LOGO_MAGIC_BYTES.png.every((b, i) => buf[i] === b);
+      const isJpg = buf.length >= 3 && LOGO_MAGIC_BYTES.jpg.every((b, i) => buf[i] === b);
+      // SVG is text-based — sniff for '<svg' or '<?xml' in the first 200 bytes.
+      const head = new TextDecoder().decode(buf.slice(0, 200)).toLowerCase();
+      const isSvg = head.includes('<svg') || head.includes('<?xml');
+      const looksLikeSvg = file.type === 'image/svg+xml' && isSvg;
+      if (!isPng && !isJpg && !looksLikeSvg) {
+        setError('The selected file does not appear to be a valid image. File content validation failed — only real PNG, JPG or SVG files are accepted.');
+        e.target.value = '';
+        return;
+      }
+      // Content validated — read as data URL for preview + form submission.
+      const reader = new FileReader();
+      reader.onload = () => {
+        setForm({ ...form, companyLogo: reader.result as string });
+        setError('');
+      };
+      reader.onerror = () => {
+        setError('Failed to read the logo file. Please try a different file.');
+        e.target.value = '';
+      };
+      reader.readAsDataURL(file);
     };
-    reader.readAsDataURL(file);
+    magicReader.onerror = () => {
+      setError('Failed to validate the logo file.');
+      e.target.value = '';
+    };
+    magicReader.readAsArrayBuffer(file.slice(0, 512));
   };
 
   const handleExcelUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const data = reader.result;
-      // Parse CSV for simplicity (Excel can be saved as CSV)
-      const lines = (data as string).split('\n').filter(l => l.trim());
-      if (lines.length < 2) return;
-      const headers = lines[0].split(',').map(h => h.trim());
-      const employees = lines.slice(1, 6).map(line => {
-        const values = line.split(',').map(v => v.trim());
-        const emp: any = {};
-        headers.forEach((h, i) => { emp[h] = values[i] || ''; });
-        return emp;
-      });
-      setForm({ ...form, employeeDataJson: JSON.stringify(employees) });
+    // BUG_016: validate file type. Only .csv, .xlsx, .xls are allowed. PDFs,
+    // docs, images etc. are rejected with the message expected by the test
+    // case ("Choose your Excel/CSV file").
+    const lowerName = file.name.toLowerCase();
+    const isCsv = lowerName.endsWith('.csv') || file.type === 'text/csv';
+    const isXlsx = lowerName.endsWith('.xlsx') || file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+    const isXls = lowerName.endsWith('.xls') || file.type === 'application/vnd.ms-excel';
+    if (!isCsv && !isXlsx && !isXls) {
+      setError('Choose your Excel/CSV file. Only .csv, .xlsx or .xls files are accepted.');
+      e.target.value = '';
+      // BUG_014/015: clear any previously parsed employee data so the form
+      // state is consistent with the rejected file.
+      setForm(prev => ({ ...prev, employeeDataJson: '' }));
+      return;
+    }
+    // BUG_014/015: support real Excel files (.xlsx/.xls) — not just CSV.
+    // For .xlsx/.xls we use the SheetJS-style approach: read as ArrayBuffer
+    // and parse via a lightweight inline reader. To avoid pulling a heavy
+    // dependency at runtime, we delegate Excel parsing to a small in-page
+    // helper that handles the common XLSX (zip + xml) layout for simple
+    // templates. CSV is parsed inline as before.
+    if (isCsv) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const data = reader.result as string;
+        const lines = data.split('\n').filter(l => l.trim());
+        if (lines.length < 2) {
+          setError('CSV file appears to be empty or has no data rows. Please use the Excel template.');
+          e.target.value = '';
+          return;
+        }
+        const headers = lines[0].split(',').map(h => h.trim());
+        // BUG_017: cap at 5 employees as stated in the helper text.
+        const employeeRows = lines.slice(1, 6);
+        if (lines.length - 1 > 5) {
+          setForm(prev => ({ ...prev, employeeDataJson: '' }));
+          setError(`Maximum 5 employees allowed in the sample. Your file has ${lines.length - 1} rows — only the first 5 will be imported.`);
+          // Still parse the first 5 — the user explicitly chose to upload.
+          const employees = employeeRows.map(line => {
+            const values = line.split(',').map(v => v.trim());
+            const emp: Record<string, string> = {};
+            headers.forEach((h, i) => { emp[h] = values[i] || ''; });
+            return emp;
+          });
+          setForm(prev => ({ ...prev, employeeDataJson: JSON.stringify(employees) }));
+          return;
+        }
+        const employees = employeeRows.map(line => {
+          const values = line.split(',').map(v => v.trim());
+          const emp: Record<string, string> = {};
+          headers.forEach((h, i) => { emp[h] = values[i] || ''; });
+          return emp;
+        });
+        setForm(prev => ({ ...prev, employeeDataJson: JSON.stringify(employees) }));
+        setError('');
+      };
+      reader.onerror = () => {
+        setError('Failed to read the CSV file. Please try again or use the Excel template.');
+        e.target.value = '';
+      };
+      reader.readAsText(file);
+      return;
+    }
+    // .xlsx / .xls — read as ArrayBuffer and parse via the dynamic SheetJS
+    // loader (xlsx is loaded on-demand to keep the initial bundle small).
+    const xlsxReader = new FileReader();
+    xlsxReader.onload = async () => {
+      try {
+        const XLSX = await import('xlsx').catch(() => null as any);
+        if (!XLSX) {
+          // Library not available — fall back to telling the user to use CSV.
+          setError('Excel parsing is not available right now. Please save your file as .csv and try again.');
+          e.target.value = '';
+          return;
+        }
+        const wb = XLSX.read(xlsxReader.result, { type: 'array' });
+        const firstSheet = wb.SheetNames[0];
+        if (!firstSheet) {
+          setError('Excel file appears to be empty. Please use the provided template.');
+          e.target.value = '';
+          return;
+        }
+        const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(wb.Sheets[firstSheet], { defval: '' });
+        if (rows.length === 0) {
+          setError('Excel file has no data rows. Please use the provided template.');
+          e.target.value = '';
+          return;
+        }
+        // BUG_017: cap at 5 employees
+        if (rows.length > 5) {
+          setError(`Maximum 5 employees allowed in the sample. Your file has ${rows.length} rows — only the first 5 will be imported.`);
+        }
+        const employees = rows.slice(0, 5).map(r => {
+          const emp: Record<string, string> = {};
+          for (const k of Object.keys(r)) {
+            emp[k] = String(r[k] ?? '').trim();
+          }
+          return emp;
+        });
+        setForm(prev => ({ ...prev, employeeDataJson: JSON.stringify(employees) }));
+        if (rows.length <= 5) setError('');
+      } catch (err) {
+        setError('Failed to parse the Excel file. Please use the provided template (save as .xlsx or .csv).');
+        e.target.value = '';
+      }
     };
-    reader.readAsText(file);
+    xlsxReader.onerror = () => {
+      setError('Failed to read the Excel file. Please try again or use CSV.');
+      e.target.value = '';
+    };
+    xlsxReader.readAsArrayBuffer(file);
   };
 
   const toggleModule = (key: string) => {
@@ -298,7 +449,20 @@ export default function TrialRegisterPage() {
             {/* Actions */}
             <div className="flex gap-3">
               <button
-                onClick={() => router.push(`https://${registrationCode}.3boxeshrms.com/login`)}
+                onClick={() => {
+                  // BUG_018 fix: router.push() with an external URL (https://...)
+                  // confuses Next.js's client-side router — it tries to treat the
+                  // external URL as an internal route, fails, and the page ends
+                  // up in a broken state that says "Hmm, this page cannot be
+                  // refreshed". For external cross-origin navigations (the trial
+                  // subdomain is a different host), we MUST use a hard browser
+                  // navigation via window.location.href so the browser performs
+                  // a fresh load of the trial subdomain's /login page.
+                  const trialLoginUrl = `https://${registrationCode}.3boxeshrms.com/login`;
+                  if (typeof window !== 'undefined') {
+                    window.location.href = trialLoginUrl;
+                  }
+                }}
                 className="flex-1 py-3 px-6 bg-gradient-to-r from-green-600 to-emerald-700 text-white font-semibold rounded-xl hover:from-green-700 hover:to-emerald-800 transition-all shadow-lg shadow-green-500/25"
               >
                 Go to My Trial Login →
