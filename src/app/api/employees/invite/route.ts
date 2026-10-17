@@ -1,8 +1,12 @@
 import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
-import { hashPassword, getTokenFromHeaders, verifyToken } from '@/lib/auth';
+import { hashPasswordFast, getTokenFromHeaders, verifyToken } from '@/lib/auth';
 import { getDataScope } from '@/lib/roleAccess';
 import { sendTenantEmail } from '@/lib/notification-channels';
+
+// Vercel serverless function timeout safeguard (see credentials route for details).
+export const maxDuration = 60;
+const MAX_BATCH_SIZE = 15; // lower than credentials — invite also sends emails
 
 function corsHeaders() {
   return {
@@ -246,6 +250,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'No employees found' }, { status: 404, headers: corsHeaders() });
     }
 
+    // ─── Batch limit: prevent Vercel function timeout ───
+    // Each invite = bcrypt hash (~75ms) + DB updates + SMTP send (~500ms).
+    // 15 employees ≈ 8s — under the 10s Hobby timeout.
+    const totalCount = employees.length;
+    const batch = employees.slice(0, MAX_BATCH_SIZE);
+    const hasMore = totalCount > MAX_BATCH_SIZE;
+
     const loginUrl = admin.tenant?.domain
       ? `https://${admin.tenant.domain}/login`
       : `https://${admin.tenant?.slug || 'app'}.3boxeshrms.com/login`;
@@ -266,7 +277,7 @@ export async function POST(request: Request) {
       emailWarning?: string;
     }> = [];
 
-    for (const emp of employees) {
+    for (const emp of batch) {
       try {
         // Ensure employee has a user account
         let userAccount = emp.userId
@@ -277,7 +288,7 @@ export async function POST(request: Request) {
 
         if (generateNewPassword || !userAccount) {
           pwd = generateRandomPassword();
-          const hashedPwd = await hashPassword(pwd);
+          const hashedPwd = await hashPasswordFast(pwd);
 
           if (userAccount) {
             // Reset password
@@ -398,7 +409,9 @@ export async function POST(request: Request) {
 
     // Build a response that includes an admin-level warning if any emails used the sandbox fallback
     const response: Record<string, unknown> = {
-      message: `Invites processed: ${successCount}/${results.length} successful, ${emailSentCount} emails sent`,
+      message: hasMore
+        ? `Invites processed: ${successCount}/${results.length} of ${totalCount} successful, ${emailSentCount} emails sent. ${totalCount - MAX_BATCH_SIZE} remaining — call again to process the next batch.`
+        : `Invites processed: ${successCount}/${results.length} successful, ${emailSentCount} emails sent`,
       results,
       summary: {
         total: results.length,
@@ -408,6 +421,10 @@ export async function POST(request: Request) {
         /** Number of emails that went through the sandbox fallback — these were
          *  likely NOT delivered to the intended employees. */
         fallbackSent: fallbackCount,
+        totalCount,
+        processedCount: results.length,
+        remainingCount: hasMore ? totalCount - MAX_BATCH_SIZE : 0,
+        partial: hasMore,
       },
     };
 
