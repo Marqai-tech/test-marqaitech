@@ -80,6 +80,18 @@ class _SignInScreenState extends State<SignInScreen> {
                     icon: const Icon(Icons.arrow_back, color: Colors.white),
                   ),
                   const SizedBox(width: 6),
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [BoxShadow(color: Colors.black.withOpacity(.12), blurRadius: 10, offset: const Offset(0, 4))],
+                    ),
+                    padding: const EdgeInsets.all(4),
+                    child: Image.asset('assets/logos/logo-cubes.png', fit: BoxFit.contain),
+                  ),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       role == 'employee' ? 'Employee Sign In' : 'Sign In',

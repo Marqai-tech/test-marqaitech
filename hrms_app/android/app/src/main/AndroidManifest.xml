@@ -1,6 +1,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Internet access: required for API calls (login, dashboard, etc.) in RELEASE builds.
+         Flutter's template only grants it to debug/profile builds — without this the
+         release APK cannot reach the server at all. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <application
-        android:label="3Boxes HRMS"
+        android:label="3 Boxes HRMS"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

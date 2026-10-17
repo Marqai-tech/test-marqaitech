@@ -308,7 +308,7 @@ class MaanPage extends StatelessWidget {
   }
 }
 
-/// Simple 3Boxes "M" logo mark (drawn, no image assets needed).
+/// 3 Boxes HRMS brand mark — official green cubes logo + wordmark.
 class MaanLogoMark extends StatelessWidget {
   final double size;
   const MaanLogoMark({super.key, this.size = 72});
@@ -322,21 +322,20 @@ class MaanLogoMark extends StatelessWidget {
           width: size,
           height: size,
           decoration: BoxDecoration(
-            gradient: const LinearGradient(colors: [Color(0xFF5B7FE8), Color(0xFF7C6FF0)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+            color: Colors.white,
             borderRadius: BorderRadius.circular(size * 0.26),
-            boxShadow: [BoxShadow(color: MaanColors.primary.withOpacity(.35), blurRadius: 18, offset: const Offset(0, 8))],
+            border: Border.all(color: const Color(0xFF16A34A).withOpacity(.18), width: 1),
+            boxShadow: [BoxShadow(color: const Color(0xFF16A34A).withOpacity(.25), blurRadius: 18, offset: const Offset(0, 8))],
           ),
-          child: Center(
-            child: Text('M',
-                style: TextStyle(color: Colors.white, fontSize: size * 0.52, fontWeight: FontWeight.w800)),
-          ),
+          padding: EdgeInsets.all(size * 0.06),
+          child: Image.asset('assets/logos/logo-cubes.png', fit: BoxFit.contain),
         ),
         const SizedBox(height: 10),
         RichText(
           text: const TextSpan(
             children: [
-              TextSpan(text: 'MAAN ', style: TextStyle(color: MaanColors.primary, fontWeight: FontWeight.w800, letterSpacing: 1.2)),
-              TextSpan(text: 'HRM', style: TextStyle(color: Color(0xFF3B82F6), fontWeight: FontWeight.w500, letterSpacing: 1.2)),
+              TextSpan(text: '3 Boxes ', style: TextStyle(color: Color(0xFF15803D), fontWeight: FontWeight.w800, letterSpacing: 1.2)),
+              TextSpan(text: 'HRMS', style: TextStyle(color: Color(0xFF22C55E), fontWeight: FontWeight.w500, letterSpacing: 1.2)),
             ],
             style: TextStyle(fontSize: 16),
           ),
