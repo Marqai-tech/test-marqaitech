@@ -501,11 +501,6 @@ export async function POST(request: Request) {
     // BUG_063 fix (insufficient balance): error message now matches the
     // spec format: "Insufficient leave balance. Available balance: X days.
     // Requested leave: Y days."
-    //
-    // BUG_067 fix (effective balance): the raw DB `remaining` field doesn't
-    // account for PENDING leave requests. An employee with 9 days remaining
-    // but 9 days of pending requests has an EFFECTIVE balance of 0. The
-    // validation must subtract pending days to match what the UI displays.
     const requestedDays = leaveDaysConsumed(walk, halfDay);
     let availableDays: number | null = null;
     let balanceIsTracked = false;
