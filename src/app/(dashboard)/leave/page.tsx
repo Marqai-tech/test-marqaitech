@@ -476,6 +476,30 @@ function LeavePageContent() {
       toast.error('End date cannot be before start date');
       return;
     }
+
+    // ─── BUG_061/062/063: client-side balance validation ───
+    // Mirrors the server-side checks in /api/leave POST. Gives instant
+    // feedback without a round-trip. The server is still the source of
+    // truth (re-validates on submit).
+    const selectedBalance = leaveBalances.find(lb => lb.leaveType.id === form.leaveTypeId);
+    if (selectedBalance) {
+      // Compute requested working days (rough estimate — server will
+      // compute the exact number with weekend/holiday exclusion).
+      const startD = new Date(form.startDate);
+      const endD = new Date(form.endDate);
+      const rawDays = Math.max(1, Math.ceil((endD.getTime() - startD.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+      const requestedDays = form.halfDay ? Math.max(0.5, rawDays * 0.5) : rawDays;
+
+      if (selectedBalance.remaining === 0) {
+        toast.error(`No leave balance available for the selected leave type ("${selectedBalance.leaveType.name}"). Please choose an unpaid leave type (LOP) or contact HR to adjust your balance.`);
+        return;
+      }
+      if (requestedDays > selectedBalance.remaining) {
+        toast.error(`Insufficient leave balance. Available balance: ${selectedBalance.remaining} day(s). Requested leave: ${requestedDays} day(s).`);
+        return;
+      }
+    }
+
     try {
       setSubmitting(true);
       const res = await fetch('/api/leave', {

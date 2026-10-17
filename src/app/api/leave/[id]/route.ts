@@ -153,6 +153,68 @@ export async function PATCH(
         details: `Cancelled leave request ${id}`,
       });
 
+      // ─── BUG_066 fix: Email 5 — Leave Cancellation Confirmation ───
+      // Per the Leave Module Notification Workflow spec, both the employee
+      // AND the approver/HR must receive a cancellation confirmation email.
+      // Previously the cancellation branch returned without dispatching any
+      // notification — silent cancellation.
+      try {
+        const { dispatchLeaveEvent } = await import('@/lib/leave-notify');
+        // Resolve the canceller's name for the Cancelled_By placeholder
+        let cancellerName = 'HR/Admin';
+        try {
+          const canceller = await db.user.findUnique({
+            where: { id: scope.userId },
+            select: { name: true, email: true },
+          });
+          if (canceller?.name) cancellerName = canceller.name;
+          else if (canceller?.email) cancellerName = canceller.email;
+        } catch { /* best-effort */ }
+
+        // Build the recipient list: employee (if they have a userId) + all
+        // active admins/HR in the tenant. The dispatchLeaveEvent helper
+        // accepts recipientUserIds as an explicit list.
+        const recipientIds: string[] = [];
+        if (leaveRequest.employee?.userId) {
+          recipientIds.push(leaveRequest.employee.userId);
+        }
+        try {
+          const admins = await db.user.findMany({
+            where: {
+              tenantId: scope.tenantId,
+              role: { in: ['hr_admin', 'admin', 'tenant_admin', 'super_admin'] },
+              status: 'active',
+            },
+            select: { id: true },
+            take: 20,
+          });
+          for (const a of admins) {
+            if (!recipientIds.includes(a.id)) recipientIds.push(a.id);
+          }
+        } catch { /* best-effort */ }
+
+        if (recipientIds.length > 0) {
+          await dispatchLeaveEvent(
+            db,
+            scope.tenantId,
+            'leave.cancelled',
+            leaveRequest,
+            scope.userId,
+            comments,
+            request,
+            recipientIds,
+            {
+              Cancelled_By: cancellerName,
+              Cancellation_Status: 'Approved',
+              Comments: comments || '—',
+              Request_Id: leaveRequest.id,
+            },
+          );
+        }
+      } catch (e) {
+        console.warn('[leave PATCH] Cancellation notification failed (non-fatal):', e);
+      }
+
       return NextResponse.json({ leaveRequest }, { headers: corsHeaders() });
     }
 

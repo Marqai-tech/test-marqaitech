@@ -291,7 +291,7 @@ export async function POST(request: Request) {
     // with a clear message instead.
     const leaveType = await db.leaveType.findUnique({
       where: { id: leaveTypeId },
-      select: { id: true, companyId: true, name: true, defaultDays: true },
+      select: { id: true, companyId: true, name: true, defaultDays: true, isPaid: true, code: true },
     });
     if (!leaveType) {
       return NextResponse.json(
@@ -389,6 +389,12 @@ export async function POST(request: Request) {
     // endpoint). "Today" is resolved in the tenant's timezone so a tenant
     // in e.g. Asia/Kolkata cannot apply for a date that has already passed
     // in their local calendar.
+    //
+    // BUG_061 fix: HR/admin roles (tenant_admin, admin, hr_admin,
+    // super_admin) can apply for past dates when acting on behalf of an
+    // employee — this supports authorized regularization and HR-assisted
+    // requests per the Leave Module spec. Employees (self-service) are
+    // still blocked from backdated applications.
     let tenantTz: string | null = null;
     try {
       const tenantRow = await db.tenant.findUnique({
@@ -399,10 +405,21 @@ export async function POST(request: Request) {
     } catch { /* timezone lookup is best-effort */ }
     const todayStr = todayInTimezone(tenantTz);
     const startDayStr = toDayStr(parsedStart);
-    if (startDayStr < todayStr) {
-      return NextResponse.json({
-        error: `Leave requests cannot be submitted for past dates. ${startDayStr} has already passed (today is ${todayStr}). Please select today or a future date.`,
-      }, { status: 400, headers: corsHeaders() });
+    const endDayStr = toDayStr(parsedEnd);
+    const isPrivilegedRole = ['super_admin', 'tenant_admin', 'admin', 'hr_admin'].includes(scope.role);
+    if (!isPrivilegedRole) {
+      if (startDayStr < todayStr) {
+        return NextResponse.json({
+          error: `Past dates are not allowed for leave applications. Please select a valid date. (Selected start: ${startDayStr}, today: ${todayStr}.)`,
+          code: 'PAST_DATE_NOT_ALLOWED',
+        }, { status: 400, headers: corsHeaders() });
+      }
+      if (endDayStr < todayStr) {
+        return NextResponse.json({
+          error: `Past dates are not allowed for leave applications. Please select a valid date. (Selected end: ${endDayStr}, today: ${todayStr}.)`,
+          code: 'PAST_DATE_NOT_ALLOWED',
+        }, { status: 400, headers: corsHeaders() });
+      }
     }
 
     // (a) Duplicate overlap check (same employee)
@@ -476,6 +493,14 @@ export async function POST(request: Request) {
     // The requested (working) days must fit within the available balance
     // for this leave type. Unpaid / un-tracked types (no balance row AND
     // no configured quota) skip this check so LOP-style leave still works.
+    //
+    // BUG_062 fix (zero balance): explicit zero-balance check with a
+    // distinct error message. LOP / unpaid leave types (isPaid=false on
+    // the LeaveType) are exempt — they have no quota by design.
+    //
+    // BUG_063 fix (insufficient balance): error message now matches the
+    // spec format: "Insufficient leave balance. Available balance: X days.
+    // Requested leave: Y days."
     const requestedDays = leaveDaysConsumed(walk, halfDay);
     let availableDays: number | null = null;
     let balanceIsTracked = false;
@@ -497,10 +522,30 @@ export async function POST(request: Request) {
     } catch (balErr) {
       console.warn('[leave] Balance check failed (non-fatal):', balErr);
     }
-    if (balanceIsTracked && availableDays !== null && requestedDays > availableDays) {
-      return NextResponse.json({
-        error: `Insufficient leave balance: you have requested ${requestedDays} day(s) of "${leaveType.name}" but only ${availableDays} day(s) are available. Please reduce the number of days or contact HR about additional leave.`,
-      }, { status: 400, headers: corsHeaders() });
+
+    // BUG_062: determine if this is an unpaid / LOP leave type.
+    // LeaveType.isPaid === false means it's Loss of Pay (unpaid) — no
+    // balance quota applies, employees can apply even with zero balance.
+    const isUnpaidLeaveType = (leaveType as any)?.isPaid === false;
+
+    if (balanceIsTracked && !isUnpaidLeaveType) {
+      if (availableDays === 0) {
+        // Zero balance — distinct message per spec
+        return NextResponse.json({
+          error: `No leave balance available for the selected leave type ("${leaveType.name}"). Please choose an unpaid leave type (LOP) or contact HR to adjust your balance.`,
+          code: 'ZERO_LEAVE_BALANCE',
+        }, { status: 400, headers: corsHeaders() });
+      }
+      if (availableDays !== null && requestedDays > availableDays) {
+        // Insufficient balance — exact spec message
+        return NextResponse.json({
+          error: `Insufficient leave balance. Available balance: ${availableDays} day(s). Requested leave: ${requestedDays} day(s).`,
+          code: 'INSUFFICIENT_LEAVE_BALANCE',
+          availableBalance: availableDays,
+          requestedLeave: requestedDays,
+          leaveTypeName: leaveType.name,
+        }, { status: 400, headers: corsHeaders() });
+      }
     }
 
     const leaveRequest = await db.leaveRequest.create({
@@ -744,6 +789,32 @@ export async function POST(request: Request) {
           link: `/leave/${leaveRequest.id}`,
         });
       } catch { /* non-critical */ }
+    }
+
+    // ─── BUG_064 fix: Email 1 — Leave Request Submitted → Employee ───
+    // Per the Leave Module Notification Workflow spec, the employee must
+    // receive a confirmation email with: Request ID, leave type, dates,
+    // number of days, and status (Pending Approval). Previously only the
+    // approver got an email — the employee got nothing.
+    if (targetEmployee.userId) {
+      try {
+        const { dispatchLeaveEvent } = await import('@/lib/leave-notify');
+        await dispatchLeaveEvent(
+          db,
+          scope.tenantId,
+          'leave.submitted_confirmation',
+          leaveRequest,
+          null,                                  // no approver for this event
+          null,                                  // no comments
+          request,
+          [targetEmployee.userId],               // recipient = the employee
+          {
+            Request_Id: leaveRequest.id,
+            Status: leaveRequest.status === 'approved' ? 'Approved (auto)' : 'Pending Approval',
+            Days_Requested: String(requestedDays),
+          },
+        );
+      } catch (e) { /* non-critical — email failure must not break the request */ }
     }
 
     return NextResponse.json(
