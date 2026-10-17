@@ -4613,3 +4613,18 @@ Stage Summary:
 - Android app READY NOW: login page → "Download for Android" installs the real Flutter app matching the designs; app connects to the demo workspace (sample data) or any workspace via Sign-In workspace settings.
 - iOS: source + Xcode project committed; unsigned IPA builds via the pasted CI workflow's manual dispatch (or any Mac: flutter build ipa). Landing page auto-flips BUILDING→READY when the IPA lands in public/downloads.
 - User activation step remaining: paste docs/github-ci.yml.txt as .github/workflows/mobile-ci.yml (PAT still lacks workflow scope), then run it once for the IPA.
+
+---
+Task ID: 102
+Agent: Super Z (main)
+Task: "can you give me login details to check for mobile app" — recover Task 101 state (lost session portion), sync local to remote, live-verify mobile app login credentials.
+
+Work Log:
+- LOCAL/REMOTE DIVERGENCE FOUND: local was a3a57def (Task 100-b) while origin/main = 2c1cbf8f (Task 101 — Flutter app per MAAN designs, 53MB universal APK in public/downloads/, login-page download buttons, /api/mobile-app/apk route fix, CI workflow source). Fast-forwarded local to 2c1cbf8f.
+- SIGN-IN SCREEN DEFAULTS CONFIRMED (hrms_app/lib/screens/auth/signin_screen.dart): demo-fill button inserts admin@acme-global.com / MarqAI@2026; hint text shows the same.
+- LIVE VERIFICATION (scripts/task102-verify-mobile-logins.mjs + curl): demo tenant admin admin@acme-global.com/MarqAI@2026 @ nexus-hrms-demo.vercel.app = 200 role=tenant_admin; superadmin superadmin@3boxeshrms.com/MarqAI@2026 = 200 on BOTH demo + 3boxeshrms.com; LIVE tenant admin hr@marqaitech.com/MarqAI@2026 = 200 at marqaitechgroup.3boxeshrms.com (apex returns 401 for tenant admins — subdomain required). seed-demo accounts tenantadmin@/hr.tcg@ = 401 on demo DB (not present in current demo seed).
+- APK SERVING RE-VERIFIED: /downloads/3boxes-hrms-mobile.apk = HTTP 200 ~53MB on both live + demo; /downloads/ landing 200 both.
+- TOOLING NOTE: an `rg -rn` flag misuse (-r = replace) had corrupted earlier grep DISPLAYS ("admin@"→"n", "Download"→"n") — files themselves are intact; re-verified with correct flags.
+
+Stage Summary:
+- Mobile app + download section are LIVE on both Vercel links (Task 101 shipped). Verified login set delivered to user: demo workspace (app default) = admin@acme-global.com / MarqAI@2026 (tenant admin) + superadmin@3boxeshrms.com / MarqAI@2026 (super admin); LIVE workspace = superadmin@3boxeshrms.com / MarqAI@2026 @ 3boxeshrms.com, hr@marqaitech.com / MarqAI@2026 @ marqaitechgroup.3boxeshrms.com. iOS IPA still pending the one-time CI workflow paste (docs/github-ci.yml.txt → .github/workflows/mobile-ci.yml) or any-Mac flutter build ipa.
