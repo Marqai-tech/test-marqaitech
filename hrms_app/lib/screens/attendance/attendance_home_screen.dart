@@ -1,10 +1,13 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../config/maan_theme.dart';
 import '../../models/attendance.dart';
 import '../../providers/attendance_provider.dart';
 import '../../services/api_service.dart';
+import '../../services/storage_service.dart';
 
 /// Attendance module — punch in/out + today's summary + history from /api/attendance.
 class AttendanceHomeScreen extends StatelessWidget {
@@ -31,6 +34,8 @@ class _AttendanceBodyState extends State<_AttendanceBody> {
   String? _employeeId;
   String? _summaryError;
   bool _busy = false;
+  String? _statusLine;
+  String? _lastGpsNote;
 
   @override
   void initState() {
@@ -51,22 +56,111 @@ class _AttendanceBodyState extends State<_AttendanceBody> {
         _summary = null;
         _summaryError = e.toString().replaceAll('Exception: ', '');
       });
+      // Admin/HR accounts have no "self" employee scope (resolveCompanyScope
+      // returns ownEmployeeId = null for scope 'all'), but their user account
+      // is usually linked to an Employee row. Resolve it by email so GPS
+      // check-in works for them too — the punch API permits admin punches.
+      await _resolveEmployeeByEmail();
     }
+  }
+
+  Future<void> _resolveEmployeeByEmail() async {
+    try {
+      final userData = StorageService.getUserData();
+      if (userData == null) return;
+      final email = (jsonDecode(userData)['email'] ?? '').toString().toLowerCase();
+      if (email.isEmpty) return;
+      final data = await ApiService.getEmployees(limit: 200, search: email);
+      final list = (data['employees'] ?? data['data'] ?? []) as List;
+      for (final e in list) {
+        if ((e['email'] ?? '').toString().toLowerCase() == email) {
+          if (!mounted) return;
+          setState(() {
+            _employeeId = e['id'].toString();
+            _summaryError = null;
+          });
+          return;
+        }
+      }
+    } catch (_) {
+      // leave unresolved — the punch button explains itself
+    }
+  }
+
+  /// Capture the device GPS fix used for geofenced check-in/out.
+  /// Throws a user-readable exception when location cannot be captured.
+  Future<PunchGps> _captureGps() async {
+    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      final open = await _askDialog(
+          'Location is off', 'Turn on device location so your check-in can be verified against the office location.');
+      if (open == true) await Geolocator.openLocationSettings();
+      throw Exception('Location services are disabled. Enable location and try again.');
+    }
+    var permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+    if (permission == LocationPermission.denied) {
+      throw Exception('Location permission is required for check-in/out.');
+    }
+    if (permission == LocationPermission.deniedForever) {
+      final open = await _askDialog(
+          'Permission blocked', 'Allow location access for 3 Boxes HRMS from App settings to record attendance.');
+      if (open == true) await Geolocator.openAppSettings();
+      throw Exception('Location permission is blocked. Enable it in App settings and try again.');
+    }
+    final pos = await Geolocator.getCurrentPosition(
+      desiredAccuracy: LocationAccuracy.high,
+      timeLimit: const Duration(seconds: 20),
+    );
+    return PunchGps(lat: pos.latitude, lng: pos.longitude, accuracy: pos.accuracy);
+  }
+
+  Future<bool> _askDialog(String title, String body) async {
+    final res = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title, style: MaanText.title.copyWith(fontSize: 17)),
+        content: Text(body, style: MaanText.body),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: MaanColors.primary),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Open Settings'),
+          ),
+        ],
+      ),
+    );
+    return res == true;
   }
 
   Future<void> _punch(String action, String label) async {
     if (_busy) return;
     if (_employeeId == null || _employeeId!.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('No employee profile is linked to this account — punching is available for employee accounts.'),
-        backgroundColor: Colors.orange));
+          content: Text('No employee profile is linked to this account — punching is available for employee accounts.'),
+          backgroundColor: Colors.orange));
       return;
     }
-    setState(() => _busy = true);
+    setState(() {
+      _busy = true;
+      _statusLine = 'Capturing GPS location...';
+    });
     try {
-      await ApiService.punch(employeeId: _employeeId!, action: action);
+      final gps = await _captureGps();
+      if (!mounted) return;
+      setState(() => _statusLine = 'Recording $label...');
+      final res = await ApiService.punch(employeeId: _employeeId!, action: action, gps: gps);
+      final serverMessage = (res['message'] ?? '').toString();
+      final note =
+          'GPS: ${gps.lat.toStringAsFixed(6)}, ${gps.lng.toStringAsFixed(6)}${gps.accuracy != null ? ' (+/-${gps.accuracy!.round()} m)' : ''}';
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$label recorded successfully'), backgroundColor: Colors.green));
+        setState(() => _lastGpsNote = note);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(serverMessage.isNotEmpty ? '$label recorded. $serverMessage' : '$label recorded successfully. $note'),
+            backgroundColor: Colors.green));
       }
       await _loadSummary();
       if (mounted) context.read<AttendanceProvider>().fetchAttendance(refresh: true);
@@ -76,7 +170,12 @@ class _AttendanceBodyState extends State<_AttendanceBody> {
             content: Text(e.toString().replaceAll('Exception: ', '')), backgroundColor: Colors.red));
       }
     }
-    if (mounted) setState(() => _busy = false);
+    if (mounted) {
+      setState(() {
+        _busy = false;
+        _statusLine = null;
+      });
+    }
   }
 
   @override
@@ -115,6 +214,8 @@ class _AttendanceBodyState extends State<_AttendanceBody> {
                       summaryError: _summaryError,
                       todayRow: todayRow,
                       busy: _busy,
+                      statusLine: _statusLine,
+                      gpsNote: _lastGpsNote,
                       onCheckIn: () => _punch('checkin', 'Check-in'),
                       onCheckOut: () => _punch('checkout', 'Check-out'),
                     ),
@@ -151,10 +252,12 @@ class _PunchCard extends StatelessWidget {
   final String? summaryError;
   final AttendanceModel? todayRow;
   final bool busy;
+  final String? statusLine;
+  final String? gpsNote;
   final VoidCallback onCheckIn;
   final VoidCallback onCheckOut;
 
-  const _PunchCard({required this.summary, required this.summaryError, required this.todayRow, required this.busy, required this.onCheckIn, required this.onCheckOut});
+  const _PunchCard({required this.summary, required this.summaryError, required this.todayRow, required this.busy, this.statusLine, this.gpsNote, required this.onCheckIn, required this.onCheckOut});
 
   @override
   Widget build(BuildContext context) {
@@ -202,6 +305,40 @@ class _PunchCard extends StatelessWidget {
             ),
           ),
         ]),
+        if (busy && statusLine != null) ...[
+          const SizedBox(height: 10),
+          Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            const SizedBox(width: 13, height: 13, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
+            const SizedBox(width: 8),
+            Text(statusLine!, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
+          ]),
+        ],
+        const SizedBox(height: 10),
+        Row(children: [
+          const Icon(Icons.location_on_rounded, color: Colors.white70, size: 13),
+          const SizedBox(width: 4),
+          Expanded(
+            child: Text(
+              gpsNote ?? 'Check-in/out records your GPS position — allowed inside the office radius only.',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: Colors.white70, fontSize: 10.5, height: 1.3),
+            ),
+          ),
+        ]),
+        if (todayRow?.checkInGpsLat != null || todayRow?.checkOutGpsLat != null) ...[
+          const SizedBox(height: 4),
+          Builder(builder: (context) {
+            final t = todayRow;
+            return Text(
+              [
+                if (t?.checkInGpsLat != null) 'In: ${t!.checkInGpsLat!.toStringAsFixed(5)}, ${t.checkInGpsLng!.toStringAsFixed(5)}',
+                if (t?.checkOutGpsLat != null) 'Out: ${t!.checkOutGpsLat!.toStringAsFixed(5)}, ${t.checkOutGpsLng!.toStringAsFixed(5)}',
+              ].join('   '),
+              style: const TextStyle(color: Colors.white54, fontSize: 10),
+            );
+          }),
+        ],
       ]),
     );
   }
@@ -248,6 +385,15 @@ class _AttendanceRow extends StatelessWidget {
           Text(DateFormat('EEE, dd MMM yyyy').format(date), style: MaanText.title),
           const SizedBox(height: 2),
           Text('${_fmt(record.checkIn)}  →  ${_fmt(record.checkOut)}${(workHours ?? '').toString().isNotEmpty && workHours != 'null' ? '  ·  $workHours' : ''}', style: MaanText.caption),
+          if (record.checkInGpsLat != null || (record.location ?? '').isNotEmpty) ...[
+            const SizedBox(height: 2),
+            Text(
+              record.location ?? 'GPS ${record.checkInGpsLat!.toStringAsFixed(5)}, ${record.checkInGpsLng!.toStringAsFixed(5)}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: MaanText.caption.copyWith(fontSize: 10.5),
+            ),
+          ],
         ])),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),

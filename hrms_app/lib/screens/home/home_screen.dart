@@ -171,6 +171,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   _tile(context, 'Payroll\nManagement', Icons.request_quote_rounded, MaanColors.accentCyan, const Color(0xFFE8F4FD), () => Navigator.pushNamed(context, '/payroll-new')),
                   _tile(context, 'Notifications', Icons.notifications_rounded, MaanColors.accentPink, const Color(0xFFFDE7EF), () => Navigator.pushNamed(context, '/notifications')),
                   _tile(context, 'My Profile', Icons.person_rounded, MaanColors.accentPurple, const Color(0xFFEFEAFD), () => Navigator.pushNamed(context, '/profile')),
+                  // Super-admin sessions keep a workspace switcher on the
+                  // dashboard (same GOLDEN RULE as the web switcher).
+                  if (context.watch<AuthProvider>().isSuperAdminSession)
+                    _tile(context, 'Switch\nWorkspace', Icons.swap_horiz_rounded, MaanColors.navy, const Color(0xFFEEF2F7), () async {
+                      context.read<AuthProvider>().beginTenantPick();
+                      await Navigator.pushNamed(context, '/tenant-picker');
+                      if (mounted) setState(() {}); // refresh stats for the newly selected tenant
+                    }),
                 ],
               ),
             ),

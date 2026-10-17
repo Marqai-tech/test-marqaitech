@@ -8,6 +8,12 @@ class AttendanceModel {
   final DateTime? checkOut;
   final String? totalHours;
   final String? remarks;
+  final String? location;
+  final double? checkInGpsLat;
+  final double? checkInGpsLng;
+  final double? checkOutGpsLat;
+  final double? checkOutGpsLng;
+  final String? punchMethod;
 
   AttendanceModel({
     required this.id,
@@ -19,9 +25,16 @@ class AttendanceModel {
     this.checkOut,
     this.totalHours,
     this.remarks,
+    this.location,
+    this.checkInGpsLat,
+    this.checkInGpsLng,
+    this.checkOutGpsLat,
+    this.checkOutGpsLng,
+    this.punchMethod,
   });
 
   factory AttendanceModel.fromJson(Map<String, dynamic> json) {
+    double? _d(v) => v == null ? null : double.tryParse(v.toString());
     return AttendanceModel(
       id: json['id'] ?? '',
       employeeId: json['employeeId'],
@@ -32,6 +45,12 @@ class AttendanceModel {
       checkOut: json['checkOut'] != null ? DateTime.tryParse(json['checkOut'].toString()) : null,
       totalHours: json['totalHours'] ?? json['workingHours'],
       remarks: json['remarks'],
+      location: json['location'],
+      checkInGpsLat: _d(json['checkInGpsLat']),
+      checkInGpsLng: _d(json['checkInGpsLng']),
+      checkOutGpsLat: _d(json['checkOutGpsLat']),
+      checkOutGpsLng: _d(json['checkOutGpsLng']),
+      punchMethod: json['punchMethod'],
     );
   }
 

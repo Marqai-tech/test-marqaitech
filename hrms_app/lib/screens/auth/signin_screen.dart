@@ -52,7 +52,10 @@ class _SignInScreenState extends State<SignInScreen> {
 
     if (!mounted) return;
     if (ok) {
-      Navigator.pushNamedAndRemoveUntil(context, '/home-new', (_) => false);
+      final role = context.read<AuthProvider>().user?.role;
+      // Super admins pick the tenant workspace they want to open first.
+      final target = role == 'super_admin' ? '/tenant-picker' : '/home-new';
+      Navigator.pushNamedAndRemoveUntil(context, target, (_) => false);
     } else {
       setState(() {
         _busy = false;

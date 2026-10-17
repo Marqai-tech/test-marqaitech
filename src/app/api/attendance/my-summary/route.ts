@@ -81,6 +81,19 @@ export async function GET(request: Request) {
       month: monthParam,
     });
 
+    // Include the resolved employee identity so mobile clients can use this
+    // endpoint as the canonical punch target resolver (employeeId for
+    // /api/attendance/punch) without a second lookup.
+    try {
+      const emp = await db.employee.findUnique({
+        where: { id: employeeId },
+        select: { id: true, firstName: true, lastName: true, employeeId: true, email: true },
+      });
+      if (emp) (summary as Record<string, unknown>).employee = emp;
+    } catch {
+      // non-fatal — summary already computed
+    }
+
     return NextResponse.json(summary, { headers: corsHeaders() });
   } catch (error) {
     console.error('Get attendance my-summary error:', error);

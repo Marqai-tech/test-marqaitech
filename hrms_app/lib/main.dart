@@ -25,6 +25,7 @@ import 'models/employee.dart';
 import 'screens/onboarding/onboarding_screen.dart';
 import 'screens/auth/role_select_screen.dart';
 import 'screens/auth/signin_screen.dart';
+import 'screens/auth/tenant_picker_screen.dart';
 import 'screens/home/home_screen.dart';
 import 'screens/employees/employee_management_screen.dart';
 import 'screens/employees/employee_empty_screen.dart';
@@ -65,6 +66,7 @@ class HRMSApp extends StatelessWidget {
           '/onboarding': (_) => const OnboardingScreen(),
           '/role-select': (_) => const RoleSelectScreen(),
           '/signin': (_) => const SignInScreen(),
+          '/tenant-picker': (_) => const TenantPickerScreen(),
           '/home-new': (_) => const HomeScreen(),
           '/employees-new': (_) => const EmployeeManagementScreen(),
           '/employee-empty': (_) => const EmployeeEmptyScreen(),
@@ -113,7 +115,10 @@ class _AppWrapperState extends State<_AppWrapper> {
     final auth = context.read<AuthProvider>();
     final seenOnboarding = StorageService.prefs.getBool('seen_onboarding') ?? false;
     if (auth.isLoggedIn) {
-      Navigator.pushReplacementNamed(context, '/home-new');
+      // Super admins must pick a tenant workspace first (web switcher parity);
+      // everyone else goes straight to the dashboard.
+      final isSuper = auth.user?.role == 'super_admin';
+      Navigator.pushReplacementNamed(context, isSuper ? '/tenant-picker' : '/home-new');
     } else if (!seenOnboarding) {
       await StorageService.prefs.setBool('seen_onboarding', true);
       Navigator.pushReplacementNamed(context, '/onboarding');

@@ -8,6 +8,12 @@ import 'storage_service.dart';
 class ApiService {
   static String? _token;
 
+  /// The original super-admin token for this session. When a super admin
+  /// switches into a tenant, _token becomes the tenant token but we keep the
+  /// super-admin token in memory so the tenant picker can be re-opened
+  /// without logging in again (mirrors the web switcher session).
+  static String? superAdminToken;
+
   static void setToken(String token) => _token = token;
   static String? get token => _token;
   static void clearToken() => _token = null;
@@ -70,7 +76,50 @@ class ApiService {
 
   static Future<void> logout() async {
     clearToken();
+    superAdminToken = null;
     await StorageService.clearAll();
+  }
+
+  // ============ Super admin: tenant directory + switching ============
+
+  /// GET /api/tenants — super-admin-only directory of tenants.
+  /// When re-opening the picker after a switch, the caller temporarily
+  /// restores the super-admin token via [useSuperAdminToken].
+  static Future<List<dynamic>> getTenants({int limit = 100}) async {
+    final response = await _get(ApiConfig.tenants, queryParams: {'limit': '$limit'});
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 200) {
+      return (data['tenants'] ?? data['data']?['tenants'] ?? data['data'] ?? []) as List<dynamic>;
+    }
+    throw Exception(data['error'] ?? 'Failed to load tenants');
+  }
+
+  /// POST /api/auth/switch-tenant — exchange the super-admin token for a
+  /// tenant_admin token scoped to [tenantId]. The new token + user are
+  /// persisted, so every module API afterwards resolves the tenant DB via
+  /// the JWT tenantId (identical to the web super-admin switcher).
+  static Future<Map<String, dynamic>> switchTenant(String tenantId) async {
+    final response = await _post(ApiConfig.switchTenant, {'tenantId': tenantId});
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 200) {
+      final newToken = data['token'];
+      if (newToken == null) throw Exception('Switch response did not include a token');
+      setToken(newToken);
+      await StorageService.setToken(newToken);
+      final userJson = data['user'];
+      if (userJson != null) {
+        await StorageService.setUserData(jsonEncode(userJson));
+      }
+      return data;
+    }
+    throw Exception(data['error'] ?? 'Failed to switch tenant');
+  }
+
+  /// Temporarily point API calls at the super-admin token (used by the
+  /// tenant picker when re-opened during a switched session).
+  static void useSuperAdminToken() {
+    final sa = superAdminToken;
+    if (sa != null && sa.isNotEmpty) setToken(sa);
   }
 
   // ============ Dashboard ============
@@ -183,11 +232,13 @@ class ApiService {
     throw Exception(data['error'] ?? 'No employee profile linked to this account');
   }
 
+  /// GPS coordinates captured on the device for an attendance punch.
+  /// The server stores lat/lng/accuracy on the Attendance row and the
+  /// PunchEvent audit trail, and enforces the tenant's office geofence.
   static Future<Map<String, dynamic>> punch({
     required String employeeId,
     required String action,
-    String? gpsLat,
-    String? gpsLng,
+    PunchGps? gps,
   }) async {
     final now = DateTime.now();
     final body = <String, dynamic>{
@@ -195,8 +246,16 @@ class ApiService {
       'action': action, // checkin | checkout | breakin | breakout
       'date': '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}',
       'localTime': '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}',
-      if (gpsLat != null && gpsLng != null)
-        'gps': {'lat': double.tryParse(gpsLat), 'lng': double.tryParse(gpsLng), 'accuracy': null, 'label': 'Mobile app'},
+      // Task 69 fix: the server prefers utcTimestamp to avoid timezone
+      // misinterpretation of localTime on UTC servers (Vercel).
+      'utcTimestamp': now.toUtc().toIso8601String(),
+      if (gps != null)
+        'gps': {
+          'lat': gps.lat,
+          'lng': gps.lng,
+          if (gps.accuracy != null) 'accuracy': gps.accuracy,
+          // No label: the API then stores the raw coordinates in `location`.
+        },
     };
     final response = await _post(ApiConfig.punch, body);
     final data = jsonDecode(response.body);
@@ -233,4 +292,15 @@ class ApiService {
     final data = jsonDecode(response.body);
     if (response.statusCode == 200) return data;
     throw Exception(data['error'] ?? 'Failed to update leave');
-  }}
+  }
+}
+
+/// GPS coordinates captured on the device for an attendance punch.
+/// The server stores lat/lng/accuracy on the Attendance row and the
+/// PunchEvent audit trail, and enforces the tenant's office geofence.
+class PunchGps {
+  final double lat;
+  final double lng;
+  final double? accuracy;
+  const PunchGps({required this.lat, required this.lng, this.accuracy});
+}

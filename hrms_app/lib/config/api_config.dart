@@ -67,6 +67,12 @@ class ApiConfig {
   static String get mySummary => '$apiUrl/attendance/my-summary';
   static String get punch => '$apiUrl/attendance/punch';
 
+  // Super admin — tenant directory + tenant switching (GOLDEN RULE: a super
+  // admin in the app only sees module data AFTER switching into a tenant,
+  // exactly like the web super-admin switcher).
+  static String get tenants => '$apiUrl/tenants';
+  static String get switchTenant => '$apiUrl/auth/switch-tenant';
+
   // Lookups
   static String get departments => '$apiUrl/departments';
   static String get designations => '$apiUrl/designations';

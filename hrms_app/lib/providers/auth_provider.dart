@@ -43,6 +43,39 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
     try {
       final data = await ApiService.login(email, password);
+      final user = await ApiService.getStoredUser();
+      // Super admin keeps their original token in memory so the tenant
+      // picker can be re-opened without re-login (web switcher parity).
+      if (user?.role == 'super_admin') {
+        ApiService.superAdminToken = ApiService.token;
+      }
+      _user = user;
+      _isLoggedIn = true;
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _error = e.toString().replaceAll('Exception: ', '');
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Whether the current session still carries super-admin powers (either
+  /// logged in as super admin directly, or switched from one this session).
+  bool get isSuperAdminSession =>
+      ApiService.superAdminToken != null || _user?.role == 'super_admin';
+
+  /// Exchange the super-admin session for a tenant_admin session scoped to
+  /// [tenantId]. Persists the new token + user so every module API now
+  /// resolves the tenant DB via the JWT tenantId.
+  Future<bool> switchTenant(String tenantId) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+    try {
+      await ApiService.switchTenant(tenantId);
       _user = await ApiService.getStoredUser();
       _isLoggedIn = true;
       _isLoading = false;
@@ -55,6 +88,10 @@ class AuthProvider extends ChangeNotifier {
       return false;
     }
   }
+
+  /// Re-open the tenant directory: point API calls back at the
+  /// super-admin token for the picker's GET /api/tenants call.
+  void beginTenantPick() => ApiService.useSuperAdminToken();
 
   Future<void> logout() async {
     await ApiService.logout();
