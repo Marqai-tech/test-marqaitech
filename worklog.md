@@ -4628,3 +4628,20 @@ Work Log:
 
 Stage Summary:
 - Mobile app + download section are LIVE on both Vercel links (Task 101 shipped). Verified login set delivered to user: demo workspace (app default) = admin@acme-global.com / MarqAI@2026 (tenant admin) + superadmin@3boxeshrms.com / MarqAI@2026 (super admin); LIVE workspace = superadmin@3boxeshrms.com / MarqAI@2026 @ 3boxeshrms.com, hr@marqaitech.com / MarqAI@2026 @ marqaitechgroup.3boxeshrms.com. iOS IPA still pending the one-time CI workflow paste (docs/github-ci.yml.txt → .github/workflows/mobile-ci.yml) or any-Mac flutter build ipa.
+
+---
+Task ID: 103
+Agent: Super Z (main)
+Task: "when i try to give this credentials iam not able to login. also the app logo and name should be 3 boxes hrms and the logo should be attached logo" — fix mobile login + rebrand app.
+
+Work Log:
+- ROOT CAUSE (login): hrms_app/android/app/src/main/AndroidManifest.xml had NO <uses-permission android.permission.INTERNET> — Flutter's template only grants it to debug/profile manifests, so `flutter run` works but the RELEASE APK had zero network access (every login failed with "Invalid credentials or the workspace is unreachable"). API logins themselves were verified 200 server-side. FIXED: INTERNET + ACCESS_NETWORK_STATE added to main manifest.
+- BRANDING: app label '3Boxes HRMS'→'3 Boxes HRMS' (AndroidManifest + iOS CFBundleDisplayName 'Hrms App'→'3 Boxes HRMS' + AppConstants.appName + pubspec). Launcher mipmaps (48-192px), full iOS AppIcon set (19 icons), native launch screen (launch_background white + centered logo) and MaanLogoMark (blue 'M' + 'MAAN HRM' → official green cubes crop + '3 Boxes HRMS' wordmark) all generated from the user's attached logo (upload/pasted_image_1792218896772.png, 1024×1024) via scripts/task103-icons.py. Bundled logo-3boxes.png was already the same artwork — replaced anyway for fidelity; new logo-cubes.png crop added.
+- TOOLCHAIN REBUILT (sandbox reset wiped it): Flutter 3.47.7, Temurin JDK 17.0.13, cmdline-tools 12.0, platforms-36/build-tools-36, NDK 28.2.13676358. Background nohup processes are killed between tool calls in this sandbox — foreground chunked installs used instead. DISK WAR 2 (9.9GB): freed .venv 4.4G, .bun 1.5G, @mermaid-js 461M, node_modules 1.4G, engine artifacts (x86/x64/profile/linux), gradle caches/9.3.1; hit 100% twice mid-build (build dir ballooned to 846M).
+- BUILD: `flutter build apk --release --target-platform android-arm64` → app-release.apk 20.4MB (universal 3-ABI was infeasible on this disk; arm64 covers all real devices; versionCode 2/versionName 1.0.1 upgrades cleanly over v1). aapt verified INSIDE the APK: INTERNET permission ✓, label '3 Boxes HRMS' ✓. Note: transitive path_provider_android 2.3.1 pulls jni (CMake/NDK build) — cmake;3.22.1 must stay installed.
+- DEPLOY: commit 352ce7d7 pushed (origin auto-deploys LIVE; stray .vercel link re-pointed to nexus-hrms-demo, CLI prod deploy Ready). VERIFIED: /downloads/3boxes-hrms-mobile.apk = HTTP 200 20,404,461 bytes on BOTH 3boxeshrms.com + nexus-hrms-demo.vercel.app (old 53MB replaced); /downloads/ page 200; demo logins 200 (admin@acme-global.com + superadmin).
+- GOVERNANCE: change request cmvc2fhdp000008l5tgza88wb registered, approval email sent to mahesh@marqaitech.com, approved + implemented in-app. Trail: 8 requests, 0 pending.
+
+Stage Summary:
+- Mobile login was NEVER a credentials problem — the release APK physically could not open network sockets. New branded APK v1.0.1 (green 3-boxes launcher icon, '3 Boxes HRMS' name) is live on both links; user must install the NEW APK (versionCode 2) over/beside the old one.
+- iOS IPA unchanged (needs the CI workflow paste or any Mac). Android CI note: arm64-only build flag documented in this entry; universal can be built on CI with more disk.
