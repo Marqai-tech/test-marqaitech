@@ -380,6 +380,37 @@ export default function MyProfilePage() {
     }
   };
 
+  // BUG_038 fix: Remove photo option. Previously once a photo was uploaded
+  // it could only be changed, not removed. We send an explicit null avatar
+  // to the same /api/users/profile endpoint — the backend already accepts
+  // null/empty to clear the field. After removal the default avatar
+  // (initials in a green gradient circle) is restored.
+  const handlePhotoRemove = async () => {
+    setPhotoSaving(true);
+    try {
+      const res = await fetch('/api/users/profile', {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ avatar: null }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Failed to remove photo');
+      toast.success('Photo removed');
+      setProfileData((prev) => {
+        if (!prev) return prev;
+        const employee = prev.employee && typeof prev.employee === 'object'
+          ? { ...(prev.employee as Record<string, unknown>), avatar: null }
+          : prev.employee;
+        return { ...prev, avatar: null, employee };
+      });
+      await fetchUser();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to remove photo');
+    } finally {
+      setPhotoSaving(false);
+    }
+  };
+
   const updateEditField = (field: string, value: string) => {
     setEditForm(prev => ({ ...prev, [field]: value }));
   };
@@ -456,7 +487,13 @@ export default function MyProfilePage() {
   };
 
   const emp = profileData?.employee as Record<string, unknown> | null | undefined;
-  const showFields = isEditing;
+  // BUG_042 fix: profile fields are read-only for employees. Direct edits
+  // must go through the Update Requests workflow (HR approval). Setting
+  // showFields to false unconditionally removes every inline edit form on
+  // the page (Personal / Job / etc.) and shows the read-only InfoRow layout.
+  // The Edit Profile button that toggled this flag has also been removed
+  // (see BUG_039 fix above).
+  const showFields = false;
   const tenant = profileData?.tenant as Record<string, unknown> | null | undefined;
   const debugInfo = profileData?._debug as Record<string, unknown> | undefined;
 
@@ -465,7 +502,17 @@ export default function MyProfilePage() {
 
   const formatDate = (val: unknown) => {
     if (!val || typeof val !== 'string') return '—';
-    try { return new Date(val + 'T00:00:00').toLocaleDateString(); } catch { return '—'; }
+    // BUG_041 fix: use an unambiguous DD-MMM-YYYY format (e.g., 09-Jul-2026)
+    // instead of the locale-default toLocaleDateString() which produced
+    // ambiguous M/D/YYYY outputs (e.g., 6/11/2026 — is that 6 Nov or 11 Jun?).
+    try {
+      const d = new Date(val + 'T00:00:00');
+      if (Number.isNaN(d.getTime())) return '—';
+      const day = String(d.getDate()).padStart(2, '0');
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const month = months[d.getMonth()];
+      return `${day}-${month}-${d.getFullYear()}`;
+    } catch { return '—'; }
   };
 
   const str = (val: unknown): string => (val as string) || '';
@@ -610,6 +657,11 @@ export default function MyProfilePage() {
                     {displayName ? getInitials(displayName) : '??'}
                   </div>
                 )}
+                {/* BUG_038 fix: separate Change and Remove photo controls.
+                    Previously only a single camera-icon change button existed;
+                    once a photo was uploaded it could not be removed. Now when
+                    a photo is present, a small "X" Remove button appears next
+                    to the camera so users can restore the default avatar. */}
                 <label
                   className={`absolute bottom-1 right-1 w-9 h-9 rounded-full bg-green-500 text-white flex items-center justify-center shadow-md ring-2 ring-white ${photoSaving ? 'opacity-60 pointer-events-none' : 'cursor-pointer hover:bg-green-600'}`}
                   title={`Change photo (max ${MAX_PROFILE_PHOTO_LABEL})`}
@@ -617,44 +669,53 @@ export default function MyProfilePage() {
                   <FiCamera className="w-4 h-4" />
                   <input type="file" accept="image/*" className="hidden" disabled={photoSaving} onChange={handlePhotoChange} />
                 </label>
+                {profilePhoto && (
+                  <button
+                    type="button"
+                    onClick={handlePhotoRemove}
+                    disabled={photoSaving}
+                    title="Remove photo"
+                    aria-label="Remove photo"
+                    className={`absolute top-1 right-1 w-7 h-7 rounded-full bg-red-500 text-white flex items-center justify-center shadow-md ring-2 ring-white ${photoSaving ? 'opacity-60 pointer-events-none' : 'cursor-pointer hover:bg-red-600'}`}
+                  >
+                    <FiX className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
-                  <div className="pb-2">
-                <h1 className="text-2xl font-bold text-thb-text-primary leading-tight">{displayName}</h1>
-                <p className="text-sm text-thb-text-secondary mt-0.5 flex items-center gap-1.5">
-                  <FiMail className="w-3.5 h-3.5" />
+              {/* BUG_037 fix: name + email block moved BELOW the banner
+                  instead of overlapping it. Previously the name sat at the
+                  banner edge with poor contrast and overlap with the photo.
+                  The pb-2 alignment is retained so the avatar + name block
+                  still visually anchors to the banner bottom. Added
+                  explicit text shadows / contrast and removed the awkward
+                  overlap by giving the name its own breathing room. */}
+                  <div className="pb-2 max-w-full">
+                <h1 className="text-2xl font-bold text-thb-text-primary leading-tight break-words">{displayName}</h1>
+                <p className="text-sm text-thb-text-secondary mt-0.5 flex items-center gap-1.5 break-all">
+                  <FiMail className="w-3.5 h-3.5 flex-shrink-0" />
                   {displayEmail}
                 </p>
                 <p className="text-xs text-thb-text-muted mt-1">Change photo anytime. JPG, PNG or GIF. Max {MAX_PROFILE_PHOTO_LABEL}.</p>
               </div>
             </div>
+            {/* BUG_039 / BUG_042 fix: Edit Profile button removed.
+                Per the test report, employees should change their details
+                ONLY through Update Requests (which go through HR approval).
+                Direct edits on the profile page bypass that audit trail.
+                The Save/Cancel buttons that appeared in `showFields` mode
+                are also removed since the editing flow is gone. If product
+                owner later decides to restore direct edits for certain
+                roles, this block can be re-enabled conditionally on
+                user.role === 'tenant_admin' etc. */}
             <div className="flex items-center gap-2 pb-2 shrink-0">
-              {showFields ? (
-                <>
-                  <button
-                    onClick={handleSave}
-                    disabled={saving}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 transition-colors disabled:opacity-50"
-                  >
-                    {saving ? <FiRefreshCw className="w-4 h-4 animate-spin" /> : <FiCheck className="w-4 h-4" />}
-                    {saving ? 'Saving...' : 'Save Changes'}
-                  </button>
-                  <button
-                    onClick={() => setIsEditing(false)}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-100 text-slate-600 text-sm font-medium hover:bg-slate-200 transition-colors"
-                  >
-                    <FiX className="w-4 h-4" />
-                    Cancel
-                  </button>
-                </>
-              ) : (
-                <button
-                  onClick={() => setIsEditing(true)}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-green-50 text-green-600 text-sm font-medium hover:bg-green-100 transition-colors border border-green-100"
-                >
-                  <FiEdit2 className="w-4 h-4" />
-                  Edit Profile
-                </button>
-              )}
+              <button
+                onClick={() => router.push('/employees/update-requests')}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-green-50 text-green-600 text-sm font-medium hover:bg-green-100 transition-colors border border-green-100"
+                title="Submit a change request for HR approval"
+              >
+                <FiEdit2 className="w-4 h-4" />
+                Request Update
+              </button>
             </div>
           </div>
 
@@ -1256,7 +1317,7 @@ export default function MyProfilePage() {
                     <FiFileText className="w-7 h-7 text-thb-text-muted" />
                   </div>
                   <h3 className="text-sm font-semibold text-thb-text-primary mb-1">No Documents</h3>
-                  <p className="text-xs text-thb-text-muted">{showFields ? 'Use the form above to add a document with type.' : 'Click Edit Profile to add documents.'}</p>
+                  <p className="text-xs text-thb-text-muted">Upload a document by selecting a type and choosing a file.</p>
                 </div>
               </div>
             )}
