@@ -124,6 +124,49 @@ interface DocumentRow {
   uploadedAt: string;
 }
 
+// BUG_032 fix: derive the document category from the document NAME when the
+// stored type doesn't match. The QA report found documents like:
+//   - name "Education" stored with type "Pan Card"
+//   - name "Probation Confirmation Letter" stored with type "Address Proof"
+// These mismatches come from admin/HR uploading documents without carefully
+// selecting the right type dropdown. We surface a name-derived category on
+// the dashboard so employees see the correct label, while keeping the
+// underlying DB row untouched (HR can correct the source via the documents
+// admin page if needed).
+function deriveDocumentCategory(name: string, storedType: string): string {
+  const n = (name || '').toLowerCase().trim();
+  const t = (storedType || '').toLowerCase().trim();
+
+  // Map common document names to their expected category.
+  const rules: { match: RegExp; category: string }[] = [
+    { match: /\b(education|degree|certificate|marksheet|convocation)\b/i, category: 'Education Certificate' },
+    { match: /\b(pan|pancard|pan card)\b/i, category: 'Pan Card' },
+    { match: /\b(aadhaar|aadhar)\b/i, category: 'Aadhaar Card' },
+    { match: /\b(passport)\b/i, category: 'Passport' },
+    { match: /\b(voter|voter id|election)\b/i, category: 'Voter ID' },
+    { match: /\b(driving|dl|driving licence|driving license)\b/i, category: 'Driving License' },
+    { match: /\b(address|residence|proof of address|proof of residence)\b/i, category: 'Address Proof' },
+    { match: /\b(bank|passbook|cheque|account)\b/i, category: 'Bank Document' },
+    { match: /\b(probabtion|probation|confirmation)\b/i, category: 'Probation Confirmation Letter' },
+    { match: /\b(offer|joining|appointment|rejoin|relieving|experience)\b/i, category: 'Employment Letter' },
+    { match: /\b(salary|payslip|pay slip)\b/i, category: 'Salary Document' },
+    { match: /\b(medical|fitness|health)\b/i, category: 'Medical Certificate' },
+    { match: /\b(noc|no objection)\b/i, category: 'NOC' },
+    { match: /\b(resume|cv|biodata)\b/i, category: 'Resume' },
+    { match: /\b(photo|avatar|picture)\b/i, category: 'Photo' },
+  ];
+  for (const r of rules) {
+    if (r.match.test(n)) {
+      // Only override if the stored type doesn't already match the name
+      // (so we don't replace a correctly-set type with our guess).
+      const storedMatchesName = r.match.test(t);
+      if (!storedMatchesName) return r.category;
+    }
+  }
+  // Fall back to the stored type, just prettified.
+  return storedType ? storedType.replace(/_/g, ' ') : 'Document';
+}
+
 interface RegularizationRow {
   id: string;
   date: string;
@@ -356,15 +399,30 @@ setAttendanceRate(typeof summaryData?.attendanceRate === 'number' ? summaryData.
 
   /* ----- derived data ----- */
 
+  // BUG_023 fix: filter out test/dummy leave types from the dashboard leave
+  // chart + list (same filter as the home page). Hides names like "Validation
+  // Small Quota UUMJXU" that are seed-data leftovers.
+  const cleanLeaveBalances = useMemo(() => {
+    return leaveBalances.filter((b) => {
+      const name = (b.leaveType?.name || '').trim();
+      if (!name) return false;
+      const lower = name.toLowerCase();
+      if (/\b(test|dummy|sample|validation|temp\b|foo|bar)\b/i.test(lower)) return false;
+      if (/[A-Z]{5,}/.test(name)) return false;
+      if (/\d{6,}/.test(name)) return false;
+      return true;
+    });
+  }, [leaveBalances]);
+
   const leaveChartData = useMemo(() => {
-    if (leaveBalances.length === 0) return [];
-    return leaveBalances.map((b, i) => ({
+    if (cleanLeaveBalances.length === 0) return [];
+    return cleanLeaveBalances.map((b, i) => ({
       name: b.leaveType?.name || 'Leave',
       remaining: b.remaining || 0,
       used: b.used || 0,
       color: LEAVE_COLORS[i % LEAVE_COLORS.length],
     }));
-  }, [leaveBalances]);
+  }, [cleanLeaveBalances]);
 
   const attendanceTrend = useMemo(() => {
     // last 7 attendance records, oldest first
@@ -563,7 +621,7 @@ setAttendanceRate(typeof summaryData?.attendanceRate === 'number' ? summaryData.
                 </ResponsiveContainer>
               </div>
               <div className="flex-1 w-full space-y-2">
-                {leaveBalances
+                {cleanLeaveBalances
                   .filter((b) => !/loss of pay|lop/i.test(`${b.leaveType?.name || ''} ${b.leaveType?.code || ''}`))
                   .sort((a, b) => {
                     const order = ['casual leave', 'sick leave', 'earned leave', 'personal leave'];
@@ -983,7 +1041,7 @@ setAttendanceRate(typeof summaryData?.attendanceRate === 'number' ? summaryData.
                     </div>
                     <div className="min-w-0">
                       <p className="text-sm font-semibold text-slate-900 truncate">{d.name}</p>
-                      <p className="text-xs text-slate-500 mt-0.5 capitalize">{d.type.replace(/_/g, ' ')} · {fmtDate(d.uploadedAt)}</p>
+                      <p className="text-xs text-slate-500 mt-0.5 capitalize">{deriveDocumentCategory(d.name, d.type)} · {fmtDate(d.uploadedAt)}</p>
                     </div>
                   </div>
                   {statusBadge(d.status)}

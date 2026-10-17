@@ -1366,6 +1366,12 @@ function EmployeeHome({ firstName, greeting, today }: { firstName: string; greet
         </div>
       )}
 
+      {/* BUG_036 fix: Home is a LIGHT LANDING PAGE — just stats + announcements
+          + key alerts + shortcuts. Detailed widgets (Leave Balance list,
+          Payslip list, Timesheet list) live ONLY on /dashboard now. This
+          stops Home and Dashboard from looking like duplicates. */}
+
+      {/* Mini stat cards — quick "at a glance" numbers. Detail lives on /dashboard. */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {loading ? (
           Array.from({ length: 4 }).map((_, i) => <StatSkeleton key={i} />)
@@ -1374,194 +1380,101 @@ function EmployeeHome({ firstName, greeting, today }: { firstName: string; greet
             { label: 'Attendance Rate', value: attendanceRate === null ? '—' : `${attendanceRate}%`, sub: attendanceSub, icon: <FiActivity className="w-5 h-5" />, bg: 'bg-emerald-50 text-emerald-600', ring: 'ring-emerald-100' },
             { label: 'Leave Balance', value: totalRemaining, sub: 'Days available', icon: <FiCalendar className="w-5 h-5" />, bg: 'bg-amber-50 text-amber-600', ring: 'ring-amber-100' },
             { label: 'Open Tickets', value: openTickets, sub: 'Helpdesk requests', icon: <FiHeadphones className="w-5 h-5" />, bg: 'bg-teal-50 text-teal-600', ring: 'ring-teal-100' },
-            { label: 'Quick Actions', value: '12+', sub: 'Self-service flows', icon: <FiZap className="w-5 h-5" />, bg: 'bg-green-50 text-green-600', ring: 'ring-green-100' },
-          ].map((s) => <StatCard key={s.label} {...s} />)
+            { label: 'Payslips', value: latestPayslips.length, sub: 'Recent payslips', icon: <FiFileText className="w-5 h-5" />, bg: 'bg-green-50 text-green-600', ring: 'ring-green-100' },
+          ].map((s) => (
+            <button
+              key={s.label}
+              onClick={() => router.push('/dashboard')}
+              className="text-left bg-white rounded-2xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition-shadow w-full"
+            >
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-xs font-medium text-slate-500">{s.label}</p>
+                  <p className="text-2xl font-bold text-slate-900 mt-1">{s.value}</p>
+                </div>
+                <div className={`w-10 h-10 rounded-xl ${s.bg} flex items-center justify-center ring-1 ${s.ring}`}>{s.icon}</div>
+              </div>
+              <p className="text-xs font-medium text-slate-500 mt-2 flex items-center gap-1">
+                {s.sub} <FiArrowRight className="w-3 h-3" />
+              </p>
+            </button>
+          ))
         )}
       </div>
 
-      {/* BUG_021 fix: removed the duplicate 'Open ESS Dashboard' banner.
-          The hero already has a 'Open Self-Service' CTA pointing to /dashboard
-          — having a second banner with the same destination was redundant.
-          The Company Policies & Handbook card below remains as the only
-          secondary call-to-action. */}
-
-      {/* Company Policies & Handbook — visible for every tenant. The policy
-          list and acknowledgement count remain tenant-scoped in the API. */}
-      <div className="thb-card px-6 py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      {/* Key alert — surfaces pending policy acknowledgements. Hidden when nothing pending. */}
+      {policySummary.pending > 0 && (
+        <div className="thb-card px-6 py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-amber-200 bg-amber-50/40">
           <div className="flex items-center gap-4 min-w-0">
-            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-teal-600 flex items-center justify-center ring-1 ring-emerald-100 flex-shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center ring-1 ring-amber-200 flex-shrink-0">
               <FiFileText className="w-5 h-5" />
             </div>
             <div className="min-w-0">
-              <h3 className="text-sm font-bold text-slate-900">Company Policies &amp; Handbook</h3>
-              <p className="text-xs text-slate-500 mt-0.5">View company policies, employee handbook and acknowledge required policies.</p>
+              <h3 className="text-sm font-bold text-slate-900">{policySummary.pending} polic{policySummary.pending > 1 ? 'ies' : 'y'} pending acknowledgement</h3>
+              <p className="text-xs text-slate-500 mt-0.5">Please review and acknowledge the updated company policies.</p>
             </div>
           </div>
-          <div className="flex items-center gap-3 flex-wrap shrink-0">
-            {policySummary.total === 0 ? (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-50 text-slate-600 ring-1 ring-slate-200 text-xs font-semibold">
-                No policies published yet
-              </span>
-            ) : policySummary.pending > 0 ? (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-50 text-amber-700 ring-1 ring-amber-200 text-xs font-semibold">
-                <FiClock className="w-3.5 h-3.5" /> {policySummary.pending} Pending Acknowledgement{policySummary.pending > 1 ? 's' : ''}
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200 text-xs font-semibold">
-                <FiCheckCircle className="w-3.5 h-3.5" /> All policies acknowledged
-              </span>
-            )}
-            <button
-              onClick={() => router.push('/policies-handbook')}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-sm font-semibold shadow-md shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all whitespace-nowrap"
-            >
-              View Policies <FiArrowRight className="w-4 h-4" />
-            </button>
-          </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Leave balance */}
-        <div className="lg:col-span-2">
-          <Panel title="My Leave Balance" icon={<FiCalendar className="w-4 h-4" />} href="/leave" accent="text-amber-500">
-            {isProbation && (
-              <div className="mb-4 rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3">
-                <p className="font-bold text-emerald-800">Probationary Employee – 6 Months</p>
-                <p className="mt-1 text-xs text-emerald-700">All leave balances, including the applicable maternity or paternity leave, are zero during probation.</p>
-              </div>
-            )}
-            {loading ? (
-              <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <SkeletonBlock key={i} className="h-12 w-full" />)}</div>
-            ) : leaveBalances.length === 0 ? (
-              <EmptyState icon={<FiInfo className="w-8 h-8" />} message="No leave balances configured" />
-            ) : (
-              <div className="space-y-3">
-                {leaveBalances
-                  .filter((b) => !/loss of pay|lop/i.test(`${b.leaveType?.name || ''} ${b.leaveType?.code || ''}`))
-                  .sort((a, b) => {
-                    const order = ['casual leave', 'sick leave', 'earned leave', 'personal leave'];
-                    return (order.indexOf(a.leaveType?.name?.toLowerCase() || '') + 10) - (order.indexOf(b.leaveType?.name?.toLowerCase() || '') + 10);
-                  })
-                  .map((b, i) => (
-                  <div key={i}>
-                    <div className="flex items-center justify-between text-sm mb-1">
-                      <span className="font-medium text-slate-700">{b.leaveType?.name || 'Leave'}</span>
-                      <span className="text-slate-500">
-                        <span className="text-slate-900 font-bold">{b.remaining}</span> / {b.total} days
-                      </span>
-                    </div>
-                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                      <div
-                        className="h-full rounded-full"
-                        style={{
-                          width: `${b.total > 0 ? ((b.remaining / b.total) * 100) : 0}%`,
-                          background: PALETTE[i % PALETTE.length],
-                        }}
-                      />
-                    </div>
-                  </div>
-                ))}
-                {isProbation && (
-                  <div className="flex items-center justify-between rounded-lg bg-sky-50 px-2 py-1.5 text-sm">
-                    <span className="font-medium text-sky-800">Loss of Pay (LOP)</span>
-                    <span className="text-xs font-semibold text-sky-700">Available for request · Prior approval required</span>
-                  </div>
-                )}
-              </div>
-            )}
-          </Panel>
+          <button
+            onClick={() => router.push('/policies-handbook')}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white text-sm font-semibold shadow-md shadow-amber-500/25 hover:shadow-amber-500/40 transition-all whitespace-nowrap shrink-0"
+          >
+            Review <FiArrowRight className="w-4 h-4" />
+          </button>
         </div>
+      )}
 
-        {/* Announcements — BUG_024 fix: show an explicit empty state when
-            there are no announcements, instead of leaving the card blank.
-            Consistent with the My Payslips / My Timesheets empty states. */}
-        <div>
-          <Panel title="Announcements" icon={<FiBell className="w-4 h-4" />} accent="text-rose-500">
-            {announcements.length === 0 ? (
-              <EmptyState icon={<FiBell className="w-8 h-8" />} message="No announcements" />
-            ) : (
-              <div className="space-y-3">
-                {announcements.map((a, i) => {
-                  const iconBg =
-                    a.type === 'holiday' ? 'bg-emerald-50 text-emerald-600' :
-                    a.type === 'event' ? 'bg-green-50 text-green-600' :
-                    a.type === 'policy' ? 'bg-amber-50 text-amber-600' :
-                    'bg-teal-50 text-teal-600';
-                  const icon =
-                    a.type === 'holiday' ? <FiCalendar className="w-4 h-4" /> :
-                    a.type === 'event' ? <FiStar className="w-4 h-4" /> :
-                    a.type === 'policy' ? <FiFileText className="w-4 h-4" /> :
-                    <FiAward className="w-4 h-4" />;
-                  return (
-                    <div key={i} className="flex items-start gap-3 p-3 rounded-xl bg-slate-50/60 border border-slate-100">
-                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${iconBg}`}>{icon}</div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-slate-900">{a.title}</p>
-                        <p className="text-xs text-slate-500 mt-0.5">{a.date}</p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </Panel>
-        </div>
-      </div>
-
-      {/* Payslip & Timesheet cards */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Latest Payslips */}
-        <Panel title="My Payslips" icon={<FiFileText className="w-4 h-4" />} href="/payroll/payslips" accent="text-emerald-500">
-          {loading ? (
-            <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <SkeletonBlock key={i} className="h-12 w-full" />)}</div>
-          ) : latestPayslips.length === 0 ? (
-            <EmptyState icon={<FiFileText className="w-8 h-8" />} message="No payslips available yet" />
+      {/* Announcements — kept on Home (light landing content). */}
+      <div>
+        <Panel title="Announcements" icon={<FiBell className="w-4 h-4" />} accent="text-rose-500">
+          {announcements.length === 0 ? (
+            <EmptyState icon={<FiBell className="w-8 h-8" />} message="No announcements" />
           ) : (
-            <div className="divide-y divide-slate-100">
-              {latestPayslips.map((p) => {
-                const monthLabel = new Date(p.year, p.month - 1, 1).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+            <div className="space-y-3">
+              {announcements.map((a, i) => {
+                const iconBg =
+                  a.type === 'holiday' ? 'bg-emerald-50 text-emerald-600' :
+                  a.type === 'event' ? 'bg-green-50 text-green-600' :
+                  a.type === 'policy' ? 'bg-amber-50 text-amber-600' :
+                  'bg-teal-50 text-teal-600';
+                const icon =
+                  a.type === 'holiday' ? <FiCalendar className="w-4 h-4" /> :
+                  a.type === 'event' ? <FiStar className="w-4 h-4" /> :
+                  a.type === 'policy' ? <FiFileText className="w-4 h-4" /> :
+                  <FiAward className="w-4 h-4" />;
                 return (
-                  <div key={p.id} className="flex items-center justify-between py-3">
-                    <div>
-                      <p className="text-sm font-semibold text-slate-900">{monthLabel}</p>
-                      <p className="text-xs text-slate-500 mt-0.5">
-                        Net: {new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(p.netSalary || 0)}
-                      </p>
+                  <div key={i} className="flex items-start gap-3 p-3 rounded-xl bg-slate-50/60 border border-slate-100">
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${iconBg}`}>{icon}</div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-slate-900">{a.title}</p>
+                      <p className="text-xs text-slate-500 mt-0.5">{a.date}</p>
                     </div>
-                    {statusBadge(p.status)}
                   </div>
                 );
               })}
             </div>
           )}
         </Panel>
-
-        {/* Latest Timesheets */}
-        <Panel title="My Timesheets" icon={<FiClock className="w-4 h-4" />} href="/timesheets" accent="text-cyan-500">
-          {loading ? (
-            <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <SkeletonBlock key={i} className="h-12 w-full" />)}</div>
-          ) : latestTimesheets.length === 0 ? (
-            <EmptyState icon={<FiClock className="w-8 h-8" />} message="No timesheet entries yet" />
-          ) : (
-            <div className="divide-y divide-slate-100">
-              {latestTimesheets.map((t) => (
-                <div key={t.id} className="flex items-center justify-between py-3">
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-slate-900 truncate">
-                      {t.project?.name || t.projectTask?.name || 'General'}
-                    </p>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      {new Date(t.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · {t.hours}h
-                    </p>
-                  </div>
-                  {statusBadge(t.status)}
-                </div>
-              ))}
-            </div>
-          )}
-        </Panel>
       </div>
 
+      {/* CTA banner pointing to Dashboard for full details. */}
+      <div className="relative rounded-2xl overflow-hidden border border-emerald-100 bg-gradient-to-r from-emerald-50 via-teal-50 to-teal-50">
+        <div className="px-6 py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h3 className="text-sm font-bold text-emerald-900 flex items-center gap-2">
+              <FiGrid className="w-4 h-4" /> View your full self-service dashboard
+            </h3>
+            <p className="text-xs text-emerald-700/80 mt-1">Leave balances, attendance, payslips, performance, training, timesheets, documents and more — all on the Dashboard.</p>
+          </div>
+          <button
+            onClick={() => router.push('/dashboard')}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-sm font-semibold shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 transition-all whitespace-nowrap shrink-0"
+          >
+            Open Dashboard <FiArrowRight className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* Quick Actions — kept on Home as a shortcut launcher. */}
       <Panel title="Quick Actions" icon={<FiZap className="w-4 h-4" />} accent="text-amber-500">
         <QuickLinkGrid links={quickActions} />
       </Panel>

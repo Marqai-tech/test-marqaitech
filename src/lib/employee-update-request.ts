@@ -24,22 +24,29 @@ import { loadEmployeeFieldRules } from '@/lib/employee-config';
 export type FieldSensitivity = 'low' | 'high' | 'restricted';
 
 export const FIELD_SENSITIVITY: Record<string, { sensitivity: FieldSensitivity; category: string; label: string }> = {
-  // Contact (low-risk — direct update)
-  phone:               { sensitivity: 'low',  category: 'contact',    label: 'Phone Number' },
-  address:             { sensitivity: 'low',  category: 'contact',    label: 'Address' },
-  city:                { sensitivity: 'low',  category: 'contact',    label: 'City' },
-  state:               { sensitivity: 'low',  category: 'contact',    label: 'State' },
-  zipCode:             { sensitivity: 'low',  category: 'contact',    label: 'ZIP Code' },
-  country:             { sensitivity: 'low',  category: 'contact',    label: 'Country' },
-  currentAddress:      { sensitivity: 'low',  category: 'contact',    label: 'Current Address' },
-  currentCity:         { sensitivity: 'low',  category: 'contact',    label: 'Current City' },
-  currentState:        { sensitivity: 'low',  category: 'contact',    label: 'Current State' },
-  currentZipCode:      { sensitivity: 'low',  category: 'contact',    label: 'Current ZIP Code' },
-  currentCountry:      { sensitivity: 'low',  category: 'contact',    label: 'Current Country' },
-  emergencyContactName: { sensitivity: 'low', category: 'contact',    label: 'Emergency Contact Name' },
-  emergencyContactPhone: { sensitivity: 'low', category: 'contact',   label: 'Emergency Contact Phone' },
-  emergencyContactRelation: { sensitivity: 'low', category: 'contact', label: 'Emergency Contact Relation' },
-  personalEmail:       { sensitivity: 'low',  category: 'contact',    label: 'Personal Email' },
+  // BUG_050 fix: contact fields are now 'high' sensitivity — they route
+  // through the HR approval workflow instead of applying directly. The QA
+  // test report flagged that phone/city/address changes were being applied
+  // without HR review, which is risky for compliance-sensitive contact
+  // data (emergency contact, phone used for OTP, address on file).
+  // The previous 'low' sensitivity did create an audit trail (status=
+  // 'applied', tier=0) but skipped approval entirely. Per the product
+  // owner's decision, all contact-field changes now require HR approval.
+  phone:               { sensitivity: 'high', category: 'contact',    label: 'Phone Number' },
+  address:             { sensitivity: 'high', category: 'contact',    label: 'Address' },
+  city:                { sensitivity: 'high', category: 'contact',    label: 'City' },
+  state:               { sensitivity: 'high', category: 'contact',    label: 'State' },
+  zipCode:             { sensitivity: 'high', category: 'contact',    label: 'ZIP Code' },
+  country:             { sensitivity: 'high', category: 'contact',    label: 'Country' },
+  currentAddress:      { sensitivity: 'high', category: 'contact',    label: 'Current Address' },
+  currentCity:         { sensitivity: 'high', category: 'contact',    label: 'Current City' },
+  currentState:        { sensitivity: 'high', category: 'contact',    label: 'Current State' },
+  currentZipCode:      { sensitivity: 'high', category: 'contact',    label: 'Current ZIP Code' },
+  currentCountry:      { sensitivity: 'high', category: 'contact',    label: 'Current Country' },
+  emergencyContactName: { sensitivity: 'high', category: 'contact',    label: 'Emergency Contact Name' },
+  emergencyContactPhone: { sensitivity: 'high', category: 'contact',   label: 'Emergency Contact Phone' },
+  emergencyContactRelation: { sensitivity: 'high', category: 'contact', label: 'Emergency Contact Relation' },
+  personalEmail:       { sensitivity: 'high', category: 'contact',    label: 'Personal Email' },
 
   // Personal (high-risk — approval required)
   firstName:           { sensitivity: 'high', category: 'personal',   label: 'First Name' },

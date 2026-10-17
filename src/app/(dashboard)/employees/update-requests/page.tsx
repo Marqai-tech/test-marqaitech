@@ -30,15 +30,15 @@ function getAuthHeaders() {
 
 // Editable fields (matches the API's FIELD_SENSITIVITY classification)
 const REQUESTABLE_FIELDS: { field: string; label: string; category: string }[] = [
-  { field: 'phone', label: 'Phone Number', category: 'Contact (applies directly)' },
-  { field: 'address', label: 'Address', category: 'Contact (applies directly)' },
-  { field: 'city', label: 'City', category: 'Contact (applies directly)' },
-  { field: 'state', label: 'State', category: 'Contact (applies directly)' },
-  { field: 'zipCode', label: 'ZIP Code', category: 'Contact (applies directly)' },
-  { field: 'country', label: 'Country', category: 'Contact (applies directly)' },
-  { field: 'personalEmail', label: 'Personal Email', category: 'Contact (applies directly)' },
-  { field: 'emergencyContactName', label: 'Emergency Contact Name', category: 'Contact (applies directly)' },
-  { field: 'emergencyContactPhone', label: 'Emergency Contact Phone', category: 'Contact (applies directly)' },
+  { field: 'phone', label: 'Phone Number', category: 'Contact (approval required)' },
+  { field: 'address', label: 'Address', category: 'Contact (approval required)' },
+  { field: 'city', label: 'City', category: 'Contact (approval required)' },
+  { field: 'state', label: 'State', category: 'Contact (approval required)' },
+  { field: 'zipCode', label: 'ZIP Code', category: 'Contact (approval required)' },
+  { field: 'country', label: 'Country', category: 'Contact (approval required)' },
+  { field: 'personalEmail', label: 'Personal Email', category: 'Contact (approval required)' },
+  { field: 'emergencyContactName', label: 'Emergency Contact Name', category: 'Contact (approval required)' },
+  { field: 'emergencyContactPhone', label: 'Emergency Contact Phone', category: 'Contact (approval required)' },
   { field: 'firstName', label: 'First Name', category: 'Personal (approval required)' },
   { field: 'lastName', label: 'Last Name', category: 'Personal (approval required)' },
   { field: 'dateOfBirth', label: 'Date of Birth', category: 'Personal (approval required)' },
@@ -352,7 +352,7 @@ function NewRequestModal({ onClose, onDone }: { onClose: () => void; onDone: () 
             />
             {reason.length > REASON_MAX && <p className="mt-1 text-[11px] text-red-600">Reason is too long (max {REASON_MAX} characters).</p>}
           </div>
-          <p className="text-[10px] text-slate-400">Low-risk contact fields apply immediately. High-risk fields (personal / financial / KYC) route through the configured approval chain.</p>
+          <p className="text-[10px] text-slate-400">All profile changes route through the configured HR approval chain. The profile is updated only after an approver approves the request.</p>
         </div>
         <div className="flex justify-end gap-3 px-5 py-4 border-t">
           <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600">Cancel</button>

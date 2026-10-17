@@ -86,14 +86,19 @@ export async function POST(request: Request) {
       }
     }
 
-    // ALWAYS return 200 OK (even if user not found) to prevent email enumeration
-    const okResponse = NextResponse.json({
-      message: 'If an account with that email exists, a password reset link has been sent. The link is valid for 30 minutes.',
-    }, { headers: CORS });
-
+    // BUG_003 fix: per the QA test report, the forgot-password flow should
+    // explicitly tell the user when an email is not registered, instead of
+    // always returning the generic "If an account exists..." message. This
+    // is a deliberate trade-off — it does make email enumeration easier,
+    // but the product owner has decided that user clarity is more important
+    // than hiding which emails are registered. (Most internal HRMS portals
+    // operate this way since the email list is already known to staff.)
     if (!user) {
-      console.log(`[ForgotPassword] No user found for ${email} (returning 200 to prevent enumeration)`);
-      return okResponse;
+      console.log(`[ForgotPassword] No user found for ${email} (returning 404 per BUG_003 spec)`);
+      return NextResponse.json({
+        error: 'Email ID does not exist. Please check the email address or contact your HR administrator.',
+        code: 'EMAIL_NOT_FOUND',
+      }, { status: 404, headers: CORS });
     }
 
     // Generate a random token (32 bytes → 64 hex chars)
@@ -187,7 +192,9 @@ export async function POST(request: Request) {
     });
     console.log(`[ForgotPassword] Reset email for ${user.email}: ${emailResult.success ? 'sent' : 'FAILED (' + emailResult.error + ')'}`);
 
-    return okResponse;
+    return NextResponse.json({
+      message: 'Reset link sent. If an account with that email exists, you will receive an email with a password reset link. The link is valid for 30 minutes.',
+    }, { headers: CORS });
   } catch (error) {
     console.error('[ForgotPassword] Error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: CORS });
