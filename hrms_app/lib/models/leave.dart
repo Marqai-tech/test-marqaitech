@@ -31,8 +31,8 @@ class LeaveModel {
     return LeaveModel(
       id: json['id'] ?? '',
       employeeId: json['employeeId'],
-      employeeName: json['employeeName'] ?? json['employee']?['name'],
-      leaveType: json['leaveType'] ?? json['type'] ?? 'Casual Leave',
+      employeeName: json['employeeName'] ?? (json['employee'] is Map ? '${json['employee']['firstName'] ?? ''} ${json['employee']['lastName'] ?? ''}'.trim() : null),
+      leaveType: json['leaveType'] is Map ? ((json['leaveType']['name'] ?? json['leaveType']['code'])?.toString() ?? 'Leave') : ((json['leaveType'] ?? json['type'] ?? 'Leave').toString()),
       startDate: DateTime.tryParse(json['startDate']?.toString() ?? '') ?? DateTime.now(),
       endDate: DateTime.tryParse(json['endDate']?.toString() ?? '') ?? DateTime.now(),
       status: json['status'] ?? 'PENDING',

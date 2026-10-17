@@ -28,6 +28,11 @@ import 'screens/auth/signin_screen.dart';
 import 'screens/home/home_screen.dart';
 import 'screens/employees/employee_management_screen.dart';
 import 'screens/employees/employee_empty_screen.dart';
+import 'screens/leaves/leave_home_screen.dart';
+import 'screens/attendance/attendance_home_screen.dart';
+import 'screens/payroll/payroll_home_screen.dart';
+import 'providers/payroll_provider.dart';
+import 'providers/attendance_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -48,6 +53,7 @@ class HRMSApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => EmployeeProvider()),
         ChangeNotifierProvider(create: (_) => LeaveProvider()),
         ChangeNotifierProvider(create: (_) => DashboardProvider()),
+        ChangeNotifierProvider(create: (_) => AttendanceProvider()),
       ],
       child: MaterialApp(
         title: AppConstants.appName,
@@ -62,6 +68,9 @@ class HRMSApp extends StatelessWidget {
           '/home-new': (_) => const HomeScreen(),
           '/employees-new': (_) => const EmployeeManagementScreen(),
           '/employee-empty': (_) => const EmployeeEmptyScreen(),
+          '/leaves-new': (_) => const LeaveHomeScreen(),
+          '/attendance-new': (_) => const AttendanceHomeScreen(),
+          '/payroll-new': (_) => const PayrollHomeScreen(),
           '/login': (_) => const LoginScreen(),
           '/dashboard': (_) => const _MainNavigation(),
           '/employees': (_) => const EmployeeListScreen(),

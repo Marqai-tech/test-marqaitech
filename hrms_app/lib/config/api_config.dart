@@ -59,6 +59,19 @@ class ApiConfig {
   // Notifications
   static String get notifications => '$apiUrl/notifications';
 
+  // Payroll
+  static String get payrolls => '$apiUrl/payroll';
+  static String payrollDetail(String id) => '$apiUrl/payroll/$id';
+
+  // Attendance extras
+  static String get mySummary => '$apiUrl/attendance/my-summary';
+  static String get punch => '$apiUrl/attendance/punch';
+
+  // Lookups
+  static String get departments => '$apiUrl/departments';
+  static String get designations => '$apiUrl/designations';
+
+
   // RBAC
   static String get rbacModules => '$apiUrl/rbac/modules';
 

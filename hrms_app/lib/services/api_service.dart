@@ -34,6 +34,10 @@ class ApiService {
     return http.delete(Uri.parse(url), headers: _headers).timeout(ApiConfig.timeout);
   }
 
+  static Future<http.Response> _patch(String url, Map<String, dynamic> body) async {
+    return http.patch(Uri.parse(url), headers: _headers, body: jsonEncode(body)).timeout(ApiConfig.timeout);
+  }
+
   // ============ Auth ============
   static Future<Map<String, dynamic>> login(String email, String password) async {
     final response = await _post(ApiConfig.login, {'email': email, 'password': password});
@@ -158,4 +162,75 @@ class ApiService {
     if (response.statusCode == 200) return data;
     throw Exception(data['error'] ?? 'Failed to load notifications');
   }
-}
+
+  // ============ Payroll ============
+  static Future<Map<String, dynamic>> getPayrolls({int page = 1, int limit = 20, String? month, String? year}) async {
+    final params = <String, String>{'page': '$page', 'limit': '$limit'};
+    if (month != null) params['month'] = month;
+    if (year != null) params['year'] = year;
+    final response = await _get(ApiConfig.payrolls, queryParams: params);
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 200) return data;
+    throw Exception(data['error'] ?? 'Failed to load payroll');
+  }
+
+  // ============ Attendance extras ============
+  /// Today's own attendance summary (also resolves the own employeeId).
+  static Future<Map<String, dynamic>> getMySummary() async {
+    final response = await _get(ApiConfig.mySummary);
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 200) return data;
+    throw Exception(data['error'] ?? 'No employee profile linked to this account');
+  }
+
+  static Future<Map<String, dynamic>> punch({
+    required String employeeId,
+    required String action,
+    String? gpsLat,
+    String? gpsLng,
+  }) async {
+    final now = DateTime.now();
+    final body = <String, dynamic>{
+      'employeeId': employeeId,
+      'action': action, // checkin | checkout | breakin | breakout
+      'date': '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}',
+      'localTime': '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}',
+      if (gpsLat != null && gpsLng != null)
+        'gps': {'lat': double.tryParse(gpsLat), 'lng': double.tryParse(gpsLng), 'accuracy': null, 'label': 'Mobile app'},
+    };
+    final response = await _post(ApiConfig.punch, body);
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 200 || response.statusCode == 201) return data;
+    throw Exception(data['error'] ?? 'Punch failed');
+  }
+
+  // ============ Lookups ============
+  static Future<List<dynamic>> getDepartments() async {
+    final response = await _get(ApiConfig.departments);
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 200) return data['data'] ?? data['departments'] ?? [];
+    throw Exception('Failed to load departments');
+  }
+
+  static Future<List<dynamic>> getDesignations() async {
+    final response = await _get(ApiConfig.designations);
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 200) return data['data'] ?? data['designations'] ?? [];
+    throw Exception('Failed to load designations');
+  }
+
+  // ============ Employee create ============
+  static Future<Map<String, dynamic>> createEmployee(Map<String, dynamic> payload) async {
+    final response = await _post(ApiConfig.employees, payload);
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 200 || response.statusCode == 201) return data;
+    throw Exception(data['error'] ?? 'Failed to create employee');
+  }
+
+  // ============ Leave actions ============
+  static Future<Map<String, dynamic>> updateLeaveStatus({required String id, required String action, String? comment}) async {
+    final response = await _patch(ApiConfig.leaves, {'id': id, 'action': action, 'comment': comment});
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 200) return data;
+    throw Exception(data['error'] ?? 'Failed to update leave');
+  }}

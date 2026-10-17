@@ -107,103 +107,140 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const {
-      type, startDate, endDate, totalDays,
-      employeeId, createWorkflow,
+      type, leaveTypeId, startDate, endDate,
+      employeeId: requestedEmployeeId, halfDay, halfDaySlot,
     } = body;
     // Sanitize free-text reason to strip HTML/script content before persisting.
     const reason = sanitizeMultiLineText(body.reason, 2000);
 
-    if (!type || !startDate || !endDate || !totalDays || !employeeId) {
+    const token = getTokenFromHeaders(req);
+    const decoded = token ? await verifyToken(token) : null;
+
+    if (!startDate || !endDate || !requestedEmployeeId) {
       return NextResponse.json(
-        { error: 'Missing required fields: type, startDate, endDate, totalDays, employeeId' },
+        { error: 'Missing required fields: startDate, endDate, employeeId' },
+        { status: 400 }
+      );
+    }
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start > end) {
+      return NextResponse.json(
+        { error: 'Invalid date range: startDate must be on or before endDate' },
         { status: 400 }
       );
     }
 
-    const leave = await db.leave.create({
+    // Resolve scope — employees apply for themselves only; managers for their team.
+    const scope = await resolveCompanyScope(req);
+    if (!scope) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    let employeeId: string = requestedEmployeeId;
+    if (scope.scope === 'self') {
+      if (!scope.ownEmployeeId) {
+        return NextResponse.json({ error: 'No employee profile linked to this account' }, { status: 400 });
+      }
+      employeeId = scope.ownEmployeeId;
+    } else if (scope.scope === 'team') {
+      if (employeeId !== scope.ownEmployeeId && !scope.visibleEmployeeIds.includes(employeeId)) {
+        return NextResponse.json({ error: 'You can only apply for yourself or your direct reports' }, { status: 403 });
+      }
+    }
+
+    // Resolve the leave type (by id, name, or code). LeaveRequest stores leaveTypeId.
+    let finalLeaveTypeId: string | undefined = leaveTypeId;
+    if (!finalLeaveTypeId && type) {
+      const lt = await db.leaveType.findFirst({
+        where: {
+          OR: [
+            { name: { equals: type, mode: 'insensitive' } },
+            { name: { contains: type, mode: 'insensitive' } },
+            { code: { equals: type, mode: 'insensitive' } },
+          ],
+        },
+      });
+      finalLeaveTypeId = lt?.id;
+    }
+    if (!finalLeaveTypeId) {
+      const fallback = await db.leaveType.findFirst({ where: { status: 'active' } });
+      finalLeaveTypeId = fallback?.id;
+    }
+    if (!finalLeaveTypeId) {
+      return NextResponse.json(
+        { error: 'No leave types configured for this workspace' },
+        { status: 400 }
+      );
+    }
+
+    const totalDays = Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000) + 1);
+
+    const leaveRequest = await db.leaveRequest.create({
       data: {
-        type,
-        startDate: new Date(startDate),
-        endDate: new Date(endDate),
-        totalDays,
-        reason,
         employeeId,
+        leaveTypeId: finalLeaveTypeId,
+        startDate: start,
+        endDate: end,
+        reason: reason || null,
+        halfDay: Boolean(halfDay),
+        halfDaySlot: halfDaySlot ? String(halfDaySlot) : null,
         status: 'pending',
       },
       include: {
         employee: {
-          select: { firstName: true, lastName: true, department: { select: { name: true } } },
+          select: { id: true, firstName: true, lastName: true, employeeId: true, avatar: true, department: { select: { name: true } } },
         },
+        leaveType: { select: { id: true, name: true, code: true } },
       },
     });
 
-    // Create workflow instance if requested
-    if (createWorkflow) {
-      const workflowDef = await db.workflowDefinition.findFirst({
-        where: { entity: 'leave', isActive: true },
-        include: { steps: { orderBy: { stepOrder: 'asc' } } },
+    // Notify the reporting manager (if any) so the approval happens in-app.
+    try {
+      const employee = await db.employee.findUnique({
+        where: { id: employeeId },
+        select: { reportingManagerId: true, firstName: true, lastName: true },
       });
-
-      if (workflowDef && workflowDef.steps.length > 0) {
-        const instance = await db.workflowInstance.create({
-          data: {
-            status: 'pending',
-            currentStep: 0,
-            initiatedBy: employeeId,
-            workflowDefId: workflowDef.id,
-            steps: {
-              create: workflowDef.steps.map((step) => ({
-                stepOrder: step.stepOrder,
-                status: step.stepOrder === 0 ? 'pending' : 'pending',
-              })),
+      if (employee?.reportingManagerId && decoded?.tenantId) {
+        const managerUser = await db.user.findFirst({
+          where: { employee: { id: employee.reportingManagerId } },
+        });
+        if (managerUser) {
+          await db.notification.create({
+            data: {
+              tenantId: decoded.tenantId as string,
+              userId: managerUser.id,
+              title: 'New Leave Request',
+              message: `${employee.firstName} ${employee.lastName} requested ${leaveRequest.leaveType?.name ?? 'leave'} (${totalDays} day${totalDays > 1 ? 's' : ''})`,
+              type: 'info',
+              category: 'leave',
+              link: `/leaves`,
             },
-          },
-        });
-
-        await db.leave.update({
-          where: { id: leave.id },
-          data: { workflowInstanceId: instance.id },
-        });
-
-        leave.workflowInstanceId = instance.id;
+          });
+        }
       }
+    } catch (e) {
+      console.warn('[leaves POST] Manager notification failed (non-fatal):', e);
     }
 
-    // Notify manager
-    const employee = await db.employee.findUnique({
-      where: { id: employeeId },
-      select: { reportingManagerId: true, firstName: true, lastName: true },
-    });
-
-    if (employee?.reportingManagerId) {
-      const managerUser = await db.user.findFirst({
-        where: { employee: { id: employee.reportingManagerId } },
+    try {
+      await db.auditLog.create({
+        data: {
+          action: 'CREATE',
+          module: 'leave',
+          userId: (decoded?.userId as string) || null,
+          details: `Leave request ${leaveRequest.id} submitted (${totalDays} day(s))`,
+        },
       });
-      if (managerUser) {
-        await db.notification.create({
-          data: {
-            title: 'New Leave Request',
-            message: `${employee.firstName} ${employee.lastName} requested ${type} leave for ${totalDays} days`,
-            type: 'leave',
-            category: 'approval',
-            userId: managerUser.id,
-            actionUrl: `/leaves/${leave.id}`,
-          },
-        });
-      }
+    } catch (e) {
+      console.warn('[leaves POST] Audit log failed (non-fatal):', e);
     }
 
-    await db.auditLog.create({
-      data: {
-        action: 'CREATE',
-        entity: 'Leave',
-        entityId: leave.id,
-        userId: body.userId,
-        details: `Leave request submitted: ${type} for ${totalDays} days`,
+    return NextResponse.json(
+      {
+        ...leaveRequest,
+        type: leaveRequest.leaveType?.code?.split('-')[0]?.toLowerCase() ?? leaveRequest.leaveType?.name?.toLowerCase() ?? null,
+        totalDays,
       },
-    });
-
-    return NextResponse.json(leave, { status: 201 });
+      { status: 201 }
+    );
   } catch (error) {
     console.error('Leaves POST error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -214,26 +251,46 @@ export async function PUT(req: NextRequest) {
   const db = await getDb(req);
   try {
     const body = await req.json();
-    const { id, ...updateData } = body;
-
+    const { id, leaveTypeId, startDate, endDate } = body;
     if (!id) {
       return NextResponse.json({ error: 'Leave ID is required' }, { status: 400 });
     }
+    const reason = sanitizeMultiLineText(body.reason, 2000);
 
-    const existing = await db.leave.findUnique({ where: { id } });
+    const existing = await db.leaveRequest.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json({ error: 'Leave not found' }, { status: 404 });
     }
+    if (existing.status !== 'pending') {
+      return NextResponse.json({ error: 'Only pending requests can be edited' }, { status: 400 });
+    }
 
-    if (updateData.startDate) updateData.startDate = new Date(updateData.startDate);
-    if (updateData.endDate) updateData.endDate = new Date(updateData.endDate);
+    const data: Record<string, unknown> = {};
+    if (startDate) {
+      const s = new Date(startDate);
+      if (Number.isNaN(s.getTime())) return NextResponse.json({ error: 'Invalid startDate' }, { status: 400 });
+      data.startDate = s;
+    }
+    if (endDate) {
+      const e = new Date(endDate);
+      if (Number.isNaN(e.getTime())) return NextResponse.json({ error: 'Invalid endDate' }, { status: 400 });
+      data.endDate = e;
+    }
+    if (data.startDate && data.endDate && new Date(data.startDate as Date) > new Date(data.endDate as Date)) {
+      return NextResponse.json({ error: 'startDate must be on or before endDate' }, { status: 400 });
+    }
+    if (reason) data.reason = reason;
+    if (leaveTypeId) data.leaveTypeId = leaveTypeId;
+    if (Object.keys(data).length === 0) {
+      return NextResponse.json({ error: 'Nothing to update' }, { status: 400 });
+    }
 
-    const leave = await db.leave.update({
+    const leave = await db.leaveRequest.update({
       where: { id },
-      data: updateData,
+      data,
       include: {
-        employee: { select: { firstName: true, lastName: true } },
-        approver: { select: { firstName: true, lastName: true } },
+        employee: { select: { id: true, firstName: true, lastName: true, employeeId: true } },
+        leaveType: { select: { id: true, name: true, code: true } },
       },
     });
 
@@ -252,16 +309,28 @@ export async function PATCH(req: NextRequest) {
     // Sanitize free-text comment to strip HTML/script content before persisting.
     const comment = sanitizeMultiLineText(body.comment, 2000);
 
-    if (!id || !action || !approverId) {
+    if (!id || !action || !['approve', 'reject'].includes(action)) {
       return NextResponse.json(
-        { error: 'Missing required fields: id, action (approve/reject), approverId' },
+        { error: 'Missing required fields: id, action (approve/reject)' },
         { status: 400 }
       );
     }
 
-    const leave = await db.leave.findUnique({
+    const token = getTokenFromHeaders(req);
+    const decoded = token ? await verifyToken(token) : null;
+    if (!decoded) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    // Only approvers (admins/HR/managers) may approve or reject.
+    const actorRole = (decoded.role as string) || 'employee';
+    const canApprove = ['super_admin', 'tenant_admin', 'hr_admin', 'admin', 'manager'].includes(actorRole);
+    if (!canApprove) {
+      return NextResponse.json({ error: 'You do not have permission to approve or reject leaves' }, { status: 403 });
+    }
+    const actorId = (approverId as string) || (decoded.userId as string);
+
+    const leave = await db.leaveRequest.findUnique({
       where: { id },
-      include: { employee: true },
+      include: { employee: true, leaveType: true },
     });
 
     if (!leave) {
@@ -277,24 +346,22 @@ export async function PATCH(req: NextRequest) {
 
     const newStatus = action === 'approve' ? 'approved' : 'rejected';
 
-    // Update the leave
-    const updatedLeave = await db.leave.update({
+    // Update the leave request (approvedBy/approvedAt/comments live on LeaveRequest).
+    const updatedLeave = await db.leaveRequest.update({
       where: { id },
       data: {
         status: newStatus,
-        approverId,
-        approverComment: comment,
+        approvedBy: actorId,
+        approvedAt: new Date(),
+        comments: comment || null,
       },
       include: {
-        employee: { select: { firstName: true, lastName: true } },
-        approver: { select: { firstName: true, lastName: true } },
+        employee: { select: { id: true, firstName: true, lastName: true, employeeId: true } },
+        leaveType: { select: { id: true, name: true, code: true } },
       },
     });
 
     // ─── Deduct leave balance on approval ───
-    // Bug fix: previously the legacy /api/leaves PATCH never deducted
-    // balance when a leave was approved, so the employee's leave balance
-    // stayed unchanged.
     if (action === 'approve') {
       try {
         const daysDiff = Math.ceil(
@@ -313,81 +380,41 @@ export async function PATCH(req: NextRequest) {
       }
     }
 
-    // Update workflow instance if exists
-    if (leave.workflowInstanceId) {
-      const instance = await db.workflowInstance.findUnique({
-        where: { id: leave.workflowInstanceId },
-        include: { steps: { orderBy: { stepOrder: 'asc' } } },
+    // Notify the employee
+    try {
+      const empUser = await db.user.findFirst({
+        where: { employee: { id: leave.employeeId } },
       });
 
-      if (instance) {
-        const currentStep = instance.steps.find(
-          (s) => s.stepOrder === instance.currentStep
-        );
-
-        if (currentStep) {
-          await db.workflowStepInstance.update({
-            where: { id: currentStep.id },
-            data: {
-              status: newStatus,
-              actionedBy: approverId,
-              comments: comment,
-              actedAt: new Date(),
-            },
-          });
-        }
-
-        if (action === 'approve') {
-          const nextStep = instance.steps.find(
-            (s) => s.stepOrder === instance.currentStep + 1
-          );
-          if (nextStep) {
-            await db.workflowInstance.update({
-              where: { id: instance.id },
-              data: { currentStep: instance.currentStep + 1 },
-            });
-          } else {
-            await db.workflowInstance.update({
-              where: { id: instance.id },
-              data: { status: 'approved' },
-            });
-          }
-        } else {
-          await db.workflowInstance.update({
-            where: { id: instance.id },
-            data: { status: 'rejected' },
-          });
-        }
+      if (empUser && decoded.tenantId) {
+        await db.notification.create({
+          data: {
+            tenantId: decoded.tenantId as string,
+            userId: empUser.id,
+            title: `Leave ${newStatus}`,
+            message: `Your ${leave.leaveType?.name ?? 'leave'} request has been ${newStatus}${comment ? `: ${comment}` : ''}`,
+            type: 'info',
+            category: 'leave',
+            link: `/leaves`,
+          },
+        });
       }
+    } catch (e) {
+      console.warn('[leaves PATCH] Employee notification failed (non-fatal):', e);
     }
 
-    // Notify the employee
-    const empUser = await db.user.findFirst({
-      where: { employee: { id: leave.employeeId } },
-    });
-
-    if (empUser) {
-      await db.notification.create({
+    try {
+      await db.auditLog.create({
         data: {
-          title: `Leave ${newStatus}`,
-          message: `Your ${leave.type} leave request has been ${newStatus}${comment ? `: ${comment}` : ''}`,
-          type: 'leave',
-          category: 'status_update',
-          userId: empUser.id,
-          actionUrl: `/leaves/${id}`,
+          action: action === 'approve' ? 'APPROVE' : 'REJECT',
+          module: 'leave',
+          userId: actorId,
+          details: `Leave ${newStatus} for request ${id}: ${comment || 'No comment'}`,
         },
       });
+    } catch (e) {
+      console.warn('[leaves PATCH] Audit log failed (non-fatal):', e);
     }
-
-    await db.auditLog.create({
-      data: {
-        action: action === 'approve' ? 'APPROVE' : 'REJECT',
-        entity: 'Leave',
-        entityId: id,
-        userId: approverId,
-        details: `Leave ${newStatus}: ${comment || 'No comment'}`,
-      },
-    });
 
     return NextResponse.json(updatedLeave);
   } catch (error) {
