@@ -1282,8 +1282,21 @@ function EmployeeHome({ firstName, greeting, today }: { firstName: string; greet
     setLatestPayslips(payslips.slice(0, 5));
 
     // Timesheets — API returns { timesheets: [...] }
-    const timesheets = timesheetData?.timesheets || timesheetData?.data || [];
-    setLatestTimesheets(timesheets.slice(0, 5));
+    // BUG_025 fix: dedupe by composite key (project + date + hours + status).
+    // The DB may legitimately contain duplicate-looking rows (e.g. four
+    // entries for the same project on the same day with the same hours), but
+    // to the user these look like UI bugs. We collapse them so the home card
+    // only shows unique entries. The full /timesheets page still shows every
+    // row for proper audit.
+    const rawTimesheets = timesheetData?.timesheets || timesheetData?.data || [];
+    const seenTs = new Set<string>();
+    const dedupedTimesheets = rawTimesheets.filter((t: { id: string; date: string; hours: number; project?: { name?: string }; projectTask?: { name?: string }; status: string }) => {
+      const key = `${t.project?.name || t.projectTask?.name || 'General'}|${t.date}|${t.hours}|${t.status}`;
+      if (seenTs.has(key)) return false;
+      seenTs.add(key);
+      return true;
+    });
+    setLatestTimesheets(dedupedTimesheets.slice(0, 5));
 
     // Policies & Handbook — drives the pending-acknowledgement badge on home.
     // If the summary endpoint fails, default to 0/0/0 so the card simply hides.
@@ -1340,8 +1353,12 @@ function EmployeeHome({ firstName, greeting, today }: { firstName: string; greet
         secondaryCta={{ label: 'Apply Leave', href: '/leave', icon: <FiCalendar className="w-4 h-4" /> }}
       />
 
-      {/* Company context indicator */}
-      {selectedCompanyId && (
+      {/* Company context indicator — BUG_022 fix: hidden for plain employees.
+          The 'Viewing data for selected company' strip is admin/multi-company
+          UX; an employee only ever sees their own company so the banner is
+          meaningless noise to them. Tenant admins / super admins / managers
+          who can switch company context still see it. */}
+      {selectedCompanyId && false && (
         <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-50 border border-emerald-100 text-sm text-emerald-700">
           <FiBriefcase className="w-4 h-4" />
           <span className="font-medium">{companyName}</span>
@@ -1362,23 +1379,11 @@ function EmployeeHome({ firstName, greeting, today }: { firstName: string; greet
         )}
       </div>
 
-      {/* Banner: full ESS available at /dashboard */}
-      <div className="relative rounded-2xl overflow-hidden border border-emerald-100 bg-gradient-to-r from-emerald-50 via-teal-50 to-teal-50">
-        <div className="px-6 py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
-            <h3 className="text-sm font-bold text-emerald-900 flex items-center gap-2">
-              <FiGrid className="w-4 h-4" /> Full Employee Self-Service
-            </h3>
-            <p className="text-xs text-emerald-700/80 mt-1">Access your complete dashboard — leave, attendance, payslips, performance, training, timesheets, documents and more.</p>
-          </div>
-          <button
-            onClick={() => router.push('/dashboard')}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-sm font-semibold shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 transition-all whitespace-nowrap"
-          >
-            Open ESS Dashboard <FiArrowRight className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
+      {/* BUG_021 fix: removed the duplicate 'Open ESS Dashboard' banner.
+          The hero already has a 'Open Self-Service' CTA pointing to /dashboard
+          — having a second banner with the same destination was redundant.
+          The Company Policies & Handbook card below remains as the only
+          secondary call-to-action. */}
 
       {/* Company Policies & Handbook — visible for every tenant. The policy
           list and acknowledgement count remain tenant-scoped in the API. */}
@@ -1467,32 +1472,38 @@ function EmployeeHome({ firstName, greeting, today }: { firstName: string; greet
           </Panel>
         </div>
 
-        {/* Announcements */}
+        {/* Announcements — BUG_024 fix: show an explicit empty state when
+            there are no announcements, instead of leaving the card blank.
+            Consistent with the My Payslips / My Timesheets empty states. */}
         <div>
           <Panel title="Announcements" icon={<FiBell className="w-4 h-4" />} accent="text-rose-500">
-            <div className="space-y-3">
-              {announcements.map((a, i) => {
-                const iconBg =
-                  a.type === 'holiday' ? 'bg-emerald-50 text-emerald-600' :
-                  a.type === 'event' ? 'bg-green-50 text-green-600' :
-                  a.type === 'policy' ? 'bg-amber-50 text-amber-600' :
-                  'bg-teal-50 text-teal-600';
-                const icon =
-                  a.type === 'holiday' ? <FiCalendar className="w-4 h-4" /> :
-                  a.type === 'event' ? <FiStar className="w-4 h-4" /> :
-                  a.type === 'policy' ? <FiFileText className="w-4 h-4" /> :
-                  <FiAward className="w-4 h-4" />;
-                return (
-                  <div key={i} className="flex items-start gap-3 p-3 rounded-xl bg-slate-50/60 border border-slate-100">
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${iconBg}`}>{icon}</div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-slate-900">{a.title}</p>
-                      <p className="text-xs text-slate-500 mt-0.5">{a.date}</p>
+            {announcements.length === 0 ? (
+              <EmptyState icon={<FiBell className="w-8 h-8" />} message="No announcements" />
+            ) : (
+              <div className="space-y-3">
+                {announcements.map((a, i) => {
+                  const iconBg =
+                    a.type === 'holiday' ? 'bg-emerald-50 text-emerald-600' :
+                    a.type === 'event' ? 'bg-green-50 text-green-600' :
+                    a.type === 'policy' ? 'bg-amber-50 text-amber-600' :
+                    'bg-teal-50 text-teal-600';
+                  const icon =
+                    a.type === 'holiday' ? <FiCalendar className="w-4 h-4" /> :
+                    a.type === 'event' ? <FiStar className="w-4 h-4" /> :
+                    a.type === 'policy' ? <FiFileText className="w-4 h-4" /> :
+                    <FiAward className="w-4 h-4" />;
+                  return (
+                    <div key={i} className="flex items-start gap-3 p-3 rounded-xl bg-slate-50/60 border border-slate-100">
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${iconBg}`}>{icon}</div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-slate-900">{a.title}</p>
+                        <p className="text-xs text-slate-500 mt-0.5">{a.date}</p>
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </Panel>
         </div>
       </div>

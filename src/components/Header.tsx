@@ -293,8 +293,13 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
         <FiMenu className="w-5 h-5" />
       </button>
 
-      {/* 3Boxes Logo + Name in Header */}
-      <div className="flex items-center gap-2.5 pr-3 border-r border-slate-200">
+      {/* 3Boxes Logo + Name in Header — BUG_020 fix: clickable, navigates to /home */}
+      <button
+        type="button"
+        onClick={() => router.push('/home')}
+        aria-label="Go to Home"
+        className="flex items-center gap-2.5 pr-3 border-r border-slate-200 hover:opacity-80 transition-opacity cursor-pointer"
+      >
         <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-gradient-to-br from-green-500 via-emerald-500 to-teal-600 flex items-center justify-center shadow-sm shadow-green-500/20">
           <svg viewBox="0 0 35 11" className="w-5 h-3.5" fill="none">
             <rect x="0" y="0" width="9" height="9" rx="2" fill="white" opacity="0.9"/>
@@ -302,11 +307,11 @@ export default function Header({ onSidebarToggle }: HeaderProps) {
             <rect x="26" y="0" width="9" height="9" rx="2" fill="white" opacity="0.9"/>
           </svg>
         </div>
-        <div className="hidden sm:block">
+        <div className="hidden sm:block text-left">
           <span className="text-sm font-extrabold text-slate-800 tracking-tight">3Boxes</span>
           <span className="text-[10px] font-bold text-green-500 ml-1 tracking-wider">HRMS</span>
         </div>
-      </div>
+      </button>
 
       {/* Search Bar */}
       <div className="flex-1 max-w-xl relative" ref={searchRef}>
