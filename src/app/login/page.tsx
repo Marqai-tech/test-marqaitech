@@ -82,6 +82,7 @@ export default function LoginPage() {
   useEffect(() => {
     const hostname = window.location.hostname;
     setIsDemoSite(
+      hostname === 'test-marqaitech-ontt.vercel.app' ||
       hostname === 'nexus-hrms-mu.vercel.app' ||
       hostname === '3boxes-hrms-mu.vercel.app' ||
       hostname === 'test.3boxeshrms.com'
