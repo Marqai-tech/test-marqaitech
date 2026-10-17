@@ -3,6 +3,7 @@ import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { hashPassword } from '@/lib/auth';
 import { randomBytes } from 'crypto';
 import { sendTenantEmail } from '@/lib/notification-channels';
+import { validateEmail } from '@/lib/validators';
 
 /**
  * POST /api/auth/forgot-password
@@ -19,6 +20,10 @@ import { sendTenantEmail } from '@/lib/notification-channels';
  *   - Any previously-issued unused tokens for this email are expired immediately.
  *   - The endpoint ALWAYS returns 200 OK (even if the email doesn't exist)
  *     to prevent email-enumeration attacks.
+ *
+ * BUG_004 fix: email format is validated server-side and a 400 is returned
+ * for clearly malformed input ("abc", "abc@", "abc@.com", "@gmail.com").
+ * This is NOT email enumeration — invalid format ≠ non-existent account.
  */
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -37,10 +42,16 @@ export async function POST(request: Request) {
   let db = platformDb;
   try {
     const body = await request.json().catch(() => ({}));
-    const email = String(body.email || '').trim().toLowerCase();
-    if (!email) {
-      return NextResponse.json({ error: 'Email is required' }, { status: 400, headers: CORS });
+    const rawEmail = String(body.email || '').trim();
+    // BUG_004 fix: server-side email format validation. Reject malformed
+    // inputs ("abc", "abc@", "abc@.com", "@gmail.com") with a 400 — this is
+    // a format check, not an existence check, so it does NOT leak which
+    // emails are registered.
+    const emailCheck = validateEmail(rawEmail);
+    if (!emailCheck.valid) {
+      return NextResponse.json({ error: emailCheck.error || 'Invalid email format' }, { status: 400, headers: CORS });
     }
+    const email = rawEmail.toLowerCase();
 
     const tenantSlug = request.headers.get('x-tenant-slug') || '';
 
