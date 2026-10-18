@@ -105,12 +105,28 @@ export async function GET(request: Request) {
     // Include the resolved employee identity so mobile clients can use this
     // endpoint as the canonical punch target resolver (employeeId for
     // /api/attendance/punch) without a second lookup.
+    // Task 108: also expose the remote check-in pre-approval flags so the
+    // web + mobile UIs can hide the punch options when they are not enabled.
     try {
       const emp = await db.employee.findUnique({
         where: { id: effectiveEmployeeId },
+        select: {
+          id: true, firstName: true, lastName: true, employeeId: true, email: true,
+          wfhPreApproved: true, mobileCheckInEnabled: true, webCheckInEnabled: true,
+        },
+      }).catch(async () => db.employee.findUnique({
+        where: { id: effectiveEmployeeId },
         select: { id: true, firstName: true, lastName: true, employeeId: true, email: true },
-      });
-      if (emp) (summary as Record<string, unknown>).employee = emp;
+      }));
+      if (emp) {
+        (summary as Record<string, unknown>).employee = emp;
+        const e = emp as Record<string, unknown>;
+        (summary as Record<string, unknown>).remotePermissions = {
+          wfhPreApproved: e.wfhPreApproved === true,
+          mobileCheckInEnabled: e.mobileCheckInEnabled === true,
+          webCheckInEnabled: e.webCheckInEnabled === true,
+        };
+      }
     } catch {
       // non-fatal — summary already computed
     }

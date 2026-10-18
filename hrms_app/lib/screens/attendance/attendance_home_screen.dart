@@ -34,6 +34,11 @@ class _AttendanceBodyState extends State<_AttendanceBody> {
   bool _busy = false;
   String? _statusLine;
   String? _lastGpsNote;
+  // Task 108: mobile check-in requires an employee-wise WFH pre-approval
+  // granted by admin/management (web → Attendance → Remote Check-In).
+  // null = unknown (server still enforces); false = hide punch buttons and
+  // show the pre-approval banner instead.
+  bool? _mobileCheckInAllowed;
 
   @override
   void initState() {
@@ -54,7 +59,14 @@ class _AttendanceBodyState extends State<_AttendanceBody> {
       try {
         final s = await ApiService.getMySummary();
         if (!mounted) return;
-        setState(() => _summary = s);
+        final perms = s['remotePermissions'];
+        setState(() {
+          _summary = s;
+          if (perms is Map) {
+            final v = perms['mobileCheckInEnabled'];
+            _mobileCheckInAllowed = v == true;
+          }
+        });
       } catch (_) {/* summary stays null — card shows placeholder */}
     } else {
       setState(() {
@@ -193,6 +205,7 @@ class _AttendanceBodyState extends State<_AttendanceBody> {
                       busy: _busy,
                       statusLine: _statusLine,
                       gpsNote: _lastGpsNote,
+                      mobileAllowed: _mobileCheckInAllowed != true,
                       onCheckIn: () => _punch('checkin', 'Check-in'),
                       onCheckOut: () => _punch('checkout', 'Check-out'),
                     ),
@@ -231,10 +244,13 @@ class _PunchCard extends StatelessWidget {
   final bool busy;
   final String? statusLine;
   final String? gpsNote;
+  // Task 108: true when the account has NO mobile check-in pre-approval —
+  // the buttons are replaced with an explanatory banner (server also 403s).
+  final bool mobileAllowed;
   final VoidCallback onCheckIn;
   final VoidCallback onCheckOut;
 
-  const _PunchCard({required this.summary, required this.summaryError, required this.todayRow, required this.busy, this.statusLine, this.gpsNote, required this.onCheckIn, required this.onCheckOut});
+  const _PunchCard({required this.summary, required this.summaryError, required this.todayRow, required this.busy, this.statusLine, this.gpsNote, this.mobileAllowed = false, required this.onCheckIn, required this.onCheckOut});
 
   @override
   Widget build(BuildContext context) {
@@ -263,25 +279,43 @@ class _PunchCard extends StatelessWidget {
           style: const TextStyle(color: Colors.white70, fontSize: 12.5),
         ),
         const SizedBox(height: 14),
-        Row(children: [
-          Expanded(
-            child: FilledButton.icon(
-              onPressed: busy || checkedIn ? null : onCheckIn,
-              style: FilledButton.styleFrom(backgroundColor: Colors.white, foregroundColor: MaanColors.primary, minimumSize: const Size.fromHeight(44)),
-              icon: const Icon(Icons.login_rounded, size: 18),
-              label: const Text('Check In', style: TextStyle(fontWeight: FontWeight.w800)),
-            ),
+        if (mobileAllowed) ...[
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(color: Colors.white.withOpacity(.16), borderRadius: BorderRadius.circular(12)),
+            child: Row(children: [
+              const Icon(Icons.work_history_rounded, color: Colors.white, size: 17),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Mobile check-in is not enabled for your account — it needs a work-from-home pre-approval from admin/management. Please mark attendance on the office biometric device.',
+                  style: const TextStyle(color: Colors.white, fontSize: 11, height: 1.35, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ]),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: FilledButton.icon(
-              onPressed: busy || !checkedIn || checkedOut ? null : onCheckOut,
-              style: FilledButton.styleFrom(backgroundColor: Colors.white.withOpacity(checkedIn && !checkedOut ? 1 : .4), foregroundColor: MaanColors.primary, minimumSize: const Size.fromHeight(44)),
-              icon: const Icon(Icons.logout_rounded, size: 18),
-              label: const Text('Check Out', style: TextStyle(fontWeight: FontWeight.w800)),
+        ] else ...[
+          Row(children: [
+            Expanded(
+              child: FilledButton.icon(
+                onPressed: busy || checkedIn ? null : onCheckIn,
+                style: FilledButton.styleFrom(backgroundColor: Colors.white, foregroundColor: MaanColors.primary, minimumSize: const Size.fromHeight(44)),
+                icon: const Icon(Icons.login_rounded, size: 18),
+                label: const Text('Check In', style: TextStyle(fontWeight: FontWeight.w800)),
+              ),
             ),
-          ),
-        ]),
+            const SizedBox(width: 12),
+            Expanded(
+              child: FilledButton.icon(
+                onPressed: busy || !checkedIn || checkedOut ? null : onCheckOut,
+                style: FilledButton.styleFrom(backgroundColor: Colors.white.withOpacity(checkedIn && !checkedOut ? 1 : .4), foregroundColor: MaanColors.primary, minimumSize: const Size.fromHeight(44)),
+                icon: const Icon(Icons.logout_rounded, size: 18),
+                label: const Text('Check Out', style: TextStyle(fontWeight: FontWeight.w800)),
+              ),
+            ),
+          ]),
+        ],
         if (busy && statusLine != null) ...[
           const SizedBox(height: 10),
           Row(mainAxisAlignment: MainAxisAlignment.center, children: [
@@ -296,7 +330,7 @@ class _PunchCard extends StatelessWidget {
           const SizedBox(width: 4),
           Expanded(
             child: Text(
-              gpsNote ?? 'Check-in/out records your GPS position — allowed inside the office radius only.',
+              gpsNote ?? 'Check-in/out records your GPS position. Remote (mobile/web) check-in works only with an admin-approved WFH pre-approval.',
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(color: Colors.white70, fontSize: 10.5, height: 1.3),

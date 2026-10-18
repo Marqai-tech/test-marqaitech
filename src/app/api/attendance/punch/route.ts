@@ -22,9 +22,25 @@ import { attendanceLocalMinutes, effectiveBreakMinutes, loadAttendanceBreakPolic
  *     date: 'YYYY-MM-DD' (employee LOCAL calendar date),
  *     localTime: 'HH:mm' (employee LOCAL time, 24h format),
  *     gps?: { lat: number, lng: number, accuracy?: number, label?: string } | null,
- *     method?: 'mobile' | 'web' | 'biometric' | 'manual_edit' (default 'mobile' when gps is present, else 'web'),
+ *     method?: 'mobile' | 'web' (default 'mobile' when gps is present, else 'web').
+ *              Task 108: 'biometric' and 'manual_edit' are REJECTED on this
+ *              route — device punches use /api/attendance/biometric (with its
+ *              own device token) and manual edits use the admin routes. This
+ *              prevents anyone from bypassing the remote check-in permission
+ *              gate by declaring a different method.
  *     notes?: string
  *   }
+ *
+ * Task 108 — REMOTE CHECK-IN GATING (WFH pre-approval):
+ *   Mobile/web punches (check-in, check-out, break-in, break-out) are only
+ *   accepted when an admin has enabled the matching per-employee flag
+ *   (Employee.mobileCheckInEnabled / Employee.webCheckInEnabled) from
+ *   Attendance → Remote Check-In. Everyone else must use the office
+ *   biometric device. Authorized remote punches keep full GPS recording;
+ *   geofence radius no longer REJECTS them (WFH employees are legitimately
+ *   outside the office) but the inside/outside distance is stored for audit.
+ *   Punches whose coordinates exactly match the geofence center are flagged
+ *   "[GeoAudit]" — real GPS never reproduces the office pin to 6 decimals.
  *
  * Returns: { ok: true, event: { type, timestamp, gps? }, attendance: {...} }
  */
@@ -225,10 +241,59 @@ export async function POST(request: NextRequest) {
     // Verify employee exists + scope-permit
     const employee = await db.employee.findUnique({
       where: { id: employeeId },
-      select: { id: true, companyId: true, userId: true, employeeId: true, firstName: true, lastName: true, email: true },
+      select: {
+        id: true, companyId: true, userId: true, employeeId: true, firstName: true, lastName: true, email: true,
+        // Task 108: remote check-in pre-approval flags
+        wfhPreApproved: true, mobileCheckInEnabled: true, webCheckInEnabled: true,
+      },
+    }).catch(async () => {
+      // Columns may not exist yet on a cold DB — retry without them so the
+      // punch route degrades to legacy behavior instead of 500ing.
+      return db.employee.findUnique({
+        where: { id: employeeId },
+        select: { id: true, companyId: true, userId: true, employeeId: true, firstName: true, lastName: true, email: true },
+      });
     });
     if (!employee) {
       return NextResponse.json({ error: 'Employee not found' }, { status: 404, headers: corsHeaders() });
+    }
+
+    // ─── Task 108: method whitelist ───
+    // Only the two remote channels may punch through this route. Anything
+    // else (biometric / manual_edit / spoofed values) is rejected so the
+    // permission gate below cannot be bypassed by renaming the method.
+    const rawMethod = typeof body.method === 'string' ? body.method.toLowerCase() : '';
+    if (rawMethod && rawMethod !== 'mobile' && rawMethod !== 'web') {
+      return NextResponse.json(
+        { error: `Method '${body.method}' is not allowed on the punch endpoint. Use the office biometric device for attendance.`, code: 'INVALID_PUNCH_METHOD' },
+        { status: 400, headers: corsHeaders() },
+      );
+    }
+
+    // ─── Task 108: REMOTE CHECK-IN PERMISSION GATE ───
+    // Mobile app punches = 'mobile', browser punches = 'web'. Both are
+    // remote channels that require an explicit employee-wise WFH
+    // pre-approval from admin/management (Attendance → Remote Check-In).
+    // Applies to check-in, check-out, break-in AND break-out.
+    const method = rawMethod || (gps && gps.lat != null ? 'mobile' : 'web');
+    const punchActions = ['checkin', 'checkout', 'breakin', 'breakout', 'entry'];
+    if (punchActions.includes(action)) {
+      // Columns may be missing on a lagging DB (legacy select fallback) —
+      // treat undefined as NOT enabled (fail-closed).
+      const channelAllowed = method === 'mobile'
+        ? (employee as Record<string, unknown>).mobileCheckInEnabled === true
+        : (employee as Record<string, unknown>).webCheckInEnabled === true;
+      if (!channelAllowed) {
+        const channel = method === 'mobile' ? 'Mobile check-in' : 'Web check-in';
+        return NextResponse.json(
+          {
+            error: `${channel} is not enabled for your account. Mobile/Web check-in requires work-from-home pre-approval from admin/management. Please mark attendance using the office biometric device or contact your administrator.`,
+            code: 'REMOTE_CHECKIN_NOT_ENABLED',
+            permission: method,
+          },
+          { status: 403, headers: corsHeaders() },
+        );
+      }
     }
     // Self-scope users can only punch for themselves
     if (scope.scope === 'self' && employee.userId !== scope.userId) {
@@ -247,7 +312,6 @@ export async function POST(request: NextRequest) {
     const [localHour, localMinute] = String(localTime || '').split(':').map(Number);
     const localMinutes = Number.isFinite(localHour) && Number.isFinite(localMinute) ? localHour * 60 + localMinute : null;
 
-    const method = body.method || (gps && gps.lat != null ? 'mobile' : 'web');
     const gpsLat = gps && gps.lat != null ? Number(gps.lat) : null;
     const gpsLng = gps && gps.lng != null ? Number(gps.lng) : null;
     const gpsAccuracy = gps && gps.accuracy != null ? Number(gps.accuracy) : null;
@@ -287,7 +351,16 @@ export async function POST(request: NextRequest) {
     }
 
     // GPS is mandatory for employee check-in/out. Validate before creating or
-    // updating Attendance so denied/unavailable/outside punches never persist.
+    // updating Attendance so denied/unavailable punches never persist.
+    //
+    // Task 108 geofence semantics: employees reaching this point ARE
+    // remote-check-in authorized (WFH pre-approved), so the office radius no
+    // longer REJECTS the punch — a WFH employee is legitimately outside the
+    // radius. Instead the exact distance to the nearest geofence is computed
+    // and recorded: inside → office presence evidence; outside → explicit
+    // "[Remote WFH]" audit note; distance < 1m → "[GeoAudit]" mock-location
+    // flag (real GPS never reproduces the office pin to 6 decimals).
+    let geofenceAuditNote: string | null = null;
     if (action === 'checkin' || action === 'checkout') {
       if (!Number.isFinite(gpsLat) || !Number.isFinite(gpsLng)) {
         return NextResponse.json(
@@ -302,14 +375,21 @@ export async function POST(request: NextRequest) {
           { status: 409, headers: corsHeaders() },
         );
       }
-      const inside = geofences.some((geofence: { centerLat: number; centerLng: number; radiusMeters: number }) =>
-        haversineMeters(gpsLat, gpsLng, Number(geofence.centerLat), Number(geofence.centerLng)) <= Number(geofence.radiusMeters),
-      );
+      const distances = geofences.map((geofence: { centerLat: number; centerLng: number; radiusMeters: number }) => ({
+        distance: haversineMeters(gpsLat!, gpsLng!, Number(geofence.centerLat), Number(geofence.centerLng)),
+        radius: Number(geofence.radiusMeters),
+      }));
+      const nearest = distances.reduce((a, b) => (a.distance <= b.distance ? a : b));
+      const inside = nearest.distance <= nearest.radius;
       if (!inside) {
-        return NextResponse.json(
-          { error: 'You are outside the permitted office location. Check-in/Check-out is allowed only within the office radius.' },
-          { status: 403, headers: corsHeaders() },
-        );
+        geofenceAuditNote = `[Remote WFH] Punch recorded ${Math.round(nearest.distance)}m outside the office geofence (${nearest.radius}m radius) — authorized remote check-in.`;
+      } else if (nearest.distance < 1) {
+        // Physically implausible for real GPS: consumer devices carry 3-30m
+        // jitter, so a coordinate IDENTICAL to the fence center (two punches
+        // from different employees matching the pin to 6 decimals, accuracy
+        // exactly 10m) indicates a declared/mock location. Recorded, not
+        // rejected — HR decides; visible in notes + punch log.
+        geofenceAuditNote = '[GeoAudit] Coordinates exactly match the office geofence center — flagged for verification (possible mock/declared location).';
       }
     }
 
@@ -318,6 +398,11 @@ export async function POST(request: NextRequest) {
       updatedAt: new Date(),
       punchMethod: method,
     };
+    if (geofenceAuditNote) {
+      attUpdate.notes = existingBeforeRules?.notes
+        ? `${existingBeforeRules.notes} ${geofenceAuditNote}`
+        : geofenceAuditNote;
+    }
     if (action === 'checkin') {
       attUpdate.checkIn = timestamp;
       attUpdate.checkInGpsLat = gpsLat;

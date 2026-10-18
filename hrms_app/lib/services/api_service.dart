@@ -343,6 +343,10 @@ class ApiService {
       // Task 69 fix: the server prefers utcTimestamp to avoid timezone
       // misinterpretation of localTime on UTC servers (Vercel).
       'utcTimestamp': now.toUtc().toIso8601String(),
+      // Task 108: explicit remote channel. The punch API rejects mobile/web
+      // punches unless the admin enabled this channel for the employee
+      // (WFH pre-approval) — the server message is surfaced by the caller.
+      'method': 'mobile',
       if (gps != null)
         'gps': {
           'lat': gps.lat,

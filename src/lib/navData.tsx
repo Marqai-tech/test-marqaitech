@@ -16,6 +16,7 @@ import {
   FiHome, FiChevronLeft, FiChevronRight, FiChevronDown,
   FiLogOut, FiBell, FiZap, FiHardDrive, FiGitBranch,
   FiMoreHorizontal, FiArrowRight, FiPieChart, FiAward, FiCheckCircle,
+  FiWifi,
 } from 'react-icons/fi';
 
 export interface NavItem {
@@ -311,6 +312,8 @@ export const navSections: NavSection[] = [
       // ── Configuration (admin only) ──
       { label: 'Configuration', href: '#config-divider', icon: <FiSettings className="w-3.5 h-3.5" />, moduleKey: 'attendance', roles: ['super_admin', 'tenant_admin', 'admin'], isDivider: true },
       { label: 'Geofences', href: '/attendance/geofence', icon: <FiMapPin className="w-4 h-4" />, moduleKey: 'attendance', roles: ['super_admin', 'tenant_admin', 'admin'] },
+      // Task 108: employee-wise remote (mobile/web) check-in WFH pre-approval
+      { label: 'Remote Check-In', href: '/attendance/remote-access', icon: <FiWifi className="w-4 h-4" />, moduleKey: 'attendance', roles: ['super_admin', 'tenant_admin', 'admin'], isNew: true },
       { label: 'Biometric Devices', href: '/attendance/biometric', icon: <FiMonitor className="w-4 h-4" />, moduleKey: 'attendance', roles: ['super_admin', 'tenant_admin', 'admin'] },
       { label: 'Muster Roll', href: '/attendance/muster-roll', icon: <FiFileText className="w-4 h-4" />, moduleKey: 'attendance', roles: ['super_admin', 'tenant_admin', 'admin'], isNew: true },
 

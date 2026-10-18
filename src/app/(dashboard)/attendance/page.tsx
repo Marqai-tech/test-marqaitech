@@ -676,6 +676,7 @@ export default function AttendancePage() {
           date: localDateKey(now),
           localTime: `${pad2(now.getHours())}:${pad2(now.getMinutes())}`, utcTimestamp: now.toISOString(),
           gps,
+          method: 'web', // Task 108: browser punch — gated by Employee.webCheckInEnabled
         }),
       });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
@@ -709,6 +710,7 @@ export default function AttendancePage() {
           date: localDateKey(now),
           localTime: `${pad2(now.getHours())}:${pad2(now.getMinutes())}`, utcTimestamp: now.toISOString(),
           gps,
+          method: 'web', // Task 108: browser punch — gated by Employee.webCheckInEnabled
         }),
       });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
@@ -757,6 +759,7 @@ export default function AttendancePage() {
           date: localDateKey(now),
           localTime: `${pad2(now.getHours())}:${pad2(now.getMinutes())}`, utcTimestamp: now.toISOString(),
           gps,
+          method: 'web', // Task 108: browser punch — gated by Employee.webCheckInEnabled
         }),
       });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
@@ -786,6 +789,7 @@ export default function AttendancePage() {
           date: localDateKey(now),
           localTime: `${pad2(now.getHours())}:${pad2(now.getMinutes())}`, utcTimestamp: now.toISOString(),
           gps,
+          method: 'web', // Task 108: browser punch — gated by Employee.webCheckInEnabled
         }),
       });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
@@ -797,6 +801,29 @@ export default function AttendancePage() {
       setBreakingOut(false);
     }
   };
+
+  /* ── Task 108: Remote check-in permissions for the logged-in employee ──
+   * Mobile/web punches are only available with a WFH pre-approval granted
+   * employee-wise by admin/management (Attendance → Remote Check-In).
+   * The punch API enforces this server-side; here we only hide the options
+   * when the flags are known to be off so employees get a clear message
+   * instead of an error toast. Unknown (null) = show buttons and let the
+   * server decide. */
+  const [remotePermissions, setRemotePermissions] = useState<{ wfhPreApproved: boolean; mobileCheckInEnabled: boolean; webCheckInEnabled: boolean } | null>(null);
+  const webCheckInLocked = remotePermissions != null && !remotePermissions.webCheckInEnabled;
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/attendance/my-summary', { headers: getAuthHeaders(), cache: 'no-store' });
+        if (!res.ok) return;
+        const d = await res.json();
+        if (!cancelled && d?.remotePermissions) setRemotePermissions(d.remotePermissions);
+      } catch { /* non-fatal — server still enforces */ }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   /* ── Today's status for self view ── */
   // Use the browser's LOCAL calendar day (never toISOString of the current
@@ -1021,7 +1048,20 @@ export default function AttendancePage() {
             {seeding ? 'Seeding...' : 'Seed Sample Data'}
           </button>
           )}
-          {/* Check In / Out buttons — always available */}
+          {/* Task 108: Check In / Out + Break buttons — only when the employee
+              has a web check-in WFH pre-approval. Office employees use the
+              biometric device; the punch API enforces this server-side too. */}
+          {webCheckInLocked ? (
+            <div className="inline-flex items-center gap-2 px-4 py-2.5 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg max-w-md">
+              <FiInfo className="w-4 h-4 shrink-0" />
+              <span>
+                Web check-in is not enabled for your account — it requires a work-from-home pre-approval from admin/management.
+                Please mark attendance using the office biometric device.
+              </span>
+            </div>
+          ) : (
+          <>
+          {/* Check In / Out buttons */}
           <button
             onClick={handleCheckIn}
             disabled={checkingIn || isCheckedIn}
@@ -1080,6 +1120,8 @@ export default function AttendancePage() {
                 {breakingOut ? 'Ending...' : 'Break Out'}
               </button>
             </>
+          )}
+          </>
           )}
           {/* GPS status indicator while capturing */}
           {gpsStatus && (

@@ -504,6 +504,18 @@ model Employee {
   // users and reporting managers).
   isManagement   Boolean @default(false)
 
+  // ─── Task 108: Remote check-in gating (WFH pre-approval) ───
+  // Mobile app punch = method 'mobile'; browser punch = method 'web'.
+  // These channels can spoof location easily, so they are OFF for every
+  // employee by default and may only be enabled employee-wise by an
+  // admin/tenant_admin from Attendance → Remote Check-In as an explicit
+  // WORK-FROM-HOME pre-approval. Biometric-device punches (office presence)
+  // are unaffected. The punch API rejects mobile/web punches (check-in,
+  // check-out, break-in, break-out) when the matching flag is false.
+  wfhPreApproved       Boolean @default(false)  // master WFH pre-approval flag (records intent; channel flags enforce)
+  mobileCheckInEnabled Boolean @default(false)  // allow punches from the mobile app (GPS + geofence audit still recorded)
+  webCheckInEnabled    Boolean @default(false)  // allow punches from the browser (GPS + geofence audit still recorded)
+
   bankName       String?
   bankAccountNo  String?
   bankIfscCode   String?
