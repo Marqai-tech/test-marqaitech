@@ -29,12 +29,12 @@ const EMPLOYEE_SELECT = {
   mobileCheckInEnabled: true,
   webCheckInEnabled: true,
   department: { select: { name: true } },
-  designation: { select: { name: true } },
+  designation: { select: { title: true } },
 } as const;
 
 function shapeRow(emp: Record<string, unknown>) {
   const department = emp.department as { name?: string } | null | undefined;
-  const designation = emp.designation as { name?: string } | null | undefined;
+  const designation = emp.designation as { title?: string } | null | undefined;
   return {
     id: emp.id,
     employeeId: emp.employeeId,
@@ -43,7 +43,7 @@ function shapeRow(emp: Record<string, unknown>) {
     email: emp.email,
     status: emp.status,
     department: department?.name || null,
-    designation: designation?.name || null,
+    designation: designation?.title || null,
     // Boolean-normalized: a DB without the new columns yields undefined →
     // false, so the UI shows the safe (disabled) state.
     wfhPreApproved: emp.wfhPreApproved === true,
