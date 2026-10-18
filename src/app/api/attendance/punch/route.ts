@@ -541,7 +541,11 @@ export async function POST(request: NextRequest) {
       const refreshed = await db.attendance.findUnique({ where: { id: attendance.id } });
       if (refreshed?.checkIn && refreshed?.checkOut) {
         const breakPolicy = await loadAttendanceBreakPolicy(db);
-        const canFinalize = attendanceLocalMinutes(refreshed.checkOut) >= breakPolicy.shiftEndMinutes;
+        // BUG_069 fix (manual route): Always calculate workHours when both
+        // checkIn + checkOut exist, regardless of current server time.
+        // Previously gated by `canFinalize` (current time >= 6:30 PM), which
+        // meant early checkouts got workHours = null → dashboard showed
+        // "Present" instead of "Below 8 hours — regularization required".
         const spanMs = refreshed.checkOut.getTime() - refreshed.checkIn.getTime();
         const spanMinutes = Math.max(0, Math.round(spanMs / 60000));
         const breakMinutes = effectiveBreakMinutes(refreshed.breakIn, refreshed.breakOut, refreshed.checkIn, refreshed.checkOut, breakPolicy);
@@ -552,19 +556,23 @@ export async function POST(request: NextRequest) {
         const otMinutes = Math.max(0, workMinutes - 480);
         const overtime = Math.round((otMinutes / 60) * 100) / 100;
         const preservedHalfDay = attendance.status === 'half_day';
+        const fourthLate = (attendance.notes || '').includes('Fourth late arrival');
+        const lowProduction = workHours < 8;
+        const combinedNotes = [
+          fourthLate ? 'Fourth late arrival this month: attendance automatically marked Half-Day.' : '',
+          lowProduction ? 'Net working time is below the required 8 hours. Apply Attendance Regularization for full-day correction.' : '',
+        ].filter(Boolean).join(' ');
         await db.attendance.update({
           where: { id: attendance.id },
           data: {
-            workHours: canFinalize ? workHours : null,
+            workHours: workHours,
             breakMinutes,
-            overtime: canFinalize ? overtime : 0,
-            status: canFinalize && workHours < 8 ? 'half_day' : (preservedHalfDay ? 'half_day' : attendance.status),
-            notes: canFinalize && workHours < 8
-              ? 'Net working time is below the required 8 hours. Apply Attendance Regularization for full-day correction.'
-              : attendance.notes,
+            overtime,
+            status: workHours < 8 ? 'half_day' : (preservedHalfDay ? 'half_day' : attendance.status),
+            notes: combinedNotes || attendance.notes,
           },
         });
-        attendance = { ...attendance, workHours: canFinalize ? workHours : null, breakMinutes, overtime: canFinalize ? overtime : 0 };
+        attendance = { ...attendance, workHours, breakMinutes, overtime };
       }
     }
 
