@@ -320,6 +320,7 @@ export default function AttendancePage() {
   const [weekendDow, setWeekendDow] = useState<number[]>([0, 6]); // Sun + Sat default
   const [shiftStartMinutes, setShiftStartMinutes] = useState(600); // 10:00 company late cutoff
   const [breakPolicy, setBreakPolicy] = useState<DashboardBreakPolicy>(DEFAULT_DASHBOARD_BREAK_POLICY);
+  const [appCheckinDisabled, setAppCheckinDisabled] = useState(false);
   const [approvedLeaves, setApprovedLeaves] = useState<Array<{ employeeId: string; startDate: string; endDate: string }>>([]);
 
   /* ── Self view state ── */
@@ -469,6 +470,8 @@ export default function AttendancePage() {
           endMinutes: parsePolicyTime(cfg.breakEndTime, DEFAULT_DASHBOARD_BREAK_POLICY.endMinutes),
           allowanceMinutes: Number(cfg.breakDurationMinutes) || DEFAULT_DASHBOARD_BREAK_POLICY.allowanceMinutes,
         });
+        // BUG_071: Check if app check-in is disabled for this tenant
+        setAppCheckinDisabled(Boolean(cfg.disableAppCheckin));
         if (Array.isArray(d.weekendDays) && d.weekendDays.length > 0) {
           setWeekendDow(d.weekendDays.map((n: number) => Number(n)));
         }
@@ -1034,18 +1037,21 @@ export default function AttendancePage() {
             {seeding ? 'Seeding...' : 'Seed Sample Data'}
           </button>
           )}
-          {/* Check In / Out buttons — always available */}
+          {/* Check In / Out buttons — Check-In disabled when biometric-only mode */}
           <button
             onClick={handleCheckIn}
-            disabled={checkingIn || isCheckedIn}
+            disabled={checkingIn || isCheckedIn || appCheckinDisabled}
+            title={appCheckinDisabled ? 'Check-in via biometric device only' : ''}
             className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all ${
-              isCheckedIn
+              appCheckinDisabled
+                ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
+                : isCheckedIn
                 ? 'bg-emerald-50 text-emerald-600 border border-emerald-200 cursor-default'
                 : 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-sm shadow-emerald-500/25 hover:shadow-md'
             }`}
           >
             <FiLogIn className="w-4 h-4" />
-            {checkingIn ? 'Checking...' : isCheckedIn ? '✓ Checked In' : 'Check In'}
+            {checkingIn ? 'Checking...' : isCheckedIn ? '✓ Checked In' : appCheckinDisabled ? 'Biometric Only' : 'Check In'}
           </button>
           <button
             onClick={handleCheckOut}
