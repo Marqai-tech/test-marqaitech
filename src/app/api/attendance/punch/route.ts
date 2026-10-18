@@ -500,8 +500,21 @@ export async function POST(request: NextRequest) {
       attUpdate.checkInGpsAccuracy = gpsAccuracy;
       attUpdate.checkInGpsLabel = gpsLabel;
       attUpdate.location = gpsLabel || (gpsLat != null ? `${gpsLat.toFixed(6)},${gpsLng!.toFixed(6)}` : null);
-      const graceCutoff = 10 * 60;
+      // HRMS_BUG_072: Late threshold MUST come from the AttendancePolicyConfig
+      // row the admin saved via the Settings UI — not a hardcoded clock time.
+      // cutoff = shiftStartMinutes + lateGraceMinutes (e.g. 09:30 + 30 = 10:00).
+      // Falls back to 10:00 AM only if the policy load fails.
+      let rulePolicy: { shiftStartMinutes: number; lateGraceMinutes: number; lateMarkAllowancePerMonth: number; lateMarkHalfDayOnExceed: boolean } | null = null;
+      try {
+        const { loadAttendanceRulePolicy } = await import('@/lib/attendance-break-rules');
+        rulePolicy = await loadAttendanceRulePolicy(db);
+      } catch { /* keep null — fallback below */ }
+      const shiftStartMin = rulePolicy?.shiftStartMinutes ?? 570;            // 09:30 default
+      const graceMin = rulePolicy?.lateGraceMinutes ?? 30;                   // 30 min default
+      const graceCutoff = shiftStartMin + graceMin;
       const late = localMinutes !== null && localMinutes > graceCutoff;
+      const allowancePerMonth = rulePolicy?.lateMarkAllowancePerMonth ?? 4;  // 4 default
+      const halfDayOnExceed = rulePolicy?.lateMarkHalfDayOnExceed ?? true;
       let monthlyLateCount = 0;
       if (late) {
         const monthStart = new Date(`${date.slice(0, 7)}-01T00:00:00`);
@@ -509,8 +522,13 @@ export async function POST(request: NextRequest) {
         nextMonth.setMonth(nextMonth.getMonth() + 1);
         monthlyLateCount = await db.attendance.count({ where: { employeeId, date: { gte: monthStart, lt: nextMonth }, status: 'late' } }).catch(() => 0);
       }
-      attUpdate.status = late && monthlyLateCount >= 3 ? 'half_day' : late ? 'late' : 'present';
-      if (late && monthlyLateCount >= 3) attUpdate.notes = 'Fourth late arrival this month: attendance automatically marked Half-Day.';
+      // Threshold: when prior lates reach allowance-1, the current late is the
+      // allowance-th one → half-day. (Matches existing legacy-route behaviour
+      // and the Settings UI field description.)
+      const halfDayThreshold = Math.max(1, allowancePerMonth - 1);
+      const triggerHalfDay = late && halfDayOnExceed && monthlyLateCount >= halfDayThreshold;
+      attUpdate.status = triggerHalfDay ? 'half_day' : late ? 'late' : 'present';
+      if (triggerHalfDay) attUpdate.notes = `Late-mark allowance (${allowancePerMonth}/month) exceeded: attendance automatically marked Half-Day.`;
     } else if (action === 'checkout') {
       attUpdate.checkOut = timestamp;
       attUpdate.checkOutGpsLat = gpsLat;
@@ -578,10 +596,10 @@ export async function POST(request: NextRequest) {
         const otMinutes = Math.max(0, workMinutes - 480);
         const overtime = Math.round((otMinutes / 60) * 100) / 100;
         const preservedHalfDay = attendance.status === 'half_day';
-        const fourthLate = (attendance.notes || '').includes('Fourth late arrival');
+        const lateAllowanceTriggered = (attendance.notes || '').includes('Late-mark allowance');
         const lowProduction = workHours < 8;
         const combinedNotes = [
-          fourthLate ? 'Fourth late arrival this month: attendance automatically marked Half-Day.' : '',
+          lateAllowanceTriggered ? `Late-mark allowance exceeded: attendance automatically marked Half-Day.` : '',
           lowProduction ? 'Net working time is below the required 8 hours. Apply Attendance Regularization for full-day correction.' : '',
         ].filter(Boolean).join(' ');
         await db.attendance.update({
@@ -631,7 +649,7 @@ export async function POST(request: NextRequest) {
             await sendEmail({
               to: emailRecipients,
               subject: `Attendance action required: half-day on ${date}`,
-              html: `<p>Attendance for ${date} has been marked half-day for ${employee.firstName} ${employee.lastName}.</p><p>This may be due to the fourth late arrival of the month or production time below eight hours. Please submit regularization for HR approval.</p>`,
+              html: `<p>Attendance for ${date} has been marked half-day for ${employee.firstName} ${employee.lastName}.</p><p>This may be due to exceeding the monthly late-mark allowance or production time below eight hours. Please submit regularization for HR approval.</p>`,
             });
           }
         } catch (notificationError) {

@@ -318,6 +318,20 @@ export async function syncETimeOfficePunches(db: PrismaClient, tenantId: string)
       const breakIn = firstBreak?.start || existingAttendance?.breakIn || null;
       const breakOut = firstBreak?.end || existingAttendance?.breakOut || null;
       const breakPolicy = await loadAttendanceBreakPolicy(tx);
+      // HRMS_BUG_072: Late threshold comes from AttendancePolicyConfig (via
+      // loadAttendanceRulePolicy) — not a hardcoded 10:00 AM. Same source the
+      // live /api/attendance/punch route uses, so biometric sync and app
+      // punches agree on what "late" means.
+      let rulePolicy: { shiftStartMinutes: number; lateGraceMinutes: number; lateMarkAllowancePerMonth: number; lateMarkHalfDayOnExceed: boolean } | null = null;
+      try {
+        const { loadAttendanceRulePolicy } = await import('@/lib/attendance-break-rules');
+        rulePolicy = await loadAttendanceRulePolicy(tx);
+      } catch { /* keep null — fallback below */ }
+      const lateCutoffMinutes = (rulePolicy?.shiftStartMinutes ?? 570)   // 09:30 default
+        + (rulePolicy?.lateGraceMinutes ?? 30);                          // 30 min default
+      const allowancePerMonth = rulePolicy?.lateMarkAllowancePerMonth ?? 4;
+      const halfDayOnExceed = rulePolicy?.lateMarkHalfDayOnExceed ?? true;
+      const halfDayThreshold = Math.max(1, allowancePerMonth - 1);
       const breakMinutes = checkIn && checkOut
         ? effectiveBreakMinutes(breakIn, breakOut, checkIn, checkOut, breakPolicy)
         : existingAttendance?.breakMinutes || 0;
@@ -352,12 +366,15 @@ export async function syncETimeOfficePunches(db: PrismaClient, tenantId: string)
           },
           select: { checkIn: true },
         });
-        const isLate = localMinutesFor(checkIn, timeZone) > 10 * 60;
-        const previousLateCount = previousCheckIns.filter(row => row.checkIn && localMinutesFor(row.checkIn, timeZone) > 10 * 60).length;
+        const isLate = localMinutesFor(checkIn, timeZone) > lateCutoffMinutes;
+        const previousLateCount = previousCheckIns.filter(row => row.checkIn && localMinutesFor(row.checkIn, timeZone) > lateCutoffMinutes).length;
         // BUG_069 fix: use workHours directly (not canFinalize) to determine
         // half_day status. If workHours < 8, flag as half_day regardless of
         // when the employee checked out.
-        attendanceStatus = (existingAttendance?.status === 'half_day' || (workHours !== null && workHours < 8) || (isLate && previousLateCount >= 3))
+        // HRMS_BUG_072: half-day threshold now reads lateMarkAllowancePerMonth
+        // from AttendancePolicyConfig (was hardcoded >= 3).
+        const triggerLateHalfDay = isLate && halfDayOnExceed && previousLateCount >= halfDayThreshold;
+        attendanceStatus = (existingAttendance?.status === 'half_day' || (workHours !== null && workHours < 8) || triggerLateHalfDay)
           ? 'half_day'
           : isLate ? 'late' : 'present';
       }
