@@ -48,15 +48,36 @@ export async function GET(request: Request) {
       );
     }
 
-    // Only employees (scope 'self') use this endpoint. Managers and admins
-    // have their own dashboards. If an admin calls it, scope.ownEmployeeId
-    // is null and we return a 404 rather than fabricate data.
+    // Only 'self'-scope users resolve through resolveCompanyScope; admins
+    // get a best-effort self lookup below (Task 107).
     const employeeId: string | null = scope.ownEmployeeId;
     const companyId: string | null = scope.ownCompanyId;
 
-    // If the user is an admin without an Employee row, we cannot compute
+    // Task 107: admin roles (scope 'all') skip the employee lookup inside
+    // resolveCompanyScope for performance — but tenant admins / HR heads
+    // often ARE linked to an Employee row (e.g. hr@marqaitech.com). Do a
+    // best-effort lookup so their personal summary + mobile punch identity
+    // resolve; only 404 when no linked row exists.
+    let effectiveEmployeeId = employeeId;
+    let effectiveCompanyId = companyId;
+    if (!effectiveEmployeeId && scope.scope === 'all' && scope.userId) {
+      try {
+        const selfEmp = await db.employee.findFirst({
+          where: { userId: scope.userId, status: 'active' },
+          select: { id: true, companyId: true },
+        });
+        if (selfEmp) {
+          effectiveEmployeeId = selfEmp.id;
+          effectiveCompanyId = selfEmp.companyId || effectiveCompanyId;
+        }
+      } catch (e) {
+        console.error('[my-summary] admin self-employee lookup failed:', e);
+      }
+    }
+
+    // If the user has no Employee row at all, we cannot compute
     // a personal attendance summary — return 404 with a clear message.
-    if (!employeeId) {
+    if (!effectiveEmployeeId) {
       return NextResponse.json(
         {
           error: 'No active employee record found for the logged-in user.',
@@ -75,8 +96,8 @@ export async function GET(request: Request) {
 
     const summary = await computeMyAttendanceSummary({
       db,
-      employeeId,
-      companyId,
+      employeeId: effectiveEmployeeId,
+      companyId: effectiveCompanyId,
       tenantId: scope.tenantId,
       month: monthParam,
     });
@@ -86,7 +107,7 @@ export async function GET(request: Request) {
     // /api/attendance/punch) without a second lookup.
     try {
       const emp = await db.employee.findUnique({
-        where: { id: employeeId },
+        where: { id: effectiveEmployeeId },
         select: { id: true, firstName: true, lastName: true, employeeId: true, email: true },
       });
       if (emp) (summary as Record<string, unknown>).employee = emp;

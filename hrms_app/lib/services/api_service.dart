@@ -298,6 +298,34 @@ class ApiService {
     throw Exception(data['error'] ?? 'No employee profile linked to this account');
   }
 
+  /// Canonical resolver for "which employee row belongs to the signed-in
+  /// account". Order: (1) /attendance/my-summary (server now resolves linked
+  /// admins too), (2) email match from the employee directory. Returns null
+  /// when the account genuinely has no employee profile — callers show a
+  /// friendly explanation instead of a raw error (Task 107).
+  static Future<String?> resolveOwnEmployeeId() async {
+    try {
+      final s = await getMySummary();
+      final id = (s['employee']?['id'] ?? s['employeeId'])?.toString();
+      if (id != null && id.isNotEmpty) return id;
+    } catch (_) {/* fall through to directory match */}
+    try {
+      final userData = StorageService.getUserData();
+      if (userData == null) return null;
+      final email = (jsonDecode(userData)['email'] ?? '').toString().toLowerCase();
+      if (email.isEmpty) return null;
+      final data = await getEmployees(limit: 200, search: email);
+      final list = (data['employees'] ?? data['data'] ?? []) as List;
+      for (final e in list) {
+        if (e is Map && (e['email'] ?? '').toString().toLowerCase() == email) {
+          final id = e['id']?.toString();
+          if (id != null && id.isNotEmpty) return id;
+        }
+      }
+    } catch (_) {/* unresolved */}
+    return null;
+  }
+
   /// GPS coordinates captured on the device for an attendance punch.
   /// The server stores lat/lng/accuracy on the Attendance row and the
   /// PunchEvent audit trail, and enforces the tenant's office geofence.

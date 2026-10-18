@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../config/colors.dart';
 import '../../providers/auth_provider.dart';
+import '../../widgets/maan_avatar.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -23,15 +24,19 @@ class ProfileScreen extends StatelessWidget {
               child: Column(
                 children: [
                   Container(
-                    width: 80, height: 80,
+                    width: 84, height: 84,
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(42),
                     ),
                     child: Center(
-                      child: Text(user?.initials ?? '?', style: const TextStyle(
-                        color: Colors.white, fontSize: 32, fontWeight: FontWeight.w700,
-                      )),
+                      child: MaanAvatar(
+                        avatar: user?.avatar,
+                        name: user?.displayName ?? 'User',
+                        radius: 40,
+                        bgColor: Colors.white,
+                        textColor: AppColors.primary,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 16),

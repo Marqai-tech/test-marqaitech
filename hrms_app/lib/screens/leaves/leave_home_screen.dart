@@ -323,8 +323,9 @@ class _ApplyLeaveSheetState extends State<_ApplyLeaveSheet> {
     try {
       String? employeeId = _employeeId;
       if (employeeId == null && !widget.canPickEmployee) {
-        final summary = await ApiService.getMySummary();
-        employeeId = (summary['employee']?['id'] ?? summary['employeeId'])?.toString();
+        // Canonical resolver: my-summary (admins linked to an employee row now
+        // resolve server-side) then directory email match (Task 107).
+        employeeId = await ApiService.resolveOwnEmployeeId();
       }
       if (employeeId == null || employeeId.isEmpty) {
         throw Exception('Could not resolve the employee record for this account');

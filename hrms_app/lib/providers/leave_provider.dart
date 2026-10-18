@@ -25,7 +25,14 @@ class LeaveProvider extends ChangeNotifier {
     try {
       final data = await ApiService.getLeaves(status: _statusFilter.isNotEmpty ? _statusFilter : null);
       final List items = data['leaves'] ?? data['data'] ?? data['items'] ?? [];
-      _leaves = items.map((e) => LeaveModel.fromJson(e)).toList();
+      // Per-row tolerance: one malformed row must not blank the list (Task 107).
+      final parsed = <LeaveModel>[];
+      for (final e in items) {
+        try {
+          if (e is Map<String, dynamic>) parsed.add(LeaveModel.fromJson(e));
+        } catch (_) {/* skip bad row */}
+      }
+      _leaves = parsed;
       _updateSummary();
     } catch (e) {
       _error = e.toString().replaceAll('Exception: ', '');

@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
@@ -7,7 +6,6 @@ import '../../config/maan_theme.dart';
 import '../../models/attendance.dart';
 import '../../providers/attendance_provider.dart';
 import '../../services/api_service.dart';
-import '../../services/storage_service.dart';
 
 /// Attendance module — punch in/out + today's summary + history from /api/attendance.
 class AttendanceHomeScreen extends StatelessWidget {
@@ -44,46 +42,25 @@ class _AttendanceBodyState extends State<_AttendanceBody> {
   }
 
   Future<void> _loadSummary() async {
-    try {
-      final s = await ApiService.getMySummary();
+    // Canonical identity resolution: my-summary first (the server now
+    // resolves linked admin accounts too), then directory email match.
+    final id = await ApiService.resolveOwnEmployeeId();
+    if (!mounted) return;
+    if (id != null) {
       setState(() {
-        _summary = s;
+        _employeeId = id;
         _summaryError = null;
-        _employeeId = (s['employee']?['id'] ?? s['employeeId'])?.toString();
       });
-    } catch (e) {
+      try {
+        final s = await ApiService.getMySummary();
+        if (!mounted) return;
+        setState(() => _summary = s);
+      } catch (_) {/* summary stays null — card shows placeholder */}
+    } else {
       setState(() {
         _summary = null;
-        _summaryError = e.toString().replaceAll('Exception: ', '');
+        _summaryError = null; // not an error: account has no employee profile
       });
-      // Admin/HR accounts have no "self" employee scope (resolveCompanyScope
-      // returns ownEmployeeId = null for scope 'all'), but their user account
-      // is usually linked to an Employee row. Resolve it by email so GPS
-      // check-in works for them too — the punch API permits admin punches.
-      await _resolveEmployeeByEmail();
-    }
-  }
-
-  Future<void> _resolveEmployeeByEmail() async {
-    try {
-      final userData = StorageService.getUserData();
-      if (userData == null) return;
-      final email = (jsonDecode(userData)['email'] ?? '').toString().toLowerCase();
-      if (email.isEmpty) return;
-      final data = await ApiService.getEmployees(limit: 200, search: email);
-      final list = (data['employees'] ?? data['data'] ?? []) as List;
-      for (final e in list) {
-        if ((e['email'] ?? '').toString().toLowerCase() == email) {
-          if (!mounted) return;
-          setState(() {
-            _employeeId = e['id'].toString();
-            _summaryError = null;
-          });
-          return;
-        }
-      }
-    } catch (_) {
-      // leave unresolved — the punch button explains itself
     }
   }
 

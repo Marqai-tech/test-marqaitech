@@ -35,17 +35,34 @@ class AttendanceModel {
 
   factory AttendanceModel.fromJson(Map<String, dynamic> json) {
     double? _d(v) => v == null ? null : double.tryParse(v.toString());
+    String? _coerceText(Object? v) {
+      if (v == null) return null;
+      if (v is String) return v.isEmpty ? null : v;
+      return v.toString();
+    }
+    // Nested employee can be {firstName,lastName} (LIVE) or {name} (demo).
+    String? _empName() {
+      final e = json['employee'];
+      if (e is Map) {
+        final fl = '${e['firstName'] ?? ''} ${e['lastName'] ?? ''}'.trim();
+        if (fl.isNotEmpty) return fl;
+        if (e['name'] is String && (e['name'] as String).isNotEmpty) return e['name'] as String;
+      }
+      final direct = json['employeeName'];
+      return direct is String && direct.isNotEmpty ? direct : null;
+    }
+
     return AttendanceModel(
       id: json['id'] ?? '',
       employeeId: json['employeeId'],
-      employeeName: json['employeeName'] ?? json['employee']?['name'],
+      employeeName: _empName(),
       date: DateTime.tryParse(json['date']?.toString() ?? '') ?? DateTime.now(),
       status: json['status'] ?? 'PRESENT',
       checkIn: json['checkIn'] != null ? DateTime.tryParse(json['checkIn'].toString()) : null,
       checkOut: json['checkOut'] != null ? DateTime.tryParse(json['checkOut'].toString()) : null,
-      totalHours: json['totalHours'] ?? json['workingHours'],
-      remarks: json['remarks'],
-      location: json['location'],
+      totalHours: _coerceText(json['workHours'] ?? json['totalHours'] ?? json['workingHours']),
+      remarks: _coerceText(json['remarks'] ?? json['notes']),
+      location: _coerceText(json['location']),
       checkInGpsLat: _d(json['checkInGpsLat']),
       checkInGpsLng: _d(json['checkInGpsLng']),
       checkOutGpsLat: _d(json['checkOutGpsLat']),

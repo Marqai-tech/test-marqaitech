@@ -27,6 +27,11 @@ android {
         // flag during build.
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        // arm64-only deliverable (device coverage + disk-constrained CI build):
+        // skip native plugin compilation for armeabi-v7a / x86 / x86_64.
+        ndk {
+            abiFilters += listOf("arm64-v8a")
+        }
     }
 
     buildTypes {

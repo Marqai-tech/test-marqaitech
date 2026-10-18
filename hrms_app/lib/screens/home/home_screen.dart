@@ -7,6 +7,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/employee_provider.dart';
 import '../../services/api_service.dart';
 import '../../services/storage_service.dart';
+import '../../widgets/maan_avatar.dart';
 
 /// Home dashboard — LIVE stats from the web APIs + the 4 core modules.
 class HomeScreen extends StatefulWidget {
@@ -44,28 +45,37 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _refreshStats() async {
     setState(() { _loading = true; _error = null; });
-    try {
-      int employees = 0, pendingLeaves = 0, presentToday = 0, payrolls = 0;
-      final results = await Future.wait([
-        ApiService.getEmployees(limit: 1),
-        ApiService.getLeaves(status: 'pending'),
-        ApiService.getAttendance(date: _today()),
-        ApiService.getPayrolls(limit: 1),
-      ]);
-      employees = (results[0]['pagination']?['total'] ?? (results[0]['employees'] as List?)?.length ?? 0) as int;
-      pendingLeaves = (results[1]['pagination']?['total'] ?? (results[1]['data'] as List?)?.length ?? 0) as int;
-      presentToday = (results[2]['attendance'] as List?)?.where((a) => a['status'] == 'present').length ?? 0;
-      payrolls = (results[3]['pagination']?['total'] ?? (results[3]['payrolls'] as List?)?.length ?? 0) as int;
-      if (mounted) {
-        setState(() {
-          _stats = {'employees': employees, 'pendingLeaves': pendingLeaves, 'presentToday': presentToday, 'payrolls': payrolls};
-          _loading = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() { _error = e.toString().replaceAll('Exception: ', ''); _loading = false; });
-      }
+    // Independent per-metric loads: one failing endpoint must not blank the
+    // whole stats card (Task 107 robustness contract).
+    int employees = 0, pendingLeaves = 0, presentToday = 0, payrolls = 0;
+    Future<void> safe(Future<int> Function() f, void Function(int) set) async {
+      try {
+        set(await f());
+      } catch (_) {/* metric stays at fallback */}
+    }
+    await Future.wait([
+      safe(() async {
+        final r = await ApiService.getEmployees(limit: 1);
+        return ((r['pagination']?['total'] ?? (r['employees'] as List?)?.length ?? 0) as num).toInt();
+      }, (v) => employees = v),
+      safe(() async {
+        final r = await ApiService.getLeaves(status: 'pending');
+        return ((r['pagination']?['total'] ?? (r['data'] as List?)?.length ?? 0) as num).toInt();
+      }, (v) => pendingLeaves = v),
+      safe(() async {
+        final r = await ApiService.getAttendance(date: _today());
+        return ((r['attendance'] as List?)?.where((a) => a is Map && a['status'] == 'present').length ?? 0);
+      }, (v) => presentToday = v),
+      safe(() async {
+        final r = await ApiService.getPayrolls(limit: 1);
+        return ((r['pagination']?['total'] ?? (r['payrolls'] as List?)?.length ?? 0) as num).toInt();
+      }, (v) => payrolls = v),
+    ]);
+    if (mounted) {
+      setState(() {
+        _stats = {'employees': employees, 'pendingLeaves': pendingLeaves, 'presentToday': presentToday, 'payrolls': payrolls};
+        _loading = false;
+      });
     }
   }
 
@@ -107,6 +117,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                   ),
+                  const SizedBox(width: 12),
+                  MaanAvatar(avatar: _me?.avatar, name: name, radius: 21, bgColor: Colors.white, textColor: MaanColors.primary),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
