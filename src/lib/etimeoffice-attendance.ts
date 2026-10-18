@@ -12,6 +12,16 @@ export type TimedPunch = { id: string; punchTime: Date };
  * Classify a complete employee day from chronologically ordered biometric
  * punches. Scans within the configured window of the previous accepted scan
  * remain in the audit log but do not affect attendance calculations.
+ *
+ * BUG_068 fix: The first biometric punch is ALWAYS classified as 'check_in',
+ * regardless of whether a manual (app) check-in already exists. The biometric
+ * device is the source of truth for physical check-in — the first scan of the
+ * day IS a check-in event. Previously, when manualCheckIn was true, ALL
+ * biometric punches were classified as 'check_out', which caused the Punches
+ * tab to show no check-in for employees who checked in via the app before the
+ * sync ran. The Attendance table was still correct (the sync prefers
+ * existingAttendance.checkIn via || short-circuit), but the BiometricPunch
+ * table's punchType column was wrong — and that's what the Punches tab reads.
  */
 export function classifyBiometricDay<T extends TimedPunch>(
   punches: T[],
@@ -33,7 +43,13 @@ export function classifyBiometricDay<T extends TimedPunch>(
   }
 
   for (const [index, punch] of accepted.entries()) {
-    if (index === 0 && !options.manualCheckIn) {
+    if (index === 0) {
+      // BUG_068 fix: ALWAYS classify the first biometric punch as check_in.
+      // The biometric device is the source of truth for physical check-in.
+      // The manualCheckIn flag is no longer used to skip this classification.
+      // The sync layer still prefers existingAttendance.checkIn for the
+      // Attendance table (via || short-circuit), so this only fixes the
+      // BiometricPunch.punchType column that the Punches tab reads.
       classifications.set(punch.id, 'check_in');
       continue;
     }
