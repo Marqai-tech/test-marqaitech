@@ -320,6 +320,7 @@ export default function AttendancePage() {
   const [weekendDow, setWeekendDow] = useState<number[]>([0, 6]); // Sun + Sat default
   const [shiftStartMinutes, setShiftStartMinutes] = useState(600); // 10:00 company late cutoff
   const [breakPolicy, setBreakPolicy] = useState<DashboardBreakPolicy>(DEFAULT_DASHBOARD_BREAK_POLICY);
+  const [appCheckinDisabled, setAppCheckinDisabled] = useState(false);
   const [approvedLeaves, setApprovedLeaves] = useState<Array<{ employeeId: string; startDate: string; endDate: string }>>([]);
 
   /* ── Self view state ── */
@@ -469,6 +470,8 @@ export default function AttendancePage() {
           endMinutes: parsePolicyTime(cfg.breakEndTime, DEFAULT_DASHBOARD_BREAK_POLICY.endMinutes),
           allowanceMinutes: Number(cfg.breakDurationMinutes) || DEFAULT_DASHBOARD_BREAK_POLICY.allowanceMinutes,
         });
+        // BUG_071: Check if app check-in is disabled for this tenant
+        setAppCheckinDisabled(Boolean(cfg.disableAppCheckin));
         if (Array.isArray(d.weekendDays) && d.weekendDays.length > 0) {
           setWeekendDow(d.weekendDays.map((n: number) => Number(n)));
         }

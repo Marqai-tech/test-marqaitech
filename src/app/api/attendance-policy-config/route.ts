@@ -218,8 +218,6 @@ export async function PUT(request: Request) {
       attendanceRuleScope: (body.attendanceRuleScope as string) || existing?.attendanceRuleScope || 'all_tenants',
       // BUG_071: Disable App Check-In (biometric-only mode)
       disableAppCheckin: body.disableAppCheckin !== undefined ? !!body.disableAppCheckin : existing?.disableAppCheckin ?? false,
-      // BUG_073: Disable App Check-Out (biometric-only mode)
-      disableAppCheckout: body.disableAppCheckout !== undefined ? !!body.disableAppCheckout : existing?.disableAppCheckout ?? false,
       // Gate Pass Policy
       gatePassMaxPerMonth: body.gatePassMaxPerMonth !== undefined ? Number(body.gatePassMaxPerMonth) : existing?.gatePassMaxPerMonth ?? 1,
       gatePassHalfDayOnExceed: body.gatePassHalfDayOnExceed !== undefined ? !!body.gatePassHalfDayOnExceed : existing?.gatePassHalfDayOnExceed ?? true,
