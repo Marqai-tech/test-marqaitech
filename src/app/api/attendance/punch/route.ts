@@ -6,6 +6,7 @@ import { resolveCompanyScope } from '@/lib/companyScope';
 import { safeAuditLog } from '@/lib/audit-safe';
 import { sendEmail } from '@/lib/email';
 import { attendanceLocalMinutes, effectiveBreakMinutes, loadAttendanceBreakPolicy } from '@/lib/attendance-break-rules';
+import { ensureEmployeeRemoteColumns } from '@/lib/employee-remote-columns';
 
 /**
  * POST /api/attendance/punch
@@ -237,6 +238,9 @@ export async function POST(request: NextRequest) {
     // Ensure schema is up-to-date (idempotent ALTERs)
     await ensureAttendanceColumns(db);
     await ensurePunchEventTable(db);
+    // Task 108: tenant DBs may lack the Employee remote check-in columns —
+    // create them before the employee lookup reads the flags.
+    await ensureEmployeeRemoteColumns(db);
 
     // Verify employee exists + scope-permit
     const employee = await db.employee.findUnique({

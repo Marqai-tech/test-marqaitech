@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/tenant-db';
 import { resolveCompanyScope } from '@/lib/companyScope';
 import { computeMyAttendanceSummary } from '@/lib/attendance-summary';
+import { ensureEmployeeRemoteColumns } from '@/lib/employee-remote-columns';
 
 function corsHeaders() {
   return {
@@ -108,6 +109,7 @@ export async function GET(request: Request) {
     // Task 108: also expose the remote check-in pre-approval flags so the
     // web + mobile UIs can hide the punch options when they are not enabled.
     try {
+      await ensureEmployeeRemoteColumns(db);
       const emp = await db.employee.findUnique({
         where: { id: effectiveEmployeeId },
         select: {

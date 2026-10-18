@@ -15,6 +15,7 @@
 import { requireUser, isAdminRole, parseBody, ok, fail, OPTIONS } from '@/lib/attendance-leave-api';
 import { getDb } from '@/lib/tenant-db';
 import { safeAuditLog } from '@/lib/audit-safe';
+import { ensureEmployeeRemoteColumns } from '@/lib/employee-remote-columns';
 
 export { OPTIONS };
 
@@ -58,6 +59,9 @@ export async function GET(request: Request) {
   if (!user) return response;
   if (!isAdminRole(user.role)) return fail('Admin only', 403);
   try {
+    // Tenant DBs are provisioned without the Task 108 columns — create them
+    // on first use (idempotent, cached per client).
+    await ensureEmployeeRemoteColumns(db);
     const employees = await db.employee.findMany({
       where: { status: 'active' },
       select: EMPLOYEE_SELECT,
@@ -75,7 +79,7 @@ export async function GET(request: Request) {
           where: { status: 'active' },
           select: {
             id: true, employeeId: true, firstName: true, lastName: true, email: true, status: true,
-            department: { select: { name: true } }, designation: { select: { name: true } },
+            department: { select: { name: true } }, designation: { select: { title: true } },
           },
           orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }],
           take: 1000,
@@ -102,6 +106,7 @@ export async function PATCH(request: Request) {
   const body = await parseBody(request);
   if (!body) return fail('Invalid JSON');
   try {
+    await ensureEmployeeRemoteColumns(db);
     const employeeId = typeof body.employeeId === 'string' ? body.employeeId.trim() : '';
     if (!employeeId) return fail('employeeId is required', 422);
 
