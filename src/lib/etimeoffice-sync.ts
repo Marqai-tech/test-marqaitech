@@ -296,7 +296,13 @@ export async function syncETimeOfficePunches(db: PrismaClient, tenantId: string)
         ? effectiveBreakMinutes(breakIn, breakOut, checkIn, checkOut, breakPolicy)
         : existingAttendance?.breakMinutes || 0;
       const canFinalize = Boolean(checkOut && localMinutesFor(checkOut, timeZone) >= breakPolicy.shiftEndMinutes);
-      const workHours = canFinalize && checkIn && checkOut && checkOut > checkIn
+      // BUG_069 fix: Always calculate workHours when both checkIn and checkOut
+      // exist, regardless of whether the employee checked out before or after
+      // the shift end time (6:30 PM). Previously, workHours was only calculated
+      // when canFinalize was true (checkout >= 6:30 PM), which meant early
+      // checkouts got workHours = null → dashboard showed "Present" instead of
+      // "Below 8 hours — regularization required".
+      const workHours = checkIn && checkOut && checkOut > checkIn
         ? Number((Math.max(0, (checkOut.getTime() - checkIn.getTime()) / 60_000 - breakMinutes) / 60).toFixed(2))
         : null;
       let attendanceStatus = existingAttendance?.status || 'present';
@@ -322,7 +328,10 @@ export async function syncETimeOfficePunches(db: PrismaClient, tenantId: string)
         });
         const isLate = localMinutesFor(checkIn, timeZone) > 10 * 60;
         const previousLateCount = previousCheckIns.filter(row => row.checkIn && localMinutesFor(row.checkIn, timeZone) > 10 * 60).length;
-        attendanceStatus = (existingAttendance?.status === 'half_day' || (canFinalize && workHours !== null && workHours < 8) || (isLate && previousLateCount >= 3))
+        // BUG_069 fix: use workHours directly (not canFinalize) to determine
+        // half_day status. If workHours < 8, flag as half_day regardless of
+        // when the employee checked out.
+        attendanceStatus = (existingAttendance?.status === 'half_day' || (workHours !== null && workHours < 8) || (isLate && previousLateCount >= 3))
           ? 'half_day'
           : isLate ? 'late' : 'present';
       }
