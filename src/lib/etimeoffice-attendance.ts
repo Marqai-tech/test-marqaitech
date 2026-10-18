@@ -43,13 +43,10 @@ export function classifyBiometricDay<T extends TimedPunch>(
   }
 
   for (const [index, punch] of accepted.entries()) {
-    if (index === 0) {
-      // BUG_068 fix: ALWAYS classify the first biometric punch as check_in.
-      // The biometric device is the source of truth for physical check-in.
-      // The manualCheckIn flag is no longer used to skip this classification.
-      // The sync layer still prefers existingAttendance.checkIn for the
-      // Attendance table (via || short-circuit), so this only fixes the
-      // BiometricPunch.punchType column that the Punches tab reads.
+    if (index === 0 && !options.manualCheckIn) {
+      // BUG_068 fix: First biometric punch = check_in, UNLESS the employee
+      // already has a manual (app) check_in. In that case, ALL biometric
+      // punches are check_out (the employee already checked in via the app).
       classifications.set(punch.id, 'check_in');
       continue;
     }
