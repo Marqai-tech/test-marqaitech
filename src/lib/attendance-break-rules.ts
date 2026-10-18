@@ -63,20 +63,8 @@ export function effectiveBreakMinutes(breakIn: Date | null, breakOut: Date | nul
   const overlapsOfficialWindow = attendanceLocalMinutes(checkIn) < endMinutes && attendanceLocalMinutes(checkOut) > startMinutes;
   if (!overlapsOfficialWindow) return 0;
   if (breakIn && breakOut) {
-    // BUG_070 fix: Cap the break duration at the policy's official window.
-    // If an employee takes a longer break (e.g., 103 min when policy says 60),
-    // only deduct up to the policy's official end time.
-    // Example: break 1:33 PM → 3:16 PM (103 min actual)
-    //          Policy window: 1:30 PM → 2:30 PM (60 min)
-    //          Deduction: 1:33 PM → 2:30 PM = 57 min (capped at window end)
-    const breakInMin = attendanceLocalMinutes(breakIn);
-    const breakOutMin = attendanceLocalMinutes(breakOut);
-    const effectiveBreakOut = Math.min(breakOutMin, endMinutes); // cap at policy end
-    const effectiveBreakIn = Math.max(breakInMin, startMinutes); // start from policy start
-    const capped = Math.max(0, effectiveBreakOut - effectiveBreakIn);
-    // For mandatory breaks, ensure at least the policy duration is deducted
-    // (but never more than the capped window)
-    return mandatory ? Math.min(Math.max(capped, durationMinutes), durationMinutes) : Math.min(capped, durationMinutes);
+    const actual = Math.max(0, Math.round((breakOut.getTime() - breakIn.getTime()) / 60000));
+    return Math.max(mandatory ? durationMinutes : 0, actual, Math.max(0, endMinutes - attendanceLocalMinutes(breakIn)));
   }
   return mandatory ? durationMinutes : Math.max(0, Math.min(attendanceLocalMinutes(checkOut), endMinutes) - Math.max(attendanceLocalMinutes(checkIn), startMinutes));
 }
