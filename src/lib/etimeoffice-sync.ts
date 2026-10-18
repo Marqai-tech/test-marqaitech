@@ -271,9 +271,35 @@ export async function syncETimeOfficePunches(db: PrismaClient, tenantId: string)
         where: { employeeId_date: { employeeId: group.employeeId, date: group.dayStart } },
         select: { checkIn: true, checkOut: true, breakIn: true, breakOut: true, breakMinutes: true, punchMethod: true, earlyLogout: true, status: true },
       });
+
+      // BUG_068 fix: Check if a Manual HRMS check_in punch already exists for
+      // this employee/day. If it does, ALL biometric punches should be classified
+      // as 'check_out' (the employee already checked in via the app).
+      // Previously used existingAttendance.punchMethod, which was unreliable
+      // because the sync overwrites it to 'biometric'.
+      let hasManualCheckIn = false;
+      try {
+        const manualDevice = await tx.biometricDevice.findFirst({
+          where: { serialNumber: 'HRMS-MANUAL-PUNCHES' },
+          select: { id: true },
+        });
+        if (manualDevice) {
+          const manualCheckIn = await tx.biometricPunch.findFirst({
+            where: {
+              deviceId: manualDevice.id,
+              employeeId: group.employeeId,
+              punchType: 'check_in',
+              punchTime: { gte: group.dayStart, lt: dayEnd },
+            },
+            select: { id: true },
+          });
+          hasManualCheckIn = !!manualCheckIn;
+        }
+      } catch { /* best-effort — default to false */ }
+
       const duplicateWindowMinutes = Number(process.env.ETIMEOFFICE_DUPLICATE_WINDOW_MINUTES || '2');
       const classified = classifyBiometricDay(dayPunches, Number.isFinite(duplicateWindowMinutes) ? duplicateWindowMinutes : 2, {
-        manualCheckIn: Boolean(existingAttendance?.checkIn && existingAttendance?.punchMethod !== 'biometric'),
+        manualCheckIn: hasManualCheckIn,
         existingCheckOut: existingAttendance?.checkOut,
         existingBreakIn: existingAttendance?.breakIn,
         existingBreakOut: existingAttendance?.breakOut,
