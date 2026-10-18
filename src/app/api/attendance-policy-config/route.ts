@@ -212,6 +212,8 @@ export async function PUT(request: Request) {
       breakEndTime: (body.breakEndTime as string) || existing?.breakEndTime || '14:30',
       mandatoryBreakEnabled: body.mandatoryBreakEnabled !== undefined ? !!body.mandatoryBreakEnabled : existing?.mandatoryBreakEnabled ?? false,
       attendanceRuleScope: (body.attendanceRuleScope as string) || existing?.attendanceRuleScope || 'all_tenants',
+      // BUG_071: Disable App Check-In (biometric-only mode)
+      disableAppCheckin: body.disableAppCheckin !== undefined ? !!body.disableAppCheckin : existing?.disableAppCheckin ?? false,
       // Gate Pass Policy
       gatePassMaxPerMonth: body.gatePassMaxPerMonth !== undefined ? Number(body.gatePassMaxPerMonth) : existing?.gatePassMaxPerMonth ?? 1,
       gatePassHalfDayOnExceed: body.gatePassHalfDayOnExceed !== undefined ? !!body.gatePassHalfDayOnExceed : existing?.gatePassHalfDayOnExceed ?? true,

@@ -381,7 +381,29 @@ export async function POST(request: NextRequest) {
     const existingBeforeRules = await db.attendance.findFirst({ where: { employeeId, date: dateObj } });
     const beforeLunch = localMinutes !== null && localMinutes < 13 * 60 + 30;
     const afterLunchBeforeClose = localMinutes !== null && localMinutes >= 13 * 60 + 30 && localMinutes < 18 * 60 + 30;
-    if (action !== 'checkin' && action !== 'set_early_logout') {
+
+    // BUG_071: Check if app check-in is disabled for this tenant
+    // When disableAppCheckin = true, employees can only check in via biometric device.
+    // Check-out, break-in, break-out via app are still allowed.
+    if (action === 'checkin') {
+      try {
+        const { loadAttendanceRulePolicy } = await import('@/lib/attendance-break-rules');
+        const rulePolicy = await loadAttendanceRulePolicy(db);
+        if (rulePolicy.disableAppCheckin) {
+          return NextResponse.json({
+            error: 'App check-in is disabled. Please use the biometric device to check in.',
+            code: 'APP_CHECKIN_DISABLED',
+          }, { status: 403, headers: corsHeaders() });
+        }
+      } catch {
+        // If policy load fails, allow check-in (non-fatal)
+      }
+    }
+
+    // Break punches are explicit actions and remain valid after Check-Out so
+    // an employee can complete a missed break record before regularization.
+    // Only generic biometric/entry punches are normalized to entry/checkout.
+    if (action !== 'checkin' && action !== 'set_early_logout' && action !== 'breakin' && action !== 'breakout') {
       if (beforeLunch || (afterLunchBeforeClose && existingBeforeRules?.breakIn && action !== 'breakout')) action = 'entry';
       else if (localMinutes !== null && localMinutes >= 18 * 60 + 30) action = 'checkout';
     }

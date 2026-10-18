@@ -316,6 +316,8 @@ export default function AttendancePage() {
   const [holidayMap, setHolidayMap] = useState<Map<string, string>>(new Map());
   const [weekendDow, setWeekendDow] = useState<number[]>([0, 6]); // Sun + Sat default
   const [shiftStartMinutes, setShiftStartMinutes] = useState(600); // 10:00 company late cutoff
+  const [breakPolicy, setBreakPolicy] = useState<DashboardBreakPolicy>(DEFAULT_DASHBOARD_BREAK_POLICY);
+  const [appCheckinDisabled, setAppCheckinDisabled] = useState(false);
   const [approvedLeaves, setApprovedLeaves] = useState<Array<{ employeeId: string; startDate: string; endDate: string }>>([]);
 
   /* ── Self view state ── */
@@ -456,6 +458,17 @@ export default function AttendancePage() {
         // Company rule: Late By is always measured after 10:00 AM IST.
         // Do not let legacy 09:00/09:30 policy values override this cutoff.
         setShiftStartMinutes(10 * 60);
+        const parsePolicyTime = (value: unknown, fallback: number) => {
+          const match = String(value || '').match(/^(\d{1,2}):(\d{2})$/);
+          return match ? Number(match[1]) * 60 + Number(match[2]) : fallback;
+        };
+        setBreakPolicy({
+          startMinutes: parsePolicyTime(cfg.breakStartTime, DEFAULT_DASHBOARD_BREAK_POLICY.startMinutes),
+          endMinutes: parsePolicyTime(cfg.breakEndTime, DEFAULT_DASHBOARD_BREAK_POLICY.endMinutes),
+          allowanceMinutes: Number(cfg.breakDurationMinutes) || DEFAULT_DASHBOARD_BREAK_POLICY.allowanceMinutes,
+        });
+        // BUG_071: Check if app check-in is disabled for this tenant
+        setAppCheckinDisabled(Boolean(cfg.disableAppCheckin));
         if (Array.isArray(d.weekendDays) && d.weekendDays.length > 0) {
           setWeekendDow(d.weekendDays.map((n: number) => Number(n)));
         }
@@ -1048,31 +1061,21 @@ export default function AttendancePage() {
             {seeding ? 'Seeding...' : 'Seed Sample Data'}
           </button>
           )}
-          {/* Task 108: Check In / Out + Break buttons — only when the employee
-              has a web check-in WFH pre-approval. Office employees use the
-              biometric device; the punch API enforces this server-side too. */}
-          {webCheckInLocked ? (
-            <div className="inline-flex items-center gap-2 px-4 py-2.5 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg max-w-md">
-              <FiInfo className="w-4 h-4 shrink-0" />
-              <span>
-                Web check-in is not enabled for your account — it requires a work-from-home pre-approval from admin/management.
-                Please mark attendance using the office biometric device.
-              </span>
-            </div>
-          ) : (
-          <>
-          {/* Check In / Out buttons */}
+          {/* Check In / Out buttons — Check-In disabled when biometric-only mode */}
           <button
             onClick={handleCheckIn}
-            disabled={checkingIn || isCheckedIn}
+            disabled={checkingIn || isCheckedIn || appCheckinDisabled}
+            title={appCheckinDisabled ? 'Check-in via biometric device only' : ''}
             className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all ${
-              isCheckedIn
+              appCheckinDisabled
+                ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
+                : isCheckedIn
                 ? 'bg-emerald-50 text-emerald-600 border border-emerald-200 cursor-default'
                 : 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-sm shadow-emerald-500/25 hover:shadow-md'
             }`}
           >
             <FiLogIn className="w-4 h-4" />
-            {checkingIn ? 'Checking...' : isCheckedIn ? '✓ Checked In' : 'Check In'}
+            {checkingIn ? 'Checking...' : isCheckedIn ? '✓ Checked In' : appCheckinDisabled ? 'Biometric Only' : 'Check In'}
           </button>
           <button
             onClick={handleCheckOut}
