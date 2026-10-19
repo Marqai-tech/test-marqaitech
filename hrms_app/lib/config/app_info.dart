@@ -14,8 +14,8 @@
 /// run. APK downloads are NOT offered in-app any more (user request) — the
 /// web login page is the single download source.
 class AppInfo {
-  static const String versionName = '1.1.0';
-  static const int versionCode = 11;
+  static const String versionName = '1.2.0';
+  static const int versionCode = 12;
   static const String appName = '3 Boxes HRMS';
 
   /// Latest-APK URL on the CURRENT workspace (tenant link, apex or demo).

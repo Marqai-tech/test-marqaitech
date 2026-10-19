@@ -4,13 +4,12 @@
 3boxes-hrms-mobile.apk              — "always latest" alias for in-app updaters
 index.html                          — download page (linked from the web login page)
 
-Current release: v1.1.0 (versionCode 11) — Task 111 ROOT-CAUSE FIX for
-"errors in all modules + no token stored": the workspace auto-detect could
-land on a /login PAGE URL, so the app "signed in" against an HTML page with
-no session token. Login now always lands on the real API origin, the
-connection check reports truthfully, and any persisted /login workspace
-self-heals on first launch. Upgrades cleanly over v1.0.9 (same permanent
-signing key, hrms_app/android/key.properties + app/release-key.jks) — no
-uninstall needed for v1.0.9 users. Users on v1.0.8-or-older still need the
-one-time uninstall (signature migration). Built from hrms_app/ with
-flutter build apk --release --target-platform android-arm64.
+Current release: v1.2.0 (versionCode 12) — Task 112 DYNAMIC SCREENS release:
+profile, settings, notifications, employee directory, attendance report and
+the home check-in/break/leave tabs are now LIVE-data screens (design set
+02/03/04/05/16/17/18/19/87), plus self-service profile photo change
+(PATCH /api/auth/me) and the my-leave-balance API. Upgrades cleanly over
+v1.1.0 and v1.0.9 (same permanent signing key, hrms_app/android/
+key.properties + app/release-key.jks) — no uninstall needed. Users on
+v1.0.8-or-older still need the one-time uninstall (signature migration).
+Built from hrms_app/ with flutter build apk --release --target-platform android-arm64.

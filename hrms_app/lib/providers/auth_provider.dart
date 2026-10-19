@@ -101,6 +101,16 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Task 112 — re-read the stored identity after a self-service profile
+  /// update (photo/phone via PATCH /api/auth/me writes through to storage).
+  Future<void> reloadFromStorage() async {
+    final u = await ApiService.getStoredUser();
+    if (u != null) {
+      _user = u;
+      notifyListeners();
+    }
+  }
+
   Future<void> logout() async {
     await ApiService.logout();
     await TenantLogoService.clearCache();

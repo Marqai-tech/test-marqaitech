@@ -97,6 +97,7 @@ class ApiConfig {
   // Leaves
   static String get leaves => '$apiUrl/leaves';
   static String leaveDetail(String id) => '$apiUrl/leaves/$id';
+  static String get myLeaveBalance => '$apiUrl/leaves/my-balance';
 
   // Attendance
   static String get attendance => '$apiUrl/attendance';

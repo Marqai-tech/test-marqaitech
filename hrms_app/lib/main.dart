@@ -34,6 +34,9 @@ import 'screens/employees/employee_empty_screen.dart';
 import 'screens/employees/employee_detail_by_id_screen.dart';
 import 'screens/leaves/leave_home_screen.dart';
 import 'screens/attendance/attendance_home_screen.dart';
+import 'screens/attendance/attendance_report_screen.dart';
+import 'screens/employees/employee_directory_screen.dart';
+import 'screens/auth/terms_screen.dart';
 import 'screens/payroll/payroll_home_screen.dart';
 import 'providers/payroll_provider.dart';
 import 'providers/attendance_provider.dart';
@@ -109,6 +112,10 @@ class HRMSApp extends StatelessWidget {
           '/reports': (_) => const ReportsScreen(),
           '/profile': (_) => const ProfileScreen(),
           '/settings': (_) => const SettingsScreen(),
+          '/directory': (_) => const EmployeeDirectoryScreen(),
+          '/attendance-report': (_) => const AttendanceReportScreen(),
+          '/terms': (_) => const TermsPage(),
+          '/privacy': (_) => const TermsPage(privacy: true),
           '/notifications': (_) => const NotificationsScreen(),
           '/diagnostics': (_) => const DiagnosticsScreen(),
         },

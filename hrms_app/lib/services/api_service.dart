@@ -348,11 +348,14 @@ class ApiService {
   }
 
   // ============ Attendance ============
-  static Future<Map<String, dynamic>> getAttendance({String? date, int? month, int? year}) async {
-    final params = <String, String>{};
+  static Future<Map<String, dynamic>> getAttendance({String? date, int? month, int? year, String? startDate, String? endDate, String? employeeId, int limit = 20}) async {
+    final params = <String, String>{'limit': '$limit'};
     if (date != null) params['date'] = date;
     if (month != null) params['month'] = '$month';
     if (year != null) params['year'] = '$year';
+    if (startDate != null) params['startDate'] = startDate;
+    if (endDate != null) params['endDate'] = endDate;
+    if (employeeId != null && employeeId.isNotEmpty) params['employeeId'] = employeeId;
     final response = await _get(ApiConfig.attendance, queryParams: params);
     final data = jsonDecode(response.body);
     if (response.statusCode == 200) return data;
@@ -509,6 +512,69 @@ class ApiService {
     final data = jsonDecode(response.body);
     if (response.statusCode == 200) return data;
     throw Exception(data['error'] ?? 'Failed to update leave');
+  }
+
+  // ============ Task 112: self-service profile, notifications, leave balance ============
+
+  /// GET /api/leaves/my-balance — entitlement for the Leave tab
+  /// (Total Leaves / Leaves Used, design #05). Returns the raw map;
+  /// callers fall back to zeros when the account has no employee row.
+  static Future<Map<String, dynamic>> getMyLeaveBalance() async {
+    final response = await _get(ApiConfig.myLeaveBalance);
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 200) return data;
+    throw Exception(data['error'] ?? 'Failed to load leave balance');
+  }
+
+  /// PATCH /api/notifications — mark ONE notification (or everything) read.
+  static Future<void> markNotificationRead(String id) async {
+    final response = await _patch(ApiConfig.notifications, {'id': id});
+    if (response.statusCode != 200) {
+      final data = jsonDecode(response.body);
+      throw Exception(data['error'] ?? 'Failed to mark notification read');
+    }
+  }
+
+  static Future<void> markAllNotificationsRead() async {
+    final response = await _patch(ApiConfig.notifications, {'markAll': true});
+    if (response.statusCode != 200) {
+      final data = jsonDecode(response.body);
+      throw Exception(data['error'] ?? 'Failed to mark all read');
+    }
+  }
+
+  /// PATCH /api/auth/me — self-service profile update (avatar data-URI and/or
+  /// phone). Powers the "Image Change" button on My Profile (design #19).
+  /// Returns the updated user map so callers can refresh identity immediately.
+  static Future<Map<String, dynamic>> updateMe({String? avatar, String? phone}) async {
+    final body = <String, dynamic>{
+      if (avatar != null) 'avatar': avatar,
+      if (phone != null) 'phone': phone,
+    };
+    final response = await _patch(ApiConfig.me, body);
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 200) {
+      // Keep the stored identity in sync so every screen picks the new photo
+      // up instantly (same write-through pattern as refreshStoredUser).
+      if (data['user'] is Map<String, dynamic>) {
+        final userJson = data['user'] as Map<String, dynamic>;
+        final existing = StorageService.getUserData();
+        if (existing != null) {
+          try {
+            final old = jsonDecode(existing);
+            if (old is Map<String, dynamic>) {
+              await StorageService.setUserData(jsonEncode({...old, ...userJson}));
+            }
+          } catch (_) {
+            await StorageService.setUserData(jsonEncode(userJson));
+          }
+        } else {
+          await StorageService.setUserData(jsonEncode(userJson));
+        }
+      }
+      return data;
+    }
+    throw Exception(data['error'] ?? 'Failed to update profile');
   }
 }
 

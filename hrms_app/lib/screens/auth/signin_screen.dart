@@ -120,9 +120,14 @@ class _SignInScreenState extends State<SignInScreen> {
             padding: const EdgeInsets.only(left: 24, right: 24, bottom: 18),
             child: Align(
               alignment: Alignment.centerLeft,
-              child: Text(
-                'Sign In now to begin an amazing journey',
-                style: TextStyle(color: Colors.white.withOpacity(.92), fontSize: 13.5),
+              child: RichText(
+                text: TextSpan(
+                  style: TextStyle(color: Colors.white.withOpacity(.95), fontSize: 17, fontWeight: FontWeight.w800, height: 1.3),
+                  children: const [
+                    TextSpan(text: 'Hey 👋  '),
+                    TextSpan(text: 'Login Now!', style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w800)),
+                  ],
+                ),
               ),
             ),
           ),
@@ -211,7 +216,14 @@ class _SignInScreenState extends State<SignInScreen> {
                           ),
                           child: _busy
                               ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.white))
-                              : const Text('Sign In', style: TextStyle(fontSize: 16.5, fontWeight: FontWeight.w700)),
+                              : const Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.login_rounded, size: 20, color: Colors.white),
+                                    SizedBox(width: 8),
+                                    Text('Login', style: TextStyle(fontSize: 16.5, fontWeight: FontWeight.w700)),
+                                  ],
+                                ),
                         ),
                       ),
                       const SizedBox(height: 16),
