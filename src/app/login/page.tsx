@@ -1267,15 +1267,14 @@ export default function LoginPage() {
                 <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
                   <p className="text-[11px] font-semibold text-slate-600 mb-1.5">How to install (Android)</p>
                   <ol className="text-[10px] text-slate-500 space-y-1 list-decimal list-inside">
-                    <li>If an older 3 Boxes app is installed, <strong>uninstall it first</strong> (one-time — new app signing key)</li>
                     <li>Tap <strong>&quot;Download for Android&quot;</strong> above</li>
                     <li>Open the downloaded APK file (named with the version, e.g. <em>…-v{APP_RELEASE.versionName}.apk</em>)</li>
                     <li>Allow installation from unknown sources if prompted</li>
-                    <li>Tap <strong>&quot;Install&quot;</strong>, then sign in</li>
+                    <li>Tap <strong>&quot;Install&quot;</strong> — v{APP_RELEASE.versionName} installs right over v1.0.9 (no uninstall needed)</li>
+                    <li>Sign in — the app now auto-detects your company workspace correctly</li>
                   </ol>
                   <p className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1 mt-2">
-                    Getting “module errors” or a failed install? That means an old build is still on the phone —
-                    uninstall it, then install this APK and sign in again.
+                    Upgrading from v1.0.8 or older? Uninstall that build first (one-time signing-key change), then install this APK.
                   </p>
                 </div>
               </div>

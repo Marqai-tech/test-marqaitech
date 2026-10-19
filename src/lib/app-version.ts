@@ -12,10 +12,10 @@
 // The in-app login-page download link was REMOVED per user request — the web
 // login page is now the only download source.
 export const APP_RELEASE = {
-  versionName: '1.0.9',
-  versionCode: 10,
-  apkUrl: '/downloads/3boxes-hrms-mobile-v1.0.9.apk',
+  versionName: '1.1.0',
+  versionCode: 11,
+  apkUrl: '/downloads/3boxes-hrms-mobile-v1.1.0.apk',
   updatedAt: '2026-10-19',
   notes:
-    'Permanent app signing key (one-time uninstall of older installs required), download moved to the web login page only, versioned APK filename, module connectivity hardening.',
+    'FIXED the root cause of "errors in all modules + no token stored": the workspace auto-detect could land on a /login page URL, so the app signed in with no session. Login now always lands on the real API, the connection check reports truthfully, and the workspace self-heals on first launch. No uninstall needed — upgrades cleanly over v1.0.9.',
 };

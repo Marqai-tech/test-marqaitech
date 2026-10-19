@@ -79,15 +79,38 @@ class ApiService {
 
   /// POST to a host's /api/auth/login and return (status, body-map).
   /// Never throws for non-2xx; tolerates non-JSON error pages.
+  ///
+  /// Task 111 FIX: an HTML body (content-type text/html, i.e. the login
+  /// PAGE — what a wrong/typo'd URL or an SPA fallback returns) is reported
+  /// as an unreachable-host style failure instead of being handed to the
+  /// caller as a plausible "200 OK". Previously a 200+HTML response flowed
+  /// into [login], which read token=null from it — and treated the whole
+  /// login as SUCCESSFUL with no session stored (the "errors in all
+  /// modules + no token stored" bug).
   static Future<(int, Map<String, dynamic>)> _loginAttempt(String baseUrl, String email, String password) async {
     try {
       final response = await http
           .post(
             Uri.parse('$baseUrl/api/auth/login'),
-            headers: const {'Content-Type': 'application/json'},
+            headers: const {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
             body: jsonEncode({'email': email, 'password': password}),
           )
           .timeout(ApiConfig.timeout);
+      final contentType = (response.headers['content-type'] ?? '').toLowerCase();
+      final body = response.body.trimLeft();
+      if (contentType.contains('text/html') || body.startsWith('<')) {
+        return (
+          0,
+          {
+            'error':
+                '$baseUrl served a web page instead of the login API (wrong URL?).',
+            '_htmlResponse': true,
+          },
+        );
+      }
       Map<String, dynamic> data;
       try {
         data = jsonDecode(response.body) as Map<String, dynamic>;
@@ -126,17 +149,26 @@ class ApiService {
 
       if (status == 200) {
         final token = data['token'] ?? data['data']?['token'];
-        if (token != null) {
+        if (token is String && token.isNotEmpty) {
           setToken(token);
           await StorageService.setToken(token);
           final userJson = data['user'] ?? data['data']?['user'] ?? data['data'];
           if (userJson != null) {
             await StorageService.setUserData(jsonEncode(userJson));
           }
+          // Remember the workspace that actually authenticated this user.
+          ApiConfig.setBaseUrl(current);
+          return data;
         }
-        // Remember the workspace that actually authenticated this user.
-        ApiConfig.setBaseUrl(current);
-        return data;
+        // Task 111 FIX: HTTP 200 WITHOUT a session token is NOT a login
+        // success (it was an HTML page or a malformed payload). Fall
+        // through to the ladder so the next workspace is tried instead of
+        // silently entering the app with no credentials — the exact bug
+        // that produced "errors in all modules + no token stored".
+        lastError = (data['error'] ??
+                data['message'] ??
+                'Login succeeded but the server did not return a session token')
+            .toString();
       }
 
       // Platform apex tells tenant users exactly where their workspace is.

@@ -4,6 +4,7 @@ import '../../config/api_config.dart';
 import '../../config/app_info.dart';
 import '../../config/maan_theme.dart';
 import '../../services/api_service.dart';
+import '../../services/storage_service.dart';
 import '../../services/update_service.dart';
 
 /// Task 110 — Connection check.
@@ -73,14 +74,45 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
       }
     }
 
-    final me = await probe('Signed-in identity', '/api/auth/me', () async => (await ApiService.getMe()) ?? {'error': 'not signed in'});
-    results.add(me);
+    // Task 111 FIX — the identity check used to report "ok" even when
+    // getMe() returned null (signed out / expired token / offline), which
+    // made a signed-out app look healthy and hid the real problem. The
+    // checks are now truthful and gated on the ACTUAL token state.
+    final activeToken = ApiService.token;
+    final storedToken = StorageService.getToken();
 
-    final token = ApiService.token;
-    if (token == null || token.isEmpty) {
-      results.add(_CheckResult('Session token', '—', null, 'No token stored — module checks need a sign-in. Sign in first, then re-run.', false));
+    if (activeToken == null || activeToken.isEmpty) {
+      results.add(_CheckResult(
+        'Signed-in identity',
+        '/api/auth/me',
+        null,
+        storedToken == null || storedToken.isEmpty
+            ? 'Not signed in on this device — sign in first, then re-run this check.'
+            : 'Stored session was cleared after an error — sign in again.',
+        false,
+      ));
+      results.add(_CheckResult(
+        'Session token',
+        '—',
+        null,
+        'No token stored — module checks need a sign-in. Sign in first, then re-run.',
+        false,
+      ));
     } else {
-      results.add(_CheckResult('Session token', '—', 200, 'present (${token.length} chars)', true));
+      results.add(_CheckResult('Session token', '—', 200, 'present (${activeToken.length} chars)', true));
+      final meData = await ApiService.getMe().timeout(const Duration(seconds: 25));
+      if (meData != null) {
+        final who = (meData['name'] ?? meData['email'] ?? 'signed in').toString();
+        results.add(_CheckResult('Signed-in identity', '/api/auth/me', 200, who, true));
+      } else {
+        results.add(_CheckResult(
+          'Signed-in identity',
+          '/api/auth/me',
+          401,
+          'Server rejected the session (expired or revoked) — sign in again.',
+          false,
+        ));
+      }
       results.add(await probe('Dashboard', '/api/dashboard', ApiService.getDashboard));
       results.add(await probe('Employee Management', '/api/employees?page=1&limit=20', () => ApiService.getEmployees(page: 1, limit: 20)));
       results.add(await probe('Leave Management', '/api/leaves?page=1', () => ApiService.getLeaves()));
@@ -97,7 +129,7 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
     final okUpdate = await UpdateService.checkForUpdate();
     updateInfo = okUpdate
         ? (UpdateService.updateAvailable
-            ? 'NEWER VERSION AVAILABLE: v${UpdateService.latestVersionName} — go back to Sign In and tap "Download latest app".'
+            ? 'NEWER VERSION AVAILABLE: v${UpdateService.latestVersionName} — open your company\'s WEB login page in the phone browser (e.g. https://3boxeshrms.com) and tap "Download for Android".'
             : 'App is up to date (platform latest: ${UpdateService.latestVersionName}).')
         : 'Could not reach /api/public/app-version (older platform build or offline).';
 
