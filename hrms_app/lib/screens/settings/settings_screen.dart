@@ -85,7 +85,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         }
                         if (UpdateService.updateAvailable) {
                           try {
-                            await launchUrl(Uri.parse(AppInfo.apkUrlOnWorkspace(ApiConfig.baseUrl)), mode: LaunchMode.externalApplication);
+                            await launchUrl(Uri.parse(UpdateService.apkUrlToInstall()), mode: LaunchMode.externalApplication);
                           } catch (_) {}
                         } else if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('You are on the latest version (v${UpdateService.latestVersionName}).')));

@@ -75,7 +75,7 @@ class _HomeScreenState extends State<HomeScreen> {
           onPressed: () async {
             Navigator.pop(ctx);
             try {
-              await launchUrl(Uri.parse(AppInfo.apkUrlOnWorkspace(ApiConfig.baseUrl)), mode: LaunchMode.externalApplication);
+              await launchUrl(Uri.parse(UpdateService.apkUrlToInstall()), mode: LaunchMode.externalApplication);
             } catch (_) {}
           },
           style: FilledButton.styleFrom(backgroundColor: MaanColors.primary),

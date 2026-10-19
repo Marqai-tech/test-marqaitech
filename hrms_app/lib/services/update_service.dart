@@ -56,6 +56,15 @@ class UpdateService {
     return false;
   }
 
+  /// Best URL to download the latest APK: prefer the workspace-reported
+  /// versioned URL from /api/public/app-version; fall back to the stable
+  /// unversioned alias on the current workspace.
+  static String apkUrlToInstall() {
+    final u = _latest?['apkUrl'];
+    if (u is String && u.isNotEmpty) return u;
+    return AppInfo.apkUrlOnWorkspace(ApiConfig.baseUrl);
+  }
+
   /// Reset (e.g. on logout) so the next check re-fetches for the new
   /// workspace.
   static void reset() => _latest = null;

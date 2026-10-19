@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../config/maan_theme.dart';
 import '../../config/api_config.dart';
 import '../../config/app_info.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/storage_service.dart';
-import '../../services/update_service.dart';
 
 /// Sign In — matches design screenshot #3 (blue header + floating-label sheet).
 /// Accepts EMAIL or MOBILE number; posts to the configured HRMS workspace.
@@ -29,9 +27,6 @@ class _SignInScreenState extends State<SignInScreen> {
   bool _saveMe = false;
   bool _showAdvanced = false;
   bool _busy = false;
-  bool _checkingUpdate = true;
-  bool _updateAvailable = false;
-  String? _latestVersionLabel;
   String? _error;
 
   @override
@@ -40,36 +35,12 @@ class _SignInScreenState extends State<SignInScreen> {
     _saveMe = StorageService.getRememberMe();
     final remembered = StorageService.getRememberedEmail();
     if (remembered != null && remembered.isNotEmpty) _identity.text = remembered;
-    _checkUpdate();
   }
 
-  /// Task 110 — the sign-in screen IS the self-service recovery point: it
-  /// shows which build is installed and offers a direct download of the
-  /// latest APK from the user's own workspace link.
-  Future<void> _checkUpdate() async {
-    final ok = await UpdateService.checkForUpdate();
-    if (!mounted) return;
-    setState(() {
-      _checkingUpdate = false;
-      _updateAvailable = ok && UpdateService.updateAvailable;
-      _latestVersionLabel = ok ? UpdateService.latestVersionName : null;
-    });
-  }
-
-  Future<void> _downloadLatestApk() async {
-    final url = Uri.parse(AppInfo.apkUrlOnWorkspace(ApiConfig.baseUrl));
-    try {
-      final ok = await launchUrl(url, mode: LaunchMode.externalApplication);
-      if (!ok) throw 'launch rejected';
-    } catch (_) {
-      if (!mounted) return;
-      showDialog(context: context, builder: (ctx) => AlertDialog(
-        title: const Text('Download the latest app'),
-        content: Text('Open this link in your browser to download & install:\n\n$url'),
-        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK'))],
-      ));
-    }
-  }
+  // Task 110b — the in-app "Download latest APK" link was REMOVED per user
+  // request (it kept landing on stale/404 URLs and confused the update path).
+  // The WEB LOGIN PAGE is the single download source now; this screen only
+  // shows the installed version so the user knows which build they run.
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
@@ -265,45 +236,8 @@ class _SignInScreenState extends State<SignInScreen> {
                         ],
                       ),
                       const SizedBox(height: 24),
-                      // ── Task 110: download & self-update, right on the sign-in page ──
-                      if (_updateAvailable)
-                        Container(
-                          margin: const EdgeInsets.only(bottom: 12),
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFFF7E8),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: const Color(0xFFF2DCAF)),
-                          ),
-                          child: Row(children: [
-                            const Icon(Icons.system_update_alt_rounded, size: 20, color: Color(0xFFB7791F)),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                'Update available — latest is $_latestVersionLabel. If modules show errors, install it.',
-                                style: const TextStyle(fontSize: 12, color: Color(0xFF8A6116), height: 1.35),
-                              ),
-                            ),
-                          ]),
-                        ),
-                      SizedBox(
-                        height: 48,
-                        child: OutlinedButton.icon(
-                          onPressed: _downloadLatestApk,
-                          icon: const Icon(Icons.download_rounded, size: 20),
-                          label: Text(
-                            _updateAvailable
-                                ? 'Download & install latest app ($_latestVersionLabel)'
-                                : 'Download latest app (APK)',
-                            style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: Color(0xFF0B7A4B)),
-                          ),
-                          style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: Color(0xFF9BD8BC), width: 1.4),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
+                      // Task 110b — version footer + connection check only.
+                      // The APK download lives on the WEB login page now.
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -312,8 +246,14 @@ class _SignInScreenState extends State<SignInScreen> {
                             child: const Text('Run connection check', style: TextStyle(fontSize: 12.5, color: Color(0xFF3B82F6), fontWeight: FontWeight.w600)),
                           ),
                           Text('    ·    ', style: TextStyle(fontSize: 12.5, color: MaanColors.faint)),
-                          Text(_checkingUpdate ? 'Checking version…' : AppInfo.label, style: TextStyle(fontSize: 11.5, color: MaanColors.faint)),
+                          Text(AppInfo.label, style: TextStyle(fontSize: 11.5, color: MaanColors.faint)),
                         ],
+                      ),
+                      const SizedBox(height: 6),
+                      const Text(
+                        'To update the app: download the latest APK from the web login page.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 11, color: MaanColors.faint),
                       ),
                       TextButton(
                         onPressed: () => setState(() => _showAdvanced = !_showAdvanced),

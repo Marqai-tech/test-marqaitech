@@ -21,15 +21,6 @@ import { isClientLiveMode } from '@/lib/site-mode';
 import { APP_RELEASE } from '@/lib/app-version';
 import { validateEmail, validatePasswordRequired } from '@/lib/validators';
 
-interface BeforeInstallPromptEvent extends Event {
-  readonly platforms: string[];
-  readonly userChoice: Promise<{
-    outcome: 'accepted' | 'dismissed';
-    platform: string;
-  }>;
-  prompt(): Promise<void>;
-}
-
 export default function LoginPage() {
   const router = useRouter();
   const { login } = useAuthStore();
@@ -51,10 +42,6 @@ export default function LoginPage() {
   const [candidateTab, setCandidateTab] = useState<'password' | 'otp'>('password');
   const [candidateStep, setCandidateStep] = useState<'request' | 'verify'>('request');
   const [candidateDevOtp, setCandidateDevOtp] = useState<string | null>(null);
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-  const [isIOS, setIsIOS] = useState(false);
-  const [isAndroid, setIsAndroid] = useState(false);
-  const [isStandalone, setIsStandalone] = useState(false);
   const [showDemoLogins, setShowDemoLogins] = useState(false);
   const [isDemoSite, setIsDemoSite] = useState(false);
   const [isPlatformSite, setIsPlatformSite] = useState(false);
@@ -122,24 +109,6 @@ export default function LoginPage() {
       setDemoLoading(false);
     }
   };
-
-  // Detect platform and PWA install capability
-  useEffect(() => {
-    const ua = navigator.userAgent;
-    setIsIOS(/iPad|iPhone|iPod/.test(ua) && !(window as unknown as { MSStream?: boolean }).MSStream);
-    setIsAndroid(/Android/.test(ua));
-
-    const standalone = window.matchMedia('(display-mode: standalone)').matches
-      || (window.navigator as unknown as { standalone?: boolean }).standalone === true;
-    setIsStandalone(standalone);
-
-    const handler = (e: Event) => {
-      e.preventDefault();
-      setDeferredPrompt(e as BeforeInstallPromptEvent);
-    };
-    window.addEventListener('beforeinstallprompt', handler);
-    return () => window.removeEventListener('beforeinstallprompt', handler);
-  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1198,7 +1167,11 @@ export default function LoginPage() {
           </form>
           )}
 
-          {/* Mobile App Download — Native Flutter App + PWA */}
+          {/* Mobile App Download — Native Flutter Android app (APK only).
+              Task 110b: the in-app (mobile APK) download link was REMOVED per
+              user request — the web login page is the ONLY download source.
+              Versioned filename so a stale cached download can never be
+              mistaken for the latest build. */}
           {!isPlatformSite && (
           <div className="mt-8 pt-6 border-t border-slate-100">
             <button
@@ -1228,7 +1201,7 @@ export default function LoginPage() {
                 <div className="space-y-2.5">
                   {/* Android APK Download */}
                   <a
-                    href="/downloads/3boxes-hrms-mobile.apk"
+                    href={APP_RELEASE.apkUrl}
                     download
                     className="w-full flex items-center gap-3 p-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-green-600 text-white shadow-lg shadow-emerald-500/20 hover:from-emerald-600 hover:to-green-700 transition-all"
                   >
@@ -1294,11 +1267,16 @@ export default function LoginPage() {
                 <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
                   <p className="text-[11px] font-semibold text-slate-600 mb-1.5">How to install (Android)</p>
                   <ol className="text-[10px] text-slate-500 space-y-1 list-decimal list-inside">
+                    <li>If an older 3 Boxes app is installed, <strong>uninstall it first</strong> (one-time — new app signing key)</li>
                     <li>Tap <strong>&quot;Download for Android&quot;</strong> above</li>
-                    <li>Open the downloaded APK file</li>
+                    <li>Open the downloaded APK file (named with the version, e.g. <em>…-v{APP_RELEASE.versionName}.apk</em>)</li>
                     <li>Allow installation from unknown sources if prompted</li>
-                    <li>Tap <strong>&quot;Install&quot;</strong> and open the app</li>
+                    <li>Tap <strong>&quot;Install&quot;</strong>, then sign in</li>
                   </ol>
+                  <p className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1 mt-2">
+                    Getting “module errors” or a failed install? That means an old build is still on the phone —
+                    uninstall it, then install this APK and sign in again.
+                  </p>
                 </div>
               </div>
             )}
