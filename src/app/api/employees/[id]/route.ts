@@ -352,6 +352,16 @@ export async function GET(
 ) {
   const db = await getDb(request);
   try {
+    // Task 110 SECURITY: require a valid token — this endpoint exposes the
+    // full employee profile (contacts, bank-adjacent fields, documents).
+    // The avatar photo route stays separate; web and mobile clients always
+    // send their Bearer token for data calls.
+    const __gateToken = getTokenFromHeaders(request);
+    const __gateDecoded = __gateToken ? await verifyToken(__gateToken).catch(() => null) : null;
+    if (!__gateDecoded) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
+    }
+
     const { id: rawId } = await params;
     const id = decodeURIComponent(rawId);
 

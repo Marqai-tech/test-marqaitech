@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../config/colors.dart';
 import '../../config/constants.dart';
+import '../../config/api_config.dart';
+import '../../config/app_info.dart';
+import '../../services/update_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -55,6 +59,53 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
             const SizedBox(height: 16),
+            // Task 110 — updates & diagnostics
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('App & Updates', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 12),
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      dense: true,
+                      leading: const Icon(Icons.system_update_alt_rounded, color: Color(0xFF0B7A4B)),
+                      title: const Text('Check for updates', style: TextStyle(fontSize: 14)),
+                      subtitle: Text('Install the latest APK from your workspace', style: TextStyle(fontSize: 11.5, color: AppColors.textSecondary)),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () async {
+                        final ok = await UpdateService.checkForUpdate();
+                        if (!ok) {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not reach the update service — check your connection.')));
+                          }
+                          return;
+                        }
+                        if (UpdateService.updateAvailable) {
+                          try {
+                            await launchUrl(Uri.parse(AppInfo.apkUrlOnWorkspace(ApiConfig.baseUrl)), mode: LaunchMode.externalApplication);
+                          } catch (_) {}
+                        } else if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('You are on the latest version (v${UpdateService.latestVersionName}).')));
+                        }
+                      },
+                    ),
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      dense: true,
+                      leading: const Icon(Icons.wifi_tethering_rounded, color: Color(0xFF3B82F6)),
+                      title: const Text('Connection check', style: TextStyle(fontSize: 14)),
+                      subtitle: Text('Test every module endpoint with your session', style: TextStyle(fontSize: 11.5, color: AppColors.textSecondary)),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => Navigator.pushNamed(context, '/diagnostics'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
             // About
             Card(
               child: Padding(
@@ -65,7 +116,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     const Text('About', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                     const SizedBox(height: 16),
                     _infoRow('App Name', AppConstants.appName),
-                    _infoRow('Version', AppConstants.appVersion),
+                    _infoRow('Version', '${AppInfo.versionName} (${AppInfo.versionCode})'),
                     _infoRow('Company', AppConstants.companyName),
                   ],
                 ),

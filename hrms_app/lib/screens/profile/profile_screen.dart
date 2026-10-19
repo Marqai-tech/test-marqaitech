@@ -89,7 +89,7 @@ class ProfileScreen extends StatelessWidget {
                     child: OutlinedButton.icon(
                       onPressed: () async {
                         await context.read<AuthProvider>().logout();
-                        if (context.mounted) Navigator.pushReplacementNamed(context, '/login');
+                        if (context.mounted) Navigator.pushReplacementNamed(context, '/signin');
                       },
                       icon: const Icon(Icons.logout),
                       label: const Text('Logout'),

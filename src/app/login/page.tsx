@@ -18,6 +18,7 @@ import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import '@/lib/token-storage';
 import { isClientLiveMode } from '@/lib/site-mode';
+import { APP_RELEASE } from '@/lib/app-version';
 import { validateEmail, validatePasswordRequired } from '@/lib/validators';
 
 interface BeforeInstallPromptEvent extends Event {
@@ -38,7 +39,7 @@ export default function LoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
-  const [showMobileApp, setShowMobileApp] = useState(false);
+  const [showMobileApp, setShowMobileApp] = useState(true);
   const [tenantInfo, setTenantInfo] = useState<{ name: string; slug: string; logo?: string | null } | null>(null);
   const [loginMode, setLoginMode] = useState<'user' | 'candidate'>('user');
   // Candidate login state
@@ -139,20 +140,6 @@ export default function LoginPage() {
     window.addEventListener('beforeinstallprompt', handler);
     return () => window.removeEventListener('beforeinstallprompt', handler);
   }, []);
-
-  const handlePWAInstall = useCallback(async () => {
-    if (!deferredPrompt) return;
-    try {
-      await deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === 'accepted') {
-        toast.success('3Boxes HRMS app installed successfully!');
-        setDeferredPrompt(null);
-      }
-    } catch (err) {
-      console.error('Install error:', err);
-    }
-  }, [deferredPrompt]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1225,7 +1212,7 @@ export default function LoginPage() {
                 </div>
                 <div className="text-left">
                   <p className="text-sm font-bold text-slate-800">Get the 3Boxes HRMS App</p>
-                  <p className="text-[11px] text-emerald-600 font-medium">Native Android & iOS · Free download</p>
+                  <p className="text-[11px] text-emerald-600 font-medium">Native Android &amp; iOS · v{APP_RELEASE.versionName} · Free download</p>
                 </div>
               </div>
               {showMobileApp ? (
@@ -1256,7 +1243,7 @@ export default function LoginPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-bold">Download for Android</p>
-                      <p className="text-[11px] text-white/80">APK file · Direct install · v1.0.0</p>
+                      <p className="text-[11px] text-white/80">APK file · Direct install · v{APP_RELEASE.versionName} ({APP_RELEASE.versionCode}) · {APP_RELEASE.updatedAt}</p>
                     </div>
                     <FiDownload className="w-5 h-5 shrink-0" />
                   </a>
@@ -1279,24 +1266,6 @@ export default function LoginPage() {
                     <span className="px-2 py-0.5 rounded-full bg-white/20 text-[10px] font-bold">VIEW</span>
                   </a>
                 </div>
-
-                {/* PWA Install option */}
-                {deferredPrompt && !isStandalone && (
-                  <div className="pt-1">
-                    <p className="text-[11px] text-slate-400 mb-2 flex items-center gap-1">
-                      <span className="w-full h-px bg-slate-200 flex-1" />
-                      <span className="px-2">or install as web app</span>
-                      <span className="w-full h-px bg-slate-200 flex-1" />
-                    </p>
-                    <button
-                      onClick={handlePWAInstall}
-                      className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border border-slate-200 text-slate-700 font-medium text-sm hover:bg-slate-50 transition-all"
-                    >
-                      <FiDownload className="w-4 h-4" />
-                      Install PWA (Web App)
-                    </button>
-                  </div>
-                )}
 
                 {/* App Features */}
                 <div className="pt-2">

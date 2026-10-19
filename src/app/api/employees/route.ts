@@ -123,6 +123,18 @@ export async function GET(request: Request) {
   const db = await getDb(request);
 
   try {
+    // Task 110 SECURITY: this route previously served the full employee
+    // directory (names, emails, phones, salary-adjacent fields) with NO
+    // token, a garbage token, or even a cross-tenant token. Every other
+    // module route 401s — this one must too. The web app always attaches
+    // its Bearer token via the shared fetch wrapper, and the mobile app
+    // sends Authorization on every call, so this is transparent to both.
+    const __gateToken = getTokenFromHeaders(request);
+    const __gateDecoded = __gateToken ? await verifyToken(__gateToken).catch(() => null) : null;
+    if (!__gateDecoded) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
+    }
+
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
     const rawLimit = parseInt(searchParams.get('limit') || '20');

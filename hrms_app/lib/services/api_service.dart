@@ -8,6 +8,27 @@ import 'storage_service.dart';
 class ApiService {
   static String? _token;
 
+  /// Task 110 — global session-expiry hook. When ANY authenticated call
+  /// comes back 401 (token expired / invalidated), the app clears the dead
+  /// session and routes back to Sign In. Previously a 24h-expired token
+  /// meant EVERY module showed errors forever with no way back except
+  /// manual logout — the #1 cause of "errors in all the modules".
+  static void Function(String message)? onSessionExpired;
+
+  static bool _expiryHandling = false;
+
+  static Future<void> _handleUnauthorized() async {
+    if (_expiryHandling) return; // one cleanup per burst of parallel calls
+    _expiryHandling = true;
+    try {
+      await logout();
+    } catch (_) {}
+    _expiryHandling = false;
+    try {
+      onSessionExpired?.call('Your session has expired. Please sign in again.');
+    } catch (_) {}
+  }
+
   /// The original super-admin token for this session. When a super admin
   /// switches into a tenant, _token becomes the tenant token but we keep the
   /// super-admin token in memory so the tenant picker can be re-opened
@@ -25,23 +46,33 @@ class ApiService {
 
   static Future<http.Response> _get(String url, {Map<String, String>? queryParams}) async {
     final uri = Uri.parse(url).replace(queryParameters: queryParams);
-    return http.get(uri, headers: _headers).timeout(ApiConfig.timeout);
+    final response = await http.get(uri, headers: _headers).timeout(ApiConfig.timeout);
+    if (response.statusCode == 401 && _token != null) await _handleUnauthorized();
+    return response;
   }
 
   static Future<http.Response> _post(String url, Map<String, dynamic> body) async {
-    return http.post(Uri.parse(url), headers: _headers, body: jsonEncode(body)).timeout(ApiConfig.timeout);
+    final response = await http.post(Uri.parse(url), headers: _headers, body: jsonEncode(body)).timeout(ApiConfig.timeout);
+    if (response.statusCode == 401 && _token != null) await _handleUnauthorized();
+    return response;
   }
 
   static Future<http.Response> _put(String url, Map<String, dynamic> body) async {
-    return http.put(Uri.parse(url), headers: _headers, body: jsonEncode(body)).timeout(ApiConfig.timeout);
+    final response = await http.put(Uri.parse(url), headers: _headers, body: jsonEncode(body)).timeout(ApiConfig.timeout);
+    if (response.statusCode == 401 && _token != null) await _handleUnauthorized();
+    return response;
   }
 
   static Future<http.Response> _delete(String url) async {
-    return http.delete(Uri.parse(url), headers: _headers).timeout(ApiConfig.timeout);
+    final response = await http.delete(Uri.parse(url), headers: _headers).timeout(ApiConfig.timeout);
+    if (response.statusCode == 401 && _token != null) await _handleUnauthorized();
+    return response;
   }
 
   static Future<http.Response> _patch(String url, Map<String, dynamic> body) async {
-    return http.patch(Uri.parse(url), headers: _headers, body: jsonEncode(body)).timeout(ApiConfig.timeout);
+    final response = await http.patch(Uri.parse(url), headers: _headers, body: jsonEncode(body)).timeout(ApiConfig.timeout);
+    if (response.statusCode == 401 && _token != null) await _handleUnauthorized();
+    return response;
   }
 
   // ============ Auth ============
@@ -137,6 +168,59 @@ class ApiService {
       return UserModel.fromJson(jsonDecode(data));
     } catch (_) {
       return null;
+    }
+  }
+
+  /// GET /api/auth/me — refresh the signed-in identity straight from the
+  /// server (Task 110). The home header previously rendered ONLY the stored
+  /// login-time user JSON; if that JSON was written by an old build (no
+  /// avatar/name fields) the header showed no photo. Fetching /me and
+  /// re-persisting keeps name + photo always current.
+  /// Returns null on any failure (offline, expired token) — never throws.
+  static Future<Map<String, dynamic>?> getMe() async {
+    try {
+      final response = await _get(ApiConfig.me).timeout(ApiConfig.timeout);
+      if (response.statusCode != 200) return null;
+      final data = jsonDecode(response.body);
+      if (data is Map<String, dynamic>) {
+        final user = data['user'] is Map<String, dynamic> ? data['user'] as Map<String, dynamic> : data;
+        return user;
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  /// Strict session check — true ONLY when /api/auth/me answers 200 with
+  /// the current token. Unlike [refreshStoredUser], it never falls back to
+  /// the stored copy, so the app wrapper can detect an expired token.
+  static Future<bool> validateSession() async {
+    try {
+      final response = await _get(ApiConfig.me).timeout(ApiConfig.timeout);
+      return response.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Refresh the stored user JSON from the server. Returns the refreshed
+  /// user, or null when the refresh failed AND no stored copy exists.
+  static Future<UserModel?> refreshStoredUser() async {
+    final me = await getMe();
+    if (me == null) return getStoredUser();
+    try {
+      final existing = StorageService.getUserData();
+      Map<String, dynamic> merged = me;
+      if (existing != null) {
+        try {
+          final old = jsonDecode(existing);
+          if (old is Map<String, dynamic>) merged = {...old, ...me};
+        } catch (_) {}
+      }
+      final encoded = jsonEncode(merged);
+      await StorageService.setUserData(encoded);
+      return UserModel.fromJson(merged);
+    } catch (_) {
+      return getStoredUser();
     }
   }
 

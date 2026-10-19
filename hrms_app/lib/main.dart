@@ -21,6 +21,7 @@ import 'screens/attendance/attendance_screen.dart';
 import 'screens/reports/reports_screen.dart';
 import 'screens/profile/profile_screen.dart';
 import 'screens/settings/settings_screen.dart';
+import 'screens/settings/diagnostics_screen.dart';
 import 'screens/notifications/notifications_screen.dart';
 import 'models/employee.dart';
 import 'screens/onboarding/onboarding_screen.dart';
@@ -30,6 +31,7 @@ import 'screens/auth/tenant_picker_screen.dart';
 import 'screens/home/home_screen.dart';
 import 'screens/employees/employee_management_screen.dart';
 import 'screens/employees/employee_empty_screen.dart';
+import 'screens/employees/employee_detail_by_id_screen.dart';
 import 'screens/leaves/leave_home_screen.dart';
 import 'screens/attendance/attendance_home_screen.dart';
 import 'screens/payroll/payroll_home_screen.dart';
@@ -44,8 +46,28 @@ void main() async {
   ApiConfig.restoreFromStorage();
   final token = StorageService.getToken();
   if (token != null) ApiService.setToken(token);
+  // Task 110 — dead-session recovery: any 401 from an authenticated call
+  // (the 24h token expired, super-admin switch revoked, etc.) now clears the
+  // session and lands the user on Sign In with an explanation instead of
+  // leaving EVERY module showing errors.
+  ApiService.onSessionExpired = (message) {
+    final nav = rootNavigatorKey.currentState;
+    if (nav != null) {
+      nav.pushNamedAndRemoveUntil('/signin', (r) => false);
+      rootMessengerKey.currentState?.showSnackBar(SnackBar(
+        content: Text(message),
+        backgroundColor: const Color(0xFFB7791F),
+        duration: const Duration(seconds: 4),
+      ));
+    }
+  };
   runApp(const HRMSApp());
 }
+
+/// Global navigator so the ApiService session-expiry hook can route back to
+/// Sign In from ANYWHERE (module screens, dialogs, background refreshes).
+final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
+final GlobalKey<ScaffoldMessengerState> rootMessengerKey = GlobalKey<ScaffoldMessengerState>();
 
 class HRMSApp extends StatelessWidget {
   const HRMSApp({super.key});
@@ -63,6 +85,8 @@ class HRMSApp extends StatelessWidget {
       child: MaterialApp(
         title: AppConstants.appName,
         debugShowCheckedModeBanner: false,
+        navigatorKey: rootNavigatorKey,
+        scaffoldMessengerKey: rootMessengerKey,
         theme: AppTheme.lightTheme,
         initialRoute: '/',
         routes: {
@@ -86,11 +110,21 @@ class HRMSApp extends StatelessWidget {
           '/profile': (_) => const ProfileScreen(),
           '/settings': (_) => const SettingsScreen(),
           '/notifications': (_) => const NotificationsScreen(),
+          '/diagnostics': (_) => const DiagnosticsScreen(),
         },
         onGenerateRoute: (settings) {
           if (settings.name == '/employees/detail') {
-            final emp = settings.arguments as EmployeeModel;
-            return MaterialPageRoute(builder: (_) => EmployeeDetailScreen(employee: emp));
+            // Task 110 FIX: the module screen passes the employee ID (String)
+            // while the legacy list passes a full EmployeeModel. The old cast
+            // `settings.arguments as EmployeeModel` THREW a TypeError on every
+            // detail tap from Employee Management ("module throwing errors").
+            final arg = settings.arguments;
+            if (arg is EmployeeModel) {
+              return MaterialPageRoute(builder: (_) => EmployeeDetailScreen(employee: arg));
+            }
+            if (arg is String) {
+              return MaterialPageRoute(builder: (_) => EmployeeDetailByIdScreen(employeeId: arg));
+            }
           }
           return null;
         },
@@ -119,6 +153,26 @@ class _AppWrapperState extends State<_AppWrapper> {
     final auth = context.read<AuthProvider>();
     final seenOnboarding = StorageService.prefs.getBool('seen_onboarding') ?? false;
     if (auth.isLoggedIn) {
+      // Task 110 — VALIDATE the restored session before entering the app:
+      // tokens expire after 24h on the server. Without this check the app
+      // used to land on Home with a dead token and EVERY module errored.
+      final valid = await ApiService.validateSession();
+      if (!mounted) return;
+      if (!valid) {
+        // Token expired/invalid — clean up and ask for a fresh sign-in.
+        try { await auth.logout(); } catch (_) {}
+        if (!mounted) return;
+        Navigator.pushReplacementNamed(context, '/signin');
+        rootMessengerKey.currentState?.showSnackBar(const SnackBar(
+          content: Text('Your session has expired. Please sign in again.'),
+          backgroundColor: Color(0xFFB7791F),
+          duration: Duration(seconds: 4),
+        ));
+        return;
+      }
+      // Token is alive — refresh name/photo from the server.
+      final fresh = await ApiService.refreshStoredUser();
+      if (mounted && fresh != null) auth.adoptUser(fresh);
       // Super admins must pick a tenant workspace first (web switcher parity);
       // everyone else goes straight to the dashboard.
       final isSuper = auth.user?.role == 'super_admin';

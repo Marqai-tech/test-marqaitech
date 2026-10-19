@@ -34,18 +34,19 @@ const mode = process.argv[2] || 'register';
 
 if (mode === 'register') {
   const r = await post(`${DEMO}/api/super-admin/change-requests`, {
-    title: 'Task 109: holiday/weekend punch rules + suspicious-punch alerts + code governance + tenant-link protection',
+    title: 'Task 110: mobile session-expiry recovery + employee-detail fix + APK download/self-update from login + connection diagnostics + employees API auth gate',
     description: [
-      'Attendance business rules (admin-configurable per employee):',
-      '1. Holiday / weekend punch gate — mobile & web punches on a holiday or weekend are blocked (403 HOLIDAY_WORK_APPROVAL_REQUIRED) unless (a) an APPROVED HOLIDAY_WORK request (employee → reporting manager → HR) covers the date, or (b) the admin opens holidays/weekends free for that employee in Attendance → Remote Check-In (new toggle). Biometric punches on holidays are ALWAYS recorded but generate alerts.',
-      '2. Suspicious-punch detection — EXACT_GEOFENCE_PIN (mock-location signature), SHARED_COORDINATES (one device punching for multiple employees), HOLIDAY_WEEKEND_PUNCH. Admins+HR get in-app notifications AND email alerts, de-duplicated per employee/date/flag. Biometric webhook also alerts on holiday punches.',
-      '3. Code-change governance (GOVERNANCE.md + scripts/deploy-release.sh): every GitHub/Vercel update requires an approved super-admin change request; CLI deploys are blocked by the guard unless the CR verifies as approved against the live platform API; commit messages must carry CR:<id>; guard closes the loop by marking the CR implemented with the deploy commit.',
-      '4. Tenant-link protection — PATCH /api/tenants/[id] rejects slug changes outright (TENANT_LINK_LOCKED) and rejects custom-domain changes by tenant admins; super-admin domain changes broadcast notification + email to all super admins and tenant admins.',
-      '5. Employee.holidayWeekendPunchEnabled column (platform + tenant DBs, idempotent runtime ensure), remote-permissions API/Ui 4th toggle, my-summary exposes it, Flutter punch exception codes + approval-needed dialog, APK v1.0.7+8.',
+      'Root-cause fixes for the recurring "errors in all modules" mobile report:',
+      '1. SESSION-EXPIRY RECOVERY — tokens expire after 24h; the app previously auto-entered Home with a dead token (upgrade-over-install keeps storage) and EVERY module 401-ed forever. Now: startup /api/auth/me validation before entering Home, global 401 hook clears the dead session and routes to Sign In with a message.',
+      '2. EMPLOYEE-DETAIL CRASH FIX — /employees/detail route cast String id to EmployeeModel (TypeError on every tap from Employee Management); new EmployeeDetailByIdScreen resolves by id with loading/error states.',
+      '3. APK DOWNLOAD & SELF-UPDATE FROM THE LOGIN PAGE — public /api/public/app-version endpoint; sign-in screen shows installed version + "Download latest app (APK)" + update banner; home shows update dialog; Settings gains Check-for-updates + Connection check; web login page shows the download card expanded with the REAL version and the PWA "install web app" option REMOVED (user request).',
+      '4. CONNECTION DIAGNOSTICS SCREEN — runs the full module endpoint matrix with the stored token, per-endpoint pass/fail + server message, screenshot-able for support.',
+      '5. SECURITY — GET /api/employees (list + [id]) served full employee PII with NO token / garbage / cross-tenant tokens; now 401-gated like every other route.',
+      '6. Profile photo always refreshed from /api/auth/me; logout routes to the current sign-in screen. APK v1.0.8+9 (versionCode 9, arm64).',
     ].join('\n'),
     category: 'attendance',
     priority: 'high',
-    requestedBy: 'automation (Task 109)',
+    requestedBy: 'automation (Task 110)',
   }, token);
   console.log('REGISTER', r.status, JSON.stringify(r.data).slice(0, 300));
   const id = r.data?.request?.id || r.data?.id;

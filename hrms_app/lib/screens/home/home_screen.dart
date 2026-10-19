@@ -1,12 +1,16 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../../config/api_config.dart';
 import '../../config/maan_theme.dart';
+import '../../config/app_info.dart';
 import '../../models/user.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/employee_provider.dart';
 import '../../services/api_service.dart';
 import '../../services/storage_service.dart';
+import '../../services/update_service.dart';
 import '../../widgets/maan_avatar.dart';
 
 /// Home dashboard — LIVE stats from the web APIs + the 4 core modules.
@@ -40,7 +44,45 @@ class _HomeScreenState extends State<HomeScreen> {
         _me = UserModel.fromJson(jsonDecode(data));
       } catch (_) {}
     }
+    if (mounted) setState(() {});
+    // Task 110: refresh identity straight from /api/auth/me so the header
+    // photo + name are ALWAYS current (a stored user JSON written by an old
+    // build could lack avatar/name — that looked like "admin photo missing").
+    final fresh = await ApiService.refreshStoredUser();
+    if (fresh != null && mounted) {
+      setState(() => _me = fresh);
+    }
     await _refreshStats();
+    _checkUpdateOnce();
+  }
+
+  bool _updatePromptShown = false;
+
+  /// One gentle update prompt per session when the platform ships a newer
+  /// APK — the download opens the user's own workspace link.
+  Future<void> _checkUpdateOnce() async {
+    if (_updatePromptShown) return;
+    _updatePromptShown = true;
+    final ok = await UpdateService.checkForUpdate();
+    if (!ok || !UpdateService.updateAvailable || !mounted) return;
+    showDialog(context: context, builder: (ctx) => AlertDialog(
+      title: const Text('Update available'),
+      content: Text('A newer version (v${UpdateService.latestVersionName}) is available. '
+          'Older builds can show module errors. Download the latest APK from your workspace?'),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Later')),
+        FilledButton(
+          onPressed: () async {
+            Navigator.pop(ctx);
+            try {
+              await launchUrl(Uri.parse(AppInfo.apkUrlOnWorkspace(ApiConfig.baseUrl)), mode: LaunchMode.externalApplication);
+            } catch (_) {}
+          },
+          style: FilledButton.styleFrom(backgroundColor: MaanColors.primary),
+          child: const Text('Download & install'),
+        ),
+      ],
+    ));
   }
 
   Future<void> _refreshStats() async {
@@ -273,6 +315,7 @@ class _HomeScreenState extends State<HomeScreen> {
           _drawerItem(context, Icons.notifications_rounded, 'Notifications', () { Navigator.pop(context); Navigator.pushNamed(context, '/notifications'); }),
           _drawerItem(context, Icons.person_rounded, 'My Profile', () { Navigator.pop(context); Navigator.pushNamed(context, '/profile'); }),
           _drawerItem(context, Icons.settings_rounded, 'Settings', () { Navigator.pop(context); Navigator.pushNamed(context, '/settings'); }),
+          _drawerItem(context, Icons.wifi_tethering_rounded, 'Connection check', () { Navigator.pop(context); Navigator.pushNamed(context, '/diagnostics'); }),
           const Divider(color: MaanColors.line),
           _drawerItem(context, Icons.logout_rounded, 'Logout', () async {
             Navigator.pop(context);
@@ -281,6 +324,8 @@ class _HomeScreenState extends State<HomeScreen> {
             if (context.mounted) Navigator.pushNamedAndRemoveUntil(context, '/signin', (r) => false);
           }, danger: true),
           const SizedBox(height: 12),
+          Center(child: Text(AppInfo.label, style: MaanText.caption.copyWith(fontSize: 10))),
+          const SizedBox(height: 4),
           Center(child: Text('MANAGE PEOPLE. EMPOWER GROWTH.', style: MaanText.caption.copyWith(fontSize: 9.5, letterSpacing: .8))),
           const SizedBox(height: 16),
         ]),

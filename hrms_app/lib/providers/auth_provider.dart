@@ -93,6 +93,14 @@ class AuthProvider extends ChangeNotifier {
   /// super-admin token for the picker's GET /api/tenants call.
   void beginTenantPick() => ApiService.useSuperAdminToken();
 
+  /// Task 110 — adopt a freshly refreshed identity (name/photo from
+  /// /api/auth/me) so the home header + profile always reflect the server.
+  void adoptUser(UserModel user) {
+    _user = user;
+    _isLoggedIn = true;
+    notifyListeners();
+  }
+
   Future<void> logout() async {
     await ApiService.logout();
     await TenantLogoService.clearCache();
