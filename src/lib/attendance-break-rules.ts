@@ -6,6 +6,7 @@ export type AttendanceRulePolicy = AttendanceBreakPolicy & {
   lateMarkHalfDayOnExceed: boolean;
   productionThresholdMinutes: number;
   disableAppCheckin: boolean;
+  disableAppCheckout: boolean;
 };
 const DEFAULT_POLICY: AttendanceBreakPolicy = { startMinutes: 810, endMinutes: 870, durationMinutes: 60, mandatory: false, shiftEndMinutes: 1110 };
 const DEFAULT_RULE_POLICY: AttendanceRulePolicy = {
@@ -16,6 +17,7 @@ const DEFAULT_RULE_POLICY: AttendanceRulePolicy = {
   lateMarkHalfDayOnExceed: true,
   productionThresholdMinutes: 480,
   disableAppCheckin: false,
+  disableAppCheckout: false,
 };
 
 function parseTime(value: string | null | undefined, fallback: number) {
@@ -35,12 +37,13 @@ export async function loadAttendanceBreakPolicy(db: any): Promise<AttendanceBrea
 /** Load all punch/late/production rules from AttendancePolicyConfig. */
 export async function loadAttendanceRulePolicy(db: any): Promise<AttendanceRulePolicy> {
   try {
-    // Ensure disableAppCheckin column exists
+    // Ensure disableAppCheckin / disableAppCheckout columns exist
     try {
       await db.$executeRawUnsafe(`ALTER TABLE "AttendancePolicyConfig" ADD COLUMN IF NOT EXISTS "disableAppCheckin" BOOLEAN NOT NULL DEFAULT false`);
+      await db.$executeRawUnsafe(`ALTER TABLE "AttendancePolicyConfig" ADD COLUMN IF NOT EXISTS "disableAppCheckout" BOOLEAN NOT NULL DEFAULT false`);
     } catch { /* column may already exist */ }
 
-    const rows = await db.$queryRawUnsafe(`SELECT "shiftStartDefault", "shiftEndDefault", "breakStartTime", "breakEndTime", "breakDurationMinutes", "mandatoryBreakEnabled", "lateGraceMinutes", "lateMarkAllowancePerMonth", "lateMarkHalfDayOnExceed", "overtimeThresholdMinutes", "attendanceRuleScope", "disableAppCheckin" FROM "AttendancePolicyConfig" ORDER BY "updatedAt" DESC LIMIT 1`);
+    const rows = await db.$queryRawUnsafe(`SELECT "shiftStartDefault", "shiftEndDefault", "breakStartTime", "breakEndTime", "breakDurationMinutes", "mandatoryBreakEnabled", "lateGraceMinutes", "lateMarkAllowancePerMonth", "lateMarkHalfDayOnExceed", "overtimeThresholdMinutes", "attendanceRuleScope", "disableAppCheckin", "disableAppCheckout" FROM "AttendancePolicyConfig" ORDER BY "updatedAt" DESC LIMIT 1`);
     const row = rows?.[0];
     if (!row || row.attendanceRuleScope !== 'marqaitechgroup_only' && row.attendanceRuleScope !== 'all_tenants') return DEFAULT_RULE_POLICY;
     return {
@@ -55,6 +58,7 @@ export async function loadAttendanceRulePolicy(db: any): Promise<AttendanceRuleP
       lateMarkHalfDayOnExceed: row.lateMarkHalfDayOnExceed ?? DEFAULT_RULE_POLICY.lateMarkHalfDayOnExceed,
       productionThresholdMinutes: Number(row.overtimeThresholdMinutes ?? DEFAULT_RULE_POLICY.productionThresholdMinutes),
       disableAppCheckin: row.disableAppCheckin ?? false,
+      disableAppCheckout: row.disableAppCheckout ?? false,
     };
   } catch {
     return DEFAULT_RULE_POLICY;

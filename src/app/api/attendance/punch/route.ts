@@ -257,21 +257,28 @@ export async function POST(request: NextRequest) {
     const beforeLunch = localMinutes !== null && localMinutes < 13 * 60 + 30;
     const afterLunchBeforeClose = localMinutes !== null && localMinutes >= 13 * 60 + 30 && localMinutes < 18 * 60 + 30;
 
-    // BUG_071: Check if app check-in is disabled for this tenant
-    // When disableAppCheckin = true, employees can only check in via biometric device.
-    // Check-out, break-in, break-out via app are still allowed.
-    if (action === 'checkin') {
+    // BUG_071 + BUG_073: App check-in / check-out can be disabled per-tenant
+    // via AttendancePolicyConfig flags disableAppCheckin / disableAppCheckout.
+    // When true, employees must use the biometric device for that action.
+    // Break-in / break-out via app are still allowed when either flag is on.
+    if (action === 'checkin' || action === 'checkout') {
       try {
         const { loadAttendanceRulePolicy } = await import('@/lib/attendance-break-rules');
         const rulePolicy = await loadAttendanceRulePolicy(db);
-        if (rulePolicy.disableAppCheckin) {
+        if (action === 'checkin' && rulePolicy.disableAppCheckin) {
           return NextResponse.json({
             error: 'App check-in is disabled. Please use the biometric device to check in.',
             code: 'APP_CHECKIN_DISABLED',
           }, { status: 403, headers: corsHeaders() });
         }
+        if (action === 'checkout' && rulePolicy.disableAppCheckout) {
+          return NextResponse.json({
+            error: 'App check-out is disabled. Please use the biometric device to check out.',
+            code: 'APP_CHECKOUT_DISABLED',
+          }, { status: 403, headers: corsHeaders() });
+        }
       } catch {
-        // If policy load fails, allow check-in (non-fatal)
+        // If policy load fails, allow the action (non-fatal)
       }
     }
 
