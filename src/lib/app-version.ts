@@ -17,5 +17,5 @@ export const APP_RELEASE = {
   apkUrl: '/downloads/3boxes-hrms-mobile-v1.2.0.apk',
   updatedAt: '2026-10-19',
   notes:
-    'FIXED the root cause of "errors in all modules + no token stored": the workspace auto-detect could land on a /login page URL, so the app signed in with no session. Login now always lands on the real API, the connection check reports truthfully, and the workspace self-heals on first launch. No uninstall needed — upgrades cleanly over v1.0.9.',
+    'NEW: all your pages are live now — profile, settings, notifications, employee directory, attendance report and the Home check-in/break/leave tabs show real data, and you can change your profile photo from My Profile. Installs over v1.0.9/v1.1.0 — no uninstall needed.',
 };
