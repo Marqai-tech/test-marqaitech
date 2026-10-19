@@ -358,7 +358,10 @@ class ApiService {
     final response = await _post(ApiConfig.punch, body);
     final data = jsonDecode(response.body);
     if (response.statusCode == 200 || response.statusCode == 201) return data;
-    throw Exception(data['error'] ?? 'Punch failed');
+    throw PunchException(
+      (data['error'] ?? 'Punch failed').toString(),
+      code: data['code']?.toString(),
+    );
   }
 
   // ============ Lookups ============
@@ -401,6 +404,17 @@ class PunchGps {
   final double lng;
   final double? accuracy;
   const PunchGps({required this.lat, required this.lng, this.accuracy});
+}
+
+/// Punch rejection carrying the server's machine-readable code so the UI can
+/// react specifically (e.g. HOLIDAY_WORK_APPROVAL_REQUIRED → approval dialog
+/// instead of a generic error snack).
+class PunchException implements Exception {
+  final String message;
+  final String? code;
+  const PunchException(this.message, {this.code});
+  @override
+  String toString() => message;
 }
 
 /// Login failure carrying the server's own message (and the hosts that were

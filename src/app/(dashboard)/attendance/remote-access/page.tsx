@@ -15,7 +15,7 @@
  */
 
 import { useEffect, useMemo, useState } from 'react';
-import { FiWifi, FiSearch, FiRefreshCw, FiInfo, FiCheckCircle, FiXCircle, FiHome } from 'react-icons/fi';
+import { FiWifi, FiSearch, FiRefreshCw, FiInfo, FiCheckCircle, FiXCircle, FiHome, FiCalendar } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { getDataScope } from '@/lib/roleAccess';
@@ -39,6 +39,7 @@ interface RemotePermissionRow {
   wfhPreApproved: boolean;
   mobileCheckInEnabled: boolean;
   webCheckInEnabled: boolean;
+  holidayWeekendPunchEnabled: boolean;
 }
 
 function Toggle({ checked, onChange, disabled }: { checked: boolean; onChange: () => void; disabled?: boolean }) {
@@ -87,7 +88,7 @@ export default function RemoteCheckInPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allowed]);
 
-  const patch = async (row: RemotePermissionRow, field: 'wfhPreApproved' | 'mobileCheckInEnabled' | 'webCheckInEnabled', value: boolean) => {
+  const patch = async (row: RemotePermissionRow, field: 'wfhPreApproved' | 'mobileCheckInEnabled' | 'webCheckInEnabled' | 'holidayWeekendPunchEnabled', value: boolean) => {
     setSavingIds(prev => new Set(prev).add(row.id));
     // optimistic update
     setRows(prev => prev.map(r => (r.id === row.id ? { ...r, [field]: value } : r)));
@@ -104,7 +105,9 @@ export default function RemoteCheckInPage() {
         ? 'WFH pre-approval'
         : field === 'mobileCheckInEnabled'
           ? 'Mobile check-in'
-          : 'Web check-in';
+          : field === 'holidayWeekendPunchEnabled'
+            ? 'Holiday / weekend free punch'
+            : 'Web check-in';
       toast.success(`${label} ${value ? 'enabled for' : 'disabled for'} ${row.firstName} ${row.lastName}`);
     } catch (err: unknown) {
       // revert on failure
@@ -132,6 +135,7 @@ export default function RemoteCheckInPage() {
   const enabledMobile = rows.filter(r => r.mobileCheckInEnabled).length;
   const enabledWeb = rows.filter(r => r.webCheckInEnabled).length;
   const wfhApproved = rows.filter(r => r.wfhPreApproved).length;
+  const holidayOpen = rows.filter(r => r.holidayWeekendPunchEnabled).length;
 
   if (!allowed) {
     return (
@@ -176,10 +180,17 @@ export default function RemoteCheckInPage() {
           the same permission. Every remote punch still records GPS coordinates, and punches recorded outside the office
           geofence (or exactly on its center — a mock-location signature) are flagged for audit in the Punch Activity Log.
         </p>
+        <p>
+          <strong>Holidays &amp; weekends:</strong> remote punches on a holiday or weekend are <strong>blocked by
+          default</strong> — the employee must raise a <em>Holiday / Weekend Work</em> request to the admin or their
+          immediate approver and have it approved first. Enable the <em>Holiday / weekend</em> toggle below to open
+          holidays &amp; weekends free for a specific employee (no request needed). Biometric punches on holidays are
+          always recorded, and both are highlighted to admins via notification + email alerts.
+        </p>
       </div>
 
       {/* Summary chips */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
         <div className="rounded-xl border border-slate-200 bg-white p-4">
           <div className="text-xs text-slate-500 flex items-center gap-1.5"><FiHome className="w-3.5 h-3.5" /> WFH pre-approved</div>
           <div className="text-2xl font-bold text-slate-800 mt-1">{wfhApproved}<span className="text-sm font-normal text-slate-400"> / {rows.length}</span></div>
@@ -191,6 +202,10 @@ export default function RemoteCheckInPage() {
         <div className="rounded-xl border border-slate-200 bg-white p-4">
           <div className="text-xs text-slate-500 flex items-center gap-1.5"><FiWifi className="w-3.5 h-3.5" /> Web check-in enabled</div>
           <div className="text-2xl font-bold text-slate-800 mt-1">{enabledWeb}<span className="text-sm font-normal text-slate-400"> / {rows.length}</span></div>
+        </div>
+        <div className="rounded-xl border border-slate-200 bg-white p-4">
+          <div className="text-xs text-slate-500 flex items-center gap-1.5"><FiCalendar className="w-3.5 h-3.5" /> Holiday / weekend open</div>
+          <div className="text-2xl font-bold text-slate-800 mt-1">{holidayOpen}<span className="text-sm font-normal text-slate-400"> / {rows.length}</span></div>
         </div>
       </div>
 
@@ -223,13 +238,14 @@ export default function RemoteCheckInPage() {
                 <th className="text-center px-4 py-3 font-semibold">WFH Pre-Approved</th>
                 <th className="text-center px-4 py-3 font-semibold">Mobile Check-In</th>
                 <th className="text-center px-4 py-3 font-semibold">Web Check-In</th>
+                <th className="text-center px-4 py-3 font-semibold" title="Allow mobile/web punches on holidays & weekends without an approved Holiday Work request">Holiday / Weekend Open</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
-                <tr><td colSpan={5} className="px-4 py-10 text-center text-slate-400">Loading employees…</td></tr>
+                <tr><td colSpan={6} className="px-4 py-10 text-center text-slate-400">Loading employees…</td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={5} className="px-4 py-10 text-center text-slate-400">No employees found.</td></tr>
+                <tr><td colSpan={6} className="px-4 py-10 text-center text-slate-400">No employees found.</td></tr>
               ) : filtered.map(row => (
                 <tr key={row.id} className="hover:bg-slate-50/60">
                   <td className="px-4 py-3">
@@ -248,6 +264,9 @@ export default function RemoteCheckInPage() {
                   </td>
                   <td className="px-4 py-3 text-center">
                     <Toggle checked={row.webCheckInEnabled} disabled={savingIds.has(row.id)} onChange={() => patch(row, 'webCheckInEnabled', !row.webCheckInEnabled)} />
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <Toggle checked={row.holidayWeekendPunchEnabled} disabled={savingIds.has(row.id)} onChange={() => patch(row, 'holidayWeekendPunchEnabled', !row.holidayWeekendPunchEnabled)} />
                   </td>
                 </tr>
               ))}

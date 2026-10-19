@@ -26,13 +26,15 @@ export type AttendanceRequestType =
   | 'REGULARIZATION'
   | 'WFH'
   | 'HOURLY_PERMISSION'
-  | 'GATE_PASS';
+  | 'GATE_PASS'
+  | 'HOLIDAY_WORK';
 
 export const REQUEST_TYPES: AttendanceRequestType[] = [
   'REGULARIZATION',
   'WFH',
   'HOURLY_PERMISSION',
   'GATE_PASS',
+  'HOLIDAY_WORK',
 ];
 
 export const REQUEST_TYPE_LABELS: Record<AttendanceRequestType, string> = {
@@ -40,6 +42,7 @@ export const REQUEST_TYPE_LABELS: Record<AttendanceRequestType, string> = {
   WFH: 'Work From Home',
   HOURLY_PERMISSION: 'Hourly Permission / Short Leave',
   GATE_PASS: 'Gate Pass & OUT Request',
+  HOLIDAY_WORK: 'Holiday / Weekend Work',
 };
 
 export type ActorType =
@@ -228,6 +231,19 @@ export const DEFAULT_WORKFLOW_CONFIGS: Record<AttendanceRequestType, WorkflowCon
       L(1, 'reporting_manager', 'Reporting Manager', 48, 'auto_escalate'),
       L(2, 'hr_admin', 'HR Administrator', 24, 'auto_approve', { field: 'gatePassType', op: 'eq', value: 'official' }),
       L(3, 'security', 'Security (Turnstile QR)', 0, 'none'),
+    ],
+  },
+  // 5. Holiday / Weekend Work (Task 109)
+  //    Working on a holiday or weekend requires admin / immediate-approver
+  //    pre-approval BEFORE the employee can punch from the mobile app or web.
+  //    L1 immediate approver (reporting manager; escalates to HR when none)
+  //    → L2 HR confirms. Without an approved request the punch API rejects
+  //    remote punches on holidays/weekends (code HOLIDAY_WORK_APPROVAL_REQUIRED).
+  HOLIDAY_WORK: {
+    rules: { ...DEFAULT_RULES, windowDays: 10, monthlyCap: 6 },
+    levels: [
+      L(1, 'reporting_manager', 'Reporting Manager / Immediate Approver', 24, 'auto_escalate'),
+      L(2, 'hr_admin', 'HR Administrator', 24, 'auto_approve'),
     ],
   },
 };

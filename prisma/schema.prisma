@@ -516,6 +516,16 @@ model Employee {
   mobileCheckInEnabled Boolean @default(false)  // allow punches from the mobile app (GPS + geofence audit still recorded)
   webCheckInEnabled    Boolean @default(false)  // allow punches from the browser (GPS + geofence audit still recorded)
 
+  // ─── Task 109: Holiday / weekend punch policy (employee-wise) ───
+  // false (default): remote punches (mobile/web) on a holiday or weekend are
+  // rejected with HOLIDAY_WORK_APPROVAL_REQUIRED until the employee's
+  // HOLIDAY_WORK request is approved by the admin / immediate approver.
+  // true ("open it free on holidays and weekends"): remote punches allowed on
+  // holidays/weekends for this employee without a request. Biometric punches
+  // on holidays are ALWAYS recorded regardless of this flag (but admins get
+  // holiday-work alerts via notification + email).
+  holidayWeekendPunchEnabled Boolean @default(false)
+
   bankName       String?
   bankAccountNo  String?
   bankIfscCode   String?

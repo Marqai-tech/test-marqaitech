@@ -6,6 +6,7 @@ import { resolveCompanyScope } from '@/lib/companyScope';
 import { safeAuditLog } from '@/lib/audit-safe';
 import { sendEmail } from '@/lib/email';
 import { attendanceLocalMinutes, effectiveBreakMinutes, loadAttendanceBreakPolicy } from '@/lib/attendance-break-rules';
+import { detectAndAlertSuspiciousPunch } from '@/lib/suspicious-punch';
 import { ensureEmployeeRemoteColumns } from '@/lib/employee-remote-columns';
 
 /**
@@ -249,6 +250,8 @@ export async function POST(request: NextRequest) {
         id: true, companyId: true, userId: true, employeeId: true, firstName: true, lastName: true, email: true,
         // Task 108: remote check-in pre-approval flags
         wfhPreApproved: true, mobileCheckInEnabled: true, webCheckInEnabled: true,
+        // Task 109: holiday/weekend punch policy flag
+        holidayWeekendPunchEnabled: true,
       },
     }).catch(async () => {
       // Columns may not exist yet on a cold DB — retry without them so the
@@ -299,6 +302,60 @@ export async function POST(request: NextRequest) {
         );
       }
     }
+    // ─── Task 109: HOLIDAY / WEEKEND PUNCH GATE ───
+    // Business rule: working on a holiday or a weekend requires prior
+    // approval from the admin or the immediate approver. Biometric punches
+    // on holidays are ALWAYS recorded (separate device webhook — never
+    // blocked); this gate governs the remote channels only (mobile app +
+    // web check-in / breaks). Admins can open holidays & weekends free for
+    // a specific employee from Attendance → Remote Check-In
+    // (holidayWeekendPunchEnabled) — that toggle bypasses the request
+    // requirement. Otherwise an APPROVED HOLIDAY_WORK request covering the
+    // date unlocks the punch.
+    let holidayName: string | null = null;
+    let isWeekendDay = false;
+    if (punchActions.includes(action)) {
+      const gateDate = new Date(`${date}T00:00:00`);
+      if (!Number.isNaN(gateDate.getTime())) {
+        const dow = gateDate.getDay(); // 0 = Sunday, 6 = Saturday
+        isWeekendDay = dow === 0 || dow === 6;
+        try {
+          const holidayWhere: Record<string, unknown> = {
+            date: { gte: gateDate, lt: new Date(gateDate.getTime() + 86400000) },
+          };
+          if (employee.companyId) holidayWhere.companyId = employee.companyId;
+          const holiday = await db.holiday.findFirst({ where: holidayWhere, select: { name: true } }).catch(() => null);
+          if (holiday) holidayName = holiday.name;
+        } catch { holidayName = null; }
+        if (isWeekendDay || holidayName) {
+          const freePunch = (employee as Record<string, unknown>).holidayWeekendPunchEnabled === true;
+          let holidayApproved = false;
+          if (!freePunch) {
+            const approvedRequest = await db.attendanceRequest.findFirst({
+              where: {
+                employeeId,
+                requestType: 'HOLIDAY_WORK',
+                status: 'approved',
+                startDate: { lte: gateDate },
+                OR: [{ endDate: null }, { endDate: { gte: gateDate } }],
+              },
+              select: { id: true },
+            }).catch(() => null);
+            holidayApproved = !!approvedRequest;
+          }
+          if (!freePunch && !holidayApproved) {
+            return NextResponse.json({
+              error: `Working on ${holidayName ? `the holiday "${holidayName}"` : 'a weekend'} requires prior approval. Please raise a Holiday / Weekend Work request to your admin or immediate approver (Attendance → Requests). Biometric punches on holidays are always recorded.`,
+              code: 'HOLIDAY_WORK_APPROVAL_REQUIRED',
+              date,
+              holiday: holidayName,
+              weekend: isWeekendDay,
+            }, { status: 403, headers: corsHeaders() });
+          }
+        }
+      }
+    }
+
     // Self-scope users can only punch for themselves
     if (scope.scope === 'self' && employee.userId !== scope.userId) {
       return NextResponse.json({ error: 'You can only punch for yourself' }, { status: 403, headers: corsHeaders() });
@@ -544,6 +601,31 @@ export async function POST(request: NextRequest) {
           console.warn('[punch] automatic half-day notification failed (non-fatal):', notificationError);
         }
       }
+    }
+
+    // ─── Task 109: suspicious-punch detection + admin alerts (non-fatal) ───
+    // Exact-pin mock signatures, coordinates shared between employees, and
+    // holiday/weekend punches are flagged to admins in-app + by email.
+    if (['checkin', 'checkout', 'breakin', 'breakout'].includes(action)) {
+      await detectAndAlertSuspiciousPunch({
+        db,
+        tenantId: scope.tenantId || null,
+        employee: {
+          id: employee.id,
+          employeeId: employee.employeeId,
+          firstName: employee.firstName,
+          lastName: employee.lastName,
+          email: employee.email,
+          userId: employee.userId,
+        },
+        dateStr: date,
+        action,
+        method,
+        gpsLat,
+        gpsLng,
+        holidayName,
+        isWeekend: isWeekendDay,
+      }).catch(() => null);
     }
 
     // Mirror HRMS button actions into the Biometric Punches audit. This gives

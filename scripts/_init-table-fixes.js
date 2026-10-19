@@ -43,6 +43,7 @@ module.exports = [
   `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "wfhPreApproved" BOOLEAN NOT NULL DEFAULT false`,
   `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "mobileCheckInEnabled" BOOLEAN NOT NULL DEFAULT false`,
   `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "webCheckInEnabled" BOOLEAN NOT NULL DEFAULT false`,
+  `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "holidayWeekendPunchEnabled" BOOLEAN NOT NULL DEFAULT false`,
   `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "bankName" TEXT`,
   `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "bankAccountNo" TEXT`,
   `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "bankIfscCode" TEXT`,

@@ -29,6 +29,7 @@ const EMPLOYEE_SELECT = {
   wfhPreApproved: true,
   mobileCheckInEnabled: true,
   webCheckInEnabled: true,
+  holidayWeekendPunchEnabled: true,
   department: { select: { name: true } },
   designation: { select: { title: true } },
 } as const;
@@ -50,6 +51,7 @@ function shapeRow(emp: Record<string, unknown>) {
     wfhPreApproved: emp.wfhPreApproved === true,
     mobileCheckInEnabled: emp.mobileCheckInEnabled === true,
     webCheckInEnabled: emp.webCheckInEnabled === true,
+    holidayWeekendPunchEnabled: emp.holidayWeekendPunchEnabled === true,
   };
 }
 
@@ -86,7 +88,7 @@ export async function GET(request: Request) {
         });
         return ok({
           employees: employees.map((emp: Record<string, unknown>) => ({
-            ...shapeRow(emp), wfhPreApproved: false, mobileCheckInEnabled: false, webCheckInEnabled: false,
+            ...shapeRow(emp), wfhPreApproved: false, mobileCheckInEnabled: false, webCheckInEnabled: false, holidayWeekendPunchEnabled: false,
           })),
           degraded: true,
         });
@@ -111,11 +113,11 @@ export async function PATCH(request: Request) {
     if (!employeeId) return fail('employeeId is required', 422);
 
     const updates: Record<string, boolean> = {};
-    for (const key of ['wfhPreApproved', 'mobileCheckInEnabled', 'webCheckInEnabled'] as const) {
+    for (const key of ['wfhPreApproved', 'mobileCheckInEnabled', 'webCheckInEnabled', 'holidayWeekendPunchEnabled'] as const) {
       if (typeof body[key] === 'boolean') updates[key] = body[key];
     }
     if (Object.keys(updates).length === 0) {
-      return fail('Nothing to update — provide wfhPreApproved / mobileCheckInEnabled / webCheckInEnabled', 422);
+      return fail('Nothing to update — provide wfhPreApproved / mobileCheckInEnabled / webCheckInEnabled / holidayWeekendPunchEnabled', 422);
     }
 
     const existing = await db.employee.findUnique({ where: { id: employeeId }, select: { id: true, employeeId: true, firstName: true, lastName: true } });

@@ -19,6 +19,11 @@ const STATEMENTS = [
   `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "wfhPreApproved" BOOLEAN NOT NULL DEFAULT false`,
   `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "mobileCheckInEnabled" BOOLEAN NOT NULL DEFAULT false`,
   `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "webCheckInEnabled" BOOLEAN NOT NULL DEFAULT false`,
+  // Task 109 — holiday/weekend punch policy (employee-wise):
+  // false = remote punches on a holiday/weekend require an APPROVED
+  // HOLIDAY_WORK request; true = "open it free on holidays and weekends".
+  // Biometric punches are NEVER blocked by this rule.
+  `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "holidayWeekendPunchEnabled" BOOLEAN NOT NULL DEFAULT false`,
 ];
 
 export async function ensureEmployeeRemoteColumns(db: PrismaClient | any): Promise<void> {

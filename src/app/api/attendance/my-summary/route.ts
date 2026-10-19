@@ -115,6 +115,7 @@ export async function GET(request: Request) {
         select: {
           id: true, firstName: true, lastName: true, employeeId: true, email: true,
           wfhPreApproved: true, mobileCheckInEnabled: true, webCheckInEnabled: true,
+          holidayWeekendPunchEnabled: true,
         },
       }).catch(async () => db.employee.findUnique({
         where: { id: effectiveEmployeeId },
@@ -127,6 +128,7 @@ export async function GET(request: Request) {
           wfhPreApproved: e.wfhPreApproved === true,
           mobileCheckInEnabled: e.mobileCheckInEnabled === true,
           webCheckInEnabled: e.webCheckInEnabled === true,
+          holidayWeekendPunchEnabled: e.holidayWeekendPunchEnabled === true,
         };
       }
     } catch {

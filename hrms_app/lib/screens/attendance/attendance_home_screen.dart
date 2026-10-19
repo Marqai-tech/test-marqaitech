@@ -154,9 +154,31 @@ class _AttendanceBodyState extends State<_AttendanceBody> {
       await _loadSummary();
       if (mounted) context.read<AttendanceProvider>().fetchAttendance(refresh: true);
     } catch (e) {
-      if (mounted) {
+      if (!mounted) return;
+      final msg = e.toString().replaceAll('Exception: ', '');
+      // Task 109: holiday/weekend gate — guide the employee to the approval
+      // flow instead of a bare error snack.
+      if (e is PunchException && e.code == 'HOLIDAY_WORK_APPROVAL_REQUIRED') {
+        await showDialog<void>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: Row(children: [
+              const Icon(Icons.event_busy_rounded, color: Colors.orange, size: 22),
+              const SizedBox(width: 8),
+              Expanded(child: Text('Approval needed', style: MaanText.title.copyWith(fontSize: 17))),
+            ]),
+            content: Text(
+              '$msg\n\nOnce your Holiday / Weekend Work request is approved (or your admin opens holidays & weekends for you in Attendance Settings), your mobile check-in will work on that date.',
+              style: MaanText.body,
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK', style: TextStyle(color: MaanColors.primary, fontWeight: FontWeight.w700))),
+            ],
+          ),
+        );
+      } else {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(e.toString().replaceAll('Exception: ', '')), backgroundColor: Colors.red));
+            content: Text(msg), backgroundColor: Colors.red));
       }
     }
     if (mounted) {
