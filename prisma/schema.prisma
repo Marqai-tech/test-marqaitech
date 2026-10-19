@@ -6165,6 +6165,7 @@ model AttendancePolicyConfig {
   mandatoryBreakEnabled Boolean @default(false)
   attendanceRuleScope String @default("all_tenants") // marqaitechgroup_only | all_tenants
   disableAppCheckin   Boolean @default(false) // BUG_071: when true, app check-in is blocked (biometric only)
+  disableAppCheckout  Boolean @default(false) // BUG_073: when true, app check-out is blocked (biometric only)
 
   // ── Auto-Present for Management (Task 82) ──
   // When enabled, management employees (same definition as the Management
