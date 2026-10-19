@@ -318,6 +318,7 @@ export default function AttendancePage() {
   const [shiftStartMinutes, setShiftStartMinutes] = useState(600); // 10:00 company late cutoff
   const [breakPolicy, setBreakPolicy] = useState<DashboardBreakPolicy>(DEFAULT_DASHBOARD_BREAK_POLICY);
   const [appCheckinDisabled, setAppCheckinDisabled] = useState(false);
+  const [appCheckoutDisabled, setAppCheckoutDisabled] = useState(false);
   const [approvedLeaves, setApprovedLeaves] = useState<Array<{ employeeId: string; startDate: string; endDate: string }>>([]);
 
   /* ── Self view state ── */
@@ -467,8 +468,9 @@ export default function AttendancePage() {
           endMinutes: parsePolicyTime(cfg.breakEndTime, DEFAULT_DASHBOARD_BREAK_POLICY.endMinutes),
           allowanceMinutes: Number(cfg.breakDurationMinutes) || DEFAULT_DASHBOARD_BREAK_POLICY.allowanceMinutes,
         });
-        // BUG_071: Check if app check-in is disabled for this tenant
+        // BUG_071 + BUG_073: Check if app check-in / check-out are disabled for this tenant
         setAppCheckinDisabled(Boolean(cfg.disableAppCheckin));
+        setAppCheckoutDisabled(Boolean(cfg.disableAppCheckout));
         if (Array.isArray(d.weekendDays) && d.weekendDays.length > 0) {
           setWeekendDow(d.weekendDays.map((n: number) => Number(n)));
         }
@@ -1079,15 +1081,18 @@ export default function AttendancePage() {
           </button>
           <button
             onClick={handleCheckOut}
-            disabled={checkingOut || !isCheckedIn || isCheckedOut}
+            disabled={checkingOut || !isCheckedIn || isCheckedOut || appCheckoutDisabled}
+            title={appCheckoutDisabled ? 'Check-out via biometric device only' : ''}
             className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all ${
-              !isCheckedIn || isCheckedOut
+              appCheckoutDisabled
+                ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
+                : !isCheckedIn || isCheckedOut
                 ? 'bg-slate-50 text-slate-400 border border-slate-200 cursor-not-allowed'
                 : 'bg-rose-500 text-white hover:bg-rose-600 shadow-sm shadow-rose-500/25 hover:shadow-md'
             }`}
           >
             <FiLogOut className="w-4 h-4" />
-            {checkingOut ? 'Checking...' : isCheckedOut ? '✓ Checked Out' : 'Check Out'}
+            {checkingOut ? 'Checking...' : isCheckedOut ? '✓ Checked Out' : appCheckoutDisabled ? 'Biometric Only' : 'Check Out'}
           </button>
           <label className="inline-flex items-center gap-2 px-3 py-2 text-xs text-slate-700 border border-slate-200 rounded-lg bg-white">
             <input type="checkbox" checked={earlyLogoutEnabled} disabled={!isCheckedIn || isCheckedOut || earlyLogoutEnabled} onChange={e => handleEarlyLogout(e.target.checked)} />

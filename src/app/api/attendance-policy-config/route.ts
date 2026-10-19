@@ -60,6 +60,8 @@ export async function GET(request: Request) {
           canteenFreeForNightShift: true,
           canteenOtfreeThresholdHours: 5,
           autoPresentManagementEnabled: false,
+          disableAppCheckin: false,
+          disableAppCheckout: false,
           companyId: null,
           createdAt: new Date(0),
           updatedAt: new Date(0),
@@ -128,6 +130,8 @@ export async function GET(request: Request) {
         canteenFreeForNightShift: true,
         canteenOtfreeThresholdHours: 5,
         autoPresentManagementEnabled: false,
+        disableAppCheckin: false,
+        disableAppCheckout: false,
         companyId: scope.companyId || scope.ownCompanyId || null,
         createdAt: new Date(0),
         updatedAt: new Date(0),
@@ -214,6 +218,8 @@ export async function PUT(request: Request) {
       attendanceRuleScope: (body.attendanceRuleScope as string) || existing?.attendanceRuleScope || 'all_tenants',
       // BUG_071: Disable App Check-In (biometric-only mode)
       disableAppCheckin: body.disableAppCheckin !== undefined ? !!body.disableAppCheckin : existing?.disableAppCheckin ?? false,
+      // BUG_073: Disable App Check-Out (biometric-only mode)
+      disableAppCheckout: body.disableAppCheckout !== undefined ? !!body.disableAppCheckout : existing?.disableAppCheckout ?? false,
       // Gate Pass Policy
       gatePassMaxPerMonth: body.gatePassMaxPerMonth !== undefined ? Number(body.gatePassMaxPerMonth) : existing?.gatePassMaxPerMonth ?? 1,
       gatePassHalfDayOnExceed: body.gatePassHalfDayOnExceed !== undefined ? !!body.gatePassHalfDayOnExceed : existing?.gatePassHalfDayOnExceed ?? true,
