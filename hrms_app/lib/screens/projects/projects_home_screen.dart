@@ -8,6 +8,7 @@ import '../../models/project.dart';
 import '../../providers/project_provider.dart';
 import '../../services/api_service.dart';
 import '../../services/storage_service.dart';
+import '../../utils/json_safe.dart';
 
 /// Task 114 — Project Management module (mobile, web parity).
 /// Live GET /api/projects — the SAME endpoint the web project-management
@@ -370,9 +371,7 @@ class _CreateProjectSheetState extends State<_CreateProjectSheet> {
     try {
       final res = await ApiService.getCompanies();
       setState(() {
-        _companies = (res['companies'] ?? res['data'] ?? const [])
-            .whereType<Map<String, dynamic>>()
-            .toList();
+        _companies = jsonMapList(res['companies'] is List ? res['companies'] : res['data']);
         _companyId = _companies.isNotEmpty ? _companies.first['id']?.toString() : null;
         _loadingCompanies = false;
       });

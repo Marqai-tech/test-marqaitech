@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../config/maan_theme.dart';
 import '../../services/api_service.dart';
+import '../../utils/json_safe.dart';
 
 /// Task 112 — Notifications rebuilt from design #18 with LIVE data:
 ///  · stats cards: Total / Unread / Read
@@ -31,14 +32,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     setState(() { _loading = true; _error = null; });
     try {
       final data = await ApiService.getNotifications();
-      final list = ((data['notifications'] ?? data['data']) as List? ?? [])
-          .whereType<Map>()
-          .map((n) => Map<String, dynamic>.from(n))
-          .toList();
+      final list = jsonMapList(data['notifications'] is List ? data['notifications'] : data['data']);
       if (!mounted) return;
       setState(() {
         _items = list;
-        _total = ((data['pagination']?['total'] ?? list.length) as num).toInt();
+        final pag = jsonMap(data['pagination']);
+        _total = (pag['total'] is num) ? (pag['total'] as num).toInt() : list.length;
         _unread = list.where((n) => n['isRead'] != true).length;
         _loading = false;
       });

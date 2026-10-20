@@ -9,6 +9,7 @@ import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
 import '../../services/punch_flow.dart';
 import '../../services/storage_service.dart';
+import '../../utils/json_safe.dart';
 import '../../widgets/maan_avatar.dart';
 import '../../widgets/main_scaffold.dart';
 import '../../widgets/app_drawer.dart';
@@ -81,20 +82,23 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
     Map<String, dynamic>? row;
     if (todayPayload != null) {
-      final list = (todayPayload['attendance'] ?? todayPayload['data']) as List?;
-      if (list != null && list.isNotEmpty) {
+      final list = jsonList(todayPayload['attendance'] is List ? todayPayload['attendance'] : todayPayload['data']);
+      if (list.isNotEmpty) {
         // Prefer the row that belongs to the signed-in employee (admins see
         // everyone for a date; employees get only their own).
         for (final r in list) {
           if (r is Map && id != null && '${r['employeeId'] ?? r['employee']?['id'] ?? ''}' == id) { row = Map<String, dynamic>.from(r); break; }
         }
-        row ??= Map<String, dynamic>.from(list.first as Map);
+        row ??= (list.first is Map) ? Map<String, dynamic>.from(list.first as Map) : null;
       }
     }
     int unread = 0;
     if (unreadPayload != null) {
-      final list = (unreadPayload['notifications'] ?? unreadPayload['data']) as List?;
-      unread = ((unreadPayload['pagination']?['total'] ?? list?.where((n) => n is Map && n['isRead'] != true).length ?? 0) as num).toInt();
+      final list = jsonList(unreadPayload['notifications'] is List ? unreadPayload['notifications'] : unreadPayload['data']);
+      final pag = jsonMap(unreadPayload['pagination']);
+      unread = (pag['total'] is num)
+          ? (pag['total'] as num).toInt()
+          : list.where((n) => n is Map && n['isRead'] != true).length;
     }
     final perms = summary?['remotePermissions'];
     setState(() {

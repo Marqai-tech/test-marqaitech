@@ -1,3 +1,5 @@
+import '../utils/json_safe.dart';
+
 class DashboardStats {
   final int totalEmployees;
   final int presentToday;
@@ -30,11 +32,11 @@ class DashboardStats {
       pendingApprovals: json['pendingApprovals'] ?? 0,
       newHires: json['newHires'] ?? 0,
       attendanceRate: (json['attendanceRate'] ?? 0).toDouble(),
-      departmentStats: (json['departmentStats'] as List?)
-          ?.map((e) => DepartmentStat.fromJson(e))
+      departmentStats: jsonMapList(json['departmentStats'])
+          .map(DepartmentStat.fromJson)
           .toList(),
-      recentActivities: (json['recentActivities'] as List?)
-          ?.map((e) => RecentActivity.fromJson(e))
+      recentActivities: jsonMapList(json['recentActivities'])
+          .map(RecentActivity.fromJson)
           .toList(),
     );
   }

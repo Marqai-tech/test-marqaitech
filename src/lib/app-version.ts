@@ -12,10 +12,10 @@
 // The in-app login-page download link was REMOVED per user request — the web
 // login page is now the only download source.
 export const APP_RELEASE = {
-  versionName: '1.4.1',
-  versionCode: 15,
-  apkUrl: '/downloads/3boxes-hrms-mobile-v1.4.1.apk',
+  versionName: '1.4.2',
+  versionCode: 16,
+  apkUrl: '/downloads/3boxes-hrms-mobile-v1.4.2.apk',
   updatedAt: '2026-10-20',
   notes:
-    'FIX: projects you create now open correctly for YOUR account — the creator is set as project manager, so opening the project and adding tasks works right away (managers and employees included). Task creation is now properly permission-checked. Installs over v1.4.0 — no uninstall needed.',
+    'FIX: Projects — Overview/Detail no longer fails with "type List<dynamic> is not a subtype of type List<ProjectTaskModel>". Every module now tolerates any unexpected data shape from the server (empty sections instead of errors). Installs over v1.4.1 — no uninstall needed.',
 };

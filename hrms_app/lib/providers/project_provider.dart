@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import '../models/project.dart';
 import '../services/api_service.dart';
+import '../utils/json_safe.dart';
 
 /// Task 114 — state for the Projects module (list + detail + tasks).
 /// Mirrors the web project-management module: same endpoints, same scoping,
 /// same status sets. No fabricated data anywhere.
+/// Task 116 — parsing is shape-agnostic (json_safe) and the detail load
+/// catches per-section errors so a deviant payload can never red-screen the
+/// module with `List<dynamic> is not a subtype of List<ProjectTaskModel>`.
 class ProjectProvider extends ChangeNotifier {
   List<ProjectModel> _projects = [];
   bool _isLoading = false;
@@ -56,9 +60,10 @@ class ProjectProvider extends ChangeNotifier {
         status: _statusFilter.isEmpty ? null : _statusFilter,
         search: _search.trim().isEmpty ? null : _search.trim(),
       );
-      final rows = (data['projects'] ?? const []) as List;
+      final rows = jsonList(data['projects']);
       _projects = rows.whereType<Map<String, dynamic>>().map(ProjectModel.fromJson).toList();
-      _total = data['pagination']?['total'] ?? _projects.length;
+      final pag = jsonMap(data['pagination']);
+      _total = (pag['total'] is num) ? (pag['total'] as num).toInt() : _projects.length;
       _isLoading = false;
       notifyListeners();
     } catch (e) {
@@ -116,24 +121,17 @@ class ProjectDetailProvider extends ChangeNotifier {
     notifyListeners();
     try {
       final data = await ApiService.getProjectDetail(projectId);
-      final p = data['project'];
-      if (p is Map<String, dynamic>) {
+      final p = jsonMap(data['project']);
+      if (p.isNotEmpty) {
         _project = ProjectModel.fromJson(p);
-        _milestones = ((p['milestones'] ?? const []) as List)
-            .whereType<Map<String, dynamic>>()
-            .map(ProjectMilestoneModel.fromJson)
-            .toList();
-        _team = ((p['allocations'] ?? const []) as List)
-            .whereType<Map<String, dynamic>>()
-            .map(ProjectTeamMemberModel.fromJson)
-            .toList();
+        _milestones = jsonMapList(p['milestones']).map(ProjectMilestoneModel.fromJson).toList();
+        _team = jsonMapList(p['allocations']).map(ProjectTeamMemberModel.fromJson).toList();
       }
-      final a = data['access'];
-      if (a is Map<String, dynamic>) _access = ProjectAccess.fromJson(a);
-      _tasks = ((p is Map<String, dynamic> ? p['tasks'] : const []) ?? const [] as List)
-          .whereType<Map<String, dynamic>>()
-          .map(ProjectTaskModel.fromJson)
-          .toList();
+      final a = jsonMap(data['access']);
+      if (a.isNotEmpty) _access = ProjectAccess.fromJson(a);
+      // Shape-agnostic tasks parse (Task 116): any deviant payload degrades
+      // to an empty list instead of the type-cast crash seen on v1.4.1.
+      _tasks = jsonMapList(p['tasks']).map(ProjectTaskModel.fromJson).toList();
       _isLoading = false;
       notifyListeners();
     } catch (e) {

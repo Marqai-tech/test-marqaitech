@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../config/maan_theme.dart';
 import '../../services/api_service.dart';
+import '../../utils/json_safe.dart';
 import '../../widgets/maan_avatar.dart';
 import '../../widgets/main_scaffold.dart';
 
@@ -41,14 +42,14 @@ class _EmployeeDirectoryScreenState extends State<EmployeeDirectoryScreen> {
     setState(() { _loading = true; _error = null; });
     try {
       final data = await ApiService.getEmployees(limit: 200);
-      final list = (data['employees'] ?? data['data'] ?? []) as List;
+      final list = jsonList(data['employees'] is List ? data['employees'] : data['data']);
       final emps = list.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
       Set<String> checked = {};
       try {
         final n = DateTime.now();
         final att = await ApiService.getAttendance(date: '${n.year}-${n.month.toString().padLeft(2, '0')}-${n.day.toString().padLeft(2, '0')}');
-        final rows = (att['attendance'] ?? att['data']) as List?;
-        for (final r in rows ?? []) {
+        final rows = jsonList(att['attendance'] is List ? att['attendance'] : att['data']);
+        for (final r in rows) {
           if (r is Map && (r['checkIn'] != null) && r['employeeId'] != null) {
             checked.add('${r['employeeId']}');
           }

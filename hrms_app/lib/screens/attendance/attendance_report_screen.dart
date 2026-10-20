@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../config/maan_theme.dart';
 import '../../services/api_service.dart';
+import '../../utils/json_safe.dart';
 
 /// Task 112 — Attendance Report built from design #17:
 ///  · blue header with a report-period dropdown ("Daily Report" in the
@@ -59,10 +60,8 @@ class _AttendanceReportScreenState extends State<AttendanceReportScreen> {
       final (start, end) = _range();
       final fmt = (DateTime d) => '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
       final data = await ApiService.getAttendance(startDate: fmt(start), endDate: fmt(end), employeeId: id, limit: 62);
-      final rows = ((data['attendance'] ?? data['data']) as List? ?? [])
-          .whereType<Map>()
+      final rows = jsonMapList(data['attendance'] is List ? data['attendance'] : data['data'])
           .where((r) => '${r['employeeId'] ?? ''}' == id)
-          .map((r) => Map<String, dynamic>.from(r))
           .toList();
       final startD = DateTime(start.year, start.month, start.day);
       final endD = DateTime(end.year, end.month, end.day).add(const Duration(days: 1));

@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../config/api_config.dart';
 import '../models/user.dart';
+import '../utils/json_safe.dart';
 import 'storage_service.dart';
 
 class ApiService {
@@ -434,7 +435,7 @@ class ApiService {
       final email = (jsonDecode(userData)['email'] ?? '').toString().toLowerCase();
       if (email.isEmpty) return null;
       final data = await getEmployees(limit: 200, search: email);
-      final list = (data['employees'] ?? data['data'] ?? []) as List;
+      final list = jsonList(data['employees'] is List ? data['employees'] : data['data']);
       for (final e in list) {
         if (e is Map && (e['email'] ?? '').toString().toLowerCase() == email) {
           final id = e['id']?.toString();

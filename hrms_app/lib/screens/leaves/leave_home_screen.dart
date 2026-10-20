@@ -8,6 +8,7 @@ import '../../models/user.dart';
 import '../../providers/leave_provider.dart';
 import '../../services/api_service.dart';
 import '../../services/storage_service.dart';
+import '../../utils/json_safe.dart';
 
 /// Leave module — live data from /api/leaves: list + filters + apply + approve/reject.
 class LeaveHomeScreen extends StatelessWidget {
@@ -290,7 +291,8 @@ class _ApplyLeaveSheetState extends State<_ApplyLeaveSheet> {
   Future<void> _loadEmployees() async {
     try {
       final data = await ApiService.getEmployees(limit: 100);
-      setState(() => _employees = (data['employees'] ?? []) as List);
+      if (!mounted) return;
+      setState(() => _employees = jsonList(data['employees'] is List ? data['employees'] : data['data']));
     } catch (_) {}
   }
 

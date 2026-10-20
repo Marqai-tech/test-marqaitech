@@ -10,6 +10,14 @@
 ///
 /// Field shapes mirror prisma `Project` / `ProjectTask` / `ProjectMilestone`
 /// includes (client, department, company, milestone, sprint, assignedTo…).
+///
+/// Task 116 — every collection/field read is shape-agnostic (see
+/// utils/json_safe.dart): a server payload that deviates from the expected
+/// shape (tasks as a Map, string elements, null blocks…) degrades to empty
+/// defaults instead of throwing `List<dynamic> is not a subtype of
+/// List<ProjectTaskModel>` in release builds.
+import '../utils/json_safe.dart';
+
 class ProjectModel {
   final String id;
   final String name;
@@ -73,10 +81,14 @@ class ProjectModel {
 
   static String? _str(dynamic v) => v == null ? null : v.toString();
 
+  /// When the server omits `_count`, fall back to the parsed tasks length so
+  /// the Overview counters stay truthful.
+  static int taskCountFrom(List<Map<String, dynamic>> tasksRaw) => tasksRaw.length;
+
   factory ProjectModel.fromJson(Map<String, dynamic> j) {
-    final counts = (j['_count'] as Map<String, dynamic>?) ?? const {};
-    final tasksRaw = (j['tasks'] as List?) ?? const [];
-    final allocsRaw = (j['allocations'] as List?) ?? const [];
+    final counts = jsonMap(j['_count']);
+    final tasksRaw = jsonMapList(j['tasks']);
+    final allocsRaw = jsonMapList(j['allocations']);
     return ProjectModel(
       id: (j['id'] ?? '').toString(),
       name: (j['name'] ?? '').toString(),
@@ -98,11 +110,11 @@ class ProjectModel {
       progress: (_num(j['progress'])).round(),
       projectManagerId: _str(j['projectManagerId']),
       deliveryManagerId: _str(j['deliveryManagerId']),
-      taskCount: (counts['tasks'] is num) ? (counts['tasks'] as num).toInt() : 0,
-      allocationCount: (counts['allocations'] is num) ? (counts['allocations'] as num).toInt() : 0,
+      taskCount: (counts['tasks'] is num) ? (counts['tasks'] as num).toInt() : taskCountFrom(tasksRaw),
+      allocationCount: (counts['allocations'] is num) ? (counts['allocations'] as num).toInt() : allocsRaw.length,
       milestoneCount: (counts['milestones'] is num) ? (counts['milestones'] as num).toInt() : 0,
-      recentTasks: tasksRaw.whereType<Map<String, dynamic>>().map(ProjectTaskModel.fromJson).toList(),
-      team: allocsRaw.whereType<Map<String, dynamic>>().map(ProjectTeamMemberModel.fromJson).toList(),
+      recentTasks: tasksRaw.map(ProjectTaskModel.fromJson).toList(),
+      team: allocsRaw.map(ProjectTeamMemberModel.fromJson).toList(),
     );
   }
 
@@ -189,10 +201,10 @@ class ProjectTaskModel {
   });
 
   factory ProjectTaskModel.fromJson(Map<String, dynamic> j) {
-    final assigned = j['assignedTo'];
-    final milestone = j['milestone'];
-    final sprint = j['sprint'];
-    final dependsOn = j['dependsOn'];
+    final assigned = jsonMap(j['assignedTo']);
+    final milestone = jsonMap(j['milestone']);
+    final sprint = jsonMap(j['sprint']);
+    final dependsOn = jsonMap(j['dependsOn']);
     return ProjectTaskModel(
       id: (j['id'] ?? '').toString(),
       projectId: (j['projectId'] ?? '').toString(),
@@ -200,17 +212,17 @@ class ProjectTaskModel {
       category: j['category']?.toString(),
       description: j['description']?.toString(),
       assignedToId: j['assignedToId']?.toString(),
-      assignedToName: (assigned is Map)
-          ? '${assigned['firstName'] ?? ''} ${assigned['lastName'] ?? ''}'.trim()
-          : null,
-      milestoneId: (milestone is Map) ? milestone['id']?.toString() : j['milestoneId']?.toString(),
-      milestoneName: (milestone is Map) ? milestone['name']?.toString() : null,
-      sprintId: (sprint is Map) ? sprint['id']?.toString() : j['sprintId']?.toString(),
-      sprintName: (sprint is Map) ? sprint['name']?.toString() : null,
+      assignedToName: assigned.isEmpty
+          ? null
+          : '${assigned['firstName'] ?? ''} ${assigned['lastName'] ?? ''}'.trim(),
+      milestoneId: milestone.isNotEmpty ? milestone['id']?.toString() : j['milestoneId']?.toString(),
+      milestoneName: milestone.isNotEmpty ? milestone['name']?.toString() : null,
+      sprintId: sprint.isNotEmpty ? sprint['id']?.toString() : j['sprintId']?.toString(),
+      sprintName: sprint.isNotEmpty ? sprint['name']?.toString() : null,
       storyPoints: j['storyPoints'] is int ? j['storyPoints'] as int : (j['storyPoints'] is num ? (j['storyPoints'] as num).toInt() : null),
-      dependsOnId: (dependsOn is Map) ? dependsOn['id']?.toString() : j['dependsOnId']?.toString(),
-      dependsOnName: (dependsOn is Map) ? dependsOn['name']?.toString() : null,
-      dependsOnStatus: (dependsOn is Map) ? dependsOn['status']?.toString() : null,
+      dependsOnId: dependsOn.isNotEmpty ? dependsOn['id']?.toString() : j['dependsOnId']?.toString(),
+      dependsOnName: dependsOn.isNotEmpty ? dependsOn['name']?.toString() : null,
+      dependsOnStatus: dependsOn.isNotEmpty ? dependsOn['status']?.toString() : null,
       plannedStart: j['plannedStart']?.toString(),
       plannedEnd: j['plannedEnd']?.toString(),
       estimatedHours: ProjectModel._num(j['estimatedHours']),
@@ -272,7 +284,7 @@ class ProjectMilestoneModel {
   });
 
   factory ProjectMilestoneModel.fromJson(Map<String, dynamic> j) {
-    final counts = (j['_count'] as Map<String, dynamic>?) ?? const {};
+    final counts = jsonMap(j['_count']);
     return ProjectMilestoneModel(
       id: (j['id'] ?? '').toString(),
       name: (j['name'] ?? '').toString(),
@@ -284,7 +296,7 @@ class ProjectMilestoneModel {
       invoiceStatus: (j['invoiceStatus'] ?? 'not_invoiced').toString(),
       sequence: j['sequence'] is int ? j['sequence'] as int : null,
       isPhase: j['isPhase'] is bool ? j['isPhase'] as bool : false,
-      taskCount: (counts['tasks'] is num) ? (counts['tasks'] as num).toInt() : 0,
+      taskCount: (counts['tasks'] is num) ? (counts['tasks'] as num).toInt() : jsonMapList(j['tasks']).length,
     );
   }
 
@@ -316,14 +328,14 @@ class ProjectTeamMemberModel {
   });
 
   factory ProjectTeamMemberModel.fromJson(Map<String, dynamic> j) {
-    final emp = j['employee'];
+    final emp = jsonMap(j['employee']);
     return ProjectTeamMemberModel(
       id: (j['id'] ?? '').toString(),
-      employeeId: (emp is Map) ? emp['id']?.toString() : null,
-      employeeName: (emp is Map)
-          ? '${emp['firstName'] ?? ''} ${emp['lastName'] ?? ''}'.trim()
-          : null,
-      employeeCode: (emp is Map) ? emp['employeeId']?.toString() : null,
+      employeeId: emp.isNotEmpty ? emp['id']?.toString() : null,
+      employeeName: emp.isEmpty
+          ? null
+          : '${emp['firstName'] ?? ''} ${emp['lastName'] ?? ''}'.trim(),
+      employeeCode: emp.isNotEmpty ? emp['employeeId']?.toString() : null,
       role: j['role']?.toString(),
       allocationPct: ProjectModel._num(j['allocationPct']),
       status: j['status']?.toString(),

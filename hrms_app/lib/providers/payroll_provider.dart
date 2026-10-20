@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/payroll.dart';
 import '../services/api_service.dart';
+import '../utils/json_safe.dart';
 
 class PayrollProvider extends ChangeNotifier {
   List<PayrollModel> _payrolls = [];
@@ -24,9 +25,10 @@ class PayrollProvider extends ChangeNotifier {
     notifyListeners();
     try {
       final data = await ApiService.getPayrolls(limit: 50);
-      final rows = (data['payrolls'] ?? data['data'] ?? []) as List;
-      _payrolls = rows.map((r) => PayrollModel.fromJson(r)).toList();
-      _total = data['pagination']?['total'] ?? _payrolls.length;
+      final rows = jsonList(data['payrolls'] is List ? data['payrolls'] : data['data']);
+      _payrolls = rows.whereType<Map<String, dynamic>>().map(PayrollModel.fromJson).toList();
+      final pag = jsonMap(data['pagination']);
+      _total = (pag['total'] is num) ? (pag['total'] as num).toInt() : _payrolls.length;
       _isLoading = false;
       notifyListeners();
     } catch (e) {
