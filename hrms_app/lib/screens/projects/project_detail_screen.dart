@@ -4,10 +4,17 @@ import 'package:provider/provider.dart';
 import '../../config/maan_theme.dart';
 import '../../models/project.dart';
 import '../../providers/project_provider.dart';
+import '../../services/api_service.dart';
+import '../../utils/json_safe.dart';
 
 /// Task 114 — project detail (Overview / Tasks / Milestones / Team).
 /// Live GET /api/projects/[id] + task PATCH/POST — the exact endpoints the
 /// web project-detail page uses; financials follow the server's RBAC gate.
+/// Task 118 — every tab now carries its own add affordance for editors:
+/// Tasks (fixed: the FAB used to disappear when the list was EMPTY, which
+/// left fresh projects with no way to create the first task), Milestones
+/// (new sheet → POST /api/projects/[id]/milestones) and Team (new sheet →
+/// POST /api/projects/[id]/allocations).
 class ProjectDetailScreen extends StatelessWidget {
   final String projectId;
   const ProjectDetailScreen({super.key, required this.projectId});
@@ -81,6 +88,54 @@ class _DetailBody extends StatelessWidget {
 }
 
 // ══ Tabs ══════════════════════════════════════════════════════════════
+// ══ Shared add affordances (Task 118) ══════════════════════════════
+/// Labelled FAB — a bare "+" was too easy to miss (user report: "no option
+/// is provided"), so every add action now says what it does.
+class _AddFab extends StatelessWidget {
+  final String label;
+  final String heroTag;
+  final VoidCallback onPressed;
+  const _AddFab({required this.label, required this.heroTag, required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    return FloatingActionButton.extended(
+      heroTag: heroTag,
+      backgroundColor: MaanColors.primary,
+      foregroundColor: Colors.white,
+      elevation: 2,
+      onPressed: onPressed,
+      icon: const Icon(Icons.add_rounded, size: 18),
+      label: Text(label, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5)),
+    );
+  }
+}
+
+/// Pill button used inside empty states so the FIRST task/milestone/member
+/// can always be created (Task 118 regression fix).
+class _AddPill extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  const _AddPill({required this.icon, required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton.icon(
+      onPressed: onTap,
+      icon: Icon(icon, size: 17),
+      label: Text(label),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: MaanColors.primary,
+        side: const BorderSide(color: MaanColors.primary),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        textStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+      ),
+    );
+  }
+}
+
 class _Tabs extends StatelessWidget {
   final ProjectDetailProvider provider;
   const _Tabs({required this.provider});
@@ -279,11 +334,32 @@ class _TasksTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final groups = provider.tasksByStatus;
     final total = groups.values.fold<int>(0, (s, l) => s + l.length);
+    // Task 118 FIX: the early return below used to SKIP the Stack that
+    // carried the add-task FAB — a project with zero tasks (both LIVE
+    // projects start at zero) had NO way to create the first one. The
+    // empty state now carries its own "New Task" pill + FAB.
     if (total == 0) {
-      return ListView(padding: const EdgeInsets.only(top: 60), children: const [
-        Icon(Icons.checklist_rounded, size: 56, color: MaanColors.faint),
-        SizedBox(height: 12),
-        Center(child: Text('No tasks on this project yet', style: MaanText.body)),
+      return Stack(children: [
+        ListView(padding: const EdgeInsets.only(top: 60), children: [
+          const Icon(Icons.checklist_rounded, size: 56, color: MaanColors.faint),
+          const SizedBox(height: 12),
+          const Center(child: Text('No tasks on this project yet', style: MaanText.body)),
+          if (provider.canEdit) ...[
+            const SizedBox(height: 16),
+            Center(
+              child: _AddPill(
+                icon: Icons.add_task_rounded,
+                label: 'New Task',
+                onTap: () => _openCreateTask(context, provider),
+              ),
+            ),
+          ],
+        ]),
+        if (provider.canEdit)
+          Positioned(
+            right: 16, bottom: 16,
+            child: _AddFab(label: 'New Task', heroTag: 'addTask', onPressed: () => _openCreateTask(context, provider)),
+          ),
       ]);
     }
     return Stack(children: [
@@ -304,13 +380,7 @@ class _TasksTab extends StatelessWidget {
       if (provider.canEdit)
         Positioned(
           right: 16, bottom: 16,
-          child: FloatingActionButton.small(
-            backgroundColor: MaanColors.primary,
-            foregroundColor: Colors.white,
-            heroTag: 'addTask',
-            onPressed: () => _openCreateTask(context, provider),
-            child: const Icon(Icons.add_rounded),
-          ),
+          child: _AddFab(label: 'New Task', heroTag: 'addTask', onPressed: () => _openCreateTask(context, provider)),
         ),
     ]);
   }
@@ -672,19 +742,189 @@ class _MilestonesTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ms = provider.milestones;
+    // Task 118 — the milestone list is empty on every fresh project, so the
+    // add affordance MUST live here too (pill + labelled FAB, editor-gated).
     if (ms.isEmpty) {
-      return ListView(padding: const EdgeInsets.only(top: 60), children: const [
-        Icon(Icons.flag_rounded, size: 56, color: MaanColors.faint),
-        SizedBox(height: 12),
-        Center(child: Text('No milestones on this project yet', style: MaanText.body)),
+      return Stack(children: [
+        ListView(padding: const EdgeInsets.only(top: 60), children: [
+          const Icon(Icons.flag_rounded, size: 56, color: MaanColors.faint),
+          const SizedBox(height: 12),
+          const Center(child: Text('No milestones on this project yet', style: MaanText.body)),
+          if (provider.canEdit) ...[
+            const SizedBox(height: 16),
+            Center(
+              child: _AddPill(
+                icon: Icons.flag_rounded,
+                label: 'New Milestone',
+                onTap: () => _openCreateMilestone(context, provider),
+              ),
+            ),
+          ],
+        ]),
+        if (provider.canEdit)
+          Positioned(
+            right: 16, bottom: 16,
+            child: _AddFab(label: 'New Milestone', heroTag: 'addMilestone', onPressed: () => _openCreateMilestone(context, provider)),
+          ),
       ]);
     }
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
-      children: ms.map((m) => Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: _MilestoneCard(m: m),
-          )).toList(),
+    return Stack(children: [
+      ListView(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 90),
+        children: ms.map((m) => Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: _MilestoneCard(m: m),
+            )).toList(),
+      ),
+      if (provider.canEdit)
+        Positioned(
+          right: 16, bottom: 16,
+          child: _AddFab(label: 'New Milestone', heroTag: 'addMilestone', onPressed: () => _openCreateMilestone(context, provider)),
+        ),
+    ]);
+  }
+
+  void _openCreateMilestone(BuildContext context, ProjectDetailProvider provider) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (_) => _CreateMilestoneSheet(provider: provider),
+    );
+  }
+}
+
+// ══ Create-milestone sheet (Task 118) ═════════════════════════════
+/// POST /api/projects/[id]/milestones — same contract as the web module:
+/// name + plannedDate required; optional sequence / isPhase.
+class _CreateMilestoneSheet extends StatefulWidget {
+  final ProjectDetailProvider provider;
+  const _CreateMilestoneSheet({required this.provider});
+
+  @override
+  State<_CreateMilestoneSheet> createState() => _CreateMilestoneSheetState();
+}
+
+class _CreateMilestoneSheetState extends State<_CreateMilestoneSheet> {
+  final _name = TextEditingController();
+  final _seq = TextEditingController();
+  DateTime? _plannedDate;
+  bool _isPhase = false;
+  bool _saving = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _seq.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (_name.text.trim().isEmpty) {
+      setState(() => _error = 'Milestone name is required');
+      return;
+    }
+    if (_plannedDate == null) {
+      setState(() => _error = 'Planned date is required');
+      return;
+    }
+    setState(() { _saving = true; _error = null; });
+    try {
+      await widget.provider.createMilestone({
+        'name': _name.text.trim(),
+        'plannedDate': DateTime(_plannedDate!.year, _plannedDate!.month, _plannedDate!.day).toIso8601String(),
+        if (_seq.text.trim().isNotEmpty) 'sequence': num.tryParse(_seq.text.trim()),
+        'isPhase': _isPhase,
+      });
+      if (!mounted) return;
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(_isPhase ? 'Phase created' : 'Milestone created'),
+          backgroundColor: MaanColors.accentGreen));
+    } catch (e) {
+      setState(() { _saving = false; _error = e.toString().replaceAll('Exception: ', ''); });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
+        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            const Expanded(child: Text('New Milestone', style: MaanText.h2)),
+            IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close_rounded, size: 20)),
+          ]),
+          const SizedBox(height: 12),
+          MaanField(label: 'Milestone name *', controller: _name),
+          const SizedBox(height: 10),
+          InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: () async {
+              final d = await showDatePicker(
+                context: context,
+                initialDate: _plannedDate ?? DateTime.now().add(const Duration(days: 30)),
+                firstDate: DateTime(2020),
+                lastDate: DateTime(2100),
+              );
+              if (d != null) setState(() => _plannedDate = d);
+            },
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+              decoration: BoxDecoration(border: Border.all(color: MaanColors.line), borderRadius: BorderRadius.circular(12)),
+              child: Text(
+                _plannedDate == null ? 'Planned date *' : 'Planned: ${DateFormat('dd MMM, yyyy').format(_plannedDate!)}',
+                style: TextStyle(fontSize: 13.5, color: _plannedDate == null ? MaanColors.faint : MaanColors.navy),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          MaanField(label: 'Sequence (optional — phase order)', controller: _seq, keyboard: TextInputType.number),
+          const SizedBox(height: 10),
+          InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: () => setState(() => _isPhase = !_isPhase),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(border: Border.all(color: MaanColors.line), borderRadius: BorderRadius.circular(12)),
+              child: Row(children: [
+                Icon(
+                  _isPhase ? Icons.check_box_rounded : Icons.check_box_outline_blank_rounded,
+                  size: 20,
+                  color: _isPhase ? MaanColors.primary : MaanColors.faint,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text('This is a phase (not a milestone)',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: MaanColors.navy)),
+                ),
+              ]),
+            ),
+          ),
+          if (_error != null) ...[
+            const SizedBox(height: 10),
+            Text(_error!, style: const TextStyle(color: MaanColors.accentRed, fontSize: 12.5, fontWeight: FontWeight.w600)),
+          ],
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity, height: 46,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: MaanColors.primary, foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13))),
+              onPressed: _saving ? null : _submit,
+              child: _saving
+                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : const Text('Create Milestone', style: TextStyle(fontWeight: FontWeight.w800)),
+            ),
+          ),
+        ]),
+      ),
     );
   }
 }
@@ -770,49 +1010,327 @@ class _TeamTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final team = provider.team;
+    // Task 118 — "Add Member" affordance (pill in the empty state + labelled
+    // FAB once the team exists). Editors only — mirrors the web gate.
+    final addMember = provider.canEdit
+        ? () => _openAddMember(context, provider)
+        : null;
     if (team.isEmpty) {
-      return ListView(padding: const EdgeInsets.only(top: 60), children: const [
-        Icon(Icons.groups_rounded, size: 56, color: MaanColors.faint),
-        SizedBox(height: 12),
-        Center(child: Text('No members allocated to this project yet', style: MaanText.body)),
+      return Stack(children: [
+        ListView(padding: const EdgeInsets.only(top: 60), children: [
+          const Icon(Icons.groups_rounded, size: 56, color: MaanColors.faint),
+          const SizedBox(height: 12),
+          const Center(child: Text('No members allocated to this project yet', style: MaanText.body)),
+          if (addMember != null) ...[
+            const SizedBox(height: 16),
+            Center(
+              child: _AddPill(
+                icon: Icons.person_add_rounded,
+                label: 'Add Member',
+                onTap: addMember,
+              ),
+            ),
+          ],
+        ]),
+        if (addMember != null)
+          Positioned(
+            right: 16, bottom: 16,
+            child: _AddFab(label: 'Add Member', heroTag: 'addMember', onPressed: addMember),
+          ),
       ]);
     }
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
-      children: team.map((m) {
-        final initials = (m.employeeName ?? '?')
-            .split(' ').where((w) => w.isNotEmpty).map((w) => w[0].toUpperCase()).take(2).join();
-        // clamp: hashCode can be negative → invalid hue (assert in debug)
-        final hue = ((m.id.hashCode % 8).abs()) * 45.0;
-        return Container(
-          margin: const EdgeInsets.only(bottom: 10),
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(border: Border.all(color: MaanColors.line), borderRadius: BorderRadius.circular(14)),
-          child: Row(children: [
-            CircleAvatar(
-              radius: 19,
-              backgroundColor: HSLColor.fromAHSL(1, hue, 0.55, 0.55).toColor(),
-              child: Text(initials, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w800)),
-            ),
-            const SizedBox(width: 10),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(m.employeeName ?? 'Unknown', style: MaanText.title.copyWith(fontSize: 13.5)),
-              if (m.employeeCode != null && m.employeeCode!.isNotEmpty)
-                Text(m.employeeCode!, style: MaanText.caption),
-            ])),
-            Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-              if (m.role != null && m.role!.isNotEmpty)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(color: MaanColors.primary.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
-                  child: Text(m.role!, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: MaanColors.primary)),
-                ),
-              const SizedBox(height: 4),
-              Text('${m.allocationPct}% allocated', style: MaanText.caption),
+    return Stack(children: [
+      ListView(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 90),
+        children: team.map((m) {
+          final initials = (m.employeeName ?? '?')
+              .split(' ').where((w) => w.isNotEmpty).map((w) => w[0].toUpperCase()).take(2).join();
+          // clamp: hashCode can be negative → invalid hue (assert in debug)
+          final hue = ((m.id.hashCode % 8).abs()) * 45.0;
+          return Container(
+            margin: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(border: Border.all(color: MaanColors.line), borderRadius: BorderRadius.circular(14)),
+            child: Row(children: [
+              CircleAvatar(
+                radius: 19,
+                backgroundColor: HSLColor.fromAHSL(1, hue, 0.55, 0.55).toColor(),
+                child: Text(initials, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w800)),
+              ),
+              const SizedBox(width: 10),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(m.employeeName ?? 'Unknown', style: MaanText.title.copyWith(fontSize: 13.5)),
+                if (m.employeeCode != null && m.employeeCode!.isNotEmpty)
+                  Text(m.employeeCode!, style: MaanText.caption),
+              ])),
+              Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                if (m.role != null && m.role!.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(color: MaanColors.primary.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+                    child: Text(m.role!, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: MaanColors.primary)),
+                  ),
+                const SizedBox(height: 4),
+                Text('${m.allocationPct}% allocated', style: MaanText.caption),
+              ]),
             ]),
+          );
+        }).toList(),
+      ),
+      if (addMember != null)
+        Positioned(
+          right: 16, bottom: 16,
+          child: _AddFab(label: 'Add Member', heroTag: 'addMember', onPressed: addMember),
+        ),
+    ]);
+  }
+
+  void _openAddMember(BuildContext context, ProjectDetailProvider provider) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (_) => _AddMemberSheet(provider: provider),
+    );
+  }
+}
+
+// ══ Add-team-member sheet (Task 118) ══════════════════════════════
+/// POST /api/projects/[id]/allocations — same contract the web project page
+/// uses: employeeId + startDate required; optional role / allocationPct.
+/// Employee picker = the same /api/employees directory the web picker uses;
+/// already-allocated members are filtered out of the dropdown.
+class _AddMemberSheet extends StatefulWidget {
+  final ProjectDetailProvider provider;
+  const _AddMemberSheet({required this.provider});
+
+  @override
+  State<_AddMemberSheet> createState() => _AddMemberSheetState();
+}
+
+class _PickerPerson {
+  final String id;
+  final String name;
+  final String? department;
+  const _PickerPerson({required this.id, required this.name, this.department});
+
+  static _PickerPerson? fromJson(dynamic raw) {
+    final m = jsonMap(raw);
+    final id = (m['id'] ?? '').toString();
+    if (id.isEmpty) return null;
+    final first = (m['firstName'] ?? '').toString();
+    final last = (m['lastName'] ?? '').toString();
+    final dept = jsonMap(m['department']);
+    final name = '$first $last'.trim();
+    return _PickerPerson(id: id, name: name.isEmpty ? (m['email'] ?? id).toString() : name,
+        department: (dept['name'] ?? m['department'])?.toString());
+  }
+}
+
+class _AddMemberSheetState extends State<_AddMemberSheet> {
+  final _pct = TextEditingController(text: '100');
+  List<_PickerPerson> _people = [];
+  String? _employeeId;
+  String? _role; // optional allocation role
+  DateTime? _startDate;
+  bool _loading = false;
+  bool _saving = false;
+  String? _error;
+
+  static const _roleChoices = <(String, String)>[
+    ('manager', 'Manager'),
+    ('member', 'Member'),
+    ('finance', 'Finance'),
+    ('viewer', 'Viewer'),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _startDate = DateTime.now();
+    _loadPeople();
+  }
+
+  @override
+  void dispose() {
+    _pct.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadPeople() async {
+    setState(() => _loading = true);
+    try {
+      final data = await ApiService.getEmployees(limit: 200);
+      final rows = jsonList(data['employees'] is List ? data['employees'] : data['data']);
+      final allocated = widget.provider.team
+          .map((m) => m.employeeId)
+          .whereType<String>()
+          .toSet();
+      if (mounted) {
+        setState(() {
+          _people = rows
+              .map(_PickerPerson.fromJson)
+              .whereType<_PickerPerson>()
+              .where((p) => !allocated.contains(p.id))
+              .toList();
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _error = e.toString().replaceAll('Exception: ', ''));
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _submit() async {
+    if (_employeeId == null || _employeeId!.isEmpty) {
+      setState(() => _error = 'Pick an employee to allocate');
+      return;
+    }
+    if (_startDate == null) {
+      setState(() => _error = 'Start date is required');
+      return;
+    }
+    final pct = num.tryParse(_pct.text.trim());
+    setState(() { _saving = true; _error = null; });
+    try {
+      await widget.provider.createAllocation({
+        'employeeId': _employeeId,
+        'startDate': DateTime(_startDate!.year, _startDate!.month, _startDate!.day).toIso8601String(),
+        if (_role != null && _role!.isNotEmpty) 'role': _role,
+        'allocationPct': (pct == null || pct <= 0) ? 100 : pct,
+      });
+      if (!mounted) return;
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Team member added'), backgroundColor: MaanColors.accentGreen));
+    } catch (e) {
+      setState(() { _saving = false; _error = e.toString().replaceAll('Exception: ', ''); });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final allocatedNames = widget.provider.team.map((m) => m.employeeName).whereType<String>().toSet();
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
+        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            const Expanded(child: Text('Add Team Member', style: MaanText.h2)),
+            IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close_rounded, size: 20)),
           ]),
-        );
-      }).toList(),
+          const SizedBox(height: 12),
+          if (_loading)
+            const Padding(
+              padding: EdgeInsets.all(18),
+              child: Center(child: CircularProgressIndicator(strokeWidth: 2, color: MaanColors.primary)),
+            )
+          else ...[
+            if (_people.isEmpty)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(color: MaanColors.pageBg, borderRadius: BorderRadius.circular(12)),
+                child: Text(
+                  allocatedNames.isEmpty
+                      ? 'No employees available — you may not have directory access'
+                      : 'Everyone in the directory is already allocated',
+                  style: MaanText.caption,
+                ),
+              )
+            else
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(border: Border.all(color: MaanColors.line), borderRadius: BorderRadius.circular(12)),
+                child: DropdownButtonFormField<String>(
+                  value: _employeeId,
+                  decoration: const InputDecoration(
+                    border: InputBorder.none,
+                    labelText: 'Employee *',
+                    labelStyle: TextStyle(color: MaanColors.faint, fontSize: 13),
+                  ),
+                  dropdownColor: Colors.white,
+                  items: _people
+                      .map((p) => DropdownMenuItem(
+                            value: p.id,
+                            child: Text(
+                              p.department == null || p.department!.isEmpty ? p.name : '${p.name} · ${p.department}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 13),
+                            ),
+                          ))
+                      .toList(),
+                  onChanged: (v) => setState(() => _employeeId = v),
+                ),
+              ),
+          ],
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(border: Border.all(color: MaanColors.line), borderRadius: BorderRadius.circular(12)),
+            child: DropdownButtonFormField<String>(
+              value: _role,
+              decoration: const InputDecoration(
+                border: InputBorder.none,
+                labelText: 'Project role (optional)',
+                labelStyle: TextStyle(color: MaanColors.faint, fontSize: 13),
+              ),
+              dropdownColor: Colors.white,
+              hint: const Text('Not set', style: TextStyle(fontSize: 13)),
+              items: [
+                const DropdownMenuItem(value: '', child: Text('Not set', style: TextStyle(fontSize: 13))),
+                for (final rc in _roleChoices)
+                  DropdownMenuItem(value: rc.$1, child: Text(rc.$2, style: const TextStyle(fontSize: 13))),
+              ],
+              onChanged: (v) => setState(() => _role = (v == null || v.isEmpty) ? null : v),
+            ),
+          ),
+          const SizedBox(height: 10),
+          MaanField(label: 'Allocation % (default 100)', controller: _pct, keyboard: TextInputType.number),
+          const SizedBox(height: 10),
+          InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: () async {
+              final d = await showDatePicker(
+                context: context,
+                initialDate: _startDate ?? DateTime.now(),
+                firstDate: DateTime(2020),
+                lastDate: DateTime(2100),
+              );
+              if (d != null) setState(() => _startDate = d);
+            },
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+              decoration: BoxDecoration(border: Border.all(color: MaanColors.line), borderRadius: BorderRadius.circular(12)),
+              child: Text(
+                _startDate == null ? 'Start date *' : 'Starts: ${DateFormat('dd MMM, yyyy').format(_startDate!)}',
+                style: TextStyle(fontSize: 13.5, color: _startDate == null ? MaanColors.faint : MaanColors.navy),
+              ),
+            ),
+          ),
+          if (_error != null) ...[
+            const SizedBox(height: 10),
+            Text(_error!, style: const TextStyle(color: MaanColors.accentRed, fontSize: 12.5, fontWeight: FontWeight.w600)),
+          ],
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity, height: 46,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: MaanColors.primary, foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13))),
+              onPressed: (_saving || _loading) ? null : _submit,
+              child: _saving
+                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : const Text('Add to Project', style: TextStyle(fontWeight: FontWeight.w800)),
+            ),
+          ),
+        ]),
+      ),
     );
   }
 }

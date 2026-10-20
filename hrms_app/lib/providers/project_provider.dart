@@ -177,6 +177,42 @@ class ProjectDetailProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Task 118 — POST a milestone on this project (web parity).
+  Future<void> createMilestone(Map<String, dynamic> body) async {
+    if (_project == null) return;
+    _busyTask = true;
+    notifyListeners();
+    try {
+      await ApiService.createProjectMilestone(_project!.id, body);
+      await load(_project!.id, force: true);
+    } catch (e) {
+      _busyTask = false;
+      _error = e.toString().replaceAll('Exception: ', '');
+      notifyListeners();
+      rethrow;
+    }
+    _busyTask = false;
+    notifyListeners();
+  }
+
+  /// Task 118 — POST a team-member allocation on this project (web parity).
+  Future<void> createAllocation(Map<String, dynamic> body) async {
+    if (_project == null) return;
+    _busyTask = true;
+    notifyListeners();
+    try {
+      await ApiService.createProjectAllocation(_project!.id, body);
+      await load(_project!.id, force: true);
+    } catch (e) {
+      _busyTask = false;
+      _error = e.toString().replaceAll('Exception: ', '');
+      notifyListeners();
+      rethrow;
+    }
+    _busyTask = false;
+    notifyListeners();
+  }
+
   void clearTransientError() {
     _error = null;
     notifyListeners();

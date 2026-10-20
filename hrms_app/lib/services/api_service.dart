@@ -533,6 +533,24 @@ class ApiService {
     throw Exception(data['error'] ?? 'Failed to update task');
   }
 
+  /// POST /api/projects/[id]/milestones — Task 118 (web parity).
+  /// Body: { name, plannedDate, sequence?, isPhase?, budgetCap?, billingAmount? }
+  static Future<Map<String, dynamic>> createProjectMilestone(String projectId, Map<String, dynamic> body) async {
+    final response = await _post(ApiConfig.projectMilestones(projectId), body);
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 200 || response.statusCode == 201) return data;
+    throw Exception(data['error'] ?? 'Failed to create milestone');
+  }
+
+  /// POST /api/projects/[id]/allocations — Task 118 (web parity).
+  /// Body: { employeeId, startDate, role?, allocationPct?, endDate?, billingStatus? }
+  static Future<Map<String, dynamic>> createProjectAllocation(String projectId, Map<String, dynamic> body) async {
+    final response = await _post(ApiConfig.projectAllocations(projectId), body);
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 200 || response.statusCode == 201) return data;
+    throw Exception(data['error'] ?? 'Failed to add team member');
+  }
+
   /// POST /api/projects — create a project (name, companyId, startDate
   /// required — mirrors the web create form).
   static Future<Map<String, dynamic>> createProject(Map<String, dynamic> body) async {

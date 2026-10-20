@@ -12,10 +12,10 @@
 // The in-app login-page download link was REMOVED per user request — the web
 // login page is now the only download source.
 export const APP_RELEASE = {
-  versionName: '1.5.0',
-  versionCode: 17,
-  apkUrl: '/downloads/3boxes-hrms-mobile-v1.5.0.apk',
-  updatedAt: '2026-10-20',
+  versionName: '1.5.1',
+  versionCode: 18,
+  apkUrl: '/downloads/3boxes-hrms-mobile-v1.5.1.apk',
+  updatedAt: '2026-10-21',
   notes:
-    'NEW: Collaboration Chat on mobile — the same chats you see on the web, now in your pocket. Direct & group conversations, send/receive with live refresh, unread badges, employee picker for new chats, and the same security (E2EE direct rooms, DLP policy alerts). Installs over v1.4.2 — no uninstall needed.',
+    'UPDATE: Chat now shows the full employee DIRECTORY by default — tap any teammate to start a private chat instantly (no more empty chat screen). Projects: Tasks, Milestones and Team all have visible add buttons for admins — create the first task, add milestones/phases, and allocate team members straight from the app. Installs over v1.5.0 — no uninstall needed.',
 };

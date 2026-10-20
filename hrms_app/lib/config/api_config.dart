@@ -126,6 +126,10 @@ class ApiConfig {
   static String projectDetail(String id) => '$apiUrl/projects/$id';
   static String projectTasks(String id) => '$apiUrl/projects/$id/tasks';
   static String projectTask(String id, String taskId) => '$apiUrl/projects/$id/tasks/$taskId';
+  // Task 118 — milestones + team allocations (the same endpoints the web
+  // project-detail page uses for "Add milestone" / "Add member").
+  static String projectMilestones(String id) => '$apiUrl/projects/$id/milestones';
+  static String projectAllocations(String id) => '$apiUrl/projects/$id/allocations';
 
   // Collaboration Chat (Task 117 — same endpoints the web Collaboration →
   // Chat page uses; member ids / sender ids are EMPLOYEE ids)

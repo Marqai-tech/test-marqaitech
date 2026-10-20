@@ -25,6 +25,14 @@ class ChatRoomsProvider extends ChangeNotifier {
   String? _myEmployeeId;
   Map<String, ChatDirectoryPerson> _directory = {};
 
+  // Task 118 — the Directory tab shows ALL employees by default (server
+  // role-scoping still applies: employees see their department, managers
+  // their team, admins everyone — exactly like the web directory).
+  List<ChatDirectoryPerson> _directoryList = [];
+  bool _directoryLoading = false;
+  String? _directoryError;
+  String _directorySearch = '';
+
   List<ChatRoomModel> get rooms {
     if (_search.trim().isEmpty) return _rooms;
     final q = _search.trim().toLowerCase();
@@ -36,6 +44,27 @@ class ChatRoomsProvider extends ChangeNotifier {
   String? get error => _error;
   String get search => _search;
   String? get myEmployeeId => _myEmployeeId;
+
+  // Task 118 — directory state for the Directory tab.
+  List<ChatDirectoryPerson> get directoryList {
+    if (_directorySearch.trim().isEmpty) return _directoryList;
+    final q = _directorySearch.trim().toLowerCase();
+    return _directoryList
+        .where((p) =>
+            p.fullName.toLowerCase().contains(q) ||
+            (p.department ?? '').toLowerCase().contains(q) ||
+            (p.email ?? '').toLowerCase().contains(q))
+        .toList();
+  }
+
+  bool get directoryLoading => _directoryLoading;
+  String? get directoryError => _directoryError;
+  String get directorySearch => _directorySearch;
+
+  void setDirectorySearch(String s) {
+    _directorySearch = s;
+    notifyListeners();
+  }
 
   int get totalUnread => _rooms.fold(0, (sum, r) => sum + r.unreadCount);
 
@@ -112,10 +141,46 @@ class ChatRoomsProvider extends ChangeNotifier {
         if (p.id.isNotEmpty) map[p.id] = p;
       }
       _directory = map;
+      _directoryList = map.values.toList()
+        ..sort((a, b) => a.fullName.toLowerCase().compareTo(b.fullName.toLowerCase()));
     } catch (_) {
       // Directory is a name-resolution aid only — never block the room list.
     }
   }
+
+  /// Task 118 — explicit, observable directory load for the Directory tab
+  /// (separate from the silent name-resolution aid above so a directory
+  /// failure can surface its own retry affordance instead of a blank list).
+  Future<void> loadDirectory({bool force = false}) async {
+    if (_directoryLoading) return;
+    if (!force && _directoryList.isNotEmpty) return;
+    _directoryLoading = true;
+    _directoryError = null;
+    notifyListeners();
+    try {
+      _myEmployeeId ??= await ApiService.resolveOwnEmployeeId();
+      final data = await ApiService.getEmployees(limit: 200);
+      final rows = jsonList(data['employees'] is List ? data['employees'] : data['data']);
+      final map = <String, ChatDirectoryPerson>{};
+      for (final row in rows) {
+        final p = ChatDirectoryPerson.fromJson(row);
+        if (p.id.isNotEmpty) map[p.id] = p;
+      }
+      _directory = map;
+      _directoryList = map.values.toList()
+        ..sort((a, b) => a.fullName.toLowerCase().compareTo(b.fullName.toLowerCase()));
+    } catch (e) {
+      _directoryError = e.toString().replaceAll('Exception: ', '');
+    } finally {
+      _directoryLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Task 118 — tap an employee in the Directory → create (or reuse) the
+  /// 1:1 direct room and hand it back so the caller can open the thread.
+  Future<(ChatRoomModel?, bool)> openDirectWith(String employeeId) =>
+      createRoom(type: 'direct', memberIds: [employeeId]);
 
   /// Create a direct or group chat. Returns the room (freshly parsed) so the
   /// caller can open it immediately; alreadyExisted mirrors the server flag.

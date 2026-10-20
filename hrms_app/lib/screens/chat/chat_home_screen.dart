@@ -16,9 +16,17 @@ import 'chat_room_screen.dart';
 /// Room list = the web left pane: search, per-type avatars, last-message
 /// preview, unread badges, E2EE lock. New-chat sheet = the web modal
 /// (Direct/Group toggle + employee picker from /api/employees).
-class ChatHomeScreen extends StatelessWidget {
+/// Task 118 — Directory tab: ALL employees are listed by default; tapping
+/// one opens (or reuses) the 1:1 direct chat instantly — no more empty
+/// "No chats yet" dead end for first-time users.
+class ChatHomeScreen extends StatefulWidget {
   const ChatHomeScreen({super.key});
 
+  @override
+  State<ChatHomeScreen> createState() => _ChatHomeScreenState();
+}
+
+class _ChatHomeScreenState extends State<ChatHomeScreen> {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
@@ -35,43 +43,44 @@ class _ChatHomeBody extends StatefulWidget {
   State<_ChatHomeBody> createState() => _ChatHomeBodyState();
 }
 
-class _ChatHomeBodyState extends State<_ChatHomeBody> {
-  final _searchCtrl = TextEditingController();
+// Top-level room visuals (shared by the rooms list).
+String _timeLabel(String? iso) {
+  if (iso == null || iso.isEmpty) return '';
+  final d = DateTime.tryParse(iso)?.toLocal();
+  if (d == null) return '';
+  final now = DateTime.now();
+  if (d.year == now.year && d.month == now.month && d.day == now.day) {
+    return DateFormat('h:mm a').format(d);
+  }
+  if (now.difference(d).inDays < 7) return DateFormat('EEE').format(d);
+  return DateFormat('d MMM').format(d);
+}
+
+IconData _typeIcon(ChatRoomModel r) {
+  if (r.isDirect) return Icons.chat_bubble_outline_rounded;
+  if (r.isAnnouncementRoom) return Icons.campaign_rounded;
+  return Icons.tag_rounded;
+}
+
+Color _typeColor(ChatRoomModel r) {
+  if (r.isDirect) return const Color(0xFF0EA5A6); // teal — web chat accent
+  if (r.isAnnouncementRoom) return const Color(0xFFF5A623); // amber
+  return const Color(0xFF6C8FEF); // blue
+}
+
+Color _typeBg(ChatRoomModel r) {
+  if (r.isDirect) return const Color(0xFFE6F7F6);
+  if (r.isAnnouncementRoom) return const Color(0xFFFEF3E2);
+  return const Color(0xFFE9E6FD);
+}
+
+class _ChatHomeBodyState extends State<_ChatHomeBody> with SingleTickerProviderStateMixin {
+  late final TabController _tabs = TabController(length: 2, vsync: this);
 
   @override
   void dispose() {
-    _searchCtrl.dispose();
+    _tabs.dispose();
     super.dispose();
-  }
-
-  String _timeLabel(String? iso) {
-    if (iso == null || iso.isEmpty) return '';
-    final d = DateTime.tryParse(iso)?.toLocal();
-    if (d == null) return '';
-    final now = DateTime.now();
-    if (d.year == now.year && d.month == now.month && d.day == now.day) {
-      return DateFormat('h:mm a').format(d);
-    }
-    if (now.difference(d).inDays < 7) return DateFormat('EEE').format(d);
-    return DateFormat('d MMM').format(d);
-  }
-
-  IconData _typeIcon(ChatRoomModel r) {
-    if (r.isDirect) return Icons.chat_bubble_outline_rounded;
-    if (r.isAnnouncementRoom) return Icons.campaign_rounded;
-    return Icons.tag_rounded;
-  }
-
-  Color _typeColor(ChatRoomModel r) {
-    if (r.isDirect) return const Color(0xFF0EA5A6); // teal — web chat accent
-    if (r.isAnnouncementRoom) return const Color(0xFFF5A623); // amber
-    return const Color(0xFF6C8FEF); // blue
-  }
-
-  Color _typeBg(ChatRoomModel r) {
-    if (r.isDirect) return const Color(0xFFE6F7F6);
-    if (r.isAnnouncementRoom) return const Color(0xFFFEF3E2);
-    return const Color(0xFFE9E6FD);
   }
 
   Future<void> _openRoom(ChatRoomModel room) async {
@@ -94,6 +103,7 @@ class _ChatHomeBodyState extends State<_ChatHomeBody> {
   @override
   Widget build(BuildContext context) {
     final chat = context.watch<ChatRoomsProvider>();
+    final onDirectory = _tabs.index == 1;
     return Scaffold(
       backgroundColor: MaanColors.pageBg,
       appBar: AppBar(
@@ -102,165 +112,351 @@ class _ChatHomeBodyState extends State<_ChatHomeBody> {
         elevation: 0.5,
         iconTheme: const IconThemeData(color: MaanColors.navy),
         title: const Text('Chats', style: MaanText.h2),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        heroTag: 'chat_new',
-        backgroundColor: MaanColors.primary,
-        foregroundColor: Colors.white,
-        onPressed: _newChatSheet,
-        icon: const Icon(Icons.add_comment_rounded, size: 20),
-        label: const Text('New Chat', style: TextStyle(fontWeight: FontWeight.w700)),
-      ),
-      body: RefreshIndicator(
-        color: MaanColors.primary,
-        onRefresh: () => chat.fetchRooms(silent: true),
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-              child: TextField(
-                controller: _searchCtrl,
-                onChanged: chat.setSearch,
-                decoration: InputDecoration(
-                  hintText: 'Search chats…',
-                  prefixIcon: const Icon(Icons.search_rounded, size: 20),
-                  isDense: true,
-                  filled: true,
-                  fillColor: Colors.white,
-                  contentPadding: const EdgeInsets.symmetric(vertical: 10),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: MaanColors.line)),
-                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: MaanColors.line)),
-                ),
-              ),
-            ),
-            Expanded(
-              child: chat.isLoading
-                  ? const LoadingWidget(itemCount: 6)
-                  : chat.error != null
-                      ? EmptyStateWidget(
-                          icon: Icons.cloud_off_rounded,
-                          title: "Couldn't load chats",
-                          message: chat.error,
-                          actionLabel: 'Retry',
-                          onAction: () => chat.fetchRooms(),
-                        )
-                      : chat.rooms.isEmpty
-                          ? const EmptyStateWidget(
-                              icon: Icons.chat_bubble_outline_rounded,
-                              title: 'No chats yet',
-                              message: 'Start a new conversation with New Chat — direct chats are end-to-end encrypted by default.',
-                            )
-                          : ListView.separated(
-                              padding: const EdgeInsets.fromLTRB(12, 8, 12, 90),
-                              itemCount: chat.rooms.length,
-                              separatorBuilder: (_, __) => const SizedBox(height: 8),
-                              itemBuilder: (context, i) {
-                                final room = chat.rooms[i];
-                                final accent = _typeColor(room);
-                                final preview = room.lastMessage?.body ?? 'No messages yet';
-                                final partner = room.isDirect ? chat.partnerOf(room) : null;
-                                final title = chat.displayName(room);
-                                final prefix = room.isDirect ? '' : '(${room.members.length}) ';
-                                return Material(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(14),
-                                  child: InkWell(
-                                    borderRadius: BorderRadius.circular(14),
-                                    onTap: () => _openRoom(room),
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                                      decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.circular(14),
-                                        border: Border.all(color: MaanColors.line),
-                                      ),
-                                      child: Row(
-                                        children: [
-                                          Stack(
-                                            clipBehavior: Clip.none,
-                                            children: [
-                                              room.isDirect && partner != null
-                                                  ? MaanAvatar(avatar: partner.avatar, name: partner.fullName, radius: 22, bgColor: accent)
-                                                  : CircleAvatar(
-                                                      radius: 22,
-                                                      backgroundColor: _typeBg(room),
-                                                      child: Icon(_typeIcon(room), size: 20, color: accent),
-                                                    ),
-                                              if (room.isE2EE)
-                                                Positioned(
-                                                  right: -3,
-                                                  bottom: -3,
-                                                  child: Container(
-                                                    padding: const EdgeInsets.all(2.5),
-                                                    decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                                                    child: const Icon(Icons.lock_rounded, size: 11, color: Color(0xFF0EA5A6)),
-                                                  ),
-                                                ),
-                                            ],
-                                          ),
-                                          const SizedBox(width: 12),
-                                          Expanded(
-                                            child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
-                                              children: [
-                                                Row(
-                                                  children: [
-                                                    Expanded(
-                                                      child: Text(title,
-                                                          maxLines: 1,
-                                                          overflow: TextOverflow.ellipsis,
-                                                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: MaanColors.navy)),
-                                                    ),
-                                                    if (room.isAnnouncementRoom)
-                                                      Container(
-                                                        margin: const EdgeInsets.only(right: 6),
-                                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                                        decoration: BoxDecoration(color: const Color(0xFFFEF3E2), borderRadius: BorderRadius.circular(6)),
-                                                        child: const Text('ANN',
-                                                            style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: Color(0xFFB7791F))),
-                                                      ),
-                                                    Text(_timeLabel(room.lastMessageAt ?? room.lastMessage?.createdAt),
-                                                        style: const TextStyle(fontSize: 10.5, color: MaanColors.faint)),
-                                                  ],
-                                                ),
-                                                const SizedBox(height: 3),
-                                                Row(
-                                                  children: [
-                                                    Expanded(
-                                                      child: Text(
-                                                        '$prefix$preview',
-                                                        maxLines: 1,
-                                                        overflow: TextOverflow.ellipsis,
-                                                        style: TextStyle(
-                                                            fontSize: 12.5,
-                                                            color: room.unreadCount > 0 ? MaanColors.navy : MaanColors.body,
-                                                            fontWeight: room.unreadCount > 0 ? FontWeight.w600 : FontWeight.w400),
-                                                      ),
-                                                    ),
-                                                    if (room.unreadCount > 0)
-                                                      Container(
-                                                        margin: const EdgeInsets.only(left: 8),
-                                                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                                                        decoration: BoxDecoration(color: accent, borderRadius: BorderRadius.circular(10)),
-                                                        child: Text(
-                                                          room.unreadCount > 99 ? '99+' : '${room.unreadCount}',
-                                                          style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800),
-                                                        ),
-                                                      ),
-                                                  ],
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-            ),
+        bottom: TabBar(
+          controller: _tabs,
+          onTap: (_) {
+            setState(() {}); // FAB + search placeholder follow the active tab
+            if (_tabs.index == 1) context.read<ChatRoomsProvider>().loadDirectory();
+          },
+          labelColor: MaanColors.primary,
+          unselectedLabelColor: MaanColors.faint,
+          indicatorColor: MaanColors.primary,
+          labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
+          tabs: const [
+            Tab(text: 'Chats'),
+            Tab(text: 'Directory'),
           ],
         ),
+      ),
+      floatingActionButton: onDirectory
+          ? null // the directory IS the picker — no FAB needed there
+          : FloatingActionButton.extended(
+              heroTag: 'chat_new',
+              backgroundColor: MaanColors.primary,
+              foregroundColor: Colors.white,
+              onPressed: _newChatSheet,
+              icon: const Icon(Icons.add_comment_rounded, size: 20),
+              label: const Text('New Chat', style: TextStyle(fontWeight: FontWeight.w700)),
+            ),
+      body: TabBarView(
+        controller: _tabs,
+        children: [
+          _RoomsTab(onOpenRoom: _openRoom),
+          _DirectoryTab(onOpenRoom: _openRoom),
+        ],
+      ),
+    );
+  }
+}
+
+// ══ Chats tab (rooms) ══════════════════════════════════════════════════
+class _RoomsTab extends StatelessWidget {
+  final void Function(ChatRoomModel) onOpenRoom;
+  const _RoomsTab({required this.onOpenRoom});
+
+  @override
+  Widget build(BuildContext context) {
+    final chat = context.watch<ChatRoomsProvider>();
+    return RefreshIndicator(
+      color: MaanColors.primary,
+      onRefresh: () => chat.fetchRooms(silent: true),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+            child: TextField(
+              onChanged: chat.setSearch,
+              decoration: InputDecoration(
+                hintText: 'Search chats…',
+                prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                isDense: true,
+                filled: true,
+                fillColor: Colors.white,
+                contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: MaanColors.line)),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: MaanColors.line)),
+              ),
+            ),
+          ),
+          Expanded(
+            child: chat.isLoading
+                ? const LoadingWidget(itemCount: 6)
+                : chat.error != null
+                    ? EmptyStateWidget(
+                        icon: Icons.cloud_off_rounded,
+                        title: "Couldn't load chats",
+                        message: chat.error,
+                        actionLabel: 'Retry',
+                        onAction: () => chat.fetchRooms(),
+                      )
+                    : chat.rooms.isEmpty
+                        ? EmptyStateWidget(
+                            icon: Icons.chat_bubble_outline_rounded,
+                            title: 'No chats yet',
+                            message: 'Open the Directory tab and tap any employee to start a conversation — direct chats are end-to-end encrypted by default.',
+                          )
+                        : ListView.separated(
+                            padding: const EdgeInsets.fromLTRB(12, 8, 12, 90),
+                            itemCount: chat.rooms.length,
+                            separatorBuilder: (_, __) => const SizedBox(height: 8),
+                            itemBuilder: (context, i) {
+                              final room = chat.rooms[i];
+                              final accent = _typeColor(room);
+                              final preview = room.lastMessage?.body ?? 'No messages yet';
+                              final partner = room.isDirect ? chat.partnerOf(room) : null;
+                              final title = chat.displayName(room);
+                              final prefix = room.isDirect ? '' : '(${room.members.length}) ';
+                              return Material(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(14),
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(14),
+                                  onTap: () => onOpenRoom(room),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(14),
+                                      border: Border.all(color: MaanColors.line),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Stack(
+                                          clipBehavior: Clip.none,
+                                          children: [
+                                            room.isDirect && partner != null
+                                                ? MaanAvatar(avatar: partner.avatar, name: partner.fullName, radius: 22, bgColor: accent)
+                                                : CircleAvatar(
+                                                    radius: 22,
+                                                    backgroundColor: _typeBg(room),
+                                                    child: Icon(_typeIcon(room), size: 20, color: accent),
+                                                  ),
+                                            if (room.isE2EE)
+                                              Positioned(
+                                                right: -3,
+                                                bottom: -3,
+                                                child: Container(
+                                                  padding: const EdgeInsets.all(2.5),
+                                                  decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                                                  child: const Icon(Icons.lock_rounded, size: 11, color: Color(0xFF0EA5A6)),
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Row(
+                                                children: [
+                                                  Expanded(
+                                                    child: Text(title,
+                                                        maxLines: 1,
+                                                        overflow: TextOverflow.ellipsis,
+                                                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: MaanColors.navy)),
+                                                  ),
+                                                  if (room.isAnnouncementRoom)
+                                                    Container(
+                                                      margin: const EdgeInsets.only(right: 6),
+                                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                      decoration: BoxDecoration(color: const Color(0xFFFEF3E2), borderRadius: BorderRadius.circular(6)),
+                                                      child: const Text('ANN',
+                                                          style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: Color(0xFFB7791F))),
+                                                    ),
+                                                  Text(_timeLabel(room.lastMessageAt ?? room.lastMessage?.createdAt),
+                                                      style: const TextStyle(fontSize: 10.5, color: MaanColors.faint)),
+                                                ],
+                                              ),
+                                              const SizedBox(height: 3),
+                                              Row(
+                                                children: [
+                                                  Expanded(
+                                                    child: Text(
+                                                      '$prefix$preview',
+                                                      maxLines: 1,
+                                                      overflow: TextOverflow.ellipsis,
+                                                      style: TextStyle(
+                                                          fontSize: 12.5,
+                                                          color: room.unreadCount > 0 ? MaanColors.navy : MaanColors.body,
+                                                          fontWeight: room.unreadCount > 0 ? FontWeight.w600 : FontWeight.w400),
+                                                    ),
+                                                  ),
+                                                  if (room.unreadCount > 0)
+                                                    Container(
+                                                      margin: const EdgeInsets.only(left: 8),
+                                                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                                      decoration: BoxDecoration(color: accent, borderRadius: BorderRadius.circular(10)),
+                                                      child: Text(
+                                                        room.unreadCount > 99 ? '99+' : '${room.unreadCount}',
+                                                        style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800),
+                                                      ),
+                                                    ),
+                                                ],
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ══ Directory tab (Task 118) ═══════════════════════════════════════════
+/// ALL employees by default (server-scoped by role). Tap → direct chat.
+class _DirectoryTab extends StatelessWidget {
+  final void Function(ChatRoomModel) onOpenRoom;
+  const _DirectoryTab({required this.onOpenRoom});
+
+  Future<void> _startDirect(BuildContext context, ChatRoomsProvider chat, ChatDirectoryPerson p) async {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        duration: const Duration(seconds: 2),
+        content: Text('Opening chat with ${p.fullName}…'),
+      ));
+    try {
+      final (room, _) = await chat.openDirectWith(p.id);
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      if (room != null) {
+        onOpenRoom(room);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Chat opened — find it under the Chats tab'),
+            backgroundColor: Color(0xFF2FA36B)));
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(e.toString().replaceAll('Exception: ', '')),
+            backgroundColor: MaanColors.accentRed));
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final chat = context.watch<ChatRoomsProvider>();
+    final meId = chat.myEmployeeId;
+    final people = chat.directoryList;
+    return RefreshIndicator(
+      color: MaanColors.primary,
+      onRefresh: () => chat.loadDirectory(force: true),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+            child: TextField(
+              onChanged: chat.setDirectorySearch,
+              decoration: InputDecoration(
+                hintText: 'Search employees…',
+                prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                isDense: true,
+                filled: true,
+                fillColor: Colors.white,
+                contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: MaanColors.line)),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: MaanColors.line)),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 2, 16, 6),
+            child: Row(children: [
+              const Icon(Icons.info_outline_rounded, size: 13, color: MaanColors.faint),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text('Tap a teammate to start a direct chat',
+                    style: MaanText.caption.copyWith(fontSize: 11)),
+              ),
+            ]),
+          ),
+          Expanded(
+            child: chat.directoryLoading
+                ? const LoadingWidget(itemCount: 6)
+                : chat.directoryError != null
+                    ? EmptyStateWidget(
+                        icon: Icons.cloud_off_rounded,
+                        title: "Couldn't load employees",
+                        message: chat.directoryError,
+                        actionLabel: 'Retry',
+                        onAction: () => chat.loadDirectory(force: true),
+                      )
+                    : people.isEmpty
+                        ? const EmptyStateWidget(
+                            icon: Icons.people_outline_rounded,
+                            title: 'No employees found',
+                            message: 'Try a different search.',
+                          )
+                        : ListView.separated(
+                            padding: const EdgeInsets.fromLTRB(12, 4, 12, 24),
+                            itemCount: people.length,
+                            separatorBuilder: (_, __) => const SizedBox(height: 6),
+                            itemBuilder: (context, i) {
+                              final p = people[i];
+                              final isMe = p.id == meId;
+                              return Material(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(14),
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(14),
+                                  onTap: isMe ? null : () => _startDirect(context, chat, p),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(14),
+                                      border: Border.all(color: MaanColors.line),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        MaanAvatar(avatar: p.avatar, name: p.fullName, radius: 19),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(p.fullName,
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                  style: const TextStyle(
+                                                      fontSize: 13.5, fontWeight: FontWeight.w800, color: MaanColors.navy)),
+                                              if ((p.department ?? p.email ?? '').isNotEmpty)
+                                                Text(p.department ?? p.email!,
+                                                    maxLines: 1,
+                                                    overflow: TextOverflow.ellipsis,
+                                                    style: const TextStyle(fontSize: 11, color: MaanColors.body)),
+                                            ],
+                                          ),
+                                        ),
+                                        if (isMe)
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                            decoration: BoxDecoration(
+                                                color: MaanColors.pageBg, borderRadius: BorderRadius.circular(10)),
+                                            child: const Text('You',
+                                                style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: MaanColors.faint)),
+                                          )
+                                        else
+                                          const Icon(Icons.chat_bubble_outline_rounded,
+                                              size: 17, color: Color(0xFF0EA5A6)),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+          ),
+        ],
       ),
     );
   }
