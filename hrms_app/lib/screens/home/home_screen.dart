@@ -599,6 +599,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               _tile('Payroll', Icons.request_quote_rounded, MaanColors.accentCyan, const Color(0xFFE8F4FD), () => Navigator.pushNamed(context, '/payroll-new')),
               // Task 114 — Project Management (live web /api/projects parity)
               _tile('Projects', Icons.folder_special_rounded, MaanColors.accentPurple, const Color(0xFFF1EDFD), () => Navigator.pushNamed(context, '/projects-new')),
+              // Task 117 — Collaboration Chat (live web /api/collaboration/chat parity)
+              _tile('Chat', Icons.chat_bubble_rounded, const Color(0xFF0EA5A6), const Color(0xFFE6F7F6), () => Navigator.pushNamed(context, '/chat')),
               _tile('Notifications', Icons.notifications_rounded, MaanColors.accentPink, const Color(0xFFFDE7EF), () => Navigator.pushNamed(context, '/notifications')),
               _tile('My Profile', Icons.person_rounded, MaanColors.accentPurple, const Color(0xFFEFEAFD), () => Navigator.pushNamed(context, '/profile')),
               if (isSuper)

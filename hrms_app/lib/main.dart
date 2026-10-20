@@ -40,6 +40,9 @@ import 'screens/auth/terms_screen.dart';
 import 'screens/payroll/payroll_home_screen.dart';
 import 'screens/projects/projects_home_screen.dart';
 import 'screens/projects/project_detail_screen.dart';
+import 'screens/chat/chat_home_screen.dart';
+import 'screens/chat/chat_room_screen.dart';
+import 'models/chat.dart';
 import 'providers/payroll_provider.dart';
 import 'providers/attendance_provider.dart';
 
@@ -107,6 +110,8 @@ class HRMSApp extends StatelessWidget {
           '/attendance-new': (_) => const AttendanceHomeScreen(),
           '/payroll-new': (_) => const PayrollHomeScreen(),
           '/projects-new': (_) => const ProjectsHomeScreen(),
+          // Task 117 — Collaboration Chat module (web parity)
+          '/chat': (_) => const ChatHomeScreen(),
           // '/projects/detail' is handled by onGenerateRoute below (needs the
           // project ID passed as settings.arguments — same pattern as
           // '/employees/detail').
@@ -146,6 +151,14 @@ class HRMSApp extends StatelessWidget {
             return MaterialPageRoute(
               builder: (_) => ProjectDetailScreen(projectId: id is String ? id : ''),
             );
+          }
+          // Task 117 — chat thread needs the FULL room (header badges, member
+          // count, type), so the argument is the ChatRoomModel, not just an id.
+          if (settings.name == '/chat/room') {
+            final arg = settings.arguments;
+            if (arg is ChatRoomModel) {
+              return MaterialPageRoute(builder: (_) => ChatRoomScreen(room: arg));
+            }
           }
           return null;
         },

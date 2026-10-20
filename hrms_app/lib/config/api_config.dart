@@ -127,6 +127,11 @@ class ApiConfig {
   static String projectTasks(String id) => '$apiUrl/projects/$id/tasks';
   static String projectTask(String id, String taskId) => '$apiUrl/projects/$id/tasks/$taskId';
 
+  // Collaboration Chat (Task 117 — same endpoints the web Collaboration →
+  // Chat page uses; member ids / sender ids are EMPLOYEE ids)
+  static String get chatRooms => '$apiUrl/collaboration/chat/rooms';
+  static String chatMessages(String roomId) => '$apiUrl/collaboration/chat/rooms/$roomId/messages';
+
   // Attendance extras
   static String get mySummary => '$apiUrl/attendance/my-summary';
   static String get punch => '$apiUrl/attendance/punch';

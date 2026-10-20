@@ -542,6 +542,56 @@ class ApiService {
     throw Exception(data['error'] ?? 'Failed to create project');
   }
 
+  // ============ Collaboration Chat (Task 117 — web parity) ============
+  // NOTE: member ids and message sender ids are EMPLOYEE ids. Resolve the
+  // signed-in employee via [resolveOwnEmployeeId], never the auth user id.
+
+  /// GET /api/collaboration/chat/rooms — rooms the signed-in employee is a
+  /// member of, with last-message preview, unread counts and members.
+  static Future<Map<String, dynamic>> getChatRooms() async {
+    final response = await _get(ApiConfig.chatRooms);
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 200) return data;
+    throw Exception(data['error'] ?? 'Failed to load chats');
+  }
+
+  /// GET /api/collaboration/chat/rooms/[id]/messages?cursor=&limit= —
+  /// chronological messages + nextCursor for older-page loading. Opening a
+  /// room also marks it read server-side (lastReadAt).
+  static Future<Map<String, dynamic>> getChatMessages(String roomId, {String? cursor, int limit = 50}) async {
+    final q = <String, String>{'limit': '$limit', if (cursor != null && cursor.isNotEmpty) 'cursor': cursor};
+    final response = await _get(ApiConfig.chatMessages(roomId), queryParams: q);
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 200) return data;
+    throw Exception(data['error'] ?? 'Failed to load messages');
+  }
+
+  /// POST /api/collaboration/chat/rooms/[id]/messages — send a message.
+  /// 422 = blocked by DLP policy (server returns reason + patterns).
+  static Future<Map<String, dynamic>> sendChatMessage(String roomId, String body, {String? parentMessageId}) async {
+    final response = await _post(
+      ApiConfig.chatMessages(roomId),
+      {'body': body, if (parentMessageId != null && parentMessageId.isNotEmpty) 'parentMessageId': parentMessageId},
+    );
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 200 || response.statusCode == 201) return data;
+    throw Exception(data['error'] ?? 'Failed to send message');
+  }
+
+  /// POST /api/collaboration/chat/rooms — create a direct or group chat.
+  /// For an existing direct pair the server answers 200 with
+  /// alreadyExisted:true and the existing room.
+  static Future<Map<String, dynamic>> createChatRoom({String? name, required String roomType, required List<String> memberIds}) async {
+    final response = await _post(ApiConfig.chatRooms, {
+      if (name != null && name.isNotEmpty) 'name': name,
+      'roomType': roomType,
+      'memberIds': memberIds,
+    });
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 200 || response.statusCode == 201) return data;
+    throw Exception(data['error'] ?? 'Failed to create chat');
+  }
+
   // ============ Lookups ============
   static Future<List<dynamic>> getDepartments() async {
     final response = await _get(ApiConfig.departments);

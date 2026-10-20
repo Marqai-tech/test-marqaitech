@@ -12,10 +12,10 @@
 // The in-app login-page download link was REMOVED per user request — the web
 // login page is now the only download source.
 export const APP_RELEASE = {
-  versionName: '1.4.2',
-  versionCode: 16,
-  apkUrl: '/downloads/3boxes-hrms-mobile-v1.4.2.apk',
+  versionName: '1.5.0',
+  versionCode: 17,
+  apkUrl: '/downloads/3boxes-hrms-mobile-v1.5.0.apk',
   updatedAt: '2026-10-20',
   notes:
-    'FIX: Projects — Overview/Detail no longer fails with "type List<dynamic> is not a subtype of type List<ProjectTaskModel>". Every module now tolerates any unexpected data shape from the server (empty sections instead of errors). Installs over v1.4.1 — no uninstall needed.',
+    'NEW: Collaboration Chat on mobile — the same chats you see on the web, now in your pocket. Direct & group conversations, send/receive with live refresh, unread badges, employee picker for new chats, and the same security (E2EE direct rooms, DLP policy alerts). Installs over v1.4.2 — no uninstall needed.',
 };
