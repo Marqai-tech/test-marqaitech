@@ -25,7 +25,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     if (!decoded) return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
     const { id } = await params;
 
-    const access = await resolveProjectAccess(decoded as any, id);
+    const access = await resolveProjectAccess(decoded as any, id, db);
     if (!access.canView) return NextResponse.json({ error: 'No access to this project' }, { status: 403, headers: corsHeaders() });
 
     const { searchParams } = new URL(request.url);
@@ -55,7 +55,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (!decoded) return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
     const { id } = await params;
 
-    const access = await resolveProjectAccess(decoded as any, id);
+    const access = await resolveProjectAccess(decoded as any, id, db);
     if (!access.canView) return NextResponse.json({ error: 'No access to this project' }, { status: 403, headers: corsHeaders() });
 
     const body = await request.json();

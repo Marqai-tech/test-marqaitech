@@ -33,7 +33,7 @@ export async function PATCH(
     if (!decoded) return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
 
     const { id, memberId } = await params;
-    const access = await resolveProjectAccess(decoded, id);
+    const access = await resolveProjectAccess(decoded, id, db);
     if (!access.canManageMembers) {
       return NextResponse.json(
         { error: 'You do not have permission to manage members on this project' },
@@ -94,7 +94,7 @@ export async function DELETE(
     if (!decoded) return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
 
     const { id, memberId } = await params;
-    const access = await resolveProjectAccess(decoded, id);
+    const access = await resolveProjectAccess(decoded, id, db);
     if (!access.canManageMembers) {
       return NextResponse.json(
         { error: 'You do not have permission to manage members on this project' },

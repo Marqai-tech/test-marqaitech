@@ -96,7 +96,7 @@ export async function POST(
     // access on THIS project (creator-stamped PM, members, allocations,
     // admins). Previously ANY authenticated tenant user could add tasks to
     // ANY project — even ones they were denied from viewing.
-    const access = await resolveProjectAccess(decoded as any, id);
+    const access = await resolveProjectAccess(decoded as any, id, db);
     if (!access.canEdit && !access.canLogTime) {
       return NextResponse.json(
         { error: 'You do not have permission to add tasks to this project', access: 'denied' },

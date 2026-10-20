@@ -65,7 +65,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     if (!decoded) return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
     const { id, taskId } = await params;
 
-    const access = await resolveProjectAccess(decoded as any, id);
+    const access = await resolveProjectAccess(decoded as any, id, db);
     if (!access.canEdit && !access.canLogTime) {
       return NextResponse.json({ error: 'You do not have edit access to this project' }, { status: 403, headers: corsHeaders() });
     }
@@ -189,7 +189,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     if (!decoded) return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401, headers: corsHeaders() });
     const { id, taskId } = await params;
 
-    const access = await resolveProjectAccess(decoded as any, id);
+    const access = await resolveProjectAccess(decoded as any, id, db);
     if (!access.canEdit) {
       return NextResponse.json({ error: 'You do not have edit access to this project' }, { status: 403, headers: corsHeaders() });
     }
