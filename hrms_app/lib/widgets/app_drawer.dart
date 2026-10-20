@@ -116,6 +116,8 @@ class _AppDrawerState extends State<AppDrawer> {
                 _item(context, Icons.event_busy_rounded, 'Leave Management', () => Navigator.popAndPushNamed(context, '/leaves-new')),
                 _item(context, Icons.fact_check_rounded, 'Attendance', () => Navigator.popAndPushNamed(context, '/attendance-new')),
                 _item(context, Icons.request_quote_rounded, 'Payroll', () => Navigator.popAndPushNamed(context, '/payroll-new')),
+                // Task 114 — Project Management module (live web parity)
+                _item(context, Icons.folder_special_rounded, 'Projects', () => Navigator.popAndPushNamed(context, '/projects-new')),
                 _item(context, Icons.notifications_rounded, 'Notification', () => Navigator.popAndPushNamed(context, '/notifications')),
                 _item(context, Icons.wifi_tethering_rounded, 'Connection check', () => Navigator.popAndPushNamed(context, '/diagnostics')),
                 if (context.watch<AuthProvider>().isSuperAdminSession)

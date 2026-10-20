@@ -12,10 +12,10 @@
 // The in-app login-page download link was REMOVED per user request — the web
 // login page is now the only download source.
 export const APP_RELEASE = {
-  versionName: '1.3.0',
-  versionCode: 13,
-  apkUrl: '/downloads/3boxes-hrms-mobile-v1.3.0.apk',
+  versionName: '1.4.0',
+  versionCode: 14,
+  apkUrl: '/downloads/3boxes-hrms-mobile-v1.4.0.apk',
   updatedAt: '2026-10-20',
   notes:
-    'NEW: employee directory now scoped to your team (department for employees, reports for managers, everything for admin/HR), colorful default profile avatars everywhere, Leave Request page with live balances, My Attendance with Office/Out Side mode + location bar + GPS-spoofing protection, Payroll run summary cards, and fingerprint (biometric) login. Installs over v1.2.0 — no uninstall needed.',
+    'NEW: Project Management module on mobile — projects list with live progress, tasks with status moves (To Do / In Progress / Review / Done), milestones and team per project, create projects and tasks right from the phone; everything stays in sync with the web app in real time. Installs over v1.3.0 — no uninstall needed.',
 };

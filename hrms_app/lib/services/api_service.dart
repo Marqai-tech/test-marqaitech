@@ -486,6 +486,61 @@ class ApiService {
     );
   }
 
+  // ============ Projects (Task 114 — web parity) ============
+
+  /// GET /api/projects — the SAME list the web project-management module
+  /// renders (role-scoped server-side; employees see their projects).
+  static Future<Map<String, dynamic>> getProjects({String? status, String? search, int limit = 50}) async {
+    final q = <String, String>{'limit': '$limit', if (status != null && status.isNotEmpty) 'status': status, if (search != null && search.isNotEmpty) 'search': search};
+    final response = await _get(ApiConfig.projects, queryParams: q);
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 200) return data;
+    throw Exception(data['error'] ?? 'Failed to load projects');
+  }
+
+  /// GET /api/projects/[id] — detail with tasks/milestones/allocations/members
+  /// + the project-RBAC access object (financials gating included).
+  static Future<Map<String, dynamic>> getProjectDetail(String id) async {
+    final response = await _get(ApiConfig.projectDetail(id));
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 200) return data;
+    throw Exception(data['error'] ?? 'Failed to load project');
+  }
+
+  /// GET /api/projects/[id]/tasks — full task list for a project.
+  static Future<List<dynamic>> getProjectTasks(String id) async {
+    final response = await _get(ApiConfig.projectTasks(id));
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 200) return data['tasks'] ?? [];
+    throw Exception(data['error'] ?? 'Failed to load tasks');
+  }
+
+  /// POST /api/projects/[id]/tasks — create a task (name required).
+  static Future<Map<String, dynamic>> createProjectTask(String projectId, Map<String, dynamic> body) async {
+    final response = await _post(ApiConfig.projectTasks(projectId), body);
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 200 || response.statusCode == 201) return data;
+    throw Exception(data['error'] ?? 'Failed to create task');
+  }
+
+  /// PATCH /api/projects/[id]/tasks/[taskId] — move status / edit fields.
+  /// 409 = finish-to-start dependency gate (server returns the gate message).
+  static Future<Map<String, dynamic>> updateProjectTask(String projectId, String taskId, Map<String, dynamic> body) async {
+    final response = await _patch(ApiConfig.projectTask(projectId, taskId), body);
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 200) return data;
+    throw Exception(data['error'] ?? 'Failed to update task');
+  }
+
+  /// POST /api/projects — create a project (name, companyId, startDate
+  /// required — mirrors the web create form).
+  static Future<Map<String, dynamic>> createProject(Map<String, dynamic> body) async {
+    final response = await _post(ApiConfig.projects, body);
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 200 || response.statusCode == 201) return data;
+    throw Exception(data['error'] ?? 'Failed to create project');
+  }
+
   // ============ Lookups ============
   static Future<List<dynamic>> getDepartments() async {
     final response = await _get(ApiConfig.departments);
@@ -493,7 +548,6 @@ class ApiService {
     if (response.statusCode == 200) return data['data'] ?? data['departments'] ?? [];
     throw Exception('Failed to load departments');
   }
-
   static Future<List<dynamic>> getDesignations() async {
     final response = await _get(ApiConfig.designations);
     final data = jsonDecode(response.body);

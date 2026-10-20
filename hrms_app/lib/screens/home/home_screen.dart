@@ -593,6 +593,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               _tile('Leave\nManagement', Icons.event_busy_rounded, MaanColors.accentOrange, const Color(0xFFFEF3E2), () => Navigator.pushNamed(context, '/leaves-new')),
               _tile('Attendance', Icons.fact_check_rounded, MaanColors.accentGreen, const Color(0xFFE6F9F2), () => Navigator.pushNamed(context, '/attendance-new')),
               _tile('Payroll', Icons.request_quote_rounded, MaanColors.accentCyan, const Color(0xFFE8F4FD), () => Navigator.pushNamed(context, '/payroll-new')),
+              // Task 114 — Project Management (live web /api/projects parity)
+              _tile('Projects', Icons.folder_special_rounded, MaanColors.accentPurple, const Color(0xFFF1EDFD), () => Navigator.pushNamed(context, '/projects-new')),
               _tile('Notifications', Icons.notifications_rounded, MaanColors.accentPink, const Color(0xFFFDE7EF), () => Navigator.pushNamed(context, '/notifications')),
               _tile('My Profile', Icons.person_rounded, MaanColors.accentPurple, const Color(0xFFEFEAFD), () => Navigator.pushNamed(context, '/profile')),
               if (isSuper)

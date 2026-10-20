@@ -38,6 +38,8 @@ import 'screens/attendance/attendance_report_screen.dart';
 import 'screens/employees/employee_directory_screen.dart';
 import 'screens/auth/terms_screen.dart';
 import 'screens/payroll/payroll_home_screen.dart';
+import 'screens/projects/projects_home_screen.dart';
+import 'screens/projects/project_detail_screen.dart';
 import 'providers/payroll_provider.dart';
 import 'providers/attendance_provider.dart';
 
@@ -104,6 +106,10 @@ class HRMSApp extends StatelessWidget {
           '/leaves-new': (_) => const LeaveHomeScreen(),
           '/attendance-new': (_) => const AttendanceHomeScreen(),
           '/payroll-new': (_) => const PayrollHomeScreen(),
+          '/projects-new': (_) => const ProjectsHomeScreen(),
+          // '/projects/detail' is handled by onGenerateRoute below (needs the
+          // project ID passed as settings.arguments — same pattern as
+          // '/employees/detail').
           '/login': (_) => const LoginScreen(),
           '/dashboard': (_) => const _MainNavigation(),
           '/employees': (_) => const EmployeeListScreen(),
@@ -134,6 +140,12 @@ class HRMSApp extends StatelessWidget {
             if (arg is String) {
               return MaterialPageRoute(builder: (_) => EmployeeDetailByIdScreen(employeeId: arg));
             }
+          }
+          if (settings.name == '/projects/detail') {
+            final id = settings.arguments;
+            return MaterialPageRoute(
+              builder: (_) => ProjectDetailScreen(projectId: id is String ? id : ''),
+            );
           }
           return null;
         },

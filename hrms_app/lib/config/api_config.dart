@@ -121,6 +121,12 @@ class ApiConfig {
   static String get payrolls => '$apiUrl/payroll';
   static String payrollDetail(String id) => '$apiUrl/payroll/$id';
 
+  // Projects (Task 114 — same endpoints the web project-management module uses)
+  static String get projects => '$apiUrl/projects';
+  static String projectDetail(String id) => '$apiUrl/projects/$id';
+  static String projectTasks(String id) => '$apiUrl/projects/$id/tasks';
+  static String projectTask(String id, String taskId) => '$apiUrl/projects/$id/tasks/$taskId';
+
   // Attendance extras
   static String get mySummary => '$apiUrl/attendance/my-summary';
   static String get punch => '$apiUrl/attendance/punch';
