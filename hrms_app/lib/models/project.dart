@@ -237,7 +237,11 @@ class ProjectTaskModel {
     }
   }
 
-  String get priorityLabel => priority[0].toUpperCase() + priority.substring(1);
+  String get priorityLabel {
+    final p = priority.trim();
+    if (p.isEmpty) return 'Medium';
+    return p[0].toUpperCase() + p.substring(1);
+  }
 }
 
 class ProjectMilestoneModel {
@@ -284,8 +288,11 @@ class ProjectMilestoneModel {
     );
   }
 
-  String get approvalLabel =>
-      approvalStatus[0].toUpperCase() + approvalStatus.substring(1);
+  String get approvalLabel {
+    final a = approvalStatus.trim();
+    if (a.isEmpty) return 'Pending';
+    return a[0].toUpperCase() + a.substring(1);
+  }
 }
 
 /// Project team member from an allocation row (employee + role + pct).

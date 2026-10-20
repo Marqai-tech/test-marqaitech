@@ -12,10 +12,10 @@
 // The in-app login-page download link was REMOVED per user request — the web
 // login page is now the only download source.
 export const APP_RELEASE = {
-  versionName: '1.4.0',
-  versionCode: 14,
-  apkUrl: '/downloads/3boxes-hrms-mobile-v1.4.0.apk',
+  versionName: '1.4.1',
+  versionCode: 15,
+  apkUrl: '/downloads/3boxes-hrms-mobile-v1.4.1.apk',
   updatedAt: '2026-10-20',
   notes:
-    'NEW: Project Management module on mobile — projects list with live progress, tasks with status moves (To Do / In Progress / Review / Done), milestones and team per project, create projects and tasks right from the phone; everything stays in sync with the web app in real time. Installs over v1.3.0 — no uninstall needed.',
+    'FIX: projects you create now open correctly for YOUR account — the creator is set as project manager, so opening the project and adding tasks works right away (managers and employees included). Task creation is now properly permission-checked. Installs over v1.4.0 — no uninstall needed.',
 };

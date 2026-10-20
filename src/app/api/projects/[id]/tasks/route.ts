@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
+import { resolveProjectAccess } from '@/lib/project-rbac';
 
 function corsHeaders() {
   return {
@@ -89,6 +90,18 @@ export async function POST(
     const project = await db.project.findUnique({ where: { id } });
     if (!project) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404, headers: corsHeaders() });
+    }
+
+    // ─── Task 115 FIX (RBAC): creating tasks requires edit or log-time
+    // access on THIS project (creator-stamped PM, members, allocations,
+    // admins). Previously ANY authenticated tenant user could add tasks to
+    // ANY project — even ones they were denied from viewing.
+    const access = await resolveProjectAccess(decoded as any, id);
+    if (!access.canEdit && !access.canLogTime) {
+      return NextResponse.json(
+        { error: 'You do not have permission to add tasks to this project', access: 'denied' },
+        { status: 403, headers: corsHeaders() }
+      );
     }
 
     const body = await request.json();

@@ -1,7 +1,7 @@
 name: hrms_app
 description: "3 Boxes HRMS"
 publish_to: 'none'
-version: 1.4.0+14
+version: 1.4.1+15
 
 environment:
   sdk: ^3.8.1

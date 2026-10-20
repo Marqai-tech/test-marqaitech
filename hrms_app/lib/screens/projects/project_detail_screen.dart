@@ -54,6 +54,14 @@ class _DetailBody extends StatelessWidget {
                             const Icon(Icons.lock_outline_rounded, size: 52, color: MaanColors.faint),
                             const SizedBox(height: 12),
                             Text(provider.error!, textAlign: TextAlign.center, style: MaanText.body),
+                            if (provider.error!.toLowerCase().contains('access')) ...[
+                              const SizedBox(height: 6),
+                              const Text(
+                                'Ask the project manager or an admin to add you to this project (web → Project → Members).',
+                                textAlign: TextAlign.center,
+                                style: MaanText.caption,
+                              ),
+                            ],
                             const SizedBox(height: 12),
                             OutlinedButton.icon(
                               onPressed: () => provider.load(projectId, force: true),
@@ -560,10 +568,18 @@ class _CreateTaskSheetState extends State<_CreateTaskSheet> {
                 value: _assigneeId,
                 decoration: const InputDecoration(border: InputBorder.none, labelText: 'Assign to (team member)', labelStyle: TextStyle(color: MaanColors.faint, fontSize: 13)),
                 dropdownColor: Colors.white,
-                items: team
-                    .where((m) => (m.employeeName ?? '').isNotEmpty)
-                    .map((m) => DropdownMenuItem(value: m.employeeId, child: Text(m.employeeName!, style: const TextStyle(fontSize: 13))))
-                    .toList(),
+                // dedupe by employeeId — duplicate/null DropdownMenuItem values crash the sheet
+                items: () {
+                  final seen = <String>{};
+                  final items = <DropdownMenuItem<String>>[];
+                  for (final m in team) {
+                    final id = m.employeeId;
+                    if (id == null || id.isEmpty || !seen.add(id)) continue;
+                    if ((m.employeeName ?? '').isEmpty) continue;
+                    items.add(DropdownMenuItem(value: id, child: Text(m.employeeName!, style: const TextStyle(fontSize: 13))));
+                  }
+                  return items;
+                }(),
                 onChanged: (v) => setState(() => _assigneeId = v),
               ),
             ),
@@ -766,7 +782,8 @@ class _TeamTab extends StatelessWidget {
       children: team.map((m) {
         final initials = (m.employeeName ?? '?')
             .split(' ').where((w) => w.isNotEmpty).map((w) => w[0].toUpperCase()).take(2).join();
-        final hue = (m.id.hashCode % 8) * 45.0;
+        // clamp: hashCode can be negative → invalid hue (assert in debug)
+        final hue = ((m.id.hashCode % 8).abs()) * 45.0;
         return Container(
           margin: const EdgeInsets.only(bottom: 10),
           padding: const EdgeInsets.all(12),
