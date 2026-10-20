@@ -551,8 +551,23 @@ export async function GET(request: Request) {
       // ─── Self / team / admin scope enforcement ───
       if (isAuthed) {
         if (scope === 'self' && userId) {
-          // Employee: only see their own employee record
-          where.userId = userId;
+          // Task 113 — Employee directory scope: an employee sees THEIR OWN
+          // record + all ACTIVE colleagues in the SAME DEPARTMENT (user ask:
+          // "employee login should show the respective employee's department
+          // employees' details in the directory"). Falls back to self-only
+          // when the employee has no department (or no employee row).
+          const ownEmp = await db.employee.findFirst({
+            where: { userId, status: 'active' },
+            select: { id: true, departmentId: true },
+          }).catch(() => null);
+          if (ownEmp?.departmentId) {
+            where.OR = [
+              { userId },
+              { departmentId: ownEmp.departmentId, status: 'active' },
+            ];
+          } else {
+            where.userId = userId;
+          }
         } else if (scope === 'team' && userId) {
           // Manager: see own + direct reports (resolved via reportingManagerId + DottedLineManager)
           const ownEmp = await db.employee.findFirst({

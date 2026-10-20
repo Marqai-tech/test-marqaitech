@@ -68,15 +68,23 @@ class _PayrollBody extends StatelessWidget {
                                   SizedBox(height: 12),
                                   Center(child: Text('No payslips visible for your account yet', style: MaanText.body)),
                                 ])
-                              : ListView.separated(
+                              : ListView(
                                   padding: const EdgeInsets.only(bottom: 24, top: 4),
-                                  itemCount: provider.payrolls.length,
-                                  separatorBuilder: (_, __) => const SizedBox(height: 10),
-                                  itemBuilder: (_, i) => _PayrollRow(
-                                    payroll: provider.payrolls[i],
-                                    statusColor: _statusColor(provider.payrolls[i].status),
-                                    onTap: () => _openPayslip(context, provider.payrolls[i]),
-                                  ),
+                                  children: [
+                                    // ── Design #11: payroll run cards (grouped by month) ──
+                                    ..._runCards(provider.payrolls),
+                                    const SizedBox(height: 16),
+                                    Text('Payslips', style: MaanText.h2.copyWith(fontSize: 16)),
+                                    const SizedBox(height: 10),
+                                    ...provider.payrolls.map((p) => Padding(
+                                          padding: const EdgeInsets.only(bottom: 10),
+                                          child: _PayrollRow(
+                                            payroll: p,
+                                            statusColor: _statusColor(p.status),
+                                            onTap: () => _openPayslip(context, p),
+                                          ),
+                                        )),
+                                  ],
                                 ),
                         ),
             ),
@@ -86,6 +94,56 @@ class _PayrollBody extends StatelessWidget {
     );
   }
 
+  /// Design #11 "Payroll Management" — one summary card per payroll RUN
+  /// (month): status badge, period range, payslip count and a run ID derived
+  /// from the first payslip of the group. All values come from the LIVE
+  /// /api/payroll rows — no fabricated batch data.
+  List<Widget> _runCards(List<PayrollModel> rows) {
+    if (rows.length < 2) return const []; // a single payslip needs no run summary
+    final groups = <String, List<PayrollModel>>{};
+    for (final p in rows) {
+      groups.putIfAbsent('${p.year}-${p.month.toString().padLeft(2, '0')}', () => []).add(p);
+    }
+    final keys = groups.keys.toList()..sort((a, b) => b.compareTo(a));
+    return [
+      Text('Payroll Runs', style: MaanText.h2.copyWith(fontSize: 16)),
+      const SizedBox(height: 10),
+      ...keys.map((k) {
+        final g = groups[k]!;
+        final month = g.first.month;
+        final year = g.first.year;
+        final firstDay = DateTime(year, month, 1);
+        final lastDay = DateTime(year, month + 1, 0);
+        final period =
+            '${DateFormat('dd MMM, yy').format(firstDay)} – ${DateFormat('dd MMM, yy').format(lastDay)}';
+        // Run status = the dominant row status (paid > processed > approved > draft).
+        final counts = <String, int>{};
+        for (final p in g) {
+          counts[p.status] = (counts[p.status] ?? 0) + 1;
+        }
+        String status = 'draft';
+        for (final s in ['paid', 'processed', 'approved', 'draft']) {
+          if ((counts[s] ?? 0) > (counts[status] ?? 0)) status = s;
+        }
+        if (status == 'draft' && (counts['draft'] ?? 0) == 0) status = g.first.status;
+        final label = status == 'draft' ? 'Generated' : status;
+        final runId = 'PAYRUN-$year${month.toString().padLeft(2, '0')}-${g.first.id.substring(0, 6).toUpperCase()}';
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: _RunCard(
+            statusLabel: label,
+            statusColor: _statusColor(status),
+            period: period,
+            payslipCount: g.length,
+            runId: runId,
+            netTotal: g.fold<num>(0, (s, p) => s + p.netSalary),
+            currencySymbol: g.first.currencySymbol,
+          ),
+        );
+      }),
+    ];
+  }
+
   void _openPayslip(BuildContext context, PayrollModel p) {
     showModalBottomSheet(
       context: context,
@@ -93,6 +151,65 @@ class _PayrollBody extends StatelessWidget {
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(26))),
       builder: (_) => _PayslipSheet(p: p),
+    );
+  }
+}
+
+/// Design #11 — payroll-run summary card: "Generated" badge, period, N
+/// Payslip, run ID and total net for the month.
+class _RunCard extends StatelessWidget {
+  final String statusLabel;
+  final Color statusColor;
+  final String period;
+  final int payslipCount;
+  final String runId;
+  final num netTotal;
+  final String currencySymbol;
+
+  const _RunCard({
+    required this.statusLabel,
+    required this.statusColor,
+    required this.period,
+    required this.payslipCount,
+    required this.runId,
+    required this.netTotal,
+    required this.currencySymbol,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: MaanColors.line),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(.04), blurRadius: 10, offset: const Offset(0, 3))],
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+            decoration: BoxDecoration(color: statusColor.withOpacity(.14), borderRadius: BorderRadius.circular(9)),
+            child: Text(statusLabel.toUpperCase(),
+                style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: statusColor, letterSpacing: .5)),
+          ),
+          const Spacer(),
+          Icon(Icons.more_horiz_rounded, size: 18, color: MaanColors.faint),
+        ]),
+        const SizedBox(height: 10),
+        Text('Payroll Period: $period', style: MaanText.title.copyWith(fontSize: 13.5)),
+        const SizedBox(height: 3),
+        Text('$payslipCount Payslip${payslipCount == 1 ? '' : 's'}', style: MaanText.caption.copyWith(fontSize: 12, fontWeight: FontWeight.w700)),
+        const SizedBox(height: 3),
+        Text('Batch: $runId', style: MaanText.caption.copyWith(fontSize: 11.5)),
+        const SizedBox(height: 3),
+        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+          Text('ID: #${runId.split('-').last}', style: MaanText.caption.copyWith(fontSize: 11.5)),
+          Text('$currencySymbol${NumberFormat('#,##0.##').format(netTotal)} net',
+              style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: MaanColors.navy)),
+        ]),
+      ]),
     );
   }
 }

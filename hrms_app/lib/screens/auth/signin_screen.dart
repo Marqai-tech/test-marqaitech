@@ -4,6 +4,8 @@ import '../../config/maan_theme.dart';
 import '../../config/api_config.dart';
 import '../../config/app_info.dart';
 import '../../providers/auth_provider.dart';
+import '../../services/api_service.dart';
+import '../../services/biometric_service.dart';
 import '../../services/storage_service.dart';
 
 /// Sign In — matches design screenshot #3 (blue header + floating-label sheet).
@@ -28,6 +30,9 @@ class _SignInScreenState extends State<SignInScreen> {
   bool _showAdvanced = false;
   bool _busy = false;
   String? _error;
+  // Task 113 — biometric login (design #06).
+  bool _biometricAvailable = false;
+  bool _bioAutoPrompted = false;
 
   @override
   void initState() {
@@ -35,6 +40,141 @@ class _SignInScreenState extends State<SignInScreen> {
     _saveMe = StorageService.getRememberMe();
     final remembered = StorageService.getRememberedEmail();
     if (remembered != null && remembered.isNotEmpty) _identity.text = remembered;
+    _checkBiometric();
+  }
+
+  Future<void> _checkBiometric() async {
+    final available = await BiometricService.isAvailable();
+    if (!mounted) return;
+    setState(() => _biometricAvailable = available);
+    // Auto-prompt ONCE when biometric unlock was set up and a session is
+    // still stored — "Hey, Login Now." becomes just a fingerprint touch.
+    if (available &&
+        BiometricService.isEnabled() &&
+        (StorageService.getToken()?.isNotEmpty ?? false) &&
+        !_bioAutoPrompted) {
+      _bioAutoPrompted = true;
+      await _biometricUnlock(autoPrompt: true);
+    }
+  }
+
+  /// Fingerprint unlock of the stored session (design #06 "Biometric Login").
+  Future<void> _biometricUnlock({bool autoPrompt = false}) async {
+    if (_busy) return;
+    final ok = await BiometricService.authenticate();
+    if (!mounted) return;
+    if (!ok) return; // user cancelled / failed — normal sign-in stays
+    if (!autoPrompt) setState(() => _busy = true);
+    final token = StorageService.getToken();
+    if (token == null || token.isEmpty) {
+      // No session to unlock — ask for credentials once (design dialog).
+      if (!autoPrompt) setState(() => _busy = false);
+      await _setupBiometricDialog();
+      return;
+    }
+    // Validate the stored session before trusting it (24h server expiry).
+    final valid = await ApiService.validateSession();
+    if (!mounted) return;
+    if (!valid) {
+      await BiometricService.setEnabled(false);
+      try { await context.read<AuthProvider>().logout(); } catch (_) {}
+      if (!autoPrompt) setState(() => _busy = false);
+      setState(() => _error = 'Your session has expired — please sign in once more with your password, then fingerprint login works again.');
+      return;
+    }
+    final fresh = await ApiService.refreshStoredUser();
+    if (!mounted) return;
+    if (fresh != null) context.read<AuthProvider>().adoptUser(fresh);
+    final role = context.read<AuthProvider>().user?.role;
+    final target = role == 'super_admin' ? '/tenant-picker' : '/home-new';
+    Navigator.pushNamedAndRemoveUntil(context, target, (_) => false);
+  }
+
+  /// Design #06 modal: "Setup Biometric Login" — verify email + password
+  /// once, then switch the fingerprint flag on. No password is stored.
+  Future<void> _setupBiometricDialog() async {
+    final emailCtrl = TextEditingController(text: _identity.text.trim());
+    final passCtrl = TextEditingController();
+    bool obscure = true;
+    String? dialogError;
+    bool setting = false;
+
+    final enabled = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          title: Text('Setup Biometric Login', style: MaanText.title.copyWith(fontSize: 17)),
+          content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('To enable fingerprint login, please enter your email and password once.',
+                style: MaanText.body.copyWith(fontSize: 12.5, height: 1.4)),
+            const SizedBox(height: 14),
+            TextField(
+              controller: emailCtrl,
+              keyboardType: TextInputType.emailAddress,
+              decoration: const InputDecoration(hintText: 'Enter your email', isDense: true),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: passCtrl,
+              obscureText: obscure,
+              decoration: InputDecoration(
+                hintText: 'Enter your password',
+                isDense: true,
+                suffixIcon: IconButton(
+                  icon: Icon(obscure ? Icons.visibility_off : Icons.visibility, size: 18, color: MaanColors.faint),
+                  onPressed: () => setDialogState(() => obscure = !obscure),
+                ),
+              ),
+            ),
+            if (dialogError != null) ...[
+              const SizedBox(height: 10),
+              Text(dialogError!, style: const TextStyle(color: Color(0xFFC04747), fontSize: 11.5)),
+            ],
+          ]),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: MaanColors.primary),
+              onPressed: setting
+                  ? null
+                  : () async {
+                      setDialogState(() { setting = true; dialogError = null; });
+                      final email = emailCtrl.text.trim();
+                      final ws = ApiConfig.normalizeWorkspaceUrl(_workspace.text) ?? '';
+                      ApiConfig.setBaseUrl(ws.isEmpty ? ApiConfig.defaultBaseUrl : ws);
+                      final ok = await context.read<AuthProvider>().login(email, passCtrl.text);
+                      if (!ctx.mounted) return;
+                      if (ok) {
+                        Navigator.pop(ctx, true);
+                      } else {
+                        setDialogState(() {
+                          setting = false;
+                          dialogError = context.read<AuthProvider>().error ?? 'Invalid credentials — try again.';
+                        });
+                      }
+                    },
+              child: setting
+                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : const Text('Setup', style: TextStyle(fontWeight: FontWeight.w800)),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (enabled == true) {
+      await BiometricService.setEnabled(true);
+      if (!mounted) return;
+      final role = context.read<AuthProvider>().user?.role;
+      final target = role == 'super_admin' ? '/tenant-picker' : '/home-new';
+      Navigator.pushNamedAndRemoveUntil(context, target, (_) => false);
+    }
   }
 
   // Task 110b — the in-app "Download latest APK" link was REMOVED per user
@@ -62,6 +202,40 @@ class _SignInScreenState extends State<SignInScreen> {
 
     if (!mounted) return;
     if (ok) {
+      // Design #06: after the FIRST password sign-in, offer fingerprint
+      // login for next time (one consent dialog — no password ever stored).
+      if (_biometricAvailable && !BiometricService.isEnabled()) {
+        final wants = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            backgroundColor: Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+            title: Row(children: [
+              Container(
+                width: 36, height: 36,
+                decoration: BoxDecoration(color: MaanColors.primary.withOpacity(.1), shape: BoxShape.circle),
+                child: const Icon(Icons.fingerprint_rounded, color: MaanColors.primary, size: 24),
+              ),
+              const SizedBox(width: 10),
+              Expanded(child: Text('Setup Biometric Login', style: MaanText.title.copyWith(fontSize: 16.5))),
+            ]),
+            content: Text(
+              'Use your fingerprint to sign in next time? Your password is never stored — the fingerprint just unlocks this device\'s active session.',
+              style: MaanText.body.copyWith(fontSize: 12.5, height: 1.4),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Not now')),
+              FilledButton(
+                style: FilledButton.styleFrom(backgroundColor: MaanColors.primary),
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Setup', style: TextStyle(fontWeight: FontWeight.w800)),
+              ),
+            ],
+          ),
+        );
+        if (wants == true) await BiometricService.setEnabled(true);
+        if (!mounted) return;
+      }
       final role = context.read<AuthProvider>().user?.role;
       // Super admins pick the tenant workspace they want to open first.
       final target = role == 'super_admin' ? '/tenant-picker' : '/home-new';
@@ -226,6 +400,34 @@ class _SignInScreenState extends State<SignInScreen> {
                                 ),
                         ),
                       ),
+                      // ── Design #06: "Or" divider + Biometric Login ──
+                      if (_biometricAvailable) ...[
+                        const SizedBox(height: 16),
+                        Row(children: [
+                          const Expanded(child: Divider(color: Color(0xFFE3E8F4))),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            child: Text('Or', style: TextStyle(fontSize: 12, color: MaanColors.faint, fontWeight: FontWeight.w600)),
+                          ),
+                          const Expanded(child: Divider(color: Color(0xFFE3E8F4))),
+                        ]),
+                        const SizedBox(height: 14),
+                        SizedBox(
+                          height: 50,
+                          child: OutlinedButton.icon(
+                            onPressed: _busy ? null : () => _biometricUnlock(),
+                            style: OutlinedButton.styleFrom(
+                              side: const BorderSide(color: MaanColors.primary, width: 1.2),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            ),
+                            icon: const Icon(Icons.fingerprint_rounded, size: 24, color: MaanColors.primary),
+                            label: Text(
+                              BiometricService.isEnabled() ? 'Biometric Login' : 'Setup Biometric Login',
+                              style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700, color: MaanColors.primary),
+                            ),
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 16),
                       if (_error != null)
                         Container(

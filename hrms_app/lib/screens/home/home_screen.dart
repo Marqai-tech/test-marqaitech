@@ -1,13 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../config/maan_theme.dart';
 import '../../models/user.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
+import '../../services/punch_flow.dart';
 import '../../services/storage_service.dart';
 import '../../widgets/maan_avatar.dart';
 import '../../widgets/main_scaffold.dart';
@@ -196,41 +196,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     return '${hrs.floor()}h ${((hrs - hrs.floor()) * 60).round()}m';
   }
 
-  // ── Punch flow (ported from the attendance module, Task 108/109 contracts) ──
-  Future<PunchGps> _captureGps() async {
-    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      final open = await _askDialog('Location is off', 'Turn on device location so your check-in can be verified against the office location.');
-      if (open == true) await Geolocator.openLocationSettings();
-      throw Exception('Location services are disabled. Enable location and try again.');
-    }
-    var permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) permission = await Geolocator.requestPermission();
-    if (permission == LocationPermission.denied) throw Exception('Location permission is required for check-in/out.');
-    if (permission == LocationPermission.deniedForever) {
-      final open = await _askDialog('Permission blocked', 'Allow location access for 3 Boxes HRMS from App settings to record attendance.');
-      if (open == true) await Geolocator.openAppSettings();
-      throw Exception('Location permission is blocked. Enable it in App settings and try again.');
-    }
-    final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high, timeLimit: const Duration(seconds: 20));
-    return PunchGps(lat: pos.latitude, lng: pos.longitude, accuracy: pos.accuracy);
-  }
-
-  Future<bool> _askDialog(String title, String body) async {
-    final res = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(title, style: MaanText.title.copyWith(fontSize: 17)),
-        content: Text(body, style: MaanText.body),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          FilledButton(style: FilledButton.styleFrom(backgroundColor: MaanColors.primary), onPressed: () => Navigator.pop(ctx, true), child: const Text('Open Settings')),
-        ],
-      ),
-    );
-    return res == true;
-  }
-
+  // ── Punch flow — shared PunchFlow (Task 113): GPS capture + mock-location
+  // detection (design #12_Fake_GPS dialog) + WFH/holiday guidance dialogs.
+  // The Home Check/Break tabs punch in Office mode by default; the Attendance
+  // module offers the Office / Out Side selector.
   Future<void> _punch(String action, String label) async {
     if (_busy) return;
     if (_employeeId == null || _employeeId!.isEmpty) {
@@ -240,37 +209,13 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       return;
     }
     setState(() => _busy = true);
-    try {
-      final gps = await _captureGps();
-      if (!mounted) return;
-      final res = await ApiService.punch(employeeId: _employeeId!, action: action, gps: gps);
-      final serverMessage = (res['message'] ?? '').toString();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(serverMessage.isNotEmpty ? '$label recorded. $serverMessage' : '$label recorded successfully.'),
-            backgroundColor: Colors.green));
-      }
-      await _load();
-    } catch (e) {
-      if (!mounted) return;
-      final msg = e.toString().replaceAll('Exception: ', '');
-      if (e is PunchException && e.code == 'HOLIDAY_WORK_APPROVAL_REQUIRED') {
-        await showDialog<void>(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: Row(children: [
-              const Icon(Icons.event_busy_rounded, color: Colors.orange, size: 22),
-              const SizedBox(width: 8),
-              Expanded(child: Text('Approval needed', style: MaanText.title.copyWith(fontSize: 17))),
-            ]),
-            content: Text('$msg\n\nOnce your Holiday / Weekend Work request is approved (or your admin opens holidays & weekends for you in Attendance Settings), your mobile check-in will work on that date.', style: MaanText.body),
-            actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK', style: TextStyle(color: MaanColors.primary, fontWeight: FontWeight.w700)))],
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: Colors.red));
-      }
-    }
+    await PunchFlow.executePunch(
+      context,
+      employeeId: _employeeId!,
+      action: action,
+      label: label,
+      onSuccess: (_) async => _load(),
+    );
     if (mounted) setState(() => _busy = false);
   }
 

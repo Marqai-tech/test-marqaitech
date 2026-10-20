@@ -108,7 +108,9 @@ class HRMSApp extends StatelessWidget {
           '/dashboard': (_) => const _MainNavigation(),
           '/employees': (_) => const EmployeeListScreen(),
           '/leaves/request': (_) => const LeaveRequestScreen(),
-          '/attendance': (_) => const AttendanceScreen(),
+          // Task 113: the legacy static attendance placeholder is gone — the
+          // route now opens the LIVE My Attendance module (design #12).
+          '/attendance': (_) => const AttendanceHomeScreen(),
           '/reports': (_) => const ReportsScreen(),
           '/profile': (_) => const ProfileScreen(),
           '/settings': (_) => const SettingsScreen(),

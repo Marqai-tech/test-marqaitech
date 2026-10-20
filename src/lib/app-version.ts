@@ -12,10 +12,10 @@
 // The in-app login-page download link was REMOVED per user request — the web
 // login page is now the only download source.
 export const APP_RELEASE = {
-  versionName: '1.2.0',
-  versionCode: 12,
-  apkUrl: '/downloads/3boxes-hrms-mobile-v1.2.0.apk',
-  updatedAt: '2026-10-19',
+  versionName: '1.3.0',
+  versionCode: 13,
+  apkUrl: '/downloads/3boxes-hrms-mobile-v1.3.0.apk',
+  updatedAt: '2026-10-20',
   notes:
-    'NEW: all your pages are live now — profile, settings, notifications, employee directory, attendance report and the Home check-in/break/leave tabs show real data, and you can change your profile photo from My Profile. Installs over v1.0.9/v1.1.0 — no uninstall needed.',
+    'NEW: employee directory now scoped to your team (department for employees, reports for managers, everything for admin/HR), colorful default profile avatars everywhere, Leave Request page with live balances, My Attendance with Office/Out Side mode + location bar + GPS-spoofing protection, Payroll run summary cards, and fingerprint (biometric) login. Installs over v1.2.0 — no uninstall needed.',
 };

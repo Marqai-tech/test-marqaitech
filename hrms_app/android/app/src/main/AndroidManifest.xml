@@ -8,6 +8,9 @@
          The punch API rejects check-in/out without valid coordinates, so the
          app must be able to read the device location. -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <!-- Task 113: biometric login (design #06 fingerprint unlock) -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
+    <uses-permission android:name="android.permission.USE_FINGERPRINT"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
     <application
         android:label="3 Boxes HRMS"

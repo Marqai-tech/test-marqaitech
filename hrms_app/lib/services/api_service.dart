@@ -452,6 +452,7 @@ class ApiService {
     required String employeeId,
     required String action,
     PunchGps? gps,
+    String? mode, // 'office' | 'outside' — user-declared context (design #12)
   }) async {
     final now = DateTime.now();
     final body = <String, dynamic>{
@@ -466,6 +467,8 @@ class ApiService {
       // punches unless the admin enabled this channel for the employee
       // (WFH pre-approval) — the server message is surfaced by the caller.
       'method': 'mobile',
+      // Task 113: Office / Out Side mode — recorded in the audit notes trail.
+      if (mode == 'office' || mode == 'outside') 'mode': mode,
       if (gps != null)
         'gps': {
           'lat': gps.lat,

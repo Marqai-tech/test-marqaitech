@@ -220,7 +220,7 @@ export async function POST(request: NextRequest) {
     if (!scope) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders() });
 
     const body = await request.json();
-    let { employeeId, action, date, localTime, utcTimestamp, gps, notes } = body;
+    let { employeeId, action, date, localTime, utcTimestamp, gps, notes, mode } = body;
 
     if (!employeeId || !action || !date || (!localTime && !utcTimestamp)) {
       return NextResponse.json(
@@ -451,6 +451,13 @@ export async function POST(request: NextRequest) {
         // exactly 10m) indicates a declared/mock location. Recorded, not
         // rejected — HR decides; visible in notes + punch log.
         geofenceAuditNote = '[GeoAudit] Coordinates exactly match the office geofence center — flagged for verification (possible mock/declared location).';
+      }
+      // Task 113 — attendance mode declared in the app (design #12: Office /
+      // Out Side toggle). Audit-only: recorded in the notes trail so HR can
+      // see the user's declared context next to the geofence evidence.
+      if (mode === 'outside' || mode === 'office') {
+        const modeTag = `[Mode: ${mode === 'outside' ? 'Outside' : 'Office'} — user-declared in app]`;
+        geofenceAuditNote = geofenceAuditNote ? `${modeTag} ${geofenceAuditNote}` : modeTag;
       }
     }
 

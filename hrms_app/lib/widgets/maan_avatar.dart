@@ -31,16 +31,51 @@ class MaanAvatar extends StatelessWidget {
     return name.isNotEmpty ? name[0].toUpperCase() : '?';
   }
 
-  Widget _fallback({Color? fg}) => Container(
-        width: radius * 2,
-        height: radius * 2,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(color: bgColor.withOpacity(.16), shape: BoxShape.circle),
-        child: Text(
-          _initials,
-          style: TextStyle(fontSize: radius * 0.72, fontWeight: FontWeight.w800, color: fg ?? textColor),
+  /// Task 113 — photo-less records get a DETERMINISTIC pleasant color per
+  /// person (8-color palette hashed from the name), so directories/profiles
+  /// look polished instead of washed-out when no photo is set. The same
+  /// person always gets the same color across every screen.
+  static const _palette = [
+    Color(0xFF5B7FE8), // blue (brand)
+    Color(0xFF7C6FF0), // violet
+    Color(0xFF0EA5A6), // teal
+    Color(0xFFE8863C), // orange
+    Color(0xFFD4547E), // rose
+    Color(0xFF2FA36B), // green
+    Color(0xFF8A63D2), // purple
+    Color(0xFF3B9DD4), // sky
+  ];
+
+  Color get _autoColor {
+    final clean = name.trim().toLowerCase();
+    var h = 0;
+    for (var i = 0; i < clean.length; i++) {
+      h = (h * 31 + clean.codeUnitAt(i)) & 0x7fffffff;
+    }
+    return _palette[h % _palette.length];
+  }
+
+  Widget _fallback({Color? fg}) {
+    // Solid auto-color circle + white initials (Task 113 upgrade).
+    final fill = _autoColor;
+    return Container(
+      width: radius * 2,
+      height: radius * 2,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [fill, fill.withOpacity(.78)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
-      );
+        shape: BoxShape.circle,
+      ),
+      child: Text(
+        _initials,
+        style: TextStyle(fontSize: radius * 0.72, fontWeight: FontWeight.w800, color: Colors.white),
+      ),
+    );
+  }
 
   ImageProvider? _provider() {
     final a = avatar?.trim() ?? '';

@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../config/maan_theme.dart';
 import '../../models/attendance.dart';
 import '../../providers/attendance_provider.dart';
 import '../../services/api_service.dart';
+import '../../services/punch_flow.dart';
 
-/// Attendance module — punch in/out + today's summary + history from /api/attendance.
+/// Attendance module — design #12 "My Attendance": location status bar,
+/// Office / Out Side mode selector, punch in/out + today's summary + history
+/// from /api/attendance. Punches run through the shared PunchFlow (Task 113)
+/// with mock-location detection (design #12_Fake_GPS).
 class AttendanceHomeScreen extends StatelessWidget {
   const AttendanceHomeScreen({super.key});
 
@@ -39,6 +42,9 @@ class _AttendanceBodyState extends State<_AttendanceBody> {
   // null = unknown (server still enforces); false = hide punch buttons and
   // show the pre-approval banner instead.
   bool? _mobileCheckInAllowed;
+  // Task 113 (design #12): user-declared attendance mode sent with every
+  // punch and recorded in the server's audit notes trail.
+  String _mode = 'office';
 
   @override
   void initState() {
@@ -76,55 +82,9 @@ class _AttendanceBodyState extends State<_AttendanceBody> {
     }
   }
 
-  /// Capture the device GPS fix used for geofenced check-in/out.
-  /// Throws a user-readable exception when location cannot be captured.
-  Future<PunchGps> _captureGps() async {
-    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      final open = await _askDialog(
-          'Location is off', 'Turn on device location so your check-in can be verified against the office location.');
-      if (open == true) await Geolocator.openLocationSettings();
-      throw Exception('Location services are disabled. Enable location and try again.');
-    }
-    var permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-    }
-    if (permission == LocationPermission.denied) {
-      throw Exception('Location permission is required for check-in/out.');
-    }
-    if (permission == LocationPermission.deniedForever) {
-      final open = await _askDialog(
-          'Permission blocked', 'Allow location access for 3 Boxes HRMS from App settings to record attendance.');
-      if (open == true) await Geolocator.openAppSettings();
-      throw Exception('Location permission is blocked. Enable it in App settings and try again.');
-    }
-    final pos = await Geolocator.getCurrentPosition(
-      desiredAccuracy: LocationAccuracy.high,
-      timeLimit: const Duration(seconds: 20),
-    );
-    return PunchGps(lat: pos.latitude, lng: pos.longitude, accuracy: pos.accuracy);
-  }
-
-  Future<bool> _askDialog(String title, String body) async {
-    final res = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(title, style: MaanText.title.copyWith(fontSize: 17)),
-        content: Text(body, style: MaanText.body),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: MaanColors.primary),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Open Settings'),
-          ),
-        ],
-      ),
-    );
-    return res == true;
-  }
-
+  /// Full punch via the shared PunchFlow — GPS capture, mock-location
+  /// detection (design #12_Fake_GPS), server contracts (WFH gate, holiday
+  /// gate) and their guidance dialogs.
   Future<void> _punch(String action, String label) async {
     if (_busy) return;
     if (_employeeId == null || _employeeId!.isEmpty) {
@@ -137,56 +97,54 @@ class _AttendanceBodyState extends State<_AttendanceBody> {
       _busy = true;
       _statusLine = 'Capturing GPS location...';
     });
-    try {
-      final gps = await _captureGps();
-      if (!mounted) return;
-      setState(() => _statusLine = 'Recording $label...');
-      final res = await ApiService.punch(employeeId: _employeeId!, action: action, gps: gps);
-      final serverMessage = (res['message'] ?? '').toString();
-      final note =
-          'GPS: ${gps.lat.toStringAsFixed(6)}, ${gps.lng.toStringAsFixed(6)}${gps.accuracy != null ? ' (+/-${gps.accuracy!.round()} m)' : ''}';
-      if (mounted) {
-        setState(() => _lastGpsNote = note);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(serverMessage.isNotEmpty ? '$label recorded. $serverMessage' : '$label recorded successfully. $note'),
-            backgroundColor: Colors.green));
-      }
-      await _loadSummary();
-      if (mounted) context.read<AttendanceProvider>().fetchAttendance(refresh: true);
-    } catch (e) {
-      if (!mounted) return;
-      final msg = e.toString().replaceAll('Exception: ', '');
-      // Task 109: holiday/weekend gate — guide the employee to the approval
-      // flow instead of a bare error snack.
-      if (e is PunchException && e.code == 'HOLIDAY_WORK_APPROVAL_REQUIRED') {
-        await showDialog<void>(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: Row(children: [
-              const Icon(Icons.event_busy_rounded, color: Colors.orange, size: 22),
-              const SizedBox(width: 8),
-              Expanded(child: Text('Approval needed', style: MaanText.title.copyWith(fontSize: 17))),
-            ]),
-            content: Text(
-              '$msg\n\nOnce your Holiday / Weekend Work request is approved (or your admin opens holidays & weekends for you in Attendance Settings), your mobile check-in will work on that date.',
-              style: MaanText.body,
-            ),
-            actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK', style: TextStyle(color: MaanColors.primary, fontWeight: FontWeight.w700))),
-            ],
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(msg), backgroundColor: Colors.red));
-      }
-    }
+    await PunchFlow.executePunch(
+      context,
+      employeeId: _employeeId!,
+      action: action,
+      label: label,
+      mode: _mode,
+      onSuccess: (_) async {
+        await _loadSummary();
+        if (context.mounted) context.read<AttendanceProvider>().fetchAttendance(refresh: true);
+      },
+    );
     if (mounted) {
       setState(() {
         _busy = false;
         _statusLine = null;
       });
     }
+  }
+
+  /// Design #12 — Office / Out Side selector chip.
+  Widget _modeChip(String value, String label, IconData icon) {
+    final selected = _mode == value;
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: () => setState(() => _mode = value),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: selected ? MaanColors.primary.withOpacity(.1) : MaanColors.pageBg,
+          border: Border.all(color: selected ? MaanColors.primary : MaanColors.line, width: selected ? 1.4 : 1),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Icon(icon, size: 16, color: selected ? MaanColors.primary : MaanColors.faint),
+          const SizedBox(width: 7),
+          Text(label,
+              style: MaanText.caption.copyWith(
+                fontSize: 12.5,
+                fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                color: selected ? MaanColors.primary : MaanColors.faint,
+              )),
+          if (selected) ...[
+            const SizedBox(width: 5),
+            const Icon(Icons.check_circle_rounded, size: 14, color: MaanColors.primary),
+          ],
+        ]),
+      ),
+    );
   }
 
   @override
@@ -204,7 +162,8 @@ class _AttendanceBodyState extends State<_AttendanceBody> {
       backgroundColor: MaanColors.pageBg,
       body: Column(
         children: [
-          MaanHeader(title: 'Attendance', onBack: () => Navigator.maybePop(context)),
+          MaanHeader(title: 'My Attendance', onBack: () => Navigator.maybePop(context)),
+          const LocationStatusBar(),
           Expanded(
             child: Container(
               width: double.infinity,
@@ -220,6 +179,23 @@ class _AttendanceBodyState extends State<_AttendanceBody> {
                 child: ListView(
                   padding: const EdgeInsets.only(bottom: 24),
                   children: [
+                    // ── Design #12: "Choose your Attendance mode" selector ──
+                    Row(children: [
+                      Text('Choose your Attendance mode', style: MaanText.title.copyWith(fontSize: 13.5)),
+                      const SizedBox(width: 6),
+                      Tooltip(
+                        message: 'Office = punching from the office geofence.\nOut Side = working remotely (needs an admin-approved WFH pre-approval).',
+                        triggerMode: TooltipTriggerMode.tap,
+                        child: const Icon(Icons.info_outline_rounded, size: 14, color: MaanColors.faint),
+                      ),
+                    ]),
+                    const SizedBox(height: 8),
+                    Row(children: [
+                      Expanded(child: _modeChip('office', 'Office', Icons.business_rounded)),
+                      const SizedBox(width: 10),
+                      Expanded(child: _modeChip('outside', 'Out Side', Icons.nature_people_rounded)),
+                    ]),
+                    const SizedBox(height: 14),
                     _PunchCard(
                       summary: _summary,
                       summaryError: _summaryError,
