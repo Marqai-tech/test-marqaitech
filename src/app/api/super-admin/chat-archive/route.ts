@@ -9,18 +9,14 @@ import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
  * messages are soft-deleted (isDeleted=true) — their body and attachments are
  * retained in the database and only masked from member feeds. This endpoint
  * surfaces them for every project AND individual chat, across ALL tenants:
- *   - the platform DB (shared-mode tenants + platform-level rooms), and
- *   - every active dedicated tenant database.
+ * the platform DB (shared-mode tenants + platform-level rooms) and every
+ * active dedicated tenant database.
  *
- * Query params:
- *   tenantId  restrict to one tenant
- *   roomId    restrict to one room
- *   q         substring match on message body
- *   limit     page size (default 50, max 200)
+ * NOTE: ChatRoom carries companyId/projectId as SCALAR foreign keys (no
+ * Prisma relations in the schema), so room/project names are resolved with
+ * separate scalar-select queries instead of includes.
  *
- * Response: { rows: [{ messageId, tenantId, tenantName, roomId, roomName,
- *   roomType, projectName, roomActive, senderId, senderName, body,
- *   attachments, createdAt, deletedAt, source }], rooms: [...deactivated rooms] }
+ * Query params: tenantId, roomId, q (body substring), limit (≤200).
  */
 export async function GET(request: NextRequest) {
   const platformDb = getPlatformDb();
@@ -39,116 +35,127 @@ export async function GET(request: NextRequest) {
     const q = searchParams.get('q');
     const limit = Math.min(parseInt(searchParams.get('limit') || '50', 10) || 50, 200);
 
-    // ── Enumerate sources ────────────────────────────────────────────────
     const tenants = await platformDb.tenant.findMany({
       where: tenantId ? { id: tenantId } : undefined,
-      select: { id: true, name: true, slug: true, isActive: true },
+      select: { id: true, name: true, slug: true },
     });
-    const tenantById = new Map(tenants.map((t) => [t.id, t]));
-
     const dedicated = await platformDb.tenantDatabase.findMany({
-      where: {
-        isActive: true,
-        ...(tenantId ? { tenantId } : {}),
-      },
+      where: { isActive: true, ...(tenantId ? { tenantId } : {}) },
       select: { tenantId: true, databaseName: true },
     });
 
-    type Row = Record<string, unknown>;
-    const rows: Row[] = [];
-    const deactivatedRooms: Row[] = [];
+    const rows: Record<string, unknown>[] = [];
+    const deactivatedRooms: Record<string, unknown>[] = [];
 
-    const messageWhere = (extra: Record<string, unknown> = {}): Record<string, unknown> => ({
-      isDeleted: true,
-      ...(roomId ? { roomId } : {}),
-      ...(q ? { body: { contains: q } } : {}),
-      ...extra,
-    });
+    const collectFrom = async (
+      // Structural subset both Prisma clients satisfy at runtime.
+      db: {
+        chatMessage: { findMany: (a: Record<string, unknown>) => Promise<any[]> };
+        chatRoom: { findMany: (a: Record<string, unknown>) => Promise<any[]> };
+        project: { findMany: (a: Record<string, unknown>) => Promise<any[]> };
+      },
+      tenantName: string,
+      tenantIdForRows: string | null,
+      source: string,
+    ) => {
+      const msgs = await db.chatMessage
+        .findMany({
+          where: {
+            isDeleted: true,
+            ...(roomId ? { roomId } : {}),
+            ...(q ? { body: { contains: q } } : {}),
+          },
+          orderBy: { deletedAt: 'desc' },
+          take: limit,
+          include: { sender: { select: { id: true, firstName: true, lastName: true, email: true } } },
+        })
+        .catch(() => []);
 
-    const roomInclude = {
-      project: { select: { id: true, name: true } },
-      company: { select: { name: true, companyGroup: { select: { tenantId: true, name: true } } } },
-    };
+      // Resolve rooms by scalar ids (no relations on ChatRoom).
+      const roomIds = Array.from(new Set(msgs.map((m) => m.roomId as string))).filter(Boolean);
+      const rooms = roomIds.length
+        ? await db.chatRoom
+            .findMany({
+              where: { id: { in: roomIds } },
+              select: { id: true, name: true, roomType: true, projectId: true, isActive: true },
+            })
+            .catch(() => [])
+        : [];
+      const roomById = new Map(rooms.map((r) => [r.id as string, r]));
 
-    const collectFrom = async (db: {
-      chatMessage: {
-        findMany: (args: Record<string, unknown>) => Promise<Record<string, unknown>[]>;
-      };
-      chatRoom: {
-        findMany: (args: Record<string, unknown>) => Promise<Record<string, unknown>[]>;
-      };
-    }, tenantName: string, tenantIdForRows: string | null, source: string) => {
-      const msgs = await db.chatMessage.findMany({
-        where: messageWhere(),
-        orderBy: { deletedAt: 'desc' },
-        take: limit,
-        include: {
-          sender: { select: { id: true, firstName: true, lastName: true, email: true } },
-          room: { include: roomInclude },
-        },
-      }).catch(() => []);
+      const projectIds = Array.from(new Set(rooms.map((r) => r.projectId as string).filter(Boolean)));
+      const projects = projectIds.length
+        ? await db.project
+            .findMany({ where: { id: { in: projectIds } }, select: { id: true, name: true } })
+            .catch(() => [])
+        : [];
+      const projectNameById = new Map(projects.map((p) => [p.id as string, p.name as string]));
 
       for (const m of msgs) {
-        const room = m.room as Record<string, unknown> | null;
-        const sender = m.sender as Record<string, unknown> | null;
+        const room = roomById.get(m.roomId as string);
+        const sender = (m.sender as any) || {};
         rows.push({
           messageId: m.id,
           tenantId: tenantIdForRows,
           tenantName,
-          roomId: room?.id ?? m.roomId,
+          roomId: m.roomId,
           roomName: room?.name ?? null,
           roomType: room?.roomType ?? null,
           roomActive: room?.isActive ?? null,
-          projectName: (room?.project as Record<string, unknown> | undefined)?.name ?? null,
+          projectName: room?.projectId ? projectNameById.get(room.projectId as string) ?? null : null,
           senderId: m.senderId,
-          senderName: sender ? `${sender.firstName ?? ''} ${sender.lastName ?? ''}`.trim() : 'Unknown',
-          senderEmail: sender?.email ?? null,
+          senderName: `${sender.firstName ?? ''} ${sender.lastName ?? ''}`.trim() || 'Unknown',
+          senderEmail: sender.email ?? null,
           body: m.body,
-          attachments: m.attachments, // retained JSON (names/metadata) — compliance
+          attachments: m.attachments,
           createdAt: m.createdAt,
           deletedAt: m.deletedAt,
           source,
         });
       }
 
-      const rooms = await db.chatRoom.findMany({
-        where: {
-          isActive: false,
-          ...(roomId ? { id: roomId } : {}),
-        },
-        orderBy: { updatedAt: 'desc' },
-        take: 50,
-        include: roomInclude,
-      }).catch(() => []);
-
-      for (const r of rooms) {
+      const inactive = await db.chatRoom
+        .findMany({
+          where: { isActive: false, ...(roomId ? { id: roomId } : {}) },
+          orderBy: { updatedAt: 'desc' },
+          take: 50,
+          select: { id: true, name: true, roomType: true, projectId: true, updatedAt: true },
+        })
+        .catch(() => []);
+      const inactiveProjectIds = Array.from(new Set(inactive.map((r) => r.projectId as string).filter(Boolean)));
+      const inactiveProjects = inactiveProjectIds.length
+        ? await db.project
+            .findMany({ where: { id: { in: inactiveProjectIds } }, select: { id: true, name: true } })
+            .catch(() => [])
+        : [];
+      const inactiveProjectNames = new Map(inactiveProjects.map((p) => [p.id as string, p.name as string]));
+      for (const r of inactive) {
         deactivatedRooms.push({
           roomId: r.id,
           tenantId: tenantIdForRows,
           tenantName,
           name: r.name,
           roomType: r.roomType,
-          projectName: (r.project as Record<string, unknown> | undefined)?.name ?? null,
-          lastMessageAt: r.lastMessageAt,
+          projectName: r.projectId ? inactiveProjectNames.get(r.projectId as string) ?? null : null,
           updatedAt: r.updatedAt,
           source,
         });
       }
     };
 
-    // ── 1. Platform DB (shared-mode tenant data + platform rooms) ────────
+    // 1. Platform DB (shared-mode tenants + platform rooms).
     try {
-      await collectFrom(platformDb as unknown as Parameters<typeof collectFrom>[0], 'Platform (shared)', tenantId || null, 'platform');
+      await collectFrom(platformDb as any, 'Platform (shared)', tenantId || null, 'platform');
     } catch (e) {
       console.error('chat-archive platform sweep failed:', e);
     }
 
-    // ── 2. Each active dedicated tenant DB ───────────────────────────────
+    // 2. Every active dedicated tenant DB.
     for (const t of dedicated.slice(0, 25)) {
-      const tInfo = tenantById.get(t.tenantId);
+      const tInfo = tenants.find((x) => x.id === t.tenantId);
       try {
         const db = await getDbForTenantById(t.tenantId);
-        await collectFrom(db as unknown as Parameters<typeof collectFrom>[0], tInfo?.name || t.databaseName || t.tenantId, t.tenantId, 'dedicated');
+        await collectFrom(db as any, tInfo?.name || t.databaseName || t.tenantId, t.tenantId, 'dedicated');
       } catch (e) {
         console.error(`chat-archive sweep failed for tenant ${t.tenantId}:`, e);
       }
