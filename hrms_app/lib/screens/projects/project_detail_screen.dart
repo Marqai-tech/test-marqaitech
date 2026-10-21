@@ -1,9 +1,16 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../config/maan_theme.dart';
+import '../../models/chat.dart';
 import '../../models/project.dart';
 import '../../providers/project_provider.dart';
+import '../../screens/chat/chat_room_screen.dart';
 import '../../services/api_service.dart';
 import '../../utils/json_safe.dart';
 
@@ -143,7 +150,7 @@ class _Tabs extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 4,
+      length: 5,
       child: Column(children: [
         const TabBar(
           labelColor: MaanColors.primary,
@@ -158,6 +165,7 @@ class _Tabs extends StatelessWidget {
             Tab(text: 'Tasks'),
             Tab(text: 'Milestones'),
             Tab(text: 'Team'),
+            Tab(text: 'Files'),
           ],
         ),
         Expanded(
@@ -168,6 +176,7 @@ class _Tabs extends StatelessWidget {
                   _TasksTab(provider: provider),
                   _MilestonesTab(provider: provider),
                   _TeamTab(provider: provider),
+                  _FilesTab(provider: provider),
                 ]),
         ),
       ]),
@@ -1340,6 +1349,344 @@ class _AddMemberSheetState extends State<_AddMemberSheet> {
             ),
           ),
         ]),
+      ),
+    );
+  }
+}
+
+// ══ Files tab (Task 121) ══════════════════════════════════════════════
+/// Project files + conversation entry point. Every project has ONE workspace
+/// chat room (roomType 'project') — files attached in that conversation show
+/// up here, and files attached here land in the conversation. One source of
+/// truth: GET /api/projects/[id]/files; upload = POST an attachment message
+/// into the workspace room.
+class _FilesTab extends StatefulWidget {
+  final ProjectDetailProvider provider;
+  const _FilesTab({required this.provider});
+
+  @override
+  State<_FilesTab> createState() => _FilesTabState();
+}
+
+class _FilesTabState extends State<_FilesTab> {
+  static const int _maxFileBytes = 4 * 1024 * 1024;
+
+  List<ChatAttachment> _files = [];
+  List<Map<String, dynamic>> _driveFiles = [];
+  String? _roomId;
+  bool _loading = true;
+  bool _uploading = false;
+  bool _openingChat = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  String get _projectId => widget.provider.project?.id ?? '';
+
+  Future<void> _load() async {
+    if (_projectId.isEmpty) return;
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final data = await ApiService.getProjectFiles(_projectId);
+      final rows = <ChatAttachment>[];
+      for (final raw in jsonList(data['files'])) {
+        // Each aggregate row is one attachment with sender/date context.
+        final atts = ChatAttachment.listFromJson([raw]);
+        if (atts.isEmpty) continue;
+        rows.add(atts.first);
+      }
+      if (!mounted) return;
+      setState(() {
+        _files = rows;
+        _driveFiles = jsonMapList(data['driveFiles']);
+        _roomId = (data['roomId'] ?? '').toString().isEmpty ? null : (data['roomId'] ?? '').toString();
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.toString().replaceAll('Exception: ', '');
+        _loading = false;
+      });
+    }
+  }
+
+  Future<void> _openProjectChat() async {
+    setState(() => _openingChat = true);
+    try {
+      final ws = await ApiService.ensureProjectWorkspace(_projectId);
+      final roomId = (ws['roomId'] ?? '').toString();
+      if (roomId.isEmpty) throw Exception('Could not open the project chat');
+      final name = '${widget.provider.project?.name ?? 'Project'} — Workspace';
+      if (!mounted) return;
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ChatRoomScreen(
+            room: ChatRoomModel(
+              id: roomId,
+              name: name,
+              roomType: 'project',
+              description: 'Central workspace for project "$name".',
+            ),
+          ),
+        ),
+      );
+      // New attachments may have been shared in the chat while we were there.
+      if (mounted) _load();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(
+          content: Text(e.toString().replaceAll('Exception: ', '')),
+          backgroundColor: MaanColors.accentRed,
+        ));
+    } finally {
+      if (mounted) setState(() => _openingChat = false);
+    }
+  }
+
+  Future<void> _attachFiles() async {
+    final result = await FilePicker.platform.pickFiles(type: FileType.any, withData: true);
+    final files = result?.files.where((f) => f.bytes != null).toList() ?? [];
+    if (files.isEmpty) return;
+    setState(() => _uploading = true);
+    try {
+      final ws = await ApiService.ensureProjectWorkspace(_projectId);
+      final roomId = (ws['roomId'] ?? '').toString();
+      if (roomId.isEmpty) throw Exception('Could not open the project workspace');
+      int uploaded = 0;
+      for (final f in files) {
+        final bytes = f.bytes!;
+        if (bytes.length > _maxFileBytes) {
+          if (!mounted) continue;
+          ScaffoldMessenger.of(context)
+            ..hideCurrentSnackBar()
+            ..showSnackBar(SnackBar(content: Text('"${f.name}" exceeds the 4 MB limit'), backgroundColor: MaanColors.accentRed));
+          continue;
+        }
+        final ext = (f.extension ?? '').toLowerCase();
+        final mime = _mimeForExtension(ext);
+        await ApiService.sendChatMessage(
+          roomId,
+          '📎 ${f.name}',
+          attachments: [{
+            'name': f.name,
+            'mimeType': mime,
+            'sizeBytes': bytes.length,
+            'dataUrl': 'data:$mime;base64,${base64Encode(bytes)}',
+          }],
+        );
+        uploaded++;
+      }
+      if (!mounted) return;
+      if (uploaded > 0) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text('$uploaded file${uploaded == 1 ? '' : 's'} added to the project'), backgroundColor: const Color(0xFF2FA36B)));
+      }
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(
+          content: Text(e.toString().replaceAll('Exception: ', '')),
+          backgroundColor: MaanColors.accentRed,
+        ));
+    } finally {
+      if (mounted) setState(() => _uploading = false);
+    }
+  }
+
+  static String _mimeForExtension(String ext) {
+    switch (ext) {
+      case 'pdf': return 'application/pdf';
+      case 'png': return 'image/png';
+      case 'jpg': case 'jpeg': return 'image/jpeg';
+      case 'gif': return 'image/gif';
+      case 'webp': return 'image/webp';
+      case 'txt': case 'log': return 'text/plain';
+      case 'csv': return 'text/csv';
+      case 'doc': return 'application/msword';
+      case 'docx': return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      case 'xls': return 'application/vnd.ms-excel';
+      case 'xlsx': return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      case 'ppt': return 'application/vnd.ms-powerpoint';
+      case 'pptx': return 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+      case 'zip': return 'application/zip';
+      case 'json': return 'application/json';
+      default: return 'application/octet-stream';
+    }
+  }
+
+  Future<void> _openFile(ChatAttachment a) async {
+    final bytes = a.bytes;
+    if (bytes == null) return;
+    try {
+      await Share.shareXFiles([XFile.fromData(bytes, name: a.name, mimeType: a.mimeType)], text: a.name);
+    } catch (_) {}
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator(color: MaanColors.primary));
+    }
+    if (_error != null) {
+      return Center(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Icon(Icons.error_outline_rounded, size: 44, color: MaanColors.faint),
+          const SizedBox(height: 10),
+          Text(_error!, textAlign: TextAlign.center, style: const TextStyle(color: MaanColors.body, fontSize: 12.5)),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: _load,
+            icon: const Icon(Icons.refresh_rounded, size: 17),
+            label: const Text('Retry'),
+            style: OutlinedButton.styleFrom(foregroundColor: MaanColors.primary, side: const BorderSide(color: MaanColors.primary)),
+          ),
+        ]),
+      );
+    }
+    return RefreshIndicator(
+      color: MaanColors.primary,
+      onRefresh: _load,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _openingChat ? null : _openProjectChat,
+                  icon: _openingChat
+                      ? const SizedBox(width: 15, height: 15, child: CircularProgressIndicator(strokeWidth: 2, color: MaanColors.primary))
+                      : const Icon(Icons.forum_rounded, size: 17),
+                  label: Text(_roomId == null ? 'Create & Open Project Chat' : 'Open Project Chat',
+                      style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5)),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    backgroundColor: MaanColors.primary,
+                    side: BorderSide.none,
+                    padding: const EdgeInsets.symmetric(vertical: 11),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _uploading ? null : _attachFiles,
+                  icon: _uploading
+                      ? const SizedBox(width: 15, height: 15, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Icon(Icons.upload_file_rounded, size: 17),
+                  label: const Text('Attach Files / Docs', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5)),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    backgroundColor: const Color(0xFF0EA5A6),
+                    side: BorderSide.none,
+                    padding: const EdgeInsets.symmetric(vertical: 11),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Files attached here appear in the project chat too — and files shared in the project chat show up here. Max 4 MB per file.',
+            style: TextStyle(fontSize: 11, color: MaanColors.faint),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: MaanColors.line),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.folder_rounded, size: 15, color: MaanColors.primary),
+                      const SizedBox(width: 6),
+                      Text('Project files (${_files.length})',
+                          style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: MaanColors.navy)),
+                    ],
+                  ),
+                ),
+                if (_files.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 14, vertical: 22),
+                    child: Center(
+                      child: Text('No files yet — attach documents here or share them in the project chat.',
+                          textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: MaanColors.faint)),
+                    ),
+                  )
+                else
+                  ..._files.map((a) => ListTile(
+                        dense: true,
+                        leading: Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(color: const Color(0xFFE8F5F1), borderRadius: BorderRadius.circular(10)),
+                          child: const Icon(Icons.insert_drive_file_rounded, size: 17, color: MaanColors.primary),
+                        ),
+                        title: Text(a.name, maxLines: 1, overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: MaanColors.navy)),
+                        subtitle: Text([
+                          if (a.sizeLabel.isNotEmpty) a.sizeLabel,
+                          'shared in project chat',
+                        ].join(' · '), style: const TextStyle(fontSize: 11, color: MaanColors.faint)),
+                        trailing: const Icon(Icons.open_in_new_rounded, size: 14, color: MaanColors.faint),
+                        onTap: () => _openFile(a),
+                      )),
+              ],
+            ),
+          ),
+          if (_driveFiles.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: MaanColors.line),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
+                    child: Text('Drive documents (${_driveFiles.length})',
+                        style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: MaanColors.navy)),
+                  ),
+                  ..._driveFiles.map((d) => ListTile(
+                        dense: true,
+                        leading: const Icon(Icons.description_rounded, size: 18, color: MaanColors.faint),
+                        title: Text((d['name'] ?? 'Document').toString(),
+                            maxLines: 1, overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: MaanColors.navy)),
+                        subtitle: Text((d['uploadedBy'] ?? '').toString(),
+                            style: const TextStyle(fontSize: 11, color: MaanColors.faint)),
+                      )),
+                ],
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }

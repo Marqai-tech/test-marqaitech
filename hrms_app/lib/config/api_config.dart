@@ -138,6 +138,10 @@ class ApiConfig {
   // Task 120 — manage members of an EXISTING room (add people after creation).
   static String chatRoomMembers(String roomId) => '$apiUrl/collaboration/chat/rooms/$roomId/members';
 
+  // Task 121 — Projects ↔ Chat integration: workspace room + aggregated files
+  static String projectWorkspace(String projectId) => '$apiUrl/projects/$projectId/workspace';
+  static String projectFiles(String projectId) => '$apiUrl/projects/$projectId/files';
+
   // Attendance extras
   static String get mySummary => '$apiUrl/attendance/my-summary';
   static String get punch => '$apiUrl/attendance/punch';

@@ -1,6 +1,12 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../config/maan_theme.dart';
 import '../../models/chat.dart';
@@ -51,6 +57,8 @@ class _ChatRoomBodyState extends State<_ChatRoomBody> {
   // member ids locally and grow them as the add-members sheet succeeds.
   late Set<String> _memberIds;
   late int _memberCount;
+  // Task 121 — files queued for the next send (name/mimeType/sizeBytes/dataUrl).
+  final List<Map<String, dynamic>> _pendingFiles = [];
 
   @override
   void initState() {
@@ -126,11 +134,138 @@ class _ChatRoomBodyState extends State<_ChatRoomBody> {
 
   Future<void> _send() async {
     final text = _inputCtrl.text.trim();
-    if (text.isEmpty) return;
-    final ok = await context.read<ChatThreadProvider>().send(text);
+    final hasFiles = _pendingFiles.isNotEmpty;
+    if (text.isEmpty && !hasFiles) return;
+    final files = hasFiles ? List<Map<String, dynamic>>.from(_pendingFiles) : null;
+    final ok = await context.read<ChatThreadProvider>().send(text, attachments: files);
     if (ok) {
       _inputCtrl.clear();
+      if (mounted) setState(_pendingFiles.clear);
       _scrollToBottom();
+    }
+  }
+
+  // ─── Task 121: attach files (docs via file_picker, images via gallery/camera)
+  static const int _maxFileBytes = 4 * 1024 * 1024;
+
+  Future<void> _queueFileBytes(String name, String mime, List<int> bytes) async {
+    if (bytes.length > _maxFileBytes) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(
+          content: Text('"$name" exceeds the 4 MB limit'),
+          backgroundColor: MaanColors.accentRed,
+        ));
+      return;
+    }
+    setState(() {
+      _pendingFiles.add({
+        'name': name,
+        'mimeType': mime,
+        'sizeBytes': bytes.length,
+        'dataUrl': 'data:$mime;base64,${base64Encode(bytes)}',
+      });
+      // Server cap: 5 attachments per message.
+      if (_pendingFiles.length > 5) _pendingFiles.removeRange(0, _pendingFiles.length - 5);
+    });
+  }
+
+  Future<void> _pickDocument() async {
+    final result = await FilePicker.platform.pickFiles(type: FileType.any, withData: true);
+    final file = result?.files.single;
+    if (file == null) return;
+    final bytes = file.bytes;
+    if (bytes == null) return;
+    await _queueFileBytes(file.name, file.extension != null ? _mimeForExtension(file.extension!) : 'application/octet-stream', bytes);
+  }
+
+  Future<void> _pickImage({required bool fromCamera}) async {
+    final picked = await ImagePicker().pickImage(
+      source: fromCamera ? ImageSource.camera : ImageSource.gallery,
+      imageQuality: 82,
+      maxWidth: 1920,
+    );
+    if (picked == null) return;
+    final bytes = await File(picked.path).readAsBytes();
+    final ext = picked.name.split('.').last.toLowerCase();
+    final mime = (ext == 'jpg' || ext == 'jpeg') ? 'image/jpeg' : 'image/$ext';
+    await _queueFileBytes(picked.name, mime, bytes);
+  }
+
+  static String _mimeForExtension(String ext) {
+    switch (ext.toLowerCase()) {
+      case 'pdf': return 'application/pdf';
+      case 'png': return 'image/png';
+      case 'jpg': case 'jpeg': return 'image/jpeg';
+      case 'gif': return 'image/gif';
+      case 'webp': return 'image/webp';
+      case 'txt': case 'log': return 'text/plain';
+      case 'csv': return 'text/csv';
+      case 'doc': return 'application/msword';
+      case 'docx': return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      case 'xls': return 'application/vnd.ms-excel';
+      case 'xlsx': return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      case 'ppt': return 'application/vnd.ms-powerpoint';
+      case 'pptx': return 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+      case 'zip': return 'application/zip';
+      case 'json': return 'application/json';
+      default: return 'application/octet-stream';
+    }
+  }
+
+  Future<void> _showAttachSheet() async {
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (sheetCtx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.insert_drive_file_rounded, color: MaanColors.primary),
+              title: const Text('Document (PDF, Word, Excel…)', style: TextStyle(fontSize: 14)),
+              onTap: () => Navigator.pop(sheetCtx, 'doc'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_rounded, color: MaanColors.primary),
+              title: const Text('Photo / Gallery', style: TextStyle(fontSize: 14)),
+              onTap: () => Navigator.pop(sheetCtx, 'gallery'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_camera_rounded, color: MaanColors.primary),
+              title: const Text('Camera', style: TextStyle(fontSize: 14)),
+              onTap: () => Navigator.pop(sheetCtx, 'camera'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (choice == null || !mounted) return;
+    if (choice == 'doc') {
+      await _pickDocument();
+    } else if (choice == 'gallery') {
+      await _pickImage(fromCamera: false);
+    } else if (choice == 'camera') {
+      await _pickImage(fromCamera: true);
+    }
+  }
+
+  /// Task 121 — open/share an attachment via the system share sheet
+  /// (save to Files, forward to email/WhatsApp, etc.).
+  Future<void> _openAttachment(ChatAttachment a) async {
+    final bytes = a.bytes;
+    if (bytes == null) return;
+    try {
+      await Share.shareXFiles(
+        [XFile.fromData(bytes, name: a.name, mimeType: a.mimeType)],
+        text: a.name,
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(const SnackBar(content: Text('Could not open the attachment')));
     }
   }
 
@@ -375,6 +510,73 @@ class _ChatRoomBodyState extends State<_ChatRoomBody> {
     );
   }
 
+  /// Task 121 — attachment rendering: images inline (tap = share), docs as a
+  /// tappable chip. Own-message variants use white-on-teal.
+  List<Widget> _attachmentWidgets(ChatAttachment a, bool isOwn) {
+    final chipColor = isOwn ? Colors.white.withValues(alpha: 0.16) : const Color(0xFFF1F5F9);
+    final textColor = isOwn ? Colors.white : MaanColors.navy;
+    final subColor = isOwn ? Colors.white.withValues(alpha: 0.75) : MaanColors.faint;
+    final widgets = <Widget>[];
+    if (a.isImage && a.bytes != null) {
+      widgets.add(Padding(
+        padding: const EdgeInsets.only(bottom: 6),
+        child: GestureDetector(
+          onTap: () => _openAttachment(a),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 220, maxHeight: 220),
+              child: Image.memory(a.bytes!, fit: BoxFit.cover, gaplessPlayback: true),
+            ),
+          ),
+        ),
+      ));
+      if (a.name.isNotEmpty) {
+        widgets.add(Padding(
+          padding: const EdgeInsets.only(bottom: 4),
+          child: GestureDetector(
+            onTap: () => _openAttachment(a),
+            child: Text(a.name, style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: isOwn ? Colors.white : MaanColors.primary)),
+          ),
+        ));
+      }
+      return widgets;
+    }
+    widgets.add(Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Material(
+        color: chipColor,
+        borderRadius: BorderRadius.circular(10),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(10),
+          onTap: () => _openAttachment(a),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            constraints: const BoxConstraints(maxWidth: 230),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.insert_drive_file_rounded, size: 16, color: isOwn ? Colors.white : MaanColors.primary),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(a.name, maxLines: 1, overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textColor)),
+                ),
+                if (a.sizeLabel.isNotEmpty) ...[
+                  const SizedBox(width: 6),
+                  Text(a.sizeLabel, style: TextStyle(fontSize: 10, color: subColor)),
+                ],
+                const SizedBox(width: 4),
+                Icon(Icons.open_in_new_rounded, size: 11, color: subColor),
+              ],
+            ),
+          ),
+        ),
+      ),
+    ));
+    return widgets;
+  }
+
   Widget _bubble({required ChatMessageModel msg, required bool isOwn, required String time, dynamic partner}) {
     final name = msg.sender.fullName;
     final avatar = msg.sender.id.isNotEmpty ? null : null;
@@ -417,6 +619,8 @@ class _ChatRoomBodyState extends State<_ChatRoomBody> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // Task 121 — attachment rendering: images inline, docs as chips.
+                        for (final a in msg.attachments) ..._attachmentWidgets(a, isOwn),
                         Text(msg.body,
                             style: TextStyle(fontSize: 13.5, height: 1.32, color: isOwn ? Colors.white : MaanColors.navy)),
                         if (msg.isFlagged)
@@ -457,42 +661,95 @@ class _ChatRoomBodyState extends State<_ChatRoomBody> {
     return Container(
       color: Colors.white,
       padding: EdgeInsets.fromLTRB(12, 8, 12, 8 + MediaQuery.of(context).padding.bottom * 0.4),
-      child: Row(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Expanded(
-            child: TextField(
-              controller: _inputCtrl,
-              minLines: 1,
-              maxLines: 4,
-              textInputAction: TextInputAction.send,
-              onSubmitted: (_) => _send(),
-              decoration: InputDecoration(
-                hintText: 'Type a message…',
-                isDense: true,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                filled: true,
-                fillColor: const Color(0xFFF6F8FC),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(22), borderSide: const BorderSide(color: MaanColors.line)),
-                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(22), borderSide: const BorderSide(color: MaanColors.line)),
+          // Task 121 — queued attachments preview
+          if (_pendingFiles.isNotEmpty)
+            Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              width: double.infinity,
+              child: Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  for (var i = 0; i < _pendingFiles.length; i++)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE8F5F1),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: MaanColors.primary.withValues(alpha: 0.25)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.insert_drive_file_rounded, size: 13, color: MaanColors.primary),
+                          const SizedBox(width: 5),
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 120),
+                            child: Text(
+                              (_pendingFiles[i]['name'] ?? 'file').toString(),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: MaanColors.navy),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          GestureDetector(
+                            onTap: () => setState(() => _pendingFiles.removeAt(i)),
+                            child: const Icon(Icons.close_rounded, size: 13, color: MaanColors.faint),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
               ),
             ),
-          ),
-          const SizedBox(width: 8),
-          Material(
-            color: MaanColors.primary,
-            borderRadius: BorderRadius.circular(20),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(20),
-              onTap: thread.sending ? null : _send,
-              child: Container(
-                width: 40,
-                height: 40,
-                alignment: Alignment.center,
-                child: thread.sending
-                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                    : const Icon(Icons.send_rounded, size: 19, color: Colors.white),
+          Row(
+            children: [
+              // Task 121 — attach (doc / gallery / camera)
+              IconButton(
+                onPressed: thread.sending ? null : _showAttachSheet,
+                tooltip: 'Attach',
+                icon: const Icon(Icons.attach_file_rounded, size: 21, color: MaanColors.faint),
               ),
-            ),
+              Expanded(
+                child: TextField(
+                  controller: _inputCtrl,
+                  minLines: 1,
+                  maxLines: 4,
+                  textInputAction: TextInputAction.send,
+                  onSubmitted: (_) => _send(),
+                  decoration: InputDecoration(
+                    hintText: 'Type a message…',
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    filled: true,
+                    fillColor: const Color(0xFFF6F8FC),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(22), borderSide: const BorderSide(color: MaanColors.line)),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(22), borderSide: const BorderSide(color: MaanColors.line)),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Material(
+                color: MaanColors.primary,
+                borderRadius: BorderRadius.circular(20),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(20),
+                  onTap: thread.sending ? null : _send,
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    alignment: Alignment.center,
+                    child: thread.sending
+                        ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                        : const Icon(Icons.send_rounded, size: 19, color: Colors.white),
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),

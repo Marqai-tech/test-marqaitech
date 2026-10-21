@@ -5,7 +5,7 @@ import {
   FiMessageCircle, FiPlus, FiSend, FiUsers, FiLock, FiGlobe,
   FiCornerUpLeft, FiSearch, FiPhone, FiVideo, FiPaperclip,
   FiMoreVertical, FiStar, FiTrash2, FiX, FiCheck, FiHash,
-  FiRefreshCw, FiUserPlus, FiAlertCircle,
+  FiRefreshCw, FiUserPlus, FiAlertCircle, FiFileText,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
@@ -52,7 +52,34 @@ interface ChatMessage {
   isDeleted: boolean;
   dlpStatus?: string;
   detectedActions?: string | null;
+  attachments?: string | null;
   sender: { id: string; firstName: string; lastName: string; avatar?: string | null; email: string };
+}
+
+// Task 121 — attachment metadata (base64 data URL carried in ChatMessage.attachments JSON)
+interface MessageAttachment {
+  name: string;
+  mimeType?: string;
+  sizeBytes?: number;
+  dataUrl?: string;
+}
+
+function parseAttachments(raw?: string | null): MessageAttachment[] {
+  if (!raw) return [];
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((a): a is MessageAttachment => !!a && typeof a === 'object' && typeof (a as MessageAttachment).name === 'string');
+  } catch {
+    return [];
+  }
+}
+
+function formatBytes(n?: number): string {
+  if (!n || n <= 0) return '';
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(0)} KB`;
+  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 export default function ChatPage() {
@@ -79,6 +106,9 @@ export default function ChatPage() {
   const [showAddMembersModal, setShowAddMembersModal] = useState(false);
   const [addMemberIds, setAddMemberIds] = useState<string[]>([]);
   const [addingMembers, setAddingMembers] = useState(false);
+  // Task 121 — file attachments (base64 data URLs, ≤5 files × 4 MB, server-validated)
+  const [pendingAttachments, setPendingAttachments] = useState<MessageAttachment[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // ─── Fetch Chat Rooms ──────────────────────────
   const fetchRooms = useCallback(async () => {
@@ -138,19 +168,61 @@ export default function ChatPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // ─── Task 121: deep-link support — /collaboration/chat?room=<id> ────
+  // Used by the Projects module's "Open Chat" button to jump straight into
+  // the project workspace conversation.
+  useEffect(() => {
+    if (loadingRooms || selectedRoom) return;
+    const roomId = new URLSearchParams(window.location.search).get('room');
+    if (!roomId) return;
+    const target = rooms.find(r => r.id === roomId);
+    if (target) {
+      setSelectedRoom(target);
+      // Clean the URL so a refresh doesn't re-open it unexpectedly.
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, [rooms, loadingRooms, selectedRoom]);
+
+  // ─── Task 121: pick + read a file as a base64 data URL ──────────────
+  const handleFilesPicked = (fileList: FileList | null) => {
+    if (!fileList || fileList.length === 0) return;
+    const files = Array.from(fileList).slice(0, 5);
+    for (const f of files) {
+      if (f.size > 4 * 1024 * 1024) {
+        toast.error(`"${f.name}" exceeds the 4 MB attachment limit`);
+        continue;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = typeof reader.result === 'string' ? reader.result : '';
+        if (!dataUrl) return;
+        setPendingAttachments(prev => [...prev, { name: f.name, mimeType: f.type || 'application/octet-stream', sizeBytes: f.size, dataUrl }].slice(0, 5));
+      };
+      reader.readAsDataURL(f);
+    }
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
   // ─── Send Message ──────────────────────────────
   const handleSendMessage = async () => {
-    if (!selectedRoom || !newMessage.trim()) return;
+    if (!selectedRoom) return;
+    const text = newMessage.trim();
+    if (!text && pendingAttachments.length === 0) return;
     setSendingMessage(true);
     try {
       const r = await fetch(`/api/collaboration/chat/rooms/${selectedRoom.id}/messages`, {
         method: 'POST',
         headers: getAuthHeaders(),
-        body: JSON.stringify({ body: newMessage.trim() }),
+        // Server requires a non-empty body — auto-fill from attachment names.
+        body: JSON.stringify({
+          body: text || pendingAttachments.map(a => `📎 ${a.name}`).join('\n'),
+          attachments: pendingAttachments.length > 0 ? pendingAttachments : undefined,
+        }),
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'Failed');
       setNewMessage('');
+      setPendingAttachments([]);
       fetchMessages(selectedRoom.id);
       fetchRooms(); // Refresh unread counts
     } catch (e: unknown) {
@@ -343,6 +415,7 @@ export default function ChatPage() {
                   <h3 className="text-sm font-semibold text-slate-800">{getRoomName(selectedRoom)}</h3>
                   <p className="text-[10px] text-slate-400">
                     {selectedRoom.members.length} member{selectedRoom.members.length !== 1 ? 's' : ''}
+                    {selectedRoom.roomType === 'project' ? ' · Project workspace' : ''}
                     {selectedRoom.isE2EE ? ' · E2EE' : ''}
                     {selectedRoom.isAnnouncement ? ' · Announcement' : ''}
                   </p>
@@ -391,6 +464,25 @@ export default function ChatPage() {
                           ? 'bg-teal-500 text-white rounded-br-sm'
                           : 'bg-white border border-slate-200 text-slate-800 rounded-bl-sm shadow-sm'
                       }`}>
+                        {parseAttachments(msg.attachments).length > 0 && (
+                          <div className="mb-1.5 space-y-1">
+                            {parseAttachments(msg.attachments).map((a, i) => (
+                              <div key={`${msg.id}-att-${i}`} className={`flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs ${
+                                isOwn ? 'bg-teal-600/60' : 'bg-slate-50 border border-slate-200'
+                              }`}>
+                                <FiFileText className="w-3.5 h-3.5 shrink-0" />
+                                {a.dataUrl ? (
+                                  <a href={a.dataUrl} download={a.name} className={`truncate underline ${isOwn ? 'text-white' : 'text-teal-600'}`} title="Download">
+                                    {a.name}
+                                  </a>
+                                ) : (
+                                  <span className="truncate">{a.name}</span>
+                                )}
+                                <span className={`ml-auto shrink-0 ${isOwn ? 'text-teal-100' : 'text-slate-400'}`}>{formatBytes(a.sizeBytes)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                         <p className="whitespace-pre-wrap break-words">{msg.body}</p>
                       </div>
                       <div className={`flex items-center gap-1 mt-0.5 ${isOwn ? 'justify-end' : ''}`}>
@@ -408,8 +500,28 @@ export default function ChatPage() {
 
             {/* Message Input */}
             <div className="px-4 py-3 border-t border-slate-200 bg-white">
+              {pendingAttachments.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {pendingAttachments.map((a, i) => (
+                    <span key={`pending-${i}`} className="inline-flex items-center gap-1.5 bg-teal-50 border border-teal-200 text-teal-700 rounded-lg px-2 py-1 text-xs max-w-[240px]">
+                      <FiFileText className="w-3 h-3 shrink-0" />
+                      <span className="truncate">{a.name}</span>
+                      <span className="text-teal-400 shrink-0">{formatBytes(a.sizeBytes)}</span>
+                      <button onClick={() => setPendingAttachments(prev => prev.filter((_, j) => j !== i))} className="text-slate-400 hover:text-red-500" title="Remove">
+                        <FiX className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
               <div className="flex items-center gap-2">
-                <button className="p-2 rounded-lg text-slate-400 hover:text-teal-500 hover:bg-teal-50 transition-colors" title="Attach file">
+                <input ref={fileInputRef} type="file" multiple className="hidden" onChange={e => handleFilesPicked(e.target.files)} />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={sendingMessage}
+                  className="p-2 rounded-lg text-slate-400 hover:text-teal-500 hover:bg-teal-50 transition-colors disabled:opacity-50"
+                  title="Attach files (max 5 × 4 MB)"
+                >
                   <FiPaperclip className="w-4 h-4" />
                 </button>
                 <input
@@ -422,7 +534,7 @@ export default function ChatPage() {
                 />
                 <button
                   onClick={handleSendMessage}
-                  disabled={sendingMessage || !newMessage.trim()}
+                  disabled={sendingMessage || (!newMessage.trim() && pendingAttachments.length === 0)}
                   className="p-2 rounded-lg bg-teal-500 text-white hover:bg-teal-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   title="Send"
                 >

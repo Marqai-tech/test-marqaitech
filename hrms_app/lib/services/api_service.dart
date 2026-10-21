@@ -598,10 +598,22 @@ class ApiService {
 
   /// POST /api/collaboration/chat/rooms/[id]/messages — send a message.
   /// 422 = blocked by DLP policy (server returns reason + patterns).
-  static Future<Map<String, dynamic>> sendChatMessage(String roomId, String body, {String? parentMessageId}) async {
+  /// Task 121 — [attachments]: optional files/docs, each { name, mimeType,
+  /// sizeBytes, dataUrl } with dataUrl a base64 data URL (server caps
+  /// 5 files × 4 MB, DLP-scans attachment names).
+  static Future<Map<String, dynamic>> sendChatMessage(
+    String roomId,
+    String body, {
+    String? parentMessageId,
+    List<Map<String, dynamic>>? attachments,
+  }) async {
     final response = await _post(
       ApiConfig.chatMessages(roomId),
-      {'body': body, if (parentMessageId != null && parentMessageId.isNotEmpty) 'parentMessageId': parentMessageId},
+      {
+        'body': body,
+        if (parentMessageId != null && parentMessageId.isNotEmpty) 'parentMessageId': parentMessageId,
+        if (attachments != null && attachments.isNotEmpty) 'attachments': attachments,
+      },
     );
     final data = jsonDecode(response.body);
     if (response.statusCode == 200 || response.statusCode == 201) return data;
@@ -630,6 +642,27 @@ class ApiService {
     final data = jsonDecode(response.body);
     if (response.statusCode == 200 || response.statusCode == 201) return data;
     throw Exception(data['error'] ?? 'Failed to add members');
+  }
+
+  // ─── Task 121: Projects ↔ Chat integration ────────────────────
+
+  /// POST /api/projects/[id]/workspace — idempotently ensure the project's
+  /// workspace chat room exists (any project member / admin may call it).
+  /// Returns { roomId, boardId, createdNow, joinedNow }.
+  static Future<Map<String, dynamic>> ensureProjectWorkspace(String projectId) async {
+    final response = await _post(ApiConfig.projectWorkspace(projectId), {});
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 200 || response.statusCode == 201) return data;
+    throw Exception(data['error'] ?? 'Failed to open project workspace');
+  }
+
+  /// GET /api/projects/[id]/files — aggregated project files:
+  /// { roomId, files: [attachment messages], driveFiles: [FileNode rows] }.
+  static Future<Map<String, dynamic>> getProjectFiles(String projectId) async {
+    final response = await _get(ApiConfig.projectFiles(projectId));
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 200) return data;
+    throw Exception(data['error'] ?? 'Failed to load project files');
   }
 
   // ============ Lookups ============

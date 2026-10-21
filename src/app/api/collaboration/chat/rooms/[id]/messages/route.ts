@@ -123,6 +123,39 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     // REQ-COL-03: Detect inline actions (dates like "tomorrow at 3 PM")
     const detectedActions = detectInlineActions(messageBody);
 
+    // ── Task 121: attachment validation ──────────────────────────────────
+    // ≤5 files per message, each ≤4 MB (base64 data URL), names DLP-scanned.
+    // Content is stored as a base64 data URL (same convention as employee
+    // photos) so it survives Vercel's read-only filesystem.
+    let safeAttachments: Record<string, unknown>[] | null = null;
+    if (Array.isArray(attachments) && attachments.length > 0) {
+      if (attachments.length > 5) {
+        return NextResponse.json({ error: 'Too many attachments (max 5 per message)' }, { status: 400 });
+      }
+      safeAttachments = [];
+      for (const a of attachments as Record<string, unknown>[]) {
+        if (!a || typeof a !== 'object') continue;
+        const name = typeof a.name === 'string' && a.name.trim() ? a.name.trim() : 'attachment';
+        const dataUrl = typeof a.dataUrl === 'string' ? a.dataUrl : '';
+        if (!dataUrl.startsWith('data:')) continue;
+        if (dataUrl.length > 6 * 1024 * 1024) {
+          return NextResponse.json({ error: `Attachment "${name}" exceeds the 4 MB limit` }, { status: 413 });
+        }
+        const scan = scanContentForPII(name);
+        if (scan.action === 'block') {
+          return NextResponse.json({ error: 'Attachment blocked by DLP policy', reason: scan.reason }, { status: 422 });
+        }
+        const meta = dataUrl.slice(0, 100).match(/^data:([^;,]+)/);
+        safeAttachments.push({
+          name,
+          mimeType: typeof a.mimeType === 'string' && a.mimeType ? a.mimeType : (meta?.[1] || 'application/octet-stream'),
+          sizeBytes: typeof a.sizeBytes === 'number' ? a.sizeBytes : Math.round((dataUrl.length - dataUrl.indexOf(',')) * 0.75),
+          dataUrl,
+        });
+      }
+      if (safeAttachments.length === 0) safeAttachments = null;
+    }
+
     // Create message
     const message = await db.chatMessage.create({
       data: {
@@ -130,7 +163,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         senderId: employee.id,
         parentMessageId: parentMessageId || null,
         body: messageBody,
-        attachments: attachments ? JSON.stringify(attachments) : null,
+        attachments: safeAttachments ? JSON.stringify(safeAttachments) : null,
         detectedActions: detectedActions ? JSON.stringify(detectedActions) : null,
         dlpStatus: dlpResult.action === 'flag' ? 'flagged' : 'clean',
         dlpReason: dlpResult.action === 'flag' ? dlpResult.reason : null,

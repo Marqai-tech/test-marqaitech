@@ -295,14 +295,21 @@ class ChatThreadProvider extends ChangeNotifier {
   /// Send a message. The optimistic failure path keeps the draft text in the
   /// UI (sendError) so nothing the user typed is lost; on success the thread
   /// refreshes from the server (single source of truth, like the web page).
-  Future<bool> send(String body) async {
+  /// Task 121 — [attachments]: files/docs to attach (name/mimeType/sizeBytes/
+  /// dataUrl maps). A body-less attachment send auto-fills the body server-side.
+  Future<bool> send(String body, {List<Map<String, dynamic>>? attachments}) async {
     final text = body.trim();
-    if (text.isEmpty || _sending) return false;
+    final hasFiles = attachments != null && attachments.isNotEmpty;
+    if ((text.isEmpty && !hasFiles) || _sending) return false;
     _sending = true;
     _sendError = null;
     notifyListeners();
     try {
-      final data = await ApiService.sendChatMessage(roomId, text);
+      final data = await ApiService.sendChatMessage(
+        roomId,
+        text.isEmpty && hasFiles ? attachments.map((a) => '📎 ${a['name'] ?? 'file'}').join('\n') : text,
+        attachments: hasFiles ? attachments : null,
+      );
       final msg = jsonMap(data['message']);
       if (msg.isNotEmpty) {
         final m = ChatMessageModel.fromJson(msg);

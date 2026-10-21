@@ -9,13 +9,14 @@
  *       Azure DevOps) · Activity (live feed) · Closure (readiness + post-mortem + sign-off)
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 import {
   FiBriefcase, FiLayers, FiUsers, FiGrid, FiZap, FiClock, FiCheckCircle,
   FiLink2, FiActivity, FiFlag, FiPlus, FiTrash2, FiRefreshCw, FiPlay,
   FiSend, FiCheck, FiX, FiChevronRight, FiTarget, FiAlertTriangle,
+  FiFileText, FiMessageCircle, FiUpload, FiDownload,
 } from 'react-icons/fi';
 import { useAuthStore } from '@/store/authStore';
 
@@ -28,6 +29,7 @@ const TABS = [
   { key: 'overview', label: 'Overview & Intake', icon: FiBriefcase },
   { key: 'planning', label: 'Planning & Phases', icon: FiLayers },
   { key: 'resources', label: 'Resources', icon: FiUsers },
+  { key: 'files', label: 'Files & Chat', icon: FiFileText },
   { key: 'board', label: 'Delivery Board', icon: FiGrid },
   { key: 'sprints', label: 'Sprints', icon: FiZap },
   { key: 'times', label: 'Time Log', icon: FiClock },
@@ -116,6 +118,15 @@ export default function ProjectWorkspacePage() {
 
   // activity
   const [activities, setActivities] = useState<any[]>([]);
+
+  // ─── Task 121: Files & Chat tab ─────────────────────────────────────
+  const [projectFiles, setProjectFiles] = useState<any[]>([]);
+  const [driveFiles, setDriveFiles] = useState<any[]>([]);
+  const [filesRoomId, setFilesRoomId] = useState<string | null>(null);
+  const [filesLoading, setFilesLoading] = useState(false);
+  const [filesUploading, setFilesUploading] = useState(false);
+  const [workspaceBusy, setWorkspaceBusy] = useState(false);
+  const filesInputRef = useRef<HTMLInputElement>(null);
   const [activityPost, setActivityPost] = useState('');
 
   // closure
@@ -190,6 +201,20 @@ export default function ProjectWorkspacePage() {
       } else if (t === 'integrations') {
         const res = await fetch(`/api/projects/${id}/integrations`, { headers });
         if (res.ok) setIntegrations((await res.json()).integrations || []);
+      } else if (t === 'files') {
+        // Task 121 — aggregated project files (workspace-room attachments + drive)
+        setFilesLoading(true);
+        try {
+          const res = await fetch(`/api/projects/${id}/files`, { headers });
+          if (res.ok) {
+            const j = await res.json();
+            setProjectFiles(j.files || []);
+            setDriveFiles(j.driveFiles || []);
+            setFilesRoomId(j.roomId || null);
+          }
+        } finally {
+          setFilesLoading(false);
+        }
       } else if (t === 'activity') {
         const res = await fetch(`/api/projects/${id}/activity?limit=80`, { headers });
         if (res.ok) setActivities((await res.json()).activities || []);
@@ -205,6 +230,87 @@ export default function ProjectWorkspacePage() {
       toast.error('Failed to load tab data');
     }
   }, [id]);
+
+  // ─── Task 121: workspace chat + project files handlers ───────────────
+  const ensureWorkspace = async (): Promise<string | null> => {
+    setWorkspaceBusy(true);
+    try {
+      const res = await fetch(`/api/projects/${id}/workspace`, { method: 'POST', headers: getAuthHeaders() });
+      const j = await res.json();
+      if (!res.ok) throw new Error(j.error || 'Failed to open project workspace');
+      if (j.roomId) setFilesRoomId(j.roomId);
+      return j.roomId || null;
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Failed to open project workspace');
+      return null;
+    } finally {
+      setWorkspaceBusy(false);
+    }
+  };
+
+  const openProjectChat = async () => {
+    const roomId = await ensureWorkspace();
+    if (roomId) router.push(`/collaboration/chat?room=${roomId}`);
+  };
+
+  const loadFilesTab = async () => {
+    setFilesLoading(true);
+    try {
+      const res = await fetch(`/api/projects/${id}/files`, { headers: getAuthHeaders() });
+      if (res.ok) {
+        const j = await res.json();
+        setProjectFiles(j.files || []);
+        setDriveFiles(j.driveFiles || []);
+        setFilesRoomId(j.roomId || null);
+      }
+    } finally {
+      setFilesLoading(false);
+    }
+  };
+
+  // Uploading from the Projects module posts an attachment message into the
+  // project's workspace chat room — one source of truth, so the same file is
+  // visible in the conversation AND in this Files list (and vice versa).
+  const handleProjectFilesPicked = async (fileList: FileList | null) => {
+    if (!fileList || fileList.length === 0) return;
+    const room = filesRoomId || (await ensureWorkspace());
+    if (!room) return;
+    setFilesUploading(true);
+    try {
+      let uploaded = 0;
+      for (const f of Array.from(fileList).slice(0, 5)) {
+        if (f.size > 4 * 1024 * 1024) {
+          toast.error(`"${f.name}" exceeds the 4 MB limit`);
+          continue;
+        }
+        const dataUrl = await new Promise<string>((resolve) => {
+          const r = new FileReader();
+          r.onload = () => resolve(typeof r.result === 'string' ? r.result : '');
+          r.onerror = () => resolve('');
+          r.readAsDataURL(f);
+        });
+        if (!dataUrl) continue;
+        const res = await fetch(`/api/collaboration/chat/rooms/${room}/messages`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({
+            body: `📎 ${f.name}`,
+            attachments: [{ name: f.name, mimeType: f.type || 'application/octet-stream', sizeBytes: f.size, dataUrl }],
+          }),
+        });
+        if (res.ok) uploaded++;
+        else {
+          const j = await res.json().catch(() => ({}));
+          toast.error(j.error || `Failed to upload ${f.name}`);
+        }
+      }
+      if (uploaded > 0) toast.success(`${uploaded} file${uploaded > 1 ? 's' : ''} added to the project`);
+      if (filesInputRef.current) filesInputRef.current.value = '';
+      await loadFilesTab();
+    } finally {
+      setFilesUploading(false);
+    }
+  };
 
   useEffect(() => { loadProject(); }, [loadProject]);
   useEffect(() => { loadTab(tab); }, [tab, loadTab]);
@@ -279,6 +385,92 @@ export default function ProjectWorkspacePage() {
           reqForm={reqForm} setReqForm={setReqForm} candidates={candidates}
           setCandidates={setCandidates} employeeList={employeeList} onReload={refreshAll}
         />
+      )}
+
+      {/* ─── Task 121: Files & Chat — project conversation + attachments ─── */}
+      {tab === 'files' && (
+        <section className="space-y-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={openProjectChat}
+              disabled={workspaceBusy}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-sky-700 disabled:opacity-50"
+            >
+              {workspaceBusy ? <FiRefreshCw size={13} className="animate-spin" /> : <FiMessageCircle size={13} />}
+              {filesRoomId ? 'Open Project Chat' : 'Create & Open Project Chat'}
+            </button>
+            <input ref={filesInputRef} type="file" multiple className="hidden" onChange={e => handleProjectFilesPicked(e.target.files)} />
+            <button
+              onClick={() => filesInputRef.current?.click()}
+              disabled={filesUploading}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-teal-700 disabled:opacity-50"
+            >
+              {filesUploading ? <FiRefreshCw size={13} className="animate-spin" /> : <FiUpload size={13} />}
+              Attach Files / Docs
+            </button>
+            <span className="text-[11px] text-slate-400">
+              Files shared here land in the project's chat workspace too — and files shared in the project chat show up here. Max 5 MB × 4 per file.
+            </span>
+          </div>
+
+          {filesLoading ? (
+            <div className="flex items-center justify-center py-12 text-slate-400">
+              <FiRefreshCw className="animate-spin" size={18} />
+            </div>
+          ) : (
+            <>
+              <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+                <div className="px-4 py-2.5 border-b border-slate-100 text-xs font-semibold text-slate-600 flex items-center gap-2">
+                  <FiFileText size={13} /> Project files ({projectFiles.length})
+                </div>
+                {projectFiles.length === 0 ? (
+                  <p className="px-4 py-8 text-center text-xs text-slate-400">
+                    No files yet — attach documents here or share them in the project chat.
+                  </p>
+                ) : (
+                  <ul className="divide-y divide-slate-100">
+                    {projectFiles.map((f, i) => (
+                      <li key={`${f.messageId}-${i}`} className="flex items-center gap-3 px-4 py-2.5 text-xs">
+                        <div className="w-8 h-8 rounded-lg bg-teal-50 text-teal-600 flex items-center justify-center shrink-0">
+                          <FiFileText size={14} />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          {f.dataUrl ? (
+                            <a href={f.dataUrl} download={f.name} className="font-medium text-slate-800 hover:text-teal-600 truncate inline-flex items-center gap-1" title="Download">
+                              {f.name} <FiDownload size={11} className="text-teal-500" />
+                            </a>
+                          ) : (
+                            <span className="font-medium text-slate-800 truncate">{f.name}</span>
+                          )}
+                          <p className="text-[10px] text-slate-400">
+                            {f.senderName} · {String(f.createdAt).slice(0, 16).replace('T', ' ')}
+                            {f.sizeBytes ? ` · ${f.sizeBytes < 1024 * 1024 ? `${Math.round(f.sizeBytes / 1024)} KB` : `${(f.sizeBytes / (1024 * 1024)).toFixed(1)} MB`}` : ''}
+                          </p>
+                        </div>
+                        <span className="shrink-0 rounded-full bg-sky-50 text-sky-600 px-2 py-0.5 text-[10px] font-medium">chat</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              {driveFiles.length > 0 && (
+                <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+                  <div className="px-4 py-2.5 border-b border-slate-100 text-xs font-semibold text-slate-600">Drive documents ({driveFiles.length})</div>
+                  <ul className="divide-y divide-slate-100">
+                    {driveFiles.map((d: any) => (
+                      <li key={d.id} className="flex items-center gap-3 px-4 py-2.5 text-xs">
+                        <FiFileText className="text-slate-400 shrink-0" size={14} />
+                        <span className="font-medium text-slate-700 truncate">{d.name}</span>
+                        <span className="text-[10px] text-slate-400 ml-auto">{d.uploadedBy || '—'} · {String(d.createdAt).slice(0, 10)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </>
+          )}
+        </section>
       )}
 
       {tab === 'board' && (

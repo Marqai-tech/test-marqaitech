@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import '../utils/json_safe.dart';
 
 /// Task 117 — Collaboration Chat models (mobile parity with the web
@@ -145,6 +148,9 @@ class ChatMessageModel {
   final ChatSenderRef sender;
   final List<ChatMessageModel> replies;
   final int replyCount;
+  // Task 121 — files/docs attached to the message (base64 data URLs carried
+  // in the ChatMessage.attachments JSON column; server caps 5 files × 4 MB).
+  final List<ChatAttachment> attachments;
 
   const ChatMessageModel({
     required this.id,
@@ -160,10 +166,12 @@ class ChatMessageModel {
     this.sender = const ChatSenderRef(id: ''),
     this.replies = const [],
     this.replyCount = 0,
+    this.attachments = const [],
   });
 
   bool get isFlagged => dlpStatus == 'flagged' || dlpStatus == 'blocked';
   bool get isThreadStarter => replyCount > 0 || replies.isNotEmpty;
+  bool get hasAttachments => attachments.isNotEmpty;
 
   factory ChatMessageModel.fromJson(dynamic raw) {
     final m = jsonMap(raw);
@@ -192,7 +200,82 @@ class ChatMessageModel {
       replyCount: rc is num
           ? rc.toInt()
           : (int.tryParse(rc?.toString() ?? '') ?? (countBlock['replies'] is num ? (countBlock['replies'] as num).toInt() : replies.length)),
+      attachments: ChatAttachment.listFromJson(m['attachments']),
     );
+  }
+}
+
+/// Task 121 — one attached file/doc on a chat message. The server stores a
+/// JSON array of { name, mimeType, sizeBytes, dataUrl } in ChatMessage
+/// .attachments; the dataUrl is a full base64 data URL ('data:<mime>;base64,<payload>').
+class ChatAttachment {
+  final String name;
+  final String mimeType;
+  final int sizeBytes;
+  final String? dataUrl;
+
+  const ChatAttachment({
+    required this.name,
+    this.mimeType = 'application/octet-stream',
+    this.sizeBytes = 0,
+    this.dataUrl,
+  });
+
+  bool get isImage => mimeType.startsWith('image/');
+
+  /// Decoded file bytes (null when the payload has no inline content).
+  Uint8List? get bytes {
+    final url = dataUrl;
+    if (url == null) return null;
+    final idx = url.indexOf(',');
+    if (idx < 0 || idx + 1 >= url.length) return null;
+    try {
+      return base64Decode(url.substring(idx + 1));
+    } catch (_) {
+      return null;
+    }
+  }
+
+  String get sizeLabel {
+    if (sizeBytes <= 0) return '';
+    if (sizeBytes < 1024) return '$sizeBytes B';
+    if (sizeBytes < 1024 * 1024) return '${(sizeBytes / 1024).round()} KB';
+    return '${(sizeBytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+  }
+
+  static List<ChatAttachment> listFromJson(dynamic raw) {
+    // Accepts: JSON-encoded string, List, or null — never throws.
+    if (raw == null) return const [];
+    List<dynamic> items;
+    if (raw is String) {
+      if (raw.isEmpty || raw == 'null') return const [];
+      try {
+        final decoded = jsonDecode(raw);
+        if (decoded is! List) return const [];
+        items = decoded;
+      } catch (_) {
+        return const [];
+      }
+    } else if (raw is List) {
+      items = raw;
+    } else {
+      return const [];
+    }
+    final out = <ChatAttachment>[];
+    for (final item in items) {
+      final m = jsonMap(item);
+      final name = (m['name'] ?? '').toString().trim();
+      final dataUrl = m['dataUrl']?.toString();
+      if (name.isEmpty && (dataUrl == null || dataUrl.isEmpty)) continue;
+      final size = m['sizeBytes'];
+      out.add(ChatAttachment(
+        name: name.isEmpty ? 'attachment' : name,
+        mimeType: (m['mimeType'] ?? 'application/octet-stream').toString(),
+        sizeBytes: size is num ? size.toInt() : (int.tryParse(size?.toString() ?? '') ?? 0),
+        dataUrl: (dataUrl == null || dataUrl.isEmpty) ? null : dataUrl,
+      ));
+    }
+    return out;
   }
 }
 

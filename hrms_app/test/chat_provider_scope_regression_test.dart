@@ -52,8 +52,8 @@ class _FakeThreadProvider extends ChatThreadProvider {
   }
 
   @override
-  Future<bool> send(String body) async {
-    sent.add(body);
+  Future<bool> send(String body, {List<Map<String, dynamic>>? attachments}) async {
+    sent.add(attachments == null || attachments.isEmpty ? body : '$body+${attachments.length}file(s)');
     notifyListeners();
     return true;
   }

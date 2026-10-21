@@ -268,6 +268,15 @@ class _RoomsTab extends StatelessWidget {
                                                         overflow: TextOverflow.ellipsis,
                                                         style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: MaanColors.navy)),
                                                   ),
+                                                  // Task 121 — project workspace rooms get a badge
+                                                  if (room.roomType == 'project')
+                                                    Container(
+                                                      margin: const EdgeInsets.only(right: 6),
+                                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                      decoration: BoxDecoration(color: const Color(0xFFE0F2FE), borderRadius: BorderRadius.circular(6)),
+                                                      child: const Text('PROJECT',
+                                                          style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: Color(0xFF0369A1))),
+                                                    ),
                                                   if (room.isAnnouncementRoom)
                                                     Container(
                                                       margin: const EdgeInsets.only(right: 6),
