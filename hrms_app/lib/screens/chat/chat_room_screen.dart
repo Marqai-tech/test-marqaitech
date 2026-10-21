@@ -15,12 +15,17 @@ import '../../widgets/loading_widget.dart';
 /// older-history loading, pull-to-refresh and a light 12s poll while open.
 class ChatRoomScreen extends StatelessWidget {
   final ChatRoomModel room;
-  const ChatRoomScreen({super.key, required this.room});
+
+  /// Optional factory for the thread state (tests inject a fake to avoid
+  /// network). Production uses ChatThreadProvider.new — identical behavior.
+  final ChatThreadProvider Function(String roomId)? threadProviderFactory;
+
+  const ChatRoomScreen({super.key, required this.room, this.threadProviderFactory});
 
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (_) => ChatThreadProvider(room.id)..load()..startPolling(),
+      create: (_) => (threadProviderFactory ?? ChatThreadProvider.new)(room.id)..load()..startPolling(),
       child: _ChatRoomBody(room: room),
     );
   }
@@ -38,16 +43,33 @@ class _ChatRoomBodyState extends State<_ChatRoomBody> {
   final _inputCtrl = TextEditingController();
   final _scrollCtrl = ScrollController();
   bool _wasLoading = true;
+  ChatThreadProvider? _thread; // saved in didChangeDependencies — dispose() must not do ancestor lookups
 
   @override
   void initState() {
     super.initState();
     _scrollCtrl.addListener(_onScroll);
+    // Task 119 — belt-and-braces: the app-scoped ChatRoomsProvider normally
+    // resolved identity when the chat home opened, but a deep entry (named
+    // route, restored state) may land here before that happened. Without
+    // myEmployeeId every bubble would render as "theirs", so kick a silent
+    // refresh once. NEVER watch a provider created in another route.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final rooms = context.read<ChatRoomsProvider>();
+      if (rooms.myEmployeeId == null) rooms.fetchRooms(silent: true);
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _thread ??= context.read<ChatThreadProvider>();
   }
 
   @override
   void dispose() {
-    context.read<ChatThreadProvider>().stopPolling();
+    _thread?.stopPolling();
     _inputCtrl.dispose();
     _scrollCtrl.dispose();
     super.dispose();
@@ -171,11 +193,7 @@ class _ChatRoomBodyState extends State<_ChatRoomBody> {
                         onAction: () => thread.load(),
                       )
                     : thread.messages.isEmpty
-                        ? const EmptyStateWidget(
-                            icon: Icons.waving_hand_rounded,
-                            title: 'No messages yet',
-                            message: 'Say hello — your message appears on every device signed into this workspace.',
-                          )
+                        ? _emptyThread(thread)
                         : RefreshIndicator(
                             color: MaanColors.primary,
                             onRefresh: () => thread.load(),
@@ -239,6 +257,72 @@ class _ChatRoomBodyState extends State<_ChatRoomBody> {
             ),
           _inputBar(thread),
         ],
+      ),
+    );
+  }
+
+  /// Task 119 — first-open experience for a brand-new (or still silent) room:
+  /// a friendly empty state plus one-tap greeting chips that send immediately,
+  /// so a new direct chat never feels like a dead/blank screen.
+  Widget _emptyThread(ChatThreadProvider thread) {
+    const greetings = ['Hi!', 'Hello!', 'Are you available?'];
+    return SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      child: SizedBox(
+        height: MediaQuery.of(context).size.height * 0.55,
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE8F5F0),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Icon(Icons.waving_hand_rounded, size: 30, color: Color(0xFF2FA36B)),
+              ),
+              const SizedBox(height: 14),
+              const Text('No messages yet',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: MaanColors.navy)),
+              const SizedBox(height: 6),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 32),
+                child: Text(
+                  'Say hello — your message appears on every device signed into this workspace.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 12.5, color: MaanColors.body, height: 1.4),
+                ),
+              ),
+              const SizedBox(height: 18),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                alignment: WrapAlignment.center,
+                children: greetings
+                    .map((g) => InkWell(
+                          borderRadius: BorderRadius.circular(18),
+                          onTap: thread.sending ? null : () async {
+                            final ok = await thread.send(g);
+                            if (ok && mounted) _scrollToBottom();
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(18),
+                              border: Border.all(color: MaanColors.line),
+                            ),
+                            child: Text(g,
+                                style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: MaanColors.primary)),
+                          ),
+                        ))
+                    .toList(),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

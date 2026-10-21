@@ -25,6 +25,10 @@ class ChatRoomsProvider extends ChangeNotifier {
   String? _myEmployeeId;
   Map<String, ChatDirectoryPerson> _directory = {};
 
+  /// Optional pre-resolved identity (tests / future session restore). When
+  /// null the first fetchRooms() resolves it via ApiService.
+  ChatRoomsProvider({String? initialEmployeeId}) : _myEmployeeId = initialEmployeeId;
+
   // Task 118 — the Directory tab shows ALL employees by default (server
   // role-scoping still applies: employees see their department, managers
   // their team, admins everyone — exactly like the web directory).

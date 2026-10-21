@@ -45,6 +45,7 @@ import 'screens/chat/chat_room_screen.dart';
 import 'models/chat.dart';
 import 'providers/payroll_provider.dart';
 import 'providers/attendance_provider.dart';
+import 'providers/chat_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -89,6 +90,14 @@ class HRMSApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => LeaveProvider()),
         ChangeNotifierProvider(create: (_) => DashboardProvider()),
         ChangeNotifierProvider(create: (_) => AttendanceProvider()),
+        // Task 119 — ChatRoomsProvider MUST live at app scope: ChatRoomScreen
+        // is pushed as its OWN route (Navigator.push), which is a sibling of
+        // the chat-home subtree. A provider created inside ChatHomeScreen is
+        // invisible from there — context.watch<ChatRoomsProvider> in the room
+        // screen threw ProviderNotFoundException and release builds rendered
+        // a GREY/EMPTY thread screen (the "chat screen is empty" report). One
+        // shared instance also means identity + directory resolve exactly once.
+        ChangeNotifierProvider(create: (_) => ChatRoomsProvider()),
       ],
       child: MaterialApp(
         title: AppConstants.appName,

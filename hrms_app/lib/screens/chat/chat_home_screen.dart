@@ -19,6 +19,10 @@ import 'chat_room_screen.dart';
 /// Task 118 — Directory tab: ALL employees are listed by default; tapping
 /// one opens (or reuses) the 1:1 direct chat instantly — no more empty
 /// "No chats yet" dead end for first-time users.
+/// Task 119 — the provider is APP-SCOPED (main.dart MultiProvider), not
+/// created here: ChatRoomScreen is pushed as a separate route, so a locally
+/// scoped provider was invisible from the thread screen (grey-screen crash).
+/// This screen only KICKS the first fetch.
 class ChatHomeScreen extends StatefulWidget {
   const ChatHomeScreen({super.key});
 
@@ -28,11 +32,20 @@ class ChatHomeScreen extends StatefulWidget {
 
 class _ChatHomeScreenState extends State<ChatHomeScreen> {
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final chat = context.read<ChatRoomsProvider>();
+      if (!chat.isLoading && chat.rooms.isEmpty && chat.error == null) {
+        chat.fetchRooms();
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => ChatRoomsProvider()..fetchRooms(),
-      child: const _ChatHomeBody(),
-    );
+    return const _ChatHomeBody();
   }
 }
 
