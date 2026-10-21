@@ -1113,7 +1113,8 @@ class _PickerPerson {
   final String id;
   final String name;
   final String? department;
-  const _PickerPerson({required this.id, required this.name, this.department});
+  final String? status; // Task 120 — employment status for separated-staff guard
+  const _PickerPerson({required this.id, required this.name, this.department, this.status});
 
   static _PickerPerson? fromJson(dynamic raw) {
     final m = jsonMap(raw);
@@ -1124,8 +1125,14 @@ class _PickerPerson {
     final dept = jsonMap(m['department']);
     final name = '$first $last'.trim();
     return _PickerPerson(id: id, name: name.isEmpty ? (m['email'] ?? id).toString() : name,
-        department: (dept['name'] ?? m['department'])?.toString());
+        department: (dept['name'] ?? m['department'])?.toString(),
+        status: m['status']?.toString());
   }
+
+  /// Task 120 — terminated/resigned/inactive employees must not surface in
+  /// the Projects module (member picker). Unknown status stays visible.
+  bool get isInactive =>
+      const {'inactive', 'terminated', 'resigned'}.contains((status ?? '').toLowerCase());
 }
 
 class _AddMemberSheetState extends State<_AddMemberSheet> {
@@ -1161,7 +1168,9 @@ class _AddMemberSheetState extends State<_AddMemberSheet> {
   Future<void> _loadPeople() async {
     setState(() => _loading = true);
     try {
-      final data = await ApiService.getEmployees(limit: 200);
+      // Task 120 — excludeInactive keeps separated employees out of the
+      // Projects member picker; the isInactive guard is defense in depth.
+      final data = await ApiService.getEmployees(limit: 200, excludeInactive: true);
       final rows = jsonList(data['employees'] is List ? data['employees'] : data['data']);
       final allocated = widget.provider.team
           .map((m) => m.employeeId)
@@ -1172,6 +1181,7 @@ class _AddMemberSheetState extends State<_AddMemberSheet> {
           _people = rows
               .map(_PickerPerson.fromJson)
               .whereType<_PickerPerson>()
+              .where((p) => !p.isInactive)
               .where((p) => !allocated.contains(p.id))
               .toList();
         });

@@ -5,6 +5,8 @@ import 'package:provider/provider.dart';
 import '../../config/maan_theme.dart';
 import '../../models/chat.dart';
 import '../../providers/chat_provider.dart';
+import '../../services/api_service.dart';
+import '../../utils/json_safe.dart';
 import '../../widgets/maan_avatar.dart';
 import '../../widgets/empty_state_widget.dart';
 import '../../widgets/loading_widget.dart';
@@ -44,10 +46,17 @@ class _ChatRoomBodyState extends State<_ChatRoomBody> {
   final _scrollCtrl = ScrollController();
   bool _wasLoading = true;
   ChatThreadProvider? _thread; // saved in didChangeDependencies — dispose() must not do ancestor lookups
+  // Task 120 — live member tracking: the room object is a snapshot from the
+  // list screen, so additions would not reflect here. We track the known
+  // member ids locally and grow them as the add-members sheet succeeds.
+  late Set<String> _memberIds;
+  late int _memberCount;
 
   @override
   void initState() {
     super.initState();
+    _memberIds = widget.room.members.map((m) => m.userId).where((id) => id.isNotEmpty).toSet();
+    _memberCount = _memberIds.isNotEmpty ? _memberIds.length : widget.room.members.length;
     _scrollCtrl.addListener(_onScroll);
     // Task 119 — belt-and-braces: the app-scoped ChatRoomsProvider normally
     // resolved identity when the chat home opened, but a deep entry (named
@@ -125,6 +134,36 @@ class _ChatRoomBodyState extends State<_ChatRoomBody> {
     }
   }
 
+  /// Task 120 — add people to an EXISTING group chat (the create-time picker
+  /// was the only way to populate a room before). Direct rooms stay 1:1.
+  Future<void> _showAddMembersSheet() async {
+    final result = await showModalBottomSheet<(int, List<Map<String, dynamic>>)> (
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (_) => _AddMembersSheet(roomId: widget.room.id, existingMemberIds: _memberIds),
+    );
+    if (!mounted || result == null) return;
+    final (added, skipped) = result;
+    if (added > 0) {
+      setState(() {
+        _memberCount += added;
+      });
+    }
+    if (!mounted) return;
+    final msg = StringBuffer()..write('$added member${added == 1 ? '' : 's'} added');
+    if (skipped.isNotEmpty) {
+      final reason = (skipped.first['reason'] ?? 'skipped').toString();
+      msg.write(' · ${skipped.length} skipped ($reason)');
+    }
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        content: Text(msg.toString()),
+        backgroundColor: added > 0 ? const Color(0xFF2FA36B) : MaanColors.accentRed,
+      ));
+  }
+
   @override
   Widget build(BuildContext context) {
     final rooms = context.watch<ChatRoomsProvider>();
@@ -138,7 +177,7 @@ class _ChatRoomBodyState extends State<_ChatRoomBody> {
     _wasLoading = thread.isLoading;
 
     final subtitle = StringBuffer()
-      ..write('${widget.room.members.length} member${widget.room.members.length == 1 ? '' : 's'}');
+      ..write('$_memberCount member${_memberCount == 1 ? '' : 's'}');
     if (widget.room.isE2EE) subtitle.write(' · E2EE');
     if (widget.room.isAnnouncementRoom) subtitle.write(' · Announcement');
 
@@ -149,6 +188,15 @@ class _ChatRoomBodyState extends State<_ChatRoomBody> {
         surfaceTintColor: Colors.white,
         elevation: 0.5,
         iconTheme: const IconThemeData(color: MaanColors.navy),
+        actions: [
+          // Task 120 — grow the group after creation (direct chats stay 1:1).
+          if (!widget.room.isDirect)
+            IconButton(
+              onPressed: _showAddMembersSheet,
+              tooltip: 'Add members',
+              icon: const Icon(Icons.person_add_alt_1_rounded, size: 20),
+            ),
+        ],
         titleSpacing: 0,
         title: Row(
           children: [
@@ -447,6 +495,201 @@ class _ChatRoomBodyState extends State<_ChatRoomBody> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ══ Add Members sheet (Task 120) ═══════════════════════════════════════
+/// Grow an EXISTING group chat: search employees (excludeInactive=true,
+/// separated staff filtered again client-side), skip people already in the
+/// room, multi-select, POST /rooms/[id]/members. Pops with (added, skipped).
+class _AddMembersSheet extends StatefulWidget {
+  final String roomId;
+  final Set<String> existingMemberIds;
+  const _AddMembersSheet({required this.roomId, required this.existingMemberIds});
+
+  @override
+  State<_AddMembersSheet> createState() => _AddMembersSheetState();
+}
+
+class _AddMembersSheetState extends State<_AddMembersSheet> {
+  final _searchCtrl = TextEditingController();
+  List<ChatDirectoryPerson> _people = [];
+  final Set<String> _selected = {};
+  bool _loading = true;
+  bool _submitting = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPeople();
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadPeople() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final q = _searchCtrl.text.trim();
+      final data = await ApiService.getEmployees(limit: 200, search: q.isEmpty ? null : q, excludeInactive: true);
+      final rows = jsonList(data['employees'] is List ? data['employees'] : data['data']);
+      final me = context.read<ChatRoomsProvider>().myEmployeeId;
+      if (mounted) {
+        setState(() {
+          _people = rows
+              .map(ChatDirectoryPerson.fromJson)
+              .where((p) => p.id.isNotEmpty && !p.isInactive)
+              .where((p) => p.id != me)
+              .where((p) => !widget.existingMemberIds.contains(p.id))
+              .toList();
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _error = e.toString().replaceAll('Exception: ', ''));
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _submit() async {
+    if (_selected.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Select at least one person to add')));
+      return;
+    }
+    setState(() => _submitting = true);
+    try {
+      final (added, skipped) = await context.read<ChatRoomsProvider>().addMembers(widget.roomId, _selected.toList());
+      if (mounted) Navigator.pop(context, (added, skipped));
+    } catch (e) {
+      if (mounted) {
+        setState(() => _submitting = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(e.toString().replaceAll('Exception: ', '')), backgroundColor: MaanColors.accentRed));
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: Container(
+        constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.8),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Expanded(child: Text('Add Members', style: MaanText.h2)),
+                IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close_rounded, size: 20)),
+              ],
+            ),
+            Text('${widget.existingMemberIds.length} already in this chat',
+                style: MaanText.caption.copyWith(fontSize: 11.5)),
+            const SizedBox(height: 10),
+            TextField(
+              controller: _searchCtrl,
+              onChanged: (_) => _loadPeople(),
+              decoration: const InputDecoration(
+                hintText: 'Search employees…',
+                prefixIcon: Icon(Icons.search_rounded, size: 20),
+                isDense: true,
+              ),
+            ),
+            if (_selected.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: _selected.map((id) {
+                  ChatDirectoryPerson? p;
+                  for (final e in _people) {
+                    if (e.id == id) p = e;
+                  }
+                  return Chip(
+                    label: Text(p?.fullName ?? 'Member', style: const TextStyle(fontSize: 11)),
+                    visualDensity: VisualDensity.compact,
+                    deleteIcon: const Icon(Icons.close_rounded, size: 14),
+                    onDeleted: () => setState(() => _selected.remove(id)),
+                    backgroundColor: const Color(0xFFE6F7F6),
+                  );
+                }).toList(),
+              ),
+            ],
+            const SizedBox(height: 10),
+            Flexible(
+              child: _loading
+                  ? const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator(strokeWidth: 2)))
+                  : _error != null
+                      ? EmptyStateWidget(
+                          icon: Icons.cloud_off_rounded,
+                          title: "Couldn't load employees",
+                          message: _error,
+                          actionLabel: 'Retry',
+                          onAction: _loadPeople,
+                        )
+                      : _people.isEmpty
+                          ? const EmptyStateWidget(
+                              icon: Icons.people_outline_rounded,
+                              title: 'Everyone is already in',
+                              message: 'No one else is available to add right now.',
+                            )
+                          : ListView.builder(
+                              shrinkWrap: true,
+                              itemCount: _people.length,
+                              itemBuilder: (context, i) {
+                                final p = _people[i];
+                                final chosen = _selected.contains(p.id);
+                                return ListTile(
+                                  dense: true,
+                                  onTap: () => setState(() {
+                                    chosen ? _selected.remove(p.id) : _selected.add(p.id);
+                                  }),
+                                  leading: MaanAvatar(avatar: p.avatar, name: p.fullName, radius: 16),
+                                  title: Text(p.fullName,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: MaanColors.navy)),
+                                  subtitle: Text(p.department ?? p.email ?? '',
+                                      maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, color: MaanColors.body)),
+                                  trailing: chosen
+                                      ? const Icon(Icons.check_circle_rounded, color: Color(0xFF0EA5A6), size: 20)
+                                      : const Icon(Icons.radio_button_off_rounded, color: MaanColors.line, size: 20),
+                                );
+                              },
+                            ),
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _submitting ? null : _submit,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: MaanColors.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                icon: _submitting
+                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                    : const Icon(Icons.person_add_alt_1_rounded, size: 18),
+                label: Text('Add ${_selected.isEmpty ? '' : _selected.length} to Chat',
+                    style: const TextStyle(fontWeight: FontWeight.w800)),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

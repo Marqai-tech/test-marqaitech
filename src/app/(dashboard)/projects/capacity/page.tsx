@@ -37,7 +37,7 @@ export default function CapacityPlannerPage() {
 
   const loadEmployees = useCallback(async () => {
     try {
-      const res = await fetch('/api/employees?limit=500', { headers: getAuthHeaders() });
+      const res = await fetch('/api/employees?limit=500&excludeInactive=true', { headers: getAuthHeaders() });
       if (res.ok) {
         const j = await res.json();
         setEmployees(j.employees || j.data || []);

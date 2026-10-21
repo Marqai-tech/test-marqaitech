@@ -166,7 +166,7 @@ export default function ProjectWorkspacePage() {
       } else if (t === 'resources') {
         const [rrRes, empRes] = await Promise.all([
           fetch(`/api/projects/${id}/resource-requests`, { headers }),
-          fetch('/api/employees?limit=500', { headers }).catch(() => null),
+          fetch('/api/employees?limit=500&excludeInactive=true', { headers }).catch(() => null),
         ]);
         if (rrRes.ok) { const j = await rrRes.json(); setRequirements(j.requirements || []); setAllocations(j.allocations || []); }
         if (empRes?.ok) { const j = await empRes.json(); setEmployeeList(j.employees || j.data || []); }

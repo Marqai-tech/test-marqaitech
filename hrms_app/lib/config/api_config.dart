@@ -135,6 +135,8 @@ class ApiConfig {
   // Chat page uses; member ids / sender ids are EMPLOYEE ids)
   static String get chatRooms => '$apiUrl/collaboration/chat/rooms';
   static String chatMessages(String roomId) => '$apiUrl/collaboration/chat/rooms/$roomId/messages';
+  // Task 120 — manage members of an EXISTING room (add people after creation).
+  static String chatRoomMembers(String roomId) => '$apiUrl/collaboration/chat/rooms/$roomId/members';
 
   // Attendance extras
   static String get mySummary => '$apiUrl/attendance/my-summary';

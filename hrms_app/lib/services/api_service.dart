@@ -314,10 +314,22 @@ class ApiService {
   }
 
   // ============ Employees ============
-  static Future<Map<String, dynamic>> getEmployees({int page = 1, int limit = 20, String? search, String? status}) async {
+  /// [excludeInactive] (Task 120): pickers/directories in the Leave,
+  /// Attendance, Projects and Chat modules pass true so separated employees
+  /// (terminated / resigned / inactive) never appear as selectable people.
+  /// The Employee module intentionally does NOT send it — HR manages
+  /// separated staff there.
+  static Future<Map<String, dynamic>> getEmployees({
+    int page = 1,
+    int limit = 20,
+    String? search,
+    String? status,
+    bool excludeInactive = false,
+  }) async {
     final params = <String, String>{'page': '$page', 'limit': '$limit'};
     if (search != null && search.isNotEmpty) params['search'] = search;
     if (status != null) params['status'] = status;
+    if (excludeInactive) params['excludeInactive'] = 'true';
     final response = await _get(ApiConfig.employees, queryParams: params);
     final data = jsonDecode(response.body);
     if (response.statusCode == 200) return data;
@@ -608,6 +620,16 @@ class ApiService {
     final data = jsonDecode(response.body);
     if (response.statusCode == 200 || response.statusCode == 201) return data;
     throw Exception(data['error'] ?? 'Failed to create chat');
+  }
+
+  /// POST /api/collaboration/chat/rooms/[id]/members — Task 120: add people
+  /// to an EXISTING group chat. Server rejects separated employees and
+  /// already-members (they come back in `skipped` with a reason).
+  static Future<Map<String, dynamic>> addChatRoomMembers(String roomId, List<String> memberIds) async {
+    final response = await _post(ApiConfig.chatRoomMembers(roomId), {'memberIds': memberIds});
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 200 || response.statusCode == 201) return data;
+    throw Exception(data['error'] ?? 'Failed to add members');
   }
 
   // ============ Lookups ============

@@ -12,10 +12,10 @@
 // The in-app login-page download link was REMOVED per user request — the web
 // login page is now the only download source.
 export const APP_RELEASE = {
-  versionName: '1.5.2',
-  versionCode: 19,
-  apkUrl: '/downloads/3boxes-hrms-mobile-v1.5.2.apk',
+  versionName: '1.5.3',
+  versionCode: 20,
+  apkUrl: '/downloads/3boxes-hrms-mobile-v1.5.3.apk',
   updatedAt: '2026-10-21',
   notes:
-    'UPDATE: FIXED the empty chat screen — tapping a teammate now opens the conversation properly, with one-tap greeting shortcuts on fresh chats. Installs over v1.5.1 — no uninstall needed.',
+    'UPDATE: ADD MEMBERS to group chats after creation (person-add button inside any group chat) + terminated/resigned employees are now hidden from the Chat, Leave, Attendance and Projects modules. Installs over v1.5.2 — no uninstall needed.',
 };

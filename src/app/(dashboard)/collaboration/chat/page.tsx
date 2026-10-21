@@ -5,7 +5,7 @@ import {
   FiMessageCircle, FiPlus, FiSend, FiUsers, FiLock, FiGlobe,
   FiCornerUpLeft, FiSearch, FiPhone, FiVideo, FiPaperclip,
   FiMoreVertical, FiStar, FiTrash2, FiX, FiCheck, FiHash,
-  FiRefreshCw,
+  FiRefreshCw, FiUserPlus, FiAlertCircle,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
@@ -75,6 +75,10 @@ export default function ChatPage() {
   const [newChatType, setNewChatType] = useState<'direct' | 'group'>('direct');
   const [employeeSearch, setEmployeeSearch] = useState('');
   const [loadingEmployees, setLoadingEmployees] = useState(false);
+  // Task 120 — add people to an EXISTING group chat.
+  const [showAddMembersModal, setShowAddMembersModal] = useState(false);
+  const [addMemberIds, setAddMemberIds] = useState<string[]>([]);
+  const [addingMembers, setAddingMembers] = useState(false);
 
   // ─── Fetch Chat Rooms ──────────────────────────
   const fetchRooms = useCallback(async () => {
@@ -91,12 +95,14 @@ export default function ChatPage() {
     }
   }, []);
 
-  // ─── Fetch Employees for New Chat ──────────────
+  // ─── Fetch Employees for New Chat / Add Members ─
+  // Task 120: excludeInactive=true keeps separated employees (terminated /
+  // resigned / inactive) out of the Chat module's people lists.
   const fetchEmployees = useCallback(async (search = '') => {
     setLoadingEmployees(true);
     try {
       const sq = scopeQuery();
-      const r = await fetch(`/api/employees?limit=50&search=${encodeURIComponent(search)}${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
+      const r = await fetch(`/api/employees?limit=50&excludeInactive=true&search=${encodeURIComponent(search)}${sq ? `&${sq}` : ''}`, { headers: getAuthHeaders() });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'Failed');
       setEmployees(d.employees || []);
@@ -187,6 +193,40 @@ export default function ChatPage() {
       if (d.room) setSelectedRoom(d.room);
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : 'Failed to create room');
+    }
+  };
+
+  // ─── Add Members to an Existing Group Chat (Task 120) ──
+  const handleAddMembers = async () => {
+    if (!selectedRoom || addMemberIds.length === 0) {
+      toast.error('Select at least one person to add');
+      return;
+    }
+    setAddingMembers(true);
+    try {
+      const r = await fetch(`/api/collaboration/chat/rooms/${selectedRoom.id}/members`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ memberIds: addMemberIds }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed');
+      const skippedNote = d.skipped?.length ? ` · ${d.skipped.length} skipped` : '';
+      toast.success(`${d.added ?? addMemberIds.length} member(s) added${skippedNote}`);
+      setShowAddMembersModal(false);
+      setAddMemberIds([]);
+      await fetchRooms();
+      // Re-select the room so the header member count reflects the addition.
+      const refreshed = await fetch('/api/collaboration/chat/rooms', { headers: getAuthHeaders() });
+      if (refreshed.ok) {
+        const jd = await refreshed.json();
+        const again = (jd.rooms || []).find((x: ChatRoom) => x.id === selectedRoom.id);
+        if (again) setSelectedRoom(again);
+      }
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Failed to add members');
+    } finally {
+      setAddingMembers(false);
     }
   };
 
@@ -309,6 +349,15 @@ export default function ChatPage() {
                 </div>
               </div>
               <div className="flex items-center gap-1">
+                {selectedRoom.roomType !== 'direct' && (
+                  <button
+                    onClick={() => { setAddMemberIds([]); setShowAddMembersModal(true); fetchEmployees(); }}
+                    className="p-2 rounded-lg text-slate-400 hover:text-teal-500 hover:bg-teal-50 transition-colors"
+                    title="Add Members"
+                  >
+                    <FiUserPlus className="w-4 h-4" />
+                  </button>
+                )}
                 <button className="p-2 rounded-lg text-slate-400 hover:text-teal-500 hover:bg-teal-50 transition-colors" title="Audio Call">
                   <FiPhone className="w-4 h-4" />
                 </button>
@@ -498,6 +547,81 @@ export default function ChatPage() {
             >
               <FiPlus className="w-4 h-4" />
               Create {newChatType === 'direct' ? 'Direct' : 'Group'} Chat
+            </button>
+          </div>
+        </div>
+      )}
+      {/* ─── Add Members Modal (Task 120) ─── */}
+      {showAddMembersModal && selectedRoom && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
+            <div className="flex items-center justify-between mb-1">
+              <h3 className="text-lg font-semibold text-slate-800">Add Members</h3>
+              <button onClick={() => setShowAddMembersModal(false)} className="text-slate-400 hover:text-slate-700">
+                <FiX className="w-5 h-5" />
+              </button>
+            </div>
+            <p className="text-xs text-slate-400 mb-4">To “{getRoomName(selectedRoom)}” · {selectedRoom.members.length} already in</p>
+
+            <div className="relative mb-3">
+              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+              <input
+                type="text"
+                value={employeeSearch}
+                onChange={e => { setEmployeeSearch(e.target.value); if (e.target.value.length >= 2) fetchEmployees(e.target.value); }}
+                placeholder="Search employees..."
+                className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-1 focus:ring-teal-500"
+              />
+            </div>
+
+            {addMemberIds.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mb-3">
+                {addMemberIds.map(id => {
+                  const emp = employees.find(e => e.id === id);
+                  return emp ? (
+                    <span key={id} className="px-2 py-1 bg-teal-50 text-teal-700 text-xs rounded-lg flex items-center gap-1">
+                      {emp.firstName} {emp.lastName}
+                      <button onClick={() => setAddMemberIds(prev => prev.filter(m => m !== id))} className="text-teal-500 hover:text-red-500">
+                        <FiX className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ) : null;
+                })}
+              </div>
+            )}
+
+            <div className="max-h-48 overflow-y-auto border border-slate-100 rounded-lg">
+              {loadingEmployees ? (
+                <div className="p-4 text-center text-xs text-slate-400">Loading...</div>
+              ) : employees.filter(e => e.id !== user?.id && !selectedRoom.members.some(m => m.userId === e.id)).length === 0 ? (
+                <div className="p-4 text-center text-xs text-slate-400">Everyone here is already in this chat</div>
+              ) : employees.filter(e => e.id !== user?.id && !selectedRoom.members.some(m => m.userId === e.id)).map(emp => (
+                <button
+                  key={emp.id}
+                  onClick={() => setAddMemberIds(prev => prev.includes(emp.id) ? prev.filter(m => m !== emp.id) : [...prev, emp.id])}
+                  className={`w-full flex items-center gap-2 px-3 py-2 text-left text-xs hover:bg-slate-50 transition-colors ${
+                    addMemberIds.includes(emp.id) ? 'bg-teal-50' : ''
+                  }`}
+                >
+                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-teal-400 to-cyan-500 flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0">
+                    {emp.firstName[0]}{emp.lastName[0]}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-medium text-slate-800 truncate">{emp.firstName} {emp.lastName}</p>
+                    <p className="text-[10px] text-slate-400">{emp.department?.name || 'No Dept'}</p>
+                  </div>
+                  {addMemberIds.includes(emp.id) && <FiCheck className="w-3.5 h-3.5 text-teal-500 ml-auto flex-shrink-0" />}
+                </button>
+              ))}
+            </div>
+
+            <button
+              onClick={handleAddMembers}
+              disabled={addingMembers || addMemberIds.length === 0}
+              className="mt-4 w-full 3boxes-btn-primary flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <FiUserPlus className="w-4 h-4" />
+              {addingMembers ? 'Adding…' : `Add ${addMemberIds.length || ''} to Chat`}
             </button>
           </div>
         </div>

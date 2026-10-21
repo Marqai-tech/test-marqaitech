@@ -514,9 +514,14 @@ class _NewChatSheetState extends State<_NewChatSheet> {
     });
     try {
       final q = _searchCtrl.text.trim();
-      final data = await ApiService.getEmployees(limit: 50, search: q.isEmpty ? null : q);
+      final data = await ApiService.getEmployees(limit: 50, search: q.isEmpty ? null : q, excludeInactive: true);
       final rows = jsonList(data['employees'] is List ? data['employees'] : data['data']);
-      if (mounted) setState(() => _people = rows.map(ChatDirectoryPerson.fromJson).where((p) => p.id.isNotEmpty).toList());
+      if (mounted) {
+        setState(() => _people = rows
+            .map(ChatDirectoryPerson.fromJson)
+            .where((p) => p.id.isNotEmpty && !p.isInactive) // Task 120 — no separated staff in chat pickers
+            .toList());
+      }
     } catch (e) {
       if (mounted) setState(() => _peopleError = e.toString().replaceAll('Exception: ', ''));
     } finally {

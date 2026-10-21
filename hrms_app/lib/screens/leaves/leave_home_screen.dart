@@ -290,9 +290,18 @@ class _ApplyLeaveSheetState extends State<_ApplyLeaveSheet> {
 
   Future<void> _loadEmployees() async {
     try {
-      final data = await ApiService.getEmployees(limit: 100);
+      // Task 120 — separated employees (terminated/resigned/inactive) are not
+      // valid leave subjects; keep them out of the picker (server-side filter
+      // plus a client-side guard for stale payloads).
+      final data = await ApiService.getEmployees(limit: 100, excludeInactive: true);
       if (!mounted) return;
-      setState(() => _employees = jsonList(data['employees'] is List ? data['employees'] : data['data']));
+      final rows = jsonList(data['employees'] is List ? data['employees'] : data['data']);
+      final INACTIVE = {'inactive', 'terminated', 'resigned'};
+      setState(() => _employees = rows.where((raw) {
+        final m = raw is Map ? raw : <String, dynamic>{};
+        final status = (m['status'] ?? 'active').toString().toLowerCase();
+        return !INACTIVE.contains(status);
+      }).toList());
     } catch (_) {}
   }
 

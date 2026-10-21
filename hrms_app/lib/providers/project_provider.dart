@@ -125,7 +125,12 @@ class ProjectDetailProvider extends ChangeNotifier {
       if (p.isNotEmpty) {
         _project = ProjectModel.fromJson(p);
         _milestones = jsonMapList(p['milestones']).map(ProjectMilestoneModel.fromJson).toList();
-        _team = jsonMapList(p['allocations']).map(ProjectTeamMemberModel.fromJson).toList();
+        // Task 120 — allocations of separated employees (terminated/resigned/
+        // inactive) stay in the DB but do not surface in the Projects module.
+        _team = jsonMapList(p['allocations'])
+            .map(ProjectTeamMemberModel.fromJson)
+            .where((m) => !m.employeeIsInactive)
+            .toList();
       }
       final a = jsonMap(data['access']);
       if (a.isNotEmpty) _access = ProjectAccess.fromJson(a);

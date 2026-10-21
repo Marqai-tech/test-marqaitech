@@ -161,6 +161,12 @@ export async function GET(request: Request) {
     // export then reported "No data to export". on_leave keeps its own filter
     // option and is deliberately NOT part of this set.
     const INACTIVE_STATUSES = ['inactive', 'terminated', 'resigned'];
+    // Task 120: pickers/directories in the Leave / Attendance / Projects / Chat
+    // modules pass ?excludeInactive=true so separated employees (terminated,
+    // resigned, inactive) never appear as selectable people. The Employees
+    // module itself does NOT send this — HR still manages separated staff
+    // there. Explicit ?status= always wins when both are provided.
+    const excludeInactive = searchParams.get('excludeInactive') === 'true';
     // Tenant scope — only meaningful for super_admin (tenant_admin is already
     // scoped to their own tenantId in the JWT).
     const tenantId = searchParams.get('tenantId');
@@ -188,7 +194,11 @@ export async function GET(request: Request) {
     // nested includes for a count-only call was extra Neon work (~2.6s).
     if (includeStats && !exportMode && limit <= 1 && !search && !departmentId) {
       const where: Record<string, unknown> = {};
-      if (status) where.status = status === 'inactive' ? { in: INACTIVE_STATUSES } : status;
+      if (status) {
+        where.status = status === 'inactive' ? { in: INACTIVE_STATUSES } : status;
+      } else if (excludeInactive) {
+        where.status = { notIn: INACTIVE_STATUSES };
+      }
       if (queryCompanyId) where.companyId = queryCompanyId;
       // ─── GOLDEN RULE (Task 98-d): super-admin stats follow the switcher ───
       // ?tenantId= (company switcher): count from the tenant's DEDICATED DB
@@ -450,7 +460,11 @@ export async function GET(request: Request) {
       const where: Record<string, unknown> = {};
       if (departmentId) where.departmentId = departmentId;
       if (designationId) where.designationId = designationId;
-      if (status) where.status = status === 'inactive' ? { in: INACTIVE_STATUSES } : status;
+      if (status) {
+        where.status = status === 'inactive' ? { in: INACTIVE_STATUSES } : status;
+      } else if (excludeInactive) {
+        where.status = { notIn: INACTIVE_STATUSES };
+      }
       // The Employee List explicitly excludes management members for every
       // caller. This keeps management in its dedicated directory even when
       // the current account is itself a management/HR account.

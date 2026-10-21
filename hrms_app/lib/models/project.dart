@@ -317,6 +317,15 @@ class ProjectTeamMemberModel {
   final num allocationPct;
   final String? status;
 
+  /// Task 120 — the allocated EMPLOYEE's employment status ('active',
+  /// 'terminated', ...). Null on older payloads.
+  final String? employeeStatus;
+
+  /// Separated employees must not surface in the Projects module (Task 120).
+  bool get employeeIsInactive => const {
+        'inactive', 'terminated', 'resigned'
+      }.contains((employeeStatus ?? '').toLowerCase());
+
   const ProjectTeamMemberModel({
     required this.id,
     this.employeeId,
@@ -325,6 +334,7 @@ class ProjectTeamMemberModel {
     this.role,
     this.allocationPct = 0,
     this.status,
+    this.employeeStatus,
   });
 
   factory ProjectTeamMemberModel.fromJson(Map<String, dynamic> j) {
@@ -339,6 +349,7 @@ class ProjectTeamMemberModel {
       role: j['role']?.toString(),
       allocationPct: ProjectModel._num(j['allocationPct']),
       status: j['status']?.toString(),
+      employeeStatus: emp.isNotEmpty ? emp['status']?.toString() : null,
     );
   }
 }

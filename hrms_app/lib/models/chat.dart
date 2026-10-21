@@ -207,6 +207,17 @@ class ChatDirectoryPerson {
   final String? avatar;
   final String? department;
 
+  /// Task 120 — raw employment status from /api/employees ('active',
+  /// 'on_leave', 'terminated', 'resigned', 'inactive'). Null on older
+  /// payloads; treat unknown as active (never hide someone by accident).
+  final String? status;
+
+  /// Separated employees (terminated / resigned / inactive) must not surface
+  /// in the Chat / Leave / Attendance / Projects people lists (Task 120).
+  static const Set<String> inactiveStatuses = {'inactive', 'terminated', 'resigned'};
+
+  bool get isInactive => inactiveStatuses.contains((status ?? '').toLowerCase());
+
   const ChatDirectoryPerson({
     required this.id,
     this.firstName = '',
@@ -214,6 +225,7 @@ class ChatDirectoryPerson {
     this.email,
     this.avatar,
     this.department,
+    this.status,
   });
 
   String get fullName => '$firstName $lastName'.trim().isEmpty
@@ -230,6 +242,7 @@ class ChatDirectoryPerson {
       email: m['email']?.toString(),
       avatar: m['avatar']?.toString(),
       department: (dept['name'] ?? m['department'])?.toString(),
+      status: m['status']?.toString(),
     );
   }
 }

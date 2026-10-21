@@ -137,12 +137,14 @@ class ChatRoomsProvider extends ChangeNotifier {
 
   Future<void> _loadDirectory() async {
     try {
-      final data = await ApiService.getEmployees(limit: 200);
+      final data = await ApiService.getEmployees(limit: 200, excludeInactive: true);
       final rows = jsonList(data['employees'] is List ? data['employees'] : data['data']);
       final map = <String, ChatDirectoryPerson>{};
       for (final row in rows) {
         final p = ChatDirectoryPerson.fromJson(row);
-        if (p.id.isNotEmpty) map[p.id] = p;
+        // Task 120 — separated employees never surface in chat (defense in
+        // depth: the server already excludes them via ?excludeInactive=true).
+        if (p.id.isNotEmpty && !p.isInactive) map[p.id] = p;
       }
       _directory = map;
       _directoryList = map.values.toList()
@@ -163,12 +165,13 @@ class ChatRoomsProvider extends ChangeNotifier {
     notifyListeners();
     try {
       _myEmployeeId ??= await ApiService.resolveOwnEmployeeId();
-      final data = await ApiService.getEmployees(limit: 200);
+      final data = await ApiService.getEmployees(limit: 200, excludeInactive: true);
       final rows = jsonList(data['employees'] is List ? data['employees'] : data['data']);
       final map = <String, ChatDirectoryPerson>{};
       for (final row in rows) {
         final p = ChatDirectoryPerson.fromJson(row);
-        if (p.id.isNotEmpty) map[p.id] = p;
+        // Task 120 — separated employees never surface in the Directory tab.
+        if (p.id.isNotEmpty && !p.isInactive) map[p.id] = p;
       }
       _directory = map;
       _directoryList = map.values.toList()
@@ -203,6 +206,30 @@ class ChatRoomsProvider extends ChangeNotifier {
       notifyListeners();
     }
   }
+
+  /// Task 120 — add people to an EXISTING group chat. Returns
+  /// (addedCount, skipped) where skipped carries server reasons
+  /// ('Already a member', separated employees, unknown ids).
+  Future<(int, List<Map<String, dynamic>>)> addMembers(String roomId, List<String> memberIds) async {
+    if (memberIds.isEmpty) return (0, const <Map<String, dynamic>>[]);
+    _creating = true;
+    notifyListeners();
+    try {
+      final data = await performAddMembers(roomId, memberIds);
+      final added = (data['added'] is num) ? (data['added'] as num).toInt() : memberIds.length;
+      final skipped = jsonMapList(data['skipped']);
+      await fetchRooms(silent: true);
+      return (added, skipped);
+    } finally {
+      _creating = false;
+      notifyListeners();
+    }
+  }
+
+  /// Test seam (production behavior identical — delegates straight to the
+  /// ApiService, exactly like Task 119's threadProviderFactory pattern).
+  Future<Map<String, dynamic>> performAddMembers(String roomId, List<String> memberIds) =>
+      ApiService.addChatRoomMembers(roomId, memberIds);
 }
 
 /// Thread state for ONE room: chronological messages, older-page cursor,
