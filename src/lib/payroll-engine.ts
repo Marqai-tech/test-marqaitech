@@ -416,7 +416,10 @@ export async function computeEmployeeMonth(
   });
   const { summary, lopDays } = summarizeAttendance(attendanceRows, employedDays, settings.lopEnabled);
   const paidDays = r2(Math.max(0, employedDays - lopDays));
-  const factor = employedDays > 0 ? paidDays / employedDays : 1;
+  // Proration factor: paid days over the FULL calendar month — this both
+  // prorates joiner months (DOJ mid-month → fewer employed days than the
+  // month length) and deducts LOP in full months, in one formula.
+  const factor = daysInMonth > 0 ? paidDays / daysInMonth : 1;
 
   // Earnings (prorated by attendance)
   const basicComponent = structureComponents.length > 0
