@@ -77,6 +77,7 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   const db = await getDb(request);
+  const platformDb = getPlatformDb();
   try {
     const token = getTokenFromHeaders(request);
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
