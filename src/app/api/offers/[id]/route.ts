@@ -216,9 +216,10 @@ export async function PATCH(
 
       const notificationInfo = notificationMap[effectiveStatus];
       if (notificationInfo) {
-        // Notify the HR admin / approvers
+        // Notify the HR admin / approvers — BUG-7 fix: broaden to include
+        // hr_admin, company_hr_admin and admin roles, not just tenant_admin.
         const hrAdmins = await db.user.findMany({
-          where: { tenantId: decoded.tenantId as string, role: { in: ['tenant_admin'] } },
+          where: { tenantId: decoded.tenantId as string, role: { in: ['tenant_admin', 'hr_admin', 'company_hr_admin', 'admin'] } },
         });
 
         for (const admin of hrAdmins) {
@@ -229,7 +230,7 @@ export async function PATCH(
             message: notificationInfo.message,
             type: notificationInfo.type,
             category: 'recruitment',
-            link: `/offers/${id}`,
+            link: '/offers',
           });
         }
       }
@@ -273,7 +274,7 @@ export async function PATCH(
               Department: existing.department || '—',
               Joining_Date: offer.joiningDate ? new Date(offer.joiningDate).toLocaleDateString('en-IN') : 'TBD',
             },
-            entity: { type: 'offer', id, link: `/offers/${id}` },
+            entity: { type: 'offer', id, link: '/offers' },
             origin: originOff,
           });
         }
@@ -289,7 +290,7 @@ export async function PATCH(
               Position: existing.position || '',
               Reason: responseNotes || '—',
             },
-            entity: { type: 'offer', id, link: `/offers/${id}` },
+            entity: { type: 'offer', id, link: '/offers' },
             origin: originOff,
           });
         }

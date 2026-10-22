@@ -36,6 +36,8 @@ const CATEGORY_OPTIONS = [
   { value: 'buddy_setup', label: 'Buddy Setup' },
   { value: 'payroll_setup', label: 'Payroll Setup' },
   { value: 'project_allocation', label: 'Project Allocation' },
+  { value: 'documentation', label: 'Documentation' },
+  { value: 'compliance', label: 'Compliance' },
 ];
 
 const initialForm = {
