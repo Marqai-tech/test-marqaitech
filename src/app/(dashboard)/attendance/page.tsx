@@ -28,6 +28,9 @@ import {
   FiDatabase,
   FiCoffee,
   FiInfo,
+  FiEdit2,
+  FiSave,
+  FiX,
 } from 'react-icons/fi';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
@@ -379,6 +382,67 @@ export default function AttendancePage() {
 
   /* ── Detail modal ── */
   const [detailRecord, setDetailRecord] = useState<AttendanceRecord | null>(null);
+
+  /* ── HR Direct Edit modal (admin-only, for testing) ── */
+  const [editTarget, setEditTarget] = useState<{ record: AttendanceRecord; employeeName: string } | null>(null);
+  const [editForm, setEditForm] = useState<{ checkIn: string; checkOut: string; breakIn: string; breakOut: string }>({ checkIn: '', checkOut: '', breakIn: '', breakOut: '' });
+  const [editSaving, setEditSaving] = useState(false);
+
+  const openEditModal = (record: AttendanceRecord, employeeName: string) => {
+    const toLocalInput = (v?: string | null): string => {
+      if (!v) return '';
+      try {
+        const d = new Date(v);
+        if (Number.isNaN(d.getTime())) return '';
+        // Format as YYYY-MM-DDTHH:mm in IST for the datetime-local input
+        const ist = new Intl.DateTimeFormat('en-CA', {
+          timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit',
+          hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+        }).formatToParts(d);
+        const part = (t: string) => ist.find(p => p.type === t)?.value || '';
+        return `${part('year')}-${part('month')}-${part('day')}T${part('hour')}:${part('minute')}`;
+      } catch { return ''; }
+    };
+    setEditTarget({ record, employeeName });
+    setEditForm({
+      checkIn: toLocalInput(record.checkIn),
+      checkOut: toLocalInput(record.checkOut),
+      breakIn: toLocalInput(record.breakIn),
+      breakOut: toLocalInput(record.breakOut),
+    });
+  };
+
+  const submitEdit = async () => {
+    if (!editTarget) return;
+    setEditSaving(true);
+    try {
+      // Convert local datetime-local strings to ISO. Empty string → null (clear the punch).
+      const toIso = (v: string): string | null => (v ? new Date(v + ':00+05:30').toISOString() : null);
+      const res = await fetch('/api/attendance/edit-punch', {
+        method: 'PATCH',
+        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          employeeId: editTarget.record.employeeId,
+          date: recordDateKey(editTarget.record.date),
+          checkIn: toIso(editForm.checkIn),
+          checkOut: toIso(editForm.checkOut),
+          breakIn: toIso(editForm.breakIn),
+          breakOut: toIso(editForm.breakOut),
+        }),
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error || 'Failed to save');
+      toast.success('Punches updated. workHours / breakMinutes / status recomputed.');
+      setEditTarget(null);
+      // Refresh both admin + self views
+      await fetchAdminAttendance();
+      if (employee) await fetchAttendance();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Save failed');
+    } finally {
+      setEditSaving(false);
+    }
+  };
 
   /* ── Fetch admin attendance (all employees for selected date) + roster ── */
   const lastBiometricSyncAtRef = useRef(0);
@@ -1457,6 +1521,15 @@ export default function AttendancePage() {
                                 >
                                   <FiEye className="w-3.5 h-3.5" /> View
                                 </button>
+                                {isAdmin && (
+                                  <button
+                                    onClick={() => openEditModal(a, `${r.emp.firstName || ''} ${r.emp.lastName || ''}`.trim())}
+                                    className="inline-flex items-center gap-1 text-xs text-amber-600 hover:text-amber-700 font-medium"
+                                    title="HR Direct Edit — test mode"
+                                  >
+                                    <FiEdit2 className="w-3.5 h-3.5" /> Edit
+                                  </button>
+                                )}
                                 {!isAdmin && <Link href={`/attendance/regularize?date=${encodeURIComponent(recordDateKey(a.date))}`} className="text-xs text-amber-600 hover:text-amber-700 font-medium">Regularize</Link>}
                               </div>
                             )}
@@ -1851,6 +1924,101 @@ export default function AttendancePage() {
             >
               Close
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── HR Direct Edit Modal (admin-only, for testing) ── */}
+      {editTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => !editSaving && setEditTarget(null)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg" onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div className="flex items-start justify-between p-5 border-b border-slate-100">
+              <div>
+                <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                  <FiEdit2 className="w-5 h-5 text-amber-500" /> HR Direct Edit
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  {editTarget.employeeName} · {recordDateKey(editTarget.record.date)}
+                </p>
+              </div>
+              <button onClick={() => !editSaving && setEditTarget(null)} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors" title="Close" disabled={editSaving}>
+                <FiX className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Warning banner */}
+            <div className="mx-5 mt-4 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800">
+              ⚠️ Test mode: this directly overwrites punch times. workHours / breakMinutes / overtime / status are auto-recomputed. Use only on test data.
+            </div>
+
+            {/* Edit form */}
+            <div className="p-5 space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">Check-In</label>
+                  <input
+                    type="datetime-local"
+                    value={editForm.checkIn}
+                    onChange={e => setEditForm({ ...editForm, checkIn: e.target.value })}
+                    disabled={editSaving}
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-amber-400 focus:ring-1 focus:ring-amber-300 outline-none disabled:bg-slate-50"
+                  />
+                  <p className="text-[10px] text-slate-400 mt-0.5">Clear the field to remove the punch.</p>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">Check-Out</label>
+                  <input
+                    type="datetime-local"
+                    value={editForm.checkOut}
+                    onChange={e => setEditForm({ ...editForm, checkOut: e.target.value })}
+                    disabled={editSaving}
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-amber-400 focus:ring-1 focus:ring-amber-300 outline-none disabled:bg-slate-50"
+                  />
+                  <p className="text-[10px] text-slate-400 mt-0.5">Clear the field to remove the punch.</p>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">Break-In</label>
+                  <input
+                    type="datetime-local"
+                    value={editForm.breakIn}
+                    onChange={e => setEditForm({ ...editForm, breakIn: e.target.value })}
+                    disabled={editSaving}
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-amber-400 focus:ring-1 focus:ring-amber-300 outline-none disabled:bg-slate-50"
+                  />
+                  <p className="text-[10px] text-slate-400 mt-0.5">Clear to test "missing break-in" scenario.</p>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">Break-Out</label>
+                  <input
+                    type="datetime-local"
+                    value={editForm.breakOut}
+                    onChange={e => setEditForm({ ...editForm, breakOut: e.target.value })}
+                    disabled={editSaving}
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-amber-400 focus:ring-1 focus:ring-amber-300 outline-none disabled:bg-slate-50"
+                  />
+                  <p className="text-[10px] text-slate-400 mt-0.5">Clear to test "missing break-out" scenario.</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center justify-end gap-2 p-5 border-t border-slate-100">
+              <button
+                onClick={() => setEditTarget(null)}
+                disabled={editSaving}
+                className="inline-flex items-center gap-1 px-3 py-2 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+              >
+                <FiX className="w-4 h-4" /> Cancel
+              </button>
+              <button
+                onClick={submitEdit}
+                disabled={editSaving}
+                className="inline-flex items-center gap-1 px-3 py-2 rounded-lg bg-amber-600 text-white text-xs font-semibold hover:bg-amber-700 disabled:opacity-60"
+              >
+                <FiSave className="w-4 h-4" /> {editSaving ? 'Saving…' : 'Save & Recompute'}
+              </button>
+            </div>
           </div>
         </div>
       )}
