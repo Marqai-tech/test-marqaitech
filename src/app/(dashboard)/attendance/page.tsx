@@ -263,7 +263,18 @@ function calculateEffectiveBreakMinutes(checkIn: string, checkOut: string, break
   if (!overlapsOfficialWindow) return 0;
   if (!breakIn || !breakOut) return policy.allowanceMinutes;
   const actual = Math.max(0, Math.round((new Date(breakOut).getTime() - new Date(breakIn).getTime()) / 60000));
-  return Math.max(policy.allowanceMinutes, actual, Math.max(0, policy.endMinutes - parts(breakIn)));
+  // Official break starts at the policy startMinutes (e.g. 13:30) even if
+  // the employee's Break-In punch was late. Example: Break-In 13:37,
+  // Break-Out 14:33 → officialStartToBreakOut = 873 - 810 = 63 minutes.
+  // This ensures the displayed break duration matches the server-side
+  // effectiveBreakMinutes() calculation in attendance-break-rules.ts.
+  const officialStartToBreakOut = Math.max(0, parts(breakOut) - policy.startMinutes);
+  return Math.max(
+    policy.allowanceMinutes,
+    actual,
+    Math.max(0, policy.endMinutes - parts(breakIn)),
+    officialStartToBreakOut,
+  );
 }
 
 function calculateLunchOverlapMinutes(checkIn: string, checkOut: string): number {
