@@ -269,6 +269,16 @@ class _PayrollRow extends StatelessWidget {
   }
 }
 
+/// Public test seam wrapping the private payslip sheet so widget tests can
+/// exercise the attendance strip in isolation (Task 123).
+class PayslipSheetHost extends StatelessWidget {
+  final PayrollModel model;
+  const PayslipSheetHost({super.key, required this.model});
+
+  @override
+  Widget build(BuildContext context) => _PayslipSheet(p: model);
+}
+
 class _PayslipSheet extends StatelessWidget {
   final PayrollModel p;
   const _PayslipSheet({required this.p});
@@ -308,6 +318,42 @@ class _PayslipSheet extends StatelessWidget {
             ]),
           ),
           const SizedBox(height: 16),
+          // Task 123: attendance-integrated pay days strip
+          if (p.hasAttendance) ...[
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEAF3FD),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFBBD6F2)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(children: [
+                    const Icon(Icons.event_available_rounded, size: 15, color: Color(0xFF2C6FBF)),
+                    const SizedBox(width: 6),
+                    Text('ATTENDANCE & PAY DAYS', style: MaanText.hint.copyWith(color: const Color(0xFF2C6FBF), fontWeight: FontWeight.w800, letterSpacing: .5)),
+                    if (p.modeLabel.isNotEmpty) ...[
+                      const Spacer(),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(color: const Color(0xFF2C6FBF).withOpacity(.12), borderRadius: BorderRadius.circular(8)),
+                        child: Text(p.modeLabel, style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w800, color: Color(0xFF2C6FBF), letterSpacing: .5)),
+                      ),
+                    ],
+                  ]),
+                  const SizedBox(height: 10),
+                  Row(children: [
+                    Expanded(child: _DayStat(value: p.paidDays, label: 'Paid Days', color: MaanColors.accentGreen)),
+                    Expanded(child: _DayStat(value: p.lopDays, label: 'LOP Days', color: MaanColors.accentRed)),
+                    Expanded(child: _DayStat(value: p.totalDays, label: 'Total Days', color: MaanColors.primary)),
+                  ]),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
           _Section(title: 'Earnings', color: MaanColors.accentGreen, currency: p.currencySymbol, rows: [
             ('Basic Salary', p.basicSalary),
             ('HRA', p.hra),
@@ -336,13 +382,32 @@ class _PayslipSheet extends StatelessWidget {
   }
 }
 
+/// One pay-day statistic tile inside the attendance strip (Task 123).
+class _DayStat extends StatelessWidget {
+  final num value;
+  final String label;
+  final Color color;
+  const _DayStat({required this.value, required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    final text = value == value.roundToDouble() ? value.toInt().toString() : value.toStringAsFixed(1);
+    return Column(
+      children: [
+        Text(text, style: MaanText.h2.copyWith(color: color, fontSize: 19)),
+        const SizedBox(height: 2),
+        Text(label, style: MaanText.hint.copyWith(fontSize: 10.5)),
+      ],
+    );
+  }
+}
+
 class _Section extends StatelessWidget {
   final String title;
   final Color color;
   final String currency;
   final List<(String, num)> rows;
   const _Section({required this.title, required this.color, required this.currency, required this.rows});
-
   @override
   Widget build(BuildContext context) {
     final visible = rows.where((r) => r.$2 != 0).toList();

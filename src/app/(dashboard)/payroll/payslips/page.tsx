@@ -96,6 +96,12 @@ interface PayslipDetail {
   currency: string;
   status: string;
   paidDate: string | null;
+  // Task 123: attendance integration
+  totalDays?: number;
+  paidDays?: number;
+  lopDays?: number;
+  attendance?: { present?: number; late?: number; halfDay?: number; onLeave?: number; holiday?: number; weekend?: number; absent?: number; noData?: boolean } | null;
+  processingMode?: string | null;
 }
 
 const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -377,6 +383,35 @@ export default function PayslipsPage() {
               <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-thb-text-secondary">PAN Number</span><span className="font-medium text-thb-text-primary">{selectedPayslip.employee.panNumber || '—'}</span></div>
               <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-thb-text-secondary">Bank Name</span><span className="font-medium text-thb-text-primary">{selectedPayslip.employee.bankName || '—'}</span></div>
               <div className="flex justify-between py-1.5 border-b border-slate-100"><span className="text-thb-text-secondary">Bank Account</span><span className="font-medium text-thb-text-primary">{selectedPayslip.employee.bankAccountNo || '—'}</span></div>
+              {/* Task 123: attendance-integrated pay period */}
+              <div className="mt-3 rounded-lg bg-sky-50 border border-sky-100 px-4 py-3">
+                <p className="text-[11px] font-bold uppercase tracking-wide text-sky-700 mb-2">Attendance & Pay Days</p>
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div>
+                    <p className="text-lg font-bold text-thb-text-primary">{selectedPayslip.paidDays ?? '—'}</p>
+                    <p className="text-[10px] text-thb-text-secondary">Paid Days</p>
+                  </div>
+                  <div>
+                    <p className="text-lg font-bold text-thb-text-primary">{selectedPayslip.lopDays ?? 0}</p>
+                    <p className="text-[10px] text-thb-text-secondary">LOP Days</p>
+                  </div>
+                  <div>
+                    <p className="text-lg font-bold text-thb-text-primary">{selectedPayslip.totalDays ?? '—'}</p>
+                    <p className="text-[10px] text-thb-text-secondary">Total Days</p>
+                  </div>
+                </div>
+                {selectedPayslip.attendance && !selectedPayslip.attendance.noData && (
+                  <p className="text-[10px] text-thb-text-muted mt-2 text-center">
+                    Present {selectedPayslip.attendance.present || 0} · Late {selectedPayslip.attendance.late || 0} · Half-day {selectedPayslip.attendance.halfDay || 0} · Leave {selectedPayslip.attendance.onLeave || 0} · Holiday {selectedPayslip.attendance.holiday || 0} · WeekOff {selectedPayslip.attendance.weekend || 0} · Absent {selectedPayslip.attendance.absent || 0}
+                  </p>
+                )}
+                {selectedPayslip.attendance?.noData && (
+                  <p className="text-[10px] text-thb-text-muted mt-2 text-center">No attendance records for this period — full paid days applied</p>
+                )}
+                {selectedPayslip.processingMode && (
+                  <p className="text-[10px] text-sky-600 mt-1.5 text-center font-semibold">Processed via {selectedPayslip.processingMode === 'auto' ? 'AUTO' : 'MANUAL'} payroll</p>
+                )}
+              </div>
             </div>
 
             {/* Earnings & Deductions Tables */}

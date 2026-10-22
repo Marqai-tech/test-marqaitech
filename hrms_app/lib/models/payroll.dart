@@ -21,6 +21,11 @@ class PayrollModel {
   final String status;
   final String? employeeName;
   final String? designation;
+  // Task 123: attendance-integrated processing
+  final num totalDays;
+  final num paidDays;
+  final num lopDays;
+  final String? processingMode;
 
   PayrollModel({
     required this.id,
@@ -45,6 +50,10 @@ class PayrollModel {
     required this.status,
     this.employeeName,
     this.designation,
+    this.totalDays = 0,
+    this.paidDays = 0,
+    this.lopDays = 0,
+    this.processingMode,
   });
 
   factory PayrollModel.fromJson(Map<String, dynamic> json) {
@@ -85,6 +94,10 @@ class PayrollModel {
       status: json['status'] ?? 'draft',
       employeeName: empName,
       designation: desig,
+      totalDays: _n('totalDays'),
+      paidDays: _n('paidDays'),
+      lopDays: _n('lopDays'),
+      processingMode: json['processingMode']?.toString(),
     );
   }
 
@@ -97,6 +110,13 @@ class PayrollModel {
   String get currencySymbol => (currency ?? 'INR') == 'INR' ? '₹' : (currency == 'USD' ? '\$' : '');
   String get netLabel => '$currencySymbol${_fmt(netSalary)}';
   String get grossLabel => '$currencySymbol${_fmt(grossSalary)}';
+  bool get hasAttendance => totalDays > 0;
+  String get attendanceLabel => hasAttendance
+      ? 'Paid ${_fmtDays(paidDays)} · LOP ${_fmtDays(lopDays)} · Total ${_fmtDays(totalDays)}'
+      : '';
+  String get modeLabel => processingMode == 'auto' ? 'AUTO' : processingMode == 'manual' ? 'MANUAL' : '';
+
+  static String _fmtDays(num v) => v == v.roundToDouble() ? v.toInt().toString() : v.toStringAsFixed(1);
 
   static String _fmt(num v) {
     if (v >= 10000000) return '${(v / 10000000).toStringAsFixed(2)}Cr';

@@ -12,10 +12,10 @@
 // The in-app login-page download link was REMOVED per user request — the web
 // login page is now the only download source.
 export const APP_RELEASE = {
-  versionName: '1.5.5',
-  versionCode: 22,
-  apkUrl: '/downloads/3boxes-hrms-mobile-v1.5.5.apk',
+  versionName: '1.5.6',
+  versionCode: 23,
+  apkUrl: '/downloads/3boxes-hrms-mobile-v1.5.6.apk',
   updatedAt: '2026-10-22',
   notes:
-    'UPDATE: Chat governance — only HR/tenant admins (or staff you appoint in chat settings) can create, rename or delete group chats; every user can delete their direct chats to free space; deleted history stays auditable by Super Admin. Installs over v1.5.4 — no uninstall needed.',
+    'UPDATE: Payroll goes live — salary structures with statutory masters (EPF, ESI, Professional Tax, new-regime tax slabs), attendance-integrated pay days with LOP, auto or manual salary processing chosen by the payroll head, and payslips for this and past months on web + mobile. Installs over v1.5.5 — no uninstall needed.',
 };
