@@ -228,6 +228,11 @@ function PreboardingContent() {
   const [form, setForm] = useState(initialForm);
   const [submitting, setSubmitting] = useState(false);
 
+  // GAP-3 fix: gate config state — read from the workflow configuration API
+  // so we can enforce document/HR verification gates on the client side.
+  const [blockJoiningUntilDocs, setBlockJoiningUntilDocs] = useState(false);
+  const [requireHRVerification, setRequireHRVerification] = useState(false);
+
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -252,6 +257,9 @@ function PreboardingContent() {
           setLabelToStatus(l2s);
           statusToLabelRef.current = s2l;
           stageLabelsRef.current = labels;
+          // GAP-3 fix: read the gate toggles from config
+          setBlockJoiningUntilDocs(!!cfgJson.effective?.blockJoiningUntilDocsComplete);
+          setRequireHRVerification(!!cfgJson.effective?.requireHRVerification);
         }
       } catch { /* defaults already set */ }
 
@@ -388,6 +396,27 @@ function PreboardingContent() {
     if (currentIdx < 0 || currentIdx >= stageLabels.length - 1) return;
     const nextLabel = stageLabels[currentIdx + 1];
     const nextStatus = labelToStatus[nextLabel];
+
+    // GAP-3 fix: enforce the document gate when advancing to the final stage.
+    // If blockJoiningUntilDocsComplete is enabled, prevent advancing to the
+    // last stage (Day 1 Ready / Joined) if any document is in 'pending' or
+    // 'rejected' state.
+    if (currentIdx + 1 === stageLabels.length - 1 && blockJoiningUntilDocs) {
+      const pendingDocs = (current.documents || []).filter(
+        (d: { status: string }) => d.status === 'pending' || d.status === 'rejected'
+      );
+      if (pendingDocs.length > 0) {
+        toast.error(`Cannot advance to "${nextLabel}" — ${pendingDocs.length} document(s) still pending or rejected. Complete document verification first.`);
+        return;
+      }
+    }
+
+    // GAP-3 fix: enforce the HR verification gate when advancing to the final stage.
+    if (currentIdx + 1 === stageLabels.length - 1 && requireHRVerification && !current.hrVerified) {
+      toast.error(`Cannot advance to "${nextLabel}" — HR verification is required before joining. Mark the candidate as HR Verified first.`);
+      return;
+    }
+
     // Optimistic update
     setCandidates(prev => prev.map(c => (c.id === id ? { ...c, stage: nextLabel } : c)));
     // Persist to the workflow engine (status key from configuration)
@@ -490,7 +519,7 @@ function PreboardingContent() {
 
       {/* Stage Pipeline Bar */}
       <div className="thb-card p-4">
-        <h3 className="text-sm font-semibold text-thb-text-secondary mb-3">7-Stage Workflow Pipeline</h3>
+        <h3 className="text-sm font-semibold text-thb-text-secondary mb-3">{stageLabels.length}-Stage Workflow Pipeline</h3>
         <div className="flex items-center gap-1 overflow-x-auto pb-2">
           {stageCounts.map((s, i) => (
             <div key={s.stage} className="flex items-center">

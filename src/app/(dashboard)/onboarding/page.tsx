@@ -92,6 +92,11 @@ function getCategoryBadge(category: string) {
     it_setup: 'bg-teal-50 text-teal-700 thb-badge',
     training: 'bg-amber-50 text-amber-700 thb-badge',
     compliance: 'bg-rose-50 text-rose-700 thb-badge',
+    hr_docs: 'bg-indigo-50 text-indigo-700 thb-badge',
+    introduction: 'bg-cyan-50 text-cyan-700 thb-badge',
+    buddy_setup: 'bg-pink-50 text-pink-700 thb-badge',
+    payroll_setup: 'bg-emerald-50 text-emerald-700 thb-badge',
+    project_allocation: 'bg-violet-50 text-violet-700 thb-badge',
   };
   const labels: Record<string, string> = {
     general: 'General',
@@ -99,6 +104,11 @@ function getCategoryBadge(category: string) {
     it_setup: 'IT Setup',
     training: 'Training',
     compliance: 'Compliance',
+    hr_docs: 'HR Docs',
+    introduction: 'Introduction',
+    buddy_setup: 'Buddy Setup',
+    payroll_setup: 'Payroll Setup',
+    project_allocation: 'Project Allocation',
   };
   return { className: map[category] || 'thb-badge thb-badge-info', label: labels[category] || category };
 }

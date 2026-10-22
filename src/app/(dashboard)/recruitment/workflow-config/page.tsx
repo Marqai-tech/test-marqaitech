@@ -52,7 +52,7 @@ const APPROVER_TYPES: { value: string; label: string; hint: string }[] = [
   { value: 'specific_user', label: 'Specific User', hint: 'One named approver' },
 ];
 
-const ONB_CATEGORIES = ['general', 'it_setup', 'hr_docs', 'training', 'introduction', 'buddy_setup', 'payroll_setup', 'project_allocation'];
+const ONB_CATEGORIES = ['general', 'it_setup', 'hr_docs', 'training', 'introduction', 'buddy_setup', 'payroll_setup', 'project_allocation', 'documentation', 'compliance'];
 
 // ─── UI state shapes (mirror the lib config types) ───
 interface Stage { key: string; label: string; color?: string; slaDays?: number | null; enabled?: boolean }

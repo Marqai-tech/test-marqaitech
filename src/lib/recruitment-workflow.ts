@@ -88,7 +88,7 @@ export const APPLICATION_STAGE_KEYS = ['applied', 'screening', 'interview', 'off
 export const PREBOARDING_STAGE_KEYS = ['offer_accepted', 'document_collection', 'bgv', 'provisioning', 'asset_request', 'joined'] as const;
 
 export const ONBOARDING_TASK_CATEGORIES = [
-  'general', 'it_setup', 'hr_docs', 'training', 'introduction', 'buddy_setup', 'payroll_setup', 'project_allocation',
+  'general', 'it_setup', 'hr_docs', 'training', 'introduction', 'buddy_setup', 'payroll_setup', 'project_allocation', 'documentation', 'compliance',
 ] as const;
 
 // ─────────────────────────── Defaults ───────────────────────────
