@@ -30,8 +30,6 @@ type MockPolicy = {
   saturdayWeekend: boolean;
   sundayWeekend: boolean;
   autoPresentManagement: boolean;
-  disableAppCheckin: boolean;
-  disableAppCheckout: boolean;
 };
 
 const DEFAULT_POLICY: MockPolicy = {
@@ -40,8 +38,6 @@ const DEFAULT_POLICY: MockPolicy = {
   productionHours: 8, evaluateAt: '18:30', manualPunchByHr: false,
   saturdayWeekend: false, sundayWeekend: true,
   autoPresentManagement: false,
-  disableAppCheckin: false,
-  disableAppCheckout: false,
 };
 
 const MOCK_KEY = 'attendance_mock_policy_preview';
@@ -122,8 +118,6 @@ export function AttendanceMockSettingsPreview() {
           productionHours: config.overtimeThresholdMinutes == null ? DEFAULT_POLICY.productionHours : Number(config.overtimeThresholdMinutes) / 60,
           evaluateAt: config.shiftEndDefault ?? DEFAULT_POLICY.evaluateAt,
           autoPresentManagement: config.autoPresentManagementEnabled ?? DEFAULT_POLICY.autoPresentManagement,
-          disableAppCheckin: config.disableAppCheckin ?? DEFAULT_POLICY.disableAppCheckin,
-          disableAppCheckout: config.disableAppCheckout ?? DEFAULT_POLICY.disableAppCheckout,
           saturdayWeekend: Array.isArray(data?.weekendDays) ? data.weekendDays.includes(6) : undefined,
           sundayWeekend: Array.isArray(data?.weekendDays) ? data.weekendDays.includes(0) : undefined,
         };
@@ -154,8 +148,6 @@ export function AttendanceMockSettingsPreview() {
           mandatoryBreakEnabled: draft.mandatoryBreak,
           overtimeThresholdMinutes: draft.productionHours * 60,
           autoPresentManagementEnabled: draft.autoPresentManagement,
-          disableAppCheckin: draft.disableAppCheckin,
-          disableAppCheckout: draft.disableAppCheckout,
           saturdayWeekend: draft.saturdayWeekend,
           sundayWeekend: draft.sundayWeekend,
           attendanceRuleScope: 'marqaitechgroup_only',
@@ -177,7 +169,7 @@ export function AttendanceMockSettingsPreview() {
     setEditing(false);
   };
 
-  const togglePreview = (key: 'saturdayWeekend' | 'sundayWeekend' | 'autoPresentManagement' | 'disableAppCheckin' | 'disableAppCheckout') => {
+  const togglePreview = (key: 'saturdayWeekend' | 'sundayWeekend' | 'autoPresentManagement') => {
     const next = { ...policy, [key]: !policy[key] };
     setPolicy(next);
     setDraft(next);
@@ -265,57 +257,6 @@ export function AttendanceMockSettingsPreview() {
             <div className="mt-3 flex items-center gap-2 text-sm font-medium text-slate-700">
               <PolicyToggle checked={policy.autoPresentManagement} onChange={() => togglePreview('autoPresentManagement')} label="Toggle auto-present for management employees" />
               {policy.autoPresentManagement ? 'On' : 'Off'}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-          <div className="rounded-xl bg-amber-50 p-2.5 text-amber-700"><FiLogIn className="h-5 w-5" /></div>
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <h2 className="font-semibold text-slate-900">App Check-In / Check-Out Control</h2>
-              <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-amber-800">Biometric Override</span>
-            </div>
-            <p className="mt-2 text-sm leading-6 text-slate-600">
-              Toggle these on to disable the in-app Check-In / Check-Out buttons for employees. When disabled, employees must use the biometric device to check in / out — the app buttons return a 403 error. Break-In and Break-Out via the app remain available. Biometric device punches are never affected.
-            </p>
-            <div className="mt-4 grid gap-3 md:grid-cols-2">
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-sm font-semibold text-slate-800">Disable App Check-In</div>
-                    <div className="text-xs text-slate-500 mt-0.5">Block the in-app Check-In button — biometric only.</div>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm font-medium text-slate-700">
-                    <PolicyToggle checked={policy.disableAppCheckin} onChange={() => togglePreview('disableAppCheckin')} label="Toggle disable app check-in" />
-                    {policy.disableAppCheckin ? 'On' : 'Off'}
-                  </div>
-                </div>
-                <div className="mt-2">
-                  <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ${policy.disableAppCheckin ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'}`}>
-                    {policy.disableAppCheckin ? 'App check-in blocked' : 'App check-in allowed'}
-                  </span>
-                </div>
-              </div>
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-sm font-semibold text-slate-800">Disable App Check-Out</div>
-                    <div className="text-xs text-slate-500 mt-0.5">Block the in-app Check-Out button — biometric only.</div>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm font-medium text-slate-700">
-                    <PolicyToggle checked={policy.disableAppCheckout} onChange={() => togglePreview('disableAppCheckout')} label="Toggle disable app check-out" />
-                    {policy.disableAppCheckout ? 'On' : 'Off'}
-                  </div>
-                </div>
-                <div className="mt-2">
-                  <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ${policy.disableAppCheckout ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'}`}>
-                    {policy.disableAppCheckout ? 'App check-out blocked' : 'App check-out allowed'}
-                  </span>
-                </div>
-              </div>
             </div>
           </div>
         </div>

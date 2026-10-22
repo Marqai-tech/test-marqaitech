@@ -42,7 +42,6 @@
 // through the deployment URL, leaking "Marq AI Tech Pvt Ltd" into the
 // company switcher. See tenant-filter.ts for the FOOLPROOF backstop.
 const DEMO_DOMAINS = [
-  'test-marqaitech-ontt.vercel.app',
   'nexus-hrms-mu.vercel.app',
   'nexus-hrms.vercel.app',
   '3boxes-hrms.vercel.app',

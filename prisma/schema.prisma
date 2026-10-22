@@ -1859,34 +1859,6 @@ model AuditLog {
   @@index([action])
 }
 
-// ============ SUPER ADMIN CHANGE CONTROL (Task 95) ============
-// Governance: every code/config change to a super-admin surface must be
-// raised as a ChangeRequest and APPROVED — either by the designated human
-// approver (mahesh@marqaitech.com) via the emailed token link, or in-app by
-// the super admin — BEFORE the code may be deployed. See
-// docs/SUPER_ADMIN_CHANGE_CONTROL.md.
-model SuperAdminChangeRequest {
-  id             String    @id @default(cuid())
-  title          String
-  description    String
-  module         String    @default("super-admin") // super-admin surface affected
-  requestedBy    String // email of the requester
-  status         String    @default("pending_approval") // pending_approval | approved | rejected | implemented
-  approvedBy     String? // email of the approver
-  approvalMethod String? // email_link | in_app
-  approvedAt     DateTime?
-  rejectedReason String?
-  implementedAt  DateTime?
-  deployCommit   String? // commit hash deployed under this approval
-  approvalToken  String?   @unique // single-use token embedded in the approval email link
-  tokenExpiresAt DateTime?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-
-  @@index([status])
-  @@index([createdAt])
-}
-
 // ============ LOGIN ACTIVITY ============
 
 model LoginActivity {

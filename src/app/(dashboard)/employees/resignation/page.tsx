@@ -94,6 +94,10 @@ export default function ResignationPage() {
   const [submitting, setSubmitting] = useState(false);
   const [records, setRecords] = useState<ResignationRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [decisionTarget, setDecisionTarget] = useState<ResignationRecord | null>(null);
+  const [decisionAction, setDecisionAction] = useState<'approve' | 'reject' | null>(null);
+  const [decisionComments, setDecisionComments] = useState('');
+  const [decisionSubmitting, setDecisionSubmitting] = useState(false);
 
   const updateField = (field: string, value: string | boolean | number) => {
     setForm(prev => ({ ...prev, [field]: value }));
@@ -184,18 +188,32 @@ export default function ResignationPage() {
   };
 
   const decide = async (record: ResignationRecord, action: 'approve' | 'reject') => {
-    let comments = '';
     if (action === 'reject') {
-      comments = window.prompt('Enter the rejection reason')?.trim() || '';
-      if (!comments) return;
+      setDecisionTarget(record);
+      setDecisionAction(action);
+      setDecisionComments('');
+      return;
     }
+    await submitDecision(record, action, '');
+  };
+
+  const submitDecision = async (record: ResignationRecord, action: 'approve' | 'reject', comments: string) => {
+    if (action === 'reject' && !comments.trim()) {
+      toast.error('A rejection reason is required.');
+      return;
+    }
+    setDecisionSubmitting(true);
     try {
-      const res = await fetch(`/api/employees/resignation/${record.id}`, { method: 'PATCH', headers: getAuthHeaders(), body: JSON.stringify({ action, comments }) });
+      const res = await fetch(`/api/employees/resignation/${record.id}`, { method: 'PATCH', headers: getAuthHeaders(), body: JSON.stringify({ action, comments: comments.trim() }) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to process decision');
       toast.success(action === 'approve' ? 'Resignation approved successfully' : 'Resignation rejected successfully');
+      setDecisionTarget(null);
+      setDecisionAction(null);
+      setDecisionComments('');
       fetchRecords();
     } catch (e) { toast.error(e instanceof Error ? e.message : 'Failed to process decision'); }
+    finally { setDecisionSubmitting(false); }
   };
 
   const reasonLabel = (v: string) => REASON_CATEGORIES.find(c => c.value === v)?.label || v;
@@ -381,6 +399,28 @@ export default function ResignationPage() {
           </table>
         </div>
       </div>
+
+      {decisionTarget && decisionAction === 'reject' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-labelledby="reject-resignation-title">
+          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+            <h2 id="reject-resignation-title" className="text-lg font-semibold text-slate-800">Reject resignation request</h2>
+            <p className="mt-1 text-sm text-slate-500">Enter a reason for rejecting {decisionTarget.employeeName}’s request.</p>
+            <textarea
+              autoFocus
+              value={decisionComments}
+              onChange={e => setDecisionComments(e.target.value)}
+              className="mt-4 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-rose-400 focus:outline-none focus:ring-2 focus:ring-rose-200"
+              rows={4}
+              placeholder="Rejection reason (required)"
+              aria-label="Rejection reason"
+            />
+            <div className="mt-4 flex justify-end gap-2">
+              <button type="button" onClick={() => { setDecisionTarget(null); setDecisionAction(null); }} className="rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-600">Cancel</button>
+              <button type="button" disabled={decisionSubmitting} onClick={() => submitDecision(decisionTarget, 'reject', decisionComments)} className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">{decisionSubmitting ? 'Rejecting...' : 'Reject request'}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

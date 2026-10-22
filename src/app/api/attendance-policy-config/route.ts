@@ -240,6 +240,22 @@ export async function PUT(request: Request) {
     } else {
       config = await db.attendancePolicyConfig.create({ data });
     }
+    // Weekend switches are stored in the shared Setting table and are read by
+    // working-days/attendance calculations. Keep them in sync with this page.
+    if (scope.tenantId && (body.saturdayWeekend !== undefined || body.sundayWeekend !== undefined)) {
+      const weekendSettings = [
+        ['attendance_weekend_saturday', body.saturdayWeekend],
+        ['attendance_weekend_sunday', body.sundayWeekend],
+      ] as const;
+      for (const [key, value] of weekendSettings) {
+        if (value === undefined) continue;
+        await db.setting.upsert({
+          where: { tenantId_companyId_category_key: { tenantId: scope.tenantId, companyId: policyCompanyId, category: 'attendance', key } },
+          create: { tenantId: scope.tenantId, companyId: policyCompanyId, category: 'attendance', key, value: JSON.stringify(!!value), dataType: 'boolean' },
+          update: { value: JSON.stringify(!!value), dataType: 'boolean' },
+        });
+      }
+    }
     return ok({ config });
   } catch (e: unknown) {
     // If the table still doesn't exist after sync, return a clear message

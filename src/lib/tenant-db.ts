@@ -55,7 +55,7 @@ import wsModule from 'ws'
 // adapter — the Neon serverless driver only speaks Neon's HTTP/WebSocket
 // protocol. Neon URLs (production) are unaffected.
 function createDbAdapter(connectionString: string) {
-  if (/localhost|127\.0\.0\.1|\[::1\]/i.test(connectionString)) {
+  if (process.env.NODE_ENV !== 'production' || /localhost|127\.0\.0\.1|\[::1\]/i.test(connectionString)) {
     return new PrismaPg({ connectionString })
   }
   // Task 78: some tenant registry rows carry `channel_binding=require` (Neon
@@ -105,7 +105,6 @@ if (typeof globalThis !== 'undefined' && typeof setInterval === 'function') {
 // ─── Demo domain detection ───────────────────────────────────────────
 
 const DEMO_DOMAINS = [
-  'nexus-hrms-demo.vercel.app',
   'nexus-hrms-mu.vercel.app',
   'nexus-hrms.vercel.app',
   '3boxes-hrms.vercel.app',

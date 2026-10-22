@@ -47,7 +47,3 @@ next-env.d.ts
 nexus-hrms/
 tool-results/
 dev-verify.log
-.github/
-.vercel/
-scripts/task108-query.sh
-scripts/tmp/

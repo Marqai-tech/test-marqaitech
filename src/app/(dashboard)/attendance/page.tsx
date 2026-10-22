@@ -234,9 +234,12 @@ function calculateLateBy(checkIn: string | null | undefined, shiftStartMinutes =
   return `${hours}h ${mins}m`;
 }
 
-function calculateBreakDuration(checkIn: string | null | undefined, checkOut: string | null | undefined, workHours: number | null | undefined, breakIn?: string | null, breakOut?: string | null): string {
+type DashboardBreakPolicy = { startMinutes: number; endMinutes: number; allowanceMinutes: number };
+const DEFAULT_DASHBOARD_BREAK_POLICY: DashboardBreakPolicy = { startMinutes: 810, endMinutes: 870, allowanceMinutes: 60 };
+
+function calculateBreakDuration(checkIn: string | null | undefined, checkOut: string | null | undefined, workHours: number | null | undefined, breakIn?: string | null, breakOut?: string | null, policy = DEFAULT_DASHBOARD_BREAK_POLICY): string {
   if (!checkIn || !checkOut || workHours == null) return '—';
-  const breakMins = calculateEffectiveBreakMinutes(checkIn, checkOut, breakIn, breakOut);
+  const breakMins = calculateEffectiveBreakMinutes(checkIn, checkOut, breakIn, breakOut, policy);
   if (breakMins < 60) return `${breakMins}m`;
   const h = Math.floor(breakMins / 60);
   const m = breakMins % 60;
@@ -249,18 +252,18 @@ function formatBreakMinutes(minutes: number | null | undefined): string {
   return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
 }
 
-function calculateEffectiveBreakMinutes(checkIn: string, checkOut: string, breakIn?: string | null, breakOut?: string | null): number {
+function calculateEffectiveBreakMinutes(checkIn: string, checkOut: string, breakIn?: string | null, breakOut?: string | null, policy = DEFAULT_DASHBOARD_BREAK_POLICY): number {
   const parts = (value: string) => {
     const formatted = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(new Date(value));
     return Number(formatted.find(p => p.type === 'hour')?.value || 0) * 60 + Number(formatted.find(p => p.type === 'minute')?.value || 0);
   };
   const checkInMinutes = parts(checkIn);
   const checkOutMinutes = parts(checkOut);
-  const overlapsOfficialWindow = checkInMinutes < 870 && checkOutMinutes > 810;
+  const overlapsOfficialWindow = checkInMinutes < policy.endMinutes && checkOutMinutes > policy.startMinutes;
   if (!overlapsOfficialWindow) return 0;
-  if (!breakIn || !breakOut) return 60;
+  if (!breakIn || !breakOut) return policy.allowanceMinutes;
   const actual = Math.max(0, Math.round((new Date(breakOut).getTime() - new Date(breakIn).getTime()) / 60000));
-  return Math.max(60, actual, Math.max(0, 870 - parts(breakIn)));
+  return Math.max(policy.allowanceMinutes, actual, Math.max(0, policy.endMinutes - parts(breakIn)));
 }
 
 function calculateLunchOverlapMinutes(checkIn: string, checkOut: string): number {
@@ -274,10 +277,10 @@ function calculateLunchOverlapMinutes(checkIn: string, checkOut: string): number
 }
 
 // Dashboard production hours use the fixed one-hour lunch rule.
-function calculateProductionHours(checkIn: string | null | undefined, checkOut: string | null | undefined, breakIn?: string | null, breakOut?: string | null): number | null {
-  if (!checkIn || !checkOut) return null;
+function calculateProductionHours(checkIn: string | null | undefined, checkOut: string | null | undefined, breakIn?: string | null, breakOut?: string | null, policy = DEFAULT_DASHBOARD_BREAK_POLICY): number | null {
+  if (!checkIn || !checkOut || !breakIn || !breakOut) return null;
   const spanMinutes = Math.max(0, Math.round((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / 60000));
-  const effectiveBreak = calculateEffectiveBreakMinutes(checkIn, checkOut, breakIn, breakOut);
+  const effectiveBreak = calculateEffectiveBreakMinutes(checkIn, checkOut, breakIn, breakOut, policy);
   return Math.round((Math.max(0, spanMinutes - effectiveBreak) / 60) * 100) / 100;
 }
 
@@ -317,8 +320,6 @@ export default function AttendancePage() {
   const [weekendDow, setWeekendDow] = useState<number[]>([0, 6]); // Sun + Sat default
   const [shiftStartMinutes, setShiftStartMinutes] = useState(600); // 10:00 company late cutoff
   const [breakPolicy, setBreakPolicy] = useState<DashboardBreakPolicy>(DEFAULT_DASHBOARD_BREAK_POLICY);
-  const [appCheckinDisabled, setAppCheckinDisabled] = useState(false);
-  const [appCheckoutDisabled, setAppCheckoutDisabled] = useState(false);
   const [approvedLeaves, setApprovedLeaves] = useState<Array<{ employeeId: string; startDate: string; endDate: string }>>([]);
 
   /* ── Self view state ── */
@@ -468,9 +469,6 @@ export default function AttendancePage() {
           endMinutes: parsePolicyTime(cfg.breakEndTime, DEFAULT_DASHBOARD_BREAK_POLICY.endMinutes),
           allowanceMinutes: Number(cfg.breakDurationMinutes) || DEFAULT_DASHBOARD_BREAK_POLICY.allowanceMinutes,
         });
-        // BUG_071 + BUG_073: Check if app check-in / check-out are disabled for this tenant
-        setAppCheckinDisabled(Boolean(cfg.disableAppCheckin));
-        setAppCheckoutDisabled(Boolean(cfg.disableAppCheckout));
         if (Array.isArray(d.weekendDays) && d.weekendDays.length > 0) {
           setWeekendDow(d.weekendDays.map((n: number) => Number(n)));
         }
@@ -1004,7 +1002,7 @@ export default function AttendancePage() {
     const t = new Date(a.checkIn);
     return t.getHours() * 60 + t.getMinutes() > 10 * 60;
   }).length;
-  const totalHours = attendance.reduce((sum, a) => sum + (calculateProductionHours(a.checkIn, a.checkOut, a.breakIn, a.breakOut) || 0), 0);
+  const totalHours = attendance.reduce((sum, a) => sum + (calculateProductionHours(a.checkIn, a.checkOut, a.breakIn, a.breakOut, breakPolicy) || 0), 0);
   const totalOvertime = attendance.reduce((sum, a) => sum + calculateCompanyOvertime(a.checkOut), 0);
 
   /* ── Self table rows: real records + derived month days (weekend/holiday/leave/absent) ── */
@@ -1381,8 +1379,8 @@ export default function AttendancePage() {
                       const statusValue = r.status || 'not_marked';
                       const statusConfig = getStatusConfig(statusValue);
                       const lateBy = a ? calculateLateBy(a.checkIn, shiftStartMinutes) : '0m';
-                      const productionHours = a ? (a.workHours ?? calculateProductionHours(a.checkIn, a.checkOut, a.breakIn, a.breakOut)) : null;
-                      const breakDur = a?.breakMinutes != null ? formatBreakMinutes(a.breakMinutes) : (a?.checkIn && a?.checkOut ? calculateBreakDuration(a.checkIn, a.checkOut, a.workHours, a.breakIn, a.breakOut) : '—');
+                      const productionHours = a ? (a.workHours ?? calculateProductionHours(a.checkIn, a.checkOut, a.breakIn, a.breakOut, breakPolicy)) : null;
+                      const breakDur = a?.breakMinutes != null ? formatBreakMinutes(a.breakMinutes) : (a?.checkIn && a?.checkOut ? (a.breakIn && a.breakOut ? calculateBreakDuration(a.checkIn, a.checkOut, a.workHours, a.breakIn, a.breakOut, breakPolicy) : 'Required') : '—');
                       return (
                         <tr key={r.key} className="border-b border-thb-border/50 hover:bg-slate-50/80 transition-colors group">
                           {/* Employee */}
@@ -1522,7 +1520,7 @@ export default function AttendancePage() {
             <StatCard
               icon={<FiClock className="w-5 h-5" />}
               label="Work Hours"
-              value={todayRecord && (todayRecord.workHours ?? calculateProductionHours(todayRecord.checkIn, todayRecord.checkOut, todayRecord.breakIn, todayRecord.breakOut)) != null ? formatHoursHm((todayRecord.workHours ?? calculateProductionHours(todayRecord.checkIn, todayRecord.checkOut, todayRecord.breakIn, todayRecord.breakOut)) as number) : '—'}
+              value={todayRecord && (todayRecord.workHours ?? calculateProductionHours(todayRecord.checkIn, todayRecord.checkOut, todayRecord.breakIn, todayRecord.breakOut, breakPolicy)) != null ? formatHoursHm((todayRecord.workHours ?? calculateProductionHours(todayRecord.checkIn, todayRecord.checkOut, todayRecord.breakIn, todayRecord.breakOut, breakPolicy)) as number) : '—'}
               iconBg="bg-emerald-100"
               iconColor="text-emerald-600"
               accent="border-l-emerald-500"
@@ -1694,7 +1692,7 @@ export default function AttendancePage() {
                         selfTableRows.map(row => {
                           const a = row.record;
                           const statusConfig = getStatusConfig(row.status || 'not_marked');
-                          const productionHours = a ? (a.workHours ?? calculateProductionHours(a.checkIn, a.checkOut, a.breakIn, a.breakOut)) : null;
+                          const productionHours = a ? (a.workHours ?? calculateProductionHours(a.checkIn, a.checkOut, a.breakIn, a.breakOut, breakPolicy)) : null;
                           const lowHours = productionHours != null && productionHours < 8;
                           return (
                             <tr key={row.key} className="border-b border-thb-border/50 hover:bg-slate-50/50 transition-colors">
@@ -1814,7 +1812,7 @@ export default function AttendancePage() {
               <DetailField label="Work Hours" value={formatHoursHm(detailRecord.workHours)} />
               <DetailField label="Overtime" value={detailRecord.overtime != null && detailRecord.overtime > 0 ? formatHoursHm(detailRecord.overtime) : '—'} />
               <DetailField label="Late By" value={calculateLateBy(detailRecord.checkIn, shiftStartMinutes) !== '0m' ? `Late by ${calculateLateBy(detailRecord.checkIn, shiftStartMinutes)}` : 'On time'} />
-              <DetailField label="Break" value={detailRecord.breakMinutes != null ? formatBreakMinutes(detailRecord.breakMinutes) : calculateBreakDuration(detailRecord.checkIn, detailRecord.checkOut, detailRecord.workHours, detailRecord.breakIn, detailRecord.breakOut)} />
+              <DetailField label="Break" value={detailRecord.breakMinutes != null ? formatBreakMinutes(detailRecord.breakMinutes) : calculateBreakDuration(detailRecord.checkIn, detailRecord.checkOut, detailRecord.workHours, detailRecord.breakIn, detailRecord.breakOut, breakPolicy)} />
             </div>
 
             {detailRecord.location && (

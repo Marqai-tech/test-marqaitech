@@ -381,32 +381,6 @@ export async function POST(request: NextRequest) {
     const existingBeforeRules = await db.attendance.findFirst({ where: { employeeId, date: dateObj } });
     const beforeLunch = localMinutes !== null && localMinutes < 13 * 60 + 30;
     const afterLunchBeforeClose = localMinutes !== null && localMinutes >= 13 * 60 + 30 && localMinutes < 18 * 60 + 30;
-
-    // BUG_071 + BUG_073: App check-in / check-out can be disabled per-tenant
-    // via AttendancePolicyConfig flags disableAppCheckin / disableAppCheckout.
-    // When true, employees must use the biometric device for that action.
-    // Break-in / break-out via app are still allowed when either flag is on.
-    if (action === 'checkin' || action === 'checkout') {
-      try {
-        const { loadAttendanceRulePolicy } = await import('@/lib/attendance-break-rules');
-        const rulePolicy = await loadAttendanceRulePolicy(db);
-        if (action === 'checkin' && rulePolicy.disableAppCheckin) {
-          return NextResponse.json({
-            error: 'App check-in is disabled. Please use the biometric device to check in.',
-            code: 'APP_CHECKIN_DISABLED',
-          }, { status: 403, headers: corsHeaders() });
-        }
-        if (action === 'checkout' && rulePolicy.disableAppCheckout) {
-          return NextResponse.json({
-            error: 'App check-out is disabled. Please use the biometric device to check out.',
-            code: 'APP_CHECKOUT_DISABLED',
-          }, { status: 403, headers: corsHeaders() });
-        }
-      } catch {
-        // If policy load fails, allow the action (non-fatal)
-      }
-    }
-
     // Break punches are explicit actions and remain valid after Check-Out so
     // an employee can complete a missed break record before regularization.
     // Only generic biometric/entry punches are normalized to entry/checkout.
@@ -586,13 +560,12 @@ export async function POST(request: NextRequest) {
     // On checkout or breakout: recompute derived fields (workHours, breakMinutes, overtime)
     if (action === 'checkout' || action === 'breakout') {
       const refreshed = await db.attendance.findUnique({ where: { id: attendance.id } });
-      if (refreshed?.checkIn && refreshed?.checkOut) {
+      if (refreshed?.checkIn && refreshed?.checkOut && refreshed.breakIn && refreshed.breakOut) {
         const breakPolicy = await loadAttendanceBreakPolicy(db);
-        // BUG_069 fix (manual route): Always calculate workHours when both
-        // checkIn + checkOut exist, regardless of current server time.
-        // Previously gated by `canFinalize` (current time >= 6:30 PM), which
-        // meant early checkouts got workHours = null → dashboard showed
-        // "Present" instead of "Below 8 hours — regularization required".
+        // Finalization begins when the 6:30 PM shift boundary is reached,
+        // even if the employee checked out earlier and later completed a
+        // missing break punch or performed another face scan.
+        const canFinalize = attendanceLocalMinutes(new Date()) >= breakPolicy.shiftEndMinutes;
         const spanMs = refreshed.checkOut.getTime() - refreshed.checkIn.getTime();
         const spanMinutes = Math.max(0, Math.round(spanMs / 60000));
         const breakMinutes = effectiveBreakMinutes(refreshed.breakIn, refreshed.breakOut, refreshed.checkIn, refreshed.checkOut, breakPolicy);
@@ -603,10 +576,10 @@ export async function POST(request: NextRequest) {
         const otMinutes = Math.max(0, workMinutes - 480);
         const overtime = Math.round((otMinutes / 60) * 100) / 100;
         const preservedHalfDay = attendance.status === 'half_day';
-        const lateAllowanceTriggered = (attendance.notes || '').includes('Late-mark allowance');
-        const lowProduction = workHours < 8;
+        const fourthLate = (attendance.notes || '').includes('Fourth late arrival');
+        const lowProduction = canFinalize && workHours < 8;
         const combinedNotes = [
-          lateAllowanceTriggered ? `Late-mark allowance exceeded: attendance automatically marked Half-Day.` : '',
+          fourthLate ? 'Fourth late arrival this month: attendance automatically marked Half-Day.' : '',
           lowProduction ? 'Net working time is below the required 8 hours. Apply Attendance Regularization for full-day correction.' : '',
         ].filter(Boolean).join(' ');
         await db.attendance.update({
@@ -614,8 +587,8 @@ export async function POST(request: NextRequest) {
           data: {
             workHours: workHours,
             breakMinutes,
-            overtime,
-            status: workHours < 8 ? 'half_day' : (preservedHalfDay ? 'half_day' : attendance.status),
+            overtime: canFinalize ? overtime : 0,
+            status: canFinalize && workHours < 8 ? 'half_day' : (preservedHalfDay ? 'half_day' : attendance.status),
             notes: combinedNotes || attendance.notes,
           },
         });

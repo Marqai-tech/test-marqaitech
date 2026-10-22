@@ -391,15 +391,18 @@ export default function EmployeeDetailPage() {
   }, [employee, scopeQuery, selectedTenantId]);
 
   useEffect(() => {
-    if (!persistHydrated) return;
     const ac = new AbortController();
     queueMicrotask(() => fetchEmployee(ac.signal));
     return () => ac.abort();
   }, [fetchEmployee, persistHydrated]);
 
   useEffect(() => {
-    if (employee) queueMicrotask(() => fetchRelatedData());
-  }, [employee, fetchRelatedData]);
+    // Keep the overview fast: these queries can cold-start Neon and are only
+    // needed when the corresponding tab is opened.
+    if (employee && ['Attendance', 'Payroll', 'Leave'].includes(activeTab)) {
+      queueMicrotask(() => fetchRelatedData());
+    }
+  }, [employee, activeTab, fetchRelatedData]);
 
   useEffect(() => {
     if (employee && activeTab === 'Company Mapping') queueMicrotask(() => fetchCompanyMappings());

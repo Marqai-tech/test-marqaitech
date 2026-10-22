@@ -24,28 +24,6 @@ import 'screens/settings/settings_screen.dart';
 import 'screens/settings/diagnostics_screen.dart';
 import 'screens/notifications/notifications_screen.dart';
 import 'models/employee.dart';
-import 'screens/onboarding/onboarding_screen.dart';
-import 'screens/auth/role_select_screen.dart';
-import 'screens/auth/signin_screen.dart';
-import 'screens/auth/tenant_picker_screen.dart';
-import 'screens/home/home_screen.dart';
-import 'screens/employees/employee_management_screen.dart';
-import 'screens/employees/employee_empty_screen.dart';
-import 'screens/employees/employee_detail_by_id_screen.dart';
-import 'screens/leaves/leave_home_screen.dart';
-import 'screens/attendance/attendance_home_screen.dart';
-import 'screens/attendance/attendance_report_screen.dart';
-import 'screens/employees/employee_directory_screen.dart';
-import 'screens/auth/terms_screen.dart';
-import 'screens/payroll/payroll_home_screen.dart';
-import 'screens/projects/projects_home_screen.dart';
-import 'screens/projects/project_detail_screen.dart';
-import 'screens/chat/chat_home_screen.dart';
-import 'screens/chat/chat_room_screen.dart';
-import 'models/chat.dart';
-import 'providers/payroll_provider.dart';
-import 'providers/attendance_provider.dart';
-import 'providers/chat_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -108,22 +86,6 @@ class HRMSApp extends StatelessWidget {
         initialRoute: '/',
         routes: {
           '/': (_) => const _AppWrapper(),
-          '/onboarding': (_) => const OnboardingScreen(),
-          '/role-select': (_) => const RoleSelectScreen(),
-          '/signin': (_) => const SignInScreen(),
-          '/tenant-picker': (_) => const TenantPickerScreen(),
-          '/home-new': (_) => const HomeScreen(),
-          '/employees-new': (_) => const EmployeeManagementScreen(),
-          '/employee-empty': (_) => const EmployeeEmptyScreen(),
-          '/leaves-new': (_) => const LeaveHomeScreen(),
-          '/attendance-new': (_) => const AttendanceHomeScreen(),
-          '/payroll-new': (_) => const PayrollHomeScreen(),
-          '/projects-new': (_) => const ProjectsHomeScreen(),
-          // Task 117 — Collaboration Chat module (web parity)
-          '/chat': (_) => const ChatHomeScreen(),
-          // '/projects/detail' is handled by onGenerateRoute below (needs the
-          // project ID passed as settings.arguments — same pattern as
-          // '/employees/detail').
           '/login': (_) => const LoginScreen(),
           '/dashboard': (_) => const _MainNavigation(),
           '/employees': (_) => const EmployeeListScreen(),
@@ -194,37 +156,10 @@ class _AppWrapperState extends State<_AppWrapper> {
     await Future.delayed(const Duration(seconds: 2));
     if (!mounted) return;
     final auth = context.read<AuthProvider>();
-    final seenOnboarding = StorageService.prefs.getBool('seen_onboarding') ?? false;
     if (auth.isLoggedIn) {
-      // Task 110 — VALIDATE the restored session before entering the app:
-      // tokens expire after 24h on the server. Without this check the app
-      // used to land on Home with a dead token and EVERY module errored.
-      final valid = await ApiService.validateSession();
-      if (!mounted) return;
-      if (!valid) {
-        // Token expired/invalid — clean up and ask for a fresh sign-in.
-        try { await auth.logout(); } catch (_) {}
-        if (!mounted) return;
-        Navigator.pushReplacementNamed(context, '/signin');
-        rootMessengerKey.currentState?.showSnackBar(const SnackBar(
-          content: Text('Your session has expired. Please sign in again.'),
-          backgroundColor: Color(0xFFB7791F),
-          duration: Duration(seconds: 4),
-        ));
-        return;
-      }
-      // Token is alive — refresh name/photo from the server.
-      final fresh = await ApiService.refreshStoredUser();
-      if (mounted && fresh != null) auth.adoptUser(fresh);
-      // Super admins must pick a tenant workspace first (web switcher parity);
-      // everyone else goes straight to the dashboard.
-      final isSuper = auth.user?.role == 'super_admin';
-      Navigator.pushReplacementNamed(context, isSuper ? '/tenant-picker' : '/home-new');
-    } else if (!seenOnboarding) {
-      await StorageService.prefs.setBool('seen_onboarding', true);
-      Navigator.pushReplacementNamed(context, '/onboarding');
+      Navigator.pushReplacementNamed(context, '/dashboard');
     } else {
-      Navigator.pushReplacementNamed(context, '/role-select');
+      Navigator.pushReplacementNamed(context, '/login');
     }
   }
 

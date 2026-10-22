@@ -2,21 +2,19 @@ import { NextResponse } from 'next/server';
 
 /**
  * APK Download API
- *
- * Serves the 3Boxes HRMS Android APK (Flutter, built from hrms_app/).
- * The binary is committed at public/downloads/ so every Vercel deployment
- * serves it directly. This route redirects to the LATEST APK with an
- * ABSOLUTE, host-aware URL (NextResponse.redirect rejects relative URLs —
- * the previous relative redirect 500-ed on every host).
- *
- * The unversioned file is kept as an "always latest" alias for the small
- * number of v1.0.8 builds that hardcode /downloads/3boxes-hrms-mobile.apk.
- * New releases use a versioned filename and are referenced from
- * src/lib/app-version.ts + the web login page.
+ * 
+ * Serves the 3Boxes HRMS Android APK file.
+ * The APK is built from the Flutter project (hrms_app/) via GitHub Actions CI/CD.
+ * 
+ * For local development, the APK should be placed at: public/downloads/3boxes-hrms.apk
+ * For production, it's served from the same location.
  */
-export async function GET(request: Request) {
-  const origin = `${request.headers.get('x-forwarded-proto') || 'https'}://${
-    request.headers.get('x-forwarded-host') || request.headers.get('host') || '3boxeshrms.com'
-  }`;
-  return NextResponse.redirect(`${origin}/downloads/3boxes-hrms-mobile.apk`, 307);
+export async function GET() {
+  // Check if the APK file exists in the public directory
+  // Since we can't check filesystem in edge runtime, redirect to the download page
+  // which has a direct link to the APK file
+  
+  // Redirect to the APK download location
+  // The file is served statically from /downloads/3boxes-hrms.apk
+  return NextResponse.redirect('https://nexus-hrms-mu.vercel.app/downloads/3boxes-hrms.apk');
 }

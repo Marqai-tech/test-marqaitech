@@ -117,16 +117,11 @@ export async function POST(request: Request) {
         return fail('No attendance record exists for this date. Select a date with production hours below 8 hours.', 422);
       }
 
+      // Missing Break-In/Break-Out is a separate regularization case. Never
+      // infer production hours from gross time or the default lunch window.
       let productionHours = attendance.workHours == null ? null : Number(attendance.workHours);
-      if (productionHours == null && attendance.checkIn && attendance.checkOut) {
-        const grossMinutes = (new Date(attendance.checkOut).getTime() - new Date(attendance.checkIn).getTime()) / 60000;
-        const breakMinutes = effectiveBreakMinutes(
-          attendance.breakIn ? new Date(attendance.breakIn) : null,
-          attendance.breakOut ? new Date(attendance.breakOut) : null,
-          new Date(attendance.checkIn),
-          new Date(attendance.checkOut), await loadAttendanceBreakPolicy(db),
-        );
-        productionHours = (grossMinutes - breakMinutes) / 60;
+      if (!attendance.breakIn || !attendance.breakOut) {
+        return fail('Break-In and Break-Out are required before production hours can be calculated. Submit break regularization for the missing punch(es).', 422);
       }
       if (productionHours == null || productionHours >= 8) {
         return fail('Production hours are not short on this date. Select a date with production hours below 8 hours.', 422);
@@ -198,7 +193,7 @@ export async function POST(request: Request) {
       });
       if (duplicate) {
         return fail(
-          `A ${duplicate.status} regularization request for this date (${punchType === 'check_in' ? 'Check-In' : 'Check-Out'}) already exists. Duplicate requests are not allowed.`,
+          `A ${duplicate.status} regularization request for this date (${punchType === 'check_in' ? 'Check-In' : punchType === 'check_out' ? 'Check-Out' : punchType === 'break_in' ? 'Break-In' : punchType === 'break_out' ? 'Break-Out' : 'Production Shortfall'}) already exists. Duplicate requests are not allowed.`,
           409,
         );
       }

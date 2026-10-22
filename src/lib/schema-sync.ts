@@ -927,6 +927,8 @@ const SYNC_STATEMENTS: string[] = [
   `CREATE INDEX IF NOT EXISTS "Holiday_companyId_idx" ON "Holiday"("companyId")`,
 
   // ─── AttendancePolicyConfig: ensure table exists (missing on some Vercel deploys) ───
+  // Attendance columns used by the profile and sync endpoints.
+  `ALTER TABLE "Attendance" ADD COLUMN IF NOT EXISTS "earlyLogout" BOOLEAN NOT NULL DEFAULT false`,
   `CREATE TABLE IF NOT EXISTS "AttendancePolicyConfig" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
