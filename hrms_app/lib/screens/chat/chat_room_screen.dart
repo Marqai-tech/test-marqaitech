@@ -299,6 +299,96 @@ class _ChatRoomBodyState extends State<_ChatRoomBody> {
       ));
   }
 
+  /// Task 122 — rename this group chat (chat managers only).
+  Future<void> _renameChat() async {
+    final rooms = context.read<ChatRoomsProvider>();
+    final ctrl = TextEditingController(text: rooms.displayName(widget.room));
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dlgCtx) => AlertDialog(
+        title: const Text('Rename chat'),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          decoration: const InputDecoration(hintText: 'New name…', isDense: true),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dlgCtx, false), child: const Text('Cancel')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: MaanColors.primary),
+            onPressed: () => Navigator.pop(dlgCtx, true),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    final name = ctrl.text.trim();
+    if (name.isEmpty || !mounted) return;
+    try {
+      await rooms.renameRoom(widget.room.id, name);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(const SnackBar(content: Text('Chat renamed'), backgroundColor: Color(0xFF2FA36B)));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(
+          content: Text(e.toString().replaceAll('Exception: ', '')),
+          backgroundColor: MaanColors.accentRed,
+        ));
+    }
+  }
+
+  /// Task 122 — delete this chat. Direct: hides MY copy. Group: removes for
+  /// everyone (server soft-deletes; history stays retained for Super Admin
+  /// eDiscovery). Pops the thread after a successful delete.
+  Future<void> _deleteChat() async {
+    final isDirect = widget.room.isDirect;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dlgCtx) => AlertDialog(
+        title: Text(isDirect ? 'Delete chat?' : 'Delete for everyone?'),
+        content: Text(
+          isDirect
+              ? 'This chat disappears from your chat list. The other participant keeps the conversation, and the Super Admin retains the history as a safety measure.'
+              : 'Members lose access to this conversation. The full history stays retained in the audit archive (Super Admin → Deleted Chat History).',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dlgCtx, false), child: const Text('Cancel')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: const Color(0xFFDC2626)),
+            onPressed: () => Navigator.pop(dlgCtx, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    final rooms = context.read<ChatRoomsProvider>();
+    try {
+      final scope = await rooms.deleteRoom(widget.room.id);
+      if (!mounted) return;
+      Navigator.of(context).pop(); // leave the (now deleted) thread
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(
+          content: Text(scope == 'self' ? 'Direct chat deleted' : 'Group chat deleted — history retained for audit'),
+          backgroundColor: const Color(0xFF2FA36B),
+        ));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(
+          content: Text(e.toString().replaceAll('Exception: ', '')),
+          backgroundColor: MaanColors.accentRed,
+        ));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final rooms = context.watch<ChatRoomsProvider>();
@@ -324,12 +414,46 @@ class _ChatRoomBodyState extends State<_ChatRoomBody> {
         elevation: 0.5,
         iconTheme: const IconThemeData(color: MaanColors.navy),
         actions: [
-          // Task 120 — grow the group after creation (direct chats stay 1:1).
-          if (!widget.room.isDirect)
+          // Task 120 — grow the group after creation (direct chats stay 1:1);
+          // Task 122 — now gated to chat managers server-side, and hidden in
+          // the UI for users without edit rights.
+          if (!widget.room.isDirect && rooms.canEditGroup)
             IconButton(
               onPressed: _showAddMembersSheet,
               tooltip: 'Add members',
               icon: const Icon(Icons.person_add_alt_1_rounded, size: 20),
+            ),
+          // Task 122 — chat actions menu (rename / delete per governance).
+          if ((widget.room.isDirect && rooms.canDeleteDirect) ||
+              (!widget.room.isDirect && (rooms.canEditGroup || rooms.canDeleteGroup)))
+            PopupMenuButton<String>(
+              tooltip: 'Chat actions',
+              icon: const Icon(Icons.more_vert_rounded, size: 20),
+              onSelected: (choice) {
+                if (choice == 'rename') _renameChat();
+                if (choice == 'delete') _deleteChat();
+              },
+              itemBuilder: (_) => [
+                if (!widget.room.isDirect && rooms.canEditGroup)
+                  const PopupMenuItem(
+                    value: 'rename',
+                    child: Row(children: [
+                      Icon(Icons.edit_outlined, size: 18, color: Color(0xFF0EA5A6)),
+                      SizedBox(width: 8),
+                      Text('Rename chat'),
+                    ]),
+                  ),
+                if ((widget.room.isDirect && rooms.canDeleteDirect) ||
+                    (!widget.room.isDirect && rooms.canDeleteGroup))
+                  const PopupMenuItem(
+                    value: 'delete',
+                    child: Row(children: [
+                      Icon(Icons.delete_outline_rounded, size: 18, color: Color(0xFFDC2626)),
+                      SizedBox(width: 8),
+                      Text('Delete chat', style: TextStyle(color: Color(0xFFDC2626))),
+                    ]),
+                  ),
+              ],
             ),
         ],
         titleSpacing: 0,

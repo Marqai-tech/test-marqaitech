@@ -329,3 +329,59 @@ class ChatDirectoryPerson {
     );
   }
 }
+
+/// Task 122 — chat governance: the tenant's toggles plus the signed-in
+/// user's effective permissions, parsed from:
+///   GET /api/collaboration/chat/settings
+///     { settings: { customManagersEnabled, directDeleteEnabled, managerIds },
+///       permissions: { isChatAdmin, isChatManager, canCreateGroup,
+///                      canEditGroup, canDeleteGroup, canDeleteDirect } }
+/// Defaults mirror the server: group management admins-only, direct-chat
+/// delete enabled. Every read is shape-agnostic (never throws).
+class ChatGovernance {
+  final bool customManagersEnabled;
+  final bool directDeleteEnabled;
+  final List<String> managerIds;
+  final bool isChatAdmin;
+  final bool isChatManager;
+  final bool canCreateGroup;
+  final bool canEditGroup;
+  final bool canDeleteGroup;
+  final bool canDeleteDirect;
+
+  const ChatGovernance({
+    this.customManagersEnabled = false,
+    this.directDeleteEnabled = true,
+    this.managerIds = const <String>[],
+    this.isChatAdmin = false,
+    this.isChatManager = false,
+    this.canCreateGroup = false,
+    this.canEditGroup = false,
+    this.canDeleteGroup = false,
+    this.canDeleteDirect = true,
+  });
+
+  /// Conservative defaults used while loading or when the settings endpoint
+  /// is unreachable: group actions OFF (UI hides them), direct delete ON.
+  static const ChatGovernance loading = ChatGovernance();
+
+  factory ChatGovernance.fromJson(dynamic raw) {
+    final m = jsonMap(raw);
+    final p = jsonMap(m['permissions']);
+    final s = jsonMap(m['settings']);
+    return ChatGovernance(
+      customManagersEnabled: s['customManagersEnabled'] == true,
+      directDeleteEnabled: s['directDeleteEnabled'] is bool ? s['directDeleteEnabled'] as bool : true,
+      managerIds:
+          jsonList(s['managerIds']).map((e) => e.toString()).where((e) => e.isNotEmpty).toSet().toList(),
+      isChatAdmin: _flagStatic(p['isChatAdmin']),
+      isChatManager: _flagStatic(p['isChatManager']),
+      canCreateGroup: _flagStatic(p['canCreateGroup']),
+      canEditGroup: _flagStatic(p['canEditGroup']),
+      canDeleteGroup: _flagStatic(p['canDeleteGroup']),
+      canDeleteDirect: p['canDeleteDirect'] is bool ? p['canDeleteDirect'] as bool : true,
+    );
+  }
+
+  static bool _flagStatic(dynamic v) => v is bool ? v : false;
+}

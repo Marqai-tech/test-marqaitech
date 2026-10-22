@@ -644,6 +644,39 @@ class ApiService {
     throw Exception(data['error'] ?? 'Failed to add members');
   }
 
+  // ─── Task 122: chat governance (settings + rename/delete) ─────
+
+  /// GET /api/collaboration/chat/settings — the tenant's chat governance
+  /// toggles plus the signed-in user's EFFECTIVE permissions (canCreateGroup,
+  /// canEditGroup, canDeleteGroup, canDeleteDirect). Fails soft: callers
+  /// treat a settings error as "defaults" (server still enforces).
+  static Future<Map<String, dynamic>> getChatSettings() async {
+    final response = await _get(ApiConfig.chatSettings);
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 200) return data;
+    throw Exception(data['error'] ?? 'Failed to load chat settings');
+  }
+
+  /// PATCH /api/collaboration/chat/rooms/[id] — rename a group chat
+  /// (chat managers only; direct rooms cannot be renamed).
+  static Future<Map<String, dynamic>> renameChatRoom(String roomId, String name) async {
+    final response = await _patch(ApiConfig.chatRoom(roomId), {'name': name});
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 200) return data;
+    throw Exception(data['error'] ?? 'Failed to rename chat');
+  }
+
+  /// DELETE /api/collaboration/chat/rooms/[id] — Task 122: delete a chat.
+  /// Direct rooms: hides the caller's copy (scope:'self'). Group rooms:
+  /// soft-deletes for everyone (scope:'everyone') — messages stay retained
+  /// server-side for Super Admin eDiscovery.
+  static Future<Map<String, dynamic>> deleteChatRoom(String roomId) async {
+    final response = await _delete(ApiConfig.chatRoom(roomId));
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 200) return data;
+    throw Exception(data['error'] ?? 'Failed to delete chat');
+  }
+
   // ─── Task 121: Projects ↔ Chat integration ────────────────────
 
   /// POST /api/projects/[id]/workspace — idempotently ensure the project's

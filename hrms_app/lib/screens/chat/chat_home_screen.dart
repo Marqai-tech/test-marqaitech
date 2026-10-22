@@ -167,6 +167,136 @@ class _RoomsTab extends StatelessWidget {
   final void Function(ChatRoomModel) onOpenRoom;
   const _RoomsTab({required this.onOpenRoom});
 
+  /// Task 122 — long-press actions for one room, gated by the tenant's chat
+  /// governance: rename = chat managers (group rooms); delete = direct
+  /// (everyone while the toggle is on / admins always) or group (managers).
+  Future<void> _showRoomActions(BuildContext context, ChatRoomsProvider chat, ChatRoomModel room) async {
+    final isDirect = room.isDirect;
+    final canRename = !isDirect && chat.canEditGroup;
+    final canDelete = isDirect ? chat.canDeleteDirect : chat.canDeleteGroup;
+    if (!canRename && !canDelete) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (sheetCtx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 6),
+            ListTile(
+              dense: true,
+              title: Text(chat.displayName(room), style: const TextStyle(fontWeight: FontWeight.w800)),
+              subtitle: Text(isDirect ? 'Direct chat' : 'Group chat'),
+            ),
+            const Divider(height: 1),
+            if (canRename)
+              ListTile(
+                leading: const Icon(Icons.edit_outlined, color: Color(0xFF0EA5A6)),
+                title: const Text('Rename chat'),
+                onTap: () {
+                  Navigator.pop(sheetCtx);
+                  _renameDialog(context, chat, room);
+                },
+              ),
+            if (canDelete)
+              ListTile(
+                leading: const Icon(Icons.delete_outline_rounded, color: Color(0xFFDC2626)),
+                title: Text(isDirect ? 'Delete chat' : 'Delete for everyone'),
+                subtitle: Text(
+                  isDirect
+                      ? 'Removes it from your chat list — the other person keeps it'
+                      : 'Members lose access · history stays retained for audit',
+                  style: const TextStyle(fontSize: 11.5),
+                ),
+                onTap: () {
+                  Navigator.pop(sheetCtx);
+                  _confirmDelete(context, chat, room);
+                },
+              ),
+            const SizedBox(height: 6),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _renameDialog(BuildContext context, ChatRoomsProvider chat, ChatRoomModel room) async {
+    final ctrl = TextEditingController(text: chat.displayName(room));
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dlgCtx) => AlertDialog(
+        title: const Text('Rename chat'),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          decoration: const InputDecoration(hintText: 'New name…', isDense: true),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dlgCtx, false), child: const Text('Cancel')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: MaanColors.primary),
+            onPressed: () => Navigator.pop(dlgCtx, true),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    final name = ctrl.text.trim();
+    if (name.isEmpty) return;
+    try {
+      await chat.renameRoom(room.id, name);
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Chat renamed'), backgroundColor: Color(0xFF2FA36B)),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceAll('Exception: ', '')), backgroundColor: const Color(0xFFDC2626)),
+      );
+    }
+  }
+
+  Future<void> _confirmDelete(BuildContext context, ChatRoomsProvider chat, ChatRoomModel room) async {
+    final isDirect = room.isDirect;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dlgCtx) => AlertDialog(
+        title: Text(isDirect ? 'Delete chat?' : 'Delete for everyone?'),
+        content: Text(
+          isDirect
+              ? 'This chat disappears from your chat list. The other participant keeps the conversation, and the Super Admin retains the history as a safety measure.'
+              : 'Members lose access to this conversation. The full history stays retained in the audit archive (Super Admin → Deleted Chat History).',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dlgCtx, false), child: const Text('Cancel')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: const Color(0xFFDC2626)),
+            onPressed: () => Navigator.pop(dlgCtx, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      final scope = await chat.deleteRoom(room.id);
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(scope == 'self' ? 'Direct chat deleted' : 'Group chat deleted — history retained for audit'),
+          backgroundColor: const Color(0xFF2FA36B),
+        ),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceAll('Exception: ', '')), backgroundColor: const Color(0xFFDC2626)),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final chat = context.watch<ChatRoomsProvider>();
@@ -225,6 +355,9 @@ class _RoomsTab extends StatelessWidget {
                                 child: InkWell(
                                   borderRadius: BorderRadius.circular(14),
                                   onTap: () => onOpenRoom(room),
+                                  // Task 122 — long-press opens the chat actions sheet
+                                  // (rename / delete per the tenant's chat governance).
+                                  onLongPress: () => _showRoomActions(context, chat, room),
                                   child: Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                                     decoration: BoxDecoration(
@@ -594,15 +727,19 @@ class _NewChatSheetState extends State<_NewChatSheet> {
                     onTap: () => setState(() => _group = false),
                   ),
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _typeButton(
-                    icon: Icons.group_rounded,
-                    label: 'Group',
-                    selected: _group,
-                    onTap: () => setState(() => _group = true),
+                // Task 122 — group chats are manager-only: the Group option
+                // disappears entirely for users without create rights.
+                if (chat.canCreateGroup) ...[
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _typeButton(
+                      icon: Icons.group_rounded,
+                      label: 'Group',
+                      selected: _group,
+                      onTap: () => setState(() => _group = true),
+                    ),
                   ),
-                ),
+                ],
               ],
             ),
             if (_group) ...[

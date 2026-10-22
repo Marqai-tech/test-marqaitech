@@ -98,7 +98,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     });
     if (!membership) return NextResponse.json({ error: 'Not a member of this room' }, { status: 403 });
 
-    // REQ-SEC-EMP-01: DLP scan
+    // Task 122 — a deleted (deactivated) room rejects new messages. History
+    // stays queryable by Super Admin; members see the room vanish instead.
+    const roomState = await db.chatRoom.findUnique({ where: { id }, select: { isActive: true } });
+    if (!roomState || !roomState.isActive) {
+      return NextResponse.json({ error: 'This chat was deleted' }, { status: 404 });
+    }
     const dlpResult = scanContentForPII(messageBody);
     if (dlpResult.action === 'block') {
       // Log the DLP block
@@ -193,6 +198,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       where: { id },
       data: { lastMessageAt: new Date() },
     });
+
+    // Task 122 — a new message resurfaces the room for members who had
+    // "deleted" (hidden) their direct-chat copy, so replies are never lost.
+    await db.chatRoomMember
+      .updateMany({ where: { roomId: id, isHidden: true }, data: { isHidden: false } })
+      .catch(() => null);
 
     // REQ-COL-04: AI Translation (async — caller can request translation separately)
     // We don't auto-translate here to keep this endpoint fast. Translation is a

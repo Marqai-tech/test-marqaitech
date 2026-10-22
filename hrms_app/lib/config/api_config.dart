@@ -137,6 +137,9 @@ class ApiConfig {
   static String chatMessages(String roomId) => '$apiUrl/collaboration/chat/rooms/$roomId/messages';
   // Task 120 — manage members of an EXISTING room (add people after creation).
   static String chatRoomMembers(String roomId) => '$apiUrl/collaboration/chat/rooms/$roomId/members';
+  // Task 122 — chat governance settings + per-room rename/delete.
+  static String get chatSettings => '$apiUrl/collaboration/chat/settings';
+  static String chatRoom(String roomId) => '$apiUrl/collaboration/chat/rooms/$roomId';
 
   // Task 121 — Projects ↔ Chat integration: workspace room + aggregated files
   static String projectWorkspace(String projectId) => '$apiUrl/projects/$projectId/workspace';

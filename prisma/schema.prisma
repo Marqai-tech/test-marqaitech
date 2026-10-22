@@ -4988,6 +4988,11 @@ model ChatRoom {
   retentionDays Int?     // REQ-6.2: Auto-delete messages older than N days
   lastMessageAt DateTime?
   isActive      Boolean  @default(true)
+  // Task 122 — soft-delete audit trail: deleting a group chat flips
+  // isActive=false and stamps deletedAt/deletedBy; messages stay in the DB
+  // (retention measure — Super Admin eDiscovery surfaces deactivated rooms).
+  deletedAt     DateTime?
+  deletedBy     String?
 
   members       ChatRoomMember[]
   messages      ChatMessage[]
@@ -5010,6 +5015,11 @@ model ChatRoomMember {
   joinedAt      DateTime @default(now())
   lastReadAt    DateTime?
   mutedUntil    DateTime?
+  // Task 122 — per-member "delete direct chat": hides the room from THIS
+  // member's list only (data stays retained). A new incoming message clears
+  // the flag so the conversation resurfaces instead of swallowing replies.
+  isHidden      Boolean  @default(false)
+  hiddenAt      DateTime?
 
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -8253,6 +8263,18 @@ model CollaborationSettings {
   maxCallDurationMin      Int      @default(60)
   allowExternalSharing    Boolean  @default(true)
   watermarkEnabled        Boolean  @default(false)
+  // ─── Task 122: Chat governance (who can create / delete / edit chats) ───
+  // When false (default) ONLY admin roles (tenant_admin, admin, hr_admin,
+  // company_hr_admin) can create, rename, populate or delete group chats.
+  // When true, the employees listed in chatGroupManagerIds ALSO hold those
+  // rights ("chat managers" selected by the tenant admin in settings).
+  chatCustomManagersEnabled Boolean @default(false)
+  // JSON array of EMPLOYEE ids granted group-chat manager rights when
+  // chatCustomManagersEnabled is true. Example: '["cuid1","cuid2"]'
+  chatGroupManagerIds     String   @default("[]")
+  // Whether EVERY user may delete (hide) their direct 1:1 chats. Chat admins
+  // can always delete regardless of this toggle.
+  chatDirectDeleteEnabled Boolean  @default(true)
   updatedBy               String?
 
   createdAt     DateTime @default(now())

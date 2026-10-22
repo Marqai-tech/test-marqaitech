@@ -5,7 +5,7 @@ import {
   FiMessageCircle, FiPlus, FiSend, FiUsers, FiLock, FiGlobe,
   FiCornerUpLeft, FiSearch, FiPhone, FiVideo, FiPaperclip,
   FiMoreVertical, FiStar, FiTrash2, FiX, FiCheck, FiHash,
-  FiRefreshCw, FiUserPlus, FiAlertCircle, FiFileText,
+  FiRefreshCw, FiUserPlus, FiAlertCircle, FiFileText, FiEdit2,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
@@ -82,6 +82,25 @@ function formatBytes(n?: number): string {
   return `${(n / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+// Task 122 — effective chat permissions returned by /api/collaboration/chat/settings
+interface ChatPermissions {
+  isChatAdmin: boolean;
+  isChatManager: boolean;
+  canCreateGroup: boolean;
+  canEditGroup: boolean;
+  canDeleteGroup: boolean;
+  canDeleteDirect: boolean;
+}
+
+const PERM_UNKNOWN: ChatPermissions = {
+  isChatAdmin: false,
+  isChatManager: false,
+  canCreateGroup: true, // optimistic until the settings endpoint answers
+  canEditGroup: true,
+  canDeleteGroup: true,
+  canDeleteDirect: true,
+};
+
 export default function ChatPage() {
   const { user } = useAuthStore();
   const scopeQuery = useCompanyContextStore(s => s.scopeQuery);
@@ -109,6 +128,13 @@ export default function ChatPage() {
   // Task 121 — file attachments (base64 data URLs, ≤5 files × 4 MB, server-validated)
   const [pendingAttachments, setPendingAttachments] = useState<MessageAttachment[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Task 122 — chat governance + room actions
+  const [perm, setPerm] = useState<ChatPermissions>(PERM_UNKNOWN);
+  const [showRoomMenu, setShowRoomMenu] = useState(false);
+  const [showRenameModal, setShowRenameModal] = useState(false);
+  const [renameValue, setRenameValue] = useState('');
+  const [roomActionBusy, setRoomActionBusy] = useState(false);
+  const isGroupish = (t: string) => t !== 'direct';
 
   // ─── Fetch Chat Rooms ──────────────────────────
   const fetchRooms = useCallback(async () => {
@@ -144,6 +170,25 @@ export default function ChatPage() {
   }, [scopeQuery]);
 
   useEffect(() => { fetchRooms(); }, [fetchRooms]);
+
+  // ─── Task 122: Chat Governance permissions ─────
+  const fetchPermissions = useCallback(async () => {
+    try {
+      const r = await fetch('/api/collaboration/chat/settings', { headers: getAuthHeaders() });
+      if (!r.ok) return;
+      const d = await r.json();
+      if (d.permissions) setPerm(d.permissions as ChatPermissions);
+    } catch {
+      /* unknown → optimistic defaults; the server still enforces */
+    }
+  }, []);
+
+  useEffect(() => { fetchPermissions(); }, [fetchPermissions]);
+
+  // Non-managers never see the Group option in the new-chat modal.
+  useEffect(() => {
+    if (!perm.canCreateGroup && newChatType === 'group') setNewChatType('direct');
+  }, [perm.canCreateGroup, newChatType]);
 
   // ─── Fetch Messages for Selected Room ──────────
   const fetchMessages = useCallback(async (roomId: string) => {
@@ -302,6 +347,67 @@ export default function ChatPage() {
     }
   };
 
+  // ─── Task 122: Rename / Delete the selected chat ─
+  const openRename = () => {
+    if (!selectedRoom) return;
+    setRenameValue(selectedRoom.name || '');
+    setShowRoomMenu(false);
+    setShowRenameModal(true);
+  };
+
+  const handleRenameRoom = async () => {
+    if (!selectedRoom) return;
+    const name = renameValue.trim();
+    if (!name) {
+      toast.error('Group name cannot be empty');
+      return;
+    }
+    setRoomActionBusy(true);
+    try {
+      const r = await fetch(`/api/collaboration/chat/rooms/${selectedRoom.id}`, {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ name }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed');
+      toast.success('Chat renamed');
+      setShowRenameModal(false);
+      await fetchRooms();
+      setSelectedRoom(prev => (prev && prev.id === selectedRoom.id ? { ...prev, name } : prev));
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Failed to rename');
+    } finally {
+      setRoomActionBusy(false);
+    }
+  };
+
+  const handleDeleteRoom = async () => {
+    if (!selectedRoom) return;
+    const direct = selectedRoom.roomType === 'direct';
+    const ok = direct
+      ? window.confirm('Delete this direct chat? It disappears from your chat list (the other participant keeps it, and the Super Admin retains the history for safety).')
+      : window.confirm('Delete this chat for EVERYONE? Messages stay retained in the audit archive (Super Admin → Deleted Chat History), but members lose access to the conversation.');
+    if (!ok) return;
+    setRoomActionBusy(true);
+    try {
+      const r = await fetch(`/api/collaboration/chat/rooms/${selectedRoom.id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed');
+      toast.success(d.scope === 'self' ? 'Direct chat deleted' : 'Group chat deleted — history retained for audit');
+      setShowRoomMenu(false);
+      setSelectedRoom(null);
+      fetchRooms();
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Failed to delete chat');
+    } finally {
+      setRoomActionBusy(false);
+    }
+  };
+
   // ─── Get room display name ─────────────────────
   const getRoomName = (room: ChatRoom) => {
     if (room.name) return room.name;
@@ -422,7 +528,7 @@ export default function ChatPage() {
                 </div>
               </div>
               <div className="flex items-center gap-1">
-                {selectedRoom.roomType !== 'direct' && (
+                {selectedRoom.roomType !== 'direct' && perm.canEditGroup && (
                   <button
                     onClick={() => { setAddMemberIds([]); setShowAddMembersModal(true); fetchEmployees(); }}
                     className="p-2 rounded-lg text-slate-400 hover:text-teal-500 hover:bg-teal-50 transition-colors"
@@ -437,6 +543,45 @@ export default function ChatPage() {
                 <button className="p-2 rounded-lg text-slate-400 hover:text-teal-500 hover:bg-teal-50 transition-colors" title="Video Call">
                   <FiVideo className="w-4 h-4" />
                 </button>
+                {/* Task 122 — chat actions (rename / delete) per governance */}
+                {((selectedRoom.roomType === 'direct' && perm.canDeleteDirect) ||
+                  (isGroupish(selectedRoom.roomType) && (perm.canEditGroup || perm.canDeleteGroup))) && (
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowRoomMenu(v => !v)}
+                      className="p-2 rounded-lg text-slate-400 hover:text-teal-500 hover:bg-teal-50 transition-colors"
+                      title="Chat actions"
+                    >
+                      <FiMoreVertical className="w-4 h-4" />
+                    </button>
+                    {showRoomMenu && (
+                      <>
+                        <div className="fixed inset-0 z-30" onClick={() => setShowRoomMenu(false)} />
+                        <div className="absolute right-0 top-10 z-40 w-56 rounded-xl border border-slate-200 bg-white shadow-lg py-1">
+                          {isGroupish(selectedRoom.roomType) && perm.canEditGroup && (
+                            <button
+                              onClick={openRename}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-700 hover:bg-slate-50 text-left"
+                            >
+                              <FiEdit2 className="w-3.5 h-3.5 text-teal-500" /> Rename chat
+                            </button>
+                          )}
+                          {((selectedRoom.roomType === 'direct' && perm.canDeleteDirect) ||
+                            (isGroupish(selectedRoom.roomType) && perm.canDeleteGroup)) && (
+                            <button
+                              onClick={handleDeleteRoom}
+                              disabled={roomActionBusy}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-600 hover:bg-red-50 text-left disabled:opacity-50"
+                            >
+                              <FiTrash2 className="w-3.5 h-3.5" />
+                              {selectedRoom.roomType === 'direct' ? 'Delete direct chat' : 'Delete for everyone'}
+                            </button>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -573,14 +718,17 @@ export default function ChatPage() {
               >
                 <FiMessageCircle className="w-4 h-4 inline mr-1" /> Direct
               </button>
-              <button
-                onClick={() => setNewChatType('group')}
-                className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  newChatType === 'group' ? 'bg-teal-500 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-              >
-                <FiUsers className="w-4 h-4 inline mr-1" /> Group
-              </button>
+              {/* Task 122 — group chats are manager-only; hidden otherwise */}
+              {perm.canCreateGroup && (
+                <button
+                  onClick={() => setNewChatType('group')}
+                  className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    newChatType === 'group' ? 'bg-teal-500 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  <FiUsers className="w-4 h-4 inline mr-1" /> Group
+                </button>
+              )}
             </div>
 
             {newChatType === 'group' && (
@@ -734,6 +882,36 @@ export default function ChatPage() {
             >
               <FiUserPlus className="w-4 h-4" />
               {addingMembers ? 'Adding…' : `Add ${addMemberIds.length || ''} to Chat`}
+            </button>
+          </div>
+        </div>
+      )}
+      {/* ─── Rename Chat Modal (Task 122) ─── */}
+      {showRenameModal && selectedRoom && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-slate-800">Rename Chat</h3>
+              <button onClick={() => setShowRenameModal(false)} className="text-slate-400 hover:text-slate-700">
+                <FiX className="w-5 h-5" />
+              </button>
+            </div>
+            <input
+              type="text"
+              value={renameValue}
+              onChange={e => setRenameValue(e.target.value)}
+              placeholder="New chat name..."
+              autoFocus
+              onKeyDown={e => { if (e.key === 'Enter') handleRenameRoom(); }}
+              className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm mb-4 focus:outline-none focus:ring-1 focus:ring-teal-500"
+            />
+            <button
+              onClick={handleRenameRoom}
+              disabled={roomActionBusy || !renameValue.trim()}
+              className="w-full 3boxes-btn-primary flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <FiCheck className="w-4 h-4" />
+              {roomActionBusy ? 'Saving…' : 'Save Name'}
             </button>
           </div>
         </div>

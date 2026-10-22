@@ -12,10 +12,10 @@
 // The in-app login-page download link was REMOVED per user request — the web
 // login page is now the only download source.
 export const APP_RELEASE = {
-  versionName: '1.5.4',
-  versionCode: 21,
-  apkUrl: '/downloads/3boxes-hrms-mobile-v1.5.4.apk',
-  updatedAt: '2026-10-21',
+  versionName: '1.5.5',
+  versionCode: 22,
+  apkUrl: '/downloads/3boxes-hrms-mobile-v1.5.5.apk',
+  updatedAt: '2026-10-22',
   notes:
-    'UPDATE: Projects ↔ Chat are now integrated — every project gets its own workspace conversation with a Files tab on web and mobile; attach files/docs to projects directly or through chat (both surfaces show every file); all deleted chat history is retained and viewable by Super Admin. Installs over v1.5.3 — no uninstall needed.',
+    'UPDATE: Chat governance — only HR/tenant admins (or staff you appoint in chat settings) can create, rename or delete group chats; every user can delete their direct chats to free space; deleted history stays auditable by Super Admin. Installs over v1.5.4 — no uninstall needed.',
 };

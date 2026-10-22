@@ -119,7 +119,8 @@ export async function GET(request: NextRequest) {
           where: { isActive: false, ...(roomId ? { id: roomId } : {}) },
           orderBy: { updatedAt: 'desc' },
           take: 50,
-          select: { id: true, name: true, roomType: true, projectId: true, updatedAt: true },
+          // Task 122 — deletedAt/deletedBy stamp group-room deletions.
+          select: { id: true, name: true, roomType: true, projectId: true, updatedAt: true, deletedAt: true, deletedBy: true },
         })
         .catch(() => []);
       const inactiveProjectIds = Array.from(new Set(inactive.map((r) => r.projectId as string).filter(Boolean)));
@@ -138,6 +139,8 @@ export async function GET(request: NextRequest) {
           roomType: r.roomType,
           projectName: r.projectId ? inactiveProjectNames.get(r.projectId as string) ?? null : null,
           updatedAt: r.updatedAt,
+          deletedAt: (r as Record<string, unknown>).deletedAt ?? null,
+          deletedBy: (r as Record<string, unknown>).deletedBy ?? null,
           source,
         });
       }

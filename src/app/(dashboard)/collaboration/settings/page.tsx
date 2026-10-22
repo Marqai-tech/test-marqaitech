@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { FiSettings, FiRefreshCw, FiSave } from 'react-icons/fi';
+import { FiSettings, FiRefreshCw, FiSave, FiShield, FiSearch, FiX, FiCheck } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { useCompanyContextStore } from '@/store/companyContextStore';
@@ -26,6 +26,15 @@ interface CollaborationSettings {
   allowExternalSharing: boolean;
   watermarkEnabled: boolean;
   updatedBy?: string;
+}
+
+interface ManagerOption {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email?: string | null;
+  department?: { name: string } | null;
+  designation?: { name: string } | null;
 }
 
 const RETENTION_OPTIONS: { label: string; days: number }[] = [
@@ -71,6 +80,13 @@ export default function CollaborationSettingsPage() {
   // Calls
   const [maxCallDuration, setMaxCallDuration] = useState('60');
 
+  // Task 122 — Chat Governance
+  const [customManagers, setCustomManagers] = useState(false);
+  const [directDelete, setDirectDelete] = useState(true);
+  const [managerIds, setManagerIds] = useState<string[]>([]);
+  const [managerOptions, setManagerOptions] = useState<ManagerOption[]>([]);
+  const [managerSearch, setManagerSearch] = useState('');
+
   const fetchSettings = async () => {
     setLoading(true);
     try {
@@ -97,10 +113,38 @@ export default function CollaborationSettingsPage() {
     } finally {
       setLoading(false);
     }
+
+    // Task 122 — chat governance (separate endpoint, admin-editable).
+    try {
+      const sq = scopeQuery();
+      const cr = await fetch(`/api/collaboration/chat/settings${sq ? `?${sq}` : ''}`, { headers: getAuthHeaders() });
+      if (cr.ok) {
+        const cd = await cr.json();
+        setCustomManagers(cd.settings?.customManagersEnabled === true);
+        setDirectDelete(cd.settings?.directDeleteEnabled !== false);
+        setManagerIds(Array.isArray(cd.settings?.managerIds) ? cd.settings.managerIds : []);
+      }
+    } catch {
+      /* governance load failure must not block the page */
+    }
+  };
+
+  // Task 122 — active-employee options for the chat-manager picker.
+  const fetchManagerOptions = async () => {
+    try {
+      const res = await fetch('/api/employees?limit=200&excludeInactive=true', { headers: getAuthHeaders() });
+      if (!res.ok) return;
+      const data = await res.json();
+      const rows = Array.isArray(data.employees) ? data.employees : Array.isArray(data.data) ? data.data : [];
+      setManagerOptions(rows as ManagerOption[]);
+    } catch {
+      /* picker stays empty; the list is still editable by id */
+    }
   };
 
   useEffect(() => {
     fetchSettings();
+    fetchManagerOptions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scopeQuery]);
 
@@ -133,6 +177,20 @@ export default function CollaborationSettingsPage() {
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error((err as any).error || 'Failed to save settings');
+      }
+      // Task 122 — chat governance persists through its own endpoint.
+      const chatRes = await fetch('/api/collaboration/chat/settings', {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          customManagersEnabled: customManagers,
+          directDeleteEnabled: directDelete,
+          managerIds,
+        }),
+      });
+      if (!chatRes.ok) {
+        const err = await chatRes.json().catch(() => ({}));
+        throw new Error((err as any).error || 'Failed to save chat governance');
       }
       toast.success('Collaboration settings saved successfully');
     } catch (err: any) {
@@ -377,6 +435,137 @@ export default function CollaborationSettingsPage() {
             />
             <p className="text-xs text-thb-text-muted">Maximum duration for video/audio calls</p>
           </div>
+        </div>
+      </div>
+
+      {/* Task 122 — Chat Governance (full width) */}
+      <div className="thb-card p-6 space-y-5">
+        <div className="flex items-center gap-2">
+          <FiShield className="w-4 h-4 text-green-600" />
+          <h2 className="text-base font-semibold text-thb-text-primary">Chat Governance</h2>
+        </div>
+        <p className="text-xs text-thb-text-muted -mt-3">
+          Controls who can create, edit and delete chats across the web and mobile apps. Group-chat deletions are
+          soft — the full history stays available to the Super Admin in eDiscovery.
+        </p>
+
+        {/* Custom chat managers */}
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-thb-text-primary">Additional Chat Managers</p>
+            <p className="text-xs text-thb-text-muted">
+              Off (default): only HR / tenant admins can create, rename, populate or delete group chats. On: the
+              selected employees also get those rights.
+            </p>
+          </div>
+          <button
+            onClick={() => setCustomManagers(!customManagers)}
+            className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors flex-shrink-0 ml-4 ${
+              customManagers ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'
+            }`}
+          >
+            {customManagers ? 'Enabled' : 'Disabled'}
+          </button>
+        </div>
+
+        {customManagers && (
+          <div className="space-y-3 rounded-xl border border-thb-border p-4">
+            <div className="relative">
+              <FiSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+              <input
+                type="text"
+                value={managerSearch}
+                onChange={(e) => setManagerSearch(e.target.value)}
+                placeholder="Search employees to grant chat manager rights..."
+                className="w-full pl-9 pr-3 py-2 rounded-lg border border-thb-border text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
+              />
+            </div>
+
+            {/* Selected managers */}
+            {managerIds.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {managerIds.map((id) => {
+                  const emp = managerOptions.find((e) => e.id === id);
+                  return (
+                    <span
+                      key={id}
+                      className="px-2 py-1 bg-green-50 text-green-700 text-xs rounded-lg flex items-center gap-1"
+                    >
+                      {emp ? `${emp.firstName} ${emp.lastName}` : id}
+                      <button
+                        onClick={() => setManagerIds((prev) => prev.filter((m) => m !== id))}
+                        className="text-green-500 hover:text-red-500"
+                      >
+                        <FiX className="w-3 h-3" />
+                      </button>
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Employee picker */}
+            <div className="max-h-48 overflow-y-auto border border-thb-border rounded-lg">
+              {managerOptions.length === 0 ? (
+                <div className="p-4 text-center text-xs text-thb-text-muted">No active employees loaded</div>
+              ) : (
+                managerOptions
+                  .filter((e) => {
+                    const q = managerSearch.trim().toLowerCase();
+                    if (!q) return true;
+                    return (
+                      `${e.firstName} ${e.lastName}`.toLowerCase().includes(q) ||
+                      (e.email ?? '').toLowerCase().includes(q) ||
+                      (e.department?.name ?? '').toLowerCase().includes(q)
+                    );
+                  })
+                  .map((emp) => (
+                    <button
+                      key={emp.id}
+                      onClick={() =>
+                        setManagerIds((prev) =>
+                          prev.includes(emp.id) ? prev.filter((m) => m !== emp.id) : [...prev, emp.id],
+                        )
+                      }
+                      className={`w-full flex items-center gap-2 px-3 py-2 text-left text-xs hover:bg-slate-50 transition-colors ${
+                        managerIds.includes(emp.id) ? 'bg-green-50' : ''
+                      }`}
+                    >
+                      <div className="w-7 h-7 rounded-full bg-gradient-to-br from-green-400 to-teal-500 flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0">
+                        {emp.firstName[0]}
+                        {emp.lastName[0]}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-medium text-thb-text-primary truncate">
+                          {emp.firstName} {emp.lastName}
+                        </p>
+                        <p className="text-[10px] text-thb-text-muted">{emp.department?.name || emp.email || ''}</p>
+                      </div>
+                      {managerIds.includes(emp.id) && <FiCheck className="w-3.5 h-3.5 text-green-500 ml-auto flex-shrink-0" />}
+                    </button>
+                  ))
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Direct chat delete */}
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-thb-text-primary">Allow Users To Delete Direct Chats</p>
+            <p className="text-xs text-thb-text-muted">
+              On (default): every user can delete their 1:1 chats to free up their chat list (the other participant
+              keeps the conversation, and history stays auditable). Off: only HR / tenant admins can.
+            </p>
+          </div>
+          <button
+            onClick={() => setDirectDelete(!directDelete)}
+            className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors flex-shrink-0 ml-4 ${
+              directDelete ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'
+            }`}
+          >
+            {directDelete ? 'Enabled' : 'Disabled'}
+          </button>
         </div>
       </div>
     </div>

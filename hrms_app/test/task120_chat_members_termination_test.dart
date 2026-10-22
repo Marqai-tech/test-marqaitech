@@ -72,7 +72,9 @@ void main() {
       final src = File('lib/screens/chat/chat_room_screen.dart').readAsStringSync();
       expect(src.contains('_showAddMembersSheet'), isTrue,
           reason: 'the thread screen must open the add-members sheet');
-      expect(src.contains("if (!widget.room.isDirect)"), isTrue,
+      // Task 122 — the action is additionally gated on chat-manager rights
+      // (rooms.canEditGroup); direct rooms still never offer it.
+      expect(src.contains("if (!widget.room.isDirect && rooms.canEditGroup)"), isTrue,
           reason: 'direct 1:1 chats must NOT offer member additions');
       expect(src.contains('_AddMembersSheet'), isTrue,
           reason: 'the picker sheet must live alongside the room screen');

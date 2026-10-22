@@ -25,6 +25,12 @@ class ChatRoomsProvider extends ChangeNotifier {
   String? _myEmployeeId;
   Map<String, ChatDirectoryPerson> _directory = {};
 
+  /// Task 122 — chat governance (who may create/edit/delete chats). Starts
+  /// in the conservative [ChatGovernance.loading] state; fetchChatSettings()
+  /// fills it right after the first rooms fetch. A settings failure keeps
+  /// the defaults — the server still enforces everything.
+  ChatGovernance _governance = ChatGovernance.loading;
+
   /// Optional pre-resolved identity (tests / future session restore). When
   /// null the first fetchRooms() resolves it via ApiService.
   ChatRoomsProvider({String? initialEmployeeId}) : _myEmployeeId = initialEmployeeId;
@@ -48,6 +54,13 @@ class ChatRoomsProvider extends ChangeNotifier {
   String? get error => _error;
   String get search => _search;
   String? get myEmployeeId => _myEmployeeId;
+
+  /// Task 122 — effective chat governance for the signed-in user.
+  ChatGovernance get governance => _governance;
+  bool get canCreateGroup => _governance.canCreateGroup;
+  bool get canEditGroup => _governance.canEditGroup;
+  bool get canDeleteGroup => _governance.canDeleteGroup;
+  bool get canDeleteDirect => _governance.canDeleteDirect;
 
   // Task 118 — directory state for the Directory tab.
   List<ChatDirectoryPerson> get directoryList {
@@ -120,6 +133,8 @@ class ChatRoomsProvider extends ChangeNotifier {
       final results = await Future.wait([
         ApiService.getChatRooms(),
         _directory.isEmpty ? _loadDirectory() : Future.value(),
+        // Task 122 — governance loads alongside the rooms (non-blocking).
+        _governanceLoaded ? Future.value() : _loadGovernance(),
       ]);
       final data = results[0] as Map<String, dynamic>;
       _rooms = jsonMapList(data['rooms']).map(ChatRoomModel.fromJson).toList();
@@ -134,6 +149,52 @@ class ChatRoomsProvider extends ChangeNotifier {
       notifyListeners();
     }
   }
+
+  bool _governanceLoaded = false;
+
+  Future<void> _loadGovernance() async {
+    try {
+      final data = await performGetChatSettings();
+      _governance = ChatGovernance.fromJson(data);
+    } catch (_) {
+      // Keep the conservative defaults — the server still enforces.
+    } finally {
+      _governanceLoaded = true;
+    }
+  }
+
+  /// Explicit re-load (e.g. after the admin changes chat settings).
+  Future<void> fetchChatSettings() async {
+    _governanceLoaded = false;
+    await _loadGovernance();
+    notifyListeners();
+  }
+
+  /// Test seam (production behavior identical — delegates to ApiService).
+  Future<Map<String, dynamic>> performGetChatSettings() => ApiService.getChatSettings();
+
+  /// Task 122 — delete a chat. Direct rooms hide for THIS user
+  /// (scope 'self'); group rooms soft-delete for everyone
+  /// (scope 'everyone'). Returns the server scope.
+  Future<String> deleteRoom(String roomId) async {
+    final data = await performDeleteChatRoom(roomId);
+    final scope = (data['scope'] ?? 'everyone').toString();
+    await fetchRooms(silent: true);
+    return scope;
+  }
+
+  /// Test seam (production behavior identical — delegates to ApiService).
+  Future<Map<String, dynamic>> performDeleteChatRoom(String roomId) => ApiService.deleteChatRoom(roomId);
+
+  /// Task 122 — rename a group chat (chat managers only).
+  Future<void> renameRoom(String roomId, String name) async {
+    await performRenameChatRoom(roomId, name);
+    await fetchRooms(silent: true);
+  }
+
+  /// Test seam (production behavior identical — delegates to ApiService).
+  Future<Map<String, dynamic>> performRenameChatRoom(String roomId, String name) =>
+      ApiService.renameChatRoom(roomId, name);
 
   Future<void> _loadDirectory() async {
     try {

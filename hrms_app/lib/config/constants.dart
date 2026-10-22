@@ -1,6 +1,6 @@
 class AppConstants {
   static const String appName = '3 Boxes HRMS';
-  static const String appVersion = '1.5.4';
+  static const String appVersion = '1.5.5';
   static const String companyName = '3Boxes Technologies';
   static const String companyTagline = 'Smart HR Management';
 

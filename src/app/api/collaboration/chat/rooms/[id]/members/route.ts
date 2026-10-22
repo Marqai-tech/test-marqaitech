@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/tenant-db';
+import { getDb, getPlatformDb } from '@/lib/tenant-db';
 import { verifyToken, getTokenFromHeaders } from '@/lib/auth';
+import { getChatContext } from '@/lib/chat-permissions';
 
 /**
  * GET /api/collaboration/chat/rooms/[id]/members
@@ -74,7 +75,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
  * was the only way to populate a room before). Rules:
  *  - The room must be a group/project/team/announcement room — direct 1:1
  *    rooms stay 1:1 (create a group instead).
- *  - The requester must already be a room member, or hold an admin role.
+ *  - The requester must hold CHAT-MANAGER rights (Task 122: HR/tenant admins
+ *    by default, plus the custom manager list when enabled — populating a
+ *    chat is an "edit" right, no longer open to every room member).
  *  - Only CURRENT employees can be added: separated staff (terminated /
  *    resigned / inactive) are rejected so the Chat module never surfaces
  *    them (same rule the directory and pickers enforce via ?excludeInactive).
@@ -111,12 +114,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       );
     }
 
-    const requesterMembership = await db.chatRoomMember.findUnique({
-      where: { roomId_userId: { roomId: id, userId: requester.id } },
-    });
-    const isAdminRole = ['super_admin', 'tenant_admin', 'admin', 'hr_admin'].includes(decoded.role);
-    if (!requesterMembership && !isAdminRole) {
-      return NextResponse.json({ error: 'Only room members can add people to this chat' }, { status: 403 });
+    // Task 122 — populating a chat is an EDIT right: chat managers only
+    // (HR/tenant admins by default, plus the custom manager list).
+    const ctx = await getChatContext(request, db, platformDb, decoded, requester.id);
+    if (!ctx.permissions.canEditGroup) {
+      return NextResponse.json(
+        { error: 'Only HR/tenant admins (or selected chat managers) can add people to chats' },
+        { status: 403 },
+      );
     }
 
     const uniqueIds = Array.from(new Set(memberIds.map((v) => String(v).trim()).filter(Boolean)));
