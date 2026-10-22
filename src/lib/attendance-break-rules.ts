@@ -76,7 +76,18 @@ export function effectiveBreakMinutes(breakIn: Date | null, breakOut: Date | nul
   if (!overlapsOfficialWindow) return 0;
   if (breakIn && breakOut) {
     const actual = Math.max(0, Math.round((breakOut.getTime() - breakIn.getTime()) / 60000));
-    return Math.max(mandatory ? durationMinutes : 0, actual, Math.max(0, endMinutes - attendanceLocalMinutes(breakIn)));
+    // Official break starts at the policy startMinutes (e.g. 13:30) even if
+    // the employee's Break-In punch was late. Example: Break-In 13:37,
+    // Break-Out 14:33 → officialStartToBreakOut = 873 - 810 = 63 minutes.
+    // This ensures the break is counted from the official window start, not
+    // from the actual late Break-In time.
+    const officialStartToBreakOut = Math.max(0, attendanceLocalMinutes(breakOut) - startMinutes);
+    return Math.max(
+      mandatory ? durationMinutes : 0,
+      actual,
+      Math.max(0, endMinutes - attendanceLocalMinutes(breakIn)),
+      officialStartToBreakOut,
+    );
   }
   return mandatory ? durationMinutes : Math.max(0, Math.min(attendanceLocalMinutes(checkOut), endMinutes) - Math.max(attendanceLocalMinutes(checkIn), startMinutes));
 }
