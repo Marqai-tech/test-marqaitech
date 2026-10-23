@@ -11,6 +11,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/tenant-db';
 import { getAuthInfo } from '@/lib/companyScope';
 import { sanitizeMultiLineText } from '@/lib/sanitize';
+import { EXTRA_PROFILE_KEYS } from '@/lib/employee-profile-columns';
 
 function corsHeaders() {
   return {
@@ -178,10 +179,19 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           try { parsedValue = JSON.parse(newValue); } catch { /* keep as string */ }
         }
 
-        await db.employee.update({
-          where: { id: updateRequest.employeeId },
-          data: { [updateRequest.fieldName]: parsedValue } as Record<string, unknown>,
-        });
+        // BUG FIX: Extra profile fields (pfNumber, esiNumber, lwfNumber, etc.)
+        // are NOT in the Prisma schema. Use raw SQL for these, Prisma for others.
+        if (EXTRA_PROFILE_KEYS.includes(updateRequest.fieldName as any)) {
+          await (db as any).$executeRawUnsafe(
+            `UPDATE "Employee" SET "${updateRequest.fieldName}" = $1 WHERE "id" = $2`,
+            parsedValue, updateRequest.employeeId,
+          );
+        } else {
+          await db.employee.update({
+            where: { id: updateRequest.employeeId },
+            data: { [updateRequest.fieldName]: parsedValue } as Record<string, unknown>,
+          });
+        }
         await db.employeeUpdateRequest.update({
           where: { id },
           data: { status: 'applied', appliedAt: new Date() },

@@ -20,6 +20,7 @@
 import { sanitizeMultiLineText } from '@/lib/sanitize';
 import { ensureWorkflowConfig, resolveTierApprovers, type WorkflowTier } from '@/lib/approverResolve';
 import { loadEmployeeFieldRules } from '@/lib/employee-config';
+import { EXTRA_PROFILE_KEYS } from '@/lib/employee-profile-columns';
 
 export type FieldSensitivity = 'low' | 'high' | 'restricted';
 
@@ -171,10 +172,21 @@ export async function applyEmployeeFieldChange(
 
   // ─── LOW-risk: apply directly, keep an audit row ───
   if (fieldConfig.sensitivity === 'low') {
-    await db.employee.update({
-      where: { id: employeeId },
-      data: { [fieldName]: cleanNewValue } as Record<string, unknown>,
-    });
+    // BUG FIX: Extra profile fields (pfNumber, esiNumber, lwfNumber, etc.)
+    // are NOT in the Prisma schema — they're added via ALTER TABLE. Using
+    // Prisma's db.employee.update() for these fields throws "Unknown field".
+    // Use raw SQL for EXTRA_PROFILE_KEYS, Prisma for everything else.
+    if (EXTRA_PROFILE_KEYS.includes(fieldName as any)) {
+      await (db as any).$executeRawUnsafe(
+        `UPDATE "Employee" SET "${fieldName}" = $1 WHERE "id" = $2`,
+        cleanNewValue, employeeId,
+      );
+    } else {
+      await db.employee.update({
+        where: { id: employeeId },
+        data: { [fieldName]: cleanNewValue } as Record<string, unknown>,
+      });
+    }
     const request = await db.employeeUpdateRequest.create({
       data: {
         employeeId, fieldName, fieldLabel: fieldConfig.label, category: fieldConfig.category,
