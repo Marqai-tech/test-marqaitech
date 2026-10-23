@@ -204,10 +204,28 @@ async function processEmployeeRow(
   if (deptName) {
     departmentId = await findDepartmentByName(deptName, companyId) ?? undefined;
   }
+  if (!departmentId && deptName) {
+    // BUG FIX: Department not found in default company. Search ALL companies
+    // in the tenant — the department name might belong to a different company.
+    const allDepts = await db.department.findFirst({
+      where: {
+        name: { equals: deptName, mode: 'insensitive' },
+        company: { companyGroup: { tenantId } },
+      },
+    });
+    departmentId = allDepts?.id;
+  }
   if (!departmentId) {
     // Try to find any department in the company
     const firstDept = await db.department.findFirst({ where: { companyId } });
     departmentId = firstDept?.id;
+  }
+  if (!departmentId) {
+    // BUG FIX: No department in default company. Try ANY department in the tenant.
+    const anyDept = await db.department.findFirst({
+      where: { company: { companyGroup: { tenantId } } },
+    });
+    departmentId = anyDept?.id;
   }
   if (!departmentId) {
     return { error: `No department found for company. Specify a valid departmentName.` };
