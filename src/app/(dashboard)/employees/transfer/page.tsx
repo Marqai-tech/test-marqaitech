@@ -223,9 +223,31 @@ export default function TransferPage() {
   };
 
   const transferTypeLabel = (v: string) => TRANSFER_TYPES.find(t => t.value === v)?.label || v;
-  const deptLabel = (v: string) => DEPARTMENTS.find(d => d.value === v)?.label || (v || '—');
-  const desgLabel = (v: string) => DESIGNATIONS.find(d => d.value === v)?.label || (v || '—');
-  const locLabel = (v: string) => LOCATIONS.find(l => l.value === v)?.label || (v || '—');
+  // BUG FIX: Label functions were showing raw IDs instead of names because
+  // the employee's department/designation/branch might belong to a different
+  // company than the currently selected company in the dropdown. The lookup
+  // in DEPARTMENTS/DESIGNATIONS/LOCATIONS would fail → show raw ID.
+  // Fix: First try the dropdown arrays. If not found, try the employeeList
+  // data (which includes department.name, designation.title, branch.name).
+  const deptLabel = (v: string) => {
+    const fromDropdown = DEPARTMENTS.find(d => d.value === v)?.label;
+    if (fromDropdown) return fromDropdown;
+    // Fallback: find the employee who has this department and use the name
+    const emp = employeeList.find(e => e.department?.id === v);
+    return emp?.department?.name || (v || '—');
+  };
+  const desgLabel = (v: string) => {
+    const fromDropdown = DESIGNATIONS.find(d => d.value === v)?.label;
+    if (fromDropdown) return fromDropdown;
+    const emp = employeeList.find(e => e.designation?.id === v);
+    return emp?.designation?.title || (v || '—');
+  };
+  const locLabel = (v: string) => {
+    const fromDropdown = LOCATIONS.find(l => l.value === v)?.label;
+    if (fromDropdown) return fromDropdown;
+    const emp = employeeList.find(e => e.branch?.id === v);
+    return emp?.branch?.name || (v || '—');
+  };
 
   return (
     <div className="space-y-6">
