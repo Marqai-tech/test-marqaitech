@@ -584,6 +584,19 @@ export async function PATCH(request: Request) {
           const errors: string[] = [];
 
           const current = await (empDb as any).employee.findUnique({ where: { id: empId } });
+          // BUG FIX: Prisma doesn't return EXTRA_PROFILE_KEYS fields (pfNumber,
+          // esiNumber, etc.) because they're not in the schema. This caused
+          // 'before' to be empty string for ALL extra fields, making the system
+          // think every field changed → sending 17 approval requests when only
+          // 1 field actually changed. Fix: load extra fields via raw SQL.
+          try {
+            const { EXTRA_PROFILE_KEYS } = await import('@/lib/employee-profile-columns');
+            const cols = EXTRA_PROFILE_KEYS.map((c: string) => `"${c}"`).join(',');
+            const extraRows = await (empDb as any).$queryRawUnsafe(
+              `SELECT ${cols} FROM "Employee" WHERE "id" = $1 LIMIT 1`, empId,
+            ) as Record<string, unknown>[];
+            if (extraRows?.[0]) Object.assign(current, extraRows[0]);
+          } catch { /* best-effort — extra fields may not exist yet */ }
           const norm = (v: unknown) => String(v ?? '').trim();
           const normDate = (v: unknown) => {
             if (!v) return '';
