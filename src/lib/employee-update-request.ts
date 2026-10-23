@@ -77,6 +77,21 @@ export const FIELD_SENSITIVITY: Record<string, { sensitivity: FieldSensitivity; 
   professionalTaxNumber: { sensitivity: 'high', category: 'kyc',      label: 'Professional Tax Number' },
   lwfNumber:           { sensitivity: 'high', category: 'kyc',        label: 'LWF Number' },
 
+  // Experience (low-risk — direct update)
+  previousEmployer1:   { sensitivity: 'low',  category: 'experience', label: 'Previous Employer 1' },
+  previousDesignation1:{ sensitivity: 'low',  category: 'experience', label: 'Previous Designation 1' },
+  previousDuration1:   { sensitivity: 'low',  category: 'experience', label: 'Previous Duration 1' },
+  previousReason1:     { sensitivity: 'low',  category: 'experience', label: 'Previous Reason 1' },
+  previousEmployer2:   { sensitivity: 'low',  category: 'experience', label: 'Previous Employer 2' },
+  previousDesignation2:{ sensitivity: 'low',  category: 'experience', label: 'Previous Designation 2' },
+  previousDuration2:   { sensitivity: 'low',  category: 'experience', label: 'Previous Duration 2' },
+  previousReason2:     { sensitivity: 'low',  category: 'experience', label: 'Previous Reason 2' },
+  previousEmployer3:   { sensitivity: 'low',  category: 'experience', label: 'Previous Employer 3' },
+  previousDesignation3:{ sensitivity: 'low',  category: 'experience', label: 'Previous Designation 3' },
+  previousDuration3:   { sensitivity: 'low',  category: 'experience', label: 'Previous Duration 3' },
+  previousReason3:     { sensitivity: 'low',  category: 'experience', label: 'Previous Reason 3' },
+  totalExperience:     { sensitivity: 'low',  category: 'experience', label: 'Total Experience' },
+
   // Restricted (never editable by employee)
   email:               { sensitivity: 'restricted', category: 'system', label: 'Official Email' },
   employeeId:          { sensitivity: 'restricted', category: 'system', label: 'Employee ID' },
