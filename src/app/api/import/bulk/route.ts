@@ -198,56 +198,26 @@ async function processEmployeeRow(
     return { error: `Missing required fields: employeeId="${employeeId}", firstName="${firstName}", lastName="${lastName}", email="${email}"` };
   }
 
-  // Look up department
+  // Look up department — simplified, no company filter
   let departmentId: string | undefined;
   const deptName = getStringVal(row, 'departmentName');
   if (deptName) {
-    departmentId = await findDepartmentByName(deptName, companyId) ?? undefined;
-  }
-  if (!departmentId) {
-    // BUG FIX: Search across ALL companies in the tenant using raw SQL.
     try {
-      if (deptName) {
-        const rows = await db.$queryRawUnsafe(
-          `SELECT d."id" FROM "Department" d
-           JOIN "Company" c ON d."companyId" = c."id"
-           JOIN "CompanyGroup" cg ON c."companyGroupId" = cg."id"
-           WHERE cg."tenantId" = $1 AND d."name" ILIKE $2 LIMIT 1`,
-          tenantId, deptName,
-        ) as any[];
-        if (rows?.length > 0) departmentId = rows[0].id;
-      }
-    } catch (e) { console.warn('[bulk-import] dept search by name failed:', e); }
-  }
-  if (!departmentId) {
-    // Try to find any department in the default company
-    try {
-      const firstDept = await db.department.findFirst({ where: { companyId } });
-      departmentId = firstDept?.id;
+      const dept = await db.department.findFirst({
+        where: { name: { equals: deptName, mode: 'insensitive' } },
+      });
+      departmentId = dept?.id;
     } catch { /* ignore */ }
   }
   if (!departmentId) {
-    // Last resort: find ANY department in the tenant via raw SQL
-    try {
-      const anyDept = await db.$queryRawUnsafe(
-        `SELECT d."id" FROM "Department" d
-         JOIN "Company" c ON d."companyId" = c."id"
-         JOIN "CompanyGroup" cg ON c."companyGroupId" = cg."id"
-         WHERE cg."tenantId" = $1 LIMIT 1`,
-        tenantId,
-      ) as any[];
-      if (anyDept?.length > 0) departmentId = anyDept[0].id;
-    } catch (e) { console.warn('[bulk-import] any-dept fallback failed:', e); }
-  }
-  if (!departmentId) {
-    // LAST RESORT: Find ANY department in the entire DB (no filters)
+    // Find ANY department (no filters)
     try {
       const anyDept = await db.department.findFirst();
       departmentId = anyDept?.id;
-    } catch (e) { console.warn('[bulk-import] last-resort dept lookup failed:', e); }
+    } catch { /* ignore */ }
   }
   if (!departmentId) {
-    return { error: `No department found. Ensure at least one department exists before importing employees.` };
+    return { error: `No department found. Create at least one department before importing employees.` };
   }
 
   // Look up designation
