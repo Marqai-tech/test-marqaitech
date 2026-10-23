@@ -187,7 +187,8 @@ async function findDesignationByTitle(title: string, departmentId?: string): Pro
 async function processEmployeeRow(
   row: Record<string, unknown>,
   tenantId: string,
-  companyId: string
+  companyId: string,
+  dbHandle: any
 ): Promise<{ data?: Record<string, unknown>; error?: string }> {
   const employeeId = getStringVal(row, 'employeeId');
   const firstName = getStringVal(row, 'firstName');
@@ -203,7 +204,7 @@ async function processEmployeeRow(
   const deptName = getStringVal(row, 'departmentName');
   if (deptName) {
     try {
-      const dept = await db.department.findFirst({
+      const dept = await dbHandle.department.findFirst({
         where: { name: { equals: deptName, mode: 'insensitive' } },
       });
       departmentId = dept?.id;
@@ -212,7 +213,7 @@ async function processEmployeeRow(
   if (!departmentId) {
     // Find ANY department (no filters)
     try {
-      const anyDept = await db.department.findFirst();
+      const anyDept = await dbHandle.department.findFirst();
       departmentId = anyDept?.id;
     } catch { /* ignore */ }
   }
@@ -228,7 +229,7 @@ async function processEmployeeRow(
   }
   if (!designationId) {
     // Try to find any designation in the department
-    const firstDesig = await db.designation.findFirst({ where: { departmentId } });
+    const firstDesig = await dbHandle.designation.findFirst({ where: { departmentId } });
     designationId = firstDesig?.id;
   }
   if (!designationId) {
@@ -332,7 +333,7 @@ async function processDesignationRow(
     departmentId = await findDepartmentByName(deptName, companyId) ?? undefined;
   }
   if (!departmentId) {
-    const firstDept = await db.department.findFirst({ where: { companyId } });
+    const firstDept = await dbHandle.department.findFirst({ where: { companyId } });
     departmentId = firstDept?.id;
   }
   if (!departmentId) {
@@ -562,7 +563,7 @@ export async function POST(req: NextRequest) {
 
         switch (importModule) {
           case 'employees':
-            result = await processEmployeeRow(row, tenantId, companyId!);
+            result = await processEmployeeRow(row, tenantId, companyId!, db);
             break;
           case 'departments':
             result = await processDepartmentRow(row, tenantId, companyId!);
