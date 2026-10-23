@@ -206,27 +206,25 @@ async function processEmployeeRow(
   }
   if (!departmentId) {
     // BUG FIX: Search across ALL companies in the tenant using raw SQL.
-    // The Prisma nested filter (company: { companyGroup: { tenantId } })
-    // may not work reliably with the multi-tenant DB setup.
     try {
-      const allCompanyDepts = await db.$queryRawUnsafe(
-        `SELECT d."id" FROM "Department" d
-         JOIN "Company" c ON d."companyId" = c."id"
-         JOIN "CompanyGroup" cg ON c."companyGroupId" = cg."id"
-         WHERE cg."tenantId" = $1
-         ${deptName ? `AND d."name" ILIKE $2` : ''}
-         LIMIT 1`,
-        deptName ? tenantId : tenantId,
-      ) as any[];
-      if (deptName && allCompanyDepts?.length > 0) {
-        departmentId = allCompanyDepts[0].id;
+      if (deptName) {
+        const rows = await db.$queryRawUnsafe(
+          `SELECT d."id" FROM "Department" d
+           JOIN "Company" c ON d."companyId" = c."id"
+           JOIN "CompanyGroup" cg ON c."companyGroupId" = cg."id"
+           WHERE cg."tenantId" = $1 AND d."name" ILIKE $2 LIMIT 1`,
+          tenantId, deptName,
+        ) as any[];
+        if (rows?.length > 0) departmentId = rows[0].id;
       }
-    } catch { /* fall through to next attempt */ }
+    } catch (e) { console.warn('[bulk-import] dept search by name failed:', e); }
   }
   if (!departmentId) {
     // Try to find any department in the default company
-    const firstDept = await db.department.findFirst({ where: { companyId } }).catch(() => null);
-    departmentId = firstDept?.id;
+    try {
+      const firstDept = await db.department.findFirst({ where: { companyId } });
+      departmentId = firstDept?.id;
+    } catch { /* ignore */ }
   }
   if (!departmentId) {
     // Last resort: find ANY department in the tenant via raw SQL
@@ -239,7 +237,7 @@ async function processEmployeeRow(
         tenantId,
       ) as any[];
       if (anyDept?.length > 0) departmentId = anyDept[0].id;
-    } catch { /* give up */ }
+    } catch (e) { console.warn('[bulk-import] any-dept fallback failed:', e); }
   }
   if (!departmentId) {
     return { error: `No department found for company. Specify a valid departmentName.` };
