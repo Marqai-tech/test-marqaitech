@@ -176,7 +176,11 @@ export async function applyEmployeeFieldChange(
     oldValue = String((emp as Record<string, unknown>)[fieldName] ?? '');
   }
   if (oldValue === String(opts.newValue)) {
-    return { ok: false, status: 400, error: 'The new value is the same as the current value.', applied: false };
+    // BUG FIX: Don't return an error for unchanged fields. The employee
+    // edit form sends ALL fields (changed + unchanged) in one request.
+    // Returning an error here floods the UI with "same value" messages.
+    // Instead, return ok:true with applied:false (no-op success).
+    return { ok: true, status: 200, error: null, applied: false };
   }
 
   const cleanReason = sanitizeMultiLineText(opts.reason, 500);
