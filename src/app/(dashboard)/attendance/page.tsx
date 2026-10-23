@@ -1207,8 +1207,6 @@ export default function AttendancePage() {
               </button>
             </>
           )}
-          </>
-          )}
           {/* GPS status indicator while capturing */}
           {gpsStatus && (
             <span className="inline-flex items-center gap-1.5 px-3 py-2 text-xs text-slate-500">
