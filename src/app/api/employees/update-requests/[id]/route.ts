@@ -167,9 +167,16 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       // Apply the change
       try {
         const newValue = updateRequest.newValue;
-        // Handle JSON-encoded values
+        // Handle JSON-encoded values — but only if the string starts with
+        // '{' or '[' (i.e. it's actually a JSON object/array). A plain string
+        // like "9999999999" would be parsed to a number by JSON.parse, which
+        // then fails when Prisma tries to save it to a String? column.
+        // This was the root cause of the "apply_failed" bug for high-sensitivity
+        // fields like bankAccountNo, panNumber, etc.
         let parsedValue: unknown = newValue;
-        try { parsedValue = JSON.parse(newValue); } catch { /* keep as string */ }
+        if (newValue && (newValue.startsWith('{') || newValue.startsWith('['))) {
+          try { parsedValue = JSON.parse(newValue); } catch { /* keep as string */ }
+        }
 
         await db.employee.update({
           where: { id: updateRequest.employeeId },
