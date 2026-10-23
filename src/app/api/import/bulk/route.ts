@@ -240,7 +240,14 @@ async function processEmployeeRow(
     } catch (e) { console.warn('[bulk-import] any-dept fallback failed:', e); }
   }
   if (!departmentId) {
-    return { error: `No department found for company. Specify a valid departmentName.` };
+    // LAST RESORT: Find ANY department in the entire DB (no filters)
+    try {
+      const anyDept = await db.department.findFirst();
+      departmentId = anyDept?.id;
+    } catch (e) { console.warn('[bulk-import] last-resort dept lookup failed:', e); }
+  }
+  if (!departmentId) {
+    return { error: `No department found. Ensure at least one department exists before importing employees.` };
   }
 
   // Look up designation
