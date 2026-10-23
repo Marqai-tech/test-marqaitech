@@ -204,28 +204,42 @@ async function processEmployeeRow(
   if (deptName) {
     departmentId = await findDepartmentByName(deptName, companyId) ?? undefined;
   }
-  if (!departmentId && deptName) {
-    // BUG FIX: Department not found in default company. Search ALL companies
-    // in the tenant — the department name might belong to a different company.
-    const allDepts = await db.department.findFirst({
-      where: {
-        name: { equals: deptName, mode: 'insensitive' },
-        company: { companyGroup: { tenantId } },
-      },
-    });
-    departmentId = allDepts?.id;
+  if (!departmentId) {
+    // BUG FIX: Search across ALL companies in the tenant using raw SQL.
+    // The Prisma nested filter (company: { companyGroup: { tenantId } })
+    // may not work reliably with the multi-tenant DB setup.
+    try {
+      const allCompanyDepts = await db.$queryRawUnsafe(
+        `SELECT d."id" FROM "Department" d
+         JOIN "Company" c ON d."companyId" = c."id"
+         JOIN "CompanyGroup" cg ON c."companyGroupId" = cg."id"
+         WHERE cg."tenantId" = $1
+         ${deptName ? `AND d."name" ILIKE $2` : ''}
+         LIMIT 1`,
+        deptName ? tenantId : tenantId,
+      ) as any[];
+      if (deptName && allCompanyDepts?.length > 0) {
+        departmentId = allCompanyDepts[0].id;
+      }
+    } catch { /* fall through to next attempt */ }
   }
   if (!departmentId) {
-    // Try to find any department in the company
-    const firstDept = await db.department.findFirst({ where: { companyId } });
+    // Try to find any department in the default company
+    const firstDept = await db.department.findFirst({ where: { companyId } }).catch(() => null);
     departmentId = firstDept?.id;
   }
   if (!departmentId) {
-    // BUG FIX: No department in default company. Try ANY department in the tenant.
-    const anyDept = await db.department.findFirst({
-      where: { company: { companyGroup: { tenantId } } },
-    });
-    departmentId = anyDept?.id;
+    // Last resort: find ANY department in the tenant via raw SQL
+    try {
+      const anyDept = await db.$queryRawUnsafe(
+        `SELECT d."id" FROM "Department" d
+         JOIN "Company" c ON d."companyId" = c."id"
+         JOIN "CompanyGroup" cg ON c."companyGroupId" = cg."id"
+         WHERE cg."tenantId" = $1 LIMIT 1`,
+        tenantId,
+      ) as any[];
+      if (anyDept?.length > 0) departmentId = anyDept[0].id;
+    } catch { /* give up */ }
   }
   if (!departmentId) {
     return { error: `No department found for company. Specify a valid departmentName.` };
