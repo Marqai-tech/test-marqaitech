@@ -146,7 +146,7 @@ function getStatusConfig(status: string) {
     // "Present (Late)" — user request: checked in after shift start is still a
     // present day, flagged with the lateness ("Late by 42 mins" shown separately)
     late: { label: 'Present (Late)', dotColor: 'bg-amber-500', bgColor: 'bg-amber-50', textColor: 'text-amber-700' },
-    on_leave: { label: 'On Leave', dotColor: 'bg-green-500', bgColor: 'bg-green-50', textColor: 'text-green-700' },
+    on_leave: { label: 'On Leave', dotColor: 'bg-violet-500', bgColor: 'bg-violet-50', textColor: 'text-violet-700' },
     half_day: { label: 'Half Day', dotColor: 'bg-teal-500', bgColor: 'bg-teal-50', textColor: 'text-teal-700' },
     holiday: { label: 'Holiday', dotColor: 'bg-sky-500', bgColor: 'bg-sky-50', textColor: 'text-sky-700' },
     weekend: { label: 'Weekend', dotColor: 'bg-slate-400', bgColor: 'bg-slate-50', textColor: 'text-slate-600' },
@@ -165,7 +165,7 @@ function getDayStatusColor(status: string) {
     // different from leave (green) in the calendar
     holiday: 'bg-sky-400 text-white',
     weekend: 'bg-slate-200 text-slate-500',
-    on_leave: 'bg-green-400 text-white',
+    on_leave: 'bg-violet-500 text-white',
   };
   return map[status] || 'bg-slate-100 text-slate-400';
 }
@@ -1077,11 +1077,16 @@ export default function AttendancePage() {
             {seeding ? 'Seeding...' : 'Seed Sample Data'}
           </button>
           )}
-          {/* Check In / Out buttons — Check-In disabled when biometric-only mode */}
+          {/* Check In / Out buttons — only shown for employees with approved
+              WFH (or when permission flags are unknown — server still enforces).
+              Office employees use the biometric device, so the app buttons are
+              hidden entirely to avoid confusion. */}
+          {(!webCheckInLocked || isAdmin) && (
+          <>
           <button
             onClick={handleCheckIn}
             disabled={checkingIn || isCheckedIn || appCheckinDisabled}
-            title={appCheckinDisabled ? 'Check-in via biometric device only' : ''}
+            title={appCheckinDisabled ? 'Check-in via biometric device only' : (!webCheckInLocked ? 'Check-in enabled (WFH approved)' : '')}
             className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all ${
               appCheckinDisabled
                 ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
@@ -1108,6 +1113,14 @@ export default function AttendancePage() {
             <FiLogOut className="w-4 h-4" />
             {checkingOut ? 'Checking...' : isCheckedOut ? '✓ Checked Out' : appCheckoutDisabled ? 'Biometric Only' : 'Check Out'}
           </button>
+          </>
+          )}
+          {webCheckInLocked && !isAdmin && (
+            <div className="inline-flex items-center gap-2 px-3 py-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg">
+              <FiInfo className="w-3.5 h-3.5" />
+              <span>Office employees: use the biometric device to check in/out. Apply for WFH to enable app punches.</span>
+            </div>
+          )}
           <label className="inline-flex items-center gap-2 px-3 py-2 text-xs text-slate-700 border border-slate-200 rounded-lg bg-white">
             <input type="checkbox" checked={earlyLogoutEnabled} disabled={!isCheckedIn || isCheckedOut || earlyLogoutEnabled} onChange={e => handleEarlyLogout(e.target.checked)} />
             Half-Day Leave / Early Checkout
@@ -1359,7 +1372,9 @@ export default function AttendancePage() {
                     <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Status</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Check In</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Check Out</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Break</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Break-In</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Break-Out</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Break Dur.</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Late By</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Prod. Hours</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-thb-text-secondary uppercase tracking-wider">Actions</th>
@@ -1373,6 +1388,8 @@ export default function AttendancePage() {
                         <td className="px-4 py-3"><div className="h-5 w-16 bg-slate-200 rounded-full" /></td>
                         <td className="px-4 py-3"><div className="h-3 w-14 bg-slate-200 rounded" /></td>
                         <td className="px-4 py-3"><div className="h-3 w-14 bg-slate-200 rounded" /></td>
+                        <td className="px-4 py-3"><div className="h-3 w-12 bg-slate-200 rounded" /></td>
+                        <td className="px-4 py-3"><div className="h-3 w-12 bg-slate-200 rounded" /></td>
                         <td className="px-4 py-3"><div className="h-3 w-10 bg-slate-200 rounded" /></td>
                         <td className="px-4 py-3"><div className="h-3 w-10 bg-slate-200 rounded" /></td>
                         <td className="px-4 py-3"><div className="h-3 w-10 bg-slate-200 rounded" /></td>
@@ -1381,7 +1398,7 @@ export default function AttendancePage() {
                     ))
                   ) : filteredRoster.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="px-4 py-16 text-center">
+                      <td colSpan={10} className="px-4 py-16 text-center">
                         <FiUsers className="w-12 h-12 text-thb-text-muted mx-auto mb-3" />
                         <p className="text-thb-text-secondary font-medium">No employees match the current filters</p>
                         <p className="text-sm text-thb-text-muted mt-1">No active employees found for {formattedSelectedDate}</p>
@@ -1425,7 +1442,11 @@ export default function AttendancePage() {
                           <td className="px-4 py-3 text-sm text-thb-text-secondary">{a ? formatTime(a.checkIn) : '—'}</td>
                           {/* Check Out */}
                           <td className="px-4 py-3 text-sm text-thb-text-secondary">{a ? formatTime(a.checkOut) : '—'}</td>
-                          {/* Break */}
+                          {/* Break-In */}
+                          <td className="px-4 py-3 text-sm text-thb-text-secondary">{a && a.breakIn ? formatTime(a.breakIn) : '—'}</td>
+                          {/* Break-Out */}
+                          <td className="px-4 py-3 text-sm text-thb-text-secondary">{a && a.breakOut ? formatTime(a.breakOut) : '—'}</td>
+                          {/* Break Duration */}
                           <td className="px-4 py-3 text-sm text-thb-text-secondary">{breakDur}</td>
                           {/* Late By */}
                           <td className="px-4 py-3">
@@ -1651,7 +1672,7 @@ export default function AttendancePage() {
                     { label: 'Present (Late)', color: 'bg-orange-400' },
                     { label: 'Absent', color: 'bg-red-500' },
                     { label: 'Half Day', color: 'bg-amber-400' },
-                    { label: 'On Leave', color: 'bg-green-400' },
+                    { label: 'On Leave', color: 'bg-violet-500' },
                     { label: 'Holiday', color: 'bg-sky-400' },
                     { label: 'Weekend', color: 'bg-slate-200' },
                   ].map(l => (
@@ -1823,11 +1844,71 @@ export default function AttendancePage() {
               <DetailField label="Status" value={getStatusConfig(detailRecord.status).label} />
               <DetailField label="Check In" value={formatTime(detailRecord.checkIn)} />
               <DetailField label="Check Out" value={formatTime(detailRecord.checkOut)} />
+              <DetailField label="Break-In" value={formatTime(detailRecord.breakIn)} />
+              <DetailField label="Break-Out" value={formatTime(detailRecord.breakOut)} />
+              <DetailField label="Break Duration" value={detailRecord.breakMinutes != null ? formatBreakMinutes(detailRecord.breakMinutes) : calculateBreakDuration(detailRecord.checkIn, detailRecord.checkOut, detailRecord.workHours, detailRecord.breakIn, detailRecord.breakOut, breakPolicy)} />
               <DetailField label="Work Hours" value={formatHoursHm(detailRecord.workHours)} />
               <DetailField label="Overtime" value={detailRecord.overtime != null && detailRecord.overtime > 0 ? formatHoursHm(detailRecord.overtime) : '—'} />
-              <DetailField label="Late By" value={calculateLateBy(detailRecord.checkIn, shiftStartMinutes) !== '0m' ? `Late by ${calculateLateBy(detailRecord.checkIn, shiftStartMinutes)}` : 'On time'} />
-              <DetailField label="Break" value={detailRecord.breakMinutes != null ? formatBreakMinutes(detailRecord.breakMinutes) : calculateBreakDuration(detailRecord.checkIn, detailRecord.checkOut, detailRecord.workHours, detailRecord.breakIn, detailRecord.breakOut, breakPolicy)} />
+              <DetailField label="Late By" value={calculateLateBy(detailRecord.checkIn, shiftStartMinutes) !== '0m' ? calculateLateBy(detailRecord.checkIn, shiftStartMinutes) : 'On time'} />
             </div>
+
+            {/* HD (Half-Day) Detail Card — shown only when status is half_day.
+                Mirrors the PL (Present Late) detail card pattern. Shows the
+                reason the day was marked half-day: 4th late check-in, low
+                production hours (< 8h), or manual HR action. */}
+            {detailRecord.status === 'half_day' && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-full bg-amber-500 text-white flex items-center justify-center text-xs font-bold">HD</div>
+                    <h4 className="text-sm font-semibold text-amber-900">Half-Day Detail</h4>
+                  </div>
+                  <span className="text-[10px] uppercase tracking-wide font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">Half Day</span>
+                </div>
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div>
+                    <p className="text-amber-700 font-medium">Login Time</p>
+                    <p className="text-amber-900 font-semibold mt-0.5">{formatTime(detailRecord.checkIn) || '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-amber-700 font-medium">Late By</p>
+                    <p className="text-amber-900 font-semibold mt-0.5">
+                      {calculateLateBy(detailRecord.checkIn, shiftStartMinutes) !== '0m'
+                        ? calculateLateBy(detailRecord.checkIn, shiftStartMinutes)
+                        : 'On time'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-amber-700 font-medium">Production Hours</p>
+                    <p className="text-amber-900 font-semibold mt-0.5">
+                      {detailRecord.workHours != null ? formatHoursHm(detailRecord.workHours) : '—'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-amber-700 font-medium">Required</p>
+                    <p className="text-amber-900 font-semibold mt-0.5">8h 00m</p>
+                  </div>
+                </div>
+                <div className="border-t border-amber-200 pt-2">
+                  <p className="text-[10px] uppercase tracking-wide text-amber-700 font-bold mb-1">Reason</p>
+                  <p className="text-xs text-amber-900">
+                    {detailRecord.notes && detailRecord.notes.includes('Late-mark allowance')
+                      ? '4th late check-in this month — automatically marked Half-Day per late-mark policy.'
+                      : detailRecord.workHours != null && detailRecord.workHours < 8
+                      ? `Shortfall in production hours — worked ${formatHoursHm(detailRecord.workHours)} vs required 8h. Apply for regularization for full-day correction.`
+                      : detailRecord.notes
+                      ? detailRecord.notes
+                      : 'Marked as Half-Day per company policy.'}
+                  </p>
+                </div>
+                {detailRecord.workHours != null && detailRecord.workHours < 8 && (
+                  <div className="border-t border-amber-200 pt-2">
+                    <p className="text-[10px] uppercase tracking-wide text-amber-700 font-bold mb-1">Action Required</p>
+                    <p className="text-xs text-amber-900">Submit attendance regularization for HR approval to correct this half-day to a full day.</p>
+                  </div>
+                )}
+              </div>
+            )}
 
             {detailRecord.location && (
               <div className="flex items-center gap-2 text-sm text-thb-text-secondary p-2 rounded-lg bg-slate-50">
