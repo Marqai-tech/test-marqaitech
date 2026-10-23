@@ -241,6 +241,256 @@ const defaultCustomFields: CustomField[] = [
   { id: 'cf_10', name: 'aadhaar_number', label: 'Aadhaar Number', type: 'text', section: 'compensation', required: false, isActive: true },
 ]
 
+/* ── Lifecycle Workflow Rules — structured editor schemas ──
+ *
+ * Previously each lifecycle config (transfer / resignation / termination /
+ * rejoin / onboarding) was edited via a raw-JSON <textarea>. That made the
+ * UI look like `{"enabled":true,"defaultTransferType":"permanent",...}` and
+ * forced admins to hand-write JSON, which was both confusing and error-
+ * prone (a single bad character would break the corresponding API route).
+ *
+ * These schemas drive a structured editor (`LifecycleConfigEditor`) that
+ * renders real form controls — toggles, selects, number inputs and role-
+ * picker chips — and only serializes back to JSON when saving. The
+ * underlying storage format is unchanged, so the existing transfer /
+ * resignation / termination APIs continue to read the same JSON value.
+ */
+type LifecycleFieldType = 'toggle' | 'number' | 'select' | 'roleList'
+
+interface LifecycleFieldDef {
+  key: string
+  label: string
+  type: LifecycleFieldType
+  options?: { value: string; label: string }[]
+  min?: number
+  max?: number
+  description?: string
+}
+
+interface LifecycleConfigSchema {
+  key: string
+  title: string
+  description: string
+  fields: LifecycleFieldDef[]
+}
+
+const ROLE_OPTIONS: { value: string; label: string }[] = [
+  { value: 'super_admin', label: 'Super Admin' },
+  { value: 'tenant_admin', label: 'Tenant Admin' },
+  { value: 'admin', label: 'Admin' },
+  { value: 'hr_admin', label: 'HR Admin' },
+  { value: 'company_hr_admin', label: 'Company HR Admin' },
+  { value: 'hrhead', label: 'HR Head' },
+  { value: 'manager', label: 'Reporting Manager' },
+  { value: 'employee', label: 'Employee' },
+]
+
+const LIFECYCLE_SCHEMAS: LifecycleConfigSchema[] = [
+  {
+    key: 'employee_transfer_config',
+    title: 'Transfer Workflow',
+    description: 'When an employee is moved between departments, designations or locations.',
+    fields: [
+      { key: 'enabled', label: 'Allow Transfer Requests', type: 'toggle', description: 'Enable the transfer workflow so HR/managers can initiate transfers.' },
+      { key: 'defaultTransferType', label: 'Default Transfer Type', type: 'select', options: [
+        { value: 'permanent', label: 'Permanent' },
+        { value: 'temporary', label: 'Temporary' },
+        { value: 'project', label: 'Project-based' },
+      ]},
+      { key: 'approvalRoles', label: 'Approver Roles', type: 'roleList', description: 'Users with any of these roles can approve transfer requests.' },
+      { key: 'notifyReportingManager', label: 'Notify Reporting Manager', type: 'toggle', description: 'Send a notification to the employee\'s reporting manager when a transfer is requested.' },
+    ],
+  },
+  {
+    key: 'employee_resignation_config',
+    title: 'Resignation Workflow',
+    description: 'When an employee submits their resignation and goes through the notice period.',
+    fields: [
+      { key: 'enabled', label: 'Allow Resignation Requests', type: 'toggle', description: 'Enable the resignation workflow so employees can submit resignations.' },
+      { key: 'defaultNoticePeriodDays', label: 'Default Notice Period (days)', type: 'number', min: 0, max: 365, description: 'Default notice period in days — overridable per request.' },
+      { key: 'approvalRoles', label: 'Approver Roles', type: 'roleList', description: 'Users with any of these roles can approve resignations.' },
+      { key: 'notifyReportingManager', label: 'Notify Reporting Manager', type: 'toggle', description: 'Send a notification to the employee\'s reporting manager when a resignation is filed.' },
+    ],
+  },
+  {
+    key: 'employee_termination_config',
+    title: 'Termination Workflow',
+    description: 'When an employee is terminated — access control, final settlement and notifications.',
+    fields: [
+      { key: 'enabled', label: 'Allow Termination', type: 'toggle', description: 'Enable the termination workflow.' },
+      { key: 'allowedRoles', label: 'Allowed Initiator Roles', type: 'roleList', description: 'Only users with these roles can initiate a termination.' },
+      { key: 'finalStatus', label: 'Final Employee Status', type: 'select', options: [
+        { value: 'terminated', label: 'Terminated' },
+        { value: 'inactive', label: 'Inactive' },
+        { value: 'suspended', label: 'Suspended' },
+      ]},
+      { key: 'deactivateAccount', label: 'Deactivate Login Account', type: 'toggle', description: 'Automatically disable the employee\'s login account on termination.' },
+      { key: 'finalSettlementRequired', label: 'Final Settlement Required', type: 'toggle', description: 'Require a final settlement before the termination is finalized.' },
+      { key: 'notificationRoles', label: 'Notification Roles', type: 'roleList', description: 'Users with these roles receive a notification when a termination is processed.' },
+      { key: 'notifyReportingManager', label: 'Notify Reporting Manager', type: 'toggle' },
+    ],
+  },
+  {
+    key: 'employee_rejoin_config',
+    title: 'Rejoin Workflow',
+    description: 'When a former employee rejoins the organization.',
+    fields: [
+      { key: 'enabled', label: 'Allow Rejoin Requests', type: 'toggle', description: 'Enable the rejoin workflow so HR can re-onboard former employees.' },
+      { key: 'allowedRoles', label: 'Allowed Initiator Roles', type: 'roleList', description: 'Only users with these roles can initiate a rejoin.' },
+      { key: 'finalStatus', label: 'Final Employee Status', type: 'select', options: [
+        { value: 'active', label: 'Active' },
+        { value: 'probation', label: 'Probation' },
+      ]},
+      { key: 'reactivateAccount', label: 'Reactivate Login Account', type: 'toggle', description: 'Automatically restore the employee\'s login account on rejoin.' },
+    ],
+  },
+  {
+    key: 'employee_onboarding_config',
+    title: 'Onboarding Configuration',
+    description: 'Defaults applied when a new employee is onboarded.',
+    fields: [
+      { key: 'autoCreateProbationReview', label: 'Auto-create Probation Review', type: 'toggle', description: 'Automatically schedule a probation review task when onboarding a new employee.' },
+      { key: 'defaultProbationMonths', label: 'Default Probation (months)', type: 'number', min: 0, max: 24, description: 'Default probation duration for new hires.' },
+      { key: 'initialProbationStatus', label: 'Initial Probation Status', type: 'select', options: [
+        { value: 'pending', label: 'Pending' },
+        { value: 'active', label: 'Active' },
+        { value: 'probation', label: 'Probation' },
+      ]},
+    ],
+  },
+]
+
+/** Structured editor for a single lifecycle config. Replaces the previous
+ * raw-JSON <textarea> with proper form controls (toggles, selects, number
+ * inputs and role-picker chips). Storage format is unchanged — the value
+ * is still a JSON string in governance settings. */
+function LifecycleConfigEditor({ schema, value, editing, onChange }: {
+  schema: LifecycleConfigSchema
+  value: string
+  editing: boolean
+  onChange: (json: string) => void
+}) {
+  // Parse the JSON value safely — fall back to an empty object so the
+  // editor still renders even if the stored value is corrupt.
+  let config: Record<string, unknown> = {}
+  try {
+    if (value && value.trim()) config = JSON.parse(value) as Record<string, unknown>
+  } catch { config = {} }
+
+  const updateField = (key: string, val: unknown) => {
+    const next = { ...config, [key]: val }
+    onChange(JSON.stringify(next))
+  }
+
+  return (
+    <div className="rounded-lg border border-thb-border p-4 space-y-3 bg-slate-50/30">
+      <div>
+        <p className="text-sm font-semibold text-thb-text-primary">{schema.title}</p>
+        {schema.description && <p className="text-xs text-thb-text-muted mt-0.5">{schema.description}</p>}
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {schema.fields.map(field => {
+          const fieldValue = config[field.key]
+
+          if (field.type === 'toggle') {
+            const bool = fieldValue === true
+            return (
+              <div key={field.key} className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg border border-thb-border bg-white">
+                <div className="min-w-0">
+                  <p className="text-xs font-medium text-thb-text-primary">{field.label}</p>
+                  {field.description && <p className="text-[10px] text-thb-text-muted mt-0.5">{field.description}</p>}
+                </div>
+                <button
+                  type="button"
+                  disabled={!editing}
+                  onClick={() => updateField(field.key, !bool)}
+                  className={`shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium border transition-colors ${
+                    bool ? 'bg-teal-50 text-teal-700 border-teal-200' : 'bg-slate-50 text-slate-500 border-slate-200'
+                  } ${!editing ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'}`}
+                >
+                  {bool ? <FiToggleRight className="w-3.5 h-3.5" /> : <FiToggleLeft className="w-3.5 h-3.5" />}
+                  {bool ? 'Enabled' : 'Disabled'}
+                </button>
+              </div>
+            )
+          }
+
+          if (field.type === 'select') {
+            return (
+              <div key={field.key}>
+                <label className="block text-xs font-medium text-thb-text-primary mb-1">{field.label}</label>
+                <select
+                  value={String(fieldValue ?? '')}
+                  disabled={!editing}
+                  onChange={e => updateField(field.key, e.target.value)}
+                  className="w-full px-2.5 py-1.5 rounded-lg border border-thb-border text-xs bg-white disabled:bg-slate-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-teal-500/20"
+                >
+                  <option value="">Select…</option>
+                  {field.options?.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+                {field.description && <p className="text-[10px] text-thb-text-muted mt-1">{field.description}</p>}
+              </div>
+            )
+          }
+
+          if (field.type === 'number') {
+            return (
+              <div key={field.key}>
+                <label className="block text-xs font-medium text-thb-text-primary mb-1">{field.label}</label>
+                <input
+                  type="number"
+                  value={typeof fieldValue === 'number' ? String(fieldValue) : (fieldValue != null ? String(fieldValue) : '')}
+                  disabled={!editing}
+                  min={field.min}
+                  max={field.max}
+                  onChange={e => updateField(field.key, e.target.value === '' ? '' : Number(e.target.value))}
+                  className="w-full px-2.5 py-1.5 rounded-lg border border-thb-border text-xs bg-white disabled:bg-slate-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-teal-500/20"
+                />
+                {field.description && <p className="text-[10px] text-thb-text-muted mt-1">{field.description}</p>}
+              </div>
+            )
+          }
+
+          if (field.type === 'roleList') {
+            const selected = Array.isArray(fieldValue) ? fieldValue as string[] : []
+            const toggleRole = (role: string) => {
+              const next = selected.includes(role) ? selected.filter(r => r !== role) : [...selected, role]
+              updateField(field.key, next)
+            }
+            return (
+              <div key={field.key} className="sm:col-span-2">
+                <label className="block text-xs font-medium text-thb-text-primary mb-1">{field.label}</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {ROLE_OPTIONS.map(role => {
+                    const isSelected = selected.includes(role.value)
+                    return (
+                      <button
+                        key={role.value}
+                        type="button"
+                        disabled={!editing}
+                        onClick={() => toggleRole(role.value)}
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium border transition-colors ${
+                          isSelected ? 'bg-teal-50 text-teal-700 border-teal-200' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
+                        } ${!editing ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'}`}
+                      >
+                        {isSelected ? <FiCheck className="w-3 h-3" /> : <FiPlus className="w-3 h-3 opacity-40" />}
+                        {role.label}
+                      </button>
+                    )
+                  })}
+                </div>
+                {field.description && <p className="text-[10px] text-thb-text-muted mt-1">{field.description}</p>}
+              </div>
+            )
+          }
+
+          return null
+        })}
+      </div>
+    </div>
+  )
+}
+
 export default function EmployeeSettingsPage() {
   const { user } = useAuthStore()
   const router = useRouter()
@@ -1082,14 +1332,23 @@ export default function EmployeeSettingsPage() {
         </a>
       </div>
 
-      {/* Lifecycle workflow settings are kept here because transfer APIs read them
-          from governance settings. Keep this visible on the page so admins can
-          enable and configure transfers without editing the database. */}
-      <div className="thb-card p-5 space-y-3">
+      {/* Lifecycle Workflow Rules — structured editor
+          Previously this section rendered a single raw-JSON <textarea> for
+          `employee_transfer_config`, which looked like
+          `{"enabled":true,"defaultTransferType":"permanent",...}` and was
+          confusing for admins. We now render a proper form for each of the
+          five lifecycle configs (transfer / resignation / termination /
+          rejoin / onboarding) using the LifecycleConfigEditor component
+          defined above. Storage format is unchanged — values are still
+          persisted as JSON strings in governance settings, so the
+          existing transfer / resignation / termination APIs need no
+          changes. The `employee_field_rules` config remains an advanced
+          JSON map and is intentionally not exposed on this page. */}
+      <div className="thb-card p-5 space-y-4">
         <div className="flex items-start justify-between gap-3">
           <div>
             <h2 className="text-sm font-semibold text-thb-text-primary">Lifecycle Workflow Rules</h2>
-            <p className="text-xs text-thb-text-secondary mt-1">Transfer, resignation and termination routing. Values are saved per tenant.</p>
+            <p className="text-xs text-thb-text-secondary mt-1">Transfer, resignation, termination, rejoin and onboarding routing. Values are saved per tenant and applied immediately by the lifecycle APIs.</p>
           </div>
           {editingSection === 'Lifecycle Workflow Rules' ? (
             <div className="flex gap-2">
@@ -1100,27 +1359,31 @@ export default function EmployeeSettingsPage() {
             <button onClick={() => handleStartEdit('Lifecycle Workflow Rules')} className="px-3 py-1.5 text-xs rounded-lg border border-teal-200 text-teal-700">Edit</button>
           )}
         </div>
-        {(() => {
-          const field = employeeSettingSections.find(s => s.title === 'Lifecycle Workflow Rules')?.fields.find(f => f.key === 'employee_transfer_config')
-          if (!field) return null
-          const editing = editingSection === 'Lifecycle Workflow Rules'
-          const value = editing
-            ? (editDrafts['Lifecycle Workflow Rules']?.[field.key] ?? getSettingValue(field.key, [field], empSettings))
-            : getSettingValue(field.key, [field], empSettings)
-          return (
-            <div>
-              <label className="block text-xs font-medium text-thb-text-primary mb-1">{field.label}</label>
-              <textarea
+        {editingSection === 'Lifecycle Workflow Rules' && (
+          <p className="text-[11px] text-thb-text-muted bg-teal-50/60 border border-teal-100 rounded-lg px-3 py-2">
+            You are now editing lifecycle workflow rules. Toggle switches, change approver roles and update notice periods below, then click <span className="font-semibold text-teal-700">Save</span> to persist changes. The lifecycle APIs (transfer, resignation, termination, rejoin, onboarding) read these values from the database.
+          </p>
+        )}
+        <div className="space-y-3">
+          {LIFECYCLE_SCHEMAS.map(schema => {
+            const editing = editingSection === 'Lifecycle Workflow Rules'
+            // Look up the matching field in employeeSettingSections so we
+            // get the correct default JSON value when no setting is stored.
+            const sectionFields = employeeSettingSections.find(s => s.title === 'Lifecycle Workflow Rules')?.fields ?? []
+            const value = editing
+              ? (editDrafts['Lifecycle Workflow Rules']?.[schema.key] ?? getSettingValue(schema.key, sectionFields, empSettings))
+              : getSettingValue(schema.key, sectionFields, empSettings)
+            return (
+              <LifecycleConfigEditor
+                key={schema.key}
+                schema={schema}
                 value={String(value)}
-                readOnly={!editing}
-                onChange={e => handleDraftChange('Lifecycle Workflow Rules', field.key, e.target.value)}
-                rows={5}
-                className="w-full rounded-lg border border-thb-border px-3 py-2 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-teal-500/20"
+                editing={editing}
+                onChange={json => handleDraftChange('Lifecycle Workflow Rules', schema.key, json)}
               />
-              <p className="text-xs text-thb-text-muted mt-1">Set <code>enabled</code> to <code>true</code> to allow transfer requests.</p>
-            </div>
-          )
-        })()}
+            )
+          })}
+        </div>
       </div>
 
       {/* Stats */}

@@ -31,6 +31,7 @@ import {
   FiCamera,
   FiPlus,
   FiDownload,
+  FiList,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
@@ -45,7 +46,7 @@ function getAuthHeaders() {
 /* ──────────────────────────────────────────────
    Tab definitions
    ────────────────────────────────────────────── */
-type ProfileTab = 'personal' | 'address' | 'employment' | 'bank' | 'emergency' | 'health' | 'policies' | 'documents' | 'experience';
+type ProfileTab = 'personal' | 'address' | 'employment' | 'bank' | 'emergency' | 'health' | 'policies' | 'documents' | 'experience' | 'custom';
 
 const profileTabs: { key: ProfileTab; label: string; icon: React.ReactNode }[] = [
   { key: 'personal', label: 'Personal', icon: <FiUser className="w-4 h-4" /> },
@@ -57,7 +58,37 @@ const profileTabs: { key: ProfileTab; label: string; icon: React.ReactNode }[] =
   { key: 'policies', label: 'Policies', icon: <FiFileText className="w-4 h-4" /> },
   { key: 'experience', label: 'Experience', icon: <FiStar className="w-4 h-4" /> },
   { key: 'documents', label: 'Documents', icon: <FiBookOpen className="w-4 h-4" /> },
+  { key: 'custom', label: 'Custom Fields', icon: <FiList className="w-4 h-4" /> },
 ];
+
+/* ──────────────────────────────────────────────
+   Custom Field definitions (mirrors the schema in /employees/settings →
+   Custom Fields tab). Custom fields are stored in localStorage under
+   '3boxes_hrms_custom_fields'. They are surfaced here as a dedicated tab
+   on the My Profile page so that fields created by HR/Tenant admins
+   actually show up on the employee's profile (previously they were
+   defined in Settings but never rendered anywhere on the profile).
+   ────────────────────────────────────────────── */
+interface CustomFieldDef {
+  id: string;
+  name: string;
+  label: string;
+  type: 'text' | 'number' | 'date' | 'select' | 'toggle' | 'textarea';
+  section: 'personal' | 'employment' | 'compensation' | 'custom';
+  required: boolean;
+  options?: string[];
+  isActive: boolean;
+}
+
+function loadCustomFieldDefs(): CustomFieldDef[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem('3boxes_hrms_custom_fields');
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as CustomFieldDef[];
+    return Array.isArray(parsed) ? parsed.filter(f => f && f.isActive) : [];
+  } catch { return []; }
+}
 
 const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 const FORM_DOC_CATEGORIES = [
@@ -200,6 +231,9 @@ export default function MyProfilePage() {
   const [documentsLoading, setDocumentsLoading] = useState(false);
   const [documentsLoadedFor, setDocumentsLoadedFor] = useState<string | null>(null);
   const [documentsError, setDocumentsError] = useState<string | null>(null);
+  // Custom field definitions — loaded from localStorage (the same key the
+  // HR/Tenant admin writes to from /employees/settings → Custom Fields).
+  const [customFieldDefs, setCustomFieldDefs] = useState<CustomFieldDef[]>([]);
 
   const fetchProfile = useCallback(async () => {
     try {
@@ -293,6 +327,12 @@ export default function MyProfilePage() {
   }, []);
 
   useEffect(() => { fetchProfile(); }, [fetchProfile]);
+
+  // Load custom field definitions from localStorage on mount, and re-load
+  // whenever the user switches to the Custom Fields tab (so newly-added
+  // fields by HR show up without a hard refresh).
+  useEffect(() => { setCustomFieldDefs(loadCustomFieldDefs()); }, []);
+  useEffect(() => { if (activeTab === 'custom') setCustomFieldDefs(loadCustomFieldDefs()); }, [activeTab]);
 
   const loadDocuments = useCallback(async (employeeId: string) => {
     if (!employeeId) return;
@@ -1259,6 +1299,109 @@ export default function MyProfilePage() {
                   <p className="text-xs text-thb-text-muted">{showFields ? 'Use the form above to add a document with type.' : 'Click Edit Profile to add documents.'}</p>
                 </div>
               </div>
+            )}
+          </div>
+        )}
+
+        {/* ─── Custom Fields Tab ───
+            Renders custom fields defined by HR/Tenant admins from
+            /employees/settings → Custom Fields. Values are read from the
+            employee record by `field.name` key. If a field has no value
+            yet, it shows an empty placeholder until the employee or admin
+            fills it in. */}
+        {activeTab === 'custom' && (
+          <div className="space-y-5">
+            {customFieldDefs.length === 0 ? (
+              <div className="thb-card overflow-hidden">
+                <div className="h-[3px] bg-gradient-to-r from-slate-400 to-slate-300" />
+                <div className="p-12 text-center">
+                  <div className="w-14 h-14 rounded-full bg-slate-50 flex items-center justify-center mx-auto mb-4">
+                    <FiList className="w-7 h-7 text-thb-text-muted" />
+                  </div>
+                  <h3 className="text-sm font-semibold text-thb-text-primary mb-1">No Custom Fields Configured</h3>
+                  <p className="text-xs text-thb-text-muted">
+                    Your HR admin has not added any custom fields yet. Fields created in
+                    {' '}
+                    <a href="/employees/settings" className="text-teal-600 hover:underline">Employee Settings → Custom Fields</a>
+                    {' '}will appear here.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <>
+                {/* Group fields by section so they render in the same
+                    grouping the HR admin sees on the settings page. */}
+                {(['personal', 'employment', 'compensation', 'custom'] as const).map(section => {
+                  const sectionFields = customFieldDefs.filter(f => f.section === section);
+                  if (sectionFields.length === 0) return null;
+                  const sectionLabel = { personal: 'Personal Information', employment: 'Employment Details', compensation: 'Compensation & Statutory', custom: 'Custom Fields' }[section];
+                  const sectionIcon = { personal: <FiUser className="w-4 h-4" />, employment: <FiBriefcase className="w-4 h-4" />, compensation: <FiDollarSign className="w-4 h-4" />, custom: <FiList className="w-4 h-4" /> }[section];
+                  return (
+                    <SectionCard key={section} title={sectionLabel} icon={sectionIcon} accent="blue">
+                      <div className="col-span-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {sectionFields.map(field => {
+                          // Pull the value from the employee record by field.name.
+                          // Falls back to whatever the user has typed in edit mode
+                          // (editForm[field.name]) so unsaved edits render correctly.
+                          const rawValue = isEditing
+                            ? (editForm[field.name] ?? (emp?.[field.name] != null ? String(emp[field.name]) : ''))
+                            : (emp?.[field.name] != null ? String(emp[field.name]) : '');
+                          const updateValue = (v: string) => setEditForm(prev => ({ ...prev, [field.name]: v }));
+                          return (
+                            <EditField key={field.id} label={`${field.label}${field.required ? ' *' : ''}`}>
+                              {field.type === 'textarea' ? (
+                                <textarea
+                                  value={rawValue}
+                                  onChange={e => updateValue(e.target.value)}
+                                  disabled={!isEditing}
+                                  rows={3}
+                                  className={fieldClass}
+                                  placeholder={isEditing ? `Enter ${field.label}` : '—'}
+                                />
+                              ) : field.type === 'select' ? (
+                                <select
+                                  value={rawValue}
+                                  onChange={e => updateValue(e.target.value)}
+                                  disabled={!isEditing}
+                                  className={fieldClass}
+                                >
+                                  <option value="">{isEditing ? 'Select…' : '—'}</option>
+                                  {(field.options || []).map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                </select>
+                              ) : field.type === 'toggle' ? (
+                                <label className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 text-sm cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    checked={rawValue === 'true' || rawValue === '1' || rawValue.toLowerCase() === 'yes'}
+                                    onChange={e => updateValue(e.target.checked ? 'true' : 'false')}
+                                    disabled={!isEditing}
+                                    className="rounded border-slate-300 text-green-500 focus:ring-green-500"
+                                  />
+                                  <span className="text-slate-700">{rawValue === 'true' || rawValue === '1' ? 'Yes' : 'No'}</span>
+                                </label>
+                              ) : (
+                                <input
+                                  type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'}
+                                  value={rawValue}
+                                  onChange={e => updateValue(e.target.value)}
+                                  disabled={!isEditing}
+                                  className={fieldClass}
+                                  placeholder={isEditing ? `Enter ${field.label}` : '—'}
+                                />
+                              )}
+                            </EditField>
+                          );
+                        })}
+                      </div>
+                    </SectionCard>
+                  );
+                })}
+                {!isEditing && (
+                  <p className="text-xs text-thb-text-muted text-center">
+                    Click <span className="font-medium text-thb-text-primary">Edit Profile</span> at the top of the page to update these fields.
+                  </p>
+                )}
+              </>
             )}
           </div>
         )}

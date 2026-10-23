@@ -116,7 +116,7 @@ function RequestCard({ r, canAct, onAct }: { r: UpdateRequest; canAct: boolean; 
   );
 }
 
-function NewRequestModal({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
+function NewRequestModal({ onClose, onDone, currentUser }: { onClose: () => void; onDone: () => void; currentUser: { role?: string; employee?: { id: string; employeeId?: string } | null; name?: string } | null }) {
   const [employees, setEmployees] = useState<Array<{ id: string; name: string; code: string }>>([]);
   const [employeeId, setEmployeeId] = useState('');
   const [field, setField] = useState('');
@@ -124,7 +124,25 @@ function NewRequestModal({ onClose, onDone }: { onClose: () => void; onDone: () 
   const [reason, setReason] = useState('');
   const [saving, setSaving] = useState(false);
 
+  // Role-based scoping:
+  //   - Regular employees (scope='self') should ONLY see their own record —
+  //     never their department colleagues. Previously the API returned
+  //     self + active colleagues in the same department, which confused
+  //     employees into thinking they could file change requests on behalf
+  //     of their teammates.
+  //   - Managers (scope='team') and admins (scope='all') keep the existing
+  //     behavior so they can file requests on behalf of their team.
+  const role = (currentUser?.role || '').toLowerCase();
+  const isSelfOnly = !['super_admin', 'tenant_admin', 'admin', 'hr_admin', 'company_hr_admin', 'hrhead', 'manager'].includes(role);
+  const myEmployeeId = currentUser?.employee?.id || '';
+
   useEffect(() => {
+    // For employees, skip the API call entirely — we already know who they
+    // are. This avoids any chance of the dropdown showing other people.
+    if (isSelfOnly) {
+      if (myEmployeeId) setEmployeeId(myEmployeeId);
+      return;
+    }
     (async () => {
       try {
         const res = await fetch('/api/employees?limit=500', { headers: getAuthHeaders() });
@@ -135,7 +153,7 @@ function NewRequestModal({ onClose, onDone }: { onClose: () => void; onDone: () 
         if (mapped.length === 1) setEmployeeId(mapped[0].id);
       } catch { /* ignore */ }
     })();
-  }, []);
+  }, [isSelfOnly, myEmployeeId]);
 
   const submit = async () => {
     if (!employeeId || !field || !newValue.trim()) { toast.error('Employee, field, and new value are required'); return; }
@@ -163,10 +181,21 @@ function NewRequestModal({ onClose, onDone }: { onClose: () => void; onDone: () 
         <div className="p-5 space-y-3">
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Employee *</label>
-            <select value={employeeId} onChange={(e) => setEmployeeId(e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm bg-white">
-              <option value="">Select employee…</option>
-              {employees.map((e) => <option key={e.id} value={e.id}>{e.name}{e.code ? ` · ${e.code}` : ''}</option>)}
-            </select>
+            {isSelfOnly ? (
+              // For regular employees, do NOT render the picker — they can
+              // only file change requests on their own profile. Showing a
+              // dropdown here was the original bug (it listed department
+              // colleagues returned by /api/employees?scope=self).
+              <div className="w-full px-3 py-2 border rounded-lg text-sm bg-slate-50 text-slate-700">
+                {currentUser?.name || 'You (self)'}
+                {myEmployeeId ? <span className="text-slate-400 ml-2">· self</span> : null}
+              </div>
+            ) : (
+              <select value={employeeId} onChange={(e) => setEmployeeId(e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+                <option value="">Select employee…</option>
+                {employees.map((e) => <option key={e.id} value={e.id}>{e.name}{e.code ? ` · ${e.code}` : ''}</option>)}
+              </select>
+            )}
           </div>
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Field *</label>
@@ -281,7 +310,7 @@ export default function UpdateRequestsPage() {
         </div>
       )}
 
-      {showNew && <NewRequestModal onClose={() => setShowNew(false)} onDone={() => { setShowNew(false); load(scope); }} />}
+      {showNew && <NewRequestModal onClose={() => setShowNew(false)} onDone={() => { setShowNew(false); load(scope); }} currentUser={user} />}
     </div>
   );
 }
