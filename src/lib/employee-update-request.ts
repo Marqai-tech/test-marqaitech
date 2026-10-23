@@ -160,9 +160,21 @@ export async function applyEmployeeFieldChange(
     return { ok: false, status: 403, error: `Field "${fieldConfig.label}" is restricted and cannot be changed via self-service.`, applied: false };
   }
 
-  const emp = await db.employee.findUnique({ where: { id: employeeId }, select: { [fieldName]: true } });
-  if (!emp) return { ok: false, status: 404, error: 'Employee not found', applied: false };
-  const oldValue = String((emp as Record<string, unknown>)[fieldName] ?? '');
+  // BUG FIX: Extra profile fields (pfNumber, esiNumber, etc.) are NOT in
+  // the Prisma schema. Using db.employee.findUnique with select fails.
+  // Use raw SQL for EXTRA_PROFILE_KEYS, Prisma for everything else.
+  let oldValue = '';
+  if (EXTRA_PROFILE_KEYS.includes(fieldName as any)) {
+    const rows = await (db as any).$queryRawUnsafe(
+      `SELECT "${fieldName}" FROM "Employee" WHERE "id" = $1 LIMIT 1`,
+      employeeId,
+    ) as Record<string, unknown>[];
+    oldValue = String(rows?.[0]?.[fieldName] ?? '');
+  } else {
+    const emp = await db.employee.findUnique({ where: { id: employeeId }, select: { [fieldName]: true } });
+    if (!emp) return { ok: false, status: 404, error: 'Employee not found', applied: false };
+    oldValue = String((emp as Record<string, unknown>)[fieldName] ?? '');
+  }
   if (oldValue === String(opts.newValue)) {
     return { ok: false, status: 400, error: 'The new value is the same as the current value.', applied: false };
   }
