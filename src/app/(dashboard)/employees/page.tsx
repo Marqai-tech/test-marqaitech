@@ -558,12 +558,13 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
     if (idx < formTabs.length - 1) setFormTab(formTabs[idx + 1].key);
   };
 
-  // Stats calculations
+  // Stats calculations — show '—' during initial load so the cards
+  // don't briefly flash to 0 when the page first renders (Bug 6 fix).
   const stats = {
-    total: listStats.total || pagination.total,
-    active: listStats.active,
-    inactive: listStats.inactive,
-    newJoiners: listStats.newJoiners,
+    total: loading ? '—' : (listStats.total || pagination.total),
+    active: loading ? '—' : listStats.active,
+    inactive: loading ? '—' : listStats.inactive,
+    newJoiners: loading ? '—' : listStats.newJoiners,
   };
 
   /* Close action menu on outside click */
@@ -1545,7 +1546,7 @@ export function EmployeesPageContent({ formOnly = false }: { formOnly?: boolean 
             </div>
           </div>
           <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-teal-50 text-teal-700">
-            <FiUserPlus className="w-3 h-3" /> +{stats.newJoiners > 0 ? stats.newJoiners : 0}
+            <FiUserPlus className="w-3 h-3" /> +{loading ? '—' : (stats.newJoiners > 0 ? stats.newJoiners : 0)}
           </span>
         </div>
 
