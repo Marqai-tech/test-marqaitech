@@ -37,6 +37,7 @@ import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { loggedInPhotoUrl, fileToProfilePhotoDataUrl, MAX_PROFILE_PHOTO_LABEL } from '@/lib/profile-photo';
 import { getToken } from '@/lib/token-storage';
+import { canEditEmployeeRecords } from '@/lib/roleAccess';
 
 function getAuthHeaders() {
   const token = getToken() || (typeof window !== 'undefined' ? useAuthStore.getState().token : null);
@@ -869,7 +870,19 @@ export default function MyProfilePage() {
                 label="Reporting Manager"
                 value={emp?.reportingManager ? `${str((emp.reportingManager as Record<string, unknown>).firstName)} ${str((emp.reportingManager as Record<string, unknown>).lastName)}`.trim() : 'Not assigned'}
                 icon={<FiUser className="w-3.5 h-3.5" />}
-                onClick={emp?.reportingManager && (emp.reportingManager as Record<string, unknown>).id ? () => router.push(`/employees/${String((emp.reportingManager as Record<string, unknown>).id)}`) : undefined}
+                // Only HR/admins can navigate to another employee's record by
+                // clicking the Reporting Manager field. Regular employees
+                // previously could click it, get redirected to /employees/{id},
+                // and bounce back to /my-profile because they don't have
+                // permission to view other employee detail pages — making it
+                // look like the page was "reloading to my profile".
+                // Reporting Manager is an HR-managed field; employees can
+                // view it here but cannot change it (only HR can).
+                onClick={
+                  canEditEmployeeRecords(user?.role) && emp?.reportingManager && (emp.reportingManager as Record<string, unknown>).id
+                    ? () => router.push(`/employees/${String((emp.reportingManager as Record<string, unknown>).id)}`)
+                    : undefined
+                }
               />
               <InfoRow label="Status" value={str(emp?.status) ? String(emp?.status).replace('_', ' ').charAt(0).toUpperCase() + String(emp?.status).replace('_', ' ').slice(1) : ''} icon={<FiCheckCircle className="w-3.5 h-3.5" />} />
               <InfoRow label="Department" value={str(emp?.department)} icon={<FiBriefcase className="w-3.5 h-3.5" />} />
